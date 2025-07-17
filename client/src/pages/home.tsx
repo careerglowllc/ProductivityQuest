@@ -349,11 +349,11 @@ export default function Home() {
               <div className="flex space-x-3">
                 <Button onClick={handleImportPrepare} className="flex items-center space-x-2">
                   <Download className="w-4 h-4" />
-                  <span>Import from Notion</span>
+                  <span>Import ALL from Notion</span>
                 </Button>
                 <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2">
                   <Upload className="w-4 h-4" />
-                  <span>Export to Notion</span>
+                  <span>Export ALL to Notion</span>
                 </Button>
                 <Button 
                   onClick={() => setShowCalendarSync(true)}
@@ -458,7 +458,7 @@ export default function Home() {
                   <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks yet</h3>
                   <p className="text-gray-600 mb-4">Import from Notion to get started with your quests!</p>
-                  <Button onClick={handleImportPrepare}>Import from Notion</Button>
+                  <Button onClick={handleImportPrepare}>Import ALL from Notion</Button>
                 </Card>
               ) : sortedTasks.length === 0 ? (
                 <Card className="p-8 text-center">
@@ -508,7 +508,7 @@ export default function Home() {
       <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Import from Notion</DialogTitle>
+            <DialogTitle>Import ALL from Notion</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-gray-600 mb-4">
@@ -539,7 +539,7 @@ export default function Home() {
       <Dialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Export to Notion</DialogTitle>
+            <DialogTitle>Export ALL to Notion</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-gray-600 mb-4">
