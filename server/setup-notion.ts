@@ -5,42 +5,61 @@ if (!process.env.NOTION_INTEGRATION_SECRET) {
     throw new Error("NOTION_INTEGRATION_SECRET is not defined. Please add it to your environment variables.");
 }
 
-// Setup function to create the QuestList Tasks database
+// Setup function to create a database matching the user's existing structure
 async function setupNotionDatabases() {
-    console.log("Setting up Notion database for QuestList...");
+    console.log("Setting up Notion database for QuestList with your existing structure...");
     
     await createDatabaseIfNotExists("QuestList Tasks", {
         // Task name (primary field)
-        Title: {
+        Task: {
             title: {}
         },
         // Task details/description
-        "Task Details": {
+        Details: {
             rich_text: {}
         },
-        // How long to complete (in minutes)
-        "Time to Complete": {
-            number: {
-                format: "number"
-            }
-        },
-        // Gold earned for completing the task
-        "Gold Earned": {
-            number: {
-                format: "number"
+        // Recurrence type
+        "Recur Type": {
+            select: {
+                options: [
+                    { name: "⏳One-Time", color: "blue" },
+                    { name: "🔄Recurring", color: "green" }
+                ]
             }
         },
         // Due date for the task
-        DueDate: {
+        Due: {
             date: {}
         },
-        // Completion status
-        Completed: {
-            checkbox: {}
+        // How long to complete (in minutes)
+        "Min to Complete": {
+            number: {
+                format: "number"
+            }
         },
-        // When the task was completed
-        CompletedAt: {
-            date: {}
+        // Importance level
+        Importance: {
+            select: {
+                options: [
+                    { name: "Low", color: "gray" },
+                    { name: "Med-Low", color: "brown" },
+                    { name: "Medium", color: "orange" },
+                    { name: "Med-High", color: "yellow" },
+                    { name: "High", color: "red" },
+                    { name: "Pareto", color: "purple" }
+                ]
+            }
+        },
+        // Kanban stage
+        "Kanban - Stage": {
+            status: {
+                options: [
+                    { name: "Incubate", color: "gray" },
+                    { name: "Not Started", color: "red" },
+                    { name: "In Progress", color: "yellow" },
+                    { name: "Done", color: "green" }
+                ]
+            }
         }
     });
 
@@ -63,35 +82,40 @@ async function createSampleTasks() {
                 title: "Water the lawn",
                 details: "Water the front and back lawn areas. Check sprinkler system.",
                 duration: 30,
-                goldEarned: 25,
+                importance: "Medium",
+                recurType: "🔄Recurring",
                 dueDate: "2024-03-03"
             },
             {
                 title: "Complete weekly report",
                 details: "Finish the weekly progress report for the project team.",
                 duration: 60,
-                goldEarned: 100,
+                importance: "High",
+                recurType: "🔄Recurring",
                 dueDate: "2024-03-05"
             },
             {
                 title: "Grocery shopping",
                 details: "Buy ingredients for dinner this week. Check the shopping list.",
                 duration: 45,
-                goldEarned: 40,
+                importance: "Med-High",
+                recurType: "🔄Recurring",
                 dueDate: "2024-03-02"
             },
             {
                 title: "Exercise routine",
                 details: "Complete 30-minute workout routine. Focus on cardio and strength training.",
                 duration: 30,
-                goldEarned: 50,
+                importance: "Pareto",
+                recurType: "🔄Recurring",
                 dueDate: "2024-03-01"
             },
             {
                 title: "Read chapter 5",
                 details: "Read and take notes on chapter 5 of the programming book.",
                 duration: 90,
-                goldEarned: 75,
+                importance: "Med-Low",
+                recurType: "⏳One-Time",
                 dueDate: "2024-03-04"
             }
         ];
@@ -102,7 +126,7 @@ async function createSampleTasks() {
                     database_id: tasksDb.id
                 },
                 properties: {
-                    Title: {
+                    Task: {
                         title: [
                             {
                                 text: {
@@ -111,7 +135,7 @@ async function createSampleTasks() {
                             }
                         ]
                     },
-                    "Task Details": {
+                    Details: {
                         rich_text: [
                             {
                                 text: {
@@ -120,19 +144,28 @@ async function createSampleTasks() {
                             }
                         ]
                     },
-                    "Time to Complete": {
-                        number: task.duration
+                    "Recur Type": {
+                        select: {
+                            name: task.recurType
+                        }
                     },
-                    "Gold Earned": {
-                        number: task.goldEarned
-                    },
-                    DueDate: {
+                    Due: {
                         date: {
                             start: task.dueDate
                         }
                     },
-                    Completed: {
-                        checkbox: false
+                    "Min to Complete": {
+                        number: task.duration
+                    },
+                    Importance: {
+                        select: {
+                            name: task.importance
+                        }
+                    },
+                    "Kanban - Stage": {
+                        status: {
+                            name: "Not Started"
+                        }
                     }
                 }
             });

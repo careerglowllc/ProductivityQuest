@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { notion, findDatabaseByTitle, getTasks as getNotionTasks, createDatabaseIfNotExists } from "./notion";
+import { notion, findDatabaseByTitle, getTasks as getNotionTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
 import { googleCalendar } from "./google-calendar";
 import { insertTaskSchema, insertPurchaseSchema } from "@shared/schema";
 import { z } from "zod";
@@ -34,6 +34,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ error: "Task not found or already completed" });
       }
+      
+      // Update the task in Notion if it has a notionId
+      if (task.notionId) {
+        try {
+          await updateTaskCompletion(task.notionId, true);
+        } catch (notionError) {
+          console.error("Failed to update task in Notion:", notionError);
+          // Don't fail the request if Notion update fails
+        }
+      }
+      
       res.json(task);
     } catch (error) {
       res.status(500).json({ error: "Failed to complete task" });
@@ -56,29 +67,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Notion integration routes
   app.post("/api/notion/sync", async (req, res) => {
     try {
-      // Find or create tasks database with gamification fields
-      const tasksDb = await findDatabaseByTitle("QuestList Tasks");
+      // Use existing user database - find it by looking for databases with the expected schema
+      const databases = await getNotionDatabases();
       
-      if (!tasksDb) {
-        // Create the database with gamification fields
-        await createDatabaseIfNotExists("QuestList Tasks", {
-          Title: { title: {} },
-          Description: { rich_text: {} },
-          "Task Details": { rich_text: {} },
-          Duration: { number: {} },
-          "Time to Complete": { number: {} },
-          "Gold Earned": { number: {} },
-          GoldEarned: { number: {} },
-          DueDate: { date: {} },
-          Completed: { checkbox: {} },
-          CompletedAt: { date: {} },
-        });
+      let userTasksDb = null;
+      for (const db of databases) {
+        // Check if this database has the expected properties
+        const properties = db.properties;
+        if (properties && 
+            properties.Task && 
+            properties.Details && 
+            properties.Due && 
+            properties["Min to Complete"] && 
+            properties.Importance && 
+            properties["Kanban - Stage"]) {
+          userTasksDb = db;
+          break;
+        }
       }
 
-      // Get the database again after creation
-      const updatedDb = await findDatabaseByTitle("QuestList Tasks");
-      if (!updatedDb) {
-        throw new Error("Failed to create or find tasks database");
+      if (!userTasksDb) {
+        return res.status(400).json({ 
+          error: "Could not find a Notion database with the expected structure. Please ensure your database has the following properties: Task (title), Details (text), Due (date), Min to Complete (number), Importance (select), Kanban - Stage (status)" 
+        });
       }
 
       // Clear existing tasks to avoid duplicates
@@ -90,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch tasks from Notion
-      const notionTasks = await getNotionTasks(updatedDb.id);
+      const notionTasks = await getNotionTasks(userTasksDb.id);
       
       // Sync tasks to local storage
       for (const notionTask of notionTasks) {
@@ -105,10 +116,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      res.json({ success: true, count: notionTasks.length });
+      res.json({ success: true, count: notionTasks.length, databaseTitle: (userTasksDb as any).title?.[0]?.plain_text || "Unknown" });
     } catch (error) {
       console.error("Notion sync error:", error);
-      res.status(500).json({ error: "Failed to sync with Notion. Please check your integration settings." });
+      res.status(500).json({ error: "Failed to sync with Notion. Please check your integration settings and ensure your database is shared with the integration." });
     }
   });
 

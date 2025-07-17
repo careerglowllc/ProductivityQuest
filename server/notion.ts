@@ -109,7 +109,7 @@ export async function createDatabaseIfNotExists(title, properties) {
 }
 
 
-// Get all tasks from the Notion database with gamification fields
+// Get all tasks from the Notion database using your existing structure
 export async function getTasks(tasksDatabaseId: string) {
     try {
         const response = await notion.databases.query({
@@ -119,35 +119,35 @@ export async function getTasks(tasksDatabaseId: string) {
         return response.results.map((page: any) => {
             const properties = page.properties;
 
-            const dueDate = properties.DueDate?.date?.start
-                ? new Date(properties.DueDate.date.start)
+            const dueDate = properties.Due?.date?.start
+                ? new Date(properties.Due.date.start)
                 : null;
 
-            const completedAt = properties.CompletedAt?.date?.start
-                ? new Date(properties.CompletedAt.date.start)
-                : null;
+            // Extract duration from "Min to Complete" field
+            const duration = properties["Min to Complete"]?.number || 30;
 
-            // Extract duration from either Duration or "Time to Complete" field
-            const duration = properties.Duration?.number || 
-                           properties["Time to Complete"]?.number || 30;
+            // Calculate gold value based on importance and duration
+            const importance = properties.Importance?.select?.name || "Medium";
+            const goldValue = calculateGoldValue(importance, duration);
 
-            // Extract gold value from either GoldEarned or "Gold Earned" field
-            const goldEarned = properties.GoldEarned?.number || 
-                             properties["Gold Earned"]?.number || 50;
+            // Check if task is completed based on Kanban stage
+            const kanbanStage = properties["Kanban - Stage"]?.status?.name || "Not Started";
+            const isCompleted = kanbanStage === "Done";
+
+            const completedAt = isCompleted ? new Date() : null;
 
             return {
                 notionId: page.id,
-                title: properties.Title?.title?.[0]?.plain_text || 
-                      properties.Name?.title?.[0]?.plain_text || 
-                      "Untitled Task",
-                description: properties.Description?.rich_text?.[0]?.plain_text || 
-                           properties["Task Details"]?.rich_text?.[0]?.plain_text || 
-                           "",
+                title: properties.Task?.title?.[0]?.plain_text || "Untitled Task",
+                description: properties.Details?.rich_text?.[0]?.plain_text || "",
                 duration,
-                goldValue: goldEarned,
-                isCompleted: properties.Completed?.checkbox || false,
+                goldValue,
+                isCompleted,
                 dueDate,
                 completedAt,
+                importance,
+                kanbanStage,
+                recurType: properties["Recur Type"]?.select?.name || "⏳One-Time",
             };
         });
     } catch (error) {
@@ -156,20 +156,34 @@ export async function getTasks(tasksDatabaseId: string) {
     }
 }
 
-// Update a task's completion status in Notion
+// Calculate gold value based on importance and duration
+function calculateGoldValue(importance: string, duration: number): number {
+    const baseGold = Math.ceil(duration / 10); // 1 gold per 10 minutes
+    
+    const importanceMultiplier = {
+        "Low": 1,
+        "Med-Low": 1.2,
+        "Medium": 1.5,
+        "Med-High": 2,
+        "High": 2.5,
+        "Pareto": 3
+    };
+    
+    const multiplier = importanceMultiplier[importance as keyof typeof importanceMultiplier] || 1.5;
+    return Math.round(baseGold * multiplier);
+}
+
+// Update a task's completion status in Notion by changing Kanban stage
 export async function updateTaskCompletion(notionId: string, completed: boolean) {
     try {
         await notion.pages.update({
             page_id: notionId,
             properties: {
-                Completed: {
-                    checkbox: completed,
-                },
-                CompletedAt: completed ? {
-                    date: {
-                        start: new Date().toISOString(),
-                    },
-                } : null,
+                "Kanban - Stage": {
+                    status: {
+                        name: completed ? "Done" : "In Progress"
+                    }
+                }
             },
         });
     } catch (error) {

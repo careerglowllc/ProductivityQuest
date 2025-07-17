@@ -8,6 +8,16 @@ This is a full-stack task management application with gamification features buil
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (July 17, 2025)
+
+✓ Updated Notion integration to work with user's existing database structure
+✓ Added support for custom fields: Task (title), Details (text), Recur Type, Due (date), Min to Complete (number), Importance (select), Kanban - Stage (status)
+✓ Implemented intelligent gold calculation based on importance level and task duration
+✓ Added visual indicators for importance levels (Pareto, High, Med-High, etc.) with appropriate colors
+✓ Added support for recurring tasks with visual badges
+✓ Enhanced task cards to show Kanban stage and importance
+✓ Updated task completion to sync back to Notion by changing Kanban stage to "Done"
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -46,9 +56,19 @@ Preferred communication style: Simple, everyday language.
 - Achievement-style completion animations
 
 ### External Integrations
-- **Notion API**: Sync tasks from Notion databases
+- **Notion API**: Sync tasks from existing user database with custom schema (Task, Details, Due, Min to Complete, Importance, Kanban - Stage)
 - **Google Calendar**: Create calendar events for tasks with time blocking
-- **Neon Database**: Serverless PostgreSQL hosting
+- **Neon Database**: Serverless PostgreSQL hosting (currently using in-memory storage)
+
+### Gold Calculation System
+- Base gold: 1 gold per 10 minutes of task duration
+- Importance multipliers:
+  - Low: 1x
+  - Med-Low: 1.2x  
+  - Medium: 1.5x
+  - Med-High: 2x
+  - High: 2.5x
+  - Pareto: 3x
 
 ### UI Components
 - Comprehensive component library based on Radix UI
