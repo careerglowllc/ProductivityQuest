@@ -13,6 +13,14 @@ export const tasks = pgTable("tasks", {
   completed: boolean("completed").default(false),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  importance: text("importance"),
+  kanbanStage: text("kanban_stage"),
+  recurType: text("recur_type"),
+  lifeDomain: text("life_domain"),
+  apple: boolean("apple").default(false),
+  smartPrep: boolean("smart_prep").default(false),
+  delegationTask: boolean("delegation_task").default(false),
+  velin: boolean("velin").default(false),
 });
 
 export const shopItems = pgTable("shop_items", {

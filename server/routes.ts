@@ -114,6 +114,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           goldValue: notionTask.goldValue,
           dueDate: notionTask.dueDate,
           completed: notionTask.isCompleted,
+          importance: notionTask.importance,
+          kanbanStage: notionTask.kanbanStage,
+          recurType: notionTask.recurType,
+          lifeDomain: notionTask.lifeDomain,
+          apple: notionTask.apple,
+          smartPrep: notionTask.smartPrep,
+          delegationTask: notionTask.delegationTask,
+          velin: notionTask.velin,
         });
       }
 

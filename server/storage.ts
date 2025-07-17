@@ -84,6 +84,14 @@ export class MemStorage implements IStorage {
       notionId: task.notionId || null,
       dueDate: task.dueDate || null,
       completed: task.completed || false,
+      importance: task.importance || null,
+      kanbanStage: task.kanbanStage || null,
+      recurType: task.recurType || null,
+      lifeDomain: task.lifeDomain || null,
+      apple: task.apple || false,
+      smartPrep: task.smartPrep || false,
+      delegationTask: task.delegationTask || false,
+      velin: task.velin || false,
     };
     this.tasks.set(newTask.id, newTask);
     return newTask;
