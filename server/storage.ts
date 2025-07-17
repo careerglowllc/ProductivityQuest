@@ -1,19 +1,26 @@
-import { tasks, shopItems, userProgress, purchases, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type Purchase, type InsertPurchase } from "@shared/schema";
+import { tasks, shopItems, userProgress, purchases, users, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type Purchase, type InsertPurchase, type User, type UpsertUser } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string }): Promise<User>;
+  
   // Task operations
-  getTasks(): Promise<Task[]>;
-  getTask(id: number): Promise<Task | undefined>;
+  getTasks(userId: string): Promise<Task[]>;
+  getTask(id: number, userId: string): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: number, task: Partial<Task>): Promise<Task | undefined>;
-  deleteTask(id: number): Promise<boolean>;
-  completeTask(id: number): Promise<Task | undefined>;
+  updateTask(id: number, task: Partial<Task>, userId: string): Promise<Task | undefined>;
+  deleteTask(id: number, userId: string): Promise<boolean>;
+  completeTask(id: number, userId: string): Promise<Task | undefined>;
   
   // Recycling operations
-  getRecycledTasks(): Promise<Task[]>;
-  recycleTask(id: number, reason: "completed" | "deleted"): Promise<Task | undefined>;
-  restoreTask(id: number): Promise<Task | undefined>;
-  permanentlyDeleteTask(id: number): Promise<boolean>;
+  getRecycledTasks(userId: string): Promise<Task[]>;
+  recycleTask(id: number, reason: "completed" | "deleted", userId: string): Promise<Task | undefined>;
+  restoreTask(id: number, userId: string): Promise<Task | undefined>;
+  permanentlyDeleteTask(id: number, userId: string): Promise<boolean>;
   
   // Shop operations
   getShopItems(): Promise<ShopItem[]>;
@@ -21,40 +28,24 @@ export interface IStorage {
   createShopItem(item: InsertShopItem): Promise<ShopItem>;
   
   // User progress operations
-  getUserProgress(): Promise<UserProgress>;
-  updateUserProgress(progress: Partial<UserProgress>): Promise<UserProgress>;
-  addGold(amount: number): Promise<UserProgress>;
-  spendGold(amount: number): Promise<UserProgress>;
+  getUserProgress(userId: string): Promise<UserProgress>;
+  updateUserProgress(userId: string, progress: Partial<UserProgress>): Promise<UserProgress>;
+  addGold(userId: string, amount: number): Promise<UserProgress>;
+  spendGold(userId: string, amount: number): Promise<UserProgress>;
   
   // Purchase operations
-  getPurchases(): Promise<Purchase[]>;
+  getPurchases(userId: string): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
-  usePurchase(id: number): Promise<Purchase | undefined>;
+  usePurchase(id: number, userId: string): Promise<Purchase | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private tasks: Map<number, Task> = new Map();
-  private shopItems: Map<number, ShopItem> = new Map();
-  private userProgress: UserProgress;
-  private purchases: Map<number, Purchase> = new Map();
-  private currentTaskId = 1;
-  private currentShopItemId = 1;
-  private currentPurchaseId = 1;
-
+export class DatabaseStorage implements IStorage {
   constructor() {
-    this.userProgress = {
-      id: 1,
-      goldTotal: 0,
-      tasksCompleted: 0,
-      goldSpent: 0,
-      lastSyncedAt: null,
-    };
-    
     // Initialize default shop items
     this.initializeShopItems();
   }
 
-  private initializeShopItems() {
+  private async initializeShopItems() {
     const defaultItems: InsertShopItem[] = [
       { name: "30 Minutes TV Time", description: "Watch your favorite show guilt-free", cost: 50, icon: "tv", category: "entertainment" },
       { name: "1 Hour Gaming", description: "Play your favorite video game", cost: 100, icon: "gamepad", category: "entertainment" },
@@ -64,216 +55,249 @@ export class MemStorage implements IStorage {
       { name: "Music Session", description: "Listen to your favorite playlist", cost: 40, icon: "music", category: "entertainment" },
     ];
 
-    defaultItems.forEach(item => {
-      const shopItem: ShopItem = { ...item, id: this.currentShopItemId++ };
-      this.shopItems.set(shopItem.id, shopItem);
-    });
+    try {
+      // Check if shop items already exist
+      const existingItems = await db.select().from(shopItems);
+      if (existingItems.length === 0) {
+        await db.insert(shopItems).values(defaultItems);
+      }
+    } catch (error) {
+      console.error("Error initializing shop items:", error);
+    }
   }
 
-  async getTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values())
-      .filter(task => !task.recycled)
-      .sort((a, b) => 
-        new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-      );
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
-  async getTask(id: number): Promise<Task | undefined> {
-    return this.tasks.get(id);
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string }): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        notionApiKey: settings.notionApiKey,
+        notionDatabaseId: settings.notionDatabaseId,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  // Task operations
+  async getTasks(userId: string): Promise<Task[]> {
+    return await db.select().from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.recycled, false)))
+      .orderBy(tasks.createdAt);
+  }
+
+  async getTask(id: number, userId: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+    return task;
   }
 
   async createTask(task: InsertTask): Promise<Task> {
-    const newTask: Task = {
-      ...task,
-      id: this.currentTaskId++,
-      createdAt: new Date(),
-      completedAt: null,
-      description: task.description || null,
-      notionId: task.notionId || null,
-      dueDate: task.dueDate || null,
-      completed: task.completed || false,
-      importance: task.importance || null,
-      kanbanStage: task.kanbanStage || null,
-      recurType: task.recurType || null,
-      lifeDomain: task.lifeDomain || null,
-      apple: task.apple || false,
-      smartPrep: task.smartPrep || false,
-      delegationTask: task.delegationTask || false,
-      velin: task.velin || false,
-      recycled: false,
-      recycledAt: null,
-      recycledReason: null,
-    };
-    this.tasks.set(newTask.id, newTask);
+    const [newTask] = await db.insert(tasks).values(task).returning();
     return newTask;
   }
 
-  async updateTask(id: number, task: Partial<Task>): Promise<Task | undefined> {
-    const existingTask = this.tasks.get(id);
-    if (!existingTask) return undefined;
-
-    const updatedTask = { ...existingTask, ...task };
-    this.tasks.set(id, updatedTask);
+  async updateTask(id: number, task: Partial<Task>, userId: string): Promise<Task | undefined> {
+    const [updatedTask] = await db
+      .update(tasks)
+      .set(task)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .returning();
     return updatedTask;
   }
 
-  async deleteTask(id: number): Promise<boolean> {
-    // Move task to recycling instead of permanent deletion
-    const recycled = await this.recycleTask(id, "deleted");
+  async deleteTask(id: number, userId: string): Promise<boolean> {
+    const recycled = await this.recycleTask(id, "deleted", userId);
     return recycled !== undefined;
   }
 
-  async completeTask(id: number): Promise<Task | undefined> {
-    const task = this.tasks.get(id);
+  async completeTask(id: number, userId: string): Promise<Task | undefined> {
+    const task = await this.getTask(id, userId);
     if (!task || task.completed) return undefined;
 
-    const completedTask = {
-      ...task,
-      completed: true,
-      completedAt: new Date(),
-    };
+    const [completedTask] = await db
+      .update(tasks)
+      .set({
+        completed: true,
+        completedAt: new Date(),
+      })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .returning();
 
-    this.tasks.set(id, completedTask);
-    
     // Award gold and update progress
-    this.userProgress.goldTotal = (this.userProgress.goldTotal || 0) + task.goldValue;
-    this.userProgress.tasksCompleted = (this.userProgress.tasksCompleted || 0) + 1;
-
+    await this.addGold(userId, task.goldValue);
+    
     // Move completed task to recycling
-    const recycledTask = await this.recycleTask(id, "completed");
+    const recycledTask = await this.recycleTask(id, "completed", userId);
 
     return recycledTask || completedTask;
   }
 
   // Recycling operations
-  async getRecycledTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values())
-      .filter(task => task.recycled)
-      .sort((a, b) => 
-        new Date(b.recycledAt!).getTime() - new Date(a.recycledAt!).getTime()
-      );
+  async getRecycledTasks(userId: string): Promise<Task[]> {
+    return await db.select().from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.recycled, true)))
+      .orderBy(tasks.recycledAt);
   }
 
-  async recycleTask(id: number, reason: "completed" | "deleted"): Promise<Task | undefined> {
-    const task = this.tasks.get(id);
-    if (!task) return undefined;
-
-    const recycledTask = {
-      ...task,
-      recycled: true,
-      recycledAt: new Date(),
-      recycledReason: reason,
-    };
-
-    this.tasks.set(id, recycledTask);
+  async recycleTask(id: number, reason: "completed" | "deleted", userId: string): Promise<Task | undefined> {
+    const [recycledTask] = await db
+      .update(tasks)
+      .set({
+        recycled: true,
+        recycledAt: new Date(),
+        recycledReason: reason,
+      })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .returning();
     return recycledTask;
   }
 
-  async restoreTask(id: number): Promise<Task | undefined> {
-    const task = this.tasks.get(id);
+  async restoreTask(id: number, userId: string): Promise<Task | undefined> {
+    const task = await this.getTask(id, userId);
     if (!task || !task.recycled) return undefined;
 
-    const restoredTask = {
-      ...task,
-      recycled: false,
-      recycledAt: null,
-      recycledReason: null,
-      // If task was completed, restore it to incomplete state
-      completed: task.recycledReason === "completed" ? false : task.completed,
-      completedAt: task.recycledReason === "completed" ? null : task.completedAt,
-    };
+    const [restoredTask] = await db
+      .update(tasks)
+      .set({
+        recycled: false,
+        recycledAt: null,
+        recycledReason: null,
+        completed: task.recycledReason === "completed" ? false : task.completed,
+        completedAt: task.recycledReason === "completed" ? null : task.completedAt,
+      })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .returning();
 
-    this.tasks.set(id, restoredTask);
-    
-    // If restoring a completed task, subtract the gold and task count
+    // If task was completed, reduce gold and task count
     if (task.recycledReason === "completed") {
-      this.userProgress.goldTotal = Math.max(0, (this.userProgress.goldTotal || 0) - task.goldValue);
-      this.userProgress.tasksCompleted = Math.max(0, (this.userProgress.tasksCompleted || 0) - 1);
+      const progress = await this.getUserProgress(userId);
+      await this.updateUserProgress(userId, {
+        goldTotal: (progress.goldTotal || 0) - task.goldValue,
+        tasksCompleted: (progress.tasksCompleted || 0) - 1,
+      });
     }
 
     return restoredTask;
   }
 
-  async permanentlyDeleteTask(id: number): Promise<boolean> {
-    const task = this.tasks.get(id);
-    if (!task || !task.recycled) return false;
-
-    return this.tasks.delete(id);
+  async permanentlyDeleteTask(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+    return (result.rowCount ?? 0) > 0;
   }
 
+  // Shop operations
   async getShopItems(): Promise<ShopItem[]> {
-    return Array.from(this.shopItems.values());
+    return await db.select().from(shopItems);
   }
 
   async getShopItem(id: number): Promise<ShopItem | undefined> {
-    return this.shopItems.get(id);
+    const [item] = await db.select().from(shopItems).where(eq(shopItems.id, id));
+    return item;
   }
 
   async createShopItem(item: InsertShopItem): Promise<ShopItem> {
-    const newItem: ShopItem = {
-      ...item,
-      id: this.currentShopItemId++,
-    };
-    this.shopItems.set(newItem.id, newItem);
+    const [newItem] = await db.insert(shopItems).values(item).returning();
     return newItem;
   }
 
-  async getUserProgress(): Promise<UserProgress> {
-    return this.userProgress;
+  // User progress operations
+  async getUserProgress(userId: string): Promise<UserProgress> {
+    const [progress] = await db.select().from(userProgress)
+      .where(eq(userProgress.userId, userId));
+    
+    if (!progress) {
+      // Create initial progress for new user
+      const [newProgress] = await db.insert(userProgress)
+        .values({
+          userId,
+          goldTotal: 0,
+          tasksCompleted: 0,
+          goldSpent: 0,
+        })
+        .returning();
+      return newProgress;
+    }
+    
+    return progress;
   }
 
-  async updateUserProgress(progress: Partial<UserProgress>): Promise<UserProgress> {
-    this.userProgress = { ...this.userProgress, ...progress };
-    return this.userProgress;
+  async updateUserProgress(userId: string, progress: Partial<UserProgress>): Promise<UserProgress> {
+    const [updatedProgress] = await db
+      .update(userProgress)
+      .set(progress)
+      .where(eq(userProgress.userId, userId))
+      .returning();
+    return updatedProgress;
   }
 
-  async addGold(amount: number): Promise<UserProgress> {
-    this.userProgress.goldTotal = (this.userProgress.goldTotal || 0) + amount;
-    return this.userProgress;
+  async addGold(userId: string, amount: number): Promise<UserProgress> {
+    const currentProgress = await this.getUserProgress(userId);
+    return await this.updateUserProgress(userId, {
+      goldTotal: (currentProgress.goldTotal || 0) + amount,
+      tasksCompleted: (currentProgress.tasksCompleted || 0) + 1,
+    });
   }
 
-  async spendGold(amount: number): Promise<UserProgress> {
-    const currentGold = this.userProgress.goldTotal || 0;
+  async spendGold(userId: string, amount: number): Promise<UserProgress> {
+    const currentProgress = await this.getUserProgress(userId);
+    const currentGold = currentProgress.goldTotal || 0;
+    
     if (currentGold < amount) {
       throw new Error("Insufficient gold");
     }
-    this.userProgress.goldTotal = currentGold - amount;
-    this.userProgress.goldSpent = (this.userProgress.goldSpent || 0) + amount;
-    return this.userProgress;
+    
+    return await this.updateUserProgress(userId, {
+      goldTotal: currentGold - amount,
+      goldSpent: (currentProgress.goldSpent || 0) + amount,
+    });
   }
 
-  async getPurchases(): Promise<Purchase[]> {
-    return Array.from(this.purchases.values()).sort((a, b) => 
-      new Date(b.purchasedAt!).getTime() - new Date(a.purchasedAt!).getTime()
-    );
+  // Purchase operations
+  async getPurchases(userId: string): Promise<Purchase[]> {
+    return await db.select().from(purchases)
+      .where(eq(purchases.userId, userId))
+      .orderBy(purchases.purchasedAt);
   }
 
   async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
-    const newPurchase: Purchase = {
-      ...purchase,
-      id: this.currentPurchaseId++,
-      purchasedAt: new Date(),
-      usedAt: null,
-      shopItemId: purchase.shopItemId || null,
-      used: purchase.used || false,
-    };
-    this.purchases.set(newPurchase.id, newPurchase);
+    const [newPurchase] = await db.insert(purchases).values(purchase).returning();
     return newPurchase;
   }
 
-  async usePurchase(id: number): Promise<Purchase | undefined> {
-    const purchase = this.purchases.get(id);
-    if (!purchase || purchase.used) return undefined;
-
-    const usedPurchase = {
-      ...purchase,
-      used: true,
-      usedAt: new Date(),
-    };
-
-    this.purchases.set(id, usedPurchase);
+  async usePurchase(id: number, userId: string): Promise<Purchase | undefined> {
+    const [usedPurchase] = await db
+      .update(purchases)
+      .set({
+        used: true,
+        usedAt: new Date(),
+      })
+      .where(and(eq(purchases.id, id), eq(purchases.userId, userId)))
+      .returning();
     return usedPurchase;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

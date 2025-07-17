@@ -1,10 +1,35 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table for authentication
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table for authentication
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  notionApiKey: text("notion_api_key"),
+  notionDatabaseId: text("notion_database_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  notionId: text("notion_id").unique(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  notionId: text("notion_id"),
   title: text("title").notNull(),
   description: text("description").default(""),
   duration: integer("duration").notNull(), // in minutes
@@ -37,6 +62,7 @@ export const shopItems = pgTable("shop_items", {
 
 export const userProgress = pgTable("user_progress", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   goldTotal: integer("gold_total").default(0),
   tasksCompleted: integer("tasks_completed").default(0),
   goldSpent: integer("gold_spent").default(0),
@@ -45,6 +71,7 @@ export const userProgress = pgTable("user_progress", {
 
 export const purchases = pgTable("purchases", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   shopItemId: integer("shop_item_id").references(() => shopItems.id),
   cost: integer("cost").notNull(),
   purchasedAt: timestamp("purchased_at").defaultNow(),
@@ -74,6 +101,10 @@ export const insertPurchaseSchema = createInsertSchema(purchases).omit({
   purchasedAt: true,
   usedAt: true,
 });
+
+// User types
+export type User = typeof users.$inferSelect;
+export type UpsertUser = typeof users.$inferInsert;
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
