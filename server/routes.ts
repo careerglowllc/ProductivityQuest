@@ -19,11 +19,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tasks", async (req, res) => {
     try {
-      const taskData = insertTaskSchema.parse(req.body);
+      // Handle date conversion before validation
+      const bodyData = { ...req.body };
+      if (bodyData.dueDate && typeof bodyData.dueDate === 'string') {
+        bodyData.dueDate = new Date(bodyData.dueDate);
+      }
+      
+      const taskData = insertTaskSchema.parse(bodyData);
       const task = await storage.createTask(taskData);
       res.json(task);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid task data" });
+    } catch (error: any) {
+      console.error("Task creation error:", error);
+      if (error.errors) {
+        console.error("Validation errors:", error.errors);
+      }
+      res.status(400).json({ error: "Invalid task data", details: error.errors });
+    }
+  });
+
+  app.patch("/api/tasks/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      // Handle date conversion before validation
+      const bodyData = { ...req.body };
+      if (bodyData.dueDate && typeof bodyData.dueDate === 'string') {
+        bodyData.dueDate = new Date(bodyData.dueDate);
+      }
+      
+      const updateData = insertTaskSchema.partial().parse(bodyData);
+      const task = await storage.updateTask(id, updateData);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      res.json(task);
+    } catch (error: any) {
+      console.error("Task update error:", error);
+      res.status(400).json({ error: "Invalid task update data" });
     }
   });
 
