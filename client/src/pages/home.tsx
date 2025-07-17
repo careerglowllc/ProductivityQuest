@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
@@ -28,6 +28,7 @@ export default function Home() {
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [importTaskCount, setImportTaskCount] = useState(0);
   const [exportTaskCount, setExportTaskCount] = useState(0);
+  const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
@@ -42,25 +43,59 @@ export default function Home() {
     queryKey: ["/api/stats"],
   });
 
-  const handleCompleteTask = async (taskId: number) => {
+  const handleTaskSelect = (taskId: number, selected: boolean) => {
+    const newSelected = new Set(selectedTasks);
+    if (selected) {
+      newSelected.add(taskId);
+    } else {
+      newSelected.delete(taskId);
+    }
+    setSelectedTasks(newSelected);
+  };
+
+  const handleCompleteSelected = async () => {
+    if (selectedTasks.size === 0) return;
+
     try {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/complete`);
-      const task = await response.json();
+      const selectedTaskIds = Array.from(selectedTasks);
+      let totalGoldEarned = 0;
+      let completedTasksCount = 0;
+
+      // Complete each selected task
+      for (const taskId of selectedTaskIds) {
+        const response = await apiRequest("PATCH", `/api/tasks/${taskId}/complete`);
+        const task = await response.json();
+        totalGoldEarned += task.goldValue;
+        completedTasksCount++;
+      }
+
+      // Clear selections
+      setSelectedTasks(new Set());
       
-      setCompletedTask(task);
-      setShowCompletion(true);
+      // Show completion animation for the first task (representing all)
+      if (selectedTaskIds.length > 0) {
+        const firstTaskId = selectedTaskIds[0];
+        const firstTask = tasks.find((t: any) => t.id === firstTaskId);
+        if (firstTask) {
+          setCompletedTask({
+            ...firstTask,
+            goldValue: totalGoldEarned
+          });
+          setShowCompletion(true);
+        }
+      }
       
       refetchTasks();
       refetchProgress();
       
       toast({
-        title: "Quest Complete!",
-        description: `You earned ${task.goldValue} gold!`,
+        title: `${completedTasksCount} Quest${completedTasksCount > 1 ? 's' : ''} Complete!`,
+        description: `You earned ${totalGoldEarned} gold total!`,
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to complete task",
+        description: "Failed to complete selected tasks",
         variant: "destructive",
       });
     }
@@ -394,6 +429,26 @@ export default function Home() {
               </div>
             </Card>
 
+            {/* Complete Selected Tasks Button */}
+            {selectedTasks.size > 0 && (
+              <Card className="p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-800 font-medium">
+                      {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  <Button 
+                    onClick={handleCompleteSelected}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Complete Selected
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* Task List */}
             <div className="space-y-4">
               {tasksLoading ? (
@@ -417,7 +472,8 @@ export default function Home() {
                   <TaskCard
                     key={task.id}
                     task={task}
-                    onComplete={handleCompleteTask}
+                    onSelect={handleTaskSelect}
+                    isSelected={selectedTasks.has(task.id)}
                   />
                 ))
               )}

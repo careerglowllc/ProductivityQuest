@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,10 +24,11 @@ interface TaskCardProps {
     delegationTask?: boolean;
     velin?: boolean;
   };
-  onComplete: (taskId: number) => void;
+  onSelect: (taskId: number, selected: boolean) => void;
+  isSelected: boolean;
 }
 
-export function TaskCard({ task, onComplete }: TaskCardProps) {
+export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -52,20 +54,13 @@ export function TaskCard({ task, onComplete }: TaskCardProps) {
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-4 flex-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "mt-1 w-5 h-5 rounded-full border-2 p-0 hover:bg-transparent",
-                task.completed 
-                  ? "bg-green-500 border-green-500 text-white"
-                  : "border-gray-300 hover:border-primary"
-              )}
-              onClick={() => !task.completed && onComplete(task.id)}
-              disabled={task.completed}
-            >
-              {task.completed && <CheckCircle className="w-3 h-3" />}
-            </Button>
+            <div className="mt-1.5">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelect(task.id, checked as boolean)}
+                disabled={task.completed}
+              />
+            </div>
             
             <div className="flex-1 min-w-0">
               <h3 className={cn(
