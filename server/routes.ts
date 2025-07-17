@@ -64,6 +64,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Recycling routes
+  app.get("/api/recycled-tasks", async (req, res) => {
+    try {
+      const tasks = await storage.getRecycledTasks();
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch recycled tasks" });
+    }
+  });
+
+  app.post("/api/tasks/:id/restore", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const task = await storage.restoreTask(id);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found or not recycled" });
+      }
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to restore task" });
+    }
+  });
+
+  app.delete("/api/tasks/:id/permanent", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.permanentlyDeleteTask(id);
+      if (!success) {
+        return res.status(404).json({ error: "Task not found or not recycled" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to permanently delete task" });
+    }
+  });
+
   // Notion integration routes
   app.post("/api/notion/sync", async (req, res) => {
     try {

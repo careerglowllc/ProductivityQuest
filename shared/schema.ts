@@ -21,6 +21,9 @@ export const tasks = pgTable("tasks", {
   smartPrep: boolean("smart_prep").default(false),
   delegationTask: boolean("delegation_task").default(false),
   velin: boolean("velin").default(false),
+  recycled: boolean("recycled").default(false),
+  recycledAt: timestamp("recycled_at"),
+  recycledReason: text("recycled_reason"), // "completed" or "deleted"
 });
 
 export const shopItems = pgTable("shop_items", {
@@ -53,6 +56,9 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
   completedAt: true,
+  recycled: true,
+  recycledAt: true,
+  recycledReason: true,
 });
 
 export const insertShopItemSchema = createInsertSchema(shopItems).omit({

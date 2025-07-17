@@ -9,6 +9,12 @@ export interface IStorage {
   deleteTask(id: number): Promise<boolean>;
   completeTask(id: number): Promise<Task | undefined>;
   
+  // Recycling operations
+  getRecycledTasks(): Promise<Task[]>;
+  recycleTask(id: number, reason: "completed" | "deleted"): Promise<Task | undefined>;
+  restoreTask(id: number): Promise<Task | undefined>;
+  permanentlyDeleteTask(id: number): Promise<boolean>;
+  
   // Shop operations
   getShopItems(): Promise<ShopItem[]>;
   getShopItem(id: number): Promise<ShopItem | undefined>;
@@ -65,9 +71,11 @@ export class MemStorage implements IStorage {
   }
 
   async getTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values()).sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return Array.from(this.tasks.values())
+      .filter(task => !task.recycled)
+      .sort((a, b) => 
+        new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+      );
   }
 
   async getTask(id: number): Promise<Task | undefined> {
@@ -92,6 +100,9 @@ export class MemStorage implements IStorage {
       smartPrep: task.smartPrep || false,
       delegationTask: task.delegationTask || false,
       velin: task.velin || false,
+      recycled: false,
+      recycledAt: null,
+      recycledReason: null,
     };
     this.tasks.set(newTask.id, newTask);
     return newTask;
@@ -107,7 +118,9 @@ export class MemStorage implements IStorage {
   }
 
   async deleteTask(id: number): Promise<boolean> {
-    return this.tasks.delete(id);
+    // Move task to recycling instead of permanent deletion
+    const recycled = await this.recycleTask(id, "deleted");
+    return recycled !== undefined;
   }
 
   async completeTask(id: number): Promise<Task | undefined> {
@@ -127,6 +140,62 @@ export class MemStorage implements IStorage {
     this.userProgress.tasksCompleted = (this.userProgress.tasksCompleted || 0) + 1;
 
     return completedTask;
+  }
+
+  // Recycling operations
+  async getRecycledTasks(): Promise<Task[]> {
+    return Array.from(this.tasks.values())
+      .filter(task => task.recycled)
+      .sort((a, b) => 
+        new Date(b.recycledAt!).getTime() - new Date(a.recycledAt!).getTime()
+      );
+  }
+
+  async recycleTask(id: number, reason: "completed" | "deleted"): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task) return undefined;
+
+    const recycledTask = {
+      ...task,
+      recycled: true,
+      recycledAt: new Date(),
+      recycledReason: reason,
+    };
+
+    this.tasks.set(id, recycledTask);
+    return recycledTask;
+  }
+
+  async restoreTask(id: number): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task || !task.recycled) return undefined;
+
+    const restoredTask = {
+      ...task,
+      recycled: false,
+      recycledAt: null,
+      recycledReason: null,
+      // If task was completed, restore it to incomplete state
+      completed: task.recycledReason === "completed" ? false : task.completed,
+      completedAt: task.recycledReason === "completed" ? null : task.completedAt,
+    };
+
+    this.tasks.set(id, restoredTask);
+    
+    // If restoring a completed task, subtract the gold and task count
+    if (task.recycledReason === "completed") {
+      this.userProgress.goldTotal = Math.max(0, (this.userProgress.goldTotal || 0) - task.goldValue);
+      this.userProgress.tasksCompleted = Math.max(0, (this.userProgress.tasksCompleted || 0) - 1);
+    }
+
+    return restoredTask;
+  }
+
+  async permanentlyDeleteTask(id: number): Promise<boolean> {
+    const task = this.tasks.get(id);
+    if (!task || !task.recycled) return false;
+
+    return this.tasks.delete(id);
   }
 
   async getShopItems(): Promise<ShopItem[]> {

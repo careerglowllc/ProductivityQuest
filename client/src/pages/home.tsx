@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2 } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
 import { CompletionAnimation } from "@/components/completion-animation";
+import { RecyclingModal } from "@/components/recycling-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -29,6 +30,7 @@ export default function Home() {
   const [importTaskCount, setImportTaskCount] = useState(0);
   const [exportTaskCount, setExportTaskCount] = useState(0);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
+  const [showRecycling, setShowRecycling] = useState(false);
   const { toast } = useToast();
 
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
@@ -303,6 +305,13 @@ export default function Home() {
                   <Calendar className="w-5 h-5" />
                   <span className="font-medium">Calendar Sync</span>
                 </button>
+                <button
+                  onClick={() => setShowRecycling(true)}
+                  className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span className="font-medium">Recycling</span>
+                </button>
                 <div className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
                   <TrendingUp className="w-5 h-5" />
                   <span className="font-medium">Progress</span>
@@ -502,6 +511,11 @@ export default function Home() {
         onClose={() => setShowCompletion(false)}
         task={completedTask}
         newGoldTotal={progress.goldTotal}
+      />
+
+      <RecyclingModal
+        isOpen={showRecycling}
+        onClose={() => setShowRecycling(false)}
       />
 
       {/* Import Confirmation Modal */}
