@@ -114,7 +114,7 @@ export default function Home() {
           if (!task.dueDate) return false;
           const taskDate = new Date(task.dueDate);
           taskDate.setHours(0, 0, 0, 0);
-          return taskDate >= today && taskDate < tomorrow;
+          return taskDate <= today; // Include today and overdue tasks
         });
       
       case "high-reward":
