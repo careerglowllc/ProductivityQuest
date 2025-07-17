@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
@@ -12,11 +13,16 @@ import { CompletionAnimation } from "@/components/completion-animation";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks";
+type SortType = "due-date" | "importance";
+
 export default function Home() {
   const [showItemShop, setShowItemShop] = useState(false);
   const [showCalendarSync, setShowCalendarSync] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedTask, setCompletedTask] = useState<any>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [sortBy, setSortBy] = useState<SortType>("due-date");
   const { toast } = useToast();
 
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
@@ -92,6 +98,71 @@ export default function Home() {
   };
 
   const pendingTasks = tasks.filter((task: any) => !task.completed && task.dueDate);
+
+  // Filter tasks based on active filter
+  const getFilteredTasks = () => {
+    const activeTasks = tasks.filter((task: any) => !task.completed);
+    
+    switch (activeFilter) {
+      case "due-today":
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        return activeTasks.filter((task: any) => {
+          if (!task.dueDate) return false;
+          const taskDate = new Date(task.dueDate);
+          taskDate.setHours(0, 0, 0, 0);
+          return taskDate >= today && taskDate < tomorrow;
+        });
+      
+      case "high-reward":
+        return activeTasks.filter((task: any) => task.goldValue >= 10);
+      
+      case "quick-tasks":
+        return activeTasks.filter((task: any) => task.duration <= 30);
+      
+      default:
+        return activeTasks;
+    }
+  };
+
+  // Sort tasks based on selected sort option
+  const getSortedTasks = (filteredTasks: any[]) => {
+    const sortedTasks = [...filteredTasks];
+    
+    if (sortBy === "due-date") {
+      sortedTasks.sort((a, b) => {
+        // Tasks with no due date go to the end
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+    } else if (sortBy === "importance") {
+      const importanceOrder = {
+        "Pareto": 6,
+        "High": 5,
+        "Med-High": 4,
+        "Medium": 3,
+        "Med-Low": 2,
+        "Low": 1
+      };
+      
+      sortedTasks.sort((a, b) => {
+        const aImportance = importanceOrder[a.importance as keyof typeof importanceOrder] || 0;
+        const bImportance = importanceOrder[b.importance as keyof typeof importanceOrder] || 0;
+        return bImportance - aImportance; // Higher importance first
+      });
+    }
+    
+    return sortedTasks;
+  };
+
+  const filteredTasks = getFilteredTasks();
+  const sortedTasks = getSortedTasks(filteredTasks);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -210,11 +281,64 @@ export default function Home() {
 
             {/* Task Filters */}
             <Card className="p-4 mb-6">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="default">All Tasks</Badge>
-                <Badge variant="outline">Due Today</Badge>
-                <Badge variant="outline">High Reward</Badge>
-                <Badge variant="outline">Quick Tasks</Badge>
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <Badge 
+                    variant={activeFilter === "all" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setActiveFilter("all")}
+                  >
+                    All Tasks
+                  </Badge>
+                  <Badge 
+                    variant={activeFilter === "due-today" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setActiveFilter("due-today")}
+                  >
+                    Due Today
+                  </Badge>
+                  <Badge 
+                    variant={activeFilter === "high-reward" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setActiveFilter("high-reward")}
+                  >
+                    High Reward
+                  </Badge>
+                  <Badge 
+                    variant={activeFilter === "quick-tasks" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setActiveFilter("quick-tasks")}
+                  >
+                    Quick Tasks
+                  </Badge>
+                </div>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <ArrowUpDown className="w-4 h-4" />
+                      Sort
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={() => setSortBy("due-date")}
+                      className="flex items-center gap-2"
+                    >
+                      <CalendarDays className="w-4 h-4" />
+                      <span>Due Date</span>
+                      {sortBy === "due-date" && <span className="ml-auto">✓</span>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setSortBy("importance")}
+                      className="flex items-center gap-2"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>Importance</span>
+                      {sortBy === "importance" && <span className="ml-auto">✓</span>}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </Card>
 
@@ -229,8 +353,15 @@ export default function Home() {
                   <p className="text-gray-600 mb-4">Sync with Notion to get started with your quests!</p>
                   <Button onClick={handleNotionSync}>Sync with Notion</Button>
                 </Card>
+              ) : sortedTasks.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks match your filter</h3>
+                  <p className="text-gray-600 mb-4">Try adjusting your filter to see more tasks</p>
+                  <Button onClick={() => setActiveFilter("all")} variant="outline">Show All Tasks</Button>
+                </Card>
               ) : (
-                tasks.map((task: any) => (
+                sortedTasks.map((task: any) => (
                   <TaskCard
                     key={task.id}
                     task={task}
