@@ -86,6 +86,18 @@ export function TaskCard({ task, onComplete }: TaskCardProps) {
                   <Calendar className="w-4 h-4" />
                   <span>{formatDate(task.dueDate)}</span>
                 </div>
+                {task.importance && (
+                  <div className="flex items-center space-x-1">
+                    <span>{task.importance === "Pareto" ? "🔥" : task.importance === "High" ? "🚨" : task.importance === "Med-High" ? "⚠️" : task.importance === "Medium" ? "📋" : task.importance === "Med-Low" ? "📝" : "📄"}</span>
+                    <span>{task.importance}</span>
+                  </div>
+                )}
+                {task.recurType && (
+                  <div className="flex items-center space-x-1">
+                    <span>{task.recurType === "🔄Recurring" ? "🔄" : "⏳"}</span>
+                    <span>{task.recurType === "🔄Recurring" ? "Recurring" : "One-time"}</span>
+                  </div>
+                )}
                 {task.completed && task.completedAt && (
                   <div className="flex items-center space-x-1 text-green-600">
                     <CheckCircle className="w-4 h-4" />
