@@ -132,6 +132,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get task count from Notion
+  app.get("/api/notion/count", async (req, res) => {
+    try {
+      const databases = await getNotionDatabases();
+      
+      let userTasksDb = null;
+      for (const db of databases) {
+        const properties = db.properties;
+        if (properties && 
+            properties.Task && 
+            properties.Details && 
+            properties.Due && 
+            properties["Min to Complete"] && 
+            properties.Importance && 
+            properties["Kanban - Stage"] && 
+            properties["Life Domain"]) {
+          userTasksDb = db;
+          break;
+        }
+      }
+
+      if (!userTasksDb) {
+        return res.status(400).json({ 
+          error: "Could not find a Notion database with the expected structure." 
+        });
+      }
+
+      const notionTasks = await getNotionTasks(userTasksDb.id);
+      res.json({ count: notionTasks.length });
+    } catch (error) {
+      console.error("Notion count error:", error);
+      res.status(500).json({ error: "Failed to get Notion task count." });
+    }
+  });
+
+  // Import tasks from Notion
+  app.post("/api/notion/import", async (req, res) => {
+    try {
+      const databases = await getNotionDatabases();
+      
+      let userTasksDb = null;
+      for (const db of databases) {
+        const properties = db.properties;
+        if (properties && 
+            properties.Task && 
+            properties.Details && 
+            properties.Due && 
+            properties["Min to Complete"] && 
+            properties.Importance && 
+            properties["Kanban - Stage"] && 
+            properties["Life Domain"]) {
+          userTasksDb = db;
+          break;
+        }
+      }
+
+      if (!userTasksDb) {
+        return res.status(400).json({ 
+          error: "Could not find a Notion database with the expected structure." 
+        });
+      }
+
+      // Clear ALL existing tasks
+      const existingTasks = await storage.getTasks();
+      for (const task of existingTasks) {
+        await storage.deleteTask(task.id);
+      }
+
+      // Import tasks from Notion
+      const notionTasks = await getNotionTasks(userTasksDb.id);
+      
+      for (const notionTask of notionTasks) {
+        await storage.createTask({
+          notionId: notionTask.notionId,
+          title: notionTask.title,
+          description: notionTask.description,
+          duration: notionTask.duration,
+          goldValue: notionTask.goldValue,
+          dueDate: notionTask.dueDate,
+          completed: notionTask.isCompleted,
+          importance: notionTask.importance,
+          kanbanStage: notionTask.kanbanStage,
+          recurType: notionTask.recurType,
+          lifeDomain: notionTask.lifeDomain,
+          apple: notionTask.apple,
+          smartPrep: notionTask.smartPrep,
+          delegationTask: notionTask.delegationTask,
+          velin: notionTask.velin,
+        });
+      }
+
+      res.json({ success: true, count: notionTasks.length });
+    } catch (error) {
+      console.error("Notion import error:", error);
+      res.status(500).json({ error: "Failed to import from Notion." });
+    }
+  });
+
+  // Export tasks to Notion
+  app.post("/api/notion/export", async (req, res) => {
+    try {
+      const databases = await getNotionDatabases();
+      
+      let userTasksDb = null;
+      for (const db of databases) {
+        const properties = db.properties;
+        if (properties && 
+            properties.Task && 
+            properties.Details && 
+            properties.Due && 
+            properties["Min to Complete"] && 
+            properties.Importance && 
+            properties["Kanban - Stage"] && 
+            properties["Life Domain"]) {
+          userTasksDb = db;
+          break;
+        }
+      }
+
+      if (!userTasksDb) {
+        return res.status(400).json({ 
+          error: "Could not find a Notion database with the expected structure." 
+        });
+      }
+
+      // Get local tasks
+      const localTasks = await storage.getTasks();
+      
+      // Archive all existing tasks in Notion
+      const existingNotionTasks = await getNotionTasks(userTasksDb.id);
+      for (const notionTask of existingNotionTasks) {
+        await notion.pages.update({
+          page_id: notionTask.notionId,
+          archived: true,
+        });
+      }
+
+      // Create new tasks in Notion from local tasks
+      let exportedCount = 0;
+      for (const localTask of localTasks) {
+        const properties: any = {
+          Task: {
+            title: [{ text: { content: localTask.title } }]
+          },
+          Details: {
+            rich_text: [{ text: { content: localTask.description || "" } }]
+          },
+          "Min to Complete": {
+            number: localTask.duration
+          },
+          "Kanban - Stage": {
+            status: { name: localTask.completed ? "Done" : "To Do" }
+          },
+          Apple: { checkbox: localTask.apple || false },
+          SmartPrep: { checkbox: localTask.smartPrep || false },
+          "Delegation Task": { checkbox: localTask.delegationTask || false },
+          Velin: { checkbox: localTask.velin || false }
+        };
+
+        if (localTask.dueDate) {
+          properties.Due = {
+            date: { start: localTask.dueDate.toISOString().split('T')[0] }
+          };
+        }
+
+        if (localTask.importance) {
+          properties.Importance = { select: { name: localTask.importance } };
+        }
+
+        if (localTask.lifeDomain) {
+          properties["Life Domain"] = { select: { name: localTask.lifeDomain } };
+        }
+
+        if (localTask.recurType) {
+          properties["Recur Type"] = { select: { name: localTask.recurType } };
+        }
+
+        await notion.pages.create({
+          parent: { database_id: userTasksDb.id },
+          properties
+        });
+        exportedCount++;
+      }
+
+      res.json({ success: true, count: exportedCount });
+    } catch (error) {
+      console.error("Notion export error:", error);
+      res.status(500).json({ error: "Failed to export to Notion." });
+    }
+  });
+
   // Google Calendar integration routes
   app.post("/api/calendar/sync", async (req, res) => {
     try {

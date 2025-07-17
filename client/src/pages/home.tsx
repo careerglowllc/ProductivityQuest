@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
@@ -23,6 +24,10 @@ export default function Home() {
   const [completedTask, setCompletedTask] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [sortBy, setSortBy] = useState<SortType>("due-date");
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [importTaskCount, setImportTaskCount] = useState(0);
+  const [exportTaskCount, setExportTaskCount] = useState(0);
   const { toast } = useToast();
 
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
@@ -61,22 +66,65 @@ export default function Home() {
     }
   };
 
-  const handleNotionSync = async () => {
+  const handleImportPrepare = async () => {
     try {
-      const response = await apiRequest("POST", "/api/notion/sync");
+      const response = await apiRequest("GET", "/api/notion/count");
+      const result = await response.json();
+      setImportTaskCount(result.count);
+      setShowImportConfirm(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to get Notion task count",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportPrepare = async () => {
+    const currentTaskCount = tasks.length;
+    setExportTaskCount(currentTaskCount);
+    setShowExportConfirm(true);
+  };
+
+  const handleImportConfirm = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/notion/import");
       const result = await response.json();
       
+      setShowImportConfirm(false);
       refetchTasks();
       toast({
-        title: "Notion Sync Complete",
-        description: `Synced ${result.count} tasks from Notion`,
+        title: "Import Complete",
+        description: `Imported ${result.count} tasks from Notion`,
       });
     } catch (error) {
       toast({
-        title: "Sync Error",
-        description: "Failed to sync with Notion. Please check your integration settings.",
+        title: "Error",
+        description: "Failed to import from Notion",
         variant: "destructive",
       });
+      setShowImportConfirm(false);
+    }
+  };
+
+  const handleExportConfirm = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/notion/export");
+      const result = await response.json();
+      
+      setShowExportConfirm(false);
+      toast({
+        title: "Export Complete",
+        description: `Exported ${result.count} tasks to Notion`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export to Notion",
+        variant: "destructive",
+      });
+      setShowExportConfirm(false);
     }
   };
 
@@ -264,9 +312,13 @@ export default function Home() {
                 <p className="text-gray-600">Complete tasks to earn gold and unlock rewards</p>
               </div>
               <div className="flex space-x-3">
-                <Button onClick={handleNotionSync} className="flex items-center space-x-2">
-                  <Trophy className="w-4 h-4" />
-                  <span>Sync Notion</span>
+                <Button onClick={handleImportPrepare} className="flex items-center space-x-2">
+                  <Download className="w-4 h-4" />
+                  <span>Import from Notion</span>
+                </Button>
+                <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2">
+                  <Upload className="w-4 h-4" />
+                  <span>Export to Notion</span>
                 </Button>
                 <Button 
                   onClick={() => setShowCalendarSync(true)}
@@ -350,8 +402,8 @@ export default function Home() {
                 <Card className="p-8 text-center">
                   <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks yet</h3>
-                  <p className="text-gray-600 mb-4">Sync with Notion to get started with your quests!</p>
-                  <Button onClick={handleNotionSync}>Sync with Notion</Button>
+                  <p className="text-gray-600 mb-4">Import from Notion to get started with your quests!</p>
+                  <Button onClick={handleImportPrepare}>Import from Notion</Button>
                 </Card>
               ) : sortedTasks.length === 0 ? (
                 <Card className="p-8 text-center">
@@ -395,6 +447,68 @@ export default function Home() {
         task={completedTask}
         newGoldTotal={progress.goldTotal}
       />
+
+      {/* Import Confirmation Modal */}
+      <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import from Notion</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600 mb-4">
+              This will import {importTaskCount} tasks from your Notion database and overwrite all existing tasks in the app.
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
+                <span className="text-yellow-800 font-medium">Warning:</span>
+              </div>
+              <p className="text-yellow-700 mt-1">
+                All {tasks.length} existing tasks in the app will be deleted and replaced with {importTaskCount} tasks from Notion.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportConfirm(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleImportConfirm} className="bg-blue-600 hover:bg-blue-700">
+              Import {importTaskCount} Tasks
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Confirmation Modal */}
+      <Dialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export to Notion</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600 mb-4">
+              This will export {exportTaskCount} tasks from the app to your Notion database and overwrite all existing tasks in Notion.
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                <span className="text-red-800 font-medium">Warning:</span>
+              </div>
+              <p className="text-red-700 mt-1">
+                All existing tasks in your Notion database will be deleted and replaced with {exportTaskCount} tasks from the app.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportConfirm(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleExportConfirm} className="bg-red-600 hover:bg-red-700">
+              Export {exportTaskCount} Tasks
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
