@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat } from "lucide-react";
+import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskCardProps {
@@ -17,6 +17,11 @@ interface TaskCardProps {
     importance?: string;
     kanbanStage?: string;
     recurType?: string;
+    lifeDomain?: string;
+    apple?: boolean;
+    smartPrep?: boolean;
+    delegationTask?: boolean;
+    velin?: boolean;
   };
   onComplete: (taskId: number) => void;
 }
@@ -89,7 +94,7 @@ export function TaskCard({ task, onComplete }: TaskCardProps) {
                 )}
               </div>
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center flex-wrap gap-2">
                 {task.importance && (
                   <Badge variant="outline" className={cn(
                     "text-xs",
@@ -106,6 +111,29 @@ export function TaskCard({ task, onComplete }: TaskCardProps) {
                   </Badge>
                 )}
                 
+                {task.lifeDomain && (
+                  <Badge variant="outline" className={cn(
+                    "text-xs",
+                    task.lifeDomain === "Relationships" && "bg-pink-100 text-pink-800 border-pink-200",
+                    task.lifeDomain === "Finance" && "bg-green-100 text-green-800 border-green-200",
+                    task.lifeDomain === "Purpose" && "bg-purple-100 text-purple-800 border-purple-200",
+                    task.lifeDomain === "General" && "bg-gray-100 text-gray-800 border-gray-200",
+                    task.lifeDomain === "Physical" && "bg-red-100 text-red-800 border-red-200",
+                    task.lifeDomain === "Adventure" && "bg-orange-100 text-orange-800 border-orange-200",
+                    task.lifeDomain === "Power" && "bg-yellow-100 text-yellow-800 border-yellow-200",
+                    task.lifeDomain === "Mental" && "bg-blue-100 text-blue-800 border-blue-200"
+                  )}>
+                    {task.lifeDomain === "Relationships" && <Users className="w-3 h-3 mr-1" />}
+                    {task.lifeDomain === "Finance" && <DollarSign className="w-3 h-3 mr-1" />}
+                    {task.lifeDomain === "Purpose" && <Target className="w-3 h-3 mr-1" />}
+                    {task.lifeDomain === "Physical" && <Activity className="w-3 h-3 mr-1" />}
+                    {task.lifeDomain === "Adventure" && <Mountain className="w-3 h-3 mr-1" />}
+                    {task.lifeDomain === "Power" && <Power className="w-3 h-3 mr-1" />}
+                    {task.lifeDomain === "Mental" && <Brain className="w-3 h-3 mr-1" />}
+                    {task.lifeDomain}
+                  </Badge>
+                )}
+                
                 {task.recurType === "🔄Recurring" && (
                   <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800 border-purple-200">
                     <Repeat className="w-3 h-3 mr-1" />
@@ -118,6 +146,33 @@ export function TaskCard({ task, onComplete }: TaskCardProps) {
                     {task.kanbanStage}
                   </Badge>
                 )}
+                
+                {/* Checkbox indicators */}
+                <div className="flex items-center space-x-1">
+                  {task.apple && (
+                    <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700 border-gray-200">
+                      <Apple className="w-3 h-3 mr-1" />
+                      Apple
+                    </Badge>
+                  )}
+                  {task.smartPrep && (
+                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                      <Brain className="w-3 h-3 mr-1" />
+                      SmartPrep
+                    </Badge>
+                  )}
+                  {task.delegationTask && (
+                    <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">
+                      <Users className="w-3 h-3 mr-1" />
+                      Delegation
+                    </Badge>
+                  )}
+                  {task.velin && (
+                    <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-200">
+                      Velin
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
           </div>

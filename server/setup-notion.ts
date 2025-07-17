@@ -60,6 +60,34 @@ async function setupNotionDatabases() {
                     { name: "Done", color: "green" }
                 ]
             }
+        },
+        // Life Domain
+        "Life Domain": {
+            select: {
+                options: [
+                    { name: "Relationships", color: "pink" },
+                    { name: "Finance", color: "green" },
+                    { name: "Purpose", color: "purple" },
+                    { name: "General", color: "gray" },
+                    { name: "Physical", color: "red" },
+                    { name: "Adventure", color: "orange" },
+                    { name: "Power", color: "yellow" },
+                    { name: "Mental", color: "blue" }
+                ]
+            }
+        },
+        // Checkbox fields
+        Apple: {
+            checkbox: {}
+        },
+        SmartPrep: {
+            checkbox: {}
+        },
+        "Delegation Task": {
+            checkbox: {}
+        },
+        Velin: {
+            checkbox: {}
         }
     });
 
@@ -84,7 +112,12 @@ async function createSampleTasks() {
                 duration: 30,
                 importance: "Medium",
                 recurType: "🔄Recurring",
-                dueDate: "2024-03-03"
+                dueDate: "2024-03-03",
+                lifeDomain: "General",
+                apple: false,
+                smartPrep: true,
+                delegationTask: false,
+                velin: false
             },
             {
                 title: "Complete weekly report",
@@ -92,7 +125,12 @@ async function createSampleTasks() {
                 duration: 60,
                 importance: "High",
                 recurType: "🔄Recurring",
-                dueDate: "2024-03-05"
+                dueDate: "2024-03-05",
+                lifeDomain: "Purpose",
+                apple: false,
+                smartPrep: false,
+                delegationTask: false,
+                velin: true
             },
             {
                 title: "Grocery shopping",
@@ -100,7 +138,12 @@ async function createSampleTasks() {
                 duration: 45,
                 importance: "Med-High",
                 recurType: "🔄Recurring",
-                dueDate: "2024-03-02"
+                dueDate: "2024-03-02",
+                lifeDomain: "Physical",
+                apple: false,
+                smartPrep: false,
+                delegationTask: true,
+                velin: false
             },
             {
                 title: "Exercise routine",
@@ -108,7 +151,12 @@ async function createSampleTasks() {
                 duration: 30,
                 importance: "Pareto",
                 recurType: "🔄Recurring",
-                dueDate: "2024-03-01"
+                dueDate: "2024-03-01",
+                lifeDomain: "Physical",
+                apple: true,
+                smartPrep: true,
+                delegationTask: false,
+                velin: false
             },
             {
                 title: "Read chapter 5",
@@ -116,7 +164,12 @@ async function createSampleTasks() {
                 duration: 90,
                 importance: "Med-Low",
                 recurType: "⏳One-Time",
-                dueDate: "2024-03-04"
+                dueDate: "2024-03-04",
+                lifeDomain: "Mental",
+                apple: false,
+                smartPrep: true,
+                delegationTask: false,
+                velin: false
             }
         ];
 
@@ -166,6 +219,23 @@ async function createSampleTasks() {
                         status: {
                             name: "Not Started"
                         }
+                    },
+                    "Life Domain": {
+                        select: {
+                            name: task.lifeDomain
+                        }
+                    },
+                    Apple: {
+                        checkbox: task.apple
+                    },
+                    SmartPrep: {
+                        checkbox: task.smartPrep
+                    },
+                    "Delegation Task": {
+                        checkbox: task.delegationTask
+                    },
+                    Velin: {
+                        checkbox: task.velin
                     }
                 }
             });

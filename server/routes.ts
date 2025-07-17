@@ -80,7 +80,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             properties.Due && 
             properties["Min to Complete"] && 
             properties.Importance && 
-            properties["Kanban - Stage"]) {
+            properties["Kanban - Stage"] && 
+            properties["Life Domain"]) {
           userTasksDb = db;
           break;
         }
@@ -88,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!userTasksDb) {
         return res.status(400).json({ 
-          error: "Could not find a Notion database with the expected structure. Please ensure your database has the following properties: Task (title), Details (text), Due (date), Min to Complete (number), Importance (select), Kanban - Stage (status)" 
+          error: "Could not find a Notion database with the expected structure. Please ensure your database has the following properties: Task (title), Details (text), Due (date), Min to Complete (number), Importance (select), Kanban - Stage (status), Life Domain (select)" 
         });
       }
 

@@ -148,6 +148,11 @@ export async function getTasks(tasksDatabaseId: string) {
                 importance,
                 kanbanStage,
                 recurType: properties["Recur Type"]?.select?.name || "⏳One-Time",
+                lifeDomain: properties["Life Domain"]?.select?.name || "General",
+                apple: properties.Apple?.checkbox || false,
+                smartPrep: properties.SmartPrep?.checkbox || false,
+                delegationTask: properties["Delegation Task"]?.checkbox || false,
+                velin: properties.Velin?.checkbox || false,
             };
         });
     } catch (error) {

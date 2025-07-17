@@ -12,10 +12,13 @@ Preferred communication style: Simple, everyday language.
 
 ✓ Updated Notion integration to work with user's existing database structure
 ✓ Added support for custom fields: Task (title), Details (text), Recur Type, Due (date), Min to Complete (number), Importance (select), Kanban - Stage (status)
+✓ Added support for Life Domain field with 8 categories: Relationships, Finance, Purpose, General, Physical, Adventure, Power, Mental
+✓ Added support for checkbox fields: Apple, SmartPrep, Delegation Task, Velin
 ✓ Implemented intelligent gold calculation based on importance level and task duration
 ✓ Added visual indicators for importance levels (Pareto, High, Med-High, etc.) with appropriate colors
+✓ Added color-coded badges for Life Domain categories with matching icons
 ✓ Added support for recurring tasks with visual badges
-✓ Enhanced task cards to show Kanban stage and importance
+✓ Enhanced task cards to show Kanban stage, importance, life domain, and checkbox status
 ✓ Updated task completion to sync back to Notion by changing Kanban stage to "Done"
 
 ## System Architecture

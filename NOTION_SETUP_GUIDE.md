@@ -13,6 +13,11 @@ The app now looks for a Notion database with these exact properties:
 - **Min to Complete** (Number field) - How many minutes the task takes
 - **Importance** (Select field) - Options: "Low", "Med-Low", "Medium", "Med-High", "High", "Pareto"
 - **Kanban - Stage** (Status field) - Options: "Incubate", "Not Started", "In Progress", "Done"
+- **Life Domain** (Select field) - Options: "Relationships", "Finance", "Purpose", "General", "Physical", "Adventure", "Power", "Mental"
+- **Apple** (Checkbox field) - For Apple-related tasks
+- **SmartPrep** (Checkbox field) - For SmartPrep tasks
+- **Delegation Task** (Checkbox field) - For tasks that can be delegated
+- **Velin** (Checkbox field) - For Velin-related tasks
 
 ### How Gold is Calculated
 The app automatically calculates gold rewards based on:
@@ -57,6 +62,8 @@ The app automatically calculates gold rewards based on:
 
 ### Features
 - **Visual indicators**: Tasks show importance level with color-coded badges
+- **Life Domain badges**: Color-coded categories for different life areas with matching icons
+- **Checkbox indicators**: Visual badges for Apple, SmartPrep, Delegation Task, and Velin status
 - **Recurring tasks**: Special badges for recurring vs one-time tasks
 - **Progress tracking**: Daily statistics and completion rates
 - **Kanban integration**: Tasks show their current stage from your Notion board
