@@ -20,6 +20,12 @@ Preferred communication style: Simple, everyday language.
 ✓ Added support for recurring tasks with visual badges
 ✓ Enhanced task cards to show Kanban stage, importance, life domain, and checkbox status
 ✓ Updated task completion to sync back to Notion by changing Kanban stage to "Done"
+✓ Implemented comprehensive recycling system for completed and deleted tasks
+✓ Added recycling database fields: recycled, recycledAt, recycledReason
+✓ Created RecyclingModal with tabbed interface showing completed/deleted tasks separately
+✓ Added bulk operations for restoring and permanently deleting multiple tasks
+✓ Integrated recycling button in sidebar navigation
+✓ Tasks now automatically move to recycling bin when completed or deleted instead of permanent removal
 
 ## System Architecture
 

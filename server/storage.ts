@@ -139,7 +139,10 @@ export class MemStorage implements IStorage {
     this.userProgress.goldTotal = (this.userProgress.goldTotal || 0) + task.goldValue;
     this.userProgress.tasksCompleted = (this.userProgress.tasksCompleted || 0) + 1;
 
-    return completedTask;
+    // Move completed task to recycling
+    const recycledTask = await this.recycleTask(id, "completed");
+
+    return recycledTask || completedTask;
   }
 
   // Recycling operations
