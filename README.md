@@ -63,6 +63,7 @@ A full-stack gamified productivity web application that seamlessly integrates wi
 - **Task Creation**: Manual creation or Notion sync
 - **Task Completion**: Marks complete and awards gold
 - **Task Deletion**: Moves to recycling bin
+- **Search Functionality**: Keyword search across title, description, category, and importance
 - **Filtering & Sorting**: By due date, importance, life domain
 - **Multi-selection**: Bulk operations on multiple tasks
 
@@ -112,7 +113,23 @@ finalGold = baseGold * importanceMultiplier
 4. Recycling bin shows tasks by reason (completed/deleted)
 5. Restore resets recycling flags and returns to main list
 
-### 5. External Integrations
+### 5. Search System
+**Files**: `client/src/pages/home.tsx`
+
+- **Real-time Search**: Instant filtering as user types
+- **Multi-field Search**: Searches across title, description, category, and importance
+- **Search + Filter Combination**: Works with existing filters (due today, high reward, etc.)
+- **Visual Feedback**: Results counter and contextual no-results messages
+- **Clear Search**: Easy reset with clear button or dedicated clear action
+
+**Search Implementation**:
+- Case-insensitive keyword matching
+- Searches multiple task fields simultaneously
+- Preserves existing filter logic while adding search layer
+- Shows search results count and active search terms
+- Provides clear action when no results found
+
+### 6. External Integrations
 
 #### Notion Integration
 **Files**: `server/notion.ts`, `server/routes.ts`
@@ -230,6 +247,7 @@ interface ShopItem {
 - `RecyclingModal`: Tabbed interface for recycled tasks
 - `CompletionAnimation`: Celebratory animation for completions
 - `CalendarSyncModal`: Google Calendar integration interface
+- `SearchBar`: Real-time keyword search with clear button and results counter
 
 ### Responsive Design
 - Mobile-first approach
@@ -241,8 +259,33 @@ interface ShopItem {
 
 ### Debug Tools
 - **Debug Script**: `npm run debug` - Comprehensive functionality testing
+- **Search Testing**: `node test-search.js` - Standalone search logic validation
+- **Integrated Search Testing**: `node debug-tool.js search` - Test search with live server
 - **Console Logging**: Server-side logging for key operations
 - **Error Handling**: Structured error responses with proper HTTP codes
+
+### Search Usage Examples
+```javascript
+// Frontend search implementation
+const searchTasks = (tasks, query) => {
+  if (!query.trim()) return tasks;
+  
+  const searchQuery = query.toLowerCase();
+  return tasks.filter(task => {
+    const titleMatch = task.title?.toLowerCase().includes(searchQuery);
+    const descriptionMatch = task.description?.toLowerCase().includes(searchQuery);
+    const categoryMatch = task.category?.toLowerCase().includes(searchQuery);
+    const importanceMatch = task.importance?.toLowerCase().includes(searchQuery);
+    return titleMatch || descriptionMatch || categoryMatch || importanceMatch;
+  });
+};
+
+// Search examples:
+searchTasks(tasks, "project");      // Find tasks with "project" in title/description
+searchTasks(tasks, "high");         // Find tasks with high importance
+searchTasks(tasks, "exercise");     // Find exercise-related tasks
+searchTasks(tasks, "");             // Returns all tasks (empty search)
+```
 
 ### Common Issues & Solutions
 

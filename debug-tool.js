@@ -410,6 +410,131 @@ const testSuites = {
       assert(recycledTask !== undefined, 'Integration test: Task moved to recycling');
       assert(recycledTask.recycledReason === 'completed', 'Integration test: Correct recycling reason');
     }
+  },
+
+  async search() {
+    log('INFO', 'Testing search functionality...');
+    
+    // First, create test tasks with different content for search testing
+    const testTasks = [
+      {
+        title: 'Project Management Meeting',
+        description: 'Discuss quarterly goals and team assignments',
+        duration: 60,
+        goldValue: 6,
+        importance: 'High',
+        kanbanStage: 'Not Started',
+        recurType: '⏳One-Time',
+        lifeDomain: 'Purpose',
+        apple: false,
+        smartPrep: false,
+        delegationTask: false,
+        velin: false
+      },
+      {
+        title: 'Weekly Exercise Routine',
+        description: 'Cardio and strength training session',
+        duration: 45,
+        goldValue: 5,
+        importance: 'Medium',
+        kanbanStage: 'Not Started',
+        recurType: '🔁Weekly',
+        lifeDomain: 'Physical',
+        apple: false,
+        smartPrep: false,
+        delegationTask: false,
+        velin: false
+      },
+      {
+        title: 'Budget Review',
+        description: 'Review monthly expenses and financial goals',
+        duration: 30,
+        goldValue: 3,
+        importance: 'High',
+        kanbanStage: 'Not Started',
+        recurType: '📅Monthly',
+        lifeDomain: 'Finance',
+        apple: false,
+        smartPrep: false,
+        delegationTask: false,
+        velin: false
+      }
+    ];
+    
+    // Create the test tasks
+    let createdTaskIds = [];
+    for (const task of testTasks) {
+      const createResponse = await makeRequest('POST', '/api/tasks', task);
+      if (createResponse.success) {
+        createdTaskIds.push(createResponse.data.id);
+      }
+    }
+    
+    assert(createdTaskIds.length === testTasks.length, 'Search test: Created all test tasks');
+    
+    // Get all tasks to test search logic
+    const allTasksResponse = await makeRequest('GET', '/api/tasks');
+    assert(allTasksResponse.success, 'Search test: Can retrieve all tasks');
+    
+    const allTasks = allTasksResponse.data;
+    
+    // Test search functionality by simulating frontend search logic
+    function searchTasks(tasks, query) {
+      if (!query.trim()) return tasks;
+      
+      const searchQuery = query.toLowerCase();
+      return tasks.filter(task => {
+        const titleMatch = task.title?.toLowerCase().includes(searchQuery);
+        const descriptionMatch = task.description?.toLowerCase().includes(searchQuery);
+        const categoryMatch = task.category?.toLowerCase().includes(searchQuery);
+        const importanceMatch = task.importance?.toLowerCase().includes(searchQuery);
+        return titleMatch || descriptionMatch || categoryMatch || importanceMatch;
+      });
+    }
+    
+    // Test various search scenarios
+    const searchTests = [
+      { query: 'project', expectedMinResults: 1, description: 'Search by title keyword' },
+      { query: 'meeting', expectedMinResults: 1, description: 'Search by title keyword' },
+      { query: 'quarterly', expectedMinResults: 1, description: 'Search by description keyword' },
+      { query: 'exercise', expectedMinResults: 1, description: 'Search by title keyword' },
+      { query: 'cardio', expectedMinResults: 1, description: 'Search by description keyword' },
+      { query: 'high', expectedMinResults: 2, description: 'Search by importance level' },
+      { query: 'medium', expectedMinResults: 1, description: 'Search by importance level' },
+      { query: 'budget', expectedMinResults: 1, description: 'Search by title keyword' },
+      { query: 'financial', expectedMinResults: 1, description: 'Search by description keyword' },
+      { query: 'nonexistent', expectedMinResults: 0, description: 'Search with no results' }
+    ];
+    
+    for (const test of searchTests) {
+      const searchResults = searchTasks(allTasks, test.query);
+      assert(searchResults.length >= test.expectedMinResults, 
+        `Search test: ${test.description} - "${test.query}" (found ${searchResults.length}, expected min ${test.expectedMinResults})`);
+    }
+    
+    // Test case sensitivity
+    const upperCaseResults = searchTasks(allTasks, 'PROJECT');
+    const lowerCaseResults = searchTasks(allTasks, 'project');
+    assert(upperCaseResults.length === lowerCaseResults.length, 
+      'Search test: Case insensitive search works');
+    
+    // Test empty search
+    const emptyResults = searchTasks(allTasks, '');
+    assert(emptyResults.length === allTasks.length, 
+      'Search test: Empty search returns all tasks');
+    
+    // Test whitespace search
+    const whitespaceResults = searchTasks(allTasks, '   ');
+    assert(whitespaceResults.length === allTasks.length, 
+      'Search test: Whitespace-only search returns all tasks');
+    
+    // Clean up: delete created test tasks
+    for (const taskId of createdTaskIds) {
+      await makeRequest('DELETE', `/api/tasks/${taskId}`);
+      await makeRequest('DELETE', `/api/tasks/${taskId}/permanent`);
+    }
+    
+    log('PASS', 'Search functionality tests completed');
   }
 };
 
@@ -465,7 +590,7 @@ async function runTests(specificTest = null) {
     log('INFO', 'Running all tests...');
     
     // Run tests in logical order
-    const testOrder = ['server', 'tasks', 'recycling', 'shop', 'gamification', 'notion', 'integration'];
+    const testOrder = ['server', 'tasks', 'search', 'recycling', 'shop', 'gamification', 'notion', 'integration'];
     
     for (const testName of testOrder) {
       if (testSuites[testName]) {
