@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Settings, Save, Eye, EyeOff, ArrowLeft, Home } from "lucide-react";
+import { Settings, Save, Eye, EyeOff, ArrowLeft, Home, Calendar, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -16,11 +16,42 @@ export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [notionApiKey, setNotionApiKey] = useState("");
   const [notionDatabaseId, setNotionDatabaseId] = useState("");
+  const [hasGoogleAuth, setHasGoogleAuth] = useState(false);
+
+  // Handle Google OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const googleSuccess = params.get('google_success');
+    const googleError = params.get('google_error');
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const expiry = params.get('expiry');
+
+    if (googleSuccess && accessToken && refreshToken && expiry) {
+      // Save tokens to backend
+      saveGoogleTokens.mutate({ accessToken, refreshToken, expiry });
+      
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    } else if (googleError) {
+      toast({
+        title: "Google Calendar Connection Failed",
+        description: "Please try again or check your Google account permissions.",
+        variant: "destructive",
+      });
+      
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
 
   const { data: settings } = useQuery({
     queryKey: ["/api/user/settings"],
     onSuccess: (data) => {
       setNotionDatabaseId(data.notionDatabaseId || "");
+      setHasGoogleAuth(!!data.hasGoogleAuth);
     },
   });
 
@@ -74,6 +105,63 @@ export default function SettingsPage() {
       toast({
         title: "Connection failed",
         description: description,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const connectGoogleCalendar = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("GET", "/api/auth/google");
+      const data = await response.json();
+      window.location.href = data.authUrl;
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to connect to Google Calendar. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveGoogleTokens = useMutation({
+    mutationFn: async (tokens: { accessToken: string; refreshToken: string; expiry: string }) => {
+      return apiRequest("POST", "/api/auth/google/save-tokens", tokens);
+    },
+    onSuccess: () => {
+      setHasGoogleAuth(true);
+      toast({
+        title: "Google Calendar Connected!",
+        description: "You can now sync your tasks to Google Calendar.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to save Google Calendar connection. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectGoogleCalendar = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", "/api/auth/google");
+    },
+    onSuccess: () => {
+      setHasGoogleAuth(false);
+      toast({
+        title: "Google Calendar Disconnected",
+        description: "Your Google Calendar has been disconnected.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Google Calendar. Please try again.",
         variant: "destructive",
       });
     },
@@ -235,20 +323,94 @@ export default function SettingsPage() {
               <h4 className="font-semibold">4. If Connection Fails</h4>
               <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                 <li>• Double-check that your database is shared with the integration</li>
-                <li>• Verify the database ID is exactly 32 characters</li>
-                <li>• Make sure your API key is correct</li>
-                <li>• Try refreshing the database page and sharing again</li>
+                <li>• Make sure you&apos;re using the database ID, not the page ID</li>
+                <li>• Verify your API key is correct and has the right permissions</li>
+                <li>• Check that your database has the required fields (Task, Details, etc.)</li>
               </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Google Calendar Integration
+            </CardTitle>
+            <CardDescription>
+              Connect your Google Calendar to sync tasks as calendar events with time blocking and reminders.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${hasGoogleAuth ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div>
+                  <p className="font-medium">
+                    {hasGoogleAuth ? 'Connected to Google Calendar' : 'Not connected'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {hasGoogleAuth 
+                      ? 'Your tasks can be synced to Google Calendar with time blocking and reminders' 
+                      : 'Connect your Google account to enable calendar sync for your tasks'
+                    }
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {hasGoogleAuth ? (
+                  <Button 
+                    onClick={() => disconnectGoogleCalendar.mutate()}
+                    disabled={disconnectGoogleCalendar.isPending}
+                    variant="outline"
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    {disconnectGoogleCalendar.isPending ? 'Disconnecting...' : 'Disconnect'}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => connectGoogleCalendar.mutate()}
+                    disabled={connectGoogleCalendar.isPending}
+                    className="flex items-center gap-2"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    {connectGoogleCalendar.isPending ? 'Connecting...' : 'Connect Google Calendar'}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <h4 className="font-semibold">⚠️ Common Issues</h4>
-              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                <li>• <strong>Database not found:</strong> Make sure you shared the database with your integration</li>
-                <li>• <strong>Wrong ID:</strong> Use the database ID, not the page ID</li>
-                <li>• <strong>Required fields:</strong> Your database must have these columns: Task, Details, Due, Min to Complete, Importance, Kanban - Stage, Life Domain</li>
-              </ul>
-            </div>
+            {hasGoogleAuth && (
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <h4 className="font-medium text-green-800">Google Calendar Features</h4>
+                </div>
+                <ul className="text-sm text-green-700 space-y-1">
+                  <li>• Time blocking: Tasks with due dates become calendar events</li>
+                  <li>• Smart scheduling: Duration sets event length automatically</li>
+                  <li>• Color coding: Events are colored by importance level</li>
+                  <li>• Rich details: Events include task descriptions, gold rewards, and metadata</li>
+                  <li>• Reminders: 15-minute popup and 1-hour email reminders</li>
+                </ul>
+              </div>
+            )}
+
+            {!hasGoogleAuth && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <h4 className="font-medium text-blue-800">How Calendar Sync Works</h4>
+                </div>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Select tasks from your task list</li>
+                  <li>• Click &quot;Calendar Sync&quot; in the sidebar</li>
+                  <li>• Tasks with due dates become calendar events</li>
+                  <li>• Events are automatically time-blocked based on task duration</li>
+                  <li>• Importance levels determine event colors</li>
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

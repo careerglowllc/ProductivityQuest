@@ -35,6 +35,7 @@ export default function Home() {
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [showRecycling, setShowRecycling] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -241,12 +242,29 @@ export default function Home() {
       
       toast({
         title: "Calendar Sync Complete",
-        description: `${result.count} tasks synced to your Google Calendar`,
+        description: `${result.count} tasks synced to your Google Calendar${result.failed > 0 ? ` (${result.failed} failed)` : ''}`,
       });
-    } catch (error) {
+    } catch (error: any) {
+      const errorData = error.response?.data || {};
+      
+      if (errorData.needsAuth) {
+        setShowCalendarSync(false);
+        setCalendarNeedsAuth(true);
+        setTimeout(() => setShowCalendarSync(true), 100); // Reopen with auth prompt
+        return;
+      }
+      
+      if (errorData.tokenRefreshed) {
+        toast({
+          title: "Token Refreshed",
+          description: "Please try syncing again.",
+        });
+        return;
+      }
+      
       toast({
         title: "Sync Error",
-        description: "Failed to sync with Google Calendar. Please check your settings.",
+        description: errorData.error || "Failed to sync with Google Calendar. Please check your settings.",
         variant: "destructive",
       });
     }
@@ -693,9 +711,13 @@ export default function Home() {
       
       <CalendarSyncModal
         isOpen={showCalendarSync}
-        onClose={() => setShowCalendarSync(false)}
+        onClose={() => {
+          setShowCalendarSync(false);
+          setCalendarNeedsAuth(false);
+        }}
         onSync={handleCalendarSync}
         selectedTasksCount={selectedTasks.size}
+        needsGoogleAuth={calendarNeedsAuth}
       />
       
       <CompletionAnimation

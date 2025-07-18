@@ -1,37 +1,93 @@
 import { google } from 'googleapis';
-import { Task } from '@shared/schema';
+import { Task, User } from '@shared/schema';
 
 export interface GoogleCalendarService {
-  createEvent(task: Task): Promise<void>;
-  syncTasks(tasks: Task[]): Promise<void>;
+  getAuthUrl(): string;
+  getTokensFromCode(code: string): Promise<{ accessToken: string; refreshToken: string; expiry: Date }>;
+  createEvent(task: Task, user: User): Promise<void>;
+  syncTasks(tasks: Task[], user: User): Promise<{ success: number; failed: number }>;
+  refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; expiry: Date }>;
 }
 
 class GoogleCalendarClient implements GoogleCalendarService {
-  private calendar: any;
+  private oauth2Client: any;
 
   constructor() {
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/calendar'],
-    });
-
-    this.calendar = google.calendar({ version: 'v3', auth });
+    this.oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.NODE_ENV === 'production' 
+        ? `${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`
+        : 'http://localhost:5000/api/auth/google/callback'
+    );
   }
 
-  async createEvent(task: Task): Promise<void> {
+  getAuthUrl(): string {
+    return this.oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: ['https://www.googleapis.com/auth/calendar'],
+      prompt: 'consent', // Forces refresh token to be returned
+    });
+  }
+
+  async getTokensFromCode(code: string): Promise<{ accessToken: string; refreshToken: string; expiry: Date }> {
+    const { tokens } = await this.oauth2Client.getToken(code);
+    
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiry: new Date(tokens.expiry_date)
+    };
+  }
+
+  async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; expiry: Date }> {
+    this.oauth2Client.setCredentials({ refresh_token: refreshToken });
+    const { credentials } = await this.oauth2Client.refreshAccessToken();
+    
+    return {
+      accessToken: credentials.access_token,
+      expiry: new Date(credentials.expiry_date)
+    };
+  }
+
+  private async getCalendarClient(user: User): Promise<any> {
+    if (!user.googleAccessToken) {
+      throw new Error('User has not authorized Google Calendar access');
+    }
+
+    // Check if token is expired and refresh if needed
+    const now = new Date();
+    if (user.googleTokenExpiry && user.googleTokenExpiry <= now) {
+      if (!user.googleRefreshToken) {
+        throw new Error('Google token expired and no refresh token available');
+      }
+      
+      const { accessToken, expiry } = await this.refreshAccessToken(user.googleRefreshToken);
+      
+      // Update user tokens (this would need to be handled by the caller)
+      throw new Error('TOKEN_REFRESH_NEEDED:' + JSON.stringify({ accessToken, expiry }));
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: user.googleAccessToken,
+      refresh_token: user.googleRefreshToken,
+    });
+
+    return google.calendar({ version: 'v3', auth: this.oauth2Client });
+  }
+
+  async createEvent(task: Task, user: User): Promise<void> {
     if (!task.dueDate) {
       throw new Error('Task must have a due date to create calendar event');
     }
 
+    const calendar = await this.getCalendarClient(user);
     const startTime = new Date(task.dueDate);
     const endTime = new Date(startTime.getTime() + task.duration * 60000); // Add duration in milliseconds
 
     const event = {
-      summary: task.title,
-      description: `${task.description}\n\nGold Reward: ${task.goldValue} coins\nDuration: ${task.duration} minutes`,
+      summary: `🎯 ${task.title}`,
+      description: `${task.description}\n\n💰 Gold Reward: ${task.goldValue} coins\n⏱️ Duration: ${task.duration} minutes${task.importance ? `\n📈 Importance: ${task.importance}` : ''}${task.lifeDomain ? `\n🌟 Life Domain: ${task.lifeDomain}` : ''}`,
       start: {
         dateTime: startTime.toISOString(),
         timeZone: 'America/New_York', // Default timezone, can be made configurable
@@ -47,10 +103,11 @@ class GoogleCalendarClient implements GoogleCalendarService {
           { method: 'email', minutes: 60 },
         ],
       },
+      colorId: this.getEventColor(task.importance),
     };
 
     try {
-      await this.calendar.events.insert({
+      await calendar.events.insert({
         calendarId: 'primary',
         resource: event,
       });
@@ -60,17 +117,36 @@ class GoogleCalendarClient implements GoogleCalendarService {
     }
   }
 
-  async syncTasks(tasks: Task[]): Promise<void> {
+  private getEventColor(importance?: string): string {
+    // Google Calendar color IDs
+    const colorMap: { [key: string]: string } = {
+      'Pareto': '11', // Red
+      'High': '9',    // Blue
+      'Med-High': '3', // Purple
+      'Medium': '6',   // Orange
+      'Med-Low': '5',  // Yellow
+      'Low': '2',      // Green
+    };
+    
+    return colorMap[importance || 'Medium'] || '6'; // Default to orange
+  }
+
+  async syncTasks(tasks: Task[], user: User): Promise<{ success: number; failed: number }> {
     const pendingTasks = tasks.filter(task => !task.completed && task.dueDate);
+    let success = 0;
+    let failed = 0;
     
     for (const task of pendingTasks) {
       try {
-        await this.createEvent(task);
+        await this.createEvent(task, user);
+        success++;
       } catch (error) {
         console.error(`Failed to sync task ${task.id}:`, error);
-        // Continue with other tasks even if one fails
+        failed++;
       }
     }
+    
+    return { success, failed };
   }
 }
 

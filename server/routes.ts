@@ -34,6 +34,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         notionApiKey: user.notionApiKey ? '***' : null, // Hide actual key
         notionDatabaseId: user.notionDatabaseId,
+        hasGoogleAuth: !!(user.googleAccessToken && user.googleTokenExpiry && user.googleTokenExpiry > new Date()),
       });
     } catch (error) {
       console.error("Error fetching user settings:", error);
@@ -483,30 +484,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Calendar OAuth routes
+  app.get("/api/auth/google", isAuthenticated, async (req: any, res) => {
+    try {
+      const authUrl = googleCalendar.getAuthUrl();
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Google auth URL error:", error);
+      res.status(500).json({ error: "Failed to get Google auth URL" });
+    }
+  });
+
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code) {
+        return res.status(400).json({ error: "Missing authorization code" });
+      }
+
+      // Get tokens from Google
+      const tokens = await googleCalendar.getTokensFromCode(code as string);
+      
+      // For now, we'll redirect to a success page with tokens in query params
+      // In a production app, you'd want to use the state parameter to identify the user
+      const successUrl = `${process.env.NODE_ENV === 'production' ? process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/settings?google_success=true&access_token=${encodeURIComponent(tokens.accessToken)}&refresh_token=${encodeURIComponent(tokens.refreshToken)}&expiry=${tokens.expiry.getTime()}`;
+      
+      res.redirect(successUrl);
+    } catch (error) {
+      console.error("Google OAuth callback error:", error);
+      const errorUrl = `${process.env.NODE_ENV === 'production' ? process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/settings?google_error=true`;
+      res.redirect(errorUrl);
+    }
+  });
+
+  app.post("/api/auth/google/save-tokens", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { accessToken, refreshToken, expiry } = req.body;
+      
+      if (!accessToken || !refreshToken || !expiry) {
+        return res.status(400).json({ error: "Missing required token data" });
+      }
+
+      const user = await storage.updateGoogleTokens(userId, {
+        googleAccessToken: accessToken,
+        googleRefreshToken: refreshToken,
+        googleTokenExpiry: new Date(parseInt(expiry))
+      });
+
+      res.json({ success: true, hasGoogleAuth: true });
+    } catch (error) {
+      console.error("Save Google tokens error:", error);
+      res.status(500).json({ error: "Failed to save Google tokens" });
+    }
+  });
+
+  app.delete("/api/auth/google", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const user = await storage.updateGoogleTokens(userId, {
+        googleAccessToken: '',
+        googleRefreshToken: undefined,
+        googleTokenExpiry: new Date(0)
+      });
+
+      res.json({ success: true, hasGoogleAuth: false });
+    } catch (error) {
+      console.error("Disconnect Google error:", error);
+      res.status(500).json({ error: "Failed to disconnect Google account" });
+    }
+  });
+
   // Calendar integration routes
   app.post("/api/calendar/sync", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const tasks = await storage.getTasks(userId);
+      const user = await storage.getUser(userId);
       
-      const { selectedTasks } = req.body;
-      let syncedCount = 0;
-
-      for (const taskId of selectedTasks) {
-        const task = tasks.find(t => t.id === taskId);
-        if (task && task.dueDate) {
-          try {
-            await googleCalendar.createEvent(task);
-            syncedCount++;
-          } catch (error) {
-            console.error("Error syncing task to calendar:", error);
-          }
-        }
+      if (!user?.googleAccessToken) {
+        return res.status(400).json({ 
+          error: "Google Calendar not connected",
+          needsAuth: true 
+        });
       }
 
-      res.json({ success: true, count: syncedCount });
-    } catch (error) {
+      const tasks = await storage.getTasks(userId);
+      const { selectedTasks } = req.body;
+      
+      const tasksToSync = tasks.filter(task => 
+        selectedTasks.includes(task.id) && 
+        task.dueDate && 
+        !task.completed
+      );
+
+      const results = await googleCalendar.syncTasks(tasksToSync, user);
+      
+      res.json({ 
+        success: true, 
+        count: results.success,
+        failed: results.failed,
+        total: tasksToSync.length
+      });
+    } catch (error: any) {
       console.error("Calendar sync error:", error);
+      
+      // Handle token refresh needed
+      if (error.message.startsWith('TOKEN_REFRESH_NEEDED:')) {
+        const tokenData = JSON.parse(error.message.replace('TOKEN_REFRESH_NEEDED:', ''));
+        
+        try {
+          const userId = req.user.claims.sub;
+          await storage.updateGoogleTokens(userId, {
+            googleAccessToken: tokenData.accessToken,
+            googleRefreshToken: undefined, // Keep existing refresh token
+            googleTokenExpiry: tokenData.expiry
+          });
+          
+          return res.status(401).json({ 
+            error: "Token refreshed, please try again",
+            tokenRefreshed: true
+          });
+        } catch (refreshError) {
+          console.error("Token refresh error:", refreshError);
+          return res.status(401).json({ 
+            error: "Google Calendar access expired",
+            needsAuth: true 
+          });
+        }
+      }
+      
       res.status(500).json({ error: "Failed to sync to calendar" });
     }
   });
