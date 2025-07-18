@@ -8,7 +8,7 @@ This is a full-stack task management application with gamification features buil
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (July 17, 2025)
+## Recent Changes (July 18, 2025)
 
 ✓ Updated Notion integration to work with user's existing database structure
 ✓ Added support for custom fields: Task (title), Details (text), Recur Type, Due (date), Min to Complete (number), Importance (select), Kanban - Stage (status)
@@ -26,6 +26,12 @@ Preferred communication style: Simple, everyday language.
 ✓ Added bulk operations for restoring and permanently deleting multiple tasks
 ✓ Integrated recycling button in sidebar navigation
 ✓ Tasks now automatically move to recycling bin when completed or deleted instead of permanent removal
+✓ Added bulk Notion operations: "Append to Notion" and "Delete from Notion" buttons for selected tasks
+✓ Implemented selective calendar sync - only syncs selected tasks instead of all tasks
+✓ Added visual feedback showing number of selected tasks in sync buttons
+✓ Calendar sync and sidebar buttons now disabled/grayed out when no tasks are selected
+✓ Updated CalendarSyncModal to show selected task count instead of all pending tasks
+✓ Enhanced user experience with clear selection-based workflows
 
 ## System Architecture
 

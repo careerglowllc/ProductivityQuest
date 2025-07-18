@@ -395,6 +395,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk append tasks to Notion
+  app.post("/api/notion/append", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { taskIds } = req.body;
+      
+      if (!user?.notionApiKey || !user?.notionDatabaseId) {
+        return res.status(400).json({ error: "Notion API key or database ID not configured" });
+      }
+
+      if (!taskIds || !Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "Task IDs array is required" });
+      }
+
+      const { addTaskToNotion } = await import("./notion");
+      let appendedCount = 0;
+
+      for (const taskId of taskIds) {
+        try {
+          const task = await storage.getTask(taskId);
+          if (task && task.userId === userId) {
+            // Add to Notion
+            const notionId = await addTaskToNotion(task, user.notionDatabaseId, user.notionApiKey);
+            
+            // Update task with Notion ID
+            await storage.updateTask(taskId, { notionId });
+            appendedCount++;
+          }
+        } catch (error) {
+          console.error(`Error appending task ${taskId} to Notion:`, error);
+          // Continue with other tasks
+        }
+      }
+
+      res.json({ message: `Successfully appended ${appendedCount} tasks to Notion`, count: appendedCount });
+    } catch (error) {
+      console.error("Notion append error:", error);
+      res.status(500).json({ error: "Failed to append tasks to Notion" });
+    }
+  });
+
+  // Bulk delete tasks from Notion
+  app.post("/api/notion/delete", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { taskIds } = req.body;
+      
+      if (!user?.notionApiKey || !user?.notionDatabaseId) {
+        return res.status(400).json({ error: "Notion API key or database ID not configured" });
+      }
+
+      if (!taskIds || !Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "Task IDs array is required" });
+      }
+
+      const { deleteTaskFromNotion } = await import("./notion");
+      let deletedCount = 0;
+
+      for (const taskId of taskIds) {
+        try {
+          const task = await storage.getTask(taskId);
+          if (task && task.userId === userId && task.notionId) {
+            // Delete from Notion
+            await deleteTaskFromNotion(task.notionId, user.notionApiKey);
+            
+            // Recycle the task locally
+            await storage.updateTask(taskId, { 
+              recycled: true, 
+              recycledAt: new Date(),
+              recycledReason: "Deleted from Notion"
+            });
+            deletedCount++;
+          }
+        } catch (error) {
+          console.error(`Error deleting task ${taskId} from Notion:`, error);
+          // Continue with other tasks
+        }
+      }
+
+      res.json({ message: `Successfully deleted ${deletedCount} tasks from Notion`, count: deletedCount });
+    } catch (error) {
+      console.error("Notion delete error:", error);
+      res.status(500).json({ error: "Failed to delete tasks from Notion" });
+    }
+  });
+
   // Calendar integration routes
   app.post("/api/calendar/sync", isAuthenticated, async (req: any, res) => {
     try {

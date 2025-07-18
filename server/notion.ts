@@ -235,3 +235,106 @@ export async function updateTaskCompletion(notionId: string, completed: boolean,
         throw new Error("Failed to update task in Notion");
     }
 }
+
+// Add a task to Notion database
+export async function addTaskToNotion(task: any, databaseId: string, userApiKey: string) {
+    try {
+        const userNotion = new Client({
+            auth: userApiKey,
+        });
+
+        // Format the database ID properly
+        const formattedDatabaseId = formatDatabaseId(databaseId);
+
+        const response = await userNotion.pages.create({
+            parent: {
+                database_id: formattedDatabaseId,
+            },
+            properties: {
+                "Task": {
+                    title: [
+                        {
+                            text: {
+                                content: task.title,
+                            },
+                        },
+                    ],
+                },
+                "Details": {
+                    rich_text: [
+                        {
+                            text: {
+                                content: task.description || "",
+                            },
+                        },
+                    ],
+                },
+                "Due": task.dueDate ? {
+                    date: {
+                        start: task.dueDate,
+                    },
+                } : undefined,
+                "Min to Complete": {
+                    number: task.duration,
+                },
+                "Importance": {
+                    select: {
+                        name: task.importance || "Medium",
+                    },
+                },
+                "Kanban - Stage": {
+                    status: {
+                        name: task.completed ? "Done" : "In Progress",
+                    },
+                },
+                "Recur Type": task.recurType ? {
+                    select: {
+                        name: task.recurType,
+                    },
+                } : undefined,
+                "Life Domain": task.lifeDomain ? {
+                    select: {
+                        name: task.lifeDomain,
+                    },
+                } : undefined,
+                "Apple": {
+                    checkbox: task.apple || false,
+                },
+                "SmartPrep": {
+                    checkbox: task.smartPrep || false,
+                },
+                "Delegation Task": {
+                    checkbox: task.delegationTask || false,
+                },
+                "Velin": {
+                    checkbox: task.velin || false,
+                },
+            },
+        });
+
+        return response.id;
+    } catch (error) {
+        console.error("Error adding task to Notion:", error);
+        throw new Error("Failed to add task to Notion");
+    }
+}
+
+// Delete a task from Notion database
+export async function deleteTaskFromNotion(notionId: string, userApiKey: string) {
+    try {
+        const userNotion = new Client({
+            auth: userApiKey,
+        });
+
+        // Format the notion ID properly
+        const formattedNotionId = formatDatabaseId(notionId);
+
+        await userNotion.pages.update({
+            page_id: formattedNotionId,
+            archived: true,
+        });
+    } catch (error) {
+        console.error("Error deleting task from Notion:", error);
+        throw new Error("Failed to delete task from Notion");
+    }
+}

@@ -7,10 +7,10 @@ interface CalendarSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSync: () => void;
-  pendingTasksCount: number;
+  selectedTasksCount: number;
 }
 
-export function CalendarSyncModal({ isOpen, onClose, onSync, pendingTasksCount }: CalendarSyncModalProps) {
+export function CalendarSyncModal({ isOpen, onClose, onSync, selectedTasksCount }: CalendarSyncModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -39,18 +39,18 @@ export function CalendarSyncModal({ isOpen, onClose, onSync, pendingTasksCount }
               <p className="text-sm text-yellow-800 flex items-center space-x-2">
                 <Info className="w-4 h-4" />
                 <span>
-                  This will sync <strong>{pendingTasksCount}</strong> pending tasks to your Google Calendar
+                  This will sync <strong>{selectedTasksCount}</strong> selected tasks to your Google Calendar
                 </span>
               </p>
             </CardContent>
           </Card>
 
-          {pendingTasksCount === 0 && (
+          {selectedTasksCount === 0 && (
             <Card className="bg-gray-50">
               <CardContent className="p-4">
                 <p className="text-sm text-gray-600 flex items-center space-x-2">
                   <AlertCircle className="w-4 h-4" />
-                  <span>No pending tasks with due dates found to sync.</span>
+                  <span>No tasks selected for sync. Please select tasks first.</span>
                 </p>
               </CardContent>
             </Card>
@@ -61,7 +61,7 @@ export function CalendarSyncModal({ isOpen, onClose, onSync, pendingTasksCount }
           <Button
             className="flex-1"
             onClick={onSync}
-            disabled={pendingTasksCount === 0}
+            disabled={selectedTasksCount === 0}
           >
             Sync Now
           </Button>

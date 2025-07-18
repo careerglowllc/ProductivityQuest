@@ -106,6 +106,64 @@ export default function Home() {
     }
   };
 
+  const handleAppendToNotion = async () => {
+    if (selectedTasks.size === 0) return;
+
+    try {
+      const selectedTaskIds = Array.from(selectedTasks);
+      const response = await apiRequest("POST", "/api/notion/append", {
+        taskIds: selectedTaskIds
+      });
+      const result = await response.json();
+
+      // Clear selection
+      setSelectedTasks(new Set());
+      
+      // Refresh tasks to get updated notion IDs
+      refetchTasks();
+
+      toast({
+        title: "Success",
+        description: result.message || `${result.count} tasks appended to Notion`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to append tasks to Notion",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteFromNotion = async () => {
+    if (selectedTasks.size === 0) return;
+
+    try {
+      const selectedTaskIds = Array.from(selectedTasks);
+      const response = await apiRequest("POST", "/api/notion/delete", {
+        taskIds: selectedTaskIds
+      });
+      const result = await response.json();
+
+      // Clear selection
+      setSelectedTasks(new Set());
+      
+      // Refresh tasks to reflect changes
+      refetchTasks();
+
+      toast({
+        title: "Success",
+        description: result.message || `${result.count} tasks deleted from Notion`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete tasks from Notion",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleImportPrepare = async () => {
     try {
       const response = await apiRequest("GET", "/api/notion/count");
@@ -170,11 +228,18 @@ export default function Home() {
 
   const handleCalendarSync = async () => {
     try {
-      await apiRequest("POST", "/api/calendar/sync");
+      const selectedTaskIds = Array.from(selectedTasks);
+      const response = await apiRequest("POST", "/api/calendar/sync", {
+        selectedTasks: selectedTaskIds
+      });
+      const result = await response.json();
+      
       setShowCalendarSync(false);
+      setSelectedTasks(new Set()); // Clear selection after sync
+      
       toast({
         title: "Calendar Sync Complete",
-        description: "Tasks have been synced to your Google Calendar",
+        description: `${result.count} tasks synced to your Google Calendar`,
       });
     } catch (error) {
       toast({
@@ -321,10 +386,15 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setShowCalendarSync(true)}
-                  className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                  disabled={selectedTasks.size === 0}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                    selectedTasks.size === 0 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
                 >
                   <Calendar className="w-5 h-5" />
-                  <span className="font-medium">Calendar Sync</span>
+                  <span className="font-medium">Calendar Sync {selectedTasks.size > 0 ? `(${selectedTasks.size})` : ''}</span>
                 </button>
                 <button
                   onClick={() => setShowRecycling(true)}
@@ -389,9 +459,10 @@ export default function Home() {
                   onClick={() => setShowCalendarSync(true)}
                   variant="outline"
                   className="flex items-center space-x-2"
+                  disabled={selectedTasks.size === 0}
                 >
                   <Calendar className="w-4 h-4" />
-                  <span>Sync Calendar</span>
+                  <span>Sync Calendar {selectedTasks.size > 0 ? `(${selectedTasks.size})` : ''}</span>
                 </Button>
               </div>
             </div>
@@ -459,7 +530,7 @@ export default function Home() {
               </div>
             </Card>
 
-            {/* Complete Selected Tasks Button */}
+            {/* Bulk Actions for Selected Tasks */}
             {selectedTasks.size > 0 && (
               <Card className="p-4 bg-blue-50 border-blue-200">
                 <div className="flex items-center justify-between">
@@ -468,13 +539,31 @@ export default function Home() {
                       {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
                     </span>
                   </div>
-                  <Button 
-                    onClick={handleCompleteSelected}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Complete Selected
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleCompleteSelected}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Complete Selected
+                    </Button>
+                    <Button 
+                      onClick={handleAppendToNotion}
+                      variant="outline"
+                      className="border-green-500 text-green-600 hover:bg-green-50"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Append to Notion
+                    </Button>
+                    <Button 
+                      onClick={handleDeleteFromNotion}
+                      variant="outline"
+                      className="border-red-500 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete from Notion
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
@@ -524,7 +613,7 @@ export default function Home() {
         isOpen={showCalendarSync}
         onClose={() => setShowCalendarSync(false)}
         onSync={handleCalendarSync}
-        pendingTasksCount={pendingTasks.length}
+        selectedTasksCount={selectedTasks.size}
       />
       
       <CompletionAnimation
