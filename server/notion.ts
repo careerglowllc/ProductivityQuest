@@ -109,10 +109,15 @@ export async function createDatabaseIfNotExists(title, properties) {
 }
 
 
-// Get all tasks from the Notion database using your existing structure
-export async function getTasks(tasksDatabaseId: string) {
+// Get all tasks from the Notion database using user-specific API key
+export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
     try {
-        const response = await notion.databases.query({
+        // Create user-specific Notion client
+        const userNotion = new Client({
+            auth: userApiKey,
+        });
+
+        const response = await userNotion.databases.query({
             database_id: tasksDatabaseId,
         });
 
@@ -189,9 +194,14 @@ function calculateGoldValue(importance: string, duration: number): number {
 }
 
 // Update a task's completion status in Notion by changing Kanban stage
-export async function updateTaskCompletion(notionId: string, completed: boolean) {
+export async function updateTaskCompletion(notionId: string, completed: boolean, userApiKey: string) {
     try {
-        await notion.pages.update({
+        // Create user-specific Notion client
+        const userNotion = new Client({
+            auth: userApiKey,
+        });
+
+        await userNotion.pages.update({
             page_id: notionId,
             properties: {
                 "Kanban - Stage": {

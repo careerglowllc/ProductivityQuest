@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { notion, findDatabaseByTitle, getTasks as getNotionTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
+import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
 import { googleCalendar } from "./google-calendar";
 import { insertTaskSchema, insertPurchaseSchema } from "@shared/schema";
 import { z } from "zod";
@@ -129,7 +129,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the task in Notion if it has a notionId
       if (task.notionId) {
         try {
-          await updateTaskCompletion(task.notionId, true);
+          const user = await storage.getUser(userId);
+          if (user?.notionApiKey) {
+            await updateTaskCompletion(task.notionId, true, user.notionApiKey);
+          }
         } catch (notionError) {
           console.error("Failed to update task in Notion:", notionError);
         }
@@ -227,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Notion API key or database ID not configured" });
       }
       
-      const notionTasks = await getNotionTasks(user.notionDatabaseId);
+      const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
       let importedCount = 0;
 
       for (const notionTask of notionTasks) {
