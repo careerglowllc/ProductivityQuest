@@ -211,7 +211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           error: "Notion not configured", 
           hasApiKey: !!user?.notionApiKey, 
-          hasDatabaseId: !!user?.notionDatabaseId 
+          hasDatabaseId: !!user?.notionDatabaseId,
+          instructions: "Please configure your Notion API key and database ID in Settings"
         });
       }
       
@@ -235,9 +236,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Notion test error:", error);
+      
+      let errorMessage = "Failed to connect to Notion";
+      let instructions = "";
+      
+      if (error.code === 'object_not_found') {
+        errorMessage = "Database not found or not shared with integration";
+        instructions = "Make sure: 1) Database ID is correct, 2) Database is shared with your integration, 3) You have the right permissions";
+      } else if (error.code === 'unauthorized') {
+        errorMessage = "Invalid API key or insufficient permissions";
+        instructions = "Check your Notion API key and make sure the integration has access to the database";
+      }
+      
       res.status(400).json({ 
-        error: error.message || "Failed to connect to Notion",
+        error: errorMessage,
         code: error.code,
+        instructions: instructions,
         hasAccess: false
       });
     }

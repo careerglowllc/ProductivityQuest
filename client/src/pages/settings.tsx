@@ -53,18 +53,27 @@ export default function SettingsPage() {
       });
       
       // Then test the connection
-      return apiRequest("GET", "/api/notion/count");
+      return apiRequest("GET", "/api/notion/test");
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Connection successful!",
-        description: "Your Notion integration is working properly.",
+        description: `Connected to database: ${data.databaseTitle}`,
       });
     },
     onError: (error: any) => {
+      const errorData = error.response?.data || {};
+      let description = "Could not connect to your Notion database.";
+      
+      if (errorData.instructions) {
+        description = errorData.instructions;
+      } else if (errorData.error) {
+        description = errorData.error;
+      }
+      
       toast({
         title: "Connection failed",
-        description: error.message || "Could not connect to your Notion database. Please check your settings.",
+        description: description,
         variant: "destructive",
       });
     },
@@ -212,10 +221,20 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <h4 className="font-semibold">3. Get Database ID</h4>
               <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                <li>• Copy your database URL from the browser</li>
+                <li>• Open your Notion database in the browser</li>
+                <li>• Copy the URL from the address bar</li>
                 <li>• Find the 32-character ID after the last "/" and before "?"</li>
-                <li>• Example: https://notion.so/myworkspace/Tasks-<strong>92c68a7f146945892...</strong>?v=...</li>
-                <li>• Paste just the ID (without dashes) in the field above</li>
+                <li>• Example: https://notion.so/myworkspace/Tasks-<strong>92c68a7f1469458a9f6097711b3f1f43</strong>?v=...</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">4. If Connection Fails</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Double-check that your database is shared with the integration</li>
+                <li>• Verify the database ID is exactly 32 characters</li>
+                <li>• Make sure your API key is correct</li>
+                <li>• Try refreshing the database page and sharing again</li>
               </ul>
             </div>
 
