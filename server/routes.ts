@@ -34,7 +34,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         notionApiKey: user.notionApiKey ? '***' : null, // Hide actual key
         notionDatabaseId: user.notionDatabaseId,
-        hasGoogleAuth: !!(user.googleAccessToken && user.googleTokenExpiry && user.googleTokenExpiry > new Date()),
+        googleClientEmail: user.googleClientEmail ? '***' : null,
+        googlePrivateKey: user.googlePrivateKey ? '***' : null,
+        hasGoogleAuth: !!(user.googleClientEmail && user.googlePrivateKey),
       });
     } catch (error) {
       console.error("Error fetching user settings:", error);
@@ -45,16 +47,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/user/settings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { notionApiKey, notionDatabaseId } = req.body;
+      const { notionApiKey, notionDatabaseId, googleClientEmail, googlePrivateKey } = req.body;
       
       const user = await storage.updateUserSettings(userId, {
         notionApiKey,
         notionDatabaseId,
+        googleClientEmail,
+        googlePrivateKey,
       });
       
       res.json({
         notionApiKey: user.notionApiKey ? '***' : null,
         notionDatabaseId: user.notionDatabaseId,
+        googleClientEmail: user.googleClientEmail ? '***' : null,
+        googlePrivateKey: user.googlePrivateKey ? '***' : null,
+        hasGoogleAuth: !!(user.googleClientEmail && user.googlePrivateKey),
       });
     } catch (error) {
       console.error("Error updating user settings:", error);
@@ -484,76 +491,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google Calendar OAuth routes
-  app.get("/api/auth/google", isAuthenticated, async (req: any, res) => {
-    try {
-      const authUrl = googleCalendar.getAuthUrl();
-      res.json({ authUrl });
-    } catch (error) {
-      console.error("Google auth URL error:", error);
-      res.status(500).json({ error: "Failed to get Google auth URL" });
-    }
-  });
-
-  app.get("/api/auth/google/callback", async (req, res) => {
-    try {
-      const { code, state } = req.query;
-      
-      if (!code) {
-        return res.status(400).json({ error: "Missing authorization code" });
-      }
-
-      // Get tokens from Google
-      const tokens = await googleCalendar.getTokensFromCode(code as string);
-      
-      // For now, we'll redirect to a success page with tokens in query params
-      // In a production app, you'd want to use the state parameter to identify the user
-      const successUrl = `${process.env.NODE_ENV === 'production' ? process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/settings?google_success=true&access_token=${encodeURIComponent(tokens.accessToken)}&refresh_token=${encodeURIComponent(tokens.refreshToken)}&expiry=${tokens.expiry.getTime()}`;
-      
-      res.redirect(successUrl);
-    } catch (error) {
-      console.error("Google OAuth callback error:", error);
-      const errorUrl = `${process.env.NODE_ENV === 'production' ? process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/settings?google_error=true`;
-      res.redirect(errorUrl);
-    }
-  });
-
-  app.post("/api/auth/google/save-tokens", isAuthenticated, async (req: any, res) => {
+  // Google Calendar test connection route
+  app.get("/api/google/test", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { accessToken, refreshToken, expiry } = req.body;
+      const user = await storage.getUser(userId);
       
-      if (!accessToken || !refreshToken || !expiry) {
-        return res.status(400).json({ error: "Missing required token data" });
+      if (!user?.googleClientEmail || !user?.googlePrivateKey) {
+        return res.status(400).json({ 
+          error: "Google service account credentials not configured",
+          instructions: "Please provide your Google service account email and private key in the settings."
+        });
       }
 
-      const user = await storage.updateGoogleTokens(userId, {
-        googleAccessToken: accessToken,
-        googleRefreshToken: refreshToken,
-        googleTokenExpiry: new Date(parseInt(expiry))
-      });
-
-      res.json({ success: true, hasGoogleAuth: true });
-    } catch (error) {
-      console.error("Save Google tokens error:", error);
-      res.status(500).json({ error: "Failed to save Google tokens" });
-    }
-  });
-
-  app.delete("/api/auth/google", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
+      const result = await googleCalendar.testConnection(user);
       
-      const user = await storage.updateGoogleTokens(userId, {
-        googleAccessToken: '',
-        googleRefreshToken: undefined,
-        googleTokenExpiry: new Date(0)
+      res.json({ 
+        success: true, 
+        message: "Successfully connected to Google Calendar",
+        calendarId: result.calendarId
       });
-
-      res.json({ success: true, hasGoogleAuth: false });
-    } catch (error) {
-      console.error("Disconnect Google error:", error);
-      res.status(500).json({ error: "Failed to disconnect Google account" });
+    } catch (error: any) {
+      console.error("Google Calendar test error:", error);
+      
+      let instructions = "Could not connect to Google Calendar. Please check your service account credentials.";
+      
+      if (error.message.includes('invalid_grant')) {
+        instructions = "Invalid private key format. Please ensure you copied the entire private key including the BEGIN and END lines.";
+      } else if (error.message.includes('unauthorized')) {
+        instructions = "Service account not authorized. Please ensure the service account has calendar access and the email is correct.";
+      } else if (error.message.includes('forbidden')) {
+        instructions = "Access denied. Make sure the service account has the necessary permissions to access Google Calendar.";
+      }
+      
+      res.status(400).json({ 
+        error: "Google Calendar connection failed",
+        instructions: instructions
+      });
     }
   });
 
@@ -563,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user?.googleAccessToken) {
+      if (!user?.googleClientEmail || !user?.googlePrivateKey) {
         return res.status(400).json({ 
           error: "Google Calendar not connected",
           needsAuth: true 
@@ -590,32 +564,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Calendar sync error:", error);
       
-      // Handle token refresh needed
-      if (error.message.startsWith('TOKEN_REFRESH_NEEDED:')) {
-        const tokenData = JSON.parse(error.message.replace('TOKEN_REFRESH_NEEDED:', ''));
-        
-        try {
-          const userId = req.user.claims.sub;
-          await storage.updateGoogleTokens(userId, {
-            googleAccessToken: tokenData.accessToken,
-            googleRefreshToken: undefined, // Keep existing refresh token
-            googleTokenExpiry: tokenData.expiry
-          });
-          
-          return res.status(401).json({ 
-            error: "Token refreshed, please try again",
-            tokenRefreshed: true
-          });
-        } catch (refreshError) {
-          console.error("Token refresh error:", refreshError);
-          return res.status(401).json({ 
-            error: "Google Calendar access expired",
-            needsAuth: true 
-          });
-        }
-      }
-      
-      res.status(500).json({ error: "Failed to sync to calendar" });
+      res.status(500).json({ 
+        error: "Failed to sync to calendar",
+        details: error.message
+      });
     }
   });
 

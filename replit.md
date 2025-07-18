@@ -38,6 +38,13 @@ Preferred communication style: Simple, everyday language.
 ✓ Enhanced search with clear button and visual feedback for active searches
 ✓ Search works seamlessly with existing filters (due today, high reward, quick tasks)
 ✓ Updated debug tool with comprehensive search functionality testing suite
+✓ Restructured Google Calendar integration to use service account credentials instead of OAuth
+✓ Added Google service account setup with client email and private key fields
+✓ Implemented Google Calendar test connection functionality
+✓ Updated database schema to store Google service account credentials
+✓ Added comprehensive setup instructions for Google Cloud project and service account creation
+✓ Enhanced calendar sync to work with JWT-based service account authentication
+✓ Improved error handling with specific guidance for common Google API issues
 
 ## System Architecture
 

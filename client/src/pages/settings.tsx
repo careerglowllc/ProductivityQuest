@@ -17,52 +17,27 @@ export default function SettingsPage() {
   const [notionApiKey, setNotionApiKey] = useState("");
   const [notionDatabaseId, setNotionDatabaseId] = useState("");
   const [hasGoogleAuth, setHasGoogleAuth] = useState(false);
-
-  // Handle Google OAuth callback
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const googleSuccess = params.get('google_success');
-    const googleError = params.get('google_error');
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    const expiry = params.get('expiry');
-
-    if (googleSuccess && accessToken && refreshToken && expiry) {
-      // Save tokens to backend
-      saveGoogleTokens.mutate({ accessToken, refreshToken, expiry });
-      
-      // Clean up URL
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    } else if (googleError) {
-      toast({
-        title: "Google Calendar Connection Failed",
-        description: "Please try again or check your Google account permissions.",
-        variant: "destructive",
-      });
-      
-      // Clean up URL
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, []);
+  const [googleClientEmail, setGoogleClientEmail] = useState("");
+  const [googlePrivateKey, setGooglePrivateKey] = useState("");
+  const [showGooglePrivateKey, setShowGooglePrivateKey] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ["/api/user/settings"],
     onSuccess: (data) => {
       setNotionDatabaseId(data.notionDatabaseId || "");
       setHasGoogleAuth(!!data.hasGoogleAuth);
+      setGoogleClientEmail(data.googleClientEmail || "");
     },
   });
 
   const updateSettings = useMutation({
-    mutationFn: async (data: { notionApiKey?: string; notionDatabaseId?: string }) => {
+    mutationFn: async (data: { notionApiKey?: string; notionDatabaseId?: string; googleClientEmail?: string; googlePrivateKey?: string }) => {
       return apiRequest("PUT", "/api/user/settings", data);
     },
     onSuccess: () => {
       toast({
         title: "Settings updated",
-        description: "Your Notion settings have been saved successfully.",
+        description: "Your settings have been saved successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
     },
@@ -110,37 +85,38 @@ export default function SettingsPage() {
     },
   });
 
-  const connectGoogleCalendar = useMutation({
+  const testGoogleConnection = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("GET", "/api/auth/google");
-      const data = await response.json();
-      window.location.href = data.authUrl;
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to connect to Google Calendar. Please try again.",
-        variant: "destructive",
+      // First save the settings
+      await apiRequest("PUT", "/api/user/settings", {
+        googleClientEmail: googleClientEmail || undefined,
+        googlePrivateKey: googlePrivateKey || undefined,
       });
+      
+      // Then test the connection
+      return apiRequest("GET", "/api/google/test");
     },
-  });
-
-  const saveGoogleTokens = useMutation({
-    mutationFn: async (tokens: { accessToken: string; refreshToken: string; expiry: string }) => {
-      return apiRequest("POST", "/api/auth/google/save-tokens", tokens);
-    },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setHasGoogleAuth(true);
       toast({
         title: "Google Calendar Connected!",
-        description: "You can now sync your tasks to Google Calendar.",
+        description: `Successfully connected to Google Calendar`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorData = error.response?.data || {};
+      let description = "Could not connect to Google Calendar.";
+      
+      if (errorData.instructions) {
+        description = errorData.instructions;
+      } else if (errorData.error) {
+        description = errorData.error;
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to save Google Calendar connection. Please try again.",
+        title: "Connection failed",
+        description: description,
         variant: "destructive",
       });
     },
@@ -148,10 +124,15 @@ export default function SettingsPage() {
 
   const disconnectGoogleCalendar = useMutation({
     mutationFn: async () => {
-      return apiRequest("DELETE", "/api/auth/google");
+      return apiRequest("PUT", "/api/user/settings", {
+        googleClientEmail: '',
+        googlePrivateKey: '',
+      });
     },
     onSuccess: () => {
       setHasGoogleAuth(false);
+      setGoogleClientEmail("");
+      setGooglePrivateKey("");
       toast({
         title: "Google Calendar Disconnected",
         description: "Your Google Calendar has been disconnected.",
@@ -172,6 +153,17 @@ export default function SettingsPage() {
       notionApiKey: notionApiKey || undefined,
       notionDatabaseId: notionDatabaseId || undefined,
     });
+  };
+
+  const handleGoogleSave = () => {
+    updateSettings.mutate({
+      googleClientEmail: googleClientEmail || undefined,
+      googlePrivateKey: googlePrivateKey || undefined,
+    });
+  };
+
+  const handleGoogleTestConnection = () => {
+    testGoogleConnection.mutate();
   };
 
   const handleTestConnection = () => {
@@ -338,10 +330,72 @@ export default function SettingsPage() {
               Google Calendar Integration
             </CardTitle>
             <CardDescription>
-              Connect your Google Calendar to sync tasks as calendar events with time blocking and reminders.
+              Configure your Google service account credentials to sync tasks as calendar events with time blocking and reminders.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="google-client-email">Google Service Account Email</Label>
+              <Input
+                id="google-client-email"
+                type="email"
+                placeholder="your-service-account@your-project.iam.gserviceaccount.com"
+                value={googleClientEmail}
+                onChange={(e) => setGoogleClientEmail(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground">
+                Current status: {settings?.googleClientEmail ? "✓ Configured" : "Not set"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="google-private-key">Google Service Account Private Key</Label>
+              <div className="relative">
+                <Input
+                  id="google-private-key"
+                  type={showGooglePrivateKey ? "text" : "password"}
+                  placeholder="-----BEGIN PRIVATE KEY-----\n..."
+                  value={googlePrivateKey}
+                  onChange={(e) => setGooglePrivateKey(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowGooglePrivateKey(!showGooglePrivateKey)}
+                >
+                  {showGooglePrivateKey ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Current status: {settings?.googlePrivateKey ? "✓ Configured" : "Not set"}
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleGoogleSave} 
+                disabled={updateSettings.isPending}
+                className="flex-1"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {updateSettings.isPending ? "Saving..." : "Save Google Settings"}
+              </Button>
+              <Button 
+                onClick={handleGoogleTestConnection}
+                disabled={testGoogleConnection.isPending || !googleClientEmail || !googlePrivateKey}
+                variant="outline"
+                className="flex-1"
+              >
+                {testGoogleConnection.isPending ? "Testing..." : "Test Connection"}
+              </Button>
+            </div>
+
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full ${hasGoogleAuth ? 'bg-green-500' : 'bg-gray-300'}`} />
@@ -352,32 +406,21 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">
                     {hasGoogleAuth 
                       ? 'Your tasks can be synced to Google Calendar with time blocking and reminders' 
-                      : 'Connect your Google account to enable calendar sync for your tasks'
+                      : 'Enter your Google service account credentials above and test the connection'
                     }
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {hasGoogleAuth ? (
-                  <Button 
-                    onClick={() => disconnectGoogleCalendar.mutate()}
-                    disabled={disconnectGoogleCalendar.isPending}
-                    variant="outline"
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    {disconnectGoogleCalendar.isPending ? 'Disconnecting...' : 'Disconnect'}
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={() => connectGoogleCalendar.mutate()}
-                    disabled={connectGoogleCalendar.isPending}
-                    className="flex items-center gap-2"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    {connectGoogleCalendar.isPending ? 'Connecting...' : 'Connect Google Calendar'}
-                  </Button>
-                )}
-              </div>
+              {hasGoogleAuth && (
+                <Button 
+                  onClick={() => disconnectGoogleCalendar.mutate()}
+                  disabled={disconnectGoogleCalendar.isPending}
+                  variant="outline"
+                  className="text-red-600 hover:text-red-700"
+                >
+                  {disconnectGoogleCalendar.isPending ? 'Disconnecting...' : 'Disconnect'}
+                </Button>
+              )}
             </div>
 
             {hasGoogleAuth && (
@@ -411,6 +454,76 @@ export default function SettingsPage() {
                 </ul>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Google Calendar Setup Instructions</CardTitle>
+            <CardDescription>
+              Follow these steps to create a Google service account for calendar integration
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <h4 className="font-semibold">1. Create a Google Cloud Project</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a></li>
+                <li>• Create a new project or select an existing one</li>
+                <li>• Enable the Google Calendar API for your project</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">2. Create a Service Account</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Go to IAM & Admin → Service Accounts</li>
+                <li>• Click "Create Service Account"</li>
+                <li>• Give it a name like "calendar-sync-service"</li>
+                <li>• Skip the optional steps and click "Done"</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">3. Generate Private Key</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Click on your service account</li>
+                <li>• Go to the "Keys" tab</li>
+                <li>• Click "Add Key" → "Create new key"</li>
+                <li>• Choose "JSON" format and click "Create"</li>
+                <li>• The JSON file will download automatically</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">4. Extract Credentials</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Open the downloaded JSON file</li>
+                <li>• Copy the "client_email" value (service account email)</li>
+                <li>• Copy the "private_key" value (includes -----BEGIN PRIVATE KEY-----)</li>
+                <li>• Paste these values in the fields above</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">5. Share Your Calendar</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Go to <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Calendar</a></li>
+                <li>• Click the three dots next to your calendar</li>
+                <li>• Select "Settings and sharing"</li>
+                <li>• In "Share with specific people", add your service account email</li>
+                <li>• Give it "Make changes to events" permission</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">6. Test Connection</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Save your credentials above</li>
+                <li>• Click "Test Connection" to verify everything works</li>
+                <li>• If successful, you can now sync tasks to Google Calendar</li>
+              </ul>
+            </div>
           </CardContent>
         </Card>
       </div>
