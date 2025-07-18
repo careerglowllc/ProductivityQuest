@@ -202,6 +202,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Notion integration routes
+  app.get("/api/notion/databases", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { pageId } = req.query;
+      
+      if (!user?.notionApiKey) {
+        return res.status(400).json({ 
+          error: "Notion API key not configured",
+          instructions: "Please configure your Notion API key in Settings"
+        });
+      }
+      
+      if (!pageId) {
+        return res.status(400).json({ 
+          error: "Page ID required",
+          instructions: "Provide the page ID as a query parameter"
+        });
+      }
+      
+      // Get databases within the page
+      const { Client } = await import("@notionhq/client");
+      const userNotion = new Client({ auth: user.notionApiKey });
+      
+      // Format the page ID properly
+      const cleanId = pageId.replace(/-/g, '');
+      const formattedPageId = `${cleanId.slice(0, 8)}-${cleanId.slice(8, 12)}-${cleanId.slice(12, 16)}-${cleanId.slice(16, 20)}-${cleanId.slice(20)}`;
+      
+      const response = await userNotion.blocks.children.list({
+        block_id: formattedPageId,
+      });
+      
+      const databases = [];
+      for (const block of response.results) {
+        if (block.type === "child_database") {
+          try {
+            const dbInfo = await userNotion.databases.retrieve({
+              database_id: block.id,
+            });
+            databases.push({
+              id: block.id,
+              title: dbInfo.title?.[0]?.plain_text || "Untitled Database",
+            });
+          } catch (error) {
+            console.error(`Error retrieving database ${block.id}:`, error);
+          }
+        }
+      }
+      
+      res.json({ databases });
+    } catch (error: any) {
+      console.error("Error listing databases:", error);
+      res.status(400).json({ 
+        error: error.message || "Failed to list databases",
+        code: error.code
+      });
+    }
+  });
+
   app.get("/api/notion/test", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -246,6 +305,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (error.code === 'unauthorized') {
         errorMessage = "Invalid API key or insufficient permissions";
         instructions = "Check your Notion API key and make sure the integration has access to the database";
+      } else if (error.code === 'validation_error' && error.message.includes('is a page, not a database')) {
+        errorMessage = "Wrong ID type - you provided a page ID instead of a database ID";
+        instructions = "You need to use the database ID, not the page ID. Open your database in Notion, and get the ID from the URL of the database view itself, not the page containing it.";
       }
       
       res.status(400).json({ 

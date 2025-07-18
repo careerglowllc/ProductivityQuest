@@ -167,6 +167,9 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">
                 Copy the 32-character ID from your Notion database URL (between the last "/" and "?")
               </p>
+              <p className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
+                ⚠️ Make sure to use the <strong>database ID</strong>, not the page ID. Open your database directly in Notion to get the correct ID.
+              </p>
             </div>
 
             <div className="flex gap-2">
