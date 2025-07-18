@@ -56,13 +56,18 @@ export class DatabaseStorage implements IStorage {
     ];
 
     try {
+      // Add a small delay to ensure database is ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Check if shop items already exist
       const existingItems = await db.select().from(shopItems);
       if (existingItems.length === 0) {
         await db.insert(shopItems).values(defaultItems);
+        console.log("Shop items initialized successfully");
       }
     } catch (error) {
       console.error("Error initializing shop items:", error);
+      // Don't throw - allow app to continue running
     }
   }
 
