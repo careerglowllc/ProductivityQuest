@@ -38,13 +38,13 @@ Preferred communication style: Simple, everyday language.
 ✓ Enhanced search with clear button and visual feedback for active searches
 ✓ Search works seamlessly with existing filters (due today, high reward, quick tasks)
 ✓ Updated debug tool with comprehensive search functionality testing suite
-✓ Restructured Google Calendar integration to use service account credentials instead of OAuth
-✓ Added Google service account setup with client email and private key fields
-✓ Implemented Google Calendar test connection functionality
-✓ Updated database schema to store Google service account credentials
-✓ Added comprehensive setup instructions for Google Cloud project and service account creation
-✓ Enhanced calendar sync to work with JWT-based service account authentication
-✓ Improved error handling with specific guidance for common Google API issues
+✓ Restructured Google Calendar integration to use OAuth 2.0 instead of service account credentials
+✓ Added OAuth 2.0 authentication flow with Google Calendar API
+✓ Implemented secure token management with access and refresh tokens
+✓ Updated database schema to store OAuth tokens instead of service account credentials
+✓ Added OAuth callback handling and redirect URLs for authentication
+✓ Enhanced calendar sync to work with user-based OAuth authentication
+✓ Improved error handling with OAuth-specific guidance and token refresh logic
 
 ## System Architecture
 
@@ -151,7 +151,7 @@ Preferred communication style: Simple, everyday language.
 - `DATABASE_URL`: PostgreSQL connection string
 - `NOTION_INTEGRATION_SECRET`: Notion API authentication
 - `NOTION_PAGE_URL`: Target Notion page for task sync
-- `GOOGLE_CLIENT_EMAIL`: Google service account email
-- `GOOGLE_PRIVATE_KEY`: Google service account private key
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID (32247087981-xxx.apps.googleusercontent.com)
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret (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)
 
 The application follows a monorepo structure with shared schemas between client and server, ensuring type safety across the full stack. The gamification layer transforms routine task management into an engaging experience with immediate feedback and long-term progression mechanics.

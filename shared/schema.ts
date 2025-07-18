@@ -22,8 +22,9 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   notionApiKey: text("notion_api_key"),
   notionDatabaseId: text("notion_database_id"),
-  googleClientEmail: text("google_client_email"),
-  googlePrivateKey: text("google_private_key"),
+  googleAccessToken: text("google_access_token"),
+  googleRefreshToken: text("google_refresh_token"),
+  googleTokenExpiry: timestamp("google_token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

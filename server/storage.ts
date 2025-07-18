@@ -6,7 +6,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string; googleClientEmail?: string; googlePrivateKey?: string }): Promise<User>;
+  updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string; googleAccessToken?: string; googleRefreshToken?: string; googleTokenExpiry?: Date }): Promise<User>;
   
   // Task operations
   getTasks(userId: string): Promise<Task[]>;
@@ -92,14 +92,15 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string; googleClientEmail?: string; googlePrivateKey?: string }): Promise<User> {
+  async updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string; googleAccessToken?: string; googleRefreshToken?: string; googleTokenExpiry?: Date }): Promise<User> {
     const [user] = await db
       .update(users)
       .set({
         notionApiKey: settings.notionApiKey,
         notionDatabaseId: settings.notionDatabaseId,
-        googleClientEmail: settings.googleClientEmail,
-        googlePrivateKey: settings.googlePrivateKey,
+        googleAccessToken: settings.googleAccessToken,
+        googleRefreshToken: settings.googleRefreshToken,
+        googleTokenExpiry: settings.googleTokenExpiry,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))

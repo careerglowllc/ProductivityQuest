@@ -1,25 +1,59 @@
 import { google } from 'googleapis';
-import { JWT } from 'google-auth-library';
+import { OAuth2Client } from 'google-auth-library';
 import { Task, User } from '@shared/schema';
 
+const GOOGLE_CLIENT_ID = '32247087981-xxx.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = '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';
+const REDIRECT_URI = process.env.NODE_ENV === 'production' 
+  ? 'https://your-app-domain.replit.app/api/google/callback'
+  : 'http://localhost:5000/api/google/callback';
+
 export class GoogleCalendarService {
-  private getAuthenticatedClient(user: User): JWT {
-    if (!user.googleClientEmail || !user.googlePrivateKey) {
-      throw new Error('Google service account credentials not configured');
+  private getAuthenticatedClient(user: User): OAuth2Client {
+    if (!user.googleAccessToken || !user.googleRefreshToken) {
+      throw new Error('Google OAuth credentials not configured');
     }
 
-    // Clean up the private key - remove extra quotes and handle newlines
-    let privateKey = user.googlePrivateKey;
-    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-      privateKey = privateKey.slice(1, -1);
-    }
-    privateKey = privateKey.replace(/\\n/g, '\n');
+    const oauth2Client = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
 
-    return new JWT({
-      email: user.googleClientEmail,
-      key: privateKey,
-      scopes: ['https://www.googleapis.com/auth/calendar'],
+    oauth2Client.setCredentials({
+      access_token: user.googleAccessToken,
+      refresh_token: user.googleRefreshToken,
+      expiry_date: user.googleTokenExpiry?.getTime(),
     });
+
+    return oauth2Client;
+  }
+
+  generateAuthUrl(): string {
+    const oauth2Client = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
+
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: ['https://www.googleapis.com/auth/calendar.events'],
+      prompt: 'consent',
+    });
+
+    return authUrl;
+  }
+
+  async getTokenFromCode(code: string): Promise<any> {
+    const oauth2Client = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
+
+    const { tokens } = await oauth2Client.getToken(code);
+    return tokens;
   }
 
   async testConnection(user: User): Promise<{ calendarId: string }> {
@@ -40,6 +74,29 @@ export class GoogleCalendarService {
       return { calendarId: primaryCalendar.id || 'primary' };
     } catch (error: any) {
       console.error('Google Calendar test connection error:', error);
+      
+      // If token is expired, try to refresh it
+      if (error.code === 401 && user.googleRefreshToken) {
+        try {
+          const oauth2Client = new OAuth2Client(
+            GOOGLE_CLIENT_ID,
+            GOOGLE_CLIENT_SECRET,
+            REDIRECT_URI
+          );
+          
+          oauth2Client.setCredentials({
+            refresh_token: user.googleRefreshToken,
+          });
+          
+          const { credentials } = await oauth2Client.refreshAccessToken();
+          
+          // Return the new tokens so they can be saved
+          throw new Error('TOKEN_EXPIRED_REFRESH_NEEDED');
+        } catch (refreshError) {
+          throw new Error('Access token expired and refresh failed. Please re-authenticate.');
+        }
+      }
+      
       throw new Error(`Connection test failed: ${error.message}`);
     }
   }
