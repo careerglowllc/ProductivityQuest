@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
@@ -33,6 +34,7 @@ export default function Home() {
   const [exportTaskCount, setExportTaskCount] = useState(0);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [showRecycling, setShowRecycling] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -252,10 +254,23 @@ export default function Home() {
 
   const pendingTasks = tasks.filter((task: any) => !task.completed && task.dueDate);
 
-  // Filter tasks based on active filter
+  // Filter tasks based on active filter and search query
   const getFilteredTasks = () => {
-    const activeTasks = tasks.filter((task: any) => !task.completed);
+    let activeTasks = tasks.filter((task: any) => !task.completed);
     
+    // Apply search filter first
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      activeTasks = activeTasks.filter((task: any) => {
+        const titleMatch = task.title?.toLowerCase().includes(query);
+        const descriptionMatch = task.description?.toLowerCase().includes(query);
+        const categoryMatch = task.category?.toLowerCase().includes(query);
+        const importanceMatch = task.importance?.toLowerCase().includes(query);
+        return titleMatch || descriptionMatch || categoryMatch || importanceMatch;
+      });
+    }
+    
+    // Apply category filter
     switch (activeFilter) {
       case "due-today":
         const today = new Date();
@@ -467,6 +482,57 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Search Bar */}
+            <Card className="p-4 mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search tasks by title, description, category, or importance..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    ×
+                  </Button>
+                )}
+              </div>
+            </Card>
+
+            {/* Results Counter */}
+            {(searchQuery || activeFilter !== "all") && (
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-gray-600">
+                  {searchQuery ? (
+                    <span>
+                      Found <strong>{sortedTasks.length}</strong> tasks matching "{searchQuery}"
+                      {activeFilter !== "all" && ` in ${activeFilter.replace("-", " ")}`}
+                    </span>
+                  ) : (
+                    <span>
+                      Showing <strong>{sortedTasks.length}</strong> tasks in {activeFilter.replace("-", " ")}
+                    </span>
+                  )}
+                </div>
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchQuery("")}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Clear search
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Task Filters */}
             <Card className="p-4 mb-6">
               <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -581,10 +647,26 @@ export default function Home() {
                 </Card>
               ) : sortedTasks.length === 0 ? (
                 <Card className="p-8 text-center">
-                  <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks match your filter</h3>
-                  <p className="text-gray-600 mb-4">Try adjusting your filter to see more tasks</p>
-                  <Button onClick={() => setActiveFilter("all")} variant="outline">Show All Tasks</Button>
+                  <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {searchQuery ? `No tasks found for "${searchQuery}"` : "No tasks match your filter"}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchQuery 
+                      ? "Try searching with different keywords or clear your search"
+                      : "Try adjusting your filter to see more tasks"
+                    }
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    {searchQuery && (
+                      <Button onClick={() => setSearchQuery("")} variant="outline">
+                        Clear Search
+                      </Button>
+                    )}
+                    <Button onClick={() => setActiveFilter("all")} variant="outline">
+                      Show All Tasks
+                    </Button>
+                  </div>
                 </Card>
               ) : (
                 sortedTasks.map((task: any) => (
