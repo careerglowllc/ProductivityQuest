@@ -20,22 +20,18 @@ export default function SettingsPage() {
 
   const { data: settings } = useQuery({
     queryKey: ["/api/user/settings"],
-    onSuccess: (data) => {
-      setNotionDatabaseId(data.notionDatabaseId || "");
-      setHasGoogleAuth(!!data.hasGoogleAuth);
-    },
   });
+
+  useEffect(() => {
+    if (settings) {
+      setNotionDatabaseId(settings.notionDatabaseId || "");
+      setHasGoogleAuth(!!settings.hasGoogleAuth);
+    }
+  }, [settings]);
 
   const updateSettings = useMutation({
     mutationFn: async (data: { notionApiKey?: string; notionDatabaseId?: string }) => {
       return apiRequest("PUT", "/api/user/settings", data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Settings updated",
-        description: "Your settings have been saved successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
     },
     onError: (error) => {
       toast({
@@ -56,12 +52,6 @@ export default function SettingsPage() {
       
       // Then test the connection
       return apiRequest("GET", "/api/notion/test");
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Connection successful!",
-        description: `Connected to database: ${data.databaseTitle}`,
-      });
     },
     onError: (error: any) => {
       const errorData = error.response?.data || {};
@@ -99,13 +89,6 @@ export default function SettingsPage() {
     mutationFn: async () => {
       return apiRequest("GET", "/api/google/test");
     },
-    onSuccess: (data) => {
-      toast({
-        title: "Google Calendar Connected!",
-        description: `Successfully connected to Google Calendar`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
-    },
     onError: (error: any) => {
       const errorData = error.response?.data || {};
       let description = "Could not connect to Google Calendar.";
@@ -128,14 +111,6 @@ export default function SettingsPage() {
     mutationFn: async () => {
       return apiRequest("POST", "/api/google/disconnect");
     },
-    onSuccess: () => {
-      setHasGoogleAuth(false);
-      toast({
-        title: "Google Calendar Disconnected",
-        description: "Your Google Calendar has been disconnected.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
-    },
     onError: (error) => {
       toast({
         title: "Error",
@@ -145,23 +120,71 @@ export default function SettingsPage() {
     },
   });
 
-  const handleSave = () => {
-    updateSettings.mutate({
-      notionApiKey: notionApiKey || undefined,
-      notionDatabaseId: notionDatabaseId || undefined,
-    });
+  const handleSave = async () => {
+    try {
+      await updateSettings.mutateAsync({
+        notionApiKey: notionApiKey || undefined,
+        notionDatabaseId: notionDatabaseId || undefined,
+      });
+      
+      toast({
+        title: "Settings updated",
+        description: "Your settings have been saved successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
+    } catch (error) {
+      // Error is handled by the mutation's onError callback
+    }
   };
 
-  const handleGoogleConnect = () => {
-    connectGoogleCalendar.mutate();
+  const handleGoogleConnect = async () => {
+    try {
+      await connectGoogleCalendar.mutateAsync();
+    } catch (error) {
+      // Error is handled by the mutation's onError callback
+    }
   };
 
-  const handleGoogleTestConnection = () => {
-    testGoogleConnection.mutate();
+  const handleGoogleTestConnection = async () => {
+    try {
+      await testGoogleConnection.mutateAsync();
+      
+      toast({
+        title: "Google Calendar Connected!",
+        description: `Successfully connected to Google Calendar`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
+    } catch (error) {
+      // Error is handled by the mutation's onError callback
+    }
   };
 
-  const handleTestConnection = () => {
-    testConnection.mutate();
+  const handleTestConnection = async () => {
+    try {
+      const data = await testConnection.mutateAsync();
+      
+      toast({
+        title: "Connection successful!",
+        description: `Connected to database: ${data.databaseTitle}`,
+      });
+    } catch (error) {
+      // Error is handled by the mutation's onError callback
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    try {
+      await disconnectGoogleCalendar.mutateAsync();
+      
+      setHasGoogleAuth(false);
+      toast({
+        title: "Google Calendar Disconnected",
+        description: "Your Google Calendar has been disconnected.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
+    } catch (error) {
+      // Error is handled by the mutation's onError callback
+    }
   };
 
   if (!user) {
@@ -367,7 +390,7 @@ export default function SettingsPage() {
                       {testGoogleConnection.isPending ? "Testing..." : "Test Connection"}
                     </Button>
                     <Button 
-                      onClick={() => disconnectGoogleCalendar.mutate()}
+                      onClick={handleGoogleDisconnect}
                       disabled={disconnectGoogleCalendar.isPending}
                       variant="outline"
                       size="sm"
