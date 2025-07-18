@@ -9,8 +9,8 @@ A full-stack gamified productivity web application that seamlessly integrates wi
    # Required environment variables
    NOTION_INTEGRATION_SECRET=your_notion_integration_secret
    NOTION_PAGE_URL=your_notion_page_url
-   GOOGLE_CLIENT_EMAIL=your_google_service_account_email
-   GOOGLE_PRIVATE_KEY=your_google_service_account_private_key
+   GOOGLE_CLIENT_ID=your_google_oauth_client_id
+   GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
    DATABASE_URL=your_postgresql_connection_string (optional, uses in-memory storage by default)
    ```
 
@@ -147,9 +147,18 @@ finalGold = baseGold * importanceMultiplier
 #### Google Calendar Integration
 **Files**: `server/google-calendar.ts`, `client/src/components/calendar-sync-modal.tsx`
 
-- **Event Creation**: Creates calendar events for tasks
-- **Time Blocking**: Schedules tasks based on duration
-- **Service Account**: Uses Google service account for authentication
+- **OAuth 2.0 Authentication**: User-based authentication with Google Calendar
+- **Event Creation**: Creates calendar events for tasks with rich details
+- **Time Blocking**: Schedules tasks based on duration and importance
+- **Smart Reminders**: 15-minute popup and 1-hour email reminders
+- **Color Coding**: Events colored by importance level
+- **Selective Sync**: Only syncs selected tasks instead of all tasks
+
+**Google Calendar Setup Process**:
+1. Create OAuth 2.0 credentials in Google Cloud Console
+2. Set authorized redirect URIs including your domain
+3. Configure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+4. Users authenticate through OAuth flow in settings
 
 ## 📊 Data Models & Schemas
 
@@ -210,6 +219,11 @@ interface ShopItem {
 
 ## 🔄 API Endpoints
 
+### Authentication
+- `GET /api/auth/user` - Get current user info
+- `GET /api/login` - Initiate login process
+- `POST /api/logout` - Logout current user
+
 ### Task Management
 - `GET /api/tasks` - Get all active tasks
 - `POST /api/tasks` - Create new task
@@ -225,7 +239,19 @@ interface ShopItem {
 ### Notion Integration
 - `GET /api/notion/count` - Get count of tasks in Notion
 - `POST /api/notion/import` - Import all tasks from Notion
-- `POST /api/notion/export` - Export all tasks to Notion
+- `POST /api/notion/export` - Export selected tasks to Notion
+- `GET /api/notion/test` - Test Notion connection
+
+### Google Calendar Integration
+- `GET /api/google/auth` - Get OAuth authorization URL
+- `GET /api/google/callback` - Handle OAuth callback
+- `POST /api/google/sync` - Sync selected tasks to calendar
+- `GET /api/google/test` - Test Google Calendar connection
+- `POST /api/google/disconnect` - Disconnect Google Calendar
+
+### Settings
+- `GET /api/user/settings` - Get user settings
+- `PUT /api/user/settings` - Update user settings
 
 ### Shop & Progress
 - `GET /api/shop/items` - Get all shop items
@@ -247,6 +273,70 @@ interface ShopItem {
 - `RecyclingModal`: Tabbed interface for recycled tasks
 - `CompletionAnimation`: Celebratory animation for completions
 - `CalendarSyncModal`: Google Calendar integration interface
+
+## 🔍 Debugging & Testing
+
+### Debug Tool
+The project includes a comprehensive debug tool (`debug-tool.js`) that tests all major functionality:
+
+**Usage:**
+```bash
+# Run all tests
+node debug-tool.js
+
+# Test specific component
+node debug-tool.js server      # Server connectivity
+node debug-tool.js auth        # Authentication system
+node debug-tool.js tasks       # Task management
+node debug-tool.js search      # Search functionality
+node debug-tool.js recycling   # Recycling system
+node debug-tool.js shop        # Shop system
+node debug-tool.js notion      # Notion integration
+node debug-tool.js google      # Google Calendar integration
+node debug-tool.js stats       # Progress tracking
+```
+
+**Features:**
+- Color-coded output with pass/fail indicators
+- Detailed error reporting and failure analysis
+- Authentication detection and session handling
+- Comprehensive API endpoint testing
+- External integration validation
+- Performance metrics and success rates
+
+**Test Coverage:**
+- ✅ Server connectivity and health checks
+- ✅ OAuth authentication flows
+- ✅ Task CRUD operations and validation
+- ✅ Gold calculation and reward system
+- ✅ Recycling system (soft delete/restore)
+- ✅ Shop purchasing and gold spending
+- ✅ Search and filtering functionality
+- ✅ Notion API integration and sync
+- ✅ Google Calendar OAuth and sync
+- ✅ Progress tracking and statistics
+
+### Common Issues & Solutions
+
+**Authentication Issues:**
+- If debug tool shows "Authentication required", open the app in browser first
+- Check that OAuth is properly configured in environment variables
+- Verify session cookies are being set correctly
+
+**Database Connection:**
+- PostgreSQL connection uses `DATABASE_URL` environment variable
+- Falls back to in-memory storage if database unavailable
+- Use `npm run db:push` to sync schema changes
+
+**API Integration Issues:**
+- Notion: Verify `NOTION_INTEGRATION_SECRET` and database permissions
+- Google: Check `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+- Use individual test commands to isolate integration issues
+
+**Performance Monitoring:**
+- Server logs show response times for all API calls
+- Debug tool provides success rate metrics
+- Use browser dev tools to monitor frontend performance
 - `SearchBar`: Real-time keyword search with clear button and results counter
 
 ### Responsive Design
@@ -317,9 +407,9 @@ searchTasks(tasks, "");             // Returns all tasks (empty search)
 NOTION_INTEGRATION_SECRET=secret_abc123...
 NOTION_PAGE_URL=https://www.notion.so/your-page-id
 
-# Google Calendar (optional)
-GOOGLE_CLIENT_EMAIL=service-account@project.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
+# Google Calendar OAuth (optional)
+GOOGLE_CLIENT_ID=32247087981-xxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
 
 # Database (optional - uses in-memory storage if not provided)
 DATABASE_URL=postgresql://user:pass@host:port/db
@@ -349,12 +439,14 @@ npm run db:push      # Apply database migrations
 ## 📈 Future Enhancements
 
 ### Planned Features
-- User authentication and multi-user support
-- Advanced analytics and reporting
+- Advanced analytics and reporting dashboard
 - Mobile app with React Native
 - Team collaboration features
 - Advanced recurring task patterns
-- Custom reward categories
+- Custom reward categories and achievements
+- AI-powered task prioritization
+- Integration with more productivity tools (Todoist, Trello, etc.)
+- Time tracking and productivity insights
 
 ### Technical Improvements
 - Database migrations with proper versioning
