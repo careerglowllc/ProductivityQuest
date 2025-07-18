@@ -217,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Test the database connection
-      const { Client } = require("@notionhq/client");
+      const { Client } = await import("@notionhq/client");
       const userNotion = new Client({ auth: user.notionApiKey });
       
       // Format the database ID properly
