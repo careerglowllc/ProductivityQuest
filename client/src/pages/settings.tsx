@@ -25,10 +25,7 @@ export default function SettingsPage() {
 
   const updateSettings = useMutation({
     mutationFn: async (data: { notionApiKey?: string; notionDatabaseId?: string }) => {
-      return apiRequest("/api/user/settings", {
-        method: "PUT",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("PUT", "/api/user/settings", data);
     },
     onSuccess: () => {
       toast({
