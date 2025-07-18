@@ -109,6 +109,18 @@ export async function createDatabaseIfNotExists(title, properties) {
 }
 
 
+// Format database ID to include dashes if missing
+function formatDatabaseId(databaseId: string): string {
+    // Remove any existing dashes and ensure we have a 32-character string
+    const cleanId = databaseId.replace(/-/g, '');
+    if (cleanId.length !== 32) {
+        throw new Error(`Invalid database ID format. Expected 32 characters, got ${cleanId.length}`);
+    }
+    
+    // Add dashes in the correct positions: 8-4-4-4-12
+    return `${cleanId.slice(0, 8)}-${cleanId.slice(8, 12)}-${cleanId.slice(12, 16)}-${cleanId.slice(16, 20)}-${cleanId.slice(20)}`;
+}
+
 // Get all tasks from the Notion database using user-specific API key
 export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
     try {
@@ -117,8 +129,12 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
             auth: userApiKey,
         });
 
+        // Format the database ID properly
+        const formattedDatabaseId = formatDatabaseId(tasksDatabaseId);
+        console.log(`Querying Notion database: ${formattedDatabaseId}`);
+
         const response = await userNotion.databases.query({
-            database_id: tasksDatabaseId,
+            database_id: formattedDatabaseId,
         });
 
         return response.results.map((page: any) => {
@@ -201,8 +217,11 @@ export async function updateTaskCompletion(notionId: string, completed: boolean,
             auth: userApiKey,
         });
 
+        // Format the notion ID properly
+        const formattedNotionId = formatDatabaseId(notionId);
+
         await userNotion.pages.update({
-            page_id: notionId,
+            page_id: formattedNotionId,
             properties: {
                 "Kanban - Stage": {
                     status: {

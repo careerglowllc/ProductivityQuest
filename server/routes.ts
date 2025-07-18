@@ -202,6 +202,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Notion integration routes
+  app.get("/api/notion/test", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.notionApiKey || !user?.notionDatabaseId) {
+        return res.status(400).json({ 
+          error: "Notion not configured", 
+          hasApiKey: !!user?.notionApiKey, 
+          hasDatabaseId: !!user?.notionDatabaseId 
+        });
+      }
+      
+      // Test the database connection
+      const { Client } = require("@notionhq/client");
+      const userNotion = new Client({ auth: user.notionApiKey });
+      
+      // Format the database ID properly
+      const cleanId = user.notionDatabaseId.replace(/-/g, '');
+      const formattedId = `${cleanId.slice(0, 8)}-${cleanId.slice(8, 12)}-${cleanId.slice(12, 16)}-${cleanId.slice(16, 20)}-${cleanId.slice(20)}`;
+      
+      const dbInfo = await userNotion.databases.retrieve({
+        database_id: formattedId,
+      });
+      
+      res.json({ 
+        success: true, 
+        databaseTitle: dbInfo.title?.[0]?.plain_text || "Unknown",
+        databaseId: formattedId,
+        hasAccess: true
+      });
+    } catch (error: any) {
+      console.error("Notion test error:", error);
+      res.status(400).json({ 
+        error: error.message || "Failed to connect to Notion",
+        code: error.code,
+        hasAccess: false
+      });
+    }
+  });
+
   app.get("/api/notion/count", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -211,9 +252,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Notion API key or database ID not configured" });
       }
       
-      // Use user-specific Notion credentials
-      const databases = await getNotionDatabases();
-      const count = databases.length > 0 ? 100 : 0; // Placeholder count
+      // Get actual count from user's database
+      const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
+      const count = notionTasks.length;
       res.json({ count });
     } catch (error) {
       console.error("Notion count error:", error);
