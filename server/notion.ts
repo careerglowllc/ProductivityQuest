@@ -155,9 +155,19 @@ export async function getTasks(tasksDatabaseId: string) {
                 velin: properties.Velin?.checkbox || false,
             };
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error fetching tasks from Notion:", error);
-        throw new Error("Failed to fetch tasks from Notion");
+        
+        // Provide more specific error messages
+        if (error.code === 'object_not_found') {
+            throw new Error(`Database not found. Please check: 1) Database ID is correct, 2) Database is shared with your integration, 3) You have the right permissions`);
+        } else if (error.code === 'unauthorized') {
+            throw new Error(`Unauthorized access. Please check your Notion API key and make sure your integration has access to the database.`);
+        } else if (error.code === 'validation_error') {
+            throw new Error(`Invalid database ID format. Please make sure you copied the correct 32-character database ID from your Notion URL.`);
+        } else {
+            throw new Error(`Failed to fetch tasks from Notion: ${error.message || 'Unknown error'}`);
+        }
     }
 }
 

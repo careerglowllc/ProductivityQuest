@@ -259,9 +259,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ success: true, count: importedCount });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Notion import error:", error);
-      res.status(500).json({ error: "Failed to import from Notion" });
+      
+      // Return more specific error messages
+      if (error.message.includes('Database not found')) {
+        res.status(400).json({ error: error.message });
+      } else if (error.message.includes('Unauthorized')) {
+        res.status(401).json({ error: error.message });
+      } else if (error.message.includes('Invalid database ID')) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message || "Failed to import from Notion" });
+      }
     }
   });
 

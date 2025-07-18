@@ -44,11 +44,41 @@ export default function SettingsPage() {
     },
   });
 
+  const testConnection = useMutation({
+    mutationFn: async () => {
+      // First save the settings
+      await apiRequest("PUT", "/api/user/settings", {
+        notionApiKey: notionApiKey || undefined,
+        notionDatabaseId: notionDatabaseId || undefined,
+      });
+      
+      // Then test the connection
+      return apiRequest("GET", "/api/notion/count");
+    },
+    onSuccess: () => {
+      toast({
+        title: "Connection successful!",
+        description: "Your Notion integration is working properly.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Connection failed",
+        description: error.message || "Could not connect to your Notion database. Please check your settings.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSave = () => {
     updateSettings.mutate({
       notionApiKey: notionApiKey || undefined,
       notionDatabaseId: notionDatabaseId || undefined,
     });
+  };
+
+  const handleTestConnection = () => {
+    testConnection.mutate();
   };
 
   if (!user) {
@@ -121,23 +151,33 @@ export default function SettingsPage() {
               <Label htmlFor="notion-database-id">Notion Database ID</Label>
               <Input
                 id="notion-database-id"
-                placeholder="Enter your Notion database ID"
+                placeholder="e.g., 92c68a7f-1469-458a-9f60-97711b3f1f43"
                 value={notionDatabaseId}
                 onChange={(e) => setNotionDatabaseId(e.target.value)}
               />
               <p className="text-sm text-muted-foreground">
-                You can find this in your Notion database URL
+                Copy the 32-character ID from your Notion database URL (between the last "/" and "?")
               </p>
             </div>
 
-            <Button 
-              onClick={handleSave} 
-              disabled={updateSettings.isPending}
-              className="w-full"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {updateSettings.isPending ? "Saving..." : "Save Settings"}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleSave} 
+                disabled={updateSettings.isPending}
+                className="flex-1"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {updateSettings.isPending ? "Saving..." : "Save Settings"}
+              </Button>
+              <Button 
+                onClick={handleTestConnection}
+                disabled={testConnection.isPending || !notionApiKey || !notionDatabaseId}
+                variant="outline"
+                className="flex-1"
+              >
+                {testConnection.isPending ? "Testing..." : "Test Connection"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -161,10 +201,30 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <h4 className="font-semibold">2. Share Your Database</h4>
               <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                <li>• Open your Notion database</li>
-                <li>• Click "..." → "Connections"</li>
-                <li>• Select your integration</li>
-                <li>• Copy the database ID from the URL</li>
+                <li>• Open your Notion database page</li>
+                <li>• Click "..." (three dots) in the top right</li>
+                <li>• Select "Connections" or "Add connections"</li>
+                <li>• Choose your integration by name</li>
+                <li>• Click "Confirm" to grant access</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">3. Get Database ID</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• Copy your database URL from the browser</li>
+                <li>• Find the 32-character ID after the last "/" and before "?"</li>
+                <li>• Example: https://notion.so/myworkspace/Tasks-<strong>92c68a7f146945892...</strong>?v=...</li>
+                <li>• Paste just the ID (without dashes) in the field above</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-semibold">⚠️ Common Issues</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                <li>• <strong>Database not found:</strong> Make sure you shared the database with your integration</li>
+                <li>• <strong>Wrong ID:</strong> Use the database ID, not the page ID</li>
+                <li>• <strong>Required fields:</strong> Your database must have these columns: Task, Details, Due, Min to Complete, Importance, Kanban - Stage, Life Domain</li>
               </ul>
             </div>
           </CardContent>
