@@ -491,6 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/google/auth", isAuthenticated, async (req: any, res) => {
     try {
       const authUrl = googleCalendar.generateAuthUrl();
+      console.log('🔗 Generated OAuth URL:', authUrl);
       res.json({ authUrl });
     } catch (error) {
       console.error("Google OAuth auth URL generation error:", error);

@@ -2,11 +2,29 @@ import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { Task, User } from '@shared/schema';
 
-const GOOGLE_CLIENT_ID = '32247087981-xxx.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = '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';
-const REDIRECT_URI = process.env.NODE_ENV === 'production' 
-  ? 'https://your-app-domain.replit.app/api/google/callback'
-  : 'http://localhost:5000/api/google/callback';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '32247087981-xxx.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+
+// Dynamic redirect URI that works in both development and production
+const getRedirectUri = () => {
+  if (process.env.REPLIT_DOMAINS) {
+    // Running on Replit - use the Replit domain
+    return `https://${process.env.REPLIT_DOMAINS}/api/google/callback`;
+  } else if (process.env.NODE_ENV === 'production') {
+    // Production environment
+    return 'https://your-app-domain.replit.app/api/google/callback';
+  } else {
+    // Local development
+    return 'http://localhost:5000/api/google/callback';
+  }
+};
+
+const REDIRECT_URI = getRedirectUri();
+
+// Debug logging for redirect URI
+console.log('🔗 Google OAuth Redirect URI:', REDIRECT_URI);
+console.log('🌐 REPLIT_DOMAINS:', process.env.REPLIT_DOMAINS);
+console.log('🏗️ NODE_ENV:', process.env.NODE_ENV);
 
 export class GoogleCalendarService {
   private getAuthenticatedClient(user: User): OAuth2Client {
@@ -42,6 +60,7 @@ export class GoogleCalendarService {
       prompt: 'consent',
     });
 
+    console.log('🔗 Generated OAuth URL with redirect URI:', REDIRECT_URI);
     return authUrl;
   }
 

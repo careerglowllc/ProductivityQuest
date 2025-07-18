@@ -331,7 +331,16 @@ node debug-tool.js stats       # Progress tracking
 **API Integration Issues:**
 - Notion: Verify `NOTION_INTEGRATION_SECRET` and database permissions
 - Google: Check `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+- **Google OAuth Setup**: Add current Replit domain to Google Cloud Console OAuth redirect URIs
 - Use individual test commands to isolate integration issues
+
+**Google OAuth Configuration:**
+When running on Replit, the OAuth redirect URI automatically uses your Replit domain (e.g., `https://your-repl-domain.replit.dev/api/google/callback`). You must add this URL to your Google Cloud Console OAuth application's authorized redirect URIs:
+
+1. Go to Google Cloud Console → APIs & Services → Credentials
+2. Select your OAuth 2.0 client ID
+3. Add the redirect URI shown in server logs to "Authorized redirect URIs"
+4. The exact URI format: `https://[your-repl-domain]/api/google/callback`
 
 **Performance Monitoring:**
 - Server logs show response times for all API calls
