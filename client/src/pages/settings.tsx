@@ -74,7 +74,8 @@ export default function SettingsPage() {
   const connectGoogleCalendar = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("GET", "/api/google/auth");
-      window.location.href = response.authUrl;
+      const data = await response.json();
+      window.location.href = data.authUrl;
     },
     onError: (error: any) => {
       toast({
@@ -87,7 +88,8 @@ export default function SettingsPage() {
 
   const testGoogleConnection = useMutation({
     mutationFn: async () => {
-      return apiRequest("GET", "/api/google/test");
+      const response = await apiRequest("GET", "/api/google/test");
+      return response.json();
     },
     onError: (error: any) => {
       const errorData = error.response?.data || {};
@@ -109,7 +111,8 @@ export default function SettingsPage() {
 
   const disconnectGoogleCalendar = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/google/disconnect");
+      const response = await apiRequest("POST", "/api/google/disconnect");
+      return response.json();
     },
     onError: (error) => {
       toast({
