@@ -137,10 +137,23 @@ export async function setupAuth(app: Express) {
     const authStrategy = `replitauth:${req.hostname}`;
     console.log(`🎯 Using auth strategy: ${authStrategy}`);
     
-    passport.authenticate(authStrategy, {
+    // Create custom authenticate handler to see the auth URL
+    const authenticator = passport.authenticate(authStrategy, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+    });
+    
+    // Wrap the authenticator to log the redirect URL
+    const wrappedAuth = (req: any, res: any, next: any) => {
+      const originalRedirect = res.redirect;
+      res.redirect = function(url: string) {
+        console.log(`🔗 Redirecting to auth URL: ${url}`);
+        return originalRedirect.call(this, url);
+      };
+      return authenticator(req, res, next);
+    };
+    
+    wrappedAuth(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
