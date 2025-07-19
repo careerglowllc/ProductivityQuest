@@ -2,14 +2,16 @@ import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { Task, User } from '@shared/schema';
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-  console.error('❌ Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment variables.');
-} else {
-  console.log('🔑 Google OAuth Client ID:', GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
-  console.log('🔑 Client ID looks like placeholder:', GOOGLE_CLIENT_ID?.includes('xxx'));
+// Function to get credentials fresh each time
+function getGoogleCredentials() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  
+  if (!clientId || !clientSecret) {
+    throw new Error('Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment variables.');
+  }
+  
+  return { clientId, clientSecret };
 }
 
 // Dynamic redirect URI that works in both development and production
@@ -26,12 +28,11 @@ const getRedirectUri = () => {
   }
 };
 
-const REDIRECT_URI = getRedirectUri();
-
-// Debug logging for redirect URI
-console.log('🔗 Google OAuth Redirect URI:', REDIRECT_URI);
+// Log initial configuration at startup
+console.log('🔗 Google OAuth Redirect URI:', getRedirectUri());
 console.log('🌐 REPLIT_DOMAINS:', process.env.REPLIT_DOMAINS);
 console.log('🏗️ NODE_ENV:', process.env.NODE_ENV);
+console.log('🔑 Google Client ID at startup:', process.env.GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
 
 export class GoogleCalendarService {
   private getAuthenticatedClient(user: User): OAuth2Client {
@@ -39,10 +40,11 @@ export class GoogleCalendarService {
       throw new Error('Google OAuth credentials not configured');
     }
 
+    const { clientId, clientSecret } = getGoogleCredentials();
     const oauth2Client = new OAuth2Client(
-      GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET,
-      REDIRECT_URI
+      clientId,
+      clientSecret,
+      getRedirectUri()
     );
 
     oauth2Client.setCredentials({
@@ -55,14 +57,17 @@ export class GoogleCalendarService {
   }
 
   generateAuthUrl(): string {
+    const { clientId, clientSecret } = getGoogleCredentials();
+    const redirectUri = getRedirectUri();
+    
     console.log('📝 Creating OAuth client with:');
-    console.log('   Client ID:', GOOGLE_CLIENT_ID);
-    console.log('   Redirect URI:', REDIRECT_URI);
+    console.log('   Client ID:', clientId);
+    console.log('   Redirect URI:', redirectUri);
     
     const oauth2Client = new OAuth2Client(
-      GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET,
-      REDIRECT_URI
+      clientId,
+      clientSecret,
+      redirectUri
     );
 
     const authUrl = oauth2Client.generateAuthUrl({
@@ -71,16 +76,17 @@ export class GoogleCalendarService {
       prompt: 'consent',
     });
 
-    console.log('🔗 Generated OAuth URL with redirect URI:', REDIRECT_URI);
+    console.log('🔗 Generated OAuth URL with redirect URI:', redirectUri);
     console.log('🔗 Generated OAuth URL:', authUrl);
     return authUrl;
   }
 
   async getTokenFromCode(code: string): Promise<any> {
+    const { clientId, clientSecret } = getGoogleCredentials();
     const oauth2Client = new OAuth2Client(
-      GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET,
-      REDIRECT_URI
+      clientId,
+      clientSecret,
+      getRedirectUri()
     );
 
     const { tokens } = await oauth2Client.getToken(code);
