@@ -2,8 +2,12 @@ import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { Task, User } from '@shared/schema';
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '32247087981-xxx.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+  console.error('❌ Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment variables.');
+}
 
 // Dynamic redirect URI that works in both development and production
 const getRedirectUri = () => {
