@@ -7,6 +7,9 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
   console.error('❌ Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment variables.');
+} else {
+  console.log('🔑 Google OAuth Client ID:', GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
+  console.log('🔑 Client ID looks like placeholder:', GOOGLE_CLIENT_ID?.includes('xxx'));
 }
 
 // Dynamic redirect URI that works in both development and production
@@ -52,6 +55,10 @@ export class GoogleCalendarService {
   }
 
   generateAuthUrl(): string {
+    console.log('📝 Creating OAuth client with:');
+    console.log('   Client ID:', GOOGLE_CLIENT_ID);
+    console.log('   Redirect URI:', REDIRECT_URI);
+    
     const oauth2Client = new OAuth2Client(
       GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET,
@@ -65,6 +72,7 @@ export class GoogleCalendarService {
     });
 
     console.log('🔗 Generated OAuth URL with redirect URI:', REDIRECT_URI);
+    console.log('🔗 Generated OAuth URL:', authUrl);
     return authUrl;
   }
 
