@@ -55,20 +55,33 @@ export class DatabaseStorage implements IStorage {
       { name: "Music Session", description: "Listen to your favorite playlist", cost: 40, icon: "music", category: "entertainment" },
     ];
 
-    try {
-      // Add a small delay to ensure database is ready
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if shop items already exist
-      const existingItems = await db.select().from(shopItems);
-      if (existingItems.length === 0) {
-        await db.insert(shopItems).values(defaultItems);
-        console.log("Shop items initialized successfully");
+    // Defer initialization until first use to avoid blocking app startup
+    setTimeout(async () => {
+      try {
+        // Multiple retry attempts with exponential backoff
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            const existingItems = await db.select().from(shopItems);
+            if (existingItems.length === 0) {
+              await db.insert(shopItems).values(defaultItems);
+              console.log("Shop items initialized successfully");
+            }
+            break;
+          } catch (error) {
+            retries--;
+            if (retries === 0) {
+              console.error("Failed to initialize shop items after multiple attempts:", error);
+            } else {
+              console.log(`Retrying shop initialization... ${retries} attempts left`);
+              await new Promise(resolve => setTimeout(resolve, 2000 * (4 - retries))); // Exponential backoff
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error during shop initialization:", error);
       }
-    } catch (error) {
-      console.error("Error initializing shop items:", error);
-      // Don't throw - allow app to continue running
-    }
+    }, 5000); // 5 second delay
   }
 
   // User operations

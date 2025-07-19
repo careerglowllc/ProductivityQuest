@@ -1,12 +1,8 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { neon, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from "@shared/schema";
 
-// Configure WebSocket for serverless environment
-neonConfig.webSocketConstructor = ws;
-
-// Set fetch function for better compatibility
+// Use HTTP-based connection for better stability in serverless environments
 neonConfig.fetchConnectionCache = true;
 
 if (!process.env.DATABASE_URL) {
@@ -15,11 +11,12 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
-  max: 1, // Limit connection pool size for serverless
-  idleTimeoutMillis: 0, // Disable idle timeout
-  connectionTimeoutMillis: 10000, // 10 second timeout
-});
+const connectionString = process.env.DATABASE_URL;
 
-export const db = drizzle({ client: pool, schema });
+// Create the Neon HTTP client
+const sql = neon(connectionString);
+
+// Create the Drizzle instance with HTTP adapter
+export const db = drizzle(sql, { schema });
+
+console.log('✅ Database connection configured successfully');
