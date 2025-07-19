@@ -78,10 +78,17 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
+    try {
+      console.log(`✅ Authentication successful for user`);
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      console.log(`👤 User upserted successfully: ${tokens.claims().email}`);
+      verified(null, user);
+    } catch (error) {
+      console.error(`❌ Authentication verification failed:`, error);
+      verified(error, null);
+    }
   };
 
   for (const domain of process.env
@@ -102,14 +109,25 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    console.log(`🔑 Login attempt from hostname: ${req.hostname}`);
+    console.log(`🔗 Available domains: ${process.env.REPLIT_DOMAINS}`);
+    
+    const authStrategy = `replitauth:${req.hostname}`;
+    console.log(`🎯 Using auth strategy: ${authStrategy}`);
+    
+    passport.authenticate(authStrategy, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    console.log(`🔄 Callback received from hostname: ${req.hostname}`);
+    
+    const authStrategy = `replitauth:${req.hostname}`;
+    console.log(`🎯 Using auth strategy for callback: ${authStrategy}`);
+    
+    passport.authenticate(authStrategy, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
     })(req, res, next);
