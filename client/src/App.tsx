@@ -12,6 +12,12 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Handle API routes by redirecting to the backend
+  if (window.location.pathname.startsWith('/api/')) {
+    window.location.href = window.location.href;
+    return null;
+  }
+
   return (
     <Switch>
       {isLoading || !isAuthenticated ? (
