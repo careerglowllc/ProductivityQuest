@@ -499,12 +499,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/google/callback", isAuthenticated, async (req: any, res) => {
+  app.get("/api/google/callback", async (req: any, res) => {
     try {
       const { code, state } = req.query;
       
       if (!code) {
         return res.redirect('/settings?google_auth=error&message=no_code');
+      }
+
+      // Check if user is authenticated
+      if (!req.isAuthenticated() || !req.user) {
+        console.error("User not authenticated during Google callback");
+        return res.redirect('/api/login?redirect=/settings');
       }
 
       // Get tokens from code
@@ -518,6 +524,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         googleTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
       });
 
+      console.log("✅ Google Calendar connected successfully for user:", userId);
+      
       // Redirect to settings page with success message
       res.redirect('/settings?google_auth=success');
     } catch (error) {
