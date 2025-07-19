@@ -41,19 +41,26 @@ export function getSession() {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing: true, // Changed to true to create table if missing
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  
+  // Error handling for session store
+  sessionStore.on('error', (error: any) => {
+    console.error('❌ Session store error:', error);
+  });
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Changed to true to ensure sessions are created
     cookie: {
       httpOnly: true,
       secure: true,
       maxAge: sessionTtl,
+      sameSite: 'lax', // Added for better CSRF protection
     },
   });
 }
