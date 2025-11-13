@@ -400,6 +400,53 @@ export default function Home() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back, {user?.firstName || user?.username || "Adventurer"}! 👋
+          </h2>
+          <p className="text-gray-600">Ready to level up your productivity?</p>
+          
+          {/* Stats Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium mb-1">Total Gold</p>
+                    <p className="text-4xl font-bold">{progress.goldTotal || 0}</p>
+                  </div>
+                  <Coins className="h-12 w-12 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium mb-1">Quests Completed</p>
+                    <p className="text-4xl font-bold">{progress.tasksCompleted || 0}</p>
+                  </div>
+                  <CheckCircle className="h-12 w-12 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium mb-1">Today's Progress</p>
+                    <p className="text-4xl font-bold">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
+                  </div>
+                  <TrendingUp className="h-12 w-12 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
           {/* Sidebar */}

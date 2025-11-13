@@ -4,10 +4,13 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { TabBar } from "@/components/tab-bar";
 import Home from "@/pages/home";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import Shop from "@/pages/shop";
+import Rewards from "@/pages/rewards";
 import SettingsPage from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
@@ -31,21 +34,30 @@ function Router() {
     );
   }
 
+  const showTabBar = isAuthenticated && 
+    !window.location.pathname.startsWith('/login') && 
+    !window.location.pathname.startsWith('/register');
+
   return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
-      
-      {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Home} />
-          <Route path="/settings" component={SettingsPage} />
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <Switch>
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
+        
+        {!isAuthenticated ? (
+          <Route path="/" component={Landing} />
+        ) : (
+          <>
+            <Route path="/" component={Home} />
+            <Route path="/shop" component={Shop} />
+            <Route path="/rewards" component={Rewards} />
+            <Route path="/settings" component={SettingsPage} />
+          </>
+        )}
+        <Route component={NotFound} />
+      </Switch>
+      {showTabBar && <TabBar />}
+    </>
   );
 }
 

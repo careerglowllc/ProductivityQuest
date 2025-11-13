@@ -74,4 +74,13 @@
   .border-gold {
     border-color: hsl(45, 93%, 47%);
   }
+
+  /* iOS Safe Area Support */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
 }
