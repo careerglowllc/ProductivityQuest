@@ -16,7 +16,9 @@ export const sessions = pgTable(
 // User storage table for authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
+  username: varchar("username").unique(),
   email: varchar("email").unique(),
+  passwordHash: varchar("password_hash"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -105,9 +107,23 @@ export const insertPurchaseSchema = createInsertSchema(purchases).omit({
   usedAt: true,
 });
 
+// Auth schemas for registration and login
+export const insertUserSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters").max(50),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export const loginUserSchema = z.object({
+  username: z.string().min(1, "Username or email required"),
+  password: z.string().min(1, "Password required"),
+});
+
 // User types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type LoginUser = z.infer<typeof loginUserSchema>;
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;

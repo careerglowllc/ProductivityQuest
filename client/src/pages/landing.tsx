@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Target, Coins, Star } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function Landing() {
+  const [, setLocation] = useLocation();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
       <div className="container mx-auto px-4 py-16">
@@ -13,13 +16,23 @@ export default function Landing() {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Transform your productivity into an engaging game. Complete tasks, earn gold, and unlock rewards while staying organized with Notion and Google Calendar.
           </p>
-          <Button 
-            size="lg" 
-            className="text-lg px-8 py-6"
-            onClick={() => window.location.href = '/api/login'}
-          >
-            Start Your Quest
-          </Button>
+          <div className="flex gap-4 justify-center">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-6"
+              onClick={() => setLocation('/register')}
+            >
+              Start Your Quest
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              className="text-lg px-8 py-6"
+              onClick={() => setLocation('/login')}
+            >
+              Sign In
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">

@@ -1,22 +1,138 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { requireAuth } from "./auth";
 import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
 import { googleCalendar } from "./google-calendar";
-import { insertTaskSchema, insertPurchaseSchema } from "@shared/schema";
+import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
-
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // Authentication routes
+  app.post('/api/auth/register', async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(validatedData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+      
+      // Check if email already exists  
+      const existingEmail = await storage.getUserByEmail(validatedData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+      
+      // Create user
+      const user = await storage.createUser(validatedData);
+      
+      // Create session
+      if (req.session) {
+        req.session.userId = user.id;
+        
+        // Save session
+        await new Promise((resolve, reject) => {
+          req.session!.save((err) => {
+            if (err) reject(err);
+            else resolve(undefined);
+          });
+        });
+      }
+      
+      res.json({ 
+        id: user.id,
+        username: user.username,
+        email: user.email 
+      });
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      if (error.errors) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password required' });
+      }
+      
+      // Find user by username OR email
+      let user = await storage.getUserByUsername(username);
+      
+      // If not found by username, try email
+      if (!user) {
+        user = await storage.getUserByEmail(username);
+      }
+      
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Verify password
+      const isValid = await storage.verifyPassword(password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Create session
+      if (req.session) {
+        req.session.userId = user.id;
+        
+        // Save session
+        await new Promise<void>((resolve, reject) => {
+          req.session!.save((err) => {
+            if (err) {
+              console.error("Session save error:", err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      }
+      
+      res.json({ 
+        id: user.id,
+        username: user.username,
+        email: user.email 
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post('/api/auth/logout', (req, res) => {
+    req.session?.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+
+  // Get current user
+  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -24,10 +140,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User settings routes
-  app.get('/api/user/settings', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/settings', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -43,9 +159,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/user/settings', isAuthenticated, async (req: any, res) => {
+  app.put('/api/user/settings', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const { notionApiKey, notionDatabaseId } = req.body;
       
       const user = await storage.updateUserSettings(userId, {
@@ -66,9 +182,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Task routes
-  app.get("/api/tasks", isAuthenticated, async (req: any, res) => {
+  app.get("/api/tasks", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const tasks = await storage.getTasks(userId);
       res.json(tasks);
     } catch (error) {
@@ -76,9 +192,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tasks", isAuthenticated, async (req: any, res) => {
+  app.post("/api/tasks", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       
       // Handle date conversion before validation
       const bodyData = { ...req.body, userId };
@@ -98,9 +214,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/tasks/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/tasks/:id", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const id = parseInt(req.params.id);
       
       // Handle date conversion before validation
@@ -121,9 +237,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/tasks/:id/complete", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/tasks/:id/complete", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const id = parseInt(req.params.id);
       const task = await storage.completeTask(id, userId);
       if (!task) {
@@ -133,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the task in Notion if it has a notionId
       if (task.notionId) {
         try {
-          const user = await storage.getUser(userId);
+          const user = await storage.getUserById(userId);
           if (user?.notionApiKey) {
             await updateTaskCompletion(task.notionId, true, user.notionApiKey);
           }
@@ -149,9 +265,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/tasks/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/tasks/:id", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const id = parseInt(req.params.id);
       const success = await storage.deleteTask(id, userId);
       if (!success) {
@@ -165,9 +281,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recycling routes
-  app.get("/api/recycling", isAuthenticated, async (req: any, res) => {
+  app.get("/api/recycling", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const tasks = await storage.getRecycledTasks(userId);
       res.json(tasks);
     } catch (error) {
@@ -175,9 +291,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/recycling/:id/restore", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/recycling/:id/restore", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const id = parseInt(req.params.id);
       const task = await storage.restoreTask(id, userId);
       if (!task) {
@@ -190,9 +306,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/recycling/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/recycling/:id", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const id = parseInt(req.params.id);
       const success = await storage.permanentlyDeleteTask(id, userId);
       if (!success) {
@@ -206,10 +322,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Notion integration routes
-  app.get("/api/notion/databases", isAuthenticated, async (req: any, res) => {
+  app.get("/api/notion/databases", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       const { pageId } = req.query;
       
       if (!user?.notionApiKey) {
@@ -265,10 +381,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/notion/test", isAuthenticated, async (req: any, res) => {
+  app.get("/api/notion/test", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
         return res.status(400).json({ 
@@ -323,10 +439,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/notion/count", isAuthenticated, async (req: any, res) => {
+  app.get("/api/notion/count", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
         return res.status(400).json({ error: "Notion API key or database ID not configured" });
@@ -342,10 +458,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notion/import", isAuthenticated, async (req: any, res) => {
+  app.post("/api/notion/import", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
         return res.status(400).json({ error: "Notion API key or database ID not configured" });
@@ -400,10 +516,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk append tasks to Notion
-  app.post("/api/notion/append", isAuthenticated, async (req: any, res) => {
+  app.post("/api/notion/append", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       const { taskIds } = req.body;
       
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
@@ -419,13 +535,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const taskId of taskIds) {
         try {
-          const task = await storage.getTask(taskId);
+          const task = await storage.getTask(taskId, userId);
           if (task && task.userId === userId) {
             // Add to Notion
             const notionId = await addTaskToNotion(task, user.notionDatabaseId, user.notionApiKey);
             
             // Update task with Notion ID
-            await storage.updateTask(taskId, { notionId });
+            await storage.updateTask(taskId, { notionId }, userId);
             appendedCount++;
           }
         } catch (error) {
@@ -442,10 +558,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk delete tasks from Notion
-  app.post("/api/notion/delete", isAuthenticated, async (req: any, res) => {
+  app.post("/api/notion/delete", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       const { taskIds } = req.body;
       
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
@@ -461,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const taskId of taskIds) {
         try {
-          const task = await storage.getTask(taskId);
+          const task = await storage.getTask(taskId, userId);
           if (task && task.userId === userId && task.notionId) {
             // Delete from Notion
             await deleteTaskFromNotion(task.notionId, user.notionApiKey);
@@ -471,7 +587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               recycled: true, 
               recycledAt: new Date(),
               recycledReason: "Deleted from Notion"
-            });
+            }, userId);
             deletedCount++;
           }
         } catch (error) {
@@ -488,7 +604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Google OAuth routes
-  app.get("/api/google/auth", isAuthenticated, async (req: any, res) => {
+  app.get("/api/google/auth", requireAuth, async (req: any, res) => {
     try {
       const authUrl = googleCalendar.generateAuthUrl();
       console.log('🔗 Generated OAuth URL:', authUrl);
@@ -508,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is authenticated
-      if (!req.isAuthenticated() || !req.user) {
+      if (!req.requireAuth() || !req.user) {
         console.error("User not authenticated during Google callback");
         return res.redirect('/api/login?redirect=/settings');
       }
@@ -517,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tokens = await googleCalendar.getTokenFromCode(code);
       
       // Store tokens in user's account
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       await storage.updateUserSettings(userId, {
         googleAccessToken: tokens.access_token,
         googleRefreshToken: tokens.refresh_token,
@@ -534,10 +650,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/google/test", isAuthenticated, async (req: any, res) => {
+  app.get("/api/google/test", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       
       if (!user?.googleAccessToken || !user?.googleRefreshToken) {
         return res.status(400).json({ 
@@ -573,9 +689,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/google/disconnect", isAuthenticated, async (req: any, res) => {
+  app.post("/api/google/disconnect", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       
       await storage.updateUserSettings(userId, {
         googleAccessToken: '',
@@ -591,10 +707,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Calendar integration routes
-  app.post("/api/calendar/sync", isAuthenticated, async (req: any, res) => {
+  app.post("/api/calendar/sync", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
       
       if (!user?.googleAccessToken || !user?.googleRefreshToken) {
         return res.status(400).json({ 
@@ -640,9 +756,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/shop/purchase", isAuthenticated, async (req: any, res) => {
+  app.post("/api/shop/purchase", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const { itemId } = req.body;
       
       const item = await storage.getShopItem(itemId);
@@ -673,9 +789,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/purchases", isAuthenticated, async (req: any, res) => {
+  app.get("/api/purchases", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const purchases = await storage.getPurchases(userId);
       res.json(purchases);
     } catch (error) {
@@ -683,9 +799,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/purchases/:id/use", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/purchases/:id/use", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const id = parseInt(req.params.id);
       const purchase = await storage.usePurchase(id, userId);
       if (!purchase) {
@@ -699,9 +815,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Progress routes
-  app.get("/api/progress", isAuthenticated, async (req: any, res) => {
+  app.get("/api/progress", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const progress = await storage.getUserProgress(userId);
       res.json(progress);
     } catch (error) {
@@ -710,9 +826,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stats routes
-  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/stats", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const tasks = await storage.getTasks(userId);
       const recycledTasks = await storage.getRecycledTasks(userId);
       

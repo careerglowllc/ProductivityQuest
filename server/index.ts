@@ -1,8 +1,38 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Session setup
+const pgStore = connectPg(session);
+const sessionStore = new pgStore({
+  conString: process.env.DATABASE_URL,
+  createTableIfMissing: true,
+  ttl: 7 * 24 * 60 * 60 * 1000, // 1 week
+  tableName: "sessions",
+});
+
+sessionStore.on('error', (error: any) => {
+  console.error('❌ Session store error:', error);
+});
+
+app.set("trust proxy", 1);
+app.use(session({
+  secret: process.env.SESSION_SECRET!,
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+    sameSite: 'lax',
+  },
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

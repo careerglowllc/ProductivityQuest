@@ -319,6 +319,42 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return usedPurchase;
   }
+
+  // Authentication operations
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: { username: string; email: string; password: string }): Promise<User> {
+    const bcrypt = await import('bcryptjs');
+    const passwordHash = await bcrypt.hash(userData.password, 10);
+    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const [user] = await db.insert(users).values({
+      id,
+      username: userData.username,
+      email: userData.email,
+      passwordHash,
+    }).returning();
+    
+    return user;
+  }
+
+  async verifyPassword(password: string, passwordHash: string): Promise<boolean> {
+    const bcrypt = await import('bcryptjs');
+    return bcrypt.compare(password, passwordHash);
+  }
 }
 
 export const storage = new DatabaseStorage();
