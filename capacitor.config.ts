@@ -5,7 +5,11 @@ const config: CapacitorConfig = {
   appName: 'ProductivityQuest',
   webDir: 'dist/public',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    // For local development in iOS simulator
+    // Comment out or remove for production builds
+    url: 'http://localhost:5173',
+    cleartext: true
   },
   ios: {
     contentInset: 'automatic'
