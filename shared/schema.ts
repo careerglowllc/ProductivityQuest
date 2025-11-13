@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { extractNotionDatabaseId } from "./notionUtils";
 
 // Session storage table for authentication
 export const sessions = pgTable(
@@ -119,11 +120,38 @@ export const loginUserSchema = z.object({
   password: z.string().min(1, "Password required"),
 });
 
+// Notion configuration schema
+// Accepts either full Notion URL or just the database ID
+export const updateNotionConfigSchema = z.object({
+  notionApiKey: z.string().min(1, "Notion API key is required").startsWith("ntn_", "Invalid Notion API key format"),
+  notionDatabaseId: z.string().min(1, "Notion database ID or URL is required").transform((val, ctx) => {
+    try {
+      // Extract and validate the database ID from URL or direct ID
+      return extractNotionDatabaseId(val);
+    } catch (error: any) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: error.message || "Invalid Notion database ID or URL format",
+      });
+      return z.NEVER;
+    }
+  }),
+});
+
+// User settings type (what the API returns)
+export type UserSettings = {
+  notionApiKey: string | null;
+  notionDatabaseId: string | null;
+  hasGoogleAuth: boolean;
+  googleConnected: boolean;
+};
+
 // User types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type LoginUser = z.infer<typeof loginUserSchema>;
+export type UpdateNotionConfig = z.infer<typeof updateNotionConfigSchema>;
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;

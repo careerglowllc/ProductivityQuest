@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { requireAuth } from "./auth";
 import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
 import { googleCalendar } from "./google-calendar";
-import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema } from "@shared/schema";
+import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema, updateNotionConfigSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -164,12 +164,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const { notionApiKey, notionDatabaseId } = req.body;
       
+      // Validate and parse Notion configuration if provided
+      let parsedNotionDatabaseId = notionDatabaseId;
+      if (notionApiKey || notionDatabaseId) {
+        try {
+          const validated = updateNotionConfigSchema.parse({ notionApiKey, notionDatabaseId });
+          // The schema transformation extracts the clean 32-char ID from URL or validates direct ID
+          parsedNotionDatabaseId = validated.notionDatabaseId;
+        } catch (validationError: any) {
+          return res.status(400).json({ 
+            error: "Invalid Notion configuration",
+            details: validationError.errors 
+          });
+        }
+      }
+      
       const user = await storage.updateUserSettings(userId, {
         notionApiKey,
-        notionDatabaseId,
+        notionDatabaseId: parsedNotionDatabaseId,
       });
       
       res.json({
+        message: "Settings updated successfully",
         notionApiKey: user.notionApiKey ? '***' : null,
         notionDatabaseId: user.notionDatabaseId,
         hasGoogleAuth: !!(user.googleAccessToken && user.googleRefreshToken),

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Settings, Save, Eye, EyeOff, ArrowLeft, Home, Calendar, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
+import type { UserSettings } from "@/../../shared/schema";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ export default function SettingsPage() {
   const [notionDatabaseId, setNotionDatabaseId] = useState("");
   const [hasGoogleAuth, setHasGoogleAuth] = useState(false);
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<UserSettings>({
     queryKey: ["/api/user/settings"],
   });
 
@@ -164,7 +165,8 @@ export default function SettingsPage() {
 
   const handleTestConnection = async () => {
     try {
-      const data = await testConnection.mutateAsync();
+      const response = await testConnection.mutateAsync();
+      const data = await response.json();
       
       toast({
         title: "Connection successful!",
@@ -221,10 +223,20 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Notion Integration</CardTitle>
-            <CardDescription>
-              Configure your Notion API credentials to sync tasks from your personal database.
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Notion Integration</CardTitle>
+                <CardDescription>
+                  Configure your Notion API credentials to sync tasks from your personal database.
+                </CardDescription>
+              </div>
+              <Link href="/settings/notion">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  Setup Guide
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -257,18 +269,18 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notion-database-id">Notion Database ID</Label>
+              <Label htmlFor="notion-database-id">Notion Database ID or URL</Label>
               <Input
                 id="notion-database-id"
-                placeholder="e.g., 92c68a7f-1469-458a-9f60-97711b3f1f43"
+                placeholder="Paste full URL or just the 32-character ID"
                 value={notionDatabaseId}
                 onChange={(e) => setNotionDatabaseId(e.target.value)}
               />
               <p className="text-sm text-muted-foreground">
-                Copy the 32-character ID from your Notion database URL (between the last "/" and "?")
+                💡 <strong>Pro tip:</strong> Just paste the entire database URL from your browser - we'll extract the ID automatically!
               </p>
-              <p className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
-                ⚠️ Make sure to use the <strong>database ID</strong>, not the page ID. Open your database directly in Notion to get the correct ID.
+              <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                📋 Your database must include these properties (exact names): <strong>Task</strong>, <strong>Due</strong>, <strong>Importance</strong>, <strong>Kanban - Stage</strong>, <strong>Recur Type</strong>
               </p>
             </div>
 

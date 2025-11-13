@@ -140,27 +140,36 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
         return response.results.map((page: any) => {
             const properties = page.properties;
 
+            // Extract due date from "Due" property (Date type)
             const dueDate = properties.Due?.date?.start
                 ? new Date(properties.Due.date.start)
                 : null;
 
-            // Extract duration from "Min to Complete" field
-            const duration = properties["Min to Complete"]?.number || 30;
+            // Default duration to 30 minutes (can be customized later)
+            const duration = 30;
 
-            // Calculate gold value based on importance and duration
+            // Extract importance from "Importance" property (Select type)
+            // Options: Pareto, High, Med-High, Medium, Med-Low, Low
             const importance = properties.Importance?.select?.name || "Medium";
+            
+            // Calculate gold value based on importance and duration
             const goldValue = calculateGoldValue(importance, duration);
 
-            // Check if task is completed based on Kanban stage
+            // Extract Kanban stage from "Kanban - Stage" property (Status type)
+            // Options: Not Started (To-Do), In Progress, Incubate (In progress), Done (Complete)
             const kanbanStage = properties["Kanban - Stage"]?.status?.name || "Not Started";
             const isCompleted = kanbanStage === "Done";
 
             const completedAt = isCompleted ? new Date() : null;
 
+            // Extract recurrence from "Recur Type" property (Select type)
+            // Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly
+            const recurType = properties["Recur Type"]?.select?.name || "one-time";
+
             return {
                 notionId: page.id,
                 title: properties.Task?.title?.[0]?.plain_text || "Untitled Task",
-                description: properties.Details?.rich_text?.[0]?.plain_text || "",
+                description: "", // Can be added later if needed
                 duration,
                 goldValue,
                 isCompleted,
@@ -168,12 +177,12 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                 completedAt,
                 importance,
                 kanbanStage,
-                recurType: properties["Recur Type"]?.select?.name || "⏳One-Time",
-                lifeDomain: properties["Life Domain"]?.select?.name || "General",
-                apple: properties.Apple?.checkbox || false,
-                smartPrep: properties.SmartPrep?.checkbox || false,
-                delegationTask: properties["Delegation Task"]?.checkbox || false,
-                velin: properties.Velin?.checkbox || false,
+                recurType,
+                lifeDomain: "General", // Default value
+                apple: false,
+                smartPrep: false,
+                delegationTask: false,
+                velin: false,
             };
         });
     } catch (error: any) {
@@ -251,6 +260,7 @@ export async function addTaskToNotion(task: any, databaseId: string, userApiKey:
                 database_id: formattedDatabaseId,
             },
             properties: {
+                // Required: Task (Name/Title)
                 "Task": {
                     title: [
                         {
@@ -260,54 +270,32 @@ export async function addTaskToNotion(task: any, databaseId: string, userApiKey:
                         },
                     ],
                 },
-                "Details": {
-                    rich_text: [
-                        {
-                            text: {
-                                content: task.description || "",
-                            },
-                        },
-                    ],
-                },
+                // Required: Due (Date)
                 "Due": task.dueDate ? {
                     date: {
                         start: task.dueDate,
                     },
                 } : undefined,
-                "Min to Complete": {
-                    number: task.duration,
-                },
+                // Required: Importance (Select)
+                // Options: Pareto, High, Med-High, Medium, Med-Low, Low
                 "Importance": {
                     select: {
                         name: task.importance || "Medium",
                     },
                 },
+                // Required: Kanban - Stage (Status)
+                // Options: Not Started, In Progress, Incubate, Done
                 "Kanban - Stage": {
                     status: {
-                        name: task.completed ? "Done" : "In Progress",
+                        name: task.completed ? "Done" : "Not Started",
                     },
                 },
-                "Recur Type": task.recurType ? {
+                // Required: Recur Type (Select)
+                // Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly
+                "Recur Type": {
                     select: {
-                        name: task.recurType,
+                        name: task.recurType || "one-time",
                     },
-                } : undefined,
-                "Life Domain": task.lifeDomain ? {
-                    select: {
-                        name: task.lifeDomain,
-                    },
-                } : undefined,
-                "Apple": {
-                    checkbox: task.apple || false,
-                },
-                "SmartPrep": {
-                    checkbox: task.smartPrep || false,
-                },
-                "Delegation Task": {
-                    checkbox: task.delegationTask || false,
-                },
-                "Velin": {
-                    checkbox: task.velin || false,
                 },
             },
         });

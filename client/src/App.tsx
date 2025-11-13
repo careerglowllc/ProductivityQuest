@@ -12,6 +12,7 @@ import Register from "@/pages/register";
 import Shop from "@/pages/shop";
 import Rewards from "@/pages/rewards";
 import SettingsPage from "@/pages/settings";
+import NotionIntegration from "@/pages/notion-integration";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -66,6 +67,7 @@ function Router() {
             <Route path="/shop" component={Shop} />
             <Route path="/rewards" component={Rewards} />
             <Route path="/settings" component={SettingsPage} />
+            <Route path="/settings/notion" component={NotionIntegration} />
           </>
         )}
         <Route component={NotFound} />
