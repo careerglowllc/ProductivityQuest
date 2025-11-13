@@ -31,7 +31,7 @@ export default function Login() {
           title: "Welcome back!",
           description: "You've successfully logged in.",
         });
-        setLocation("/");
+        setLocation("/dashboard");
       } else {
         toast({
           title: "Login failed",

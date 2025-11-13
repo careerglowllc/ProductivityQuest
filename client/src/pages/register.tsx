@@ -65,7 +65,7 @@ export default function Register() {
           title: "Account created!",
           description: "Welcome to TaskQuest",
         });
-        setLocation("/");
+        setLocation("/dashboard");
       } else {
         toast({
           title: "Registration failed",

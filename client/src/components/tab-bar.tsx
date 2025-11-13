@@ -7,7 +7,7 @@ export function TabBar() {
   const tabs = [
     {
       name: "Tasks",
-      path: "/",
+      path: "/dashboard",
       icon: CheckSquare,
     },
     {
