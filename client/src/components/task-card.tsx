@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, TestTube, Briefcase, Sword, Book, Network } from "lucide-react";
+import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { TaskDetailModal } from "./task-detail-modal";
@@ -10,7 +10,7 @@ import { TaskDetailModal } from "./task-detail-modal";
 const skillIcons: Record<string, any> = {
   Craftsman: Wrench,
   Artist: Palette,
-  Alchemist: TestTube,
+  Mindset: Brain,
   Merchant: Briefcase,
   Physical: Sword,
   Scholar: Book,
@@ -23,7 +23,7 @@ const skillIcons: Record<string, any> = {
 const skillColors: Record<string, string> = {
   Craftsman: "bg-amber-900/40 text-amber-200 border-amber-600/40",
   Artist: "bg-purple-900/40 text-purple-200 border-purple-600/40",
-  Alchemist: "bg-emerald-900/40 text-emerald-200 border-emerald-600/40",
+  Mindset: "bg-emerald-900/40 text-emerald-200 border-emerald-600/40",
   Merchant: "bg-green-900/40 text-green-200 border-green-600/40",
   Physical: "bg-red-900/40 text-red-200 border-red-600/40",
   Scholar: "bg-blue-900/40 text-blue-200 border-blue-600/40",

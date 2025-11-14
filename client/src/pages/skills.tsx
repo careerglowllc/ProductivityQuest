@@ -6,7 +6,7 @@ import type { UserProgress } from "@/../../shared/schema";
 import { 
   Wrench, 
   Palette, 
-  TestTube, 
+  Brain, 
   Briefcase, 
   Sword, 
   Book, 
@@ -36,12 +36,12 @@ const skillDescriptions = {
     level50: "Master artist with professional recognition. Exhibits/performs at high levels, has developed unique artistic voice, potentially makes living from art.",
     level99: "Legendary artist whose work transcends time. Creates masterpieces that define movements, inspires millions, and leaves an indelible mark on culture."
   },
-  Alchemist: {
-    description: "The art of mental transformation - converting struggles and life circumstances into positive, enabling mindsets. This skill represents your ability to transmute challenges into growth and maintain positivity.",
+  Mindset: {
+    description: "The art of mental transformation - converting struggles and life circumstances into positive, enabling mindsets. This skill represents your ability to transmute challenges into growth, manage emotions, and maintain inner peace.",
     level10: "Beginner mindset shifter - learning to reframe negative thoughts, practicing gratitude, and developing awareness of mental patterns. Can catch and redirect some negative thinking.",
     level30: "Skilled mental alchemist - consistently transforms setbacks into opportunities. Has developed strong positive thinking habits, resilience practices, and helps others shift their perspectives. 5+ years of intentional mindset work.",
-    level50: "Master of mental transformation - unshakeable positive mindset despite adversity. Expert at converting any struggle into fuel for growth. Teaches others advanced mindset techniques and maintains peak mental state.",
-    level99: "Transcendent alchemist - legendary mental mastery that inspires worldwide transformation. Converts any darkness into light, radiates unwavering positivity, and elevates collective consciousness."
+    level50: "Master of mental transformation - unshakeable positive mindset despite adversity. Expert at converting any struggle into fuel for growth, turning negative emotions into positive energy. Teaches others advanced mindset techniques and maintains peak mental state.",
+    level99: "Transcendent master - legendary mental mastery that inspires worldwide transformation. Converts any darkness into light, maintains peaceful mind in any circumstance, radiates unwavering positivity, and elevates collective consciousness."
   },
   Merchant: {
     description: "Business acumen, negotiation, sales, and wealth building. Your ability to create value, close deals, and build financial success in the real world.",
@@ -97,7 +97,7 @@ const skillDescriptions = {
 const skills = [
   { id: 1, name: "Craftsman", icon: Wrench, level: 5, xp: 750, maxXp: 1000, constellation: "The Forge" },
   { id: 2, name: "Artist", icon: Palette, level: 3, xp: 1200, maxXp: 1500, constellation: "The Muse" },
-  { id: 3, name: "Alchemist", icon: TestTube, level: 2, xp: 400, maxXp: 800, constellation: "The Transmuter" },
+  { id: 3, name: "Mindset", icon: Brain, level: 2, xp: 400, maxXp: 800, constellation: "The Transmuter" },
   { id: 4, name: "Merchant", icon: Briefcase, level: 12, xp: 900, maxXp: 1200, constellation: "The Trader" },
   { id: 5, name: "Physical", icon: Sword, level: 5, xp: 1800, maxXp: 2000, constellation: "The Titan" },
   { id: 6, name: "Scholar", icon: Book, level: 14, xp: 600, maxXp: 1000, constellation: "The Sage" },

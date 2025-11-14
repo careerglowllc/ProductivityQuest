@@ -8,7 +8,7 @@ const openai = new OpenAI({
 const AVAILABLE_SKILLS = [
   "Craftsman",
   "Artist", 
-  "Alchemist",
+  "Mindset",
   "Merchant",
   "Physical",
   "Scholar",
@@ -20,7 +20,7 @@ const AVAILABLE_SKILLS = [
 const SKILL_DESCRIPTIONS = {
   Craftsman: "Building, creating, repairing physical objects, DIY projects, crafting, woodworking, hands-on creation",
   Artist: "Creative expression, visual arts, music, writing, performance, artistic work, design",
-  Alchemist: "Mental transformation, positive mindset, resilience, converting challenges to growth, mindfulness, gratitude",
+  Mindset: "Mental transformation, positive mindset, emotional management, resilience, converting challenges to growth, turning negative emotions into positive energy, mindfulness, gratitude, inner peace, mental wellness, peaceful mind",
   Merchant: "Business, sales, negotiation, entrepreneurship, wealth building, financial literacy, deals",
   Physical: "Martial arts, strength training, combat, firearms, cardiovascular endurance, tactical fitness, self-defense",
   Scholar: "Academic knowledge, learning, research, reading, studying, intellectual pursuits, education",
@@ -34,15 +34,30 @@ export interface CategorizationResult {
   reasoning: string;
 }
 
+export interface TrainingExample {
+  taskTitle: string;
+  taskDetails?: string;
+  correctSkills: string[];
+}
+
 export async function categorizeTaskWithAI(
   title: string,
-  details?: string
+  details?: string,
+  trainingExamples: TrainingExample[] = []
 ): Promise<CategorizationResult> {
   try {
+    // Build few-shot examples from training data
+    const fewShotExamples = trainingExamples.length > 0
+      ? `\n\nLearned Examples (from your feedback):\n${trainingExamples.map(ex => 
+          `- "${ex.taskTitle}"${ex.taskDetails ? ` (${ex.taskDetails})` : ''} → ${ex.correctSkills.join(', ')}`
+        ).join('\n')}`
+      : '';
+
     const prompt = `You are a productivity expert helping categorize tasks into skill categories.
 
 Available skills and their descriptions:
 ${Object.entries(SKILL_DESCRIPTIONS).map(([skill, desc]) => `- ${skill}: ${desc}`).join('\n')}
+${fewShotExamples}
 
 Task to categorize:
 Title: ${title}
@@ -52,12 +67,14 @@ Instructions:
 1. Analyze the task and identify which skills it primarily develops
 2. Select 1-3 most relevant skills from the available list
 3. A task can develop multiple skills if it genuinely involves multiple areas
-4. Be thoughtful - for example:
+4. If similar tasks appear in the learned examples above, follow that pattern
+5. Be thoughtful - for example:
    - "Run a mile" → Health, Physical
    - "Read philosophy book" → Scholar
    - "Networking event" → Merchant, Connector, Charisma
    - "Build a bookshelf" → Craftsman
-   - "Practice meditation" → Alchemist, Health
+   - "Practice meditation" → Mindset, Health
+   - "Reframe negative thoughts" → Mindset
    - "Write a blog post" → Artist, Scholar
 
 Respond with a JSON object in this exact format:
@@ -71,7 +88,7 @@ Respond with a JSON object in this exact format:
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant that categorizes tasks into skill development categories. Always respond with valid JSON."
+          content: "You are a helpful assistant that categorizes tasks into skill development categories. Always respond with valid JSON. When similar examples exist in the learned examples, prioritize matching those patterns."
         },
         {
           role: "user",
@@ -116,7 +133,8 @@ Respond with a JSON object in this exact format:
 }
 
 export async function categorizeMultipleTasks(
-  tasks: Array<{ id: number; title: string; details?: string }>
+  tasks: Array<{ id: number; title: string; details?: string }>,
+  trainingExamples: TrainingExample[] = []
 ): Promise<Map<number, CategorizationResult>> {
   const results = new Map<number, CategorizationResult>();
 
@@ -127,7 +145,7 @@ export async function categorizeMultipleTasks(
     const batchResults = await Promise.all(
       batch.map(async (task) => ({
         id: task.id,
-        result: await categorizeTaskWithAI(task.title, task.details)
+        result: await categorizeTaskWithAI(task.title, task.details, trainingExamples)
       }))
     );
     

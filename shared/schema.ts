@@ -103,6 +103,18 @@ export const purchases = pgTable("purchases", {
   usedAt: timestamp("used_at"),
 });
 
+// Training examples table for AI skill categorization feedback
+export const skillCategorizationTraining = pgTable("skill_categorization_training", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  taskTitle: text("task_title").notNull(),
+  taskDetails: text("task_details"),
+  correctSkills: jsonb("correct_skills").$type<string[]>().notNull(), // User-approved skills
+  aiSuggestedSkills: jsonb("ai_suggested_skills").$type<string[]>(), // What AI originally suggested
+  isApproved: boolean("is_approved").default(true), // Whether user approved this categorization
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
@@ -130,6 +142,11 @@ export const insertPurchaseSchema = createInsertSchema(purchases).omit({
   id: true,
   purchasedAt: true,
   usedAt: true,
+});
+
+export const insertSkillCategorizationTrainingSchema = createInsertSchema(skillCategorizationTraining).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Auth schemas for registration and login
@@ -187,3 +204,5 @@ export type UserSkill = typeof userSkills.$inferSelect;
 export type InsertUserSkill = z.infer<typeof insertUserSkillSchema>;
 export type Purchase = typeof purchases.$inferSelect;
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
+export type SkillCategorizationTraining = typeof skillCategorizationTraining.$inferSelect;
+export type InsertSkillCategorizationTraining = z.infer<typeof insertSkillCategorizationTrainingSchema>;

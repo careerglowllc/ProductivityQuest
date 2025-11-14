@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, TestTube, Briefcase, Sword, Book, Activity, Network, Users, Crown, Target } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users, Crown, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
@@ -16,7 +16,7 @@ import type { UserProgress, UserSkill } from "@/../../shared/schema";
 const skillIcons: Record<string, any> = {
   Craftsman: Wrench,
   Artist: Palette,
-  Alchemist: TestTube,
+  Mindset: Brain,
   Merchant: Briefcase,
   Physical: Sword,
   Scholar: Book,
@@ -29,7 +29,7 @@ const skillIcons: Record<string, any> = {
 const HARDCODED_SKILLS = [
   { name: "Craftsman", level: 5 },
   { name: "Artist", level: 3 },
-  { name: "Alchemist", level: 2 },
+  { name: "Mindset", level: 2 },
   { name: "Merchant", level: 12 },
   { name: "Physical", level: 5 },
   { name: "Scholar", level: 14 },

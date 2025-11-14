@@ -4,9 +4,11 @@ import { storage } from "./storage";
 import { requireAuth } from "./auth";
 import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
 import { googleCalendar } from "./google-calendar";
-import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema, updateNotionConfigSchema } from "@shared/schema";
+import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema, updateNotionConfigSchema, skillCategorizationTraining } from "@shared/schema";
 import { z } from "zod";
 import { categorizeTaskWithAI, categorizeMultipleTasks } from "./openai-service";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -414,6 +416,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid task IDs" });
       }
 
+      // Fetch training examples for this user (approved categorizations)
+      const trainingData = await db.select().from(skillCategorizationTraining)
+        .where(and(
+          eq(skillCategorizationTraining.userId, userId),
+          eq(skillCategorizationTraining.isApproved, true)
+        ))
+        .limit(50); // Use most recent 50 approved examples
+
+      const trainingExamples = trainingData.map(t => ({
+        taskTitle: t.taskTitle,
+        taskDetails: t.taskDetails || undefined,
+        correctSkills: t.correctSkills
+      }));
+
       // Fetch tasks to categorize
       const allTasks = await storage.getTasks(userId);
       const tasksToCategor = allTasks.filter(t => taskIds.includes(t.id));
@@ -422,13 +438,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No tasks found" });
       }
 
-      // Categorize with AI
+      // Categorize with AI using training examples
       const categorizations = await categorizeMultipleTasks(
         tasksToCategor.map(t => ({
           id: t.id,
           title: t.title,
           details: t.details || undefined
-        }))
+        })),
+        trainingExamples
       );
 
       // Update tasks with skill tags
@@ -444,7 +461,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (updated) {
             updatedTasks.push({
               ...updated,
-              categorization: categorization.reasoning
+              aiSuggestion: {
+                skills: categorization.skills,
+                reasoning: categorization.reasoning
+              }
             });
           }
         }
@@ -458,6 +478,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Task categorization error:", error);
       res.status(500).json({ error: "Failed to categorize tasks" });
+    }
+  });
+
+  // Submit feedback on AI categorization
+  app.post("/api/tasks/categorize-feedback", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskId, approvedSkills, aiSuggestedSkills, isApproved } = req.body;
+
+      if (!taskId || !Array.isArray(approvedSkills)) {
+        return res.status(400).json({ error: "Task ID and approved skills required" });
+      }
+
+      // Get the task
+      const task = await storage.getTask(taskId, userId);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Store the training example
+      await db.insert(skillCategorizationTraining).values({
+        userId,
+        taskTitle: task.title,
+        taskDetails: task.details,
+        correctSkills: approvedSkills,
+        aiSuggestedSkills: aiSuggestedSkills || null,
+        isApproved: isApproved !== false // Default to true
+      });
+
+      // Update the task with approved skills
+      await storage.updateTask(taskId, { skillTags: approvedSkills as any }, userId);
+
+      res.json({ success: true, message: "Feedback recorded" });
+    } catch (error) {
+      console.error("Categorization feedback error:", error);
+      res.status(500).json({ error: "Failed to record feedback" });
+    }
+  });
+
+  // Get training examples for review
+  app.get("/api/tasks/training-examples", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+
+      const examples = await db.select().from(skillCategorizationTraining)
+        .where(eq(skillCategorizationTraining.userId, userId))
+        .orderBy(skillCategorizationTraining.createdAt)
+        .limit(100);
+
+      res.json({ examples });
+    } catch (error) {
+      console.error("Fetch training examples error:", error);
+      res.status(500).json({ error: "Failed to fetch training examples" });
     }
   });
 

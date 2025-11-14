@@ -15,6 +15,7 @@ import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
 import { CompletionAnimation } from "@/components/completion-animation";
 import { RecyclingModal } from "@/components/recycling-modal";
+import { CategorizationFeedbackModal, TaskWithSuggestion } from "@/components/categorization-feedback-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -43,6 +44,10 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
+  
+  // Categorization feedback state
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [categorizationResults, setCategorizationResults] = useState<TaskWithSuggestion[]>([]);
   
   // Undo functionality state
   const [lastAction, setLastAction] = useState<{
@@ -233,6 +238,15 @@ export default function Home() {
 
       // Clear selection
       setSelectedTasks(new Set());
+      
+      // Store results for feedback
+      if (result.tasks && result.tasks.length > 0) {
+        const tasksWithSuggestions = result.tasks.filter((t: TaskWithSuggestion) => t.aiSuggestion);
+        if (tasksWithSuggestions.length > 0) {
+          setCategorizationResults(tasksWithSuggestions);
+          setShowFeedbackModal(true);
+        }
+      }
       
       // Refresh tasks to show new skill tags
       refetchTasks();
@@ -1041,6 +1055,20 @@ export default function Home() {
           }}
         />
       )}
+
+      {/* Categorization Feedback Modal */}
+      <CategorizationFeedbackModal
+        open={showFeedbackModal}
+        onOpenChange={setShowFeedbackModal}
+        tasks={categorizationResults}
+        onFeedbackComplete={() => {
+          refetchTasks();
+          toast({
+            title: "Training complete!",
+            description: "The AI has learned from your feedback",
+          });
+        }}
+      />
     </div>
   );
 }
