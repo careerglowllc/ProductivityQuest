@@ -16,6 +16,8 @@ A gamified task management and productivity application that transforms your dai
 - [API Documentation](#-api-documentation)
 - [UI Components & Styling](#-ui-components--styling)
 - [Skills System](#-skills-system)
+- [Gold Calculation System](#-gold-calculation-system)
+- [AI Categorization](#-ai-categorization)
 - [Testing](#-testing)
 - [Deployment](#-deployment)
 
@@ -26,8 +28,9 @@ A gamified task management and productivity application that transforms your dai
 ProductivityQuest is a full-stack web application that gamifies productivity by combining task management with RPG elements. Users can:
 
 - **Create and manage tasks** with rich metadata (due dates, importance, life domains, filters)
-- **Earn gold** by completing tasks based on duration and complexity
+- **Earn gold** by completing tasks based on a transparent, modular formula
 - **Level up skills** - 9 default skills + unlimited custom skills
+- **Auto-categorize tasks** - AI automatically assigns skill tags when tasks are created
 - **Purchase rewards** from a customizable shop using earned gold
 - **Sync with Notion** for seamless task management across platforms
 - **Integrate Google Calendar** for time-based task organization
@@ -41,6 +44,8 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Constellation-themed skills system** with 9 default skills
 - **✨ NEW: Custom Skills System** - Create unlimited personalized skills with AI categorization
 - **✨ NEW: Recategorize Feature** - Manually adjust skill tags on selected tasks with sequential modal workflow
+- **✨ NEW: Automatic AI Categorization** - New tasks automatically get skill tags via background AI processing
+- **✨ NEW: Transparent Gold Formula** - Fair, modular calculation: Base × TimeWeight × (1 + PriorityBonus)
 - **Dual-view support** (Grid/List) for different user preferences
 - **Batch operations** for managing multiple tasks efficiently
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
@@ -48,6 +53,8 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Google Calendar integration** for scheduling
 - **Emoji-based shop system** with nature and celestial themes
 - **AI-powered task categorization** using OpenAI with your custom skills
+- **✨ NEW: Automatic AI Categorization** - Tasks automatically categorized with skills when created
+- **✨ NEW: Modular Gold Calculation** - Transparent, fair formula: Base × TimeWeight × (1 + PriorityBonus)
 - **Comprehensive test suite** covering all major features
 
 ---
@@ -536,6 +543,321 @@ interface ShopItem {
 - **Queue Management**: Automatic cleanup when modal closes or all tasks processed
 - See [RECATEGORIZE_TEST_CASES.md](RECATEGORIZE_TEST_CASES.md) for 25 comprehensive test cases
 
+### ✨ Automatic AI Categorization (NEW)
+- **Background Processing**: Tasks auto-categorized with skills when created
+- **Non-blocking**: Categorization runs asynchronously (doesn't slow task creation)
+- **Training-based**: Uses up to 50 approved categorizations per user
+- **Custom Skills Support**: Works with both default and custom skills
+- **Graceful Fallback**: Task creation succeeds even if AI fails
+- See [AUTO_CLASSIFICATION_TEST_CASES.md](AUTO_CLASSIFICATION_TEST_CASES.md) for 20 comprehensive test cases
+
+### ✨ Modular Gold Calculation (NEW)
+- **Formula**: `Gold = Base × TimeWeight × (1 + PriorityBonus)`
+- **Components**:
+  - Base: 10 (configurable constant)
+  - Time Weight: duration ÷ 20 (scales with time investment)
+  - Priority Bonus: 0% (Low) to 15% (Pareto)
+- **Auto-calculated**: No manual gold input needed
+- **Transparent**: Users see exact calculation
+- **Fair & Balanced**: Time is primary factor, priority is small bonus
+- **Modular Design**: Easy to tweak constants in `server/goldCalculation.ts`
+- **Examples**:
+  - 30 min, Medium: 10 × 1.5 × 1.05 = 16 gold
+  - 60 min, High: 10 × 3.0 × 1.10 = 33 gold
+  - 120 min, Pareto: 10 × 6.0 × 1.15 = 69 gold
+- See [GOLD_CALCULATION_TEST_CASES.md](GOLD_CALCULATION_TEST_CASES.md) for 25 comprehensive test cases
+
+## 💰 Gold Calculation System
+
+ProductivityQuest uses a transparent, modular formula to calculate gold rewards for completed tasks. The formula ensures fair and balanced rewards based on time investment and task importance.
+
+### Formula
+
+```
+Gold = Base × TimeWeight × (1 + PriorityBonus)
+```
+
+### Components
+
+#### Base Value
+- **Constant:** 10
+- **Purpose:** Starting point for all calculations
+- **Configuration:** `GOLD_BASE` in `server/goldCalculation.ts`
+
+#### Time Weight
+- **Formula:** `duration ÷ 20`
+- **Purpose:** Scales reward with time investment
+- **Configuration:** `TIME_DIVISOR` in `server/goldCalculation.ts`
+- **Examples:**
+  - 10 min → 0.5x
+  - 30 min → 1.5x
+  - 60 min → 3.0x
+  - 120 min → 6.0x
+
+#### Priority Bonus
+- **Purpose:** Small multiplier for important tasks
+- **Tiers:**
+  - **Low:** 0% (1.00x)
+  - **Med-Low:** 3% (1.03x)
+  - **Medium:** 5% (1.05x)
+  - **Med-High:** 7% (1.07x)
+  - **High:** 10% (1.10x)
+  - **Pareto:** 15% (1.15x)
+
+### Example Calculations
+
+| Duration | Priority | Calculation | Gold |
+|----------|----------|-------------|------|
+| 10 min | Low | 10 × 0.5 × 1.00 | **5** 🪙 |
+| 30 min | Medium | 10 × 1.5 × 1.05 | **16** 🪙 |
+| 60 min | High | 10 × 3.0 × 1.10 | **33** 🪙 |
+| 90 min | Med-High | 10 × 4.5 × 1.07 | **48** 🪙 |
+| 120 min | Pareto | 10 × 6.0 × 1.15 | **69** 🪙 |
+| 180 min | High | 10 × 9.0 × 1.10 | **99** 🪙 |
+
+### Implementation
+
+**Server-side:** `/server/goldCalculation.ts`
+```typescript
+export const GOLD_BASE = 10;
+export const TIME_DIVISOR = 20;
+export const PRIORITY_BONUSES = {
+  Low: 0,
+  "Med-Low": 0.03,
+  Medium: 0.05,
+  "Med-High": 0.07,
+  High: 0.10,
+  Pareto: 0.15,
+};
+
+export function calculateGoldValue(
+  duration: number,
+  importance: string
+): number {
+  const timeWeight = duration / TIME_DIVISOR;
+  const priorityBonus = PRIORITY_BONUSES[importance] || 0;
+  return Math.round(GOLD_BASE * timeWeight * (1 + priorityBonus));
+}
+```
+
+**Client-side:** `/client/src/lib/goldCalculation.ts`
+- Identical formula for consistent preview in UI
+- Auto-calculates as user adjusts duration/importance
+- Read-only field in AddTaskModal
+
+### Design Philosophy
+
+1. **Time is Primary Factor:** Duration has the largest impact on gold value
+2. **Priority is Bonus:** Importance adds 0-15% multiplier (small but meaningful)
+3. **Transparent:** Users see exact calculation and reasoning
+4. **Fair:** Longer tasks = more gold, regardless of priority
+5. **Modular:** Easy to adjust constants without changing formula
+6. **Consistent:** Same calculation on client and server
+
+### Benefits
+
+- **No Manual Input:** Gold auto-calculated, preventing abuse
+- **Predictable:** Users know exactly what they'll earn
+- **Balanced:** Encourages both quick wins and deep work
+- **Configurable:** Constants can be tweaked based on feedback
+- **Clear UX:** "(Auto-calculated)" label educates users
+
+### Testing
+
+See [GOLD_CALCULATION_TEST_CASES.md](GOLD_CALCULATION_TEST_CASES.md) for:
+- 8 basic calculation tests
+- 6 edge case tests
+- 5 UI integration tests
+- 6 validation tests
+- **Total:** 25 comprehensive test cases
+
+---
+
+## 🤖 AI Categorization
+
+ProductivityQuest uses OpenAI's GPT-4 to automatically categorize tasks with relevant skill tags. This feature runs in two modes: manual (user-triggered) and automatic (background processing).
+
+### Automatic Categorization (NEW)
+
+When users create a new task, the AI automatically categorizes it in the background without blocking task creation.
+
+**How It Works:**
+1. User creates task in AddTaskModal
+2. Task is immediately saved to database and returned to user (< 500ms)
+3. Background async process triggers AI categorization
+4. System fetches user's skills (default + custom)
+5. Loads up to 50 training examples (approved categorizations)
+6. Calls `categorizeTaskWithAI()` with task title and details
+7. Updates task with skillTags if categorization succeeds
+8. User sees skills appear automatically (1-3 seconds)
+
+**Key Features:**
+- **Non-blocking:** Doesn't slow down task creation
+- **Training-based:** Uses user's approved categorizations
+- **Custom Skills Support:** Works with both default and custom skills
+- **Graceful Fallback:** Task creation succeeds even if AI fails
+- **Silent Operation:** Categorization happens transparently
+
+**Implementation:**
+```typescript
+// server/routes.ts - POST /api/tasks
+router.post("/api/tasks", async (req, res) => {
+  // Create task immediately
+  const newTask = await storage.createTask(userId, taskData);
+  
+  // Return task to user right away
+  res.json(newTask);
+  
+  // Background categorization (async, non-blocking)
+  (async () => {
+    try {
+      const userSkills = await storage.getUserSkills(userId);
+      const trainingTasks = await storage.getTrainingExamples(userId, 50);
+      
+      const categorization = await categorizeTaskWithAI(
+        title,
+        details,
+        userSkills,
+        trainingTasks
+      );
+      
+      if (categorization.skillTags?.length > 0) {
+        await storage.updateTask(newTask.id, {
+          skillTags: categorization.skillTags
+        });
+        console.log(`✓ Auto-categorized task ${newTask.id}`);
+      }
+    } catch (error) {
+      console.error("Auto-categorization failed:", error);
+      // Task already created, failure is non-critical
+    }
+  })();
+});
+```
+
+### Manual Categorization
+
+Users can manually categorize tasks using the "Categorize" button:
+
+**Single Task:**
+1. Select task
+2. Click "Categorize" button
+3. AI analyzes task and suggests skills
+4. User reviews and approves/adjusts
+5. Skills added to task
+
+**Batch Categorization (Recategorize):**
+1. Select multiple tasks
+2. Click "Recategorize" button
+3. Modal processes tasks sequentially
+4. Shows "Task X of Y" counter
+5. User reviews each categorization
+6. Automatic queue management
+
+### AI Model & Training
+
+**Model:** GPT-4 (via OpenAI API)
+
+**Training Data:**
+- Up to 50 recent approved categorizations per user
+- Includes task title, details, and skill tags
+- User-specific learning (private to each user)
+- Improves accuracy over time
+
+**Categorization Logic:**
+```typescript
+// server/openai-service.ts
+export async function categorizeTaskWithAI(
+  title: string,
+  details: string,
+  userSkills: Skill[],
+  trainingExamples: Task[]
+) {
+  const prompt = `
+    Categorize this task:
+    Title: ${title}
+    Details: ${details}
+    
+    Available skills: ${userSkills.map(s => s.skillName).join(", ")}
+    
+    Training examples:
+    ${trainingExamples.map(t => 
+      `"${t.title}" → [${t.skillTags?.join(", ")}]`
+    ).join("\n")}
+    
+    Return JSON: { skillTags: string[], reasoning: string }
+  `;
+  
+  const response = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" }
+  });
+  
+  return JSON.parse(response.choices[0].message.content);
+}
+```
+
+### Custom Skills Integration
+
+The AI automatically recognizes custom skills:
+- Reads `skillDescription` field for context
+- Understands skill icon and milestones
+- Categorizes based on custom skill definitions
+- No retraining required
+
+**Example:**
+```typescript
+{
+  skillName: "DevOps",
+  skillDescription: "Infrastructure, CI/CD, containerization, cloud deployment",
+  skillIcon: "server",
+  isCustom: true
+}
+```
+
+Task: "Deploy Docker container to AWS"
+→ AI categorizes with ["DevOps", "Craftsman"]
+
+### Benefits
+
+- **Seamless UX:** No extra step for users
+- **Improved Accuracy:** Learns from user's patterns
+- **Time Savings:** Automatic categorization for all tasks
+- **Consistent:** Always uses latest skills and training
+- **Flexible:** Works with default and custom skills
+
+### Error Handling
+
+**If AI Fails:**
+- Task creation still succeeds
+- No error shown to user
+- Logs error for debugging
+- User can manually categorize later
+
+**Common Failures:**
+- OpenAI API unavailable
+- Invalid API key
+- Rate limiting
+- Malformed response
+
+**Graceful Degradation:**
+- Background process catches errors
+- Task remains uncategorized (empty skillTags)
+- User can use "Categorize" button manually
+- No data loss or blocking issues
+
+### Testing
+
+See [AUTO_CLASSIFICATION_TEST_CASES.md](AUTO_CLASSIFICATION_TEST_CASES.md) for:
+- 8 core functionality tests
+- 5 AI accuracy tests
+- 5 edge case tests
+- 2 integration tests
+- **Total:** 20 comprehensive test cases
+
+---
+
 ## 🎨 UI Components & Styling
 
 ### Component Architecture
@@ -639,6 +961,8 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - **ADD_TASK_MODAL_TEST_CASES.md** - 60 test cases for task creation feature
 - **CUSTOM_SKILLS_TEST_CASES.md** - 55 test cases for custom skills system
 - **RECATEGORIZE_TEST_CASES.md** - 25 test cases for task recategorization feature
+- **AUTO_CLASSIFICATION_TEST_CASES.md** - 20 test cases for automatic AI categorization
+- **GOLD_CALCULATION_TEST_CASES.md** - 25 test cases for modular gold formula
 - **TESTING.md** - Comprehensive testing documentation
 
 ### Debug Tools
