@@ -1205,7 +1205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId;
       console.log("Restoring default skills for user:", userId);
-      await storage.ensureDefaultSkills(userId);
+      await storage.restoreDefaultSkills(userId);
       const skills = await storage.getUserSkills(userId);
       console.log("Skills after restore:", skills.length);
       res.json({ message: "Default skills restored", skills });

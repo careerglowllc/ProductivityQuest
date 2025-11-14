@@ -477,6 +477,39 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async restoreDefaultSkills(userId: string): Promise<void> {
+    const skillNames = [
+      "Craftsman",
+      "Artist", 
+      "Will",
+      "Merchant",
+      "Warrior",
+      "Scholar",
+      "Connector",
+      "Charisma",
+      "Health"
+    ];
+
+    console.log("restoreDefaultSkills called for user:", userId);
+
+    // Delete ALL existing skills for this user
+    await db.delete(userSkills).where(eq(userSkills.userId, userId));
+    console.log("Deleted all existing skills");
+
+    // Add all 9 default skills fresh
+    const skillsToAdd: InsertUserSkill[] = skillNames.map(name => ({
+      userId,
+      skillName: name,
+      level: 1,
+      xp: 0,
+      maxXp: 100,
+    }));
+
+    console.log("Adding fresh default skills:", skillsToAdd.length);
+    await db.insert(userSkills).values(skillsToAdd);
+    console.log("All 9 default skills restored successfully");
+  }
+
   // Authentication operations
   async getUserById(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
