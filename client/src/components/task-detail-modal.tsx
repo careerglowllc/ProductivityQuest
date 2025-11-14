@@ -177,7 +177,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
                 <div className="flex items-center gap-2 text-yellow-400">
                   <Heart className="w-4 h-4" />
-                  <span className="text-sm font-semibold">Life Domain</span>
+                  <span className="text-sm font-semibold">Business Type</span>
                 </div>
                 <Badge className="bg-rose-600 text-white border-rose-500">
                   {task.lifeDomain}
