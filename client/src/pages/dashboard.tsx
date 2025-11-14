@@ -285,42 +285,45 @@ export default function Dashboard() {
         {/* Main Campaign Section */}
         <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
           <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-3">
-              <Crown className="h-4 w-4 text-purple-400" />
-              <h3 className="text-base font-serif font-bold text-purple-100">Main Campaign</h3>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Crown className="h-4 w-4 text-purple-400" />
+                <h3 className="text-sm font-serif font-bold text-purple-100">Main Campaign</h3>
+              </div>
+              <Link href="/campaigns">
+                <Button variant="outline" size="sm" className="h-7 px-3 text-xs border-purple-600/40 bg-slate-700/50 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100 hover:border-purple-500/60">
+                  Details
+                </Button>
+              </Link>
             </div>
 
-            {/* Objective 1: Financial Independence */}
-            <div className="mb-3 pb-3 border-b border-purple-600/30">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <h4 className="text-sm font-serif font-bold text-purple-100">Financial Independence</h4>
-                  <p className="text-purple-300/70 text-xs">Build wealth and achieve freedom</p>
-                </div>
+            {/* Compact Objective: Financial Independence */}
+            <div className="mb-2 pb-2 border-b border-purple-600/30">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-xs font-serif font-semibold text-purple-100">Financial Independence</h4>
                 <div className="text-right">
-                  <p className="text-purple-200/70 text-[10px] mb-0.5">Current Net Worth</p>
-                  <p className="text-lg font-bold text-purple-100">$500,000</p>
+                  <p className="text-sm font-bold text-purple-100">$500,000</p>
+                  <p className="text-[9px] text-purple-200/70">Current Net Worth</p>
                 </div>
               </div>
               
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-purple-200/80">Goal: $1.3M Net Worth</span>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-purple-200/80">Goal: $1.3M</span>
                   <span className="text-purple-100 font-bold">38.5%</span>
                 </div>
-                <Progress value={38.5} className="h-2 bg-slate-700/50">
+                <Progress value={38.5} className="h-1.5 bg-slate-700/50">
                   <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" style={{ width: '38.5%' }} />
                 </Progress>
-                <p className="text-[10px] text-purple-300/60">$800,000 remaining to achieve financial freedom</p>
               </div>
             </div>
 
-            {/* Objective 2: Peace of Mind */}
+            {/* Compact Objective: Peace of Mind */}
             <div>
-              <h4 className="text-sm font-serif font-bold text-purple-100 mb-1">Peace of Mind</h4>
+              <h4 className="text-xs font-serif font-semibold text-purple-100 mb-1">Peace of Mind</h4>
               <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-2">
-                <p className="text-purple-200/80 text-xs italic leading-relaxed">
-                  "Peace is a choice. The journey is all there is. There are no rules to the game."
+                <p className="text-purple-200/80 text-[10px] italic leading-relaxed">
+                  "Peace is a choice. The journey is all there is."
                 </p>
               </div>
             </div>

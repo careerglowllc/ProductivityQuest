@@ -13,6 +13,7 @@ import Register from "@/pages/register";
 import Shop from "@/pages/shop";
 import Skills from "@/pages/skills";
 import Rewards from "@/pages/rewards";
+import CampaignsPage from "@/pages/campaigns";
 import SettingsPage from "@/pages/settings";
 import NotionIntegration from "@/pages/notion-integration";
 import SettingsGuidesPage from "@/pages/settings-guides";
@@ -73,6 +74,7 @@ function Router() {
             <Route path="/shop" component={Shop} />
             <Route path="/skills" component={Skills} />
             <Route path="/rewards" component={Rewards} />
+            <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
