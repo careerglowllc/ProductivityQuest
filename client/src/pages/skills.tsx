@@ -26,6 +26,7 @@ import {
   Settings,
   Handshake,
   Activity,
+  RefreshCw,
   type LucideIcon
 } from "lucide-react";
 import { useState } from "react";
@@ -177,6 +178,31 @@ export default function Skills() {
     },
   });
 
+  // Restore default skills mutation
+  const restoreSkillsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/skills/restore-defaults", {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to restore skills");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
+      toast({
+        title: "Skills Restored",
+        description: "All 9 default skills have been restored.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to restore default skills.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEditSkill = (skill: UserSkill) => {
     setEditingSkill(skill);
     setEditForm({
@@ -281,6 +307,16 @@ export default function Skills() {
             >
               <Settings className="w-4 h-4" />
               Manual Modify
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => restoreSkillsMutation.mutate()}
+              disabled={restoreSkillsMutation.isPending}
+              className="flex items-center gap-2 bg-slate-800/50 border-green-600/40 text-green-200 hover:bg-green-600/20 hover:text-green-100 hover:border-green-500/50"
+            >
+              <RefreshCw className={`w-4 h-4 ${restoreSkillsMutation.isPending ? 'animate-spin' : ''}`} />
+              Restore Defaults
             </Button>
           </div>
         </div>
