@@ -58,10 +58,12 @@ export default function Shop() {
         </div>
 
         {/* Gold Balance */}
-        <Card className="mb-8 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 border-2 border-yellow-500/50 backdrop-blur-md">
+        <Card className="mb-8 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/50">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
-              <Coins className="h-8 w-8 text-yellow-400" />
+              <div className="bg-yellow-600/20 p-3 rounded-full border border-yellow-500/40">
+                <Coins className="h-8 w-8 text-yellow-400" />
+              </div>
               <div>
                 <p className="text-sm text-yellow-200/80 font-medium">Your Balance</p>
                 <p className="text-3xl font-bold text-yellow-100">{progress.goldTotal} Gold</p>

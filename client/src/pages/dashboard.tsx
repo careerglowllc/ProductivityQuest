@@ -11,17 +11,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 
-// Skill data with levels (all set to 3 for now)
+// Skill data with actual levels matching the skills page
 const skillsData = [
-  { name: "Craftsman", level: 3 },
+  { name: "Craftsman", level: 5 },
   { name: "Artist", level: 3 },
-  { name: "Alchemist", level: 3 },
-  { name: "Merchant", level: 3 },
-  { name: "Warrior", level: 3 },
-  { name: "Scholar", level: 3 },
+  { name: "Alchemist", level: 2 },
+  { name: "Merchant", level: 12 },
+  { name: "Warrior", level: 5 },
+  { name: "Scholar", level: 14 },
   { name: "Healer", level: 3 },
-  { name: "Athlete", level: 3 },
-  { name: "Tactician", level: 3 },
+  { name: "Athlete", level: 7 },
+  { name: "Tactician", level: 8 },
 ];
 
 // Spider Chart Component
