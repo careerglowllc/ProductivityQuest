@@ -8,10 +8,10 @@ import {
   Palette, 
   TestTube, 
   Briefcase, 
-  Dumbbell, 
+  Sword, 
   Book, 
   Activity, 
-  Zap, 
+  Network, 
   Users,
   Crown,
   Star,
@@ -70,6 +70,12 @@ const skillDescriptions = {
     level30: "Serious athlete - competes in sports/events, 5+ years consistent training, impressive physical stats, may coach others. Strong and capable.",
     level50: "Elite athlete - professional or Olympic-level performance. Peak physical condition, competition winner, or extreme athletic achievements."
   },
+  Connector: {
+    description: "Building and maintaining meaningful relationships - your network strength, deep friendships, and ability to foster genuine connections. This represents your social capital and relationship quality.",
+    level10: "Relationship builder - actively nurturing friendships, expanding network, learning to maintain connections. Has 10-20 meaningful relationships and growing.",
+    level30: "Master networker - extensive network of 50+ genuine connections, maintains deep friendships, regularly brings people together. 5+ years of intentional relationship building. Known as a connector in your circles.",
+    level50: "Legendary connector - world-class network spanning hundreds of deep relationships. Effortlessly maintains connections, creates powerful introductions, and builds communities. Your network is your superpower."
+  },
   Charisma: {
     description: "The art of charm and connection - social influence, communication mastery, leadership presence, and the ability to connect deeply with others. This represents your interpersonal magnetism and social impact.",
     level10: "Socially developing - learning active listening, practicing confident communication, building genuine connections. Can engage in conversations and make people feel heard.",
@@ -83,10 +89,10 @@ const skills = [
   { id: 2, name: "Artist", icon: Palette, level: 3, xp: 1200, maxXp: 1500, constellation: "The Muse" },
   { id: 3, name: "Alchemist", icon: TestTube, level: 2, xp: 400, maxXp: 800, constellation: "The Transmuter" },
   { id: 4, name: "Merchant", icon: Briefcase, level: 12, xp: 900, maxXp: 1200, constellation: "The Trader" },
-  { id: 5, name: "Physical", icon: Dumbbell, level: 5, xp: 1800, maxXp: 2000, constellation: "The Titan" },
+  { id: 5, name: "Physical", icon: Sword, level: 5, xp: 1800, maxXp: 2000, constellation: "The Titan" },
   { id: 6, name: "Scholar", icon: Book, level: 14, xp: 600, maxXp: 1000, constellation: "The Sage" },
   { id: 7, name: "Health", icon: Activity, level: 3, xp: 350, maxXp: 800, constellation: "The Vitality" },
-  { id: 8, name: "Athlete", icon: Zap, level: 7, xp: 1100, maxXp: 1200, constellation: "The Swift" },
+  { id: 8, name: "Connector", icon: Network, level: 7, xp: 1100, maxXp: 1200, constellation: "The Bridge" },
   { id: 9, name: "Charisma", icon: Users, level: 8, xp: 700, maxXp: 1000, constellation: "The Influencer" },
 ];
 

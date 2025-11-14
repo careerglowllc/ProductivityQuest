@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, TestTube, Briefcase, Dumbbell, Book, Activity, Zap, Users, Crown } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, TestTube, Briefcase, Sword, Book, Activity, Network, Users, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
@@ -18,10 +18,10 @@ const skillIcons: Record<string, any> = {
   Artist: Palette,
   Alchemist: TestTube,
   Merchant: Briefcase,
-  Physical: Dumbbell,
+  Physical: Sword,
   Scholar: Book,
   Health: Activity,
-  Athlete: Zap,
+  Connector: Network,
   Charisma: Users,
 };
 
@@ -34,7 +34,7 @@ const HARDCODED_SKILLS = [
   { name: "Physical", level: 5 },
   { name: "Scholar", level: 14 },
   { name: "Health", level: 3 },
-  { name: "Athlete", level: 7 },
+  { name: "Connector", level: 7 },
   { name: "Charisma", level: 8 },
 ];
 
