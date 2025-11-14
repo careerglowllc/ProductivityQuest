@@ -144,8 +144,13 @@ export function SkillAdjustmentModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-yellow-100">
-            Adjust Skill Tags
+          <DialogTitle className="text-2xl text-yellow-100 flex items-center justify-between">
+            <span>Adjust Skill Tags</span>
+            {tasks.length > 1 && (
+              <span className="text-base text-yellow-400/80 font-normal">
+                Task {currentIndex + 1} of {tasks.length}
+              </span>
+            )}
           </DialogTitle>
           <DialogDescription className="text-slate-300">
             Review and adjust the AI's categorization. Your changes will help train the AI.

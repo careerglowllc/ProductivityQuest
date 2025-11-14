@@ -16,6 +16,7 @@ import { CalendarSyncModal } from "@/components/calendar-sync-modal";
 import { CompletionAnimation } from "@/components/completion-animation";
 import { RecyclingModal } from "@/components/recycling-modal";
 import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
+import { AddTaskModal } from "@/components/add-task-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -28,6 +29,7 @@ export default function Home() {
   const [location] = useLocation();
   const [showItemShop, setShowItemShop] = useState(false);
   const [showCalendarSync, setShowCalendarSync] = useState(false);
+  const [showAddTask, setShowAddTask] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedTask, setCompletedTask] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -48,6 +50,7 @@ export default function Home() {
   // Categorization adjustment state
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [lastCategorizedTasks, setLastCategorizedTasks] = useState<any[]>([]);
+  const [recategorizeQueue, setRecategorizeQueue] = useState<any[]>([]);
   
   // Undo functionality state
   const [lastAction, setLastAction] = useState<{
@@ -218,6 +221,24 @@ export default function Home() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleRecategorizeSelected = async () => {
+    if (selectedTasks.size === 0) return;
+
+    const selectedTaskIds = Array.from(selectedTasks);
+    const tasksToRecategorize = (tasks as any[]).filter((task: any) => 
+      selectedTaskIds.includes(task.id)
+    );
+    
+    if (tasksToRecategorize.length === 0) return;
+    
+    // Set up the queue for sequential recategorization
+    setRecategorizeQueue(tasksToRecategorize);
+    setShowAdjustModal(true);
+    
+    // Clear selection
+    setSelectedTasks(new Set());
   };
 
   const handleCategorizeSkill = async () => {
@@ -626,7 +647,18 @@ export default function Home() {
             <h2 className="text-2xl font-serif font-bold text-yellow-100">Your Quests</h2>
             <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex flex-wrap gap-3">
+            {/* Add Quest Button */}
+            <Button 
+              onClick={() => setShowAddTask(true)}
+              className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Add Quest</span>
+            </Button>
             {/* Undo Button - Always visible when there's a last action */}
             {lastAction.type && (
               <Button 
@@ -857,6 +889,15 @@ export default function Home() {
                       <Tag className="w-4 h-4 mr-2" />
                       Categorize Skill
                     </Button>
+                    <Button 
+                      onClick={handleRecategorizeSelected}
+                      variant="outline"
+                      className="border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20 hover:text-yellow-200"
+                      disabled={selectedTasks.size === 0}
+                    >
+                      <Tag className="w-4 h-4 mr-2" />
+                      Recategorize
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -1071,11 +1112,24 @@ export default function Home() {
       {/* Skill Adjustment Modal */}
       <SkillAdjustmentModal
         open={showAdjustModal}
-        onOpenChange={setShowAdjustModal}
-        tasks={lastCategorizedTasks}
+        onOpenChange={(open) => {
+          setShowAdjustModal(open);
+          // Clear recategorize queue when modal closes
+          if (!open) {
+            setRecategorizeQueue([]);
+          }
+        }}
+        tasks={recategorizeQueue.length > 0 ? recategorizeQueue : lastCategorizedTasks}
         onComplete={() => {
           refetchTasks();
+          setRecategorizeQueue([]);
         }}
+      />
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        open={showAddTask}
+        onOpenChange={setShowAddTask}
       />
     </div>
   );
