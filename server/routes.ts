@@ -240,6 +240,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const taskData = insertTaskSchema.parse(bodyData);
       const task = await storage.createTask(taskData);
+      
+      // Auto-categorize with AI in background
+      // Don't await - return task immediately and categorize async
+      (async () => {
+        try {
+          // Fetch user's skills (including custom ones)
+          const userSkills = await storage.getUserSkills(userId);
+          
+          // Fetch training examples for this user (approved categorizations)
+          const trainingData = await db.select().from(skillCategorizationTraining)
+            .where(and(
+              eq(skillCategorizationTraining.userId, userId),
+              eq(skillCategorizationTraining.isApproved, true)
+            ))
+            .limit(50);
+          
+          const trainingExamples = trainingData.map(t => ({
+            taskTitle: t.taskTitle,
+            taskDetails: t.taskDetails || undefined,
+            correctSkills: t.correctSkills
+          }));
+          
+          // Categorize the newly created task
+          const categorization = await categorizeTaskWithAI(
+            task.title,
+            task.details || undefined,
+            trainingExamples,
+            userSkills
+          );
+          
+          // Update task with skill tags
+          if (categorization && categorization.skills.length > 0) {
+            await storage.updateTask(
+              task.id,
+              { skillTags: categorization.skills as any },
+              userId
+            );
+            console.log(`✓ Auto-categorized task ${task.id}: ${categorization.skills.join(', ')}`);
+          }
+        } catch (error) {
+          console.error('Auto-categorization failed for new task:', error);
+          // Don't throw - categorization is optional, task is already created
+        }
+      })();
+      
       res.json(task);
     } catch (error: any) {
       console.error("Task creation error:", error);
