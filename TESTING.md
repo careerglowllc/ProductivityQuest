@@ -60,12 +60,14 @@ Comprehensive automated tests for all user features in ProductivityQuest.
 - ✅ Submit categorization feedback (correction)
 - ✅ Store training examples in database
 - ✅ Retrieve user's training examples
-- ✅ Limit training examples to user's own data
+- ✅ **Limit training examples to user's own data (CRITICAL: data isolation)**
+- ✅ **Training data never shared between users**
 - ✅ Training examples persist across sessions
 - ✅ Corrected skills update task skillTags
 - ✅ isApproved flag set correctly (true/false)
 - ✅ Training data includes task title and details
 - ✅ Training examples sorted by most recent
+- ✅ userId foreign key enforced in database
 
 ### 🎯 Skill Adjustment UI
 - ✅ Toast notification appears after categorization
@@ -417,14 +419,25 @@ Expected:
    (learned from previous correction)
 ```
 
-#### Test 14: Multi-User Isolation
+#### Test 14: Multi-User Isolation (CRITICAL PRIVACY TEST)
 ```
+**Purpose:** Verify training data is completely isolated per user
+
 1. User A creates training data for "meditation" → ["Mindset"]
 2. User B creates training data for "meditation" → ["Scholar"]
 3. User A categorizes new meditation task
-4. Verify uses only User A's training data
-5. User B categorizes new meditation task
-6. Verify uses only User B's training data
+4. Verify uses ONLY User A's training data (NOT User B's)
+5. Verify AI suggests ["Mindset"] for User A
+6. User B categorizes new meditation task
+7. Verify uses ONLY User B's training data (NOT User A's)
+8. Verify AI suggests ["Scholar"] for User B
+
+Expected Database Queries:
+- WHERE userId = 'user_a_id' (NOT selecting all users)
+- WHERE userId = 'user_b_id' (NOT selecting all users)
+- Each user's AI prompt contains ONLY their own examples
+
+This ensures each person's unique journey remains private and personalized.
 ```
 
 #### Test 15: Training Data Limit

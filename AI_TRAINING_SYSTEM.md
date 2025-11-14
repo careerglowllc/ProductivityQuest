@@ -3,13 +3,24 @@
 ## Overview
 The AI task categorization system now includes **feedback-based learning** that improves over time based on your corrections and approvals.
 
+## 🔒 **Privacy & Data Isolation**
+
+**IMPORTANT:** All training data is **completely isolated per user account**. 
+
+- Your training examples are stored with your unique userId
+- Only YOUR training data is used when categorizing YOUR tasks
+- You never see or benefit from other users' categorizations
+- Each person's AI learns their unique journey independently
+
+This ensures the AI adapts to YOUR specific goals and categorization preferences, not a generic "everyone's" approach.
+
 ## How It Works
 
 ### 1. **Few-Shot Learning**
 - AI uses approved examples as training data
 - When you categorize tasks, AI learns from your feedback
 - Similar future tasks will be categorized more accurately
-- System stores up to 50 most recent approved examples per user
+- System stores up to 50 most recent approved examples **per user**
 
 ### 2. **Training Data Flow**
 

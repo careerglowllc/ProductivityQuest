@@ -43,6 +43,23 @@ export default function SkillClassificationGuidePage() {
 
           {/* Content Sections */}
           <div className="space-y-6">
+            {/* Privacy Notice */}
+            <Card className="bg-gradient-to-br from-indigo-900/30 to-purple-900/30 backdrop-blur-md border-2 border-indigo-600/40">
+              <CardContent className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">🔒</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-indigo-200 mb-2">Your Data Is Completely Private</h3>
+                    <p className="text-sm text-yellow-200/80 leading-relaxed">
+                      All training data is <span className="font-semibold text-yellow-100">isolated to your account</span>. Your adjustments train the AI specifically for YOUR journey - not for everyone else. Other users never see or benefit from your categorization preferences.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Section 1: How It Works */}
             <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
               <CardContent className="p-6">
