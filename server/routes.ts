@@ -225,11 +225,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tasks", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
+      const { calculateGoldValue } = await import("./goldCalculation");
       
       // Handle date conversion before validation
       const bodyData = { ...req.body, userId };
       if (bodyData.dueDate && typeof bodyData.dueDate === 'string') {
         bodyData.dueDate = new Date(bodyData.dueDate);
+      }
+      
+      // Auto-calculate gold value based on duration and importance
+      if (bodyData.duration) {
+        bodyData.goldValue = calculateGoldValue(bodyData.importance, bodyData.duration);
       }
       
       const taskData = insertTaskSchema.parse(bodyData);

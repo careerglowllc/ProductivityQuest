@@ -1,4 +1,5 @@
 import { Client } from "@notionhq/client";
+import { calculateGoldValue } from "./goldCalculation";
 
 // Initialize Notion client
 export const notion = new Client({
@@ -203,23 +204,6 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
             throw new Error(`Failed to fetch tasks from Notion: ${error.message || 'Unknown error'}`);
         }
     }
-}
-
-// Calculate gold value based on importance and duration
-function calculateGoldValue(importance: string, duration: number): number {
-    const baseGold = Math.ceil(duration / 10); // 1 gold per 10 minutes
-    
-    const importanceMultiplier = {
-        "Low": 1,
-        "Med-Low": 1.2,
-        "Medium": 1.5,
-        "Med-High": 2,
-        "High": 2.5,
-        "Pareto": 3
-    };
-    
-    const multiplier = importanceMultiplier[importance as keyof typeof importanceMultiplier] || 1.5;
-    return Math.round(baseGold * multiplier);
 }
 
 // Update a task's completion status in Notion by changing Kanban stage

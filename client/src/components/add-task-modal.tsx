@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { calculateGoldValue } from "@/lib/goldCalculation";
 
 interface AddTaskModalProps {
   open: boolean;
@@ -29,7 +30,6 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [description, setDescription] = useState("");
   const [details, setDetails] = useState("");
   const [duration, setDuration] = useState<string>("30");
-  const [goldValue, setGoldValue] = useState<string>("10");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [importance, setImportance] = useState<string>("Medium");
   const [kanbanStage, setKanbanStage] = useState<string>("To Do");
@@ -42,6 +42,9 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [smartPrep, setSmartPrep] = useState(false);
   const [delegationTask, setDelegationTask] = useState(false);
   const [velin, setVelin] = useState(false);
+
+  // Auto-calculate gold value whenever duration or importance changes
+  const goldValue = calculateGoldValue(importance, parseInt(duration) || 30);
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: any) => {
@@ -71,7 +74,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setDescription("");
     setDetails("");
     setDuration("30");
-    setGoldValue("10");
+    // goldValue is auto-calculated, no need to reset
     setDueDate(undefined);
     setImportance("Medium");
     setKanbanStage("To Do");
@@ -114,22 +117,14 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       return;
     }
 
-    const goldNum = parseInt(goldValue);
-    if (isNaN(goldNum) || goldNum < 0) {
-      toast({
-        title: "Invalid Gold Value",
-        description: "Gold value must be a non-negative number.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // goldValue is auto-calculated, no need to validate user input
 
     const taskData = {
       title: title.trim(),
       description: description.trim(),
       details: details.trim() || undefined,
       duration: durationNum,
-      goldValue: goldNum,
+      goldValue, // Use auto-calculated value
       dueDate: dueDate ? dueDate.toISOString() : null,
       importance,
       kanbanStage,
@@ -222,18 +217,21 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="goldValue" className="text-yellow-200">
-                Gold Reward <span className="text-red-400">*</span>
+              <Label htmlFor="goldValue" className="text-yellow-200 flex items-center gap-2">
+                Gold Reward
+                <span className="text-xs text-yellow-400/60">(Auto-calculated)</span>
               </Label>
               <Input
                 id="goldValue"
                 type="number"
                 value={goldValue}
-                onChange={(e) => setGoldValue(e.target.value)}
-                placeholder="10"
-                min="0"
-                className="bg-slate-800/50 border-yellow-600/30 text-yellow-100"
+                readOnly
+                disabled
+                className="bg-slate-800/30 border-yellow-600/20 text-yellow-300 cursor-not-allowed"
               />
+              <p className="text-xs text-yellow-400/60">
+                Based on duration ({duration} min) and importance ({importance})
+              </p>
             </div>
           </div>
 
