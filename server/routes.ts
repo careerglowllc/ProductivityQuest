@@ -402,6 +402,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const user = await storage.getUserById(userId);
       
+      console.log("=== Notion Test Connection Debug ===");
+      console.log("User ID:", userId);
+      console.log("Has API Key:", !!user?.notionApiKey);
+      console.log("Has Database ID:", !!user?.notionDatabaseId);
+      console.log("Database ID stored:", user?.notionDatabaseId);
+      
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
         return res.status(400).json({ 
           error: "Notion not configured", 
@@ -418,6 +424,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the database ID properly
       const cleanId = user.notionDatabaseId.replace(/-/g, '');
       const formattedId = `${cleanId.slice(0, 8)}-${cleanId.slice(8, 12)}-${cleanId.slice(12, 16)}-${cleanId.slice(16, 20)}-${cleanId.slice(20)}`;
+      
+      console.log("Formatted Database ID:", formattedId);
+      console.log("Attempting to retrieve database...");
       
       const dbInfo = await userNotion.databases.retrieve({
         database_id: formattedId,
