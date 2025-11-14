@@ -6,36 +6,36 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Heart, MessageCircle, Target, Crown, Handshake, Activity } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, TestTube, Briefcase, Dumbbell, Book, Activity, Zap, Users, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
 
-// Skill icon mapping
+// Skill icon mapping - matches skills.tsx exactly
 const skillIcons: Record<string, any> = {
   Craftsman: Wrench,
   Artist: Palette,
-  Will: Brain,
+  Alchemist: TestTube,
   Merchant: Briefcase,
-  Warrior: Sword,
+  Physical: Dumbbell,
   Scholar: Book,
-  Connector: Handshake,
-  Charisma: MessageCircle,
-  Health: Heart,
+  Health: Activity,
+  Athlete: Zap,
+  Charisma: Users,
 };
 
-// Hardcoded skills data - same as skills page
+// Hardcoded skills data - MUST match skills.tsx exactly
 const HARDCODED_SKILLS = [
-  { name: "Craftsman", level: 3 },
+  { name: "Craftsman", level: 5 },
   { name: "Artist", level: 3 },
-  { name: "Will", level: 3 },
-  { name: "Merchant", level: 3 },
-  { name: "Warrior", level: 3 },
-  { name: "Scholar", level: 3 },
-  { name: "Connector", level: 3 },
-  { name: "Charisma", level: 3 },
+  { name: "Alchemist", level: 2 },
+  { name: "Merchant", level: 12 },
+  { name: "Physical", level: 5 },
+  { name: "Scholar", level: 14 },
   { name: "Health", level: 3 },
+  { name: "Athlete", level: 7 },
+  { name: "Charisma", level: 8 },
 ];
 
 // Spider Chart Component

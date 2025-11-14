@@ -128,9 +128,6 @@ export default function Skills() {
                 <span className="text-yellow-100 font-semibold">Total XP: {(progress?.tasksCompleted || 0) * 100}</span>
               </div>
             </div>
-            <div className="bg-yellow-600/20 backdrop-blur-sm rounded-lg px-6 py-3 border border-yellow-500/50">
-              <span className="text-yellow-100 font-bold text-lg">{progress?.goldTotal || 0} 🪙 Gold</span>
-            </div>
           </div>
 
           {/* View Mode Toggle */}
