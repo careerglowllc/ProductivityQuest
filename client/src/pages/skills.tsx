@@ -1,8 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { UserProgress } from "@/../../shared/schema";
+import { AddSkillModal } from "@/components/add-skill-modal";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { apiRequest } from "@/lib/queryClient";
+import type { UserProgress, UserSkill } from "@/../../shared/schema";
 import { 
   Wrench, 
   Palette, 
@@ -16,10 +20,14 @@ import {
   Crown,
   Star,
   Grid3x3,
-  List
+  List,
+  Plus,
+  Trash2
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
+import type { LucideIcon } from "lucide-react";
 
 const skillDescriptions = {
   Craftsman: {

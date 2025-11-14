@@ -416,6 +416,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid task IDs" });
       }
 
+      // Fetch user's skills (including custom ones)
+      const userSkills = await storage.getUserSkills(userId);
+
       // Fetch training examples for this user (approved categorizations)
       const trainingData = await db.select().from(skillCategorizationTraining)
         .where(and(
@@ -438,14 +441,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No tasks found" });
       }
 
-      // Categorize with AI using training examples
+      // Categorize with AI using training examples and user's skills
       const categorizations = await categorizeMultipleTasks(
         tasksToCategor.map(t => ({
           id: t.id,
           title: t.title,
           details: t.details || undefined
         })),
-        trainingExamples
+        trainingExamples,
+        userSkills
       );
 
       // Update tasks with skill tags
@@ -1504,6 +1508,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error restoring default skills:", error);
       res.status(500).json({ error: "Failed to restore default skills", details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // Create custom skill
+  app.post("/api/skills/custom", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { skillName, skillIcon, skillDescription, skillMilestones, level } = req.body;
+
+      if (!skillName || !skillName.trim()) {
+        return res.status(400).json({ error: "Skill name is required" });
+      }
+
+      const newSkill = await storage.createCustomSkill(userId, {
+        skillName: skillName.trim(),
+        skillIcon,
+        skillDescription,
+        skillMilestones,
+        level,
+      });
+
+      res.json({ skill: newSkill });
+    } catch (error) {
+      console.error("Error creating custom skill:", error);
+      if (error instanceof Error && error.message.includes("already exists")) {
+        res.status(409).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to create custom skill" });
+      }
+    }
+  });
+
+  // Delete custom skill
+  app.delete("/api/skills/:skillId", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const skillId = parseInt(req.params.skillId);
+
+      if (isNaN(skillId)) {
+        return res.status(400).json({ error: "Invalid skill ID" });
+      }
+
+      await storage.deleteCustomSkill(userId, skillId);
+      res.json({ message: "Skill deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting custom skill:", error);
+      if (error instanceof Error && error.message.includes("Cannot delete default")) {
+        res.status(403).json({ error: error.message });
+      } else if (error instanceof Error && error.message.includes("not found")) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to delete skill" });
+      }
     }
   });
 

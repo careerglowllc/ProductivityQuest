@@ -449,6 +449,73 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // Custom skill operations
+  async createCustomSkill(userId: string, skillData: {
+    skillName: string;
+    skillIcon?: string;
+    skillDescription?: string;
+    skillMilestones?: string[];
+    level?: number;
+  }): Promise<UserSkill> {
+    // Check if skill name already exists for this user
+    const [existing] = await db.select().from(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.skillName, skillData.skillName)));
+    
+    if (existing) {
+      throw new Error("A skill with this name already exists");
+    }
+
+    const level = skillData.level || 1;
+    const [newSkill] = await db.insert(userSkills).values({
+      userId,
+      skillName: skillData.skillName,
+      skillIcon: skillData.skillIcon || null,
+      skillDescription: skillData.skillDescription || null,
+      skillMilestones: (skillData.skillMilestones || null) as string[] | null,
+      isCustom: true,
+      level,
+      xp: 0,
+      maxXp: this.calculateXpForLevel(level),
+    }).returning();
+
+    return newSkill;
+  }
+
+  async deleteCustomSkill(userId: string, skillId: number): Promise<boolean> {
+    // Only allow deleting custom skills
+    const [skill] = await db.select().from(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
+    
+    if (!skill) {
+      throw new Error("Skill not found");
+    }
+
+    if (!skill.isCustom) {
+      throw new Error("Cannot delete default skills");
+    }
+
+    // Delete the skill
+    await db.delete(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
+
+    // Also remove this skill from any task skillTags
+    const tasksWithSkill = await db.select().from(tasks)
+      .where(eq(tasks.userId, userId));
+
+    for (const task of tasksWithSkill) {
+      if (task.skillTags && Array.isArray(task.skillTags)) {
+        const updatedTags = task.skillTags.filter(tag => tag !== skill.skillName);
+        if (updatedTags.length !== task.skillTags.length) {
+          await db.update(tasks)
+            .set({ skillTags: updatedTags })
+            .where(eq(tasks.id, task.id));
+        }
+      }
+    }
+
+    return true;
+  }
+
   private async initializeUserSkills(userId: string): Promise<void> {
     const skillNames = [
       "Craftsman",
@@ -465,6 +532,10 @@ export class DatabaseStorage implements IStorage {
     const defaultSkills: InsertUserSkill[] = skillNames.map(name => ({
       userId,
       skillName: name,
+      skillIcon: null,
+      skillDescription: null,
+      skillMilestones: null as string[] | null,
+      isCustom: false,
       level: 1,
       xp: 0,
       maxXp: this.calculateXpForLevel(1), // Use formula for initial XP requirement
@@ -502,6 +573,10 @@ export class DatabaseStorage implements IStorage {
       const skillsToAdd: InsertUserSkill[] = missingSkills.map(name => ({
         userId,
         skillName: name,
+        skillIcon: null,
+        skillDescription: null,
+        skillMilestones: null as string[] | null,
+        isCustom: false,
         level: 1,
         xp: 0,
         maxXp: this.calculateXpForLevel(1), // Use formula for initial XP requirement
@@ -519,9 +594,9 @@ export class DatabaseStorage implements IStorage {
     const skillNames = [
       "Craftsman",
       "Artist", 
-      "Will",
+      "Mindset",
       "Merchant",
-      "Warrior",
+      "Physical",
       "Scholar",
       "Connector",
       "Charisma",
@@ -545,6 +620,10 @@ export class DatabaseStorage implements IStorage {
       const skillsToAdd: InsertUserSkill[] = skillNames.map(name => ({
         userId,
         skillName: name,
+        skillIcon: null,
+        skillDescription: null,
+        skillMilestones: null as string[] | null,
+        isCustom: false,
         level: 1,
         xp: 0,
         maxXp: this.calculateXpForLevel(1), // Use formula for initial XP requirement
