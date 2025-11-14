@@ -38,6 +38,7 @@ export interface IStorage {
   // Skill operations
   getUserSkills(userId: string): Promise<UserSkill[]>;
   updateUserSkill(userId: string, skillName: string, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
+  updateUserSkillById(userId: string, skillId: number, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
   addSkillXp(userId: string, skillName: string, xp: number): Promise<UserSkill | undefined>;
   
   // Purchase operations
@@ -366,6 +367,18 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(and(eq(userSkills.userId, userId), eq(userSkills.skillName, skillName)))
+      .returning();
+    return updatedSkill;
+  }
+
+  async updateUserSkillById(userId: string, skillId: number, updates: Partial<UserSkill>): Promise<UserSkill | undefined> {
+    const [updatedSkill] = await db
+      .update(userSkills)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)))
       .returning();
     return updatedSkill;
   }

@@ -1,9 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
 import { 
   Wrench, 
@@ -19,6 +23,7 @@ import {
   Star,
   Grid3x3,
   List,
+  Settings,
   type LucideIcon
 } from "lucide-react";
 import { useState } from "react";
@@ -104,16 +109,107 @@ export default function Skills() {
   });
   
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [selectedSkill, setSelectedSkill] = useState<UserSkill | null>(null);
   const [viewMode, setViewMode] = useState<"icons" | "lists">("icons");
+  const [showManualModify, setShowManualModify] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<UserSkill | null>(null);
+  const [editForm, setEditForm] = useState({
+    skillName: "",
+    skillIcon: "",
+    level: 1,
+  });
+
+  // Available icons for skills
+  const availableIcons = [
+    { name: "Wrench", emoji: "🔧", icon: Wrench },
+    { name: "Palette", emoji: "🎨", icon: Palette },
+    { name: "Brain", emoji: "🧠", icon: Brain },
+    { name: "Briefcase", emoji: "💼", icon: Briefcase },
+    { name: "Sword", emoji: "⚔️", icon: Sword },
+    { name: "Book", emoji: "📚", icon: Book },
+    { name: "Heart", emoji: "❤️", icon: Heart },
+    { name: "MessageCircle", emoji: "💬", icon: MessageCircle },
+    { name: "Target", emoji: "🎯", icon: Target },
+    { name: "Crown", emoji: "👑", icon: Crown },
+    { name: "Star", emoji: "⭐", icon: Star },
+    { name: "Hammer", emoji: "🔨" },
+    { name: "Shield", emoji: "🛡️" },
+    { name: "Scroll", emoji: "📜" },
+    { name: "Crystal", emoji: "💎" },
+    { name: "Flame", emoji: "🔥" },
+    { name: "Lightning", emoji: "⚡" },
+    { name: "Moon", emoji: "🌙" },
+    { name: "Sun", emoji: "☀️" },
+    { name: "Mountain", emoji: "⛰️" },
+  ];
+
+  // Update skill mutation
+  const updateSkillMutation = useMutation({
+    mutationFn: async ({ skillId, updates }: { skillId: number; updates: Partial<UserSkill> }) => {
+      const response = await fetch(`/api/skills/id/${skillId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) throw new Error("Failed to update skill");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
+      toast({
+        title: "Skill Updated",
+        description: "Your skill has been successfully modified.",
+      });
+      setShowManualModify(false);
+      setEditingSkill(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update skill. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditSkill = (skill: UserSkill) => {
+    setEditingSkill(skill);
+    setEditForm({
+      skillName: skill.skillName,
+      skillIcon: skill.skillIcon || "",
+      level: skill.level,
+    });
+    setShowManualModify(true);
+  };
+
+  const handleSaveSkill = () => {
+    if (!editingSkill) return;
+    
+    updateSkillMutation.mutate({
+      skillId: editingSkill.id,
+      updates: {
+        skillName: editForm.skillName,
+        skillIcon: editForm.skillIcon,
+        level: editForm.level,
+        xp: 0,
+        maxXp: editForm.level === 1 ? 100 : Math.floor(100 * Math.pow(1.5, editForm.level - 1)),
+      },
+    });
+  };
 
   // Merge user skills with metadata
-  const skills = userSkills.map(skill => ({
-    ...skill,
-    icon: skillMetadata[skill.skillName]?.icon || Target,
-    constellation: skillMetadata[skill.skillName]?.constellation || "Unknown",
-  }));
+  const skills = userSkills.map(skill => {
+    const defaultIcon = skillMetadata[skill.skillName]?.icon || Target;
+    return {
+      ...skill,
+      icon: skill.skillIcon ? null : defaultIcon, // null if custom emoji, otherwise use default icon
+      emoji: skill.skillIcon || null, // custom emoji if set
+      constellation: skillMetadata[skill.skillName]?.constellation || "Unknown",
+    };
+  });
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
@@ -175,6 +271,15 @@ export default function Skills() {
               <List className="w-4 h-4" />
               Lists
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowManualModify(true)}
+              className="flex items-center gap-2 bg-slate-800/50 border-purple-600/40 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100 hover:border-purple-500/50 ml-2"
+            >
+              <Settings className="w-4 h-4" />
+              Manual Modify
+            </Button>
           </div>
         </div>
       </div>
@@ -222,11 +327,21 @@ export default function Skills() {
                         
                         {/* Icon overlay - always centered and visible */}
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Icon 
-                            className="h-16 w-16 text-slate-900/80 drop-shadow-lg" 
-                            strokeWidth={2.5}
-                            style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))' }}
-                          />
+                          {skill.emoji ? (
+                            <span className="text-6xl">{skill.emoji}</span>
+                          ) : skill.icon ? (
+                            <skill.icon 
+                              className="h-16 w-16 text-slate-900/80 drop-shadow-lg" 
+                              strokeWidth={2.5}
+                              style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))' }}
+                            />
+                          ) : (
+                            <Target 
+                              className="h-16 w-16 text-slate-900/80 drop-shadow-lg" 
+                              strokeWidth={2.5}
+                              style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))' }}
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -269,7 +384,6 @@ export default function Skills() {
           /* Lists View - Horizontal Progress Bars */
           <div className="space-y-4">
             {skills.map((skill) => {
-              const Icon = skill.icon;
               const progressPercent = (skill.xp / skill.maxXp) * 100;
               
               return (
@@ -283,7 +397,13 @@ export default function Skills() {
                       {/* Icon */}
                       <div className="flex-shrink-0">
                         <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-yellow-600 to-yellow-400 flex items-center justify-center border-2 border-yellow-500 shadow-lg">
-                          <Icon className="w-8 h-8 text-slate-900" strokeWidth={2.5} />
+                          {skill.emoji ? (
+                            <span className="text-3xl">{skill.emoji}</span>
+                          ) : skill.icon ? (
+                            <skill.icon className="w-8 h-8 text-slate-900" strokeWidth={2.5} />
+                          ) : (
+                            <Target className="w-8 h-8 text-slate-900" strokeWidth={2.5} />
+                          )}
                         </div>
                       </div>
                       
@@ -472,6 +592,136 @@ export default function Skills() {
                 <p className="text-yellow-300/60 text-xs mt-2 text-center font-serif italic">
                   {selectedSkill.maxXp - selectedSkill.xp} XP until Level {selectedSkill.level + 1}
                 </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Modify Modal */}
+      <Dialog open={showManualModify} onOpenChange={setShowManualModify}>
+        <DialogContent className="bg-slate-800 border-2 border-purple-600/40 max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-serif text-purple-100 flex items-center gap-2">
+              <Settings className="h-6 w-6 text-purple-400" />
+              Manual Skill Modification
+            </DialogTitle>
+          </DialogHeader>
+
+          {editingSkill ? (
+            /* Edit Form */
+            <div className="space-y-6 py-4">
+              <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-4">
+                <p className="text-purple-200/80 text-sm">
+                  Customize your skill's name, icon, and level. Changes are specific to your account.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="skillName" className="text-purple-100">Skill Name</Label>
+                  <Input
+                    id="skillName"
+                    value={editForm.skillName}
+                    onChange={(e) => setEditForm({ ...editForm, skillName: e.target.value })}
+                    className="bg-slate-700/50 border-purple-600/30 text-purple-100 mt-2"
+                    placeholder="Enter skill name"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-purple-100 mb-2 block">Skill Icon</Label>
+                  <div className="grid grid-cols-10 gap-2 p-4 bg-slate-700/30 rounded-lg border border-purple-600/20 max-h-60 overflow-y-auto">
+                    {availableIcons.map((iconOption) => (
+                      <button
+                        key={iconOption.name}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, skillIcon: iconOption.emoji })}
+                        className={`w-12 h-12 flex items-center justify-center text-2xl rounded-lg transition-all ${
+                          editForm.skillIcon === iconOption.emoji
+                            ? 'bg-purple-600 ring-2 ring-purple-400 scale-110'
+                            : 'bg-slate-600/50 hover:bg-slate-600 hover:scale-105'
+                        }`}
+                      >
+                        {iconOption.emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-purple-300/60 mt-2">Selected: {editForm.skillIcon || "None"}</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="level" className="text-purple-100">Level (1-50)</Label>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Input
+                      id="level"
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={editForm.level}
+                      onChange={(e) => setEditForm({ ...editForm, level: parseInt(e.target.value) || 1 })}
+                      className="bg-slate-700/50 border-purple-600/30 text-purple-100 flex-1"
+                    />
+                    <Badge className="bg-gradient-to-r from-purple-600 to-purple-500 text-white border-purple-400 font-bold px-4 py-2">
+                      Level {editForm.level}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-purple-300/60 mt-2">
+                    XP will be reset to 0. Max XP: {editForm.level === 1 ? 100 : Math.floor(100 * Math.pow(1.5, editForm.level - 1))}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleSaveSkill}
+                  disabled={updateSkillMutation.isPending || !editForm.skillName}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white"
+                >
+                  {updateSkillMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowManualModify(false);
+                    setEditingSkill(null);
+                  }}
+                  variant="outline"
+                  className="flex-1 border-purple-600/40 text-purple-200 hover:bg-purple-600/20"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* Skill Selection */
+            <div className="space-y-4 py-4">
+              <p className="text-purple-200/80 text-center mb-4">
+                Select a skill to modify:
+              </p>
+              <div className="grid grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                {skills.map((skill) => (
+                  <Card
+                    key={skill.id}
+                    onClick={() => handleEditSkill(skill)}
+                    className="bg-slate-700/50 border-2 border-purple-600/30 hover:border-purple-500/60 cursor-pointer transition-all hover:scale-105"
+                  >
+                    <div className="p-4 text-center">
+                      <div className="w-16 h-16 mx-auto mb-3 rounded-lg bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center">
+                        {skill.emoji ? (
+                          <span className="text-3xl">{skill.emoji}</span>
+                        ) : skill.icon ? (
+                          <skill.icon className="w-8 h-8 text-white" strokeWidth={2.5} />
+                        ) : (
+                          <Target className="w-8 h-8 text-white" strokeWidth={2.5} />
+                        )}
+                      </div>
+                      <h4 className="text-purple-100 font-serif font-bold">{skill.skillName}</h4>
+                      <Badge className="mt-2 bg-purple-900/40 text-purple-200 border-purple-600/40">
+                        Level {skill.level}
+                      </Badge>
+                    </div>
+                  </Card>
+                ))}
               </div>
             </div>
           )}

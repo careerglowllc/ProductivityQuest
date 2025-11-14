@@ -1088,6 +1088,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update skill by ID (for manual editing)
+  app.patch("/api/skills/id/:skillId", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const skillId = parseInt(req.params.skillId);
+      const updates = req.body;
+      
+      if (isNaN(skillId)) {
+        return res.status(400).json({ error: "Invalid skill ID" });
+      }
+      
+      const updatedSkill = await storage.updateUserSkillById(userId, skillId, updates);
+      if (!updatedSkill) {
+        return res.status(404).json({ error: "Skill not found" });
+      }
+      
+      res.json(updatedSkill);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update skill" });
+    }
+  });
+
   // Stats routes
   app.get("/api/stats", requireAuth, async (req: any, res) => {
     try {

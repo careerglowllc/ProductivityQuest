@@ -84,6 +84,7 @@ export const userSkills = pgTable("user_skills", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
   skillName: varchar("skill_name").notNull(), // "Craftsman", "Artist", "Will", etc.
+  skillIcon: text("skill_icon"), // Custom icon/emoji for the skill
   level: integer("level").default(1).notNull(),
   xp: integer("xp").default(0).notNull(),
   maxXp: integer("max_xp").default(100).notNull(),
