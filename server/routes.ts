@@ -1131,6 +1131,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/skills", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
+      // Ensure user has all default skills
+      await storage.ensureDefaultSkills(userId);
       const skills = await storage.getUserSkills(userId);
       res.json(skills);
     } catch (error) {
@@ -1195,6 +1197,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedSkill);
     } catch (error) {
       res.status(500).json({ error: "Failed to update skill" });
+    }
+  });
+
+  // Restore default skills endpoint
+  app.post("/api/skills/restore-defaults", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      await storage.ensureDefaultSkills(userId);
+      const skills = await storage.getUserSkills(userId);
+      res.json({ message: "Default skills restored", skills });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to restore default skills" });
     }
   });
 

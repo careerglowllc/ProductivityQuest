@@ -40,6 +40,7 @@ export interface IStorage {
   updateUserSkill(userId: string, skillName: string, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
   updateUserSkillById(userId: string, skillId: number, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
   addSkillXp(userId: string, skillName: string, xp: number): Promise<UserSkill | undefined>;
+  ensureDefaultSkills(userId: string): Promise<void>;
   
   // Purchase operations
   getPurchases(userId: string): Promise<Purchase[]>;
@@ -432,6 +433,40 @@ export class DatabaseStorage implements IStorage {
     }));
 
     await db.insert(userSkills).values(defaultSkills);
+  }
+
+  async ensureDefaultSkills(userId: string): Promise<void> {
+    const skillNames = [
+      "Craftsman",
+      "Artist", 
+      "Will",
+      "Merchant",
+      "Warrior",
+      "Scholar",
+      "Connector",
+      "Charisma",
+      "Health"
+    ];
+
+    // Get existing skills
+    const existingSkills = await this.getUserSkills(userId);
+    const existingSkillNames = existingSkills.map(s => s.skillName);
+
+    // Find missing default skills
+    const missingSkills = skillNames.filter(name => !existingSkillNames.includes(name));
+
+    // Add missing skills
+    if (missingSkills.length > 0) {
+      const skillsToAdd: InsertUserSkill[] = missingSkills.map(name => ({
+        userId,
+        skillName: name,
+        level: 1,
+        xp: 0,
+        maxXp: 100,
+      }));
+
+      await db.insert(userSkills).values(skillsToAdd);
+    }
   }
 
   // Authentication operations
