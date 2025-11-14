@@ -1,13 +1,18 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Recycle, Sparkles } from "lucide-react";
+import { ShoppingCart, CheckSquare, Recycle, Sparkles, LayoutDashboard } from "lucide-react";
 
 export function TabBar() {
   const [location] = useLocation();
 
   const tabs = [
     {
-      name: "Tasks",
+      name: "Dashboard",
       path: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      name: "Tasks",
+      path: "/tasks",
       icon: CheckSquare,
     },
     {

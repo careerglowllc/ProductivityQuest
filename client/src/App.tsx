@@ -5,7 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { TabBar } from "@/components/tab-bar";
-import Home from "@/pages/home";
+import Dashboard from "@/pages/dashboard";
+import Tasks from "@/pages/home";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -64,7 +65,8 @@ function Router() {
                 return null;
               }}
             </Route>
-            <Route path="/dashboard" component={Home} />
+            <Route path="/dashboard" component={Dashboard} />
+            <Route path="/tasks" component={Tasks} />
             <Route path="/shop" component={Shop} />
             <Route path="/skills" component={Skills} />
             <Route path="/rewards" component={Rewards} />
