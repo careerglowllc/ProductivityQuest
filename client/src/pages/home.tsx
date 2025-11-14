@@ -16,6 +16,7 @@ import { CompletionAnimation } from "@/components/completion-animation";
 import { RecyclingModal } from "@/components/recycling-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 
 type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks";
@@ -38,6 +39,7 @@ export default function Home() {
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
     queryKey: ["/api/tasks"],
@@ -357,10 +359,14 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Trophy className="text-gold w-8 h-8" />
-                <h1 className="text-2xl font-bold text-gray-900">QuestList</h1>
-              </div>
+              {!isMobile && (
+                <Link href="/dashboard">
+                  <a className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
+                    <Trophy className="text-gold w-8 h-8" />
+                    <h1 className="text-2xl font-bold text-gray-900">QuestList</h1>
+                  </a>
+                </Link>
+              )}
             </div>
             
             <div className="flex items-center space-x-6">
