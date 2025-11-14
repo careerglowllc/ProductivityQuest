@@ -16,8 +16,8 @@ export function TabBar() {
   });
 
   const handleLogout = async () => {
-    await fetch("/api/logout", { method: "POST" });
-    window.location.href = "/";
+    // Use GET to /api/logout which will redirect to landing page
+    window.location.href = "/api/logout";
   };
 
   const tabs = [

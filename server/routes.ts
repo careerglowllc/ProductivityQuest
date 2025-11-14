@@ -118,6 +118,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Legacy logout endpoint for compatibility
+  app.get('/api/logout', (req, res) => {
+    req.session?.destroy((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+      }
+      // Redirect to landing page after logout
+      res.redirect('/');
+    });
+  });
+
   // Get current user
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
