@@ -10,22 +10,10 @@ import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calenda
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
-
-// Skill data with actual levels matching the skills page
-const skillsData = [
-  { name: "Craftsman", level: 5 },
-  { name: "Artist", level: 3 },
-  { name: "Alchemist", level: 2 },
-  { name: "Merchant", level: 12 },
-  { name: "Warrior", level: 5 },
-  { name: "Scholar", level: 14 },
-  { name: "Healer", level: 3 },
-  { name: "Athlete", level: 7 },
-  { name: "Tactician", level: 8 },
-];
+import type { UserProgress, UserSkill } from "@/../../shared/schema";
 
 // Spider Chart Component
-function SpiderChart({ skills }: { skills: typeof skillsData }) {
+function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) {
   const maxSkillLevel = Math.max(...skills.map(s => s.level));
   const chartMax = maxSkillLevel + 10; // +10 from highest level
   const size = 400;
@@ -166,13 +154,23 @@ export default function Dashboard() {
     queryKey: ["/api/tasks"],
   });
 
-  const { data: progress = { goldTotal: 0, tasksCompleted: 0 } } = useQuery({
+  const { data: progress = { goldTotal: 0, tasksCompleted: 0 } } = useQuery<UserProgress>({
     queryKey: ["/api/progress"],
   });
 
   const { data: stats = { completedToday: 0, totalToday: 0, goldEarnedToday: 0 } } = useQuery({
     queryKey: ["/api/stats"],
   });
+
+  const { data: userSkills = [] } = useQuery<UserSkill[]>({
+    queryKey: ["/api/skills"],
+  });
+
+  // Transform user skills into chart data
+  const skillsData = userSkills.map(skill => ({
+    name: skill.skillName,
+    level: skill.level,
+  }));
 
   // Priority ranking: Pareto > High > Med-High > Medium > Med-Low > Low
   const getPriorityValue = (importance: string | null) => {
@@ -247,38 +245,41 @@ export default function Dashboard() {
               )}
             </div>
             
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
-                <Coins className="text-yellow-400 w-5 h-5" />
-                <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
-                <span className="text-sm text-yellow-200/80">Gold</span>
+            {/* Show gold and user only on mobile (web has it in top nav) */}
+            {isMobile && (
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
+                  <Coins className="text-yellow-400 w-5 h-5" />
+                  <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
+                  <span className="text-sm text-yellow-200/80">Gold</span>
+                </div>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">
+                        {user?.firstName || user?.email || "User"}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
+                    <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
+                      <Link href="/settings" className="flex items-center">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium">
-                      {user?.firstName || user?.email || "User"}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
-                  <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
-                    <Link href="/settings" className="flex items-center">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            )}
           </div>
         </div>
       </header>

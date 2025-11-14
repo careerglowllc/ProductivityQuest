@@ -2,19 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { UserProgress } from "@/../../shared/schema";
+import type { UserProgress, UserSkill } from "@/../../shared/schema";
 import { 
   Wrench, 
   Palette, 
-  TestTube, 
+  Brain, 
   Briefcase, 
   Sword, 
   Book, 
   Heart, 
-  Zap, 
+  MessageCircle, 
   Target,
   Crown,
-  Star
+  Star,
+  type LucideIcon
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -32,11 +33,11 @@ const skillDescriptions = {
     level30: "Accomplished artist with distinct style. Creates compelling work regularly, may sell pieces or perform publicly. 5+ years of dedicated practice.",
     level50: "Master artist with professional recognition. Exhibits/performs at high levels, has developed unique artistic voice, potentially makes living from art."
   },
-  Alchemist: {
-    description: "The science of transformation - cooking, chemistry, brewing, mixology, and experimental creation. Turning raw ingredients into something magnificent.",
-    level10: "Kitchen novice who can follow recipes and make basic meals. Understands fundamental cooking techniques and food safety.",
-    level30: "Skilled chef or mixologist. Creates original recipes, understands flavor chemistry, cooks/crafts without recipes. 5 years of regular practice.",
-    level50: "Culinary master or expert chemist. Professional-level expertise in gastronomy, brewing, or laboratory work. Innovates new techniques and combinations."
+  Will: {
+    description: "Mental fortitude, willpower, positive mindset, and psychological resilience. This represents your ability to maintain effective mindset, overcome obstacles, and master your thoughts.",
+    level10: "Developing mental discipline - practicing positive thinking, building basic meditation or mindfulness habits. Beginning to control negative self-talk.",
+    level30: "Strong mental resilience - consistent positive mindset, 5+ years of mindset work. Overcomes setbacks effectively, practices daily mental training, influences others positively.",
+    level50: "Master of mind - unshakeable willpower, stoic discipline, peak mental performance. Inspires others through mental strength, complete control over thoughts and emotions."
   },
   Merchant: {
     description: "Business acumen, negotiation, sales, and wealth building. Your ability to create value, close deals, and build financial success in the real world.",
@@ -45,10 +46,10 @@ const skillDescriptions = {
     level50: "Business titan - multiple successful ventures, masterful negotiator, significant wealth built. Industry respected dealmaker and wealth creator."
   },
   Warrior: {
-    description: "Physical combat prowess - martial arts, weapons training, self-defense, and fighting skills. Your real-world ability to protect and compete in combat.",
-    level10: "Amateur beginner - basic self-defense knowledge, some martial arts training, or recreational shooting practice. Knows fundamental techniques.",
-    level30: "Serious martial artist with 5+ years training. Competent in multiple fighting styles, weapons proficiency, or competitive combat sports experience.",
-    level50: "Elite fighter - MMA level skills, multiple black belts, expert marksman, or special forces caliber. John Wick level combat mastery."
+    description: "Physical prowess combining combat skills and athletic performance. Martial arts, weapons training, sports excellence, strength, speed, and endurance.",
+    level10: "Active beginner - basic self-defense, regular exercise, recreational sports. Building foundation in fitness and fighting techniques.",
+    level30: "Serious warrior-athlete - 5+ years training in martial arts or competitive sports. Strong combat skills or athletic performance, impressive physical conditioning.",
+    level50: "Elite warrior - MMA fighter level combat skills combined with peak athletic performance. Special forces caliber or professional athlete. Complete physical mastery."
   },
   Scholar: {
     description: "Academic knowledge, research ability, continuous learning, and intellectual mastery. Your real-world education and expertise in various fields.",
@@ -62,11 +63,11 @@ const skillDescriptions = {
     level30: "Healthcare professional or experienced caregiver - nurse, therapist, trainer, or 5+ years serious health/wellness practice. Helps others heal regularly.",
     level50: "Master healer - doctor, psychologist, or equivalent expertise. Saves lives, transforms health outcomes, expert in multiple healing modalities."
   },
-  Athlete: {
-    description: "Physical fitness, sports performance, endurance, and athletic ability. Your real-world strength, speed, agility, and physical conditioning.",
-    level10: "Active beginner - exercises regularly, plays recreational sports, building fitness foundation and athletic skills.",
-    level30: "Serious athlete - competes in sports/events, 5+ years consistent training, impressive physical stats, may coach others. Strong and capable.",
-    level50: "Elite athlete - professional or Olympic-level performance. Peak physical condition, competition winner, or extreme athletic achievements."
+  Charisma: {
+    description: "Social influence, charm, persuasion, and interpersonal magnetism. Your ability to captivate, inspire, and influence people through personality and communication.",
+    level10: "Developing social skills - can hold conversations, making connections. Learning to read people and communicate effectively.",
+    level30: "Naturally charismatic - commands attention in rooms, persuasive communicator, 5+ years developing social influence. People gravitate toward you.",
+    level50: "Magnetic presence - celebrity-level charisma, master persuader, inspires masses. Tony Stark or Obama-level charm and influence."
   },
   Tactician: {
     description: "Strategic thinking, planning, leadership, and tactical execution. Your ability to devise winning strategies and lead others to victory.",
@@ -76,25 +77,38 @@ const skillDescriptions = {
   }
 };
 
-const skills = [
-  { id: 1, name: "Craftsman", icon: Wrench, level: 5, xp: 750, maxXp: 1000, constellation: "The Forge" },
-  { id: 2, name: "Artist", icon: Palette, level: 3, xp: 1200, maxXp: 1500, constellation: "The Muse" },
-  { id: 3, name: "Alchemist", icon: TestTube, level: 2, xp: 400, maxXp: 800, constellation: "The Catalyst" },
-  { id: 4, name: "Merchant", icon: Briefcase, level: 12, xp: 900, maxXp: 1200, constellation: "The Trader" },
-  { id: 5, name: "Warrior", icon: Sword, level: 5, xp: 1800, maxXp: 2000, constellation: "The Blade" },
-  { id: 6, name: "Scholar", icon: Book, level: 14, xp: 600, maxXp: 1000, constellation: "The Sage" },
-  { id: 7, name: "Healer", icon: Heart, level: 3, xp: 350, maxXp: 800, constellation: "The Guardian" },
-  { id: 8, name: "Athlete", icon: Zap, level: 7, xp: 1100, maxXp: 1200, constellation: "The Swift" },
-  { id: 9, name: "Tactician", icon: Target, level: 8, xp: 700, maxXp: 1000, constellation: "The Strategist" },
-];
+// Skill metadata (icons and constellations)
+const skillMetadata: Record<string, { icon: LucideIcon; constellation: string }> = {
+  Craftsman: { icon: Wrench, constellation: "The Forge" },
+  Artist: { icon: Palette, constellation: "The Muse" },
+  Will: { icon: Brain, constellation: "The Mind" },
+  Merchant: { icon: Briefcase, constellation: "The Trader" },
+  Warrior: { icon: Sword, constellation: "The Blade" },
+  Scholar: { icon: Book, constellation: "The Sage" },
+  Healer: { icon: Heart, constellation: "The Guardian" },
+  Charisma: { icon: MessageCircle, constellation: "The Charmer" },
+  Tactician: { icon: Target, constellation: "The Strategist" },
+};
 
 export default function Skills() {
   const { data: progress } = useQuery<UserProgress>({
     queryKey: ["/api/progress"],
   });
+  
+  const { data: userSkills = [] } = useQuery<UserSkill[]>({
+    queryKey: ["/api/skills"],
+  });
+  
   const isMobile = useIsMobile();
 
-  const [selectedSkill, setSelectedSkill] = useState<typeof skills[0] | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<UserSkill | null>(null);
+
+  // Merge user skills with metadata
+  const skills = userSkills.map(skill => ({
+    ...skill,
+    icon: skillMetadata[skill.skillName]?.icon || Target,
+    constellation: skillMetadata[skill.skillName]?.constellation || "Unknown",
+  }));
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
@@ -184,7 +198,7 @@ export default function Skills() {
                     {/* Constellation Name */}
                     <div className="text-center mb-3">
                       <h3 className="text-xl font-serif font-bold text-yellow-100 mb-1 tracking-wide">
-                        {skill.name}
+                        {skill.skillName}
                       </h3>
                       <p className="text-xs text-yellow-400/70 italic font-serif">
                         {skill.constellation}
@@ -278,31 +292,31 @@ export default function Skills() {
                     ></div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       {(() => {
-                        const Icon = selectedSkill.icon;
+                        const Icon = skillMetadata[selectedSkill.skillName]?.icon || Target;
                         return <Icon className="h-10 w-10 text-slate-900/80" strokeWidth={2.5} />;
                       })()}
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      {selectedSkill.name}
+                      {selectedSkill.skillName}
                       <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold">
                         Level {selectedSkill.level}
                       </Badge>
                     </div>
-                    <p className="text-sm text-yellow-400/70 italic font-normal mt-1">{selectedSkill.constellation}</p>
+                    <p className="text-sm text-yellow-400/70 italic font-normal mt-1">{skillMetadata[selectedSkill.skillName]?.constellation || "Unknown"}</p>
                   </div>
                 </>
               )}
             </DialogTitle>
           </DialogHeader>
           
-          {selectedSkill && skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions] && (
+          {selectedSkill && skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions] && (
             <div className="space-y-6 mt-4">
               {/* Description */}
               <div className="bg-slate-900/50 rounded-lg p-4 border border-yellow-600/20">
                 <p className="text-yellow-200/90 font-serif leading-relaxed">
-                  {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].description}
+                  {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].description}
                 </p>
               </div>
 
@@ -320,7 +334,7 @@ export default function Skills() {
                     <span className="text-sm text-blue-200/70 font-serif italic">Novice</span>
                   </div>
                   <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level10}
+                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level10}
                   </p>
                 </div>
 
@@ -331,7 +345,7 @@ export default function Skills() {
                     <span className="text-sm text-purple-200/70 font-serif italic">Expert</span>
                   </div>
                   <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level30}
+                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level30}
                   </p>
                 </div>
 
@@ -342,7 +356,7 @@ export default function Skills() {
                     <span className="text-sm text-yellow-200/70 font-serif italic">Grandmaster</span>
                   </div>
                   <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level50}
+                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level50}
                   </p>
                 </div>
               </div>

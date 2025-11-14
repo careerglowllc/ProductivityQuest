@@ -378,38 +378,41 @@ export default function Home() {
               )}
             </div>
             
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
-                <Coins className="text-yellow-400 w-5 h-5" />
-                <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
-                <span className="text-sm text-yellow-200/80">Gold</span>
+            {/* Show gold and user only on mobile (web has it in top nav) */}
+            {isMobile && (
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
+                  <Coins className="text-yellow-400 w-5 h-5" />
+                  <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
+                  <span className="text-sm text-yellow-200/80">Gold</span>
+                </div>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">
+                        {user?.firstName || user?.email || "User"}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
+                    <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
+                      <Link href="/settings" className="flex items-center">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium">
-                      {user?.firstName || user?.email || "User"}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
-                  <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
-                    <Link href="/settings" className="flex items-center">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            )}
           </div>
         </div>
       </header>

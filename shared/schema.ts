@@ -75,6 +75,17 @@ export const userProgress = pgTable("user_progress", {
   lastSyncedAt: timestamp("last_synced_at"),
 });
 
+export const userSkills = pgTable("user_skills", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  skillName: varchar("skill_name").notNull(), // "Craftsman", "Artist", "Will", etc.
+  level: integer("level").default(1).notNull(),
+  xp: integer("xp").default(0).notNull(),
+  maxXp: integer("max_xp").default(100).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const purchases = pgTable("purchases", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -100,6 +111,12 @@ export const insertShopItemSchema = createInsertSchema(shopItems).omit({
 
 export const insertUserProgressSchema = createInsertSchema(userProgress).omit({
   id: true,
+});
+
+export const insertUserSkillSchema = createInsertSchema(userSkills).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertPurchaseSchema = createInsertSchema(purchases).omit({
@@ -159,5 +176,7 @@ export type ShopItem = typeof shopItems.$inferSelect;
 export type InsertShopItem = z.infer<typeof insertShopItemSchema>;
 export type UserProgress = typeof userProgress.$inferSelect;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
+export type UserSkill = typeof userSkills.$inferSelect;
+export type InsertUserSkill = z.infer<typeof insertUserSkillSchema>;
 export type Purchase = typeof purchases.$inferSelect;
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;

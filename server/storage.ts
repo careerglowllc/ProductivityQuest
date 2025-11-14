@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, purchases, users, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type Purchase, type InsertPurchase, type User, type UpsertUser } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
@@ -32,6 +32,11 @@ export interface IStorage {
   updateUserProgress(userId: string, progress: Partial<UserProgress>): Promise<UserProgress>;
   addGold(userId: string, amount: number): Promise<UserProgress>;
   spendGold(userId: string, amount: number): Promise<UserProgress>;
+  
+  // Skill operations
+  getUserSkills(userId: string): Promise<UserSkill[]>;
+  updateUserSkill(userId: string, skillName: string, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
+  addSkillXp(userId: string, skillName: string, xp: number): Promise<UserSkill | undefined>;
   
   // Purchase operations
   getPurchases(userId: string): Promise<Purchase[]>;
@@ -320,6 +325,75 @@ export class DatabaseStorage implements IStorage {
     return usedPurchase;
   }
 
+  // Skill operations
+  async getUserSkills(userId: string): Promise<UserSkill[]> {
+    return await db.select().from(userSkills)
+      .where(eq(userSkills.userId, userId));
+  }
+
+  async updateUserSkill(userId: string, skillName: string, updates: Partial<UserSkill>): Promise<UserSkill | undefined> {
+    const [updatedSkill] = await db
+      .update(userSkills)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.skillName, skillName)))
+      .returning();
+    return updatedSkill;
+  }
+
+  async addSkillXp(userId: string, skillName: string, xpAmount: number): Promise<UserSkill | undefined> {
+    // Get current skill
+    const [currentSkill] = await db.select().from(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.skillName, skillName)));
+    
+    if (!currentSkill) {
+      return undefined;
+    }
+
+    let newXp = currentSkill.xp + xpAmount;
+    let newLevel = currentSkill.level;
+    let newMaxXp = currentSkill.maxXp;
+
+    // Level up logic
+    while (newXp >= newMaxXp) {
+      newXp -= newMaxXp;
+      newLevel++;
+      newMaxXp = Math.floor(newMaxXp * 1.5); // Increase XP requirement by 50% each level
+    }
+
+    return await this.updateUserSkill(userId, skillName, {
+      level: newLevel,
+      xp: newXp,
+      maxXp: newMaxXp,
+    });
+  }
+
+  private async initializeUserSkills(userId: string): Promise<void> {
+    const skillNames = [
+      "Craftsman",
+      "Artist", 
+      "Will",
+      "Merchant",
+      "Warrior",
+      "Scholar",
+      "Healer",
+      "Charisma",
+      "Tactician"
+    ];
+
+    const defaultSkills: InsertUserSkill[] = skillNames.map(name => ({
+      userId,
+      skillName: name,
+      level: 1,
+      xp: 0,
+      maxXp: 100,
+    }));
+
+    await db.insert(userSkills).values(defaultSkills);
+  }
+
   // Authentication operations
   async getUserById(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -347,6 +421,9 @@ export class DatabaseStorage implements IStorage {
       email: userData.email,
       passwordHash,
     }).returning();
+    
+    // Initialize user skills with all skills at level 1
+    await this.initializeUserSkills(id);
     
     return user;
   }

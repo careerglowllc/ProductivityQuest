@@ -850,6 +850,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Skills routes
+  app.get("/api/skills", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const skills = await storage.getUserSkills(userId);
+      res.json(skills);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch skills" });
+    }
+  });
+
+  app.patch("/api/skills/:skillName", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { skillName } = req.params;
+      const updates = req.body;
+      
+      const updatedSkill = await storage.updateUserSkill(userId, skillName, updates);
+      if (!updatedSkill) {
+        return res.status(404).json({ error: "Skill not found" });
+      }
+      
+      res.json(updatedSkill);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update skill" });
+    }
+  });
+
+  app.post("/api/skills/:skillName/xp", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { skillName } = req.params;
+      const { amount } = req.body;
+      
+      if (typeof amount !== 'number' || amount <= 0) {
+        return res.status(400).json({ error: "Invalid XP amount" });
+      }
+      
+      const updatedSkill = await storage.addSkillXp(userId, skillName, amount);
+      if (!updatedSkill) {
+        return res.status(404).json({ error: "Skill not found" });
+      }
+      
+      res.json(updatedSkill);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to add skill XP" });
+    }
+  });
+
   // Stats routes
   app.get("/api/stats", requireAuth, async (req: any, res) => {
     try {
