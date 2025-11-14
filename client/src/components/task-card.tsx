@@ -49,7 +49,6 @@ interface TaskCardProps {
     importance?: string;
     kanbanStage?: string;
     recurType?: string;
-    lifeDomain?: string;
     businessWorkFilter?: string;
     apple?: boolean;
     smartPrep?: boolean;
@@ -182,29 +181,6 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                     {task.importance === "Pareto" && <Zap className="w-3 h-3 mr-1" />}
                     {task.importance === "High" && <AlertTriangle className="w-3 h-3 mr-1" />}
                     {task.importance}
-                  </Badge>
-                )}
-                
-                {task.lifeDomain && (
-                  <Badge variant="outline" className={cn(
-                    "text-xs border",
-                    task.lifeDomain === "Relationships" && "bg-pink-900/40 text-pink-200 border-pink-600/40",
-                    task.lifeDomain === "Finance" && "bg-green-900/40 text-green-200 border-green-600/40",
-                    task.lifeDomain === "Purpose" && "bg-purple-900/40 text-purple-200 border-purple-600/40",
-                    task.lifeDomain === "General" && "bg-slate-700/40 text-slate-200 border-slate-600/40",
-                    task.lifeDomain === "Physical" && "bg-red-900/40 text-red-200 border-red-600/40",
-                    task.lifeDomain === "Adventure" && "bg-orange-900/40 text-orange-200 border-orange-600/40",
-                    task.lifeDomain === "Power" && "bg-yellow-900/40 text-yellow-200 border-yellow-600/40",
-                    task.lifeDomain === "Mental" && "bg-blue-900/40 text-blue-200 border-blue-600/40"
-                  )}>
-                    {task.lifeDomain === "Relationships" && <Users className="w-3 h-3 mr-1" />}
-                    {task.lifeDomain === "Finance" && <DollarSign className="w-3 h-3 mr-1" />}
-                    {task.lifeDomain === "Purpose" && <Target className="w-3 h-3 mr-1" />}
-                    {task.lifeDomain === "Physical" && <Activity className="w-3 h-3 mr-1" />}
-                    {task.lifeDomain === "Adventure" && <Mountain className="w-3 h-3 mr-1" />}
-                    {task.lifeDomain === "Power" && <Power className="w-3 h-3 mr-1" />}
-                    {task.lifeDomain === "Mental" && <Brain className="w-3 h-3 mr-1" />}
-                    {task.lifeDomain}
                   </Badge>
                 )}
                 

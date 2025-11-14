@@ -34,7 +34,6 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [importance, setImportance] = useState<string>("Medium");
   const [kanbanStage, setKanbanStage] = useState<string>("To Do");
   const [recurType, setRecurType] = useState<string>("⏳One-time");
-  const [lifeDomain, setLifeDomain] = useState<string>("General");
   const [businessWorkFilter, setBusinessWorkFilter] = useState<string>("General");
   
   // Checkbox filters
@@ -79,7 +78,6 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setImportance("Medium");
     setKanbanStage("To Do");
     setRecurType("⏳One-time");
-    setLifeDomain("General");
     setBusinessWorkFilter("General");
     setApple(false);
     setSmartPrep(false);
@@ -129,7 +127,6 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       importance,
       kanbanStage,
       recurType,
-      lifeDomain,
       businessWorkFilter,
       apple,
       smartPrep,
@@ -313,28 +310,6 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
               <SelectContent className="bg-slate-800 border-yellow-600/40">
                 <SelectItem value="⏳One-time">⏳ One-time</SelectItem>
                 <SelectItem value="🔄Recurring">🔄 Recurring</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Life Domain */}
-          <div className="space-y-2">
-            <Label htmlFor="lifeDomain" className="text-yellow-200">
-              Life Domain
-            </Label>
-            <Select value={lifeDomain} onValueChange={setLifeDomain}>
-              <SelectTrigger className="bg-slate-800/50 border-yellow-600/30 text-yellow-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-yellow-600/40">
-                <SelectItem value="General">General</SelectItem>
-                <SelectItem value="Relationships">Relationships</SelectItem>
-                <SelectItem value="Finance">Finance</SelectItem>
-                <SelectItem value="Purpose">Purpose</SelectItem>
-                <SelectItem value="Physical">Physical</SelectItem>
-                <SelectItem value="Adventure">Adventure</SelectItem>
-                <SelectItem value="Power">Power</SelectItem>
-                <SelectItem value="Mental">Mental</SelectItem>
               </SelectContent>
             </Select>
           </div>

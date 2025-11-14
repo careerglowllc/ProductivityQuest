@@ -27,7 +27,7 @@ A gamified task management and productivity application that transforms your dai
 
 ProductivityQuest is a full-stack web application that gamifies productivity by combining task management with RPG elements. Users can:
 
-- **Create and manage tasks** with rich metadata (due dates, importance, life domains, filters)
+- **Create and manage tasks** with rich metadata (due dates, importance, filters)
 - **Earn gold** by completing tasks based on a transparent, modular formula
 - **Level up skills** - 9 default skills + unlimited custom skills
 - **Auto-categorize tasks** - AI automatically assigns skill tags when tasks are created
@@ -229,7 +229,6 @@ ProductivityQuest/
   importance: text                   // "Low", "Med-Low", "Medium", "Med-High", "High", "Pareto"
   kanbanStage: text                  // Workflow stage
   recurType: text                    // Recurrence pattern
-  lifeDomain: text                   // Life area category
   businessWorkFilter: text           // "Apple", "Vi", "General", "SP", "Vel", "CG"
   apple: boolean                     // Apple-related flag (default: false)
   smartPrep: boolean                 // Smart prep flag (default: false)
@@ -449,7 +448,6 @@ interface Task {
   importance: ImportanceLevel;
   kanbanStage: string;
   recurType: string;
-  lifeDomain: LifeDomain;
   apple: boolean;
   smartPrep: boolean;
   delegationTask: boolean;

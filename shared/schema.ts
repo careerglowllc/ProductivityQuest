@@ -48,7 +48,6 @@ export const tasks = pgTable("tasks", {
   importance: text("importance"),
   kanbanStage: text("kanban_stage"),
   recurType: text("recur_type"),
-  lifeDomain: text("life_domain"),
   businessWorkFilter: text("business_work_filter"), // "Apple", "Vi", "General", "SP", "Vel", "CG"
   apple: boolean("apple").default(false),
   smartPrep: boolean("smart_prep").default(false),

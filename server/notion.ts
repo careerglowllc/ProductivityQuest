@@ -183,7 +183,6 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                 importance,
                 kanbanStage,
                 recurType,
-                lifeDomain: "General", // Default value
                 apple: false,
                 smartPrep: false,
                 delegationTask: false,
@@ -301,15 +300,6 @@ export async function addTaskToNotion(task: any, databaseId: string, userApiKey:
         if (task.duration) {
             properties["Min to Complete"] = {
                 number: task.duration,
-            };
-        }
-
-        // Optional: Life Domain (Select)
-        if (task.lifeDomain) {
-            properties["Life Domain"] = {
-                select: {
-                    name: task.lifeDomain,
-                },
             };
         }
 

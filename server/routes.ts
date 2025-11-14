@@ -871,7 +871,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             importance: notionTask.importance,
             kanbanStage: notionTask.kanbanStage,
             recurType: notionTask.recurType,
-            lifeDomain: notionTask.lifeDomain,
             apple: notionTask.apple,
             smartPrep: notionTask.smartPrep,
             delegationTask: notionTask.delegationTask,

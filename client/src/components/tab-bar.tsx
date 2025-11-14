@@ -27,7 +27,7 @@ export function TabBar() {
       icon: LayoutDashboard,
     },
     {
-      name: "Tasks",
+      name: "Quests",
       path: "/tasks",
       icon: CheckSquare,
     },
