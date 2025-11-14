@@ -8,11 +8,11 @@ import {
   Palette, 
   TestTube, 
   Briefcase, 
-  Sword, 
+  Dumbbell, 
   Book, 
-  Heart, 
+  Activity, 
   Zap, 
-  Target,
+  Users,
   Crown,
   Star,
   Grid3x3,
@@ -35,10 +35,10 @@ const skillDescriptions = {
     level50: "Master artist with professional recognition. Exhibits/performs at high levels, has developed unique artistic voice, potentially makes living from art."
   },
   Alchemist: {
-    description: "The science of transformation - cooking, chemistry, brewing, mixology, and experimental creation. Turning raw ingredients into something magnificent.",
-    level10: "Kitchen novice who can follow recipes and make basic meals. Understands fundamental cooking techniques and food safety.",
-    level30: "Skilled chef or mixologist. Creates original recipes, understands flavor chemistry, cooks/crafts without recipes. 5 years of regular practice.",
-    level50: "Culinary master or expert chemist. Professional-level expertise in gastronomy, brewing, or laboratory work. Innovates new techniques and combinations."
+    description: "The art of mental transformation - converting struggles and life circumstances into positive, enabling mindsets. This skill represents your ability to transmute challenges into growth and maintain positivity.",
+    level10: "Beginner mindset shifter - learning to reframe negative thoughts, practicing gratitude, and developing awareness of mental patterns. Can catch and redirect some negative thinking.",
+    level30: "Skilled mental alchemist - consistently transforms setbacks into opportunities. Has developed strong positive thinking habits, resilience practices, and helps others shift their perspectives. 5+ years of intentional mindset work.",
+    level50: "Master of mental transformation - unshakeable positive mindset despite adversity. Expert at converting any struggle into fuel for growth. Teaches others advanced mindset techniques and maintains peak mental state."
   },
   Merchant: {
     description: "Business acumen, negotiation, sales, and wealth building. Your ability to create value, close deals, and build financial success in the real world.",
@@ -46,11 +46,11 @@ const skillDescriptions = {
     level30: "Successful entrepreneur or sales professional. Closed significant deals, built profitable ventures, strong network. Consistent income growth over 5 years.",
     level50: "Business titan - multiple successful ventures, masterful negotiator, significant wealth built. Industry respected dealmaker and wealth creator."
   },
-  Warrior: {
-    description: "Physical combat prowess - martial arts, weapons training, self-defense, and fighting skills. Your real-world ability to protect and compete in combat.",
-    level10: "Amateur beginner - basic self-defense knowledge, some martial arts training, or recreational shooting practice. Knows fundamental techniques.",
-    level30: "Serious martial artist with 5+ years training. Competent in multiple fighting styles, weapons proficiency, or competitive combat sports experience.",
-    level50: "Elite fighter - MMA level skills, multiple black belts, expert marksman, or special forces caliber. John Wick level combat mastery."
+  Physical: {
+    description: "Complete physical mastery - martial arts, strength training, firearm proficiency, and cardiovascular endurance. This represents your real-world combat ability, physical power, and tactical fitness.",
+    level10: "Physical beginner - basic martial arts or self-defense training, starting strength program, learning firearm basics, building cardio base. Knows fundamental techniques across multiple domains.",
+    level30: "Well-rounded physical practitioner - 5+ years training in martial arts, solid strength stats (intermediate lifting numbers), firearm proficiency, good cardio endurance. Competent across multiple physical disciplines.",
+    level50: "Elite physical specimen - advanced martial arts skills, exceptional strength (advanced powerlifting/bodybuilding), expert marksman, and superior cardiovascular capacity. Military/LEO/pro athlete level across all domains."
   },
   Scholar: {
     description: "Academic knowledge, research ability, continuous learning, and intellectual mastery. Your real-world education and expertise in various fields.",
@@ -58,11 +58,11 @@ const skillDescriptions = {
     level30: "Expert in multiple domains - advanced degrees or equivalent self-education. Published work, teaches others, recognized knowledge in specialized fields.",
     level50: "Polymath genius - PhD-level expertise in multiple fields, published researcher, or recognized thought leader. Lifetime dedication to learning and teaching."
   },
-  Healer: {
-    description: "Medical knowledge, caregiving, therapy, and wellness expertise. Your ability to help others heal physically, mentally, or emotionally.",
-    level10: "Basic first aid and wellness knowledge. Can provide basic care, emotional support, and understands fundamental health principles.",
-    level30: "Healthcare professional or experienced caregiver - nurse, therapist, trainer, or 5+ years serious health/wellness practice. Helps others heal regularly.",
-    level50: "Master healer - doctor, psychologist, or equivalent expertise. Saves lives, transforms health outcomes, expert in multiple healing modalities."
+  Health: {
+    description: "Physical and biological health optimization - nutrition, sleep, recovery, longevity practices, and overall bodily wellness. This represents your commitment to maintaining optimal health.",
+    level10: "Health-conscious beginner - learning nutrition basics, improving sleep hygiene, regular check-ups, building healthy daily habits. Understands fundamental health principles.",
+    level30: "Health optimizer - 5+ years of consistent healthy practices. Excellent nutrition habits, quality sleep routine, preventive care, stress management. Tracks and optimizes key health metrics.",
+    level50: "Health mastery - optimal biological health across all markers. Expert-level nutrition knowledge, perfect sleep, longevity protocols, potentially biohacks. Doctor-level understanding of personal health optimization."
   },
   Athlete: {
     description: "Physical fitness, sports performance, endurance, and athletic ability. Your real-world strength, speed, agility, and physical conditioning.",
@@ -70,24 +70,24 @@ const skillDescriptions = {
     level30: "Serious athlete - competes in sports/events, 5+ years consistent training, impressive physical stats, may coach others. Strong and capable.",
     level50: "Elite athlete - professional or Olympic-level performance. Peak physical condition, competition winner, or extreme athletic achievements."
   },
-  Tactician: {
-    description: "Strategic thinking, planning, leadership, and tactical execution. Your ability to devise winning strategies and lead others to victory.",
-    level10: "Learning strategy - can plan projects, think ahead, and make basic tactical decisions. Studies strategy games or military tactics.",
-    level30: "Strategic leader - 5+ years leading teams/projects successfully. Proven track record of strategic wins in business, gaming, or real-world scenarios.",
-    level50: "Master strategist - leads large organizations, wins at highest levels of competition, or military/executive strategic genius. Grandmaster-level planning."
+  Charisma: {
+    description: "The art of charm and connection - social influence, communication mastery, leadership presence, and the ability to connect deeply with others. This represents your interpersonal magnetism and social impact.",
+    level10: "Socially developing - learning active listening, practicing confident communication, building genuine connections. Can engage in conversations and make people feel heard.",
+    level30: "Charismatic communicator - 5+ years of intentional social skill development. Natural networker, compelling speaker, builds rapport easily. People are drawn to your presence and influence.",
+    level50: "Master of influence - exceptional charisma and social mastery. Inspirational leader, captivating speaker, builds deep connections effortlessly. Professional-level influence (think Tony Robbins, world-class politicians, or master networkers)."
   }
 };
 
 const skills = [
   { id: 1, name: "Craftsman", icon: Wrench, level: 5, xp: 750, maxXp: 1000, constellation: "The Forge" },
   { id: 2, name: "Artist", icon: Palette, level: 3, xp: 1200, maxXp: 1500, constellation: "The Muse" },
-  { id: 3, name: "Alchemist", icon: TestTube, level: 2, xp: 400, maxXp: 800, constellation: "The Catalyst" },
+  { id: 3, name: "Alchemist", icon: TestTube, level: 2, xp: 400, maxXp: 800, constellation: "The Transmuter" },
   { id: 4, name: "Merchant", icon: Briefcase, level: 12, xp: 900, maxXp: 1200, constellation: "The Trader" },
-  { id: 5, name: "Warrior", icon: Sword, level: 5, xp: 1800, maxXp: 2000, constellation: "The Blade" },
+  { id: 5, name: "Physical", icon: Dumbbell, level: 5, xp: 1800, maxXp: 2000, constellation: "The Titan" },
   { id: 6, name: "Scholar", icon: Book, level: 14, xp: 600, maxXp: 1000, constellation: "The Sage" },
-  { id: 7, name: "Healer", icon: Heart, level: 3, xp: 350, maxXp: 800, constellation: "The Guardian" },
+  { id: 7, name: "Health", icon: Activity, level: 3, xp: 350, maxXp: 800, constellation: "The Vitality" },
   { id: 8, name: "Athlete", icon: Zap, level: 7, xp: 1100, maxXp: 1200, constellation: "The Swift" },
-  { id: 9, name: "Tactician", icon: Target, level: 8, xp: 700, maxXp: 1000, constellation: "The Strategist" },
+  { id: 9, name: "Charisma", icon: Users, level: 8, xp: 700, maxXp: 1000, constellation: "The Influencer" },
 ];
 
 export default function Skills() {
