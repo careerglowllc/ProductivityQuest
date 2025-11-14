@@ -1,0 +1,140 @@
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// List of available skills
+const AVAILABLE_SKILLS = [
+  "Craftsman",
+  "Artist", 
+  "Alchemist",
+  "Merchant",
+  "Physical",
+  "Scholar",
+  "Health",
+  "Connector",
+  "Charisma"
+];
+
+const SKILL_DESCRIPTIONS = {
+  Craftsman: "Building, creating, repairing physical objects, DIY projects, crafting, woodworking, hands-on creation",
+  Artist: "Creative expression, visual arts, music, writing, performance, artistic work, design",
+  Alchemist: "Mental transformation, positive mindset, resilience, converting challenges to growth, mindfulness, gratitude",
+  Merchant: "Business, sales, negotiation, entrepreneurship, wealth building, financial literacy, deals",
+  Physical: "Martial arts, strength training, combat, firearms, cardiovascular endurance, tactical fitness, self-defense",
+  Scholar: "Academic knowledge, learning, research, reading, studying, intellectual pursuits, education",
+  Health: "Physical wellness, nutrition, sleep, recovery, longevity, biological health, fitness foundation",
+  Connector: "Networking, relationships, friendships, building connections, maintaining relationships, social capital",
+  Charisma: "Social influence, communication, leadership, charm, public speaking, persuasion, interpersonal skills"
+};
+
+export interface CategorizationResult {
+  skills: string[];
+  reasoning: string;
+}
+
+export async function categorizeTaskWithAI(
+  title: string,
+  details?: string
+): Promise<CategorizationResult> {
+  try {
+    const prompt = `You are a productivity expert helping categorize tasks into skill categories.
+
+Available skills and their descriptions:
+${Object.entries(SKILL_DESCRIPTIONS).map(([skill, desc]) => `- ${skill}: ${desc}`).join('\n')}
+
+Task to categorize:
+Title: ${title}
+Details: ${details || 'No additional details'}
+
+Instructions:
+1. Analyze the task and identify which skills it primarily develops
+2. Select 1-3 most relevant skills from the available list
+3. A task can develop multiple skills if it genuinely involves multiple areas
+4. Be thoughtful - for example:
+   - "Run a mile" → Health, Physical
+   - "Read philosophy book" → Scholar
+   - "Networking event" → Merchant, Connector, Charisma
+   - "Build a bookshelf" → Craftsman
+   - "Practice meditation" → Alchemist, Health
+   - "Write a blog post" → Artist, Scholar
+
+Respond with a JSON object in this exact format:
+{
+  "skills": ["Skill1", "Skill2"],
+  "reasoning": "Brief explanation of why these skills were chosen"
+}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Using the faster, cheaper model
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant that categorizes tasks into skill development categories. Always respond with valid JSON."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 300
+    });
+
+    const responseContent = completion.choices[0]?.message?.content;
+    if (!responseContent) {
+      throw new Error("No response from OpenAI");
+    }
+
+    const result = JSON.parse(responseContent) as CategorizationResult;
+
+    // Validate that returned skills are in our available list
+    const validSkills = result.skills.filter(skill => AVAILABLE_SKILLS.includes(skill));
+    
+    if (validSkills.length === 0) {
+      // Fallback to Scholar if no valid skills identified
+      return {
+        skills: ["Scholar"],
+        reasoning: "Default categorization - task requires learning and knowledge"
+      };
+    }
+
+    return {
+      skills: validSkills,
+      reasoning: result.reasoning
+    };
+  } catch (error) {
+    console.error("Error categorizing task with AI:", error);
+    // Fallback to Scholar on error
+    return {
+      skills: ["Scholar"],
+      reasoning: "Auto-categorized (AI service unavailable)"
+    };
+  }
+}
+
+export async function categorizeMultipleTasks(
+  tasks: Array<{ id: number; title: string; details?: string }>
+): Promise<Map<number, CategorizationResult>> {
+  const results = new Map<number, CategorizationResult>();
+
+  // Process tasks in parallel but limit concurrency to avoid rate limits
+  const batchSize = 5;
+  for (let i = 0; i < tasks.length; i += batchSize) {
+    const batch = tasks.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (task) => ({
+        id: task.id,
+        result: await categorizeTaskWithAI(task.title, task.details)
+      }))
+    );
+    
+    batchResults.forEach(({ id, result }) => {
+      results.set(id, result);
+    });
+  }
+
+  return results;
+}

@@ -26,61 +26,71 @@ const skillDescriptions = {
     description: "The path of creation through hands and tools. This skill represents your ability to build, repair, and craft physical objects in the real world.",
     level10: "Amateur hobbyist who can handle basic DIY projects, simple repairs, and follows instructions for basic builds. Comfortable with common hand tools.",
     level30: "Skilled craftsperson with 5+ years experience. Can tackle complex projects, custom furniture, home renovations, and advanced woodworking or metalwork.",
-    level50: "Master artisan - professional level expertise across multiple crafts. Creates custom pieces, teaches others, and can build virtually anything from raw materials."
+    level50: "Master artisan - professional level expertise across multiple crafts. Creates custom pieces, teaches others, and can build virtually anything from raw materials.",
+    level99: "Legendary master craftsman - world-renowned for exceptional work. Creates museum-quality pieces, innovates new techniques, and inspires generations of artisans."
   },
   Artist: {
     description: "Creative expression through visual arts, music, writing, or performance. This represents your artistic abilities and creative output in the real world.",
     level10: "Beginner artist exploring different mediums. Can create basic sketches, compositions, or performances with proper guidance and practice.",
     level30: "Accomplished artist with distinct style. Creates compelling work regularly, may sell pieces or perform publicly. 5+ years of dedicated practice.",
-    level50: "Master artist with professional recognition. Exhibits/performs at high levels, has developed unique artistic voice, potentially makes living from art."
+    level50: "Master artist with professional recognition. Exhibits/performs at high levels, has developed unique artistic voice, potentially makes living from art.",
+    level99: "Legendary artist whose work transcends time. Creates masterpieces that define movements, inspires millions, and leaves an indelible mark on culture."
   },
   Alchemist: {
     description: "The art of mental transformation - converting struggles and life circumstances into positive, enabling mindsets. This skill represents your ability to transmute challenges into growth and maintain positivity.",
     level10: "Beginner mindset shifter - learning to reframe negative thoughts, practicing gratitude, and developing awareness of mental patterns. Can catch and redirect some negative thinking.",
     level30: "Skilled mental alchemist - consistently transforms setbacks into opportunities. Has developed strong positive thinking habits, resilience practices, and helps others shift their perspectives. 5+ years of intentional mindset work.",
-    level50: "Master of mental transformation - unshakeable positive mindset despite adversity. Expert at converting any struggle into fuel for growth. Teaches others advanced mindset techniques and maintains peak mental state."
+    level50: "Master of mental transformation - unshakeable positive mindset despite adversity. Expert at converting any struggle into fuel for growth. Teaches others advanced mindset techniques and maintains peak mental state.",
+    level99: "Transcendent alchemist - legendary mental mastery that inspires worldwide transformation. Converts any darkness into light, radiates unwavering positivity, and elevates collective consciousness."
   },
   Merchant: {
     description: "Business acumen, negotiation, sales, and wealth building. Your ability to create value, close deals, and build financial success in the real world.",
     level10: "Learning business basics - can make small sales, understand simple negotiations, starting to build financial literacy.",
     level30: "Successful entrepreneur or sales professional. Closed significant deals, built profitable ventures, strong network. Consistent income growth over 5 years.",
-    level50: "Business titan - multiple successful ventures, masterful negotiator, significant wealth built. Industry respected dealmaker and wealth creator."
+    level50: "Business titan - multiple successful ventures, masterful negotiator, significant wealth built. Industry respected dealmaker and wealth creator.",
+    level99: "Legendary magnate - reshapes industries, builds empires, creates generational wealth. Name recognized globally as a business icon and visionary."
   },
   Physical: {
     description: "Complete physical mastery - martial arts, strength training, firearm proficiency, and cardiovascular endurance. This represents your real-world combat ability, physical power, and tactical fitness.",
     level10: "Physical beginner - basic martial arts or self-defense training, starting strength program, learning firearm basics, building cardio base. Knows fundamental techniques across multiple domains.",
     level30: "Well-rounded physical practitioner - 5+ years training in martial arts, solid strength stats (intermediate lifting numbers), firearm proficiency, good cardio endurance. Competent across multiple physical disciplines.",
-    level50: "Elite physical specimen - advanced martial arts skills, exceptional strength (advanced powerlifting/bodybuilding), expert marksman, and superior cardiovascular capacity. Military/LEO/pro athlete level across all domains."
+    level50: "Elite physical specimen - advanced martial arts skills, exceptional strength (advanced powerlifting/bodybuilding), expert marksman, and superior cardiovascular capacity. Military/LEO/pro athlete level across all domains.",
+    level99: "Legendary warrior - peak human physical capability across all dimensions. World-class martial artist, exceptional strength athlete, expert tactical operator. A living weapon and inspiration."
   },
   Scholar: {
     description: "Academic knowledge, research ability, continuous learning, and intellectual mastery. Your real-world education and expertise in various fields.",
     level10: "Curious learner - reads regularly, takes courses, builds knowledge in areas of interest. Understands how to research and learn effectively.",
     level30: "Expert in multiple domains - advanced degrees or equivalent self-education. Published work, teaches others, recognized knowledge in specialized fields.",
-    level50: "Polymath genius - PhD-level expertise in multiple fields, published researcher, or recognized thought leader. Lifetime dedication to learning and teaching."
+    level50: "Polymath genius - PhD-level expertise in multiple fields, published researcher, or recognized thought leader. Lifetime dedication to learning and teaching.",
+    level99: "Legendary polymath - world-renowned intellectual whose contributions advance human knowledge. Nobel-level achievements, revolutionary ideas, and timeless wisdom."
   },
   Health: {
     description: "Physical and biological health optimization - nutrition, sleep, recovery, longevity practices, and overall bodily wellness. This represents your commitment to maintaining optimal health.",
     level10: "Health-conscious beginner - learning nutrition basics, improving sleep hygiene, regular check-ups, building healthy daily habits. Understands fundamental health principles.",
     level30: "Health optimizer - 5+ years of consistent healthy practices. Excellent nutrition habits, quality sleep routine, preventive care, stress management. Tracks and optimizes key health metrics.",
-    level50: "Health mastery - optimal biological health across all markers. Expert-level nutrition knowledge, perfect sleep, longevity protocols, potentially biohacks. Doctor-level understanding of personal health optimization."
+    level50: "Health mastery - optimal biological health across all markers. Expert-level nutrition knowledge, perfect sleep, longevity protocols, potentially biohacks. Doctor-level understanding of personal health optimization.",
+    level99: "Legendary vitality - peak biological optimization that defies aging. Perfect health markers, longevity mastery, biohacking pioneer. Living example of human health potential."
   },
   Athlete: {
     description: "Physical fitness, sports performance, endurance, and athletic ability. Your real-world strength, speed, agility, and physical conditioning.",
     level10: "Active beginner - exercises regularly, plays recreational sports, building fitness foundation and athletic skills.",
     level30: "Serious athlete - competes in sports/events, 5+ years consistent training, impressive physical stats, may coach others. Strong and capable.",
-    level50: "Elite athlete - professional or Olympic-level performance. Peak physical condition, competition winner, or extreme athletic achievements."
+    level50: "Elite athlete - professional or Olympic-level performance. Peak physical condition, competition winner, or extreme athletic achievements.",
+    level99: "Legendary champion - world record holder, Olympic gold medalist level. Name etched in sports history as one of the greatest athletes of all time."
   },
   Connector: {
     description: "Building and maintaining meaningful relationships - your network strength, deep friendships, and ability to foster genuine connections. This represents your social capital and relationship quality.",
     level10: "Relationship builder - actively nurturing friendships, expanding network, learning to maintain connections. Has 10-20 meaningful relationships and growing.",
     level30: "Master networker - extensive network of 50+ genuine connections, maintains deep friendships, regularly brings people together. 5+ years of intentional relationship building. Known as a connector in your circles.",
-    level50: "Legendary connector - world-class network spanning hundreds of deep relationships. Effortlessly maintains connections, creates powerful introductions, and builds communities. Your network is your superpower."
+    level50: "Legendary connector - world-class network spanning hundreds of deep relationships. Effortlessly maintains connections, creates powerful introductions, and builds communities. Your network is your superpower.",
+    level99: "Transcendent connector - legendary relationship mastery spanning thousands of genuine connections worldwide. Unites communities, changes lives through introductions, creates movements."
   },
   Charisma: {
     description: "The art of charm and connection - social influence, communication mastery, leadership presence, and the ability to connect deeply with others. This represents your interpersonal magnetism and social impact.",
     level10: "Socially developing - learning active listening, practicing confident communication, building genuine connections. Can engage in conversations and make people feel heard.",
     level30: "Charismatic communicator - 5+ years of intentional social skill development. Natural networker, compelling speaker, builds rapport easily. People are drawn to your presence and influence.",
-    level50: "Master of influence - exceptional charisma and social mastery. Inspirational leader, captivating speaker, builds deep connections effortlessly. Professional-level influence (think Tony Robbins, world-class politicians, or master networkers)."
+    level50: "Master of influence - exceptional charisma and social mastery. Inspirational leader, captivating speaker, builds deep connections effortlessly. Professional-level influence (think Tony Robbins, world-class politicians, or master networkers).",
+    level99: "Legendary influencer - transcendent charisma that moves millions. World-stage presence, unparalleled social mastery, and ability to inspire transformative change globally."
   }
 };
 
@@ -315,7 +325,10 @@ export default function Skills() {
                             ></div>
                           </div>
                           <p className="text-xs text-yellow-300/60 font-serif italic">
-                            {skill.maxXp - skill.xp} XP to next level
+                            {skill.level >= 99 
+                              ? "⭐ Maximum Level ⭐" 
+                              : `${skill.maxXp - skill.xp} XP to next level`
+                            }
                           </p>
                         </div>
                       </div>
@@ -455,6 +468,17 @@ export default function Skills() {
                     {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level50}
                   </p>
                 </div>
+
+                {/* Level 99 */}
+                <div className="bg-slate-900/30 rounded-lg p-4 border-l-4 border-red-500/50 shadow-lg shadow-red-500/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className="bg-gradient-to-r from-red-900/60 to-orange-900/60 text-red-100 border border-red-500/60 shadow-md">Level 99</Badge>
+                    <span className="text-sm text-red-200/90 font-serif italic font-bold">✨ Legendary ✨</span>
+                  </div>
+                  <p className="text-yellow-200/80 text-sm leading-relaxed">
+                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level99}
+                  </p>
+                </div>
               </div>
 
               {/* Current Progress */}
@@ -470,7 +494,10 @@ export default function Skills() {
                   ></div>
                 </div>
                 <p className="text-yellow-300/60 text-xs mt-2 text-center font-serif italic">
-                  {selectedSkill.maxXp - selectedSkill.xp} XP until Level {selectedSkill.level + 1}
+                  {selectedSkill.level >= 99 
+                    ? "⭐ Maximum Level Achieved! ⭐" 
+                    : `${selectedSkill.maxXp - selectedSkill.xp} XP until Level ${selectedSkill.level + 1}`
+                  }
                 </p>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNo
 import { googleCalendar } from "./google-calendar";
 import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema, updateNotionConfigSchema } from "@shared/schema";
 import { z } from "zod";
+import { categorizeTaskWithAI, categorizeMultipleTasks } from "./openai-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -337,6 +338,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Batch completion error:", error);
       res.status(500).json({ error: "Failed to complete tasks" });
+    }
+  });
+
+  // Undo task completion
+  app.post("/api/tasks/undo-complete", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "Invalid task IDs" });
+      }
+
+      let totalGoldRefunded = 0;
+      const restoredTasks = [];
+
+      // Uncomplete all tasks
+      for (const taskId of taskIds) {
+        const task = await storage.getTask(taskId, userId);
+        if (task && task.completed) {
+          // Mark as incomplete
+          const updatedTask = await storage.updateTask(taskId, {
+            completed: false,
+            completedAt: null
+          }, userId);
+          
+          if (updatedTask) {
+            totalGoldRefunded += task.goldValue;
+            restoredTasks.push(updatedTask);
+          }
+        }
+      }
+
+      // Deduct gold from user
+      if (totalGoldRefunded > 0) {
+        const currentProgress = await storage.getUserProgress(userId);
+        if (currentProgress) {
+          await storage.updateUserProgress(userId, {
+            goldTotal: Math.max(0, (currentProgress.goldTotal || 0) - totalGoldRefunded)
+          });
+        }
+      }
+
+      // Update Notion in background if needed
+      const user = await storage.getUserById(userId);
+      if (user?.notionApiKey) {
+        Promise.all(
+          restoredTasks
+            .filter(t => t.notionId)
+            .map(t => updateTaskCompletion(t.notionId!, false, user.notionApiKey!)
+              .catch(err => console.error('Notion update failed:', err))
+            )
+        ).catch(() => {});
+      }
+
+      res.json({
+        restoredCount: restoredTasks.length,
+        goldRefunded: totalGoldRefunded,
+        tasks: restoredTasks
+      });
+    } catch (error) {
+      console.error("Undo completion error:", error);
+      res.status(500).json({ error: "Failed to undo task completion" });
+    }
+  });
+
+  // Categorize tasks with AI
+  app.post("/api/tasks/categorize", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "Invalid task IDs" });
+      }
+
+      // Fetch tasks to categorize
+      const allTasks = await storage.getTasks(userId);
+      const tasksToCategor = allTasks.filter(t => taskIds.includes(t.id));
+
+      if (tasksToCategor.length === 0) {
+        return res.status(404).json({ error: "No tasks found" });
+      }
+
+      // Categorize with AI
+      const categorizations = await categorizeMultipleTasks(
+        tasksToCategor.map(t => ({
+          id: t.id,
+          title: t.title,
+          details: t.details || undefined
+        }))
+      );
+
+      // Update tasks with skill tags
+      const updatedTasks = [];
+      for (const task of tasksToCategor) {
+        const categorization = categorizations.get(task.id);
+        if (categorization) {
+          const updated = await storage.updateTask(
+            task.id,
+            { skillTags: categorization.skills as any },
+            userId
+          );
+          if (updated) {
+            updatedTasks.push({
+              ...updated,
+              categorization: categorization.reasoning
+            });
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        categorizedCount: updatedTasks.length,
+        tasks: updatedTasks
+      });
+    } catch (error) {
+      console.error("Task categorization error:", error);
+      res.status(500).json({ error: "Failed to categorize tasks" });
     }
   });
 
@@ -738,6 +859,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Notion delete error:", error);
       res.status(500).json({ error: "Failed to delete tasks from Notion" });
+    }
+  });
+
+  // Undo append to Notion (remove from Notion but keep in app)
+  app.post("/api/notion/undo-append", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      const { taskIds } = req.body;
+      
+      if (!user?.notionApiKey) {
+        return res.status(400).json({ error: "Notion API key not configured" });
+      }
+
+      if (!taskIds || !Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "Task IDs array is required" });
+      }
+
+      const { deleteTaskFromNotion } = await import("./notion");
+      let removedCount = 0;
+
+      for (const taskId of taskIds) {
+        try {
+          const task = await storage.getTask(taskId, userId);
+          if (task && task.userId === userId && task.notionId) {
+            // Delete from Notion
+            await deleteTaskFromNotion(task.notionId, user.notionApiKey);
+            
+            // Remove notion ID from task (keep task in app)
+            await storage.updateTask(taskId, { notionId: null }, userId);
+            removedCount++;
+          }
+        } catch (error) {
+          console.error(`Error removing task ${taskId} from Notion:`, error);
+        }
+      }
+
+      res.json({ message: `Successfully removed ${removedCount} tasks from Notion`, count: removedCount });
+    } catch (error) {
+      console.error("Notion undo append error:", error);
+      res.status(500).json({ error: "Failed to undo append to Notion" });
+    }
+  });
+
+  // Undo delete from Notion (restore to Notion)
+  app.post("/api/notion/undo-delete", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      const { taskIds } = req.body;
+      
+      if (!user?.notionApiKey || !user?.notionDatabaseId) {
+        return res.status(400).json({ error: "Notion API key or database ID not configured" });
+      }
+
+      if (!taskIds || !Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "Task IDs array is required" });
+      }
+
+      const { addTaskToNotion } = await import("./notion");
+      let restoredCount = 0;
+
+      for (const taskId of taskIds) {
+        try {
+          const task = await storage.getTask(taskId, userId);
+          if (task && task.userId === userId && task.recycled) {
+            // Re-add to Notion
+            const notionId = await addTaskToNotion(task, user.notionDatabaseId, user.notionApiKey);
+            
+            // Un-recycle and update with new Notion ID
+            await storage.updateTask(taskId, { 
+              notionId,
+              recycled: false,
+              recycledAt: null,
+              recycledReason: null
+            }, userId);
+            restoredCount++;
+          }
+        } catch (error) {
+          console.error(`Error restoring task ${taskId} to Notion:`, error);
+        }
+      }
+
+      res.json({ message: `Successfully restored ${restoredCount} tasks to Notion`, count: restoredCount });
+    } catch (error) {
+      console.error("Notion undo delete error:", error);
+      res.status(500).json({ error: "Failed to undo delete from Notion" });
     }
   });
 

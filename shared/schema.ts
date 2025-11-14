@@ -57,6 +57,7 @@ export const tasks = pgTable("tasks", {
   recycled: boolean("recycled").default(false),
   recycledAt: timestamp("recycled_at"),
   recycledReason: text("recycled_reason"), // "completed" or "deleted"
+  skillTags: jsonb("skill_tags").$type<string[]>().default([]), // AI-generated skill tags
 });
 
 export const shopItems = pgTable("shop_items", {

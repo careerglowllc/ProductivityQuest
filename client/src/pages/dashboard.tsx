@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, TestTube, Briefcase, Sword, Book, Activity, Network, Users, Crown } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, TestTube, Briefcase, Sword, Book, Activity, Network, Users, Crown, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
@@ -40,7 +40,10 @@ const HARDCODED_SKILLS = [
 
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) {
-  const chartMax = 10; // Changed to match skills page max level
+  // Calculate max chart value: highest skill level + 10, capped at 99
+  const highestSkillLevel = Math.max(...skills.map(s => s.level), 0);
+  const chartMax = Math.min(highestSkillLevel + 10, 99);
+  
   const size = 500; // Increased from 400 to 500
   const center = size / 2;
   const radius = size / 2 - 100; // Increased padding from 60 to 100 for more label space

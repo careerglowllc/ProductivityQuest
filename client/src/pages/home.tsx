@@ -43,6 +43,14 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
+  
+  // Undo functionality state
+  const [lastAction, setLastAction] = useState<{
+    type: 'complete' | 'append-notion' | 'delete-notion' | null;
+    taskIds: number[];
+    goldEarned?: number;
+  }>({ type: null, taskIds: [] });
+  
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -115,6 +123,13 @@ export default function Home() {
         taskIds: selectedTaskIds 
       });
       
+      // Track for undo
+      setLastAction({
+        type: 'complete',
+        taskIds: selectedTaskIds,
+        goldEarned: totalGoldEarned
+      });
+      
       // Refresh data after backend completes
       refetchTasks();
       refetchProgress();
@@ -139,6 +154,12 @@ export default function Home() {
         taskIds: selectedTaskIds
       });
       const result = await response.json();
+
+      // Track for undo
+      setLastAction({
+        type: 'append-notion',
+        taskIds: selectedTaskIds
+      });
 
       // Clear selection
       setSelectedTasks(new Set());
@@ -169,6 +190,12 @@ export default function Home() {
       });
       const result = await response.json();
 
+      // Track for undo
+      setLastAction({
+        type: 'delete-notion',
+        taskIds: selectedTaskIds
+      });
+
       // Clear selection
       setSelectedTasks(new Set());
       
@@ -183,6 +210,93 @@ export default function Home() {
       toast({
         title: "Error",
         description: "Failed to delete tasks from Notion",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCategorizeSkill = async () => {
+    if (selectedTasks.size === 0) return;
+
+    try {
+      const selectedTaskIds = Array.from(selectedTasks);
+      
+      toast({
+        title: "Categorizing...",
+        description: `Analyzing ${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's' : ''} with AI`,
+      });
+
+      const response = await apiRequest("POST", "/api/tasks/categorize", {
+        taskIds: selectedTaskIds
+      });
+      const result = await response.json();
+
+      // Clear selection
+      setSelectedTasks(new Set());
+      
+      // Refresh tasks to show new skill tags
+      refetchTasks();
+
+      toast({
+        title: "Success",
+        description: `${result.categorizedCount} task${result.categorizedCount > 1 ? 's' : ''} categorized with skills`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to categorize tasks. Check your OpenAI API key.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!lastAction.type) return;
+
+    try {
+      let response;
+      let description = "";
+
+      switch (lastAction.type) {
+        case 'complete':
+          response = await apiRequest("POST", "/api/tasks/undo-complete", {
+            taskIds: lastAction.taskIds
+          });
+          description = `${lastAction.taskIds.length} task${lastAction.taskIds.length > 1 ? 's' : ''} restored. ${lastAction.goldEarned || 0} gold refunded.`;
+          break;
+        
+        case 'append-notion':
+          response = await apiRequest("POST", "/api/notion/undo-append", {
+            taskIds: lastAction.taskIds
+          });
+          description = `${lastAction.taskIds.length} task${lastAction.taskIds.length > 1 ? 's' : ''} removed from Notion`;
+          break;
+        
+        case 'delete-notion':
+          response = await apiRequest("POST", "/api/notion/undo-delete", {
+            taskIds: lastAction.taskIds
+          });
+          description = `${lastAction.taskIds.length} task${lastAction.taskIds.length > 1 ? 's' : ''} restored to Notion`;
+          break;
+      }
+
+      // Clear last action
+      setLastAction({ type: null, taskIds: [] });
+
+      // Refresh data
+      refetchTasks();
+      if (lastAction.type === 'complete') {
+        refetchProgress();
+      }
+
+      toast({
+        title: "Undo Successful",
+        description,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to undo action",
         variant: "destructive",
       });
     }
@@ -487,6 +601,20 @@ export default function Home() {
             <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>
           </div>
           <div className="flex space-x-3">
+            {/* Undo Button - Always visible when there's a last action */}
+            {lastAction.type && (
+              <Button 
+                onClick={handleUndo} 
+                variant="outline"
+                className="flex items-center space-x-2 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 hover:text-orange-100 hover:border-orange-500/60"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <path d="M3 7v6h6"/>
+                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                </svg>
+                <span>Undo {lastAction.type === 'complete' ? 'Complete' : lastAction.type === 'append-notion' ? 'Append' : 'Delete'}</span>
+              </Button>
+            )}
             <Button onClick={handleImportPrepare} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">
               <Download className="w-4 h-4" />
               <span>Import ALL from Notion</span>
@@ -695,12 +823,10 @@ export default function Home() {
                       Delete from Notion
                     </Button>
                     <Button 
-                      onClick={() => {
-                        // TODO: Implement skill categorization
-                        console.log('Categorize skills for selected tasks');
-                      }}
+                      onClick={handleCategorizeSkill}
                       variant="outline"
                       className="border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200"
+                      disabled={selectedTasks.size === 0}
                     >
                       <Tag className="w-4 h-4 mr-2" />
                       Categorize Skill

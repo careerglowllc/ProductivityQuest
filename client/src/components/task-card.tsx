@@ -1,10 +1,36 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info } from "lucide-react";
+import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, TestTube, Briefcase, Sword, Book, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { TaskDetailModal } from "./task-detail-modal";
+
+// Skill icon mapping
+const skillIcons: Record<string, any> = {
+  Craftsman: Wrench,
+  Artist: Palette,
+  Alchemist: TestTube,
+  Merchant: Briefcase,
+  Physical: Sword,
+  Scholar: Book,
+  Health: Activity,
+  Connector: Network,
+  Charisma: Users,
+};
+
+// Skill color mapping
+const skillColors: Record<string, string> = {
+  Craftsman: "bg-amber-900/40 text-amber-200 border-amber-600/40",
+  Artist: "bg-purple-900/40 text-purple-200 border-purple-600/40",
+  Alchemist: "bg-emerald-900/40 text-emerald-200 border-emerald-600/40",
+  Merchant: "bg-green-900/40 text-green-200 border-green-600/40",
+  Physical: "bg-red-900/40 text-red-200 border-red-600/40",
+  Scholar: "bg-blue-900/40 text-blue-200 border-blue-600/40",
+  Health: "bg-pink-900/40 text-pink-200 border-pink-600/40",
+  Connector: "bg-cyan-900/40 text-cyan-200 border-cyan-600/40",
+  Charisma: "bg-indigo-900/40 text-indigo-200 border-indigo-600/40",
+};
 
 interface TaskCardProps {
   task: {
@@ -26,6 +52,7 @@ interface TaskCardProps {
     smartPrep?: boolean;
     delegationTask?: boolean;
     velin?: boolean;
+    skillTags?: string[];
   };
   onSelect: (taskId: number, selected: boolean) => void;
   isSelected: boolean;
@@ -151,11 +178,20 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                   </Badge>
                 )}
                 
-                {task.kanbanStage && task.kanbanStage !== "Done" && (
-                  <Badge variant="outline" className="text-xs bg-slate-700/40 text-slate-200 border-slate-600/40">
-                    {task.kanbanStage}
-                  </Badge>
-                )}
+                {/* Skill Tags */}
+                {task.skillTags && task.skillTags.length > 0 && task.skillTags.map((skill) => {
+                  const SkillIcon = skillIcons[skill];
+                  return (
+                    <Badge 
+                      key={skill} 
+                      variant="outline" 
+                      className={cn("text-xs border", skillColors[skill] || "bg-slate-700/40 text-slate-200 border-slate-600/40")}
+                    >
+                      {SkillIcon && <SkillIcon className="w-3 h-3 mr-1" />}
+                      {skill}
+                    </Badge>
+                  );
+                })}
                 
                 {/* Checkbox indicators */}
                 <div className="flex items-center space-x-1">

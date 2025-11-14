@@ -50,9 +50,24 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Skill XP progression constants
+  private readonly SKILL_BASE_XP = 100; // Base XP requirement for level 1->2
+  private readonly SKILL_GROWTH_RATE = 0.02; // 2% growth rate per level (modular for future adjustment)
+
   constructor() {
     // Initialize default shop items
     this.initializeShopItems();
+  }
+
+  /**
+   * Calculate XP required for a specific level using RPG-style exponential growth
+   * Formula: XP_required = base * (1 + rate)^(level - 1)
+   * @param level - The target level
+   * @returns XP required to reach that level from the previous level
+   */
+  private calculateXpForLevel(level: number): number {
+    if (level <= 1) return this.SKILL_BASE_XP;
+    return Math.floor(this.SKILL_BASE_XP * Math.pow(1 + this.SKILL_GROWTH_RATE, level - 1));
   }
 
   private async initializeShopItems() {
@@ -413,11 +428,18 @@ export class DatabaseStorage implements IStorage {
     let newLevel = currentSkill.level;
     let newMaxXp = currentSkill.maxXp;
 
-    // Level up logic
-    while (newXp >= newMaxXp) {
+    // Level up logic (max level 99) using RPG-style exponential growth
+    while (newXp >= newMaxXp && newLevel < 99) {
       newXp -= newMaxXp;
       newLevel++;
-      newMaxXp = Math.floor(newMaxXp * 1.5); // Increase XP requirement by 50% each level
+      // Calculate new XP requirement for next level using formula: base * (1 + rate)^(level - 1)
+      newMaxXp = this.calculateXpForLevel(newLevel);
+    }
+
+    // If at max level, cap XP at maxXp
+    if (newLevel >= 99) {
+      newLevel = 99;
+      newXp = Math.min(newXp, newMaxXp);
     }
 
     return await this.updateUserSkill(userId, skillName, {
@@ -445,7 +467,7 @@ export class DatabaseStorage implements IStorage {
       skillName: name,
       level: 1,
       xp: 0,
-      maxXp: 100,
+      maxXp: this.calculateXpForLevel(1), // Use formula for initial XP requirement
     }));
 
     await db.insert(userSkills).values(defaultSkills);
@@ -482,7 +504,7 @@ export class DatabaseStorage implements IStorage {
         skillName: name,
         level: 1,
         xp: 0,
-        maxXp: 100,
+        maxXp: this.calculateXpForLevel(1), // Use formula for initial XP requirement
       }));
 
       console.log("Adding skills:", skillsToAdd);
@@ -525,7 +547,7 @@ export class DatabaseStorage implements IStorage {
         skillName: name,
         level: 1,
         xp: 0,
-        maxXp: 100,
+        maxXp: this.calculateXpForLevel(1), // Use formula for initial XP requirement
       }));
 
       console.log("Adding fresh default skills count:", skillsToAdd.length, "for user:", userId);
