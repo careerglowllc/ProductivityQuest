@@ -477,9 +477,9 @@ export class DatabaseStorage implements IStorage {
     const skillNames = [
       "Craftsman",
       "Artist", 
-      "Will",
+      "Mindset",
       "Merchant",
-      "Warrior",
+      "Physical",
       "Scholar",
       "Connector",
       "Charisma",

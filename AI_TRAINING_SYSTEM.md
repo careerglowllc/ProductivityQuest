@@ -5,14 +5,32 @@ The AI task categorization system now includes **feedback-based learning** that 
 
 ## 🔒 **Privacy & Data Isolation**
 
-**IMPORTANT:** All training data is **completely isolated per user account**. 
+**IMPORTANT:** All data is **completely isolated per user account**. 
 
+### Training Data Isolation
 - Your training examples are stored with your unique userId
 - Only YOUR training data is used when categorizing YOUR tasks
 - You never see or benefit from other users' categorizations
 - Each person's AI learns their unique journey independently
 
-This ensures the AI adapts to YOUR specific goals and categorization preferences, not a generic "everyone's" approach.
+### Skill Progress Isolation
+- All skill levels (1-99) are unique to YOUR account
+- Your XP progress is completely separate from other users
+- New users start with all 9 skills at level 1, XP 0
+- Existing users keep their current levels and progress
+
+This ensures the AI and skill system adapts to YOUR specific goals and preferences, not a generic "everyone's" approach.
+
+**Default Skills for New Users:**
+1. Craftsman - Level 1, XP 0
+2. Artist - Level 1, XP 0
+3. Mindset - Level 1, XP 0
+4. Merchant - Level 1, XP 0
+5. Physical - Level 1, XP 0
+6. Scholar - Level 1, XP 0
+7. Health - Level 1, XP 0
+8. Connector - Level 1, XP 0
+9. Charisma - Level 1, XP 0
 
 ## How It Works
 
