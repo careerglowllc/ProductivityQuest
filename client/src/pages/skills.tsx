@@ -403,8 +403,8 @@ export default function Skills() {
             })}
           </div>
         ) : (
-          /* List View */
-          <div className="space-y-4">
+          /* List View - Two Columns */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {skills.map((skill) => {
               const Icon = getSkillIconComponent(skill);
               const constellation = getConstellation(skill);

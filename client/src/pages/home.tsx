@@ -503,6 +503,41 @@ export default function Home() {
 
   const pendingTasks = tasks.filter((task: any) => !task.completed && task.dueDate);
 
+  // Get task counts for each filter
+  const getFilterCounts = () => {
+    const activeTasks = tasks.filter((task: any) => !task.completed);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return {
+      all: activeTasks.length,
+      dueToday: activeTasks.filter((task: any) => {
+        if (!task.dueDate) return false;
+        const taskDate = new Date(task.dueDate);
+        taskDate.setHours(0, 0, 0, 0);
+        return taskDate.getTime() <= today.getTime();
+      }).length,
+      highReward: activeTasks.filter((task: any) => task.goldValue >= 50).length,
+      quickTasks: activeTasks.filter((task: any) => task.duration <= 30).length,
+      highPriority: activeTasks.filter((task: any) => 
+        task.importance === "Pareto" || 
+        task.importance === "High" || 
+        task.importance === "Med-High"
+      ).length,
+      routines: activeTasks.filter((task: any) => 
+        task.recurType && 
+        task.recurType !== "one-time" && 
+        task.recurType.trim() !== ""
+      ).length,
+      apple: activeTasks.filter((task: any) => 
+        task.apple === true || task.businessWorkFilter === "Apple"
+      ).length
+    };
+  };
+
+  const filterCounts = getFilterCounts();
+
   // Filter tasks based on active filter and search query
   const getFilteredTasks = () => {
     let activeTasks = tasks.filter((task: any) => !task.completed);
@@ -683,7 +718,10 @@ export default function Home() {
         {/* Your Quests Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
           <div>
-            <h2 className="text-2xl font-serif font-bold text-yellow-100">Your Quests</h2>
+            <h2 className="text-2xl font-serif font-bold text-yellow-100">
+              Your Quests 
+              <span className="ml-2 text-lg font-normal text-yellow-300/80">({filterCounts.all})</span>
+            </h2>
             <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -793,7 +831,7 @@ export default function Home() {
                     }`}
                     onClick={() => setActiveFilter("all")}
                   >
-                    All Tasks
+                    All Tasks ({filterCounts.all})
                   </Badge>
                   <Badge 
                     variant={activeFilter === "due-today" ? "default" : "outline"}
@@ -804,7 +842,7 @@ export default function Home() {
                     }`}
                     onClick={() => setActiveFilter("due-today")}
                   >
-                    Due Today
+                    Due Today ({filterCounts.dueToday})
                   </Badge>
                   <Badge 
                     variant={activeFilter === "high-reward" ? "default" : "outline"}
@@ -815,7 +853,7 @@ export default function Home() {
                     }`}
                     onClick={() => setActiveFilter("high-reward")}
                   >
-                    High Reward
+                    High Reward ({filterCounts.highReward})
                   </Badge>
                   <Badge 
                     variant={activeFilter === "quick-tasks" ? "default" : "outline"}
@@ -826,7 +864,7 @@ export default function Home() {
                     }`}
                     onClick={() => setActiveFilter("quick-tasks")}
                   >
-                    Quick Tasks
+                    Quick Tasks ({filterCounts.quickTasks})
                   </Badge>
                   <Badge 
                     variant={activeFilter === "high-priority" ? "default" : "outline"}
@@ -837,7 +875,7 @@ export default function Home() {
                     }`}
                     onClick={() => setActiveFilter("high-priority")}
                   >
-                    High Priority
+                    High Priority ({filterCounts.highPriority})
                   </Badge>
                   <Badge 
                     variant={activeFilter === "routines" ? "default" : "outline"}
@@ -848,7 +886,7 @@ export default function Home() {
                     }`}
                     onClick={() => setActiveFilter("routines")}
                   >
-                    Routines
+                    Routines ({filterCounts.routines})
                   </Badge>
                   <Badge 
                     variant={activeFilter === "apple" ? "default" : "outline"}
@@ -859,7 +897,7 @@ export default function Home() {
                     }`}
                     onClick={() => setActiveFilter("apple")}
                   >
-                    🍎 Apple
+                    🍎 Apple ({filterCounts.apple})
                   </Badge>
                 </div>
                 
