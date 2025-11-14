@@ -492,22 +492,35 @@ export class DatabaseStorage implements IStorage {
 
     console.log("restoreDefaultSkills called for user:", userId);
 
-    // Delete ALL existing skills for this user
-    await db.delete(userSkills).where(eq(userSkills.userId, userId));
-    console.log("Deleted all existing skills");
+    if (!userId) {
+      const msg = "restoreDefaultSkills called without userId";
+      console.error(msg);
+      throw new Error(msg);
+    }
 
-    // Add all 9 default skills fresh
-    const skillsToAdd: InsertUserSkill[] = skillNames.map(name => ({
-      userId,
-      skillName: name,
-      level: 1,
-      xp: 0,
-      maxXp: 100,
-    }));
+    try {
+      // Delete ALL existing skills for this user
+      await db.delete(userSkills).where(eq(userSkills.userId, userId));
+      console.log("Deleted all existing skills for user:", userId);
 
-    console.log("Adding fresh default skills:", skillsToAdd.length);
-    await db.insert(userSkills).values(skillsToAdd);
-    console.log("All 9 default skills restored successfully");
+      // Add all 9 default skills fresh
+      const skillsToAdd: InsertUserSkill[] = skillNames.map(name => ({
+        userId,
+        skillName: name,
+        level: 1,
+        xp: 0,
+        maxXp: 100,
+      }));
+
+      console.log("Adding fresh default skills count:", skillsToAdd.length, "for user:", userId);
+      const result = await db.insert(userSkills).values(skillsToAdd);
+      console.log("DB insert result for restoreDefaultSkills:", result);
+      console.log("All 9 default skills restored successfully for user:", userId);
+    } catch (error) {
+      console.error("Error in restoreDefaultSkills for user:", userId, error);
+      // Re-throw to let route handler return 500 with details
+      throw error;
+    }
   }
 
   // Authentication operations
