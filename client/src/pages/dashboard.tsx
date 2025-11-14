@@ -25,9 +25,22 @@ const skillIcons: Record<string, any> = {
   Health: Heart,
 };
 
+// Hardcoded skills data - same as skills page
+const HARDCODED_SKILLS = [
+  { name: "Craftsman", level: 3 },
+  { name: "Artist", level: 3 },
+  { name: "Will", level: 3 },
+  { name: "Merchant", level: 3 },
+  { name: "Warrior", level: 3 },
+  { name: "Scholar", level: 3 },
+  { name: "Connector", level: 3 },
+  { name: "Charisma", level: 3 },
+  { name: "Health", level: 3 },
+];
+
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) {
-  const chartMax = 20; // Fixed maximum level for the chart
+  const chartMax = 10; // Changed to match skills page max level
   const size = 400;
   const center = size / 2;
   const radius = size / 2 - 60; // Increased padding to keep icons inside
@@ -187,19 +200,16 @@ export default function Dashboard() {
     queryKey: ["/api/progress"],
   });
 
-  const { data: stats = { completedToday: 0, totalToday: 0, goldEarnedToday: 0 } } = useQuery({
+  const { data: stats = { completedToday: 0, totalToday: 0, goldEarnedToday: 0 } } = useQuery<{
+    completedToday: number;
+    totalToday: number;
+    goldEarnedToday: number;
+  }>({
     queryKey: ["/api/stats"],
   });
 
-  const { data: userSkills = [] } = useQuery<UserSkill[]>({
-    queryKey: ["/api/skills"],
-  });
-
-  // Transform user skills into chart data
-  const skillsData = userSkills.map(skill => ({
-    name: skill.skillName,
-    level: skill.level,
-  }));
+  // Use hardcoded skills instead of API call
+  const skillsData = HARDCODED_SKILLS;
 
   // Priority ranking: Pareto > High > Med-High > Medium > Med-Low > Low
   const getPriorityValue = (importance: string | null) => {
