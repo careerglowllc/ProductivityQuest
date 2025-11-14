@@ -236,50 +236,45 @@ export default function Dashboard() {
       <header className="bg-slate-900/80 backdrop-blur-md shadow-lg border-b border-yellow-600/30 sticky top-0 z-50 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              {!isMobile && (
-                <div className="flex items-center space-x-2">
-                  <Trophy className="text-yellow-400 w-8 h-8" />
-                  <h1 className="text-2xl font-serif font-bold text-yellow-100">QuestList</h1>
-                </div>
-              )}
+            {/* QuestList Title */}
+            <div className="flex items-center space-x-2">
+              <Trophy className="text-yellow-400 w-8 h-8" />
+              <h1 className="text-2xl font-serif font-bold text-yellow-100">QuestList</h1>
             </div>
             
-            {/* Show gold and user only on mobile (web has it in top nav) */}
-            {isMobile && (
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
-                  <Coins className="text-yellow-400 w-5 h-5" />
-                  <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
-                  <span className="text-sm text-yellow-200/80">Gold</span>
-                </div>
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-sm font-medium">
-                        {user?.firstName || user?.email || "User"}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
-                    <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
-                      <Link href="/settings" className="flex items-center">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            {/* Gold and User - Always visible */}
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
+                <Coins className="text-yellow-400 w-5 h-5" />
+                <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
+                <span className="text-sm text-yellow-200/80">Gold</span>
               </div>
-            )}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium">
+                      {(user as any)?.firstName || (user as any)?.email || "User"}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
+                  <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
+                    <Link href="/settings" className="flex items-center">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
@@ -288,7 +283,7 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-serif font-bold text-yellow-100 mb-2">
-            Welcome back, {user?.firstName || user?.username || "Adventurer"}! 👋
+            Welcome back, {(user as any)?.firstName || (user as any)?.username || "Adventurer"}! 👋
           </h2>
           <p className="text-yellow-200/70">Ready to level up your productivity?</p>
         </div>
