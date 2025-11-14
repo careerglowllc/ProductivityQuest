@@ -1026,6 +1026,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export ALL tasks to Notion (replace all Notion tasks with app tasks)
+  app.post("/api/notion/export", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      
+      if (!user?.notionApiKey || !user?.notionDatabaseId) {
+        return res.status(400).json({ error: "Notion API key or database ID not configured" });
+      }
+
+      const { getTasks, deleteTaskFromNotion, addTaskToNotion } = await import("./notion");
+      
+      // Get all tasks from app (including ones created via AddTaskModal without notionId)
+      const appTasks = await storage.getTasks(userId);
+      const activeTasks = appTasks.filter((task: any) => !task.completed && !task.recycled);
+      
+      // Get all existing tasks from Notion
+      const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
+      
+      // Delete all existing Notion tasks
+      for (const notionTask of notionTasks) {
+        try {
+          if (notionTask.notionId) {
+            await deleteTaskFromNotion(notionTask.notionId, user.notionApiKey);
+          }
+        } catch (error) {
+          console.error(`Error deleting Notion task ${notionTask.notionId}:`, error);
+        }
+      }
+      
+      // Export all active app tasks to Notion (including newly created ones)
+      let exportedCount = 0;
+      for (const task of activeTasks) {
+        try {
+          const notionId = await addTaskToNotion(task, user.notionDatabaseId, user.notionApiKey);
+          
+          // Update task with Notion ID so it's synced
+          await storage.updateTask(task.id, { notionId }, userId);
+          exportedCount++;
+        } catch (error) {
+          console.error(`Error exporting task ${task.id} to Notion:`, error);
+        }
+      }
+
+      res.json({ 
+        message: `Successfully exported ${exportedCount} tasks to Notion`, 
+        count: exportedCount 
+      });
+    } catch (error) {
+      console.error("Notion export error:", error);
+      res.status(500).json({ error: "Failed to export to Notion" });
+    }
+  });
+
   // Google OAuth routes
   app.get("/api/google/auth", requireAuth, async (req: any, res) => {
     try {
