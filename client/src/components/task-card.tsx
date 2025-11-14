@@ -4,12 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { TaskDetailModal } from "./task-detail-modal";
 
 interface TaskCardProps {
   task: {
     id: number;
     title: string;
     description: string;
+    details?: string;
     duration: number;
     goldValue: number;
     dueDate: string | null;
@@ -19,6 +22,7 @@ interface TaskCardProps {
     kanbanStage?: string;
     recurType?: string;
     lifeDomain?: string;
+    businessWorkFilter?: string;
     apple?: boolean;
     smartPrep?: boolean;
     delegationTask?: boolean;
@@ -29,6 +33,8 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -47,20 +53,24 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
   };
 
   return (
-    <Card className={cn(
-      "bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10 transition-all",
-      task.completed && "opacity-60"
-    )}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-4 flex-1">
-            <div className="mt-1.5">
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={(checked) => onSelect(task.id, checked as boolean)}
-                disabled={task.completed}
-              />
-            </div>
+    <>
+      <Card 
+        className={cn(
+          "bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10 transition-all cursor-pointer",
+          task.completed && "opacity-60"
+        )}
+        onClick={() => setShowDetailModal(true)}
+      >
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-4 flex-1">
+              <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={(checked) => onSelect(task.id, checked as boolean)}
+                  disabled={task.completed}
+                />
+              </div>
             
             <div className="flex-1 min-w-0">
               <h3 className={cn(
@@ -199,5 +209,12 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
         </div>
       </CardContent>
     </Card>
+    
+    <TaskDetailModal 
+      task={task}
+      open={showDetailModal}
+      onOpenChange={setShowDetailModal}
+    />
+    </>
   );
 }

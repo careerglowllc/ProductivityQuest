@@ -38,6 +38,7 @@ export const tasks = pgTable("tasks", {
   notionId: text("notion_id"),
   title: text("title").notNull(),
   description: text("description").default(""),
+  details: text("details"),
   duration: integer("duration").notNull(), // in minutes
   goldValue: integer("gold_value").notNull(),
   dueDate: timestamp("due_date"),
@@ -48,6 +49,7 @@ export const tasks = pgTable("tasks", {
   kanbanStage: text("kanban_stage"),
   recurType: text("recur_type"),
   lifeDomain: text("life_domain"),
+  businessWorkFilter: text("business_work_filter"), // "Apple", "Vi", "General", "SP", "Vel", "CG"
   apple: boolean("apple").default(false),
   smartPrep: boolean("smart_prep").default(false),
   delegationTask: boolean("delegation_task").default(false),
