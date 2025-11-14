@@ -81,48 +81,52 @@ export default function Home() {
   const handleCompleteSelected = async () => {
     if (selectedTasks.size === 0) return;
 
+    const selectedTaskIds = Array.from(selectedTasks);
+    
+    // Calculate total gold immediately for optimistic UI
+    let totalGoldEarned = 0;
+    const tasksToComplete = selectedTaskIds.map(id => {
+      const task = (tasks as any[]).find((t: any) => t.id === id);
+      if (task) totalGoldEarned += task.goldValue;
+      return task;
+    }).filter(Boolean);
+
+    if (tasksToComplete.length === 0) return;
+
+    // OPTIMISTIC UI: Update immediately
+    setSelectedTasks(new Set());
+    
+    // Show completion animation
+    setCompletedTask({
+      ...tasksToComplete[0],
+      goldValue: totalGoldEarned
+    });
+    setShowCompletion(true);
+
+    // Show toast immediately
+    toast({
+      title: `${tasksToComplete.length} Quest${tasksToComplete.length > 1 ? 's' : ''} Complete!`,
+      description: `Earning ${totalGoldEarned} gold...`,
+    });
+
     try {
-      const selectedTaskIds = Array.from(selectedTasks);
-      let totalGoldEarned = 0;
-      let completedTasksCount = 0;
-
-      // Complete each selected task
-      for (const taskId of selectedTaskIds) {
-        const response = await apiRequest("PATCH", `/api/tasks/${taskId}/complete`);
-        const task = await response.json();
-        totalGoldEarned += task.goldValue;
-        completedTasksCount++;
-      }
-
-      // Clear selections
-      setSelectedTasks(new Set());
+      // Call simplified batch endpoint - Notion updates happen in background
+      await apiRequest("POST", "/api/tasks/complete-batch", { 
+        taskIds: selectedTaskIds 
+      });
       
-      // Show completion animation for the first task (representing all)
-      if (selectedTaskIds.length > 0) {
-        const firstTaskId = selectedTaskIds[0];
-        const firstTask = tasks.find((t: any) => t.id === firstTaskId);
-        if (firstTask) {
-          setCompletedTask({
-            ...firstTask,
-            goldValue: totalGoldEarned
-          });
-          setShowCompletion(true);
-        }
-      }
-      
+      // Refresh data after backend completes
       refetchTasks();
       refetchProgress();
-      
-      toast({
-        title: `${completedTasksCount} Quest${completedTasksCount > 1 ? 's' : ''} Complete!`,
-        description: `You earned ${totalGoldEarned} gold total!`,
-      });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to complete selected tasks",
+        description: "Failed to complete tasks. Refreshing...",
         variant: "destructive",
       });
+      // Force refresh to get correct state
+      refetchTasks();
+      refetchProgress();
     }
   };
 

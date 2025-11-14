@@ -281,6 +281,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch complete multiple tasks - much faster!
+  app.post("/api/tasks/complete-batch", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "Invalid task IDs" });
+      }
+
+      let totalGold = 0;
+      let completedCount = 0;
+      const completedTasks = [];
+
+      // Complete all tasks in one transaction
+      for (const taskId of taskIds) {
+        const task = await storage.completeTask(taskId, userId);
+        if (task) {
+          totalGold += task.goldValue;
+          completedCount++;
+          completedTasks.push(task);
+        }
+      }
+
+      // Notion updates happen async in background (don't wait)
+      const user = await storage.getUserById(userId);
+      if (user?.notionApiKey) {
+        // Fire and forget - don't block the response
+        Promise.all(
+          completedTasks
+            .filter(t => t.notionId)
+            .map(t => updateTaskCompletion(t.notionId!, true, user.notionApiKey!)
+              .catch(err => console.error('Notion update failed:', err))
+            )
+        ).catch(() => {});
+      }
+
+      res.json({
+        completedCount,
+        totalGold,
+        tasks: completedTasks
+      });
+    } catch (error) {
+      console.error("Batch completion error:", error);
+      res.status(500).json({ error: "Failed to complete tasks" });
+    }
+  });
+
   app.delete("/api/tasks/:id", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
