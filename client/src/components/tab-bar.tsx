@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Trophy } from "lucide-react";
+import { ShoppingCart, CheckSquare, Recycle, Sparkles } from "lucide-react";
 
 export function TabBar() {
   const [location] = useLocation();
@@ -11,14 +11,19 @@ export function TabBar() {
       icon: CheckSquare,
     },
     {
-      name: "Shop",
+      name: "Skills",
+      path: "/skills",
+      icon: Sparkles,
+    },
+    {
+      name: "Item Shop",
       path: "/shop",
       icon: ShoppingCart,
     },
     {
-      name: "Rewards",
+      name: "Recycling",
       path: "/rewards",
-      icon: Trophy,
+      icon: Recycle,
     },
   ];
 

@@ -10,6 +10,7 @@ import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Shop from "@/pages/shop";
+import Skills from "@/pages/skills";
 import Rewards from "@/pages/rewards";
 import SettingsPage from "@/pages/settings";
 import NotionIntegration from "@/pages/notion-integration";
@@ -65,6 +66,7 @@ function Router() {
             </Route>
             <Route path="/dashboard" component={Home} />
             <Route path="/shop" component={Shop} />
+            <Route path="/skills" component={Skills} />
             <Route path="/rewards" component={Rewards} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
