@@ -259,55 +259,125 @@ export async function addTaskToNotion(task: any, databaseId: string, userApiKey:
         // Format the database ID properly
         const formattedDatabaseId = formatDatabaseId(databaseId);
 
+        // Build properties object with all available fields
+        const properties: any = {
+            // Required: Task (Name/Title)
+            "Task": {
+                title: [
+                    {
+                        text: {
+                            content: task.title,
+                        },
+                    },
+                ],
+            },
+            // Required: Importance (Select)
+            "Importance": {
+                select: {
+                    name: task.importance || "Medium",
+                },
+            },
+            // Required: Kanban - Stage (Status)
+            "Kanban - Stage": {
+                status: {
+                    name: task.completed ? "Done" : (task.kanbanStage || "Not Started"),
+                },
+            },
+            // Required: Recur Type (Select)
+            "Recur Type": {
+                select: {
+                    name: task.recurType || "one-time",
+                },
+            },
+        };
+
+        // Optional: Due Date
+        if (task.dueDate) {
+            properties["Due"] = {
+                date: {
+                    start: new Date(task.dueDate).toISOString().split('T')[0], // Format as YYYY-MM-DD
+                },
+            };
+        }
+
+        // Optional: Details (Rich Text)
+        if (task.details) {
+            properties["Details"] = {
+                rich_text: [
+                    {
+                        text: {
+                            content: task.details.substring(0, 2000), // Notion limit
+                        },
+                    },
+                ],
+            };
+        }
+
+        // Optional: Min to Complete (Number) - duration in minutes
+        if (task.duration) {
+            properties["Min to Complete"] = {
+                number: task.duration,
+            };
+        }
+
+        // Optional: Life Domain (Select)
+        if (task.lifeDomain) {
+            properties["Life Domain"] = {
+                select: {
+                    name: task.lifeDomain,
+                },
+            };
+        }
+
+        // Optional: Business/Work Filter (Select)
+        if (task.businessWorkFilter) {
+            properties["Business/Work Filter"] = {
+                select: {
+                    name: task.businessWorkFilter,
+                },
+            };
+        }
+
+        // Optional: Checkboxes - Apple
+        if (task.apple !== undefined && task.apple !== null) {
+            properties["Apple"] = {
+                checkbox: task.apple,
+            };
+        }
+
+        // Optional: Checkboxes - SmartPrep
+        if (task.smartPrep !== undefined && task.smartPrep !== null) {
+            properties["SmartPrep"] = {
+                checkbox: task.smartPrep,
+            };
+        }
+
+        // Optional: Checkboxes - Delegation Task
+        if (task.delegationTask !== undefined && task.delegationTask !== null) {
+            properties["Delegation Task"] = {
+                checkbox: task.delegationTask,
+            };
+        }
+
+        // Optional: Checkboxes - Velin
+        if (task.velin !== undefined && task.velin !== null) {
+            properties["Velin"] = {
+                checkbox: task.velin,
+            };
+        }
+
         const response = await userNotion.pages.create({
             parent: {
                 database_id: formattedDatabaseId,
             },
-            properties: {
-                // Required: Task (Name/Title)
-                "Task": {
-                    title: [
-                        {
-                            text: {
-                                content: task.title,
-                            },
-                        },
-                    ],
-                },
-                // Required: Due (Date)
-                "Due": task.dueDate ? {
-                    date: {
-                        start: task.dueDate,
-                    },
-                } : undefined,
-                // Required: Importance (Select)
-                // Options: Pareto, High, Med-High, Medium, Med-Low, Low
-                "Importance": {
-                    select: {
-                        name: task.importance || "Medium",
-                    },
-                },
-                // Required: Kanban - Stage (Status)
-                // Options: Not Started, In Progress, Incubate, Done
-                "Kanban - Stage": {
-                    status: {
-                        name: task.completed ? "Done" : "Not Started",
-                    },
-                },
-                // Required: Recur Type (Select)
-                // Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly
-                "Recur Type": {
-                    select: {
-                        name: task.recurType || "one-time",
-                    },
-                },
-            },
+            properties,
         });
 
         return response.id;
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error adding task to Notion:", error);
-        throw new Error("Failed to add task to Notion");
+        // Provide more context in error message
+        throw new Error(`Failed to add task "${task.title}" to Notion: ${error.message || 'Unknown error'}`);
     }
 }
 

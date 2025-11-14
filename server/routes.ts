@@ -1045,21 +1045,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all existing tasks from Notion
       const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
       
-      // Delete all existing Notion tasks
-      for (const notionTask of notionTasks) {
-        try {
-          if (notionTask.notionId) {
-            await deleteTaskFromNotion(notionTask.notionId, user.notionApiKey);
-          }
-        } catch (error) {
-          console.error(`Error deleting Notion task ${notionTask.notionId}:`, error);
-        }
-      }
+      // Create a map of existing Notion tasks by title for duplicate detection
+      const notionTasksByTitle = new Map();
+      notionTasks.forEach((task: any) => {
+        notionTasksByTitle.set(task.title.toLowerCase().trim(), task.notionId);
+      });
       
-      // Export all active app tasks to Notion (including newly created ones)
       let exportedCount = 0;
+      let updatedCount = 0;
+      let skippedCount = 0;
+      
       for (const task of activeTasks) {
         try {
+          const taskTitleKey = task.title.toLowerCase().trim();
+          
+          // Check if task already exists in Notion by title
+          const existingNotionId = notionTasksByTitle.get(taskTitleKey);
+          
+          if (task.notionId) {
+            // Task already has a Notion ID - check if it still exists
+            if (existingNotionId && existingNotionId === task.notionId) {
+              // Task exists and IDs match - skip to avoid duplicates
+              skippedCount++;
+              continue;
+            }
+          }
+          
+          if (existingNotionId && !task.notionId) {
+            // Task with same title exists in Notion but app task doesn't have notionId
+            // Link them instead of creating duplicate
+            await storage.updateTask(task.id, { notionId: existingNotionId }, userId);
+            updatedCount++;
+            continue;
+          }
+          
+          // Create new task in Notion
           const notionId = await addTaskToNotion(task, user.notionDatabaseId, user.notionApiKey);
           
           // Update task with Notion ID so it's synced
@@ -1071,8 +1091,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ 
-        message: `Successfully exported ${exportedCount} tasks to Notion`, 
-        count: exportedCount 
+        message: `Export complete: ${exportedCount} new, ${updatedCount} linked, ${skippedCount} skipped`, 
+        exported: exportedCount,
+        linked: updatedCount,
+        skipped: skippedCount,
+        total: exportedCount + updatedCount + skippedCount
       });
     } catch (error) {
       console.error("Notion export error:", error);
