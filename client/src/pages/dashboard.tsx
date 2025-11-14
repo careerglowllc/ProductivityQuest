@@ -30,7 +30,7 @@ function SpiderChart({ skills }: { skills: typeof skillsData }) {
   const chartMax = maxSkillLevel + 10; // +10 from highest level
   const size = 400;
   const center = size / 2;
-  const radius = size / 2 - 60;
+  const radius = size / 2 - 40; // Reduced padding for labels
   const numSkills = skills.length;
 
   // Calculate polygon points for skill levels
@@ -61,9 +61,9 @@ function SpiderChart({ skills }: { skills: typeof skillsData }) {
             cy={center}
             r={(level / chartMax) * radius}
             fill="none"
-            stroke="#e5e7eb"
+            stroke="#475569"
             strokeWidth="1"
-            opacity={0.5}
+            opacity={0.3}
           />
         ))}
 
@@ -77,9 +77,9 @@ function SpiderChart({ skills }: { skills: typeof skillsData }) {
               y1={center}
               x2={endPoint.x}
               y2={endPoint.y}
-              stroke="#d1d5db"
+              stroke="#64748b"
               strokeWidth="1"
-              opacity={0.5}
+              opacity={0.4}
             />
           );
         })}
@@ -87,8 +87,8 @@ function SpiderChart({ skills }: { skills: typeof skillsData }) {
         {/* Skill level polygon */}
         <path
           d={skillPath}
-          fill="rgba(147, 51, 234, 0.2)"
-          stroke="rgb(147, 51, 234)"
+          fill="rgba(234, 179, 8, 0.15)"
+          stroke="rgb(234, 179, 8)"
           strokeWidth="3"
           strokeLinejoin="round"
         />
@@ -99,16 +99,16 @@ function SpiderChart({ skills }: { skills: typeof skillsData }) {
             key={i}
             cx={point.x}
             cy={point.y}
-            r="6"
-            fill="rgb(147, 51, 234)"
-            stroke="white"
+            r="5"
+            fill="rgb(250, 204, 21)"
+            stroke="rgb(234, 179, 8)"
             strokeWidth="2"
           />
         ))}
 
-        {/* Skill labels */}
+        {/* Skill labels - closer to chart */}
         {skills.map((skill, i) => {
-          const labelPoint = getPoint(i, chartMax + 15);
+          const labelPoint = getPoint(i, chartMax + 8); // Reduced distance
           const angle = (Math.PI * 2 * i) / numSkills - Math.PI / 2;
           
           // Adjust text anchor based on position
@@ -123,16 +123,16 @@ function SpiderChart({ skills }: { skills: typeof skillsData }) {
                 x={labelPoint.x}
                 y={labelPoint.y}
                 textAnchor={textAnchor}
-                className="text-sm font-semibold fill-gray-700"
+                className="text-xs font-semibold fill-yellow-200"
                 dy="0.3em"
               >
                 {skill.name}
               </text>
               <text
                 x={labelPoint.x}
-                y={labelPoint.y + 16}
+                y={labelPoint.y + 14}
                 textAnchor={textAnchor}
-                className="text-xs fill-purple-600 font-bold"
+                className="text-[10px] fill-yellow-400 font-bold"
                 dy="0.3em"
               >
                 Lv {skill.level}
@@ -142,16 +142,16 @@ function SpiderChart({ skills }: { skills: typeof skillsData }) {
         })}
 
         {/* Center point */}
-        <circle cx={center} cy={center} r="4" fill="rgb(147, 51, 234)" />
+        <circle cx={center} cy={center} r="4" fill="rgb(234, 179, 8)" />
         
         {/* Max level indicator */}
         <text
           x={center}
-          y={center - radius - 20}
+          y={center - radius - 15}
           textAnchor="middle"
-          className="text-xs fill-gray-500 italic"
+          className="text-[10px] fill-yellow-200/60 italic"
         >
-          Max: Level {chartMax}
+          Max: Lv {chartMax}
         </text>
       </svg>
     </div>
@@ -187,11 +187,25 @@ export default function Dashboard() {
     return priorityMap[importance || ''] || 0;
   };
 
-  // Get top 3 uncompleted tasks by priority
+  // Get top 3 uncompleted tasks - prioritize by due date (today first), then by importance
   const getTopTasks = () => {
     const incompleteTasks = (tasks as any[]).filter((task: any) => !task.completed);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     return incompleteTasks
-      .sort((a, b) => getPriorityValue(b.importance) - getPriorityValue(a.importance))
+      .sort((a, b) => {
+        // Check if tasks are due today
+        const aDueToday = a.dueDate ? new Date(a.dueDate).setHours(0, 0, 0, 0) === today.getTime() : false;
+        const bDueToday = b.dueDate ? new Date(b.dueDate).setHours(0, 0, 0, 0) === today.getTime() : false;
+        
+        // Prioritize tasks due today
+        if (aDueToday && !bDueToday) return -1;
+        if (!aDueToday && bDueToday) return 1;
+        
+        // If both due today or both not due today, sort by importance
+        return getPriorityValue(b.importance) - getPriorityValue(a.importance);
+      })
       .slice(0, 3);
   };
 
@@ -317,122 +331,125 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Top 3 Priority Tasks - Skyrim Style */}
-        <Card className="mb-8 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-          <CardHeader className="border-b border-yellow-600/20">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
-              <Link href="/tasks">
-                <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
-                  View All
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {topTasks.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-yellow-400/50 mx-auto mb-3" />
-                <p className="text-yellow-200/70">No pending tasks! Great job! 🎉</p>
+        {/* Two-column layout for web, single column for mobile */}
+        <div className={`${!isMobile ? 'grid grid-cols-2 gap-6' : 'space-y-6'} mb-8`}>
+          {/* Left Column - Spider Chart (Web) or full width (Mobile) */}
+          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
+            <CardHeader className="border-b border-yellow-600/20">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
+                <Link href="/skills">
+                  <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                    View Details
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {topTasks.map((task: any, index: number) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between p-4 border-2 border-slate-600/40 rounded-lg hover:bg-slate-700/40 hover:border-yellow-500/40 transition-all backdrop-blur-sm"
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg">
-                        {index + 1}
+            </CardHeader>
+            <CardContent className="pt-6">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <div className="cursor-pointer relative group">
+                    <div className={`${!isMobile ? 'scale-[0.8]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? '-my-16' : '-my-32'}`}>
+                      <SpiderChart skills={skillsData} />
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
+                        <Maximize2 className="w-4 h-4" />
+                        <span className="text-sm">Click to enlarge</span>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-yellow-100 mb-1">{task.title}</h4>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {task.importance && (
-                            <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>
-                              {task.importance}
-                            </Badge>
-                          )}
-                          {task.duration && (
-                            <div className="flex items-center text-xs text-yellow-200/60">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {task.duration} min
-                            </div>
-                          )}
-                          {task.goldValue && (
-                            <div className="flex items-center text-xs text-yellow-400 font-semibold">
-                              <Coins className="w-3 h-3 mr-1" />
-                              {task.goldValue}
-                            </div>
-                          )}
-                          {task.dueDate && (
-                            <div className="flex items-center text-xs text-yellow-200/60">
-                              <Calendar className="w-3 h-3 mr-1" />
-                              {new Date(task.dueDate).toLocaleDateString()}
-                            </div>
-                          )}
+                    </div>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl bg-slate-800 border-2 border-yellow-600/40 text-yellow-100">
+                  <DialogHeader>
+                    <DialogTitle className="text-yellow-100 font-serif">Skills Overview</DialogTitle>
+                  </DialogHeader>
+                  <SpiderChart skills={skillsData} />
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-yellow-200/80">
+                      All skills are currently at <span className="font-semibold text-yellow-400">Level 3</span>
+                    </p>
+                    <p className="text-xs text-yellow-200/60 mt-1">
+                      Complete quests to level up your skills and expand your constellation
+                    </p>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+
+          {/* Right Column - Top Priority Tasks (Web) or full width (Mobile) */}
+          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
+            <CardHeader className="border-b border-yellow-600/20">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
+                <Link href="/tasks">
+                  <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                    View All
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {topTasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-12 h-12 text-yellow-400/50 mx-auto mb-3" />
+                  <p className="text-yellow-200/70">No pending tasks! Great job! 🎉</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {topTasks.map((task: any, index: number) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center justify-between p-4 border-2 border-slate-600/40 rounded-lg hover:bg-slate-700/40 hover:border-yellow-500/40 transition-all backdrop-blur-sm"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-yellow-100 mb-1">{task.title}</h4>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {task.importance && (
+                              <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>
+                                {task.importance}
+                              </Badge>
+                            )}
+                            {task.duration && (
+                              <div className="flex items-center text-xs text-yellow-200/60">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {task.duration} min
+                              </div>
+                            )}
+                            {task.goldValue && (
+                              <div className="flex items-center text-xs text-yellow-400 font-semibold">
+                                <Coins className="w-3 h-3 mr-1" />
+                                {task.goldValue}
+                              </div>
+                            )}
+                            {task.dueDate && (
+                              <div className="flex items-center text-xs text-yellow-200/60">
+                                <Calendar className="w-3 h-3 mr-1" />
+                                {new Date(task.dueDate).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <Link href="/tasks">
+                        <Button variant="outline" size="sm" className="border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                          Start
+                        </Button>
+                      </Link>
                     </div>
-                    <Link href="/tasks">
-                      <Button variant="outline" size="sm" className="border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
-                        Start
-                      </Button>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Skills Spider Chart - Skyrim Style */}
-        <Card className="mb-8 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-          <CardHeader className="border-b border-yellow-600/20">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
-              <Link href="/skills">
-                <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
-                  View Details
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <Dialog>
-              <DialogTrigger asChild>
-                <div className="cursor-pointer relative group">
-                  <div className="scale-[0.45] origin-center transform -my-32">
-                    <SpiderChart skills={skillsData} />
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
-                      <Maximize2 className="w-4 h-4" />
-                      <span className="text-sm">Click to enlarge</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl bg-slate-800 border-2 border-yellow-600/40 text-yellow-100">
-                <DialogHeader>
-                  <DialogTitle className="text-yellow-100 font-serif">Skills Overview</DialogTitle>
-                </DialogHeader>
-                <SpiderChart skills={skillsData} />
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-yellow-200/80">
-                    All skills are currently at <span className="font-semibold text-yellow-400">Level 3</span>
-                  </p>
-                  <p className="text-xs text-yellow-200/60 mt-1">
-                    Complete quests to level up your skills and expand your constellation
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Quick Actions - Skyrim Style */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
