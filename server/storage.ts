@@ -448,12 +448,16 @@ export class DatabaseStorage implements IStorage {
       "Health"
     ];
 
+    console.log("ensureDefaultSkills called for user:", userId);
+
     // Get existing skills
     const existingSkills = await this.getUserSkills(userId);
     const existingSkillNames = existingSkills.map(s => s.skillName);
+    console.log("Existing skills:", existingSkillNames);
 
     // Find missing default skills
     const missingSkills = skillNames.filter(name => !existingSkillNames.includes(name));
+    console.log("Missing skills:", missingSkills);
 
     // Add missing skills
     if (missingSkills.length > 0) {
@@ -465,7 +469,11 @@ export class DatabaseStorage implements IStorage {
         maxXp: 100,
       }));
 
+      console.log("Adding skills:", skillsToAdd);
       await db.insert(userSkills).values(skillsToAdd);
+      console.log("Skills added successfully");
+    } else {
+      console.log("No missing skills to add");
     }
   }
 

@@ -1204,11 +1204,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/skills/restore-defaults", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
+      console.log("Restoring default skills for user:", userId);
       await storage.ensureDefaultSkills(userId);
       const skills = await storage.getUserSkills(userId);
+      console.log("Skills after restore:", skills.length);
       res.json({ message: "Default skills restored", skills });
     } catch (error) {
-      res.status(500).json({ error: "Failed to restore default skills" });
+      console.error("Error restoring default skills:", error);
+      res.status(500).json({ error: "Failed to restore default skills", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
