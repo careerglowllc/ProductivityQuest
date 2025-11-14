@@ -334,7 +334,7 @@ export default function Dashboard() {
         <div className={`${!isMobile ? 'grid grid-cols-2 gap-6' : 'space-y-6'} mb-8`}>
           {/* Left Column - Spider Chart (Web) or full width (Mobile) */}
           <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-            <CardHeader className="border-b border-yellow-600/20">
+            <CardHeader className="border-b border-yellow-600/20 pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
                 <Link href="/skills">
@@ -345,11 +345,11 @@ export default function Dashboard() {
                 </Link>
               </div>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <Dialog>
                 <DialogTrigger asChild>
                   <div className="cursor-pointer relative group">
-                    <div className={`${!isMobile ? 'scale-[0.8]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? '-my-16' : '-my-32'}`}>
+                    <div className={`${!isMobile ? 'scale-[0.8]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? '-my-20' : '-my-32'}`}>
                       {skillsLoading ? (
                         <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
                           Loading skills...
