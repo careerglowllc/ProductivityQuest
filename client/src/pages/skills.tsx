@@ -87,39 +87,33 @@ export default function Skills() {
                       Level {skill.level}
                     </Badge>
 
-                    {/* Icon with Vertical Fill Progress */}
+                    {/* Rounded Square Icon with Bottom-to-Top Fill */}
                     <div className="relative w-28 h-28 mx-auto mb-4">
                       {/* Background glow */}
-                      <div className="absolute inset-0 bg-yellow-400/10 rounded-full blur-xl group-hover:bg-yellow-400/20 transition-all"></div>
+                      <div className="absolute inset-0 bg-yellow-400/10 rounded-2xl blur-xl group-hover:bg-yellow-400/20 transition-all"></div>
                       
-                      {/* Icon container with mask */}
-                      <div className="relative w-full h-full">
-                        {/* Gray base icon (unfilled) */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Icon className="h-20 w-20 text-slate-600" strokeWidth={2} />
-                        </div>
+                      {/* Icon container - rounded square */}
+                      <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-yellow-600/40 group-hover:border-yellow-500/70 transition-all bg-slate-700/30">
+                        {/* Gray base (unfilled background) */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
                         
-                        {/* Filled portion with vertical clip */}
+                        {/* Yellow fill from bottom to top */}
                         <div 
-                          className="absolute inset-0 overflow-hidden flex items-end"
-                          style={{ height: '100%' }}
-                        >
-                          <div 
-                            className="w-full transition-all duration-1000 ease-out flex items-center justify-center"
-                            style={{ 
-                              height: `${progressPercent}%`,
-                              filter: 'drop-shadow(0 0 8px rgba(250, 204, 21, 0.5))'
-                            }}
-                          >
-                            <div className="absolute inset-0 flex items-center justify-center" style={{ marginTop: `${100 - progressPercent}%` }}>
-                              <Icon className="h-20 w-20 text-yellow-400" strokeWidth={2} />
-                            </div>
-                          </div>
+                          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all duration-1000 ease-out"
+                          style={{ 
+                            height: `${progressPercent}%`,
+                            boxShadow: '0 0 20px rgba(250, 204, 21, 0.4)'
+                          }}
+                        ></div>
+                        
+                        {/* Icon overlay - always centered and visible */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Icon 
+                            className="h-16 w-16 text-slate-900/80 drop-shadow-lg" 
+                            strokeWidth={2.5}
+                            style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))' }}
+                          />
                         </div>
-
-                        {/* Ornate border circle */}
-                        <div className="absolute inset-0 border-2 border-yellow-600/40 rounded-full group-hover:border-yellow-500/70 transition-all"></div>
-                        <div className="absolute inset-2 border border-yellow-600/20 rounded-full group-hover:border-yellow-500/40 transition-all"></div>
                       </div>
                     </div>
 
@@ -135,20 +129,12 @@ export default function Skills() {
 
                     {/* XP Display */}
                     <div className="bg-slate-900/50 rounded-lg p-3 border border-yellow-600/20">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp}</span>
-                        <span className="text-xs text-yellow-400/70">{Math.round(progressPercent)}%</span>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp} XP</span>
+                        <span className="text-sm text-yellow-400 font-bold">{Math.round(progressPercent)}%</span>
                       </div>
                       
-                      {/* Decorative progress indicator */}
-                      <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-1000"
-                          style={{ width: `${progressPercent}%` }}
-                        ></div>
-                      </div>
-                      
-                      <p className="text-center text-xs text-yellow-300/60 mt-2 font-serif italic">
+                      <p className="text-center text-xs text-yellow-300/60 font-serif italic">
                         {skill.maxXp - skill.xp} XP to next level
                       </p>
                     </div>
