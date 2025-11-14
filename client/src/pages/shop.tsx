@@ -52,19 +52,19 @@ export default function Shop() {
       return response.json();
     },
     onMutate: async (purchaseId) => {
-      // Find the item being consumed
-      const item = (inventory as any[]).find((inv: any) => 
-        inv.purchases && inv.purchases.some((p: any) => p.id === purchaseId)
+      // Find the inventory item being consumed
+      const invItem = (inventory as any[]).find((inv: any) => 
+        inv.purchaseIds && inv.purchaseIds.includes(purchaseId)
       );
       
-      if (item) {
+      if (invItem && invItem.item) {
         // Show animation immediately
-        setConsumeAnimation({ item, show: true });
+        setConsumeAnimation({ item: invItem.item, show: true });
         
         // Show toast immediately
         toast({
-          title: `${item.icon} Item Used!`,
-          description: `Consumed ${item.name}`,
+          title: `${invItem.item.icon} Consumed!`,
+          description: `Enjoyed ${invItem.item.name}`,
         });
       }
     },
@@ -396,11 +396,20 @@ export default function Shop() {
                   {invItem.unused > 0 && (
                     <Button
                       size="sm"
-                      onClick={() => consumeMutation.mutate(invItem.purchaseIds[0])}
+                      onClick={() => {
+                        consumeMutation.mutate(invItem.purchaseIds[0]);
+                      }}
                       disabled={consumeMutation.isPending}
-                      className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white"
+                      className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
-                      Consume
+                      {consumeMutation.isPending ? (
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 animate-spin" />
+                          Using...
+                        </span>
+                      ) : (
+                        "Consume"
+                      )}
                     </Button>
                   )}
                 </div>
