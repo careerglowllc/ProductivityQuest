@@ -344,42 +344,42 @@ export default function Dashboard() {
 
         {/* Main Campaign Section */}
         <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Crown className="h-6 w-6 text-purple-400" />
-              <h3 className="text-xl font-serif font-bold text-purple-100">Main Campaign</h3>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-3">
+              <Crown className="h-4 w-4 text-purple-400" />
+              <h3 className="text-base font-serif font-bold text-purple-100">Main Campaign</h3>
             </div>
 
             {/* Objective 1: Financial Independence */}
-            <div className="mb-6 pb-6 border-b border-purple-600/30">
-              <div className="flex items-center justify-between mb-4">
+            <div className="mb-3 pb-3 border-b border-purple-600/30">
+              <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h4 className="text-lg font-serif font-bold text-purple-100">Financial Independence</h4>
-                  <p className="text-purple-300/70 text-sm">Build wealth and achieve freedom</p>
+                  <h4 className="text-sm font-serif font-bold text-purple-100">Financial Independence</h4>
+                  <p className="text-purple-300/70 text-xs">Build wealth and achieve freedom</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-purple-200/70 text-xs mb-1">Current Net Worth</p>
-                  <p className="text-2xl font-bold text-purple-100">$500,000</p>
+                  <p className="text-purple-200/70 text-[10px] mb-0.5">Current Net Worth</p>
+                  <p className="text-lg font-bold text-purple-100">$500,000</p>
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
                   <span className="text-purple-200/80">Goal: $1.3M Net Worth</span>
                   <span className="text-purple-100 font-bold">38.5%</span>
                 </div>
-                <Progress value={38.5} className="h-3 bg-slate-700/50">
+                <Progress value={38.5} className="h-2 bg-slate-700/50">
                   <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" style={{ width: '38.5%' }} />
                 </Progress>
-                <p className="text-xs text-purple-300/60">$800,000 remaining to achieve financial freedom</p>
+                <p className="text-[10px] text-purple-300/60">$800,000 remaining to achieve financial freedom</p>
               </div>
             </div>
 
             {/* Objective 2: Peace of Mind */}
             <div>
-              <h4 className="text-lg font-serif font-bold text-purple-100 mb-2">Peace of Mind</h4>
-              <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-4">
-                <p className="text-purple-200/80 text-sm italic leading-relaxed">
+              <h4 className="text-sm font-serif font-bold text-purple-100 mb-1">Peace of Mind</h4>
+              <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-2">
+                <p className="text-purple-200/80 text-xs italic leading-relaxed">
                   "Peace is a choice. The journey is all there is. There are no rules to the game."
                 </p>
               </div>
