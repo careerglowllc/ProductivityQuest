@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Coins, ShoppingCart } from "lucide-react";
+import { Coins, ShoppingCart, Star } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Shop() {
   const { data: progress = { goldTotal: 0 } } = useQuery({
     queryKey: ["/api/progress"],
   });
+  const isMobile = useIsMobile();
 
   // Placeholder shop items - backend implementation pending
   const shopItems = [
@@ -34,46 +36,59 @@ export default function Shop() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white pb-20">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+      {/* Starfield Background Effect */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
+        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8 max-w-4xl relative">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Shop</h1>
-          <p className="text-gray-600">Spend your hard-earned gold!</p>
+        <div className="mb-8 text-center border-b border-yellow-600/30 pb-6">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <ShoppingCart className="h-8 w-8 text-yellow-400" />
+            <h1 className="text-4xl font-serif font-bold text-yellow-100">Item Shop</h1>
+            <ShoppingCart className="h-8 w-8 text-yellow-400" />
+          </div>
+          <p className="text-yellow-200/70 text-lg italic">Spend your hard-earned gold!</p>
         </div>
 
         {/* Gold Balance */}
-        <Card className="mb-8 bg-gradient-to-r from-yellow-400 to-yellow-500 border-0">
+        <Card className="mb-8 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 border-2 border-yellow-500/50 backdrop-blur-md">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
-              <Coins className="h-8 w-8 text-yellow-900" />
+              <Coins className="h-8 w-8 text-yellow-400" />
               <div>
-                <p className="text-sm text-yellow-900 font-medium">Your Balance</p>
-                <p className="text-3xl font-bold text-yellow-900">{progress.goldTotal} Gold</p>
+                <p className="text-sm text-yellow-200/80 font-medium">Your Balance</p>
+                <p className="text-3xl font-bold text-yellow-100">{progress.goldTotal} Gold</p>
               </div>
             </div>
-            <ShoppingCart className="h-12 w-12 text-yellow-900 opacity-20" />
+            <ShoppingCart className="h-12 w-12 text-yellow-400/20" />
           </CardContent>
         </Card>
 
         {/* Shop Items */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {shopItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-lg transition-shadow">
+            <Card key={item.id} className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10 transition-all">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <span className="text-4xl">{item.icon}</span>
-                  <div className="flex items-center gap-1 text-yellow-600 font-bold">
+                  <div className="flex items-center gap-1 text-yellow-400 font-bold">
                     <Coins className="h-4 w-4" />
                     {item.price}
                   </div>
                 </div>
-                <CardTitle className="text-lg">{item.name}</CardTitle>
+                <CardTitle className="text-lg text-yellow-100">{item.name}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 text-sm mb-4">{item.description}</p>
+                <p className="text-yellow-200/70 text-sm mb-4">{item.description}</p>
                 <Button 
-                  className="w-full" 
+                  className="w-full bg-slate-700/50 border border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100" 
                   variant="outline"
                   disabled
                 >
@@ -85,11 +100,15 @@ export default function Shop() {
         </div>
 
         {/* Coming Soon Message */}
-        <Card className="mt-8 bg-purple-50 border-purple-200">
+        <Card className="mt-8 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
           <CardContent className="p-6 text-center">
-            <p className="text-purple-900 font-medium">
-              More items coming soon! Keep completing tasks to earn gold.
-            </p>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Star className="h-5 w-5 text-yellow-400" />
+              <p className="text-yellow-100 font-medium font-serif">
+                More items coming soon! Keep completing tasks to earn gold.
+              </p>
+              <Star className="h-5 w-5 text-yellow-400" />
+            </div>
           </CardContent>
         </Card>
       </div>

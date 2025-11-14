@@ -125,7 +125,7 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
   };
 
   const TaskCard = ({ task }: { task: any }) => (
-    <Card className="mb-4">
+    <Card className="mb-4 bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/40 transition-all">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3 flex-1">
@@ -145,32 +145,32 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
             />
             
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              <h3 className="text-lg font-semibold text-yellow-100 mb-1">
                 {task.title}
               </h3>
               
               {task.description && (
-                <p className="text-gray-600 mb-2">{task.description}</p>
+                <p className="text-yellow-200/70 mb-2">{task.description}</p>
               )}
               
               <div className="flex flex-wrap gap-2 mb-2">
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="outline" className="flex items-center gap-1 bg-slate-700/40 text-slate-200 border-slate-600/40">
                   <Clock className="w-3 h-3" />
                   {task.duration} min
                 </Badge>
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="outline" className="flex items-center gap-1 bg-yellow-900/40 text-yellow-200 border-yellow-600/40">
                   <Coins className="w-3 h-3" />
                   {task.goldValue} gold
                 </Badge>
                 {task.dueDate && (
-                  <Badge variant="outline" className="flex items-center gap-1">
+                  <Badge variant="outline" className="flex items-center gap-1 bg-blue-900/40 text-blue-200 border-blue-600/40">
                     <Calendar className="w-3 h-3" />
                     Due: {formatDate(task.dueDate)}
                   </Badge>
                 )}
               </div>
               
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2 text-sm text-yellow-300/60">
                 <span>{task.recycledReason === "completed" ? "Completed" : "Deleted"}: {formatDate(task.recycledAt)}</span>
               </div>
             </div>
@@ -181,7 +181,7 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
               variant="outline"
               size="sm"
               onClick={() => handleRestore(task.id)}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-green-900/40 text-green-200 border-green-600/40 hover:bg-green-600/20"
             >
               <RotateCcw className="w-4 h-4" />
               Restore
@@ -190,7 +190,7 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
               variant="outline"
               size="sm"
               onClick={() => handlePermanentDelete(task.id)}
-              className="flex items-center gap-1 text-red-600 hover:text-red-700"
+              className="flex items-center gap-1 bg-red-900/40 text-red-200 border-red-600/40 hover:bg-red-600/20"
             >
               <Trash2 className="w-4 h-4" />
               Delete
@@ -203,37 +203,37 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-slate-800 border-2 border-yellow-600/40">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
+          <DialogTitle className="flex items-center gap-2 text-yellow-100">
+            <AlertCircle className="w-5 h-5 text-yellow-400" />
             Recycling Bin
           </DialogTitle>
         </DialogHeader>
         
         <div className="py-4">
           {isLoading ? (
-            <div className="text-center py-8">Loading recycled tasks...</div>
+            <div className="text-center py-8 text-yellow-200">Loading recycled tasks...</div>
           ) : recycledTasks.length === 0 ? (
             <div className="text-center py-8">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Recycling bin is empty</h3>
-              <p className="text-gray-600">No deleted or completed tasks to restore</p>
+              <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-yellow-100 mb-2">Recycling bin is empty</h3>
+              <p className="text-yellow-200/70">No deleted or completed tasks to restore</p>
             </div>
           ) : (
             <>
               {selectedTasks.size > 0 && (
-                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mb-4 p-4 bg-blue-900/40 border-2 border-blue-500/40 rounded-lg backdrop-blur-md">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-blue-800 font-medium">
+                      <span className="text-blue-200 font-medium">
                         {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
                       </span>
                     </div>
                     <div className="flex space-x-2">
                       <Button 
                         onClick={handleBulkRestore}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-green-900/60 hover:bg-green-600/40 text-green-200 border border-green-600/40"
                         size="sm"
                       >
                         <RotateCcw className="w-4 h-4 mr-1" />
@@ -241,7 +241,7 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
                       </Button>
                       <Button 
                         onClick={handleBulkDelete}
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        className="bg-red-900/60 hover:bg-red-600/40 text-red-200 border border-red-600/40"
                         size="sm"
                       >
                         <Trash2 className="w-4 h-4 mr-1" />
@@ -253,10 +253,10 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
               )}
               
               <Tabs defaultValue="all" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="all">All ({recycledTasks.length})</TabsTrigger>
-                  <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
-                  <TabsTrigger value="deleted">Deleted ({deletedTasks.length})</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 bg-slate-700/50">
+                  <TabsTrigger value="all" className="data-[state=active]:bg-yellow-600/40 data-[state=active]:text-yellow-100">All ({recycledTasks.length})</TabsTrigger>
+                  <TabsTrigger value="completed" className="data-[state=active]:bg-yellow-600/40 data-[state=active]:text-yellow-100">Completed ({completedTasks.length})</TabsTrigger>
+                  <TabsTrigger value="deleted" className="data-[state=active]:bg-yellow-600/40 data-[state=active]:text-yellow-100">Deleted ({deletedTasks.length})</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="all" className="mt-4">
@@ -267,7 +267,7 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
                 
                 <TabsContent value="completed" className="mt-4">
                   {completedTasks.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">No completed tasks in recycling</div>
+                    <div className="text-center py-8 text-yellow-300/60">No completed tasks in recycling</div>
                   ) : (
                     completedTasks.map((task: any) => (
                       <TaskCard key={task.id} task={task} />
@@ -277,7 +277,7 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
                 
                 <TabsContent value="deleted" className="mt-4">
                   {deletedTasks.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">No deleted tasks in recycling</div>
+                    <div className="text-center py-8 text-yellow-300/60">No deleted tasks in recycling</div>
                   ) : (
                     deletedTasks.map((task: any) => (
                       <TaskCard key={task.id} task={task} />
@@ -290,7 +290,7 @@ export function RecyclingModal({ isOpen, onClose }: RecyclingModalProps) {
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20">
             Close
           </Button>
         </DialogFooter>

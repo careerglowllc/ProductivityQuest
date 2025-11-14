@@ -353,7 +353,7 @@ export default function Home() {
   const sortedTasks = getSortedTasks(filteredTasks);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 relative overflow-hidden">
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} relative overflow-hidden`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -426,7 +426,7 @@ export default function Home() {
               <Download className="w-4 h-4" />
               <span>Import ALL from Notion</span>
             </Button>
-            <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
+            <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
               <Upload className="w-4 h-4" />
               <span>Export ALL to Notion</span>
             </Button>
