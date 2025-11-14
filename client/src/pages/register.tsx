@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Trophy } from "lucide-react";
 
 export default function Register() {
   const [, setLocation] = useLocation();
@@ -63,7 +64,7 @@ export default function Register() {
       if (response.ok) {
         toast({
           title: "Account created!",
-          description: "Welcome to TaskQuest",
+          description: "Welcome to ProductivityQuest",
         });
         setLocation("/dashboard");
       } else {
@@ -85,16 +86,29 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/20 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-primary">TaskQuest</CardTitle>
-          <CardDescription>Create your account</CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 p-4 relative overflow-hidden">
+      {/* Starfield Background Effect */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
+        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute bottom-20 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2.5s'}}></div>
+        <div className="absolute bottom-40 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '3s'}}></div>
+      </div>
+
+      <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10">
+        <CardHeader className="text-center border-b border-yellow-600/20 pb-6">
+          <div className="flex items-center justify-center mb-4">
+            <Trophy className="text-yellow-400 w-12 h-12 mr-3" />
+            <CardTitle className="text-3xl font-serif font-bold text-yellow-100">ProductivityQuest</CardTitle>
+          </div>
+          <CardDescription className="text-yellow-200/70">Begin your adventure</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-yellow-100">Username</Label>
               <Input
                 id="username"
                 name="username"
@@ -105,10 +119,11 @@ export default function Register() {
                 required
                 disabled={isLoading}
                 minLength={3}
+                className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/60"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-yellow-100">Email</Label>
               <Input
                 id="email"
                 name="email"
@@ -118,10 +133,11 @@ export default function Register() {
                 onChange={handleChange}
                 required
                 disabled={isLoading}
+                className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/60"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-yellow-100">Password</Label>
               <Input
                 id="password"
                 name="password"
@@ -132,10 +148,11 @@ export default function Register() {
                 required
                 disabled={isLoading}
                 minLength={6}
+                className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/60"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-yellow-100">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -145,17 +162,22 @@ export default function Register() {
                 onChange={handleChange}
                 required
                 disabled={isLoading}
+                className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/60"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-yellow-600 hover:bg-yellow-500 text-slate-900 font-bold border-2 border-yellow-500 shadow-lg" 
+              disabled={isLoading}
+            >
               {isLoading ? "Creating account..." : "Create Account"}
             </Button>
-            <div className="text-center text-sm">
+            <div className="text-center text-sm text-yellow-200/70">
               Already have an account?{" "}
               <button
                 type="button"
                 onClick={() => setLocation("/login")}
-                className="text-primary hover:underline"
+                className="text-yellow-400 hover:text-yellow-300 font-semibold hover:underline"
               >
                 Sign in
               </button>

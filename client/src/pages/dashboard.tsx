@@ -266,20 +266,14 @@ export default function Dashboard() {
       <header className="bg-slate-900/80 backdrop-blur-md shadow-lg border-b border-yellow-600/30 sticky top-0 z-50 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            {/* QuestList Title */}
+            {/* Dashboard Title */}
             <div className="flex items-center space-x-2">
               <Trophy className="text-yellow-400 w-8 h-8" />
-              <h1 className="text-2xl font-serif font-bold text-yellow-100">QuestList</h1>
+              <h1 className="text-2xl font-serif font-bold text-yellow-100">Dashboard</h1>
             </div>
             
-            {/* Gold and User - Always visible */}
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
-                <Coins className="text-yellow-400 w-5 h-5" />
-                <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
-                <span className="text-sm text-yellow-200/80">Gold</span>
-              </div>
-              
+            {/* User Dropdown */}
+            <div className="flex items-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">

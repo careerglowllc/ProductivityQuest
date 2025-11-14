@@ -166,10 +166,14 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
             // Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly
             const recurType = properties["Recur Type"]?.select?.name || "one-time";
 
+            // Extract details from "Details" property (Text type)
+            const details = properties.Details?.rich_text?.[0]?.plain_text || "";
+
             return {
                 notionId: page.id,
                 title: properties.Task?.title?.[0]?.plain_text || "Untitled Task",
                 description: "", // Can be added later if needed
+                details,
                 duration,
                 goldValue,
                 isCompleted,
