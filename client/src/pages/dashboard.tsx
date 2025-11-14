@@ -27,8 +27,7 @@ const skillIcons: Record<string, any> = {
 
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) {
-  const maxSkillLevel = Math.max(...skills.map(s => s.level));
-  const chartMax = maxSkillLevel + 10; // +10 from highest level
+  const chartMax = 20; // Fixed maximum level for the chart
   const size = 400;
   const center = size / 2;
   const radius = size / 2 - 60; // Increased padding to keep icons inside
