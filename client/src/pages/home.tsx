@@ -324,14 +324,12 @@ export default function Home() {
       case "due-today":
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
         
         return activeTasks.filter((task: any) => {
           if (!task.dueDate) return false;
           const taskDate = new Date(task.dueDate);
           taskDate.setHours(0, 0, 0, 0);
-          return taskDate <= today; // Include today and overdue tasks
+          return taskDate.getTime() <= today.getTime(); // Include today and all overdue tasks
         });
       
       case "high-reward":
@@ -370,9 +368,9 @@ export default function Home() {
         );
       
       case "apple":
-        // Filter for Apple Business/Work Filter tasks
+        // Filter for Apple tasks (either apple checkbox OR businessWorkFilter is "Apple")
         return activeTasks.filter((task: any) => 
-          task.businessWorkFilter === "Apple"
+          task.apple === true || task.businessWorkFilter === "Apple"
         );
       
       default:
