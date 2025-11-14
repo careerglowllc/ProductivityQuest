@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,19 +8,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { CheckCircle2, XCircle, Brain, Wrench, Palette, Briefcase, Sword, Book, Activity, Network, Users } from "lucide-react";
+import { getSkillIcon } from "@/lib/skillIcons";
+import type { UserSkill } from "@/../../shared/schema";
 
-const AVAILABLE_SKILLS = [
-  "Craftsman",
-  "Artist",
-  "Mindset",
-  "Merchant",
-  "Physical",
-  "Scholar",
-  "Health",
-  "Connector",
-  "Charisma",
-];
-
+// Fallback icons for default skills
 const SKILL_ICONS: Record<string, any> = {
   Craftsman: Wrench,
   Artist: Palette,
@@ -50,8 +42,21 @@ export function SkillAdjustmentModal({
   const [selectedSkills, setSelectedSkills] = useState<Record<number, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch all user skills dynamically
+  const { data: allSkills = [], isLoading: skillsLoading } = useQuery<UserSkill[]>({
+    queryKey: ["/api/skills"],
+  });
+
   const currentTask = tasks[currentIndex];
   const currentSelectedSkills = selectedSkills[currentTask?.id] || currentTask?.skillTags || [];
+
+  // Helper to get skill icon component
+  const getSkillIconComponent = (skill: UserSkill) => {
+    if (skill.skillIcon) {
+      return getSkillIcon(skill.skillIcon);
+    }
+    return SKILL_ICONS[skill.skillName] || Brain;
+  };
 
   const toggleSkill = (skill: string) => {
     const newSkills = currentSelectedSkills.includes(skill)
@@ -201,36 +206,47 @@ export function SkillAdjustmentModal({
             <p className="text-sm font-medium text-slate-300 mb-3">
               Select the correct skills for this task:
             </p>
-            <ScrollArea className="h-[200px]">
-              <div className="grid grid-cols-2 gap-2">
-                {AVAILABLE_SKILLS.map((skill) => {
-                  const Icon = SKILL_ICONS[skill];
-                  const isSelected = currentSelectedSkills.includes(skill);
-                  
-                  return (
-                    <div
-                      key={skill}
-                      onClick={() => toggleSkill(skill)}
-                      className={`
-                        flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all
-                        ${isSelected
-                          ? 'bg-emerald-900/30 border-emerald-600/40 text-emerald-200'
-                          : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/50'
-                        }
-                      `}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleSkill(skill)}
-                        className="pointer-events-none"
-                      />
-                      {Icon && <Icon className="w-4 h-4" />}
-                      <span className="font-medium">{skill}</span>
-                    </div>
-                  );
-                })}
+            {skillsLoading ? (
+              <div className="h-[200px] flex items-center justify-center text-slate-400">
+                Loading skills...
               </div>
-            </ScrollArea>
+            ) : (
+              <ScrollArea className="h-[200px]">
+                <div className="grid grid-cols-2 gap-2">
+                  {allSkills.map((skill) => {
+                    const Icon = getSkillIconComponent(skill);
+                    const isSelected = currentSelectedSkills.includes(skill.skillName);
+                    
+                    return (
+                      <div
+                        key={skill.id}
+                        onClick={() => toggleSkill(skill.skillName)}
+                        className={`
+                          flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all
+                          ${isSelected
+                            ? 'bg-emerald-900/30 border-emerald-600/40 text-emerald-200'
+                            : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/50'
+                          }
+                        `}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSkill(skill.skillName)}
+                          className="pointer-events-none"
+                        />
+                        <Icon className="w-4 h-4" />
+                        <span className="text-sm font-medium flex-1">{skill.skillName}</span>
+                        {skill.isCustom && (
+                          <Badge variant="outline" className="text-[10px] bg-purple-900/30 border-purple-600/40 text-purple-300">
+                            Custom
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            )}
           </div>
         </div>
 

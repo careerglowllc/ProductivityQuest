@@ -4,9 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TaskDetailModal } from "./task-detail-modal";
+import { getSkillIcon } from "@/lib/skillIcons";
+import type { UserSkill } from "@/../../shared/schema";
 
-// Skill icon mapping
+// Fallback skill icon mapping for default skills
 const skillIcons: Record<string, any> = {
   Craftsman: Wrench,
   Artist: Palette,
@@ -19,7 +22,7 @@ const skillIcons: Record<string, any> = {
   Charisma: Users,
 };
 
-// Skill color mapping
+// Default skill color mapping
 const skillColors: Record<string, string> = {
   Craftsman: "bg-amber-900/40 text-amber-200 border-amber-600/40",
   Artist: "bg-purple-900/40 text-purple-200 border-purple-600/40",
@@ -60,6 +63,40 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
+  
+  // Fetch user skills for dynamic rendering
+  const { data: allSkills = [] } = useQuery<UserSkill[]>({
+    queryKey: ["/api/skills"],
+  });
+
+  // Helper to get skill data by name
+  const getSkillByName = (skillName: string) => {
+    return allSkills.find(s => s.skillName === skillName);
+  };
+
+  // Helper to get skill icon component
+  const getSkillIconComponent = (skillName: string) => {
+    const skill = getSkillByName(skillName);
+    if (skill?.skillIcon) {
+      return getSkillIcon(skill.skillIcon);
+    }
+    return skillIcons[skillName] || Target;
+  };
+
+  // Helper to get skill color
+  const getSkillColor = (skillName: string) => {
+    const skill = getSkillByName(skillName);
+    
+    // If it's a custom skill, generate a color from the name
+    if (skill?.isCustom) {
+      const hash = skillName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const hue = hash % 360;
+      return `bg-purple-900/40 text-purple-200 border-purple-600/40`;
+    }
+    
+    // Otherwise use default color mapping
+    return skillColors[skillName] || "bg-slate-700/40 text-slate-200 border-slate-600/40";
+  };
   
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
@@ -179,16 +216,21 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                 )}
                 
                 {/* Skill Tags */}
-                {task.skillTags && task.skillTags.length > 0 && task.skillTags.map((skill) => {
-                  const SkillIcon = skillIcons[skill];
+                {task.skillTags && task.skillTags.length > 0 && task.skillTags.map((skillName) => {
+                  const SkillIcon = getSkillIconComponent(skillName);
+                  const skill = getSkillByName(skillName);
+                  
                   return (
                     <Badge 
-                      key={skill} 
+                      key={skillName} 
                       variant="outline" 
-                      className={cn("text-xs border", skillColors[skill] || "bg-slate-700/40 text-slate-200 border-slate-600/40")}
+                      className={cn("text-xs border", getSkillColor(skillName))}
                     >
-                      {SkillIcon && <SkillIcon className="w-3 h-3 mr-1" />}
-                      {skill}
+                      <SkillIcon className="w-3 h-3 mr-1" />
+                      {skillName}
+                      {skill?.isCustom && (
+                        <span className="ml-1 text-[9px] opacity-60">(custom)</span>
+                      )}
                     </Badge>
                   );
                 })}

@@ -6,13 +6,14 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users, Crown, Target } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
+import { getSkillIcon } from "@/lib/skillIcons";
 
-// Skill icon mapping - matches skills.tsx exactly
+// Default skill icon mapping for backward compatibility
 const skillIcons: Record<string, any> = {
   Craftsman: Wrench,
   Artist: Palette,
@@ -22,24 +23,11 @@ const skillIcons: Record<string, any> = {
   Scholar: Book,
   Health: Activity,
   Connector: Network,
-  Charisma: Users,
+  Charisma: UsersIcon,
 };
 
-// Hardcoded skills data - MUST match skills.tsx exactly
-const HARDCODED_SKILLS = [
-  { name: "Craftsman", level: 5 },
-  { name: "Artist", level: 3 },
-  { name: "Mindset", level: 2 },
-  { name: "Merchant", level: 12 },
-  { name: "Physical", level: 5 },
-  { name: "Scholar", level: 14 },
-  { name: "Health", level: 3 },
-  { name: "Connector", level: 7 },
-  { name: "Charisma", level: 8 },
-];
-
 // Spider Chart Component
-function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) {
+function SpiderChart({ skills }: { skills: UserSkill[] }) {
   // Calculate max chart value: highest skill level + 10, capped at 99
   const highestSkillLevel = Math.max(...skills.map(s => s.level), 0);
   const chartMax = Math.min(highestSkillLevel + 10, 99);
@@ -48,6 +36,32 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
   const center = size / 2;
   const radius = size / 2 - 100; // Increased padding from 60 to 100 for more label space
   const numSkills = skills.length;
+
+  // Helper function to get skill icon
+  const getSkillIconComponent = (skill: UserSkill) => {
+    // If skill has a custom icon, use it
+    if (skill.skillIcon) {
+      return getSkillIcon(skill.skillIcon);
+    }
+    // Otherwise fall back to hardcoded mapping for default skills
+    return skillIcons[skill.skillName] || Target;
+  };
+
+  // Helper to generate consistent colors for custom skills
+  const getSkillColor = (skill: UserSkill) => {
+    if (!skill.isCustom) {
+      return { fill: 'rgb(234, 179, 8)', stroke: 'rgb(234, 179, 8)', textColor: 'text-yellow-400' };
+    }
+    
+    // Generate color from skill name hash for consistency
+    const hash = skill.skillName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const hue = hash % 360;
+    return {
+      fill: `hsl(${hue}, 70%, 60%)`,
+      stroke: `hsl(${hue}, 70%, 50%)`,
+      textColor: 'text-purple-400'
+    };
+  };
 
   // Calculate polygon points for skill levels
   const getPoint = (index: number, value: number) => {
@@ -62,7 +76,7 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
   // Create background grid circles
   const gridLevels = [chartMax * 0.25, chartMax * 0.5, chartMax * 0.75, chartMax];
   
-  // Create polygon path for skill levels
+  // Create polygon path for skill levels (using default gold color for now)
   const skillPoints = skills.map((skill, i) => getPoint(i, skill.level));
   const skillPath = skillPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
 
@@ -133,7 +147,8 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
             textAnchor = Math.cos(angle) > 0 ? 'start' : 'end';
           }
 
-          const SkillIcon = skillIcons[skill.name] || Target;
+          const SkillIcon = getSkillIconComponent(skill);
+          const colors = getSkillColor(skill);
 
           return (
             <g key={i}>
@@ -145,7 +160,7 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
                 height="30"
               >
                 <div className="flex items-center justify-center">
-                  <SkillIcon className="w-6 h-6 text-yellow-400" strokeWidth={2.5} />
+                  <SkillIcon className={`w-6 h-6 ${colors.textColor}`} strokeWidth={2.5} />
                 </div>
               </foreignObject>
               
@@ -157,7 +172,7 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
                 className="text-xs font-semibold fill-yellow-200"
                 dy="0.3em"
               >
-                {skill.name}
+                {skill.skillName}
               </text>
               
               {/* Level */}
@@ -211,8 +226,10 @@ export default function Dashboard() {
     queryKey: ["/api/stats"],
   });
 
-  // Use hardcoded skills instead of API call
-  const skillsData = HARDCODED_SKILLS;
+  // Fetch user skills dynamically from API
+  const { data: skills = [], isLoading: skillsLoading } = useQuery<UserSkill[]>({
+    queryKey: ["/api/skills"],
+  });
 
   // Priority ranking: Pareto > High > Med-High > Medium > Med-Low > Low
   const getPriorityValue = (importance: string | null) => {
@@ -379,7 +396,13 @@ export default function Dashboard() {
                 <DialogTrigger asChild>
                   <div className="cursor-pointer relative group">
                     <div className={`${!isMobile ? 'scale-[0.8]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? '-my-16' : '-my-32'}`}>
-                      <SpiderChart skills={skillsData} />
+                      {skillsLoading ? (
+                        <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
+                          Loading skills...
+                        </div>
+                      ) : (
+                        <SpiderChart skills={skills} />
+                      )}
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
@@ -393,12 +416,15 @@ export default function Dashboard() {
                   <DialogHeader>
                     <DialogTitle className="text-yellow-100 font-serif">Skills Overview</DialogTitle>
                   </DialogHeader>
-                  <SpiderChart skills={skillsData} />
+                  {skillsLoading ? (
+                    <div className="flex items-center justify-center h-[500px] text-yellow-200/60">
+                      Loading skills...
+                    </div>
+                  ) : (
+                    <SpiderChart skills={skills} />
+                  )}
                   <div className="mt-4 text-center">
                     <p className="text-sm text-yellow-200/80">
-                      All skills are currently at <span className="font-semibold text-yellow-400">Level 3</span>
-                    </p>
-                    <p className="text-xs text-yellow-200/60 mt-1">
                       Complete quests to level up your skills and expand your constellation
                     </p>
                   </div>
