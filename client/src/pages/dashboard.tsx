@@ -41,9 +41,9 @@ const HARDCODED_SKILLS = [
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) {
   const chartMax = 10; // Changed to match skills page max level
-  const size = 400;
+  const size = 500; // Increased from 400 to 500
   const center = size / 2;
-  const radius = size / 2 - 60; // Increased padding to keep icons inside
+  const radius = size / 2 - 100; // Increased padding from 60 to 100 for more label space
   const numSkills = skills.length;
 
   // Calculate polygon points for skill levels
@@ -121,7 +121,7 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
 
         {/* Skill labels with icons - positioned inside bounds */}
         {skills.map((skill, i) => {
-          const labelPoint = getPoint(i, chartMax + 5); // Reduced offset to keep inside
+          const labelPoint = getPoint(i, chartMax + 2); // Reduced offset to keep labels closer
           const angle = (Math.PI * 2 * i) / numSkills - Math.PI / 2;
           
           // Adjust text anchor based on position
@@ -134,35 +134,35 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
 
           return (
             <g key={i}>
-              {/* Icon above skill name - 30% larger */}
+              {/* Icon above skill name */}
               <foreignObject
-                x={labelPoint.x - 13}
-                y={labelPoint.y - 28}
-                width="26"
-                height="26"
+                x={labelPoint.x - 15}
+                y={labelPoint.y - 32}
+                width="30"
+                height="30"
               >
                 <div className="flex items-center justify-center">
-                  <SkillIcon className="w-[5.2px] h-[5.2px] text-yellow-400" strokeWidth={2.5} style={{width: '20.8px', height: '20.8px'}} />
+                  <SkillIcon className="w-6 h-6 text-yellow-400" strokeWidth={2.5} />
                 </div>
               </foreignObject>
               
-              {/* Skill name - 20% smaller */}
+              {/* Skill name */}
               <text
                 x={labelPoint.x}
                 y={labelPoint.y}
                 textAnchor={textAnchor}
-                className="text-[9.6px] font-semibold fill-yellow-200"
+                className="text-xs font-semibold fill-yellow-200"
                 dy="0.3em"
               >
                 {skill.name}
               </text>
               
-              {/* Level - 20% smaller */}
+              {/* Level */}
               <text
                 x={labelPoint.x}
-                y={labelPoint.y + 11}
+                y={labelPoint.y + 13}
                 textAnchor={textAnchor}
-                className="text-[8px] fill-yellow-400 font-bold"
+                className="text-[10px] fill-yellow-400 font-bold"
                 dy="0.3em"
               >
                 Lv {skill.level}
@@ -174,12 +174,12 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
         {/* Center point */}
         <circle cx={center} cy={center} r="4" fill="rgb(234, 179, 8)" />
         
-        {/* Max level indicator - 20% smaller */}
+        {/* Max level indicator */}
         <text
           x={center}
-          y={center - radius - 15}
+          y={center - radius - 20}
           textAnchor="middle"
-          className="text-[8px] fill-yellow-200/60 italic"
+          className="text-[10px] fill-yellow-200/60 italic"
         >
           Max: Lv {chartMax}
         </text>
