@@ -54,9 +54,10 @@ export default function Home() {
   
   // Undo functionality state
   const [lastAction, setLastAction] = useState<{
-    type: 'complete' | 'append-notion' | 'delete-notion' | null;
+    type: 'complete' | 'append-notion' | 'delete-notion' | 'import-notion' | 'export-notion' | null;
     taskIds: number[];
     goldEarned?: number;
+    exportDetails?: { exported: number[]; linked: number[] }; // For export undo
   }>({ type: null, taskIds: [] });
   
   const { toast } = useToast();
@@ -325,6 +326,22 @@ export default function Home() {
           });
           description = `${lastAction.taskIds.length} task${lastAction.taskIds.length > 1 ? 's' : ''} restored to Notion`;
           break;
+        
+        case 'import-notion':
+          response = await apiRequest("POST", "/api/notion/undo-import", {
+            taskIds: lastAction.taskIds
+          });
+          description = `Deleted ${lastAction.taskIds.length} imported task${lastAction.taskIds.length > 1 ? 's' : ''} from app`;
+          break;
+        
+        case 'export-notion':
+          response = await apiRequest("POST", "/api/notion/undo-export", {
+            exportedTaskIds: lastAction.exportDetails?.exported || [],
+            linkedTaskIds: lastAction.exportDetails?.linked || []
+          });
+          const result = await response.json();
+          description = `Undid export: ${result.removed || 0} removed from Notion, ${result.unlinked || 0} unlinked`;
+          break;
       }
 
       // Clear last action
@@ -386,6 +403,15 @@ export default function Home() {
       setShowImportConfirm(false);
       setShowDuplicateConfirm(false);
       refetchTasks();
+      
+      // Track imported tasks for undo
+      if (result.importedTaskIds && result.importedTaskIds.length > 0) {
+        setLastAction({
+          type: 'import-notion',
+          taskIds: result.importedTaskIds
+        });
+      }
+      
       toast({
         title: "Import Complete",
         description: `Imported ${result.count} tasks from Notion`,
@@ -407,9 +433,22 @@ export default function Home() {
       const result = await response.json();
       
       setShowExportConfirm(false);
+      
+      // Track exported tasks for undo
+      if (result.exportedTaskIds || result.linkedTaskIds) {
+        setLastAction({
+          type: 'export-notion',
+          taskIds: [...(result.exportedTaskIds || []), ...(result.linkedTaskIds || [])],
+          exportDetails: {
+            exported: result.exportedTaskIds || [],
+            linked: result.linkedTaskIds || []
+          }
+        });
+      }
+      
       toast({
         title: "Export Complete",
-        description: `Exported ${result.count} tasks to Notion`,
+        description: `Exported ${result.exported} new, ${result.linked} linked, ${result.skipped} skipped`,
       });
     } catch (error) {
       toast({
@@ -670,7 +709,13 @@ export default function Home() {
                   <path d="M3 7v6h6"/>
                   <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
                 </svg>
-                <span>Undo {lastAction.type === 'complete' ? 'Complete' : lastAction.type === 'append-notion' ? 'Append' : 'Delete'}</span>
+                <span>Undo {
+                  lastAction.type === 'complete' ? 'Complete' : 
+                  lastAction.type === 'append-notion' ? 'Append' : 
+                  lastAction.type === 'delete-notion' ? 'Delete' :
+                  lastAction.type === 'import-notion' ? 'Import' :
+                  lastAction.type === 'export-notion' ? 'Export' : ''
+                }</span>
               </Button>
             )}
             <Button onClick={handleImportPrepare} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">

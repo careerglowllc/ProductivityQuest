@@ -851,6 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       let importedCount = 0;
+      const importedTaskIds: number[] = []; // Track imported task IDs for undo
 
       for (const notionTask of notionTasks) {
         try {
@@ -877,14 +878,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             velin: notionTask.velin,
           };
 
-          await storage.createTask(taskData);
+          const createdTask = await storage.createTask(taskData);
+          if (createdTask && createdTask.id) {
+            importedTaskIds.push(createdTask.id);
+          }
           importedCount++;
         } catch (error) {
           console.error("Error importing task:", error);
         }
       }
 
-      res.json({ success: true, count: importedCount });
+      res.json({ success: true, count: importedCount, importedTaskIds });
     } catch (error: any) {
       console.error("Notion import error:", error);
       
@@ -1076,6 +1080,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Undo import from Notion (delete imported tasks from app)
+  app.post("/api/notion/undo-import", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+      
+      if (!taskIds || !Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "Task IDs array is required" });
+      }
+
+      let deletedCount = 0;
+
+      for (const taskId of taskIds) {
+        try {
+          const task = await storage.getTask(taskId, userId);
+          if (task && task.userId === userId) {
+            // Permanently delete the imported task from the app
+            await storage.deleteTask(taskId, userId);
+            deletedCount++;
+          }
+        } catch (error) {
+          console.error(`Error deleting imported task ${taskId}:`, error);
+        }
+      }
+
+      res.json({ message: `Successfully deleted ${deletedCount} imported tasks`, count: deletedCount });
+    } catch (error) {
+      console.error("Notion undo import error:", error);
+      res.status(500).json({ error: "Failed to undo import from Notion" });
+    }
+  });
+
+  // Undo export to Notion (remove from Notion or unlink)
+  app.post("/api/notion/undo-export", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      const { exportedTaskIds, linkedTaskIds } = req.body;
+      
+      if (!user?.notionApiKey) {
+        return res.status(400).json({ error: "Notion API key not configured" });
+      }
+
+      const { deleteTaskFromNotion } = await import("./notion");
+      let removedCount = 0;
+      let unlinkedCount = 0;
+
+      // For exported tasks: delete from Notion and remove notionId
+      if (exportedTaskIds && Array.isArray(exportedTaskIds)) {
+        for (const taskId of exportedTaskIds) {
+          try {
+            const task = await storage.getTask(taskId, userId);
+            if (task && task.userId === userId && task.notionId) {
+              // Delete from Notion
+              await deleteTaskFromNotion(task.notionId, user.notionApiKey);
+              
+              // Remove notion ID from task
+              await storage.updateTask(taskId, { notionId: null }, userId);
+              removedCount++;
+            }
+          } catch (error) {
+            console.error(`Error removing exported task ${taskId} from Notion:`, error);
+          }
+        }
+      }
+
+      // For linked tasks: just remove the notionId (don't delete from Notion as it existed before)
+      if (linkedTaskIds && Array.isArray(linkedTaskIds)) {
+        for (const taskId of linkedTaskIds) {
+          try {
+            const task = await storage.getTask(taskId, userId);
+            if (task && task.userId === userId) {
+              // Just remove the notionId link
+              await storage.updateTask(taskId, { notionId: null }, userId);
+              unlinkedCount++;
+            }
+          } catch (error) {
+            console.error(`Error unlinking task ${taskId}:`, error);
+          }
+        }
+      }
+
+      res.json({ 
+        message: `Undo export complete: ${removedCount} removed from Notion, ${unlinkedCount} unlinked`,
+        removed: removedCount,
+        unlinked: unlinkedCount
+      });
+    } catch (error) {
+      console.error("Notion undo export error:", error);
+      res.status(500).json({ error: "Failed to undo export to Notion" });
+    }
+  });
+
   // Export ALL tasks to Notion (replace all Notion tasks with app tasks)
   app.post("/api/notion/export", requireAuth, async (req: any, res) => {
     try {
@@ -1104,6 +1201,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let exportedCount = 0;
       let updatedCount = 0;
       let skippedCount = 0;
+      const exportedTaskIds: number[] = []; // Track tasks that were newly exported
+      const linkedTaskIds: number[] = []; // Track tasks that were linked to existing Notion tasks
       
       for (const task of activeTasks) {
         try {
@@ -1125,6 +1224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Task with same title exists in Notion but app task doesn't have notionId
             // Link them instead of creating duplicate
             await storage.updateTask(task.id, { notionId: existingNotionId }, userId);
+            linkedTaskIds.push(task.id);
             updatedCount++;
             continue;
           }
@@ -1134,6 +1234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Update task with Notion ID so it's synced
           await storage.updateTask(task.id, { notionId }, userId);
+          exportedTaskIds.push(task.id);
           exportedCount++;
         } catch (error) {
           console.error(`Error exporting task ${task.id} to Notion:`, error);
@@ -1145,7 +1246,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exported: exportedCount,
         linked: updatedCount,
         skipped: skippedCount,
-        total: exportedCount + updatedCount + skippedCount
+        total: exportedCount + updatedCount + skippedCount,
+        exportedTaskIds,
+        linkedTaskIds
       });
     } catch (error) {
       console.error("Notion export error:", error);
