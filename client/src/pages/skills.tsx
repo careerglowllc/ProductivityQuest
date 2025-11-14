@@ -14,7 +14,9 @@ import {
   Zap, 
   Target,
   Crown,
-  Star
+  Star,
+  Grid3x3,
+  List
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -95,6 +97,7 @@ export default function Skills() {
   const isMobile = useIsMobile();
 
   const [selectedSkill, setSelectedSkill] = useState<typeof skills[0] | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
@@ -116,7 +119,9 @@ export default function Skills() {
             <Crown className="h-8 w-8 text-yellow-400" />
           </div>
           <p className="text-yellow-200/80 text-lg italic mb-6">Ascend Through the Constellations</p>
-          <div className="flex items-center justify-center gap-6">
+          
+          {/* Stats and View Toggle */}
+          <div className="flex items-center justify-center gap-6 mb-4">
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg px-6 py-3 border border-yellow-600/30">
               <div className="flex items-center gap-2">
                 <Star className="h-5 w-5 text-yellow-400" />
@@ -127,95 +132,197 @@ export default function Skills() {
               <span className="text-yellow-100 font-bold text-lg">{progress?.goldTotal || 0} 🪙 Gold</span>
             </div>
           </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-yellow-600/40 border-2 border-yellow-500/60 text-yellow-100'
+                  : 'bg-slate-800/30 border-2 border-yellow-600/20 text-yellow-200/60 hover:border-yellow-500/40'
+              }`}
+            >
+              <Grid3x3 className="h-4 w-4" />
+              <span className="font-semibold">Grid</span>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                viewMode === 'list'
+                  ? 'bg-yellow-600/40 border-2 border-yellow-500/60 text-yellow-100'
+                  : 'bg-slate-800/30 border-2 border-yellow-600/20 text-yellow-200/60 hover:border-yellow-500/40'
+              }`}
+            >
+              <List className="h-4 w-4" />
+              <span className="font-semibold">List</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Skills Constellation Grid */}
+      {/* Skills Constellation Grid or List */}
       <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-3 gap-8">
-          {skills.map((skill) => {
-            const Icon = skill.icon;
-            const progressPercent = (skill.xp / skill.maxXp) * 100;
-            
-            return (
-              <div 
-                key={skill.id} 
-                className="relative group cursor-pointer"
-                onClick={() => setSelectedSkill(skill)}
-              >
-                {/* Constellation Card */}
-                <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all duration-500 overflow-hidden">
-                  <div className="p-6">
-                    {/* Level Badge */}
-                    <Badge className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-sm px-3 py-1 shadow-lg">
-                      Level {skill.level}
-                    </Badge>
+        {viewMode === 'grid' ? (
+          /* Grid View */
+          <div className="grid grid-cols-3 gap-8">
+            {skills.map((skill) => {
+              const Icon = skill.icon;
+              const progressPercent = (skill.xp / skill.maxXp) * 100;
+              
+              return (
+                <div 
+                  key={skill.id} 
+                  className="relative group cursor-pointer"
+                  onClick={() => setSelectedSkill(skill)}
+                >
+                  {/* Constellation Card */}
+                  <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all duration-500 overflow-hidden">
+                    <div className="p-6">
+                      {/* Level Badge */}
+                      <Badge className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-sm px-3 py-1 shadow-lg">
+                        Level {skill.level}
+                      </Badge>
 
-                    {/* Rounded Square Icon with Bottom-to-Top Fill */}
-                    <div className="relative w-28 h-28 mx-auto mb-4">
-                      {/* Background glow */}
-                      <div className="absolute inset-0 bg-yellow-400/10 rounded-2xl blur-xl group-hover:bg-yellow-400/20 transition-all"></div>
-                      
-                      {/* Icon container - rounded square */}
-                      <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-yellow-600/40 group-hover:border-yellow-500/70 transition-all bg-slate-700/30">
-                        {/* Gray base (unfilled background) */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
+                      {/* Rounded Square Icon with Bottom-to-Top Fill */}
+                      <div className="relative w-28 h-28 mx-auto mb-4">
+                        {/* Background glow */}
+                        <div className="absolute inset-0 bg-yellow-400/10 rounded-2xl blur-xl group-hover:bg-yellow-400/20 transition-all"></div>
                         
-                        {/* Yellow fill from bottom to top */}
-                        <div 
-                          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all duration-1000 ease-out"
-                          style={{ 
-                            height: `${progressPercent}%`,
-                            boxShadow: '0 0 20px rgba(250, 204, 21, 0.4)'
-                          }}
-                        ></div>
+                        {/* Icon container - rounded square */}
+                        <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-yellow-600/40 group-hover:border-yellow-500/70 transition-all bg-slate-700/30">
+                          {/* Gray base (unfilled background) */}
+                          <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
+                          
+                          {/* Yellow fill from bottom to top */}
+                          <div 
+                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all duration-1000 ease-out"
+                            style={{ 
+                              height: `${progressPercent}%`,
+                              boxShadow: '0 0 20px rgba(250, 204, 21, 0.4)'
+                            }}
+                          ></div>
+                          
+                          {/* Icon overlay - always centered and visible */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Icon 
+                              className="h-16 w-16 text-slate-900/80 drop-shadow-lg" 
+                              strokeWidth={2.5}
+                              style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Constellation Name */}
+                      <div className="text-center mb-3">
+                        <h3 className="text-xl font-serif font-bold text-yellow-100 mb-1 tracking-wide">
+                          {skill.name}
+                        </h3>
+                        <p className="text-xs text-yellow-400/70 italic font-serif">
+                          {skill.constellation}
+                        </p>
+                      </div>
+
+                      {/* XP Display */}
+                      <div className="bg-slate-900/50 rounded-lg p-3 border border-yellow-600/20">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp} XP</span>
+                          <span className="text-sm text-yellow-400 font-bold">{Math.round(progressPercent)}%</span>
+                        </div>
                         
-                        {/* Icon overlay - always centered and visible */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Icon 
-                            className="h-16 w-16 text-slate-900/80 drop-shadow-lg" 
-                            strokeWidth={2.5}
-                            style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))' }}
-                          />
+                        <p className="text-center text-xs text-yellow-300/60 font-serif italic">
+                          {skill.maxXp - skill.xp} XP to next level
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Hover glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-yellow-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </Card>
+
+                  {/* Connecting constellation lines (decorative) */}
+                  {skill.id % 3 !== 0 && (
+                    <div className="absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-yellow-600/30 to-transparent hidden lg:block"></div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* List View */
+          <div className="space-y-4">
+            {skills.map((skill) => {
+              const Icon = skill.icon;
+              const progressPercent = (skill.xp / skill.maxXp) * 100;
+              
+              return (
+                <Card 
+                  key={skill.id}
+                  className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all cursor-pointer overflow-hidden"
+                  onClick={() => setSelectedSkill(skill)}
+                >
+                  <div className="p-4">
+                    <div className="flex items-center gap-6">
+                      {/* Icon Section */}
+                      <div className="relative w-20 h-20 flex-shrink-0">
+                        <div className="absolute inset-0 bg-yellow-400/10 rounded-2xl blur-lg"></div>
+                        <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-yellow-600/40 bg-slate-700/30">
+                          <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
+                          <div 
+                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400"
+                            style={{ 
+                              height: `${progressPercent}%`,
+                              boxShadow: '0 0 20px rgba(250, 204, 21, 0.4)'
+                            }}
+                          ></div>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Icon 
+                              className="h-12 w-12 text-slate-900/80 drop-shadow-lg" 
+                              strokeWidth={2.5}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Info Section */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-2xl font-serif font-bold text-yellow-100 tracking-wide">
+                            {skill.name}
+                          </h3>
+                          <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold">
+                            Level {skill.level}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-yellow-400/70 italic font-serif mb-3">
+                          {skill.constellation}
+                        </p>
+                        
+                        {/* Progress Bar */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp} XP</span>
+                            <span className="text-yellow-400 font-bold">{Math.round(progressPercent)}%</span>
+                          </div>
+                          <div className="h-3 bg-slate-900/50 rounded-full overflow-hidden border border-yellow-600/20">
+                            <div 
+                              className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-1000"
+                              style={{ width: `${progressPercent}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-yellow-300/60 font-serif italic">
+                            {skill.maxXp - skill.xp} XP to next level
+                          </p>
                         </div>
                       </div>
                     </div>
-
-                    {/* Constellation Name */}
-                    <div className="text-center mb-3">
-                      <h3 className="text-xl font-serif font-bold text-yellow-100 mb-1 tracking-wide">
-                        {skill.name}
-                      </h3>
-                      <p className="text-xs text-yellow-400/70 italic font-serif">
-                        {skill.constellation}
-                      </p>
-                    </div>
-
-                    {/* XP Display */}
-                    <div className="bg-slate-900/50 rounded-lg p-3 border border-yellow-600/20">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp} XP</span>
-                        <span className="text-sm text-yellow-400 font-bold">{Math.round(progressPercent)}%</span>
-                      </div>
-                      
-                      <p className="text-center text-xs text-yellow-300/60 font-serif italic">
-                        {skill.maxXp - skill.xp} XP to next level
-                      </p>
-                    </div>
                   </div>
-
-                  {/* Hover glow effect */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-yellow-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                 </Card>
-
-                {/* Connecting constellation lines (decorative) */}
-                {skill.id % 3 !== 0 && (
-                  <div className="absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-yellow-600/30 to-transparent hidden lg:block"></div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Ancient Tome Info Section */}
         <Card className="mt-12 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 overflow-hidden">
