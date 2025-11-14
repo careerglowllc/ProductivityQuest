@@ -27,22 +27,25 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 
 - **Create and manage tasks** with rich metadata (due dates, importance, life domains, filters)
 - **Earn gold** by completing tasks based on duration and complexity
-- **Level up 9 unique skills** representing different life areas
+- **Level up skills** - 9 default skills + unlimited custom skills
 - **Purchase rewards** from a customizable shop using earned gold
 - **Sync with Notion** for seamless task management across platforms
 - **Integrate Google Calendar** for time-based task organization
 - **Track progress** through detailed dashboards and statistics
 - **Recycle tasks** instead of deleting them for better task management
+- **Create custom skills** tailored to your personal development goals
 
 ### Key Differentiators
 
-- **Constellation-themed skills system** with 9 distinct skill paths
+- **Constellation-themed skills system** with 9 default skills
+- **✨ NEW: Custom Skills System** - Create unlimited personalized skills with AI categorization
 - **Dual-view support** (Grid/List) for different user preferences
 - **Batch operations** for managing multiple tasks efficiently
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
 - **Notion bi-directional sync** (create, update, delete tasks)
 - **Google Calendar integration** for scheduling
 - **Emoji-based shop system** with nature and celestial themes
+- **AI-powered task categorization** using OpenAI with your custom skills
 - **Comprehensive test suite** covering all major features
 
 ---
@@ -257,28 +260,40 @@ ProductivityQuest/
 #### `userSkills` - Individual Skill Progression
 ```typescript
 {
-  id: serial (PK)                    // Skill record ID
-  userId: varchar (FK → users.id)   // User reference
-  skillName: varchar (required)      // Skill identifier
-  skillIcon: text                    // Custom icon/emoji
-  level: integer (default: 1)        // Current skill level
-  xp: integer (default: 0)           // Current XP points
-  maxXp: integer (default: 100)      // XP needed for next level
-  createdAt: timestamp               // Skill creation time
-  updatedAt: timestamp               // Last update time
+  id: serial (PK)                       // Skill record ID
+  userId: varchar (FK → users.id)      // User reference
+  skillName: varchar (required)         // Skill identifier
+  skillIcon: text                       // ✨ Custom icon name (Lucide icon)
+  skillDescription: text                // ✨ Description for AI categorization
+  skillMilestones: jsonb                // ✨ Array of milestone strings
+  isCustom: boolean (default: false)    // ✨ Custom vs default skill
+  level: integer (default: 1)           // Current skill level
+  xp: integer (default: 0)              // Current XP points
+  maxXp: integer (default: 100)         // XP needed for next level
+  createdAt: timestamp                  // Skill creation time
+  updatedAt: timestamp                  // Last update time
 }
 ```
 
-**Current Default Skills** (9 total):
+**Default Skills** (9 total):
 1. **Craftsman** 🔧 - Building and creating physical objects
 2. **Artist** 🎨 - Creative expression and artistic work
-3. **Alchemist** 🧪 - Mental transformation and positive mindset
+3. **Mindset** 🧪 - Mental transformation and positive mindset
 4. **Merchant** 💼 - Business acumen and wealth building
-5. **Physical** 🏋️ - Martial arts, strength, firearms, cardio
+5. **Physical** ⚔️ - Martial arts, strength, firearms, cardio
 6. **Scholar** 📚 - Academic knowledge and continuous learning
-7. **Health** 📊 - Physical and biological wellness
-8. **Athlete** ⚡ - Sports performance and fitness
+7. **Health** 💊 - Physical and biological wellness
+8. **Connector** 🔗 - Networking and building relationships
 9. **Charisma** 👥 - Charm, connection, and social influence
+
+**✨ NEW: Custom Skills System**
+- **Unlimited custom skills** per user
+- **20 icon options** (Brain, Wrench, Palette, Star, Heart, Trophy, etc.)
+- **AI categorization** uses custom skill descriptions
+- **Visual indicators** - purple badges, delete buttons, custom colors
+- **Dynamic spider chart** - renders all user skills
+- **Complete user isolation** - custom skills are private
+- See [CUSTOM_SKILLS.md](CUSTOM_SKILLS.md) for full documentation
 
 #### `shopItems` - Purchasable Items
 ```typescript
@@ -504,6 +519,13 @@ interface ShopItem {
 - `POST /api/shop/purchase` - Purchase item with gold
 - `GET /api/progress` - Get user progress stats
 - `GET /api/stats` - Get daily/weekly statistics
+
+### ✨ Custom Skills (NEW)
+- `POST /api/skills/custom` - Create custom skill
+- `DELETE /api/skills/:id` - Delete custom skill
+- `GET /api/skills` - Get all user skills (default + custom)
+- See [CUSTOM_SKILLS.md](CUSTOM_SKILLS.md) for detailed API documentation
+- See [CUSTOM_SKILLS_TEST_CASES.md](CUSTOM_SKILLS_TEST_CASES.md) for 55 test cases
 
 ## 🎨 UI Components & Styling
 
