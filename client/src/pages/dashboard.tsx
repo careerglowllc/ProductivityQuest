@@ -191,16 +191,6 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
 
         {/* Center point */}
         <circle cx={center} cy={center} r="4" fill="rgb(234, 179, 8)" />
-        
-        {/* Max level indicator */}
-        <text
-          x={center}
-          y={center - radius - 20}
-          textAnchor="middle"
-          className="text-[10px] fill-yellow-200/60 italic"
-        >
-          Max: Lv {chartMax}
-        </text>
       </svg>
     </div>
   );
