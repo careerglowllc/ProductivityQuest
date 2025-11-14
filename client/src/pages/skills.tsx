@@ -17,15 +17,15 @@ import {
 } from "lucide-react";
 
 const skills = [
-  { id: 1, name: "Craftsman", icon: Wrench, level: 3, xp: 750, maxXp: 1000, constellation: "The Forge" },
-  { id: 2, name: "Artist", icon: Palette, level: 5, xp: 1200, maxXp: 1500, constellation: "The Muse" },
+  { id: 1, name: "Craftsman", icon: Wrench, level: 5, xp: 750, maxXp: 1000, constellation: "The Forge" },
+  { id: 2, name: "Artist", icon: Palette, level: 3, xp: 1200, maxXp: 1500, constellation: "The Muse" },
   { id: 3, name: "Alchemist", icon: TestTube, level: 2, xp: 400, maxXp: 800, constellation: "The Catalyst" },
-  { id: 4, name: "Merchant", icon: Briefcase, level: 4, xp: 900, maxXp: 1200, constellation: "The Trader" },
-  { id: 5, name: "Warrior", icon: Sword, level: 6, xp: 1800, maxXp: 2000, constellation: "The Blade" },
-  { id: 6, name: "Scholar", icon: Book, level: 3, xp: 600, maxXp: 1000, constellation: "The Sage" },
-  { id: 7, name: "Healer", icon: Heart, level: 2, xp: 350, maxXp: 800, constellation: "The Guardian" },
-  { id: 8, name: "Athlete", icon: Zap, level: 4, xp: 1100, maxXp: 1200, constellation: "The Swift" },
-  { id: 9, name: "Tactician", icon: Target, level: 3, xp: 700, maxXp: 1000, constellation: "The Strategist" },
+  { id: 4, name: "Merchant", icon: Briefcase, level: 12, xp: 900, maxXp: 1200, constellation: "The Trader" },
+  { id: 5, name: "Warrior", icon: Sword, level: 5, xp: 1800, maxXp: 2000, constellation: "The Blade" },
+  { id: 6, name: "Scholar", icon: Book, level: 14, xp: 600, maxXp: 1000, constellation: "The Sage" },
+  { id: 7, name: "Healer", icon: Heart, level: 3, xp: 350, maxXp: 800, constellation: "The Guardian" },
+  { id: 8, name: "Athlete", icon: Zap, level: 7, xp: 1100, maxXp: 1200, constellation: "The Swift" },
+  { id: 9, name: "Tactician", icon: Target, level: 8, xp: 700, maxXp: 1000, constellation: "The Strategist" },
 ];
 
 export default function Skills() {
