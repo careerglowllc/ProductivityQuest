@@ -41,6 +41,7 @@ export interface IStorage {
   updateUserSkillById(userId: string, skillId: number, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
   addSkillXp(userId: string, skillName: string, xp: number): Promise<UserSkill | undefined>;
   ensureDefaultSkills(userId: string): Promise<void>;
+  restoreDefaultSkills(userId: string): Promise<void>;
   
   // Purchase operations
   getPurchases(userId: string): Promise<Purchase[]>;
