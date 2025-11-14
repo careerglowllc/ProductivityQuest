@@ -292,40 +292,40 @@ export default function Dashboard() {
           <p className="text-yellow-200/70">Ready to level up your productivity?</p>
         </div>
 
-        {/* Stats Summary Cards - Skyrim Style */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+        {/* Stats Summary Cards - 70% smaller */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
           <Card className="bg-gradient-to-br from-purple-900/60 to-purple-800/60 backdrop-blur-md border-2 border-purple-500/30 text-white hover:border-purple-400/60 transition-all">
-            <CardContent className="p-4">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-200 text-xs font-medium mb-1">Total Gold</p>
-                  <p className="text-2xl font-bold text-yellow-300">{progress.goldTotal || 0}</p>
+                  <p className="text-purple-200 text-[10px] font-medium mb-0.5">Total Gold</p>
+                  <p className="text-base font-bold text-yellow-300">{progress.goldTotal || 0}</p>
                 </div>
-                <Coins className="h-8 w-8 text-yellow-400/50" />
+                <Coins className="h-5 w-5 text-yellow-400/50" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-blue-900/60 to-blue-800/60 backdrop-blur-md border-2 border-blue-500/30 text-white hover:border-blue-400/60 transition-all">
-            <CardContent className="p-4">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-200 text-xs font-medium mb-1">Quests Completed</p>
-                  <p className="text-2xl font-bold text-yellow-300">{progress.tasksCompleted || 0}</p>
+                  <p className="text-blue-200 text-[10px] font-medium mb-0.5">Quests Completed</p>
+                  <p className="text-base font-bold text-yellow-300">{progress.tasksCompleted || 0}</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-blue-300/50" />
+                <CheckCircle className="h-5 w-5 text-blue-300/50" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-green-900/60 to-green-800/60 backdrop-blur-md border-2 border-green-500/30 text-white hover:border-green-400/60 transition-all">
-            <CardContent className="p-4">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-200 text-xs font-medium mb-1">Today's Progress</p>
-                  <p className="text-2xl font-bold text-yellow-300">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
+                  <p className="text-green-200 text-[10px] font-medium mb-0.5">Today's Progress</p>
+                  <p className="text-base font-bold text-yellow-300">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-300/50" />
+                <TrendingUp className="h-5 w-5 text-green-300/50" />
               </div>
             </CardContent>
           </Card>
