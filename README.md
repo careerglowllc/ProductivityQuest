@@ -34,11 +34,13 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Track progress** through detailed dashboards and statistics
 - **Recycle tasks** instead of deleting them for better task management
 - **Create custom skills** tailored to your personal development goals
+- **Recategorize tasks** - Manually adjust skill tags for selected tasks with sequential processing
 
 ### Key Differentiators
 
 - **Constellation-themed skills system** with 9 default skills
 - **✨ NEW: Custom Skills System** - Create unlimited personalized skills with AI categorization
+- **✨ NEW: Recategorize Feature** - Manually adjust skill tags on selected tasks with sequential modal workflow
 - **Dual-view support** (Grid/List) for different user preferences
 - **Batch operations** for managing multiple tasks efficiently
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
@@ -527,6 +529,13 @@ interface ShopItem {
 - See [CUSTOM_SKILLS.md](CUSTOM_SKILLS.md) for detailed API documentation
 - See [CUSTOM_SKILLS_TEST_CASES.md](CUSTOM_SKILLS_TEST_CASES.md) for 55 test cases
 
+### ✨ Task Recategorization (NEW)
+- `POST /api/tasks/categorize-feedback` - Manually adjust skill tags for tasks
+- **Sequential Processing**: Select multiple tasks and recategorize them one by one
+- **Task Counter**: Modal shows "Task X of Y" when processing multiple tasks
+- **Queue Management**: Automatic cleanup when modal closes or all tasks processed
+- See [RECATEGORIZE_TEST_CASES.md](RECATEGORIZE_TEST_CASES.md) for 25 comprehensive test cases
+
 ## 🎨 UI Components & Styling
 
 ### Component Architecture
@@ -537,6 +546,8 @@ interface ShopItem {
 
 ### Key UI Components
 - `TaskCard`: Individual task display with actions
+- `AddTaskModal`: Comprehensive task creation form with 15+ fields and validation
+- `SkillAdjustmentModal`: Modal for adjusting skill tags (used by AI Categorize and Recategorize features)
 - `ItemShopModal`: Shopping interface for gold spending
 - `RecyclingModal`: Tabbed interface for recycled tasks
 - `CompletionAnimation`: Celebratory animation for completions
@@ -623,6 +634,12 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - Touch-friendly interactions
 
 ## 🧪 Testing & Debugging
+
+### Test Documentation
+- **ADD_TASK_MODAL_TEST_CASES.md** - 60 test cases for task creation feature
+- **CUSTOM_SKILLS_TEST_CASES.md** - 55 test cases for custom skills system
+- **RECATEGORIZE_TEST_CASES.md** - 25 test cases for task recategorization feature
+- **TESTING.md** - Comprehensive testing documentation
 
 ### Debug Tools
 - **Debug Script**: `npm run debug` - Comprehensive functionality testing
