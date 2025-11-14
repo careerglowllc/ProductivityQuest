@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { UserProgress } from "@/../../shared/schema";
 import { 
@@ -12,19 +11,21 @@ import {
   Book, 
   Heart, 
   Zap, 
-  Target 
+  Target,
+  Crown,
+  Star
 } from "lucide-react";
 
 const skills = [
-  { id: 1, name: "Mechanic", icon: Wrench, level: 3, xp: 750, maxXp: 1000, color: "bg-orange-500" },
-  { id: 2, name: "Artist", icon: Palette, level: 5, xp: 1200, maxXp: 1500, color: "bg-purple-500" },
-  { id: 3, name: "Scientist", icon: TestTube, level: 2, xp: 400, maxXp: 800, color: "bg-blue-500" },
-  { id: 4, name: "Businessman", icon: Briefcase, level: 4, xp: 900, maxXp: 1200, color: "bg-green-500" },
-  { id: 5, name: "Warrior", icon: Sword, level: 6, xp: 1800, maxXp: 2000, color: "bg-red-500" },
-  { id: 6, name: "Scholar", icon: Book, level: 3, xp: 600, maxXp: 1000, color: "bg-indigo-500" },
-  { id: 7, name: "Healer", icon: Heart, level: 2, xp: 350, maxXp: 800, color: "bg-pink-500" },
-  { id: 8, name: "Athlete", icon: Zap, level: 4, xp: 1100, maxXp: 1200, color: "bg-yellow-500" },
-  { id: 9, name: "Strategist", icon: Target, level: 3, xp: 700, maxXp: 1000, color: "bg-teal-500" },
+  { id: 1, name: "Craftsman", icon: Wrench, level: 3, xp: 750, maxXp: 1000, constellation: "The Forge" },
+  { id: 2, name: "Artist", icon: Palette, level: 5, xp: 1200, maxXp: 1500, constellation: "The Muse" },
+  { id: 3, name: "Alchemist", icon: TestTube, level: 2, xp: 400, maxXp: 800, constellation: "The Catalyst" },
+  { id: 4, name: "Merchant", icon: Briefcase, level: 4, xp: 900, maxXp: 1200, constellation: "The Trader" },
+  { id: 5, name: "Warrior", icon: Sword, level: 6, xp: 1800, maxXp: 2000, constellation: "The Blade" },
+  { id: 6, name: "Scholar", icon: Book, level: 3, xp: 600, maxXp: 1000, constellation: "The Sage" },
+  { id: 7, name: "Healer", icon: Heart, level: 2, xp: 350, maxXp: 800, constellation: "The Guardian" },
+  { id: 8, name: "Athlete", icon: Zap, level: 4, xp: 1100, maxXp: 1200, constellation: "The Swift" },
+  { id: 9, name: "Tactician", icon: Target, level: 3, xp: 700, maxXp: 1000, constellation: "The Strategist" },
 ];
 
 export default function Skills() {
@@ -33,89 +34,183 @@ export default function Skills() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-blue-50 pb-24">
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 pb-24 relative overflow-hidden">
+      {/* Starfield Background Effect */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
+        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
+      </div>
+
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white pt-8 pb-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2">Your Skills</h1>
-          <p className="text-purple-100">Level up by completing quests!</p>
-          <div className="mt-4 flex items-center gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-              <span className="text-sm font-medium">Total XP: {(progress?.tasksCompleted || 0) * 100}</span>
+      <div className="relative pt-8 pb-12 px-4 border-b border-yellow-600/30">
+        <div className="max-w-5xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Crown className="h-8 w-8 text-yellow-400" />
+            <h1 className="text-4xl font-serif font-bold text-yellow-100 tracking-wide">Celestial Skills</h1>
+            <Crown className="h-8 w-8 text-yellow-400" />
+          </div>
+          <p className="text-yellow-200/80 text-lg italic mb-6">Ascend Through the Constellations</p>
+          <div className="flex items-center justify-center gap-6">
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg px-6 py-3 border border-yellow-600/30">
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-400" />
+                <span className="text-yellow-100 font-semibold">Total XP: {(progress?.tasksCompleted || 0) * 100}</span>
+              </div>
             </div>
-            <div className="bg-yellow-400 text-yellow-900 rounded-full px-4 py-2 font-bold">
-              {progress?.goldTotal || 0} 🪙
+            <div className="bg-yellow-600/20 backdrop-blur-sm rounded-lg px-6 py-3 border border-yellow-500/50">
+              <span className="text-yellow-100 font-bold text-lg">{progress?.goldTotal || 0} 🪙 Gold</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Skills Grid */}
-      <div className="max-w-4xl mx-auto px-4 -mt-6">
-        <div className="grid grid-cols-3 gap-4">
+      {/* Skills Constellation Grid */}
+      <div className="max-w-6xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-3 gap-8">
           {skills.map((skill) => {
             const Icon = skill.icon;
             const progressPercent = (skill.xp / skill.maxXp) * 100;
             
             return (
-              <Card 
+              <div 
                 key={skill.id} 
-                className="relative overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer group"
+                className="relative group cursor-pointer"
               >
-                <CardContent className="p-4">
-                  {/* Level Badge */}
-                  <Badge className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 font-bold">
-                    Lv {skill.level}
-                  </Badge>
+                {/* Constellation Card */}
+                <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all duration-500 overflow-hidden">
+                  <div className="p-6">
+                    {/* Level Badge */}
+                    <Badge className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-sm px-3 py-1 shadow-lg">
+                      Level {skill.level}
+                    </Badge>
 
-                  {/* Icon */}
-                  <div className={`${skill.color} w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform shadow-lg`}>
-                    <Icon className="h-8 w-8 text-white" strokeWidth={2.5} />
-                  </div>
+                    {/* Icon with Vertical Fill Progress */}
+                    <div className="relative w-28 h-28 mx-auto mb-4">
+                      {/* Background glow */}
+                      <div className="absolute inset-0 bg-yellow-400/10 rounded-full blur-xl group-hover:bg-yellow-400/20 transition-all"></div>
+                      
+                      {/* Icon container with mask */}
+                      <div className="relative w-full h-full">
+                        {/* Gray base icon (unfilled) */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Icon className="h-20 w-20 text-slate-600" strokeWidth={2} />
+                        </div>
+                        
+                        {/* Filled portion with vertical clip */}
+                        <div 
+                          className="absolute inset-0 overflow-hidden flex items-end"
+                          style={{ height: '100%' }}
+                        >
+                          <div 
+                            className="w-full transition-all duration-1000 ease-out flex items-center justify-center"
+                            style={{ 
+                              height: `${progressPercent}%`,
+                              filter: 'drop-shadow(0 0 8px rgba(250, 204, 21, 0.5))'
+                            }}
+                          >
+                            <div className="absolute inset-0 flex items-center justify-center" style={{ marginTop: `${100 - progressPercent}%` }}>
+                              <Icon className="h-20 w-20 text-yellow-400" strokeWidth={2} />
+                            </div>
+                          </div>
+                        </div>
 
-                  {/* Skill Name */}
-                  <h3 className="text-center font-bold text-gray-800 mb-3">
-                    {skill.name}
-                  </h3>
-
-                  {/* XP Progress */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-gray-600">
-                      <span>{skill.xp} XP</span>
-                      <span>{skill.maxXp} XP</span>
+                        {/* Ornate border circle */}
+                        <div className="absolute inset-0 border-2 border-yellow-600/40 rounded-full group-hover:border-yellow-500/70 transition-all"></div>
+                        <div className="absolute inset-2 border border-yellow-600/20 rounded-full group-hover:border-yellow-500/40 transition-all"></div>
+                      </div>
                     </div>
-                    <Progress 
-                      value={progressPercent} 
-                      className="h-2 bg-gray-200"
-                    />
+
+                    {/* Constellation Name */}
+                    <div className="text-center mb-3">
+                      <h3 className="text-xl font-serif font-bold text-yellow-100 mb-1 tracking-wide">
+                        {skill.name}
+                      </h3>
+                      <p className="text-xs text-yellow-400/70 italic font-serif">
+                        {skill.constellation}
+                      </p>
+                    </div>
+
+                    {/* XP Display */}
+                    <div className="bg-slate-900/50 rounded-lg p-3 border border-yellow-600/20">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp}</span>
+                        <span className="text-xs text-yellow-400/70">{Math.round(progressPercent)}%</span>
+                      </div>
+                      
+                      {/* Decorative progress indicator */}
+                      <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-1000"
+                          style={{ width: `${progressPercent}%` }}
+                        ></div>
+                      </div>
+                      
+                      <p className="text-center text-xs text-yellow-300/60 mt-2 font-serif italic">
+                        {skill.maxXp - skill.xp} XP to next level
+                      </p>
+                    </div>
                   </div>
 
-                  {/* XP to Next Level */}
-                  <p className="text-center text-xs text-gray-500 mt-2">
-                    {skill.maxXp - skill.xp} XP to Level {skill.level + 1}
-                  </p>
-                </CardContent>
-              </Card>
+                  {/* Hover glow effect */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-yellow-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                </Card>
+
+                {/* Connecting constellation lines (decorative) */}
+                {skill.id % 3 !== 0 && (
+                  <div className="absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-yellow-600/30 to-transparent hidden lg:block"></div>
+                )}
+              </div>
             );
           })}
         </div>
 
-        {/* Info Section */}
-        <Card className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-purple-200">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <Zap className="h-5 w-5 text-yellow-500" />
-              How to Level Up Skills
-            </h2>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p>• Complete quests related to each skill category</p>
-              <p>• Higher importance tasks give more XP</p>
-              <p>• Daily streaks multiply your XP gains</p>
-              <p>• Unlock special abilities at certain levels!</p>
+        {/* Ancient Tome Info Section */}
+        <Card className="mt-12 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 overflow-hidden">
+          <div className="p-8 relative">
+            {/* Decorative corner ornaments */}
+            <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-yellow-600/50"></div>
+            <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-yellow-600/50"></div>
+            <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-yellow-600/50"></div>
+            <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-yellow-600/50"></div>
+
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-serif font-bold text-yellow-100 mb-2 tracking-wide flex items-center justify-center gap-3">
+                <Book className="h-6 w-6 text-yellow-400" />
+                The Path of Ascension
+                <Book className="h-6 w-6 text-yellow-400" />
+              </h2>
+              <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-yellow-600/50 to-transparent mx-auto"></div>
             </div>
-          </CardContent>
+            
+            <div className="grid md:grid-cols-2 gap-6 text-yellow-100/90 max-w-3xl mx-auto">
+              <div className="space-y-3">
+                <p className="flex items-start gap-3 font-serif">
+                  <Star className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <span>Complete quests to fill your constellation with celestial power</span>
+                </p>
+                <p className="flex items-start gap-3 font-serif">
+                  <Star className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <span>Greater challenges yield more potent experience</span>
+                </p>
+              </div>
+              <div className="space-y-3">
+                <p className="flex items-start gap-3 font-serif">
+                  <Star className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <span>Maintain daily rituals to multiply thy gains</span>
+                </p>
+                <p className="flex items-start gap-3 font-serif">
+                  <Star className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <span>Unlock divine blessings at milestone levels</span>
+                </p>
+              </div>
+            </div>
+          </div>
         </Card>
       </div>
     </div>
   );
 }
+

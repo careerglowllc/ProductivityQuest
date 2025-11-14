@@ -9,6 +9,153 @@ import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calenda
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+// Skill data with levels (all set to 3 for now)
+const skillsData = [
+  { name: "Craftsman", level: 3 },
+  { name: "Artist", level: 3 },
+  { name: "Alchemist", level: 3 },
+  { name: "Merchant", level: 3 },
+  { name: "Warrior", level: 3 },
+  { name: "Scholar", level: 3 },
+  { name: "Healer", level: 3 },
+  { name: "Athlete", level: 3 },
+  { name: "Tactician", level: 3 },
+];
+
+// Spider Chart Component
+function SpiderChart({ skills }: { skills: typeof skillsData }) {
+  const maxSkillLevel = Math.max(...skills.map(s => s.level));
+  const chartMax = maxSkillLevel + 10; // +10 from highest level
+  const size = 400;
+  const center = size / 2;
+  const radius = size / 2 - 60;
+  const numSkills = skills.length;
+
+  // Calculate polygon points for skill levels
+  const getPoint = (index: number, value: number) => {
+    const angle = (Math.PI * 2 * index) / numSkills - Math.PI / 2;
+    const distance = (value / chartMax) * radius;
+    return {
+      x: center + distance * Math.cos(angle),
+      y: center + distance * Math.sin(angle),
+    };
+  };
+
+  // Create background grid circles
+  const gridLevels = [chartMax * 0.25, chartMax * 0.5, chartMax * 0.75, chartMax];
+  
+  // Create polygon path for skill levels
+  const skillPoints = skills.map((skill, i) => getPoint(i, skill.level));
+  const skillPath = skillPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+
+  return (
+    <div className="flex items-center justify-center">
+      <svg width={size} height={size} className="overflow-visible">
+        {/* Background circles */}
+        {gridLevels.map((level, i) => (
+          <circle
+            key={i}
+            cx={center}
+            cy={center}
+            r={(level / chartMax) * radius}
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth="1"
+            opacity={0.5}
+          />
+        ))}
+
+        {/* Axis lines from center to each skill */}
+        {skills.map((skill, i) => {
+          const endPoint = getPoint(i, chartMax);
+          return (
+            <line
+              key={i}
+              x1={center}
+              y1={center}
+              x2={endPoint.x}
+              y2={endPoint.y}
+              stroke="#d1d5db"
+              strokeWidth="1"
+              opacity={0.5}
+            />
+          );
+        })}
+
+        {/* Skill level polygon */}
+        <path
+          d={skillPath}
+          fill="rgba(147, 51, 234, 0.2)"
+          stroke="rgb(147, 51, 234)"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+
+        {/* Skill level points */}
+        {skillPoints.map((point, i) => (
+          <circle
+            key={i}
+            cx={point.x}
+            cy={point.y}
+            r="6"
+            fill="rgb(147, 51, 234)"
+            stroke="white"
+            strokeWidth="2"
+          />
+        ))}
+
+        {/* Skill labels */}
+        {skills.map((skill, i) => {
+          const labelPoint = getPoint(i, chartMax + 15);
+          const angle = (Math.PI * 2 * i) / numSkills - Math.PI / 2;
+          
+          // Adjust text anchor based on position
+          let textAnchor = 'middle';
+          if (Math.abs(Math.cos(angle)) > 0.5) {
+            textAnchor = Math.cos(angle) > 0 ? 'start' : 'end';
+          }
+
+          return (
+            <g key={i}>
+              <text
+                x={labelPoint.x}
+                y={labelPoint.y}
+                textAnchor={textAnchor}
+                className="text-sm font-semibold fill-gray-700"
+                dy="0.3em"
+              >
+                {skill.name}
+              </text>
+              <text
+                x={labelPoint.x}
+                y={labelPoint.y + 16}
+                textAnchor={textAnchor}
+                className="text-xs fill-purple-600 font-bold"
+                dy="0.3em"
+              >
+                Lv {skill.level}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Center point */}
+        <circle cx={center} cy={center} r="4" fill="rgb(147, 51, 234)" />
+        
+        {/* Max level indicator */}
+        <text
+          x={center}
+          y={center - radius - 20}
+          textAnchor="middle"
+          className="text-xs fill-gray-500 italic"
+        >
+          Max: Level {chartMax}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -186,6 +333,32 @@ export default function Dashboard() {
                   className="h-3"
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Skills Spider Chart */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold">Your Skills Overview</CardTitle>
+              <Link href="/skills">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  View Details
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <SpiderChart skills={skillsData} />
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                All skills are currently at <span className="font-semibold text-purple-600">Level 3</span>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Complete quests to level up your skills and expand your constellation
+              </p>
             </div>
           </CardContent>
         </Card>
