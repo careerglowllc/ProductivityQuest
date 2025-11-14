@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -693,6 +693,17 @@ export default function Home() {
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete from Notion
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        // TODO: Implement skill categorization
+                        console.log('Categorize skills for selected tasks');
+                      }}
+                      variant="outline"
+                      className="border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200"
+                    >
+                      <Tag className="w-4 h-4 mr-2" />
+                      Categorize Skill
                     </Button>
                   </div>
                 </div>
