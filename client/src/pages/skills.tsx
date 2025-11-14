@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AddSkillModal } from "@/components/add-skill-modal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { getSkillIcon } from "@/lib/skillIcons";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
 import { 
   Wrench, 
@@ -102,27 +103,123 @@ const skillDescriptions = {
   }
 };
 
-const skills = [
-  { id: 1, name: "Craftsman", icon: Wrench, level: 5, xp: 750, maxXp: 1000, constellation: "The Forge" },
-  { id: 2, name: "Artist", icon: Palette, level: 3, xp: 1200, maxXp: 1500, constellation: "The Muse" },
-  { id: 3, name: "Mindset", icon: Brain, level: 2, xp: 400, maxXp: 800, constellation: "The Transmuter" },
-  { id: 4, name: "Merchant", icon: Briefcase, level: 12, xp: 900, maxXp: 1200, constellation: "The Trader" },
-  { id: 5, name: "Physical", icon: Sword, level: 5, xp: 1800, maxXp: 2000, constellation: "The Titan" },
-  { id: 6, name: "Scholar", icon: Book, level: 14, xp: 600, maxXp: 1000, constellation: "The Sage" },
-  { id: 7, name: "Health", icon: Activity, level: 3, xp: 350, maxXp: 800, constellation: "The Vitality" },
-  { id: 8, name: "Connector", icon: Network, level: 7, xp: 1100, maxXp: 1200, constellation: "The Bridge" },
-  { id: 9, name: "Charisma", icon: Users, level: 8, xp: 700, maxXp: 1000, constellation: "The Influencer" },
-];
+// Default skill constellation names
+const skillConstellations: Record<string, string> = {
+  Craftsman: "The Forge",
+  Artist: "The Muse",
+  Mindset: "The Transmuter",
+  Merchant: "The Trader",
+  Physical: "The Titan",
+  Scholar: "The Sage",
+  Health: "The Vitality",
+  Connector: "The Bridge",
+  Charisma: "The Influencer"
+};
+
+// Default skill icon mapping
+const defaultSkillIcons: Record<string, any> = {
+  Craftsman: Wrench,
+  Artist: Palette,
+  Mindset: Brain,
+  Merchant: Briefcase,
+  Physical: Sword,
+  Scholar: Book,
+  Health: Activity,
+  Connector: Network,
+  Charisma: Users
+};
 
 export default function Skills() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  
   const { data: progress } = useQuery<UserProgress>({
     queryKey: ["/api/progress"],
   });
-  const isMobile = useIsMobile();
+  
+  const { data: skills = [], isLoading } = useQuery<UserSkill[]>({
+    queryKey: ["/api/skills"],
+  });
 
-  const [selectedSkill, setSelectedSkill] = useState<typeof skills[0] | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<UserSkill | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [skillToDelete, setSkillToDelete] = useState<UserSkill | null>(null);
 
+  const createSkillMutation = useMutation({
+    mutationFn: async (skillData: any) => {
+      return await apiRequest("POST", "/api/skills/custom", skillData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
+      toast({
+        title: "✓ Custom Skill Created!",
+        description: "Your new skill has been added to your constellation.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Creating Skill",
+        description: error.message || "Failed to create custom skill",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSkillMutation = useMutation({
+    mutationFn: async (skillId: number) => {
+      return await apiRequest("DELETE", `/api/skills/${skillId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
+      toast({
+        title: "✓ Skill Deleted",
+        description: "The custom skill has been removed from all tasks.",
+      });
+      setShowDeleteDialog(false);
+      setSkillToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Deleting Skill",
+        description: error.message || "Failed to delete skill",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteSkill = () => {
+    if (skillToDelete) {
+      deleteSkillMutation.mutate(skillToDelete.id);
+    }
+  };
+
+  // Helper to get skill icon
+  const getSkillIconComponent = (skill: UserSkill) => {
+    if (skill.skillIcon) {
+      return getSkillIcon(skill.skillIcon);
+    }
+    return defaultSkillIcons[skill.skillName] || Star;
+  };
+
+  // Helper to get constellation name
+  const getConstellation = (skill: UserSkill) => {
+    if (skill.isCustom) {
+      return "Custom Skill";
+    }
+    return skillConstellations[skill.skillName] || "The Seeker";
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center">
+        <div className="text-yellow-200 text-xl">Loading skills...</div>
+      </div>
+    );
+  }
+  
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
       {/* Starfield Background Effect */}
@@ -155,7 +252,7 @@ export default function Skills() {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 mb-4">
             <button
               onClick={() => setViewMode('grid')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -179,6 +276,17 @@ export default function Skills() {
               <span className="font-semibold">List</span>
             </button>
           </div>
+          
+          {/* Create Custom Skill Button */}
+          <div className="flex items-center justify-center mt-4">
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white border-2 border-purple-400 shadow-lg"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Custom Skill
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -188,7 +296,8 @@ export default function Skills() {
           /* Grid View */
           <div className="grid grid-cols-3 gap-8">
             {skills.map((skill) => {
-              const Icon = skill.icon;
+              const Icon = getSkillIconComponent(skill);
+              const constellation = getConstellation(skill);
               const progressPercent = (skill.xp / skill.maxXp) * 100;
               
               return (
@@ -197,6 +306,22 @@ export default function Skills() {
                   className="relative group cursor-pointer"
                   onClick={() => setSelectedSkill(skill)}
                 >
+                  {/* Delete Button for Custom Skills */}
+                  {skill.isCustom && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSkillToDelete(skill);
+                        setShowDeleteDialog(true);
+                      }}
+                      className="absolute -top-2 -right-2 z-10 h-8 w-8 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                    >
+                      <Trash2 className="h-4 w-4 text-white" />
+                    </Button>
+                  )}
+                  
                   {/* Constellation Card */}
                   <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all duration-500 overflow-hidden">
                     <div className="p-6">
@@ -204,6 +329,13 @@ export default function Skills() {
                       <Badge className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-sm px-3 py-1 shadow-lg">
                         Level {skill.level}
                       </Badge>
+                      
+                      {/* Custom Skill Badge */}
+                      {skill.isCustom && (
+                        <Badge className="absolute top-3 left-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white border-purple-400 font-bold text-xs px-2 py-1">
+                          Custom
+                        </Badge>
+                      )}
 
                       {/* Rounded Square Icon with Bottom-to-Top Fill */}
                       <div className="relative w-28 h-28 mx-auto mb-4">
@@ -238,10 +370,10 @@ export default function Skills() {
                       {/* Constellation Name */}
                       <div className="text-center mb-3">
                         <h3 className="text-xl font-serif font-bold text-yellow-100 mb-1 tracking-wide">
-                          {skill.name}
+                          {skill.skillName}
                         </h3>
                         <p className="text-xs text-yellow-400/70 italic font-serif">
-                          {skill.constellation}
+                          {constellation}
                         </p>
                       </div>
 
@@ -274,7 +406,8 @@ export default function Skills() {
           /* List View */
           <div className="space-y-4">
             {skills.map((skill) => {
-              const Icon = skill.icon;
+              const Icon = getSkillIconComponent(skill);
+              const constellation = getConstellation(skill);
               const progressPercent = (skill.xp / skill.maxXp) * 100;
               
               return (
@@ -310,14 +443,14 @@ export default function Skills() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-2xl font-serif font-bold text-yellow-100 tracking-wide">
-                            {skill.name}
+                            {skill.skillName}
                           </h3>
                           <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold">
                             Level {skill.level}
                           </Badge>
                         </div>
                         <p className="text-sm text-yellow-400/70 italic font-serif mb-3">
-                          {skill.constellation}
+                          {constellation}
                         </p>
                         
                         {/* Progress Bar */}
@@ -409,31 +542,31 @@ export default function Skills() {
                     ></div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       {(() => {
-                        const Icon = selectedSkill.icon;
+                        const Icon = getSkillIconComponent(selectedSkill);
                         return <Icon className="h-10 w-10 text-slate-900/80" strokeWidth={2.5} />;
                       })()}
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      {selectedSkill.name}
+                      {selectedSkill.skillName}
                       <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold">
                         Level {selectedSkill.level}
                       </Badge>
                     </div>
-                    <p className="text-sm text-yellow-400/70 italic font-normal mt-1">{selectedSkill.constellation}</p>
+                    <p className="text-sm text-yellow-400/70 italic font-normal mt-1">{getConstellation(selectedSkill)}</p>
                   </div>
                 </>
               )}
             </DialogTitle>
           </DialogHeader>
           
-          {selectedSkill && skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions] && (
+          {selectedSkill && skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions] && (
             <div className="space-y-6 mt-4">
               {/* Description */}
               <div className="bg-slate-900/50 rounded-lg p-4 border border-yellow-600/20">
                 <p className="text-yellow-200/90 font-serif leading-relaxed">
-                  {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].description}
+                  {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].description}
                 </p>
               </div>
 
@@ -451,7 +584,7 @@ export default function Skills() {
                     <span className="text-sm text-blue-200/70 font-serif italic">Novice</span>
                   </div>
                   <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level10}
+                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level10}
                   </p>
                 </div>
 
@@ -462,7 +595,7 @@ export default function Skills() {
                     <span className="text-sm text-purple-200/70 font-serif italic">Expert</span>
                   </div>
                   <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level30}
+                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level30}
                   </p>
                 </div>
 
@@ -473,7 +606,7 @@ export default function Skills() {
                     <span className="text-sm text-yellow-200/70 font-serif italic">Grandmaster</span>
                   </div>
                   <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level50}
+                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level50}
                   </p>
                 </div>
 
@@ -484,7 +617,7 @@ export default function Skills() {
                     <span className="text-sm text-red-200/90 font-serif italic font-bold">✨ Legendary ✨</span>
                   </div>
                   <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.name as keyof typeof skillDescriptions].level99}
+                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level99}
                   </p>
                 </div>
               </div>
@@ -512,6 +645,37 @@ export default function Skills() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Add Custom Skill Modal */}
+      <AddSkillModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        onSubmit={async (skillData) => {
+          await createSkillMutation.mutateAsync(skillData);
+        }}
+      />
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Custom Skill?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{skillToDelete?.skillName}" and remove it from all tasks.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteSkill}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Skill
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
