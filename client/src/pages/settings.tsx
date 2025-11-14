@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette } from "lucide-react";
+import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function SettingsPage() {
@@ -39,6 +39,13 @@ export default function SettingsPage() {
       icon: Calendar,
       path: "/settings/google-calendar",
       color: "from-blue-500 to-blue-600",
+    },
+    {
+      title: "Guides",
+      description: "Learn how to use ProductivityQuest features",
+      icon: BookOpen,
+      path: "/settings/guides",
+      color: "from-indigo-500 to-indigo-600",
     },
     {
       title: "Account",
