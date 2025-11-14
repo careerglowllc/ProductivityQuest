@@ -1,8 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity } from "lucide-react";
+import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { TaskDetailModal } from "./task-detail-modal";
@@ -56,22 +55,29 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
     <>
       <Card 
         className={cn(
-          "bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10 transition-all cursor-pointer",
+          "bg-slate-800/40 backdrop-blur-md border-2 transition-all cursor-pointer relative",
+          isSelected 
+            ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
+            : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
           task.completed && "opacity-60"
         )}
-        onClick={() => setShowDetailModal(true)}
+        onClick={() => !task.completed && onSelect(task.id, !isSelected)}
       >
         <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-4 flex-1">
-              <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={(checked) => onSelect(task.id, checked as boolean)}
-                  disabled={task.completed}
-                />
-              </div>
-            
+          {/* Details button in top-right corner */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-2 right-2 h-8 w-8 p-0 text-yellow-400/60 hover:text-yellow-400 hover:bg-slate-700/50"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetailModal(true);
+            }}
+          >
+            <Info className="h-4 w-4" />
+          </Button>
+
+          <div className="flex items-start justify-between pr-8">
             <div className="flex-1 min-w-0">
               <h3 className={cn(
                 "text-lg font-semibold text-yellow-100 mb-1",
@@ -192,29 +198,28 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                 </div>
               </div>
             </div>
+            
+            <Badge 
+              variant={task.completed ? "secondary" : "default"}
+              className={cn(
+                "flex items-center space-x-1 px-3 py-1",
+                task.completed 
+                  ? "bg-green-900/40 text-green-200 border border-green-600/40"
+                  : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
+              )}
+            >
+              <Coins className="w-4 h-4" />
+              <span className="font-semibold">{task.goldValue}</span>
+            </Badge>
           </div>
-          
-          <Badge 
-            variant={task.completed ? "secondary" : "default"}
-            className={cn(
-              "flex items-center space-x-1 px-3 py-1",
-              task.completed 
-                ? "bg-green-900/40 text-green-200 border border-green-600/40"
-                : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
-            )}
-          >
-            <Coins className="w-4 h-4" />
-            <span className="font-semibold">{task.goldValue}</span>
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
-    
-    <TaskDetailModal 
-      task={task}
-      open={showDetailModal}
-      onOpenChange={setShowDetailModal}
-    />
+        </CardContent>
+      </Card>
+      
+      <TaskDetailModal 
+        task={task}
+        open={showDetailModal}
+        onOpenChange={setShowDetailModal}
+      />
     </>
   );
 }
