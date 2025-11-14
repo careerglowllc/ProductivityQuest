@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 
-type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks";
+type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority";
 type SortType = "due-date" | "importance";
 
 export default function Home() {
@@ -311,6 +311,26 @@ export default function Home() {
       case "quick-tasks":
         return activeTasks.filter((task: any) => task.duration <= 30);
       
+      case "high-priority":
+        // Filter for Pareto, High, and Med-High priority tasks, sorted by priority
+        const highPriorityTasks = activeTasks.filter((task: any) => 
+          task.importance === "Pareto" || 
+          task.importance === "High" || 
+          task.importance === "Med-High"
+        );
+        // Sort by priority level within this filter
+        const priorityMap: { [key: string]: number } = {
+          'Pareto': 6,
+          'High': 5,
+          'Med-High': 4,
+          'Medium': 3,
+          'Med-Low': 2,
+          'Low': 1,
+        };
+        return highPriorityTasks.sort((a: any, b: any) => 
+          (priorityMap[b.importance] || 0) - (priorityMap[a.importance] || 0)
+        );
+      
       default:
         return activeTasks;
     }
@@ -535,11 +555,22 @@ export default function Home() {
                   >
                     Quick Tasks
                   </Badge>
+                  <Badge 
+                    variant={activeFilter === "high-priority" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      activeFilter === "high-priority" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
+                    onClick={() => setActiveFilter("high-priority")}
+                  >
+                    High Priority
+                  </Badge>
                 </div>
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
+                    <Button variant="outline" size="sm" className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100">
                       <ArrowUpDown className="w-4 h-4" />
                       Sort
                     </Button>

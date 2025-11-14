@@ -6,11 +6,24 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2 } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Heart, MessageCircle, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
+
+// Skill icon mapping
+const skillIcons: Record<string, any> = {
+  Craftsman: Wrench,
+  Artist: Palette,
+  Will: Brain,
+  Merchant: Briefcase,
+  Warrior: Sword,
+  Scholar: Book,
+  Healer: Heart,
+  Charisma: MessageCircle,
+  Tactician: Target,
+};
 
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) {
@@ -94,7 +107,7 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
           />
         ))}
 
-        {/* Skill labels - closer to chart */}
+        {/* Skill labels with icons - closer to chart */}
         {skills.map((skill, i) => {
           const labelPoint = getPoint(i, chartMax + 8); // Reduced distance
           const angle = (Math.PI * 2 * i) / numSkills - Math.PI / 2;
@@ -105,8 +118,23 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
             textAnchor = Math.cos(angle) > 0 ? 'start' : 'end';
           }
 
+          const SkillIcon = skillIcons[skill.name] || Target;
+
           return (
             <g key={i}>
+              {/* Icon above skill name */}
+              <foreignObject
+                x={labelPoint.x - 10}
+                y={labelPoint.y - 22}
+                width="20"
+                height="20"
+              >
+                <div className="flex items-center justify-center">
+                  <SkillIcon className="w-4 h-4 text-yellow-400" strokeWidth={2.5} />
+                </div>
+              </foreignObject>
+              
+              {/* Skill name */}
               <text
                 x={labelPoint.x}
                 y={labelPoint.y}
@@ -116,6 +144,8 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
               >
                 {skill.name}
               </text>
+              
+              {/* Level */}
               <text
                 x={labelPoint.x}
                 y={labelPoint.y + 14}
