@@ -304,14 +304,6 @@ export default function Dashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-serif font-bold text-yellow-100 mb-2">
-            Welcome back, {(user as any)?.firstName || (user as any)?.username || "Adventurer"}! 👋
-          </h2>
-          <p className="text-yellow-200/70">Ready to level up your productivity?</p>
-        </div>
-
         {/* Stats Summary Cards - Skyrim Theme */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
           <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
