@@ -1,6 +1,6 @@
 import { tasks, shopItems, userProgress, userSkills, purchases, users, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -24,8 +24,10 @@ export interface IStorage {
   
   // Shop operations
   getShopItems(): Promise<ShopItem[]>;
+  getShopItemsForUser(userId: string): Promise<ShopItem[]>;
   getShopItem(id: number): Promise<ShopItem | undefined>;
   createShopItem(item: InsertShopItem): Promise<ShopItem>;
+  deleteShopItem(id: number, userId: string): Promise<boolean>;
   
   // User progress operations
   getUserProgress(userId: string): Promise<UserProgress>;
@@ -239,6 +241,19 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(shopItems);
   }
 
+  async getShopItemsForUser(userId: string): Promise<ShopItem[]> {
+    // Get global items (isGlobal = true) OR user-specific items (userId matches)
+    const items = await db.select().from(shopItems)
+      .where(
+        or(
+          eq(shopItems.isGlobal, true),
+          eq(shopItems.userId, userId)
+        )
+      );
+    
+    return items;
+  }
+
   async getShopItem(id: number): Promise<ShopItem | undefined> {
     const [item] = await db.select().from(shopItems).where(eq(shopItems.id, id));
     return item;
@@ -247,6 +262,18 @@ export class DatabaseStorage implements IStorage {
   async createShopItem(item: InsertShopItem): Promise<ShopItem> {
     const [newItem] = await db.insert(shopItems).values(item).returning();
     return newItem;
+  }
+
+  async deleteShopItem(id: number, userId: string): Promise<boolean> {
+    // Only allow deleting user-specific items or if user created it
+    const result = await db.delete(shopItems)
+      .where(
+        and(
+          eq(shopItems.id, id),
+          eq(shopItems.userId, userId)
+        )
+      );
+    return true;
   }
 
   // User progress operations

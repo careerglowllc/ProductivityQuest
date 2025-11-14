@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
+import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
 import { CompletionAnimation } from "@/components/completion-animation";
@@ -19,10 +20,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 
-type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority";
+type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "apple";
 type SortType = "due-date" | "importance";
 
 export default function Home() {
+  const [location] = useLocation();
   const [showItemShop, setShowItemShop] = useState(false);
   const [showCalendarSync, setShowCalendarSync] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
@@ -33,10 +35,14 @@ export default function Home() {
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [importTaskCount, setImportTaskCount] = useState(0);
   const [exportTaskCount, setExportTaskCount] = useState(0);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+  const [includeDuplicates, setIncludeDuplicates] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [showRecycling, setShowRecycling] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
+  const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -44,6 +50,15 @@ export default function Home() {
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
     queryKey: ["/api/tasks"],
   });
+
+  // Handle taskId query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const taskIdParam = params.get('taskId');
+    if (taskIdParam) {
+      setDetailTaskId(parseInt(taskIdParam));
+    }
+  }, [location]);
 
   const { data: progress = { goldTotal: 0, tasksCompleted: 0 }, refetch: refetchProgress } = useQuery({
     queryKey: ["/api/progress"],
@@ -171,10 +186,16 @@ export default function Home() {
 
   const handleImportPrepare = async () => {
     try {
-      const response = await apiRequest("GET", "/api/notion/count");
+      const response = await apiRequest("GET", "/api/notion/check-duplicates");
       const result = await response.json();
-      setImportTaskCount(result.count);
-      setShowImportConfirm(true);
+      setImportTaskCount(result.totalCount);
+      setDuplicateCount(result.duplicateCount);
+      
+      if (result.duplicateCount > 0) {
+        setShowDuplicateConfirm(true);
+      } else {
+        setShowImportConfirm(true);
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -192,10 +213,13 @@ export default function Home() {
 
   const handleImportConfirm = async () => {
     try {
-      const response = await apiRequest("POST", "/api/notion/import");
+      const response = await apiRequest("POST", "/api/notion/import", {
+        includeDuplicates,
+      });
       const result = await response.json();
       
       setShowImportConfirm(false);
+      setShowDuplicateConfirm(false);
       refetchTasks();
       toast({
         title: "Import Complete",
@@ -208,6 +232,7 @@ export default function Home() {
         variant: "destructive",
       });
       setShowImportConfirm(false);
+      setShowDuplicateConfirm(false);
     }
   };
 
@@ -330,6 +355,20 @@ export default function Home() {
         };
         return highPriorityTasks.sort((a: any, b: any) => 
           (priorityMap[b.importance] || 0) - (priorityMap[a.importance] || 0)
+        );
+      
+      case "routines":
+        // Filter for recurring tasks (Recur Type is not "one-time" or blank)
+        return activeTasks.filter((task: any) => 
+          task.recurType && 
+          task.recurType !== "one-time" && 
+          task.recurType.trim() !== ""
+        );
+      
+      case "apple":
+        // Filter for Apple Business/Work Filter tasks
+        return activeTasks.filter((task: any) => 
+          task.businessWorkFilter === "Apple"
         );
       
       default:
@@ -567,6 +606,28 @@ export default function Home() {
                   >
                     High Priority
                   </Badge>
+                  <Badge 
+                    variant={activeFilter === "routines" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      activeFilter === "routines" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
+                    onClick={() => setActiveFilter("routines")}
+                  >
+                    Routines
+                  </Badge>
+                  <Badge 
+                    variant={activeFilter === "apple" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      activeFilter === "apple" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
+                    onClick={() => setActiveFilter("apple")}
+                  >
+                    🍎 Apple
+                  </Badge>
                 </div>
                 
                 <DropdownMenu>
@@ -745,6 +806,57 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
+      {/* Duplicate Detection Dialog */}
+      <Dialog open={showDuplicateConfirm} onOpenChange={setShowDuplicateConfirm}>
+        <DialogContent className="bg-slate-800 border-2 border-yellow-600/40">
+          <DialogHeader>
+            <DialogTitle className="text-yellow-100 font-serif">Duplicates Detected</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-yellow-200/70 mb-4">
+              Found {duplicateCount} task(s) that already exist in your app (based on Notion ID).
+            </p>
+            <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-4 backdrop-blur-sm">
+              <div className="flex items-center mb-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-400 mr-2" />
+                <span className="text-yellow-200 font-medium">Choose an option:</span>
+              </div>
+              <p className="text-yellow-200/80 mt-1">
+                • <strong>Include Duplicates:</strong> Import all {importTaskCount} tasks (duplicates will be updated)<br/>
+                • <strong>Skip Duplicates:</strong> Import only {importTaskCount - duplicateCount} new tasks
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDuplicateConfirm(false)} 
+              className="border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setIncludeDuplicates(false);
+                handleImportConfirm();
+              }} 
+              className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-500 hover:to-slate-400 text-white border border-slate-400/50"
+            >
+              Skip Duplicates ({importTaskCount - duplicateCount})
+            </Button>
+            <Button 
+              onClick={() => {
+                setIncludeDuplicates(true);
+                handleImportConfirm();
+              }} 
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
+            >
+              Include All ({importTaskCount})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Export Confirmation Modal */}
       <Dialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
         <DialogContent className="bg-slate-800 border-2 border-yellow-600/40">
@@ -775,6 +887,21 @@ export default function Home() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task Detail Modal */}
+      {detailTaskId && (
+        <TaskDetailModal
+          task={tasks.find((t: any) => t.id === detailTaskId)}
+          open={!!detailTaskId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDetailTaskId(null);
+              // Remove query parameter
+              window.history.pushState({}, '', '/tasks');
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

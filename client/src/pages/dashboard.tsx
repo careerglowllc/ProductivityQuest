@@ -458,9 +458,9 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </div>
-                      <Link href="/tasks">
+                      <Link href={`/tasks?taskId=${task.id}`}>
                         <Button variant="outline" size="sm" className="border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                          Start
+                          Details
                         </Button>
                       </Link>
                     </div>

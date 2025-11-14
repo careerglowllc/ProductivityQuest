@@ -483,7 +483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notion/import", requireAuth, async (req: any, res) => {
+  app.get("/api/notion/check-duplicates", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
       const user = await storage.getUserById(userId);
@@ -492,11 +492,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Notion API key or database ID not configured" });
       }
       
+      // Get tasks from Notion
       const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
+      
+      // Get existing tasks from database
+      const existingTasks = await storage.getTasks(userId);
+      
+      // Create a set of existing notionIds for quick lookup
+      const existingNotionIds = new Set(
+        existingTasks
+          .filter((task: any) => task.notionId)
+          .map((task: any) => task.notionId)
+      );
+      
+      // Count duplicates
+      const duplicates = notionTasks.filter(task => existingNotionIds.has(task.notionId));
+      
+      res.json({ 
+        totalCount: notionTasks.length,
+        duplicateCount: duplicates.length,
+        newCount: notionTasks.length - duplicates.length
+      });
+    } catch (error) {
+      console.error("Notion duplicate check error:", error);
+      res.status(500).json({ error: "Failed to check for duplicates" });
+    }
+  });
+
+  app.post("/api/notion/import", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { includeDuplicates = true } = req.body;
+      const user = await storage.getUserById(userId);
+      
+      if (!user?.notionApiKey || !user?.notionDatabaseId) {
+        return res.status(400).json({ error: "Notion API key or database ID not configured" });
+      }
+      
+      const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
+      
+      // Get existing tasks if we need to skip duplicates
+      let existingNotionIds = new Set<string>();
+      if (!includeDuplicates) {
+        const existingTasks = await storage.getTasks(userId);
+        existingNotionIds = new Set(
+          existingTasks
+            .filter((task: any) => task.notionId)
+            .map((task: any) => task.notionId)
+        );
+      }
+      
       let importedCount = 0;
 
       for (const notionTask of notionTasks) {
         try {
+          // Skip if duplicate and user chose to skip duplicates
+          if (!includeDuplicates && existingNotionIds.has(notionTask.notionId)) {
+            continue;
+          }
+          
           const taskData = {
             userId,
             notionId: notionTask.notionId,
@@ -772,12 +826,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Shop routes
-  app.get("/api/shop/items", async (req, res) => {
+  app.get("/api/shop/items", requireAuth, async (req: any, res) => {
     try {
-      const items = await storage.getShopItems();
+      const userId = req.session.userId;
+      const items = await storage.getShopItemsForUser(userId);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch shop items" });
+    }
+  });
+
+  app.post("/api/shop/items", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { name, description, cost, icon } = req.body;
+      
+      if (!name || !description || !cost || !icon) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const item = await storage.createShopItem({
+        userId, // User-specific item
+        name,
+        description,
+        cost: parseInt(cost),
+        icon,
+        category: "custom",
+        isGlobal: false, // User-created items are not global
+      });
+      
+      res.json(item);
+    } catch (error) {
+      console.error("Create shop item error:", error);
+      res.status(500).json({ error: "Failed to create shop item" });
+    }
+  });
+
+  app.delete("/api/shop/items/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const itemId = parseInt(req.params.id);
+      await storage.deleteShopItem(itemId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete shop item error:", error);
+      res.status(500).json({ error: "Failed to delete shop item" });
+    }
+  });
+
+  // Seed default shop items (run once)
+  app.post("/api/shop/seed-defaults", requireAuth, async (req: any, res) => {
+    try {
+      const defaultItems = [
+        {
+          userId: null,
+          name: "Health Potion",
+          description: "A refreshing potion to restore your vitality",
+          cost: 50,
+          icon: "🧪",
+          category: "consumables",
+          isGlobal: true,
+        },
+        {
+          userId: null,
+          name: "Enchanted Scroll",
+          description: "Ancient knowledge waiting to be discovered",
+          cost: 100,
+          icon: "📜",
+          category: "items",
+          isGlobal: true,
+        },
+        {
+          userId: null,
+          name: "Dragon's Gem",
+          description: "A rare and valuable treasure",
+          cost: 250,
+          icon: "💎",
+          category: "treasures",
+          isGlobal: true,
+        },
+        {
+          userId: null,
+          name: "Master's Trophy",
+          description: "Symbol of great achievement",
+          cost: 500,
+          icon: "🏆",
+          category: "rewards",
+          isGlobal: true,
+        },
+        {
+          userId: null,
+          name: "Royal Crown",
+          description: "Fit for a champion of productivity",
+          cost: 1000,
+          icon: "👑",
+          category: "treasures",
+          isGlobal: true,
+        },
+        {
+          userId: null,
+          name: "Magic Sword",
+          description: "A legendary weapon for legendary tasks",
+          cost: 750,
+          icon: "⚔️",
+          category: "equipment",
+          isGlobal: true,
+        },
+        {
+          userId: null,
+          name: "Crystal Ball",
+          description: "See your future success",
+          cost: 300,
+          icon: "🔮",
+          category: "items",
+          isGlobal: true,
+        },
+        {
+          userId: null,
+          name: "Golden Key",
+          description: "Unlock new possibilities",
+          cost: 150,
+          icon: "🔑",
+          category: "items",
+          isGlobal: true,
+        },
+      ];
+
+      let created = 0;
+      for (const item of defaultItems) {
+        try {
+          await storage.createShopItem(item as any);
+          created++;
+        } catch (error) {
+          // Item might already exist, continue
+          console.log("Item may already exist:", item.name);
+        }
+      }
+
+      res.json({ success: true, created, total: defaultItems.length });
+    } catch (error) {
+      console.error("Seed shop items error:", error);
+      res.status(500).json({ error: "Failed to seed shop items" });
     }
   });
 

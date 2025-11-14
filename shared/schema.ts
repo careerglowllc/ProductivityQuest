@@ -61,11 +61,14 @@ export const tasks = pgTable("tasks", {
 
 export const shopItems = pgTable("shop_items", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id), // null = global/default item, otherwise user-specific
   name: text("name").notNull(),
   description: text("description").notNull(),
   cost: integer("cost").notNull(),
   icon: text("icon").notNull(),
-  category: text("category").notNull(),
+  category: text("category").default("general").notNull(),
+  isGlobal: boolean("is_global").default(false).notNull(), // true = default item for all users
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const userProgress = pgTable("user_progress", {

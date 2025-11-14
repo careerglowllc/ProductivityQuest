@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
 import { 
   Wrench, 
@@ -15,6 +17,8 @@ import {
   Target,
   Crown,
   Star,
+  Grid3x3,
+  List,
   type LucideIcon
 } from "lucide-react";
 import { useState } from "react";
@@ -102,6 +106,7 @@ export default function Skills() {
   const isMobile = useIsMobile();
 
   const [selectedSkill, setSelectedSkill] = useState<UserSkill | null>(null);
+  const [viewMode, setViewMode] = useState<"icons" | "lists">("icons");
 
   // Merge user skills with metadata
   const skills = userSkills.map(skill => ({
@@ -141,13 +146,44 @@ export default function Skills() {
               <span className="text-yellow-100 font-bold text-lg">{progress?.goldTotal || 0} 🪙 Gold</span>
             </div>
           </div>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <Button
+              variant={viewMode === "icons" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("icons")}
+              className={`flex items-center gap-2 ${
+                viewMode === "icons"
+                  ? "bg-yellow-600 hover:bg-yellow-500 text-slate-900 border-yellow-500"
+                  : "bg-slate-800/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100"
+              }`}
+            >
+              <Grid3x3 className="w-4 h-4" />
+              Icons
+            </Button>
+            <Button
+              variant={viewMode === "lists" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("lists")}
+              className={`flex items-center gap-2 ${
+                viewMode === "lists"
+                  ? "bg-yellow-600 hover:bg-yellow-500 text-slate-900 border-yellow-500"
+                  : "bg-slate-800/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100"
+              }`}
+            >
+              <List className="w-4 h-4" />
+              Lists
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Skills Constellation Grid */}
+      {/* Skills Display - Icons or Lists */}
       <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-3 gap-8">
-          {skills.map((skill) => {
+        {viewMode === "icons" ? (
+          /* Icons View - Constellation Grid */
+          <div className="grid grid-cols-3 gap-8">{skills.map((skill) => {
             const Icon = skill.icon;
             const progressPercent = (skill.xp / skill.maxXp) * 100;
             
@@ -228,8 +264,68 @@ export default function Skills() {
                 )}
               </div>
             );
-          })}
-        </div>
+          })}</div>
+        ) : (
+          /* Lists View - Horizontal Progress Bars */
+          <div className="space-y-4">
+            {skills.map((skill) => {
+              const Icon = skill.icon;
+              const progressPercent = (skill.xp / skill.maxXp) * 100;
+              
+              return (
+                <Card 
+                  key={skill.id}
+                  className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all cursor-pointer overflow-hidden"
+                  onClick={() => setSelectedSkill(skill)}
+                >
+                  <div className="p-6">
+                    <div className="flex items-center gap-6">
+                      {/* Icon */}
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-yellow-600 to-yellow-400 flex items-center justify-center border-2 border-yellow-500 shadow-lg">
+                          <Icon className="w-8 h-8 text-slate-900" strokeWidth={2.5} />
+                        </div>
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1">
+                        {/* Title Row */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h3 className="text-xl font-serif font-bold text-yellow-100 mb-1">
+                              {skill.skillName}
+                            </h3>
+                            <p className="text-sm text-yellow-400/70 italic">
+                              {skill.constellation}
+                            </p>
+                          </div>
+                          <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-base px-4 py-1.5 shadow-lg">
+                            Level {skill.level}
+                          </Badge>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp} XP</span>
+                            <span className="text-yellow-400 font-bold">{Math.round(progressPercent)}%</span>
+                          </div>
+                          <Progress 
+                            value={progressPercent} 
+                            className="h-3 bg-slate-700/50 border border-yellow-600/30"
+                          />
+                          <p className="text-xs text-yellow-300/60 italic text-right">
+                            {skill.maxXp - skill.xp} XP to next level
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
         {/* Ancient Tome Info Section */}
         <Card className="mt-12 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 overflow-hidden">
