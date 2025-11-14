@@ -122,35 +122,35 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
 
           return (
             <g key={i}>
-              {/* Icon above skill name */}
+              {/* Icon above skill name - 30% larger */}
               <foreignObject
-                x={labelPoint.x - 10}
-                y={labelPoint.y - 22}
-                width="20"
-                height="20"
+                x={labelPoint.x - 13}
+                y={labelPoint.y - 28}
+                width="26"
+                height="26"
               >
                 <div className="flex items-center justify-center">
-                  <SkillIcon className="w-4 h-4 text-yellow-400" strokeWidth={2.5} />
+                  <SkillIcon className="w-[5.2px] h-[5.2px] text-yellow-400" strokeWidth={2.5} style={{width: '20.8px', height: '20.8px'}} />
                 </div>
               </foreignObject>
               
-              {/* Skill name */}
+              {/* Skill name - 20% smaller */}
               <text
                 x={labelPoint.x}
                 y={labelPoint.y}
                 textAnchor={textAnchor}
-                className="text-xs font-semibold fill-yellow-200"
+                className="text-[9.6px] font-semibold fill-yellow-200"
                 dy="0.3em"
               >
                 {skill.name}
               </text>
               
-              {/* Level */}
+              {/* Level - 20% smaller */}
               <text
                 x={labelPoint.x}
-                y={labelPoint.y + 14}
+                y={labelPoint.y + 11}
                 textAnchor={textAnchor}
-                className="text-[10px] fill-yellow-400 font-bold"
+                className="text-[8px] fill-yellow-400 font-bold"
                 dy="0.3em"
               >
                 Lv {skill.level}
@@ -162,12 +162,12 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
         {/* Center point */}
         <circle cx={center} cy={center} r="4" fill="rgb(234, 179, 8)" />
         
-        {/* Max level indicator */}
+        {/* Max level indicator - 20% smaller */}
         <text
           x={center}
           y={center - radius - 15}
           textAnchor="middle"
-          className="text-[10px] fill-yellow-200/60 italic"
+          className="text-[8px] fill-yellow-200/60 italic"
         >
           Max: Lv {chartMax}
         </text>

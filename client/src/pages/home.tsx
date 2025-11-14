@@ -306,7 +306,8 @@ export default function Home() {
         });
       
       case "high-reward":
-        return activeTasks.filter((task: any) => task.goldValue >= 10);
+        // Filter tasks with high gold value (50+)
+        return activeTasks.filter((task: any) => task.goldValue >= 50);
       
       case "quick-tasks":
         return activeTasks.filter((task: any) => task.duration <= 30);
