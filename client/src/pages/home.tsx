@@ -353,48 +353,57 @@ export default function Home() {
   const sortedTasks = getSortedTasks(filteredTasks);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 relative overflow-hidden">
+      {/* Starfield Background Effect */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
+        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
+      </div>
+
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-slate-900/80 backdrop-blur-md shadow-lg border-b border-yellow-600/30 sticky top-0 z-50 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
               {!isMobile && (
                 <Link href="/dashboard">
                   <a className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
-                    <Trophy className="text-gold w-8 h-8" />
-                    <h1 className="text-2xl font-bold text-gray-900">QuestList</h1>
+                    <Trophy className="text-yellow-400 w-8 h-8" />
+                    <h1 className="text-2xl font-serif font-bold text-yellow-100">QuestList</h1>
                   </a>
                 </Link>
               )}
             </div>
             
             <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-100 to-yellow-200 px-4 py-2 rounded-full">
-                <Coins className="text-yellow-600 w-5 h-5" />
-                <span className="font-semibold text-gray-900">{progress.goldTotal}</span>
-                <span className="text-sm text-gray-600">Gold</span>
+              <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
+                <Coins className="text-yellow-400 w-5 h-5" />
+                <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
+                <span className="text-sm text-yellow-200/80">Gold</span>
               </div>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
                       <User className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium">
                       {user?.firstName || user?.email || "User"}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
+                <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
+                  <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
                     <Link href="/settings" className="flex items-center">
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => window.location.href = '/api/logout'}>
+                  <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -405,19 +414,19 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
         {/* Your Quests Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Your Quests</h2>
-            <p className="text-gray-600">Complete tasks to earn gold and unlock rewards</p>
+            <h2 className="text-2xl font-serif font-bold text-yellow-100">Your Quests</h2>
+            <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>
           </div>
           <div className="flex space-x-3">
-            <Button onClick={handleImportPrepare} className="flex items-center space-x-2">
+            <Button onClick={handleImportPrepare} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">
               <Download className="w-4 h-4" />
               <span>Import ALL from Notion</span>
             </Button>
-            <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2">
+            <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
               <Upload className="w-4 h-4" />
               <span>Export ALL to Notion</span>
             </Button>
@@ -425,21 +434,21 @@ export default function Home() {
         </div>
 
             {/* Search Bar */}
-            <Card className="p-4 mb-4">
+            <Card className="p-4 mb-4 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-yellow-400/60 w-4 h-4" />
                 <Input
                   placeholder="Search tasks by title, description, category, or importance..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full"
+                  className="pl-10 pr-4 py-2 w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50"
                 />
                 {searchQuery && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-yellow-400/60 hover:text-yellow-300 hover:bg-slate-700/50"
                   >
                     ×
                   </Button>
@@ -450,15 +459,15 @@ export default function Home() {
             {/* Results Counter */}
             {(searchQuery || activeFilter !== "all") && (
               <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-yellow-200/70">
                   {searchQuery ? (
                     <span>
-                      Found <strong>{sortedTasks.length}</strong> tasks matching "{searchQuery}"
+                      Found <strong className="text-yellow-100">{sortedTasks.length}</strong> tasks matching "{searchQuery}"
                       {activeFilter !== "all" && ` in ${activeFilter.replace("-", " ")}`}
                     </span>
                   ) : (
                     <span>
-                      Showing <strong>{sortedTasks.length}</strong> tasks in {activeFilter.replace("-", " ")}
+                      Showing <strong className="text-yellow-100">{sortedTasks.length}</strong> tasks in {activeFilter.replace("-", " ")}
                     </span>
                   )}
                 </div>
@@ -467,7 +476,7 @@ export default function Home() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setSearchQuery("")}
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-yellow-300 hover:text-yellow-100 hover:bg-slate-700/50"
                   >
                     Clear search
                   </Button>
@@ -476,33 +485,49 @@ export default function Home() {
             )}
 
             {/* Task Filters */}
-            <Card className="p-4 mb-6">
+            <Card className="p-4 mb-6 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
               <div className="flex flex-wrap items-center gap-2 justify-between">
                 <div className="flex flex-wrap gap-2">
                   <Badge 
                     variant={activeFilter === "all" ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className={`cursor-pointer ${
+                      activeFilter === "all" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
                     onClick={() => setActiveFilter("all")}
                   >
                     All Tasks
                   </Badge>
                   <Badge 
                     variant={activeFilter === "due-today" ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className={`cursor-pointer ${
+                      activeFilter === "due-today" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
                     onClick={() => setActiveFilter("due-today")}
                   >
                     Due Today
                   </Badge>
                   <Badge 
                     variant={activeFilter === "high-reward" ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className={`cursor-pointer ${
+                      activeFilter === "high-reward" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
                     onClick={() => setActiveFilter("high-reward")}
                   >
                     High Reward
                   </Badge>
                   <Badge 
                     variant={activeFilter === "quick-tasks" ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className={`cursor-pointer ${
+                      activeFilter === "quick-tasks" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
                     onClick={() => setActiveFilter("quick-tasks")}
                   >
                     Quick Tasks
@@ -511,27 +536,27 @@ export default function Home() {
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
                       <ArrowUpDown className="w-4 h-4" />
                       Sort
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
                     <DropdownMenuItem 
                       onClick={() => setSortBy("due-date")}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
                     >
                       <CalendarDays className="w-4 h-4" />
                       <span>Due Date</span>
-                      {sortBy === "due-date" && <span className="ml-auto">✓</span>}
+                      {sortBy === "due-date" && <span className="ml-auto text-yellow-400">✓</span>}
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={() => setSortBy("importance")}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
                     >
                       <AlertTriangle className="w-4 h-4" />
                       <span>Importance</span>
-                      {sortBy === "importance" && <span className="ml-auto">✓</span>}
+                      {sortBy === "importance" && <span className="ml-auto text-yellow-400">✓</span>}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -540,17 +565,17 @@ export default function Home() {
 
             {/* Bulk Actions for Selected Tasks */}
             {selectedTasks.size > 0 && (
-              <Card className="p-4 bg-blue-50 border-blue-200">
+              <Card className="p-4 bg-blue-900/40 backdrop-blur-md border-2 border-blue-500/40 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-blue-800 font-medium">
+                    <span className="text-blue-200 font-medium">
                       {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
                     </span>
                   </div>
                   <div className="flex gap-2">
                     <Button 
                       onClick={handleCompleteSelected}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
                       Complete Selected
@@ -558,7 +583,7 @@ export default function Home() {
                     <Button 
                       onClick={handleAppendToNotion}
                       variant="outline"
-                      className="border-green-500 text-green-600 hover:bg-green-50"
+                      className="border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200"
                     >
                       <Upload className="w-4 h-4 mr-2" />
                       Append to Notion
@@ -566,7 +591,7 @@ export default function Home() {
                     <Button 
                       onClick={handleDeleteFromNotion}
                       variant="outline"
-                      className="border-red-500 text-red-600 hover:bg-red-50"
+                      className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete from Notion
@@ -579,18 +604,18 @@ export default function Home() {
             {/* Task List */}
             <div className="space-y-4">
               {tasksLoading ? (
-                <div className="text-center py-8">Loading tasks...</div>
+                <div className="text-center py-8 text-yellow-200/70">Loading tasks...</div>
               ) : tasks.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks yet</h3>
-                  <p className="text-gray-600 mb-4">Import from Notion to get started with your quests!</p>
-                  <Button onClick={handleImportPrepare}>Import ALL from Notion</Button>
+                <Card className="p-8 text-center bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
+                  <Trophy className="w-16 h-16 text-yellow-400/50 mx-auto mb-4" />
+                  <h3 className="text-lg font-serif font-semibold text-yellow-100 mb-2">No tasks yet</h3>
+                  <p className="text-yellow-200/70 mb-4">Import from Notion to get started with your quests!</p>
+                  <Button onClick={handleImportPrepare} className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">Import ALL from Notion</Button>
                 </Card>
               ) : sortedTasks.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <Card className="p-8 text-center bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
+                  <Search className="w-16 h-16 text-yellow-400/50 mx-auto mb-4" />
+                  <h3 className="text-lg font-serif font-semibold text-yellow-100 mb-2">
                     {searchQuery ? `No tasks found for "${searchQuery}"` : "No tasks match your filter"}
                   </h3>
                   <p className="text-gray-600 mb-4">
@@ -656,29 +681,29 @@ export default function Home() {
 
       {/* Import Confirmation Modal */}
       <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
-        <DialogContent>
+        <DialogContent className="bg-slate-800 border-2 border-yellow-600/40">
           <DialogHeader>
-            <DialogTitle>Import ALL from Notion</DialogTitle>
+            <DialogTitle className="text-yellow-100 font-serif">Import ALL from Notion</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-gray-600 mb-4">
+            <p className="text-yellow-200/70 mb-4">
               This will import {importTaskCount} tasks from your Notion database and overwrite all existing tasks in the app.
             </p>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-4 backdrop-blur-sm">
               <div className="flex items-center">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
-                <span className="text-yellow-800 font-medium">Warning:</span>
+                <AlertTriangle className="w-5 h-5 text-yellow-400 mr-2" />
+                <span className="text-yellow-200 font-medium">Warning:</span>
               </div>
-              <p className="text-yellow-700 mt-1">
+              <p className="text-yellow-200/80 mt-1">
                 All {tasks.length} existing tasks in the app will be deleted and replaced with {importTaskCount} tasks from Notion.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowImportConfirm(false)}>
+            <Button variant="outline" onClick={() => setShowImportConfirm(false)} className="border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
               Cancel
             </Button>
-            <Button onClick={handleImportConfirm} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleImportConfirm} className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50">
               Import {importTaskCount} Tasks
             </Button>
           </DialogFooter>
@@ -687,20 +712,20 @@ export default function Home() {
 
       {/* Export Confirmation Modal */}
       <Dialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
-        <DialogContent>
+        <DialogContent className="bg-slate-800 border-2 border-yellow-600/40">
           <DialogHeader>
-            <DialogTitle>Export ALL to Notion</DialogTitle>
+            <DialogTitle className="text-yellow-100 font-serif">Export ALL to Notion</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-gray-600 mb-4">
+            <p className="text-yellow-200/70 mb-4">
               This will export {exportTaskCount} tasks from the app to your Notion database and overwrite all existing tasks in Notion.
             </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-900/30 border border-red-600/50 rounded-lg p-4 backdrop-blur-sm">
               <div className="flex items-center">
-                <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-                <span className="text-red-800 font-medium">Warning:</span>
+                <AlertTriangle className="w-5 h-5 text-red-400 mr-2" />
+                <span className="text-red-200 font-medium">Warning:</span>
               </div>
-              <p className="text-red-700 mt-1">
+              <p className="text-red-200/80 mt-1">
                 All existing tasks in your Notion database will be deleted and replaced with {exportTaskCount} tasks from the app.
               </p>
             </div>
