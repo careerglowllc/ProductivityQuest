@@ -282,45 +282,6 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-        {/* Stats Summary Cards - Skyrim Theme */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
-          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-            <CardContent className="p-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-200/70 text-[10px] font-medium mb-0.5">Total Gold</p>
-                  <p className="text-base font-bold text-yellow-100">{progress.goldTotal || 0}</p>
-                </div>
-                <Coins className="h-5 w-5 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-            <CardContent className="p-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-200/70 text-[10px] font-medium mb-0.5">Quests Completed</p>
-                  <p className="text-base font-bold text-yellow-100">{progress.tasksCompleted || 0}</p>
-                </div>
-                <CheckCircle className="h-5 w-5 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-            <CardContent className="p-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-200/70 text-[10px] font-medium mb-0.5">Today's Progress</p>
-                  <p className="text-base font-bold text-yellow-100">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
-                </div>
-                <TrendingUp className="h-5 w-5 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Main Campaign Section */}
         <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
           <CardContent className="p-3">
