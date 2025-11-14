@@ -31,7 +31,7 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
   const chartMax = maxSkillLevel + 10; // +10 from highest level
   const size = 400;
   const center = size / 2;
-  const radius = size / 2 - 40; // Reduced padding for labels
+  const radius = size / 2 - 60; // Increased padding to keep icons inside
   const numSkills = skills.length;
 
   // Calculate polygon points for skill levels
@@ -52,8 +52,8 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
   const skillPath = skillPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
 
   return (
-    <div className="flex items-center justify-center">
-      <svg width={size} height={size} className="overflow-visible">
+    <div className="flex items-center justify-center overflow-hidden">
+      <svg width={size} height={size} className="overflow-hidden">
         {/* Background circles */}
         {gridLevels.map((level, i) => (
           <circle
@@ -107,9 +107,9 @@ function SpiderChart({ skills }: { skills: { name: string; level: number }[] }) 
           />
         ))}
 
-        {/* Skill labels with icons - closer to chart */}
+        {/* Skill labels with icons - positioned inside bounds */}
         {skills.map((skill, i) => {
-          const labelPoint = getPoint(i, chartMax + 8); // Reduced distance
+          const labelPoint = getPoint(i, chartMax + 5); // Reduced offset to keep inside
           const angle = (Math.PI * 2 * i) / numSkills - Math.PI / 2;
           
           // Adjust text anchor based on position
@@ -312,40 +312,40 @@ export default function Dashboard() {
           <p className="text-yellow-200/70">Ready to level up your productivity?</p>
         </div>
 
-        {/* Stats Summary Cards - 70% smaller */}
+        {/* Stats Summary Cards - Skyrim Theme */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
-          <Card className="bg-gradient-to-br from-purple-900/60 to-purple-800/60 backdrop-blur-md border-2 border-purple-500/30 text-white hover:border-purple-400/60 transition-all">
+          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-200 text-[10px] font-medium mb-0.5">Total Gold</p>
-                  <p className="text-base font-bold text-yellow-300">{progress.goldTotal || 0}</p>
+                  <p className="text-yellow-200/70 text-[10px] font-medium mb-0.5">Total Gold</p>
+                  <p className="text-base font-bold text-yellow-100">{progress.goldTotal || 0}</p>
                 </div>
-                <Coins className="h-5 w-5 text-yellow-400/50" />
+                <Coins className="h-5 w-5 text-yellow-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-900/60 to-blue-800/60 backdrop-blur-md border-2 border-blue-500/30 text-white hover:border-blue-400/60 transition-all">
+          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-200 text-[10px] font-medium mb-0.5">Quests Completed</p>
-                  <p className="text-base font-bold text-yellow-300">{progress.tasksCompleted || 0}</p>
+                  <p className="text-yellow-200/70 text-[10px] font-medium mb-0.5">Quests Completed</p>
+                  <p className="text-base font-bold text-yellow-100">{progress.tasksCompleted || 0}</p>
                 </div>
-                <CheckCircle className="h-5 w-5 text-blue-300/50" />
+                <CheckCircle className="h-5 w-5 text-yellow-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-900/60 to-green-800/60 backdrop-blur-md border-2 border-green-500/30 text-white hover:border-green-400/60 transition-all">
+          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-200 text-[10px] font-medium mb-0.5">Today's Progress</p>
-                  <p className="text-base font-bold text-yellow-300">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
+                  <p className="text-yellow-200/70 text-[10px] font-medium mb-0.5">Today's Progress</p>
+                  <p className="text-base font-bold text-yellow-100">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
                 </div>
-                <TrendingUp className="h-5 w-5 text-green-300/50" />
+                <TrendingUp className="h-5 w-5 text-yellow-400" />
               </div>
             </CardContent>
           </Card>
