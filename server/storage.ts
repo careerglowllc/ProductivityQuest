@@ -63,6 +63,21 @@ export class DatabaseStorage implements IStorage {
       { name: "Coffee Break", description: "Enjoy a premium coffee treat", cost: 30, icon: "coffee", category: "food" },
       { name: "Relaxation Session", description: "30 minutes of meditation or yoga", cost: 60, icon: "heart", category: "wellness" },
       { name: "Music Session", description: "Listen to your favorite playlist", cost: 40, icon: "music", category: "entertainment" },
+      { name: "Nature Walk", description: "Take a peaceful walk in nature", cost: 45, icon: "🌲", category: "wellness" },
+      { name: "Flower Garden", description: "Spend time tending your garden", cost: 55, icon: "🌸", category: "relaxation" },
+      { name: "Stargazing Night", description: "Observe the stars and cosmos", cost: 70, icon: "⭐", category: "relaxation" },
+      { name: "Mountain View", description: "Enjoy a scenic mountain escape", cost: 80, icon: "🏔️", category: "wellness" },
+      { name: "Ocean Breeze", description: "Relax by the sea", cost: 65, icon: "🌊", category: "relaxation" },
+      { name: "Sunset Moment", description: "Watch a beautiful sunset", cost: 50, icon: "🌅", category: "wellness" },
+      { name: "Forest Bathing", description: "Immerse yourself in the forest", cost: 75, icon: "🌳", category: "wellness" },
+      { name: "Butterfly Garden", description: "Visit a peaceful butterfly sanctuary", cost: 60, icon: "🦋", category: "relaxation" },
+      { name: "Moonlight Serenity", description: "Find peace under the moon", cost: 55, icon: "🌙", category: "relaxation" },
+      { name: "Rainbow Day", description: "Chase rainbows and find joy", cost: 90, icon: "🌈", category: "entertainment" },
+      { name: "Herb Garden", description: "Grow your own healing herbs", cost: 65, icon: "🌿", category: "wellness" },
+      { name: "Cherry Blossom", description: "Experience spring's beauty", cost: 85, icon: "🌺", category: "relaxation" },
+      { name: "Desert Oasis", description: "Find tranquility in the desert", cost: 70, icon: "🌵", category: "relaxation" },
+      { name: "Autumn Leaves", description: "Walk through fall foliage", cost: 50, icon: "🍂", category: "wellness" },
+      { name: "Tropical Paradise", description: "Escape to a tropical island", cost: 95, icon: "🏝️", category: "entertainment" },
     ];
 
     // Defer initialization until first use to avoid blocking app startup
