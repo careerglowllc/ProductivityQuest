@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useState } from "react";
 
 // Skill data with levels (all set to 3 for now)
 const skillsData = [
@@ -267,103 +269,46 @@ export default function Dashboard() {
           <p className="text-gray-600">Ready to level up your productivity?</p>
         </div>
 
-        {/* Stats Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* Stats Summary Cards - 90% smaller */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium mb-1">Total Gold</p>
-                  <p className="text-4xl font-bold">{progress.goldTotal || 0}</p>
+                  <p className="text-purple-100 text-xs font-medium mb-1">Total Gold</p>
+                  <p className="text-2xl font-bold">{progress.goldTotal || 0}</p>
                 </div>
-                <Coins className="h-12 w-12 opacity-50" />
+                <Coins className="h-8 w-8 opacity-50" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium mb-1">Quests Completed</p>
-                  <p className="text-4xl font-bold">{progress.tasksCompleted || 0}</p>
+                  <p className="text-blue-100 text-xs font-medium mb-1">Quests Completed</p>
+                  <p className="text-2xl font-bold">{progress.tasksCompleted || 0}</p>
                 </div>
-                <CheckCircle className="h-12 w-12 opacity-50" />
+                <CheckCircle className="h-8 w-8 opacity-50" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium mb-1">Today's Progress</p>
-                  <p className="text-4xl font-bold">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
+                  <p className="text-green-100 text-xs font-medium mb-1">Today's Progress</p>
+                  <p className="text-2xl font-bold">{stats.completedToday || 0}/{stats.totalToday || 0}</p>
                 </div>
-                <TrendingUp className="h-12 w-12 opacity-50" />
+                <TrendingUp className="h-8 w-8 opacity-50" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Today's Progress Details */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Progress</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">Tasks Completed</span>
-                  <span className="font-medium text-gray-900">
-                    {stats.completedToday}/{stats.totalToday}
-                  </span>
-                </div>
-                <Progress 
-                  value={stats.totalToday > 0 ? (stats.completedToday / stats.totalToday) * 100 : 0} 
-                  className="h-3"
-                />
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">Gold Earned Today</span>
-                  <span className="font-medium text-yellow-600">+{stats.goldEarnedToday}</span>
-                </div>
-                <Progress 
-                  value={stats.goldEarnedToday > 0 ? Math.min((stats.goldEarnedToday / 500) * 100, 100) : 0} 
-                  className="h-3"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Skills Spider Chart */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-bold">Your Skills Overview</CardTitle>
-              <Link href="/skills">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  View Details
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <SpiderChart skills={skillsData} />
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                All skills are currently at <span className="font-semibold text-purple-600">Level 3</span>
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Complete quests to level up your skills and expand your constellation
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Top 3 Priority Tasks */}
+        {/* Top 3 Priority Tasks - moved up */}
         <Card className="mb-8">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -431,6 +376,52 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Skills Spider Chart - 90% smaller with modal */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold">Your Skills Overview</CardTitle>
+              <Link href="/skills">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  View Details
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Dialog>
+              <DialogTrigger asChild>
+                <div className="cursor-pointer relative group">
+                  <div className="scale-[0.45] origin-center transform -my-32">
+                    <SpiderChart skills={skillsData} />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-black/70 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                      <Maximize2 className="w-4 h-4" />
+                      <span className="text-sm">Click to enlarge</span>
+                    </div>
+                  </div>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Skills Overview</DialogTitle>
+                </DialogHeader>
+                <SpiderChart skills={skillsData} />
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-600">
+                    All skills are currently at <span className="font-semibold text-purple-600">Level 3</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Complete quests to level up your skills and expand your constellation
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
 
