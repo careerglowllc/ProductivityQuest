@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Coins, ShoppingCart, Star, Plus, Trash2 } from "lucide-react";
+import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -28,6 +28,8 @@ export default function Shop() {
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newItemCost, setNewItemCost] = useState("");
   const [newItemIcon, setNewItemIcon] = useState("🎁");
+  const [purchaseAnimation, setPurchaseAnimation] = useState<{ item: any; show: boolean }>({ item: null, show: false });
+  const [consumeAnimation, setConsumeAnimation] = useState<{ item: any; show: boolean }>({ item: null, show: false });
   
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -49,13 +51,32 @@ export default function Shop() {
       const response = await apiRequest("PATCH", `/api/purchases/${purchaseId}/use`);
       return response.json();
     },
+    onMutate: async (purchaseId) => {
+      // Find the item being consumed
+      const item = (inventory as any[]).find((inv: any) => 
+        inv.purchases && inv.purchases.some((p: any) => p.id === purchaseId)
+      );
+      
+      if (item) {
+        // Show animation immediately
+        setConsumeAnimation({ item, show: true });
+        
+        // Show toast immediately
+        toast({
+          title: `${item.icon} Item Used!`,
+          description: `Consumed ${item.name}`,
+        });
+      }
+    },
     onSuccess: () => {
-      toast({
-        title: "Item Consumed!",
-        description: "Item used successfully",
-      });
+      // Refresh data after backend completes
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
+      
+      // Hide animation after delay
+      setTimeout(() => {
+        setConsumeAnimation({ item: null, show: false });
+      }, 1500);
     },
     onError: () => {
       toast({
@@ -63,6 +84,7 @@ export default function Shop() {
         description: "Failed to use item",
         variant: "destructive",
       });
+      setConsumeAnimation({ item: null, show: false });
     },
   });
 
@@ -71,14 +93,40 @@ export default function Shop() {
       const response = await apiRequest("POST", "/api/shop/purchase", { itemId });
       return response.json();
     },
+    onMutate: async (itemId) => {
+      // Find the item being purchased
+      const item = (shopItems as any[]).find((i: any) => i.id === itemId);
+      
+      if (item) {
+        // Check if user has enough gold
+        const currentGold = (progress as any).goldTotal || 0;
+        if (currentGold < item.cost) {
+          throw new Error("Insufficient gold");
+        }
+        
+        // Show animation immediately
+        setPurchaseAnimation({ item, show: true });
+        
+        // Show toast immediately
+        toast({
+          title: `${item.icon} Purchased!`,
+          description: `Bought ${item.name} for ${item.cost} gold`,
+        });
+        
+        // Close modal immediately
+        setSelectedItemId(null);
+      }
+    },
     onSuccess: () => {
-      toast({
-        title: "Purchase Successful!",
-        description: "Item purchased successfully",
-      });
+      // Refresh data after backend completes
       queryClient.invalidateQueries({ queryKey: ["/api/progress"] });
       queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
-      setSelectedItemId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      
+      // Hide animation after delay
+      setTimeout(() => {
+        setPurchaseAnimation({ item: null, show: false });
+      }, 1500);
     },
     onError: (error: any) => {
       toast({
@@ -86,6 +134,7 @@ export default function Shop() {
         description: error.message || "Insufficient gold",
         variant: "destructive",
       });
+      setPurchaseAnimation({ item: null, show: false });
     },
   });
 
@@ -457,6 +506,71 @@ export default function Shop() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Purchase Animation */}
+      {purchaseAnimation.show && purchaseAnimation.item && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="relative animate-in fade-in zoom-in duration-300">
+            <div className="bg-gradient-to-br from-yellow-500/90 to-orange-500/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border-4 border-yellow-400 animate-bounce">
+              <div className="flex flex-col items-center gap-4">
+                <div className="text-8xl animate-pulse">{purchaseAnimation.item.icon}</div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-white mb-2">Purchased!</h3>
+                  <p className="text-xl text-white/90">{purchaseAnimation.item.name}</p>
+                  <div className="flex items-center justify-center gap-2 mt-3">
+                    <Coins className="w-6 h-6 text-white" />
+                    <span className="text-2xl font-bold text-white">-{purchaseAnimation.item.cost}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Sparkle effects */}
+              <div className="absolute -top-4 -left-4 text-yellow-300 animate-ping">
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <div className="absolute -top-4 -right-4 text-yellow-300 animate-ping" style={{animationDelay: '0.2s'}}>
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <div className="absolute -bottom-4 -left-4 text-yellow-300 animate-ping" style={{animationDelay: '0.4s'}}>
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <div className="absolute -bottom-4 -right-4 text-yellow-300 animate-ping" style={{animationDelay: '0.6s'}}>
+                <Sparkles className="w-8 h-8" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Consume Animation */}
+      {consumeAnimation.show && consumeAnimation.item && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="relative animate-in fade-in zoom-in duration-300">
+            <div className="bg-gradient-to-br from-green-500/90 to-emerald-500/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border-4 border-green-400 animate-pulse">
+              <div className="flex flex-col items-center gap-4">
+                <div className="text-8xl animate-spin">{consumeAnimation.item.icon}</div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-white mb-2">Consumed!</h3>
+                  <p className="text-xl text-white/90">{consumeAnimation.item.name}</p>
+                  <p className="text-lg text-white/70 mt-2">Enjoy!</p>
+                </div>
+              </div>
+              {/* Sparkle effects */}
+              <div className="absolute -top-4 -left-4 text-green-300 animate-ping">
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <div className="absolute -top-4 -right-4 text-green-300 animate-ping" style={{animationDelay: '0.2s'}}>
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <div className="absolute -bottom-4 -left-4 text-green-300 animate-ping" style={{animationDelay: '0.4s'}}>
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <div className="absolute -bottom-4 -right-4 text-green-300 animate-ping" style={{animationDelay: '0.6s'}}>
+                <Sparkles className="w-8 h-8" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
