@@ -15,7 +15,7 @@ import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
 import { CompletionAnimation } from "@/components/completion-animation";
 import { RecyclingModal } from "@/components/recycling-modal";
-import { CategorizationFeedbackModal, TaskWithSuggestion } from "@/components/categorization-feedback-modal";
+import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -45,9 +45,9 @@ export default function Home() {
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
   
-  // Categorization feedback state
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [categorizationResults, setCategorizationResults] = useState<TaskWithSuggestion[]>([]);
+  // Categorization adjustment state
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [lastCategorizedTasks, setLastCategorizedTasks] = useState<any[]>([]);
   
   // Undo functionality state
   const [lastAction, setLastAction] = useState<{
@@ -239,21 +239,33 @@ export default function Home() {
       // Clear selection
       setSelectedTasks(new Set());
       
-      // Store results for feedback
+      // Store categorized tasks for potential adjustment
       if (result.tasks && result.tasks.length > 0) {
-        const tasksWithSuggestions = result.tasks.filter((t: TaskWithSuggestion) => t.aiSuggestion);
-        if (tasksWithSuggestions.length > 0) {
-          setCategorizationResults(tasksWithSuggestions);
-          setShowFeedbackModal(true);
-        }
+        setLastCategorizedTasks(result.tasks);
       }
       
       // Refresh tasks to show new skill tags
       refetchTasks();
 
+      // Show success toast - user can click "Adjust Skills" button separately
       toast({
-        title: "Success",
-        description: `${result.categorizedCount} task${result.categorizedCount > 1 ? 's' : ''} categorized with skills`,
+        title: "✓ Categorized Successfully",
+        description: (
+          <div className="flex flex-col gap-2">
+            <p>{result.categorizedCount} task{result.categorizedCount > 1 ? 's' : ''} categorized with AI</p>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => {
+                setShowAdjustModal(true);
+              }}
+              className="w-fit"
+            >
+              Adjust Skills
+            </Button>
+          </div>
+        ),
+        duration: 10000, // Show for 10 seconds
       });
     } catch (error) {
       toast({
@@ -1056,17 +1068,13 @@ export default function Home() {
         />
       )}
 
-      {/* Categorization Feedback Modal */}
-      <CategorizationFeedbackModal
-        open={showFeedbackModal}
-        onOpenChange={setShowFeedbackModal}
-        tasks={categorizationResults}
-        onFeedbackComplete={() => {
+      {/* Skill Adjustment Modal */}
+      <SkillAdjustmentModal
+        open={showAdjustModal}
+        onOpenChange={setShowAdjustModal}
+        tasks={lastCategorizedTasks}
+        onComplete={() => {
           refetchTasks();
-          toast({
-            title: "Training complete!",
-            description: "The AI has learned from your feedback",
-          });
         }}
       />
     </div>
