@@ -48,7 +48,7 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
 
   return (
     <Card className={cn(
-      "hover:shadow-md transition-shadow",
+      "bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10 transition-all",
       task.completed && "opacity-60"
     )}>
       <CardContent className="p-6">
@@ -64,15 +64,15 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
             
             <div className="flex-1 min-w-0">
               <h3 className={cn(
-                "text-lg font-semibold text-gray-900 mb-1",
-                task.completed && "line-through text-gray-500"
+                "text-lg font-semibold text-yellow-100 mb-1",
+                task.completed && "line-through text-yellow-400/60"
               )}>
                 {task.title}
               </h3>
-              <p className="text-gray-600 text-sm mb-2">
+              <p className="text-yellow-200/70 text-sm mb-2">
                 {task.description}
               </p>
-              <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
+              <div className="flex items-center space-x-4 text-sm text-yellow-300/60 mb-2">
                 <div className="flex items-center space-x-1">
                   <Clock className="w-4 h-4" />
                   <span>{formatDuration(task.duration)}</span>
@@ -94,7 +94,7 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                   </div>
                 )}
                 {task.completed && task.completedAt && (
-                  <div className="flex items-center space-x-1 text-green-600">
+                  <div className="flex items-center space-x-1 text-green-400">
                     <CheckCircle className="w-4 h-4" />
                     <span>Completed</span>
                   </div>
@@ -104,13 +104,13 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
               <div className="flex items-center flex-wrap gap-2">
                 {task.importance && (
                   <Badge variant="outline" className={cn(
-                    "text-xs",
-                    task.importance === "Pareto" && "bg-red-100 text-red-800 border-red-200",
-                    task.importance === "High" && "bg-orange-100 text-orange-800 border-orange-200",
-                    task.importance === "Med-High" && "bg-yellow-100 text-yellow-800 border-yellow-200",
-                    task.importance === "Medium" && "bg-blue-100 text-blue-800 border-blue-200",
-                    task.importance === "Med-Low" && "bg-gray-100 text-gray-800 border-gray-200",
-                    task.importance === "Low" && "bg-green-100 text-green-800 border-green-200"
+                    "text-xs border",
+                    task.importance === "Pareto" && "bg-red-900/40 text-red-200 border-red-600/40",
+                    task.importance === "High" && "bg-orange-900/40 text-orange-200 border-orange-600/40",
+                    task.importance === "Med-High" && "bg-yellow-900/40 text-yellow-200 border-yellow-600/40",
+                    task.importance === "Medium" && "bg-blue-900/40 text-blue-200 border-blue-600/40",
+                    task.importance === "Med-Low" && "bg-slate-700/40 text-slate-200 border-slate-600/40",
+                    task.importance === "Low" && "bg-green-900/40 text-green-200 border-green-600/40"
                   )}>
                     {task.importance === "Pareto" && <Zap className="w-3 h-3 mr-1" />}
                     {task.importance === "High" && <AlertTriangle className="w-3 h-3 mr-1" />}
@@ -120,15 +120,15 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                 
                 {task.lifeDomain && (
                   <Badge variant="outline" className={cn(
-                    "text-xs",
-                    task.lifeDomain === "Relationships" && "bg-pink-100 text-pink-800 border-pink-200",
-                    task.lifeDomain === "Finance" && "bg-green-100 text-green-800 border-green-200",
-                    task.lifeDomain === "Purpose" && "bg-purple-100 text-purple-800 border-purple-200",
-                    task.lifeDomain === "General" && "bg-gray-100 text-gray-800 border-gray-200",
-                    task.lifeDomain === "Physical" && "bg-red-100 text-red-800 border-red-200",
-                    task.lifeDomain === "Adventure" && "bg-orange-100 text-orange-800 border-orange-200",
-                    task.lifeDomain === "Power" && "bg-yellow-100 text-yellow-800 border-yellow-200",
-                    task.lifeDomain === "Mental" && "bg-blue-100 text-blue-800 border-blue-200"
+                    "text-xs border",
+                    task.lifeDomain === "Relationships" && "bg-pink-900/40 text-pink-200 border-pink-600/40",
+                    task.lifeDomain === "Finance" && "bg-green-900/40 text-green-200 border-green-600/40",
+                    task.lifeDomain === "Purpose" && "bg-purple-900/40 text-purple-200 border-purple-600/40",
+                    task.lifeDomain === "General" && "bg-slate-700/40 text-slate-200 border-slate-600/40",
+                    task.lifeDomain === "Physical" && "bg-red-900/40 text-red-200 border-red-600/40",
+                    task.lifeDomain === "Adventure" && "bg-orange-900/40 text-orange-200 border-orange-600/40",
+                    task.lifeDomain === "Power" && "bg-yellow-900/40 text-yellow-200 border-yellow-600/40",
+                    task.lifeDomain === "Mental" && "bg-blue-900/40 text-blue-200 border-blue-600/40"
                   )}>
                     {task.lifeDomain === "Relationships" && <Users className="w-3 h-3 mr-1" />}
                     {task.lifeDomain === "Finance" && <DollarSign className="w-3 h-3 mr-1" />}
@@ -142,14 +142,14 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                 )}
                 
                 {task.recurType === "🔄Recurring" && (
-                  <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800 border-purple-200">
+                  <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
                     <Repeat className="w-3 h-3 mr-1" />
                     Recurring
                   </Badge>
                 )}
                 
                 {task.kanbanStage && task.kanbanStage !== "Done" && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs bg-slate-700/40 text-slate-200 border-slate-600/40">
                     {task.kanbanStage}
                   </Badge>
                 )}
@@ -157,25 +157,25 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
                 {/* Checkbox indicators */}
                 <div className="flex items-center space-x-1">
                   {task.apple && (
-                    <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700 border-gray-200">
+                    <Badge variant="outline" className="text-xs bg-slate-700/40 text-slate-200 border-slate-600/40">
                       <Apple className="w-3 h-3 mr-1" />
                       Apple
                     </Badge>
                   )}
                   {task.smartPrep && (
-                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                    <Badge variant="outline" className="text-xs bg-blue-900/40 text-blue-200 border-blue-600/40">
                       <Brain className="w-3 h-3 mr-1" />
                       SmartPrep
                     </Badge>
                   )}
                   {task.delegationTask && (
-                    <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">
+                    <Badge variant="outline" className="text-xs bg-green-900/40 text-green-200 border-green-600/40">
                       <Users className="w-3 h-3 mr-1" />
                       Delegation
                     </Badge>
                   )}
                   {task.velin && (
-                    <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-200">
+                    <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
                       Velin
                     </Badge>
                   )}
@@ -189,8 +189,8 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
             className={cn(
               "flex items-center space-x-1 px-3 py-1",
               task.completed 
-                ? "bg-green-100 text-green-800"
-                : "bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800"
+                ? "bg-green-900/40 text-green-200 border border-green-600/40"
+                : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
             )}
           >
             <Coins className="w-4 h-4" />
