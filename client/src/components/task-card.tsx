@@ -64,20 +64,7 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
         onClick={() => !task.completed && onSelect(task.id, !isSelected)}
       >
         <CardContent className="p-6">
-          {/* Details button in top-right corner */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute top-2 right-2 h-8 w-8 p-0 text-yellow-400/60 hover:text-yellow-400 hover:bg-slate-700/50"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDetailModal(true);
-            }}
-          >
-            <Info className="h-4 w-4" />
-          </Button>
-
-          <div className="flex items-start justify-between pr-8">
+          <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <h3 className={cn(
                 "text-lg font-semibold text-yellow-100 mb-1",
@@ -212,6 +199,20 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
               <span className="font-semibold">{task.goldValue}</span>
             </Badge>
           </div>
+          
+          {/* Details button in bottom-right corner */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute bottom-2 right-2 h-auto px-2 py-1 text-yellow-400/60 hover:text-yellow-400 hover:bg-slate-700/50 flex items-center gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetailModal(true);
+            }}
+          >
+            <Info className="h-5 w-5" />
+            <span className="text-xs">Details</span>
+          </Button>
         </CardContent>
       </Card>
       

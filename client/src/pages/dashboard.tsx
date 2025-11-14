@@ -261,47 +261,6 @@ export default function Dashboard() {
         <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
-      {/* Header */}
-      <header className="bg-slate-900/80 backdrop-blur-md shadow-lg border-b border-yellow-600/30 sticky top-0 z-50 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            {/* Dashboard Title */}
-            <div className="flex items-center space-x-2">
-              <Trophy className="text-yellow-400 w-8 h-8" />
-              <h1 className="text-2xl font-serif font-bold text-yellow-100">Dashboard</h1>
-            </div>
-            
-            {/* User Dropdown */}
-            <div className="flex items-center">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium">
-                      {(user as any)?.firstName || (user as any)?.email || "User"}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
-                  <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
-                    <Link href="/settings" className="flex items-center">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
         {/* Stats Summary Cards - Skyrim Theme */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
