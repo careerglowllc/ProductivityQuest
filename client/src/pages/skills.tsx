@@ -24,6 +24,8 @@ import {
   Grid3x3,
   List,
   Settings,
+  Handshake,
+  Activity,
   type LucideIcon
 } from "lucide-react";
 import { useState } from "react";
@@ -66,11 +68,11 @@ const skillDescriptions = {
     level30: "Expert in multiple domains - advanced degrees or equivalent self-education. Published work, teaches others, recognized knowledge in specialized fields.",
     level50: "Polymath genius - PhD-level expertise in multiple fields, published researcher, or recognized thought leader. Lifetime dedication to learning and teaching."
   },
-  Healer: {
-    description: "Medical knowledge, caregiving, therapy, and wellness expertise. Your ability to help others heal physically, mentally, or emotionally.",
-    level10: "Basic first aid and wellness knowledge. Can provide basic care, emotional support, and understands fundamental health principles.",
-    level30: "Healthcare professional or experienced caregiver - nurse, therapist, trainer, or 5+ years serious health/wellness practice. Helps others heal regularly.",
-    level50: "Master healer - doctor, psychologist, or equivalent expertise. Saves lives, transforms health outcomes, expert in multiple healing modalities."
+  Connector: {
+    description: "Building deep relationships, forming meaningful bonds, and creating lasting connections. Your ability to connect with others on a genuine level and maintain strong relationships.",
+    level10: "Developing connection skills - actively listening, reaching out to friends and family, learning to be vulnerable and authentic in relationships.",
+    level30: "Strong connector - maintains deep friendships, nurtures meaningful relationships, 5+ years building authentic bonds. People feel truly seen and heard by you.",
+    level50: "Master connector - creates profound bonds, maintains vast network of deep relationships, brings people together. Expert at building community and lasting connections."
   },
   Charisma: {
     description: "Social influence, charm, persuasion, and interpersonal magnetism. Your ability to captivate, inspire, and influence people through personality and communication.",
@@ -78,11 +80,11 @@ const skillDescriptions = {
     level30: "Naturally charismatic - commands attention in rooms, persuasive communicator, 5+ years developing social influence. People gravitate toward you.",
     level50: "Magnetic presence - celebrity-level charisma, master persuader, inspires masses. Tony Stark or Obama-level charm and influence."
   },
-  Tactician: {
-    description: "Strategic thinking, planning, leadership, and tactical execution. Your ability to devise winning strategies and lead others to victory.",
-    level10: "Learning strategy - can plan projects, think ahead, and make basic tactical decisions. Studies strategy games or military tactics.",
-    level30: "Strategic leader - 5+ years leading teams/projects successfully. Proven track record of strategic wins in business, gaming, or real-world scenarios.",
-    level50: "Master strategist - leads large organizations, wins at highest levels of competition, or military/executive strategic genius. Grandmaster-level planning."
+  Health: {
+    description: "Physical health, vitality, fitness, and overall wellness. Your body's strength, endurance, flexibility, and how well you take care of your physical vessel.",
+    level10: "Building healthy habits - regular exercise routine, eating relatively healthy, getting decent sleep. Foundation of physical wellness established.",
+    level30: "Strong physical health - 5+ years of consistent fitness, excellent energy levels, strong immune system. Athletic performance or body composition goals achieved.",
+    level50: "Peak physical condition - elite athlete level fitness, optimal health markers, incredible vitality and longevity practices. Complete mastery of physical wellness."
   }
 };
 
@@ -94,9 +96,9 @@ const skillMetadata: Record<string, { icon: LucideIcon; constellation: string }>
   Merchant: { icon: Briefcase, constellation: "The Trader" },
   Warrior: { icon: Sword, constellation: "The Blade" },
   Scholar: { icon: Book, constellation: "The Sage" },
-  Healer: { icon: Heart, constellation: "The Guardian" },
+  Connector: { icon: Handshake, constellation: "The Bond" },
   Charisma: { icon: MessageCircle, constellation: "The Charmer" },
-  Tactician: { icon: Target, constellation: "The Strategist" },
+  Health: { icon: Heart, constellation: "The Vitality" },
 };
 
 export default function Skills() {
@@ -651,13 +653,13 @@ export default function Skills() {
                 </div>
 
                 <div>
-                  <Label htmlFor="level" className="text-purple-100">Level (1-50)</Label>
+                  <Label htmlFor="level" className="text-purple-100">Level (1-99)</Label>
                   <div className="flex items-center gap-4 mt-2">
                     <Input
                       id="level"
                       type="number"
                       min={1}
-                      max={50}
+                      max={99}
                       value={editForm.level}
                       onChange={(e) => setEditForm({ ...editForm, level: parseInt(e.target.value) || 1 })}
                       className="bg-slate-700/50 border-purple-600/30 text-purple-100 flex-1"

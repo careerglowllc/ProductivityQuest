@@ -40,6 +40,32 @@ export default function Shop() {
     queryKey: ["/api/shop/items"],
   });
 
+  const { data: inventory = [] } = useQuery({
+    queryKey: ["/api/inventory"],
+  });
+
+  const consumeMutation = useMutation({
+    mutationFn: async (purchaseId: number) => {
+      const response = await apiRequest("PATCH", `/api/purchases/${purchaseId}/use`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Item Consumed!",
+        description: "Item used successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
+    },
+    onError: () => {
+      toast({
+        title: "Consume Failed",
+        description: "Failed to use item",
+        variant: "destructive",
+      });
+    },
+  });
+
   const purchaseMutation = useMutation({
     mutationFn: async (itemId: number) => {
       const response = await apiRequest("POST", "/api/shop/purchase", { itemId });
@@ -293,6 +319,58 @@ export default function Shop() {
             </CardContent>
           </Card>
         )}
+      </div>
+
+      {/* Inventory Section */}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h2 className="text-3xl font-serif font-bold text-green-100 mb-2">Your Inventory</h2>
+          <p className="text-green-200/70">Items you've purchased and can use</p>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {inventory.map((invItem: any) => (
+            <Card 
+              key={invItem.itemId}
+              className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30 hover:border-green-500/50 transition-all"
+            >
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <div className="text-5xl mb-3">{invItem.item?.icon || "🎁"}</div>
+                  <h3 className="font-serif font-bold text-green-100 mb-2">{invItem.item?.name || "Unknown Item"}</h3>
+                  <Badge className="bg-green-600/40 text-green-100 border-green-500/50 mb-3">
+                    {invItem.unused} Available
+                  </Badge>
+                  {invItem.used > 0 && (
+                    <p className="text-xs text-green-300/60 mb-2">{invItem.used} used</p>
+                  )}
+                  {invItem.unused > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={() => consumeMutation.mutate(invItem.purchaseIds[0])}
+                      disabled={consumeMutation.isPending}
+                      className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white"
+                    >
+                      Consume
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          
+          {inventory.length === 0 && (
+            <div className="col-span-full">
+              <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30">
+                <CardContent className="p-12 text-center">
+                  <Star className="h-16 w-16 mx-auto mb-4 text-green-400/50" />
+                  <p className="text-green-100 font-medium text-lg mb-2">No items in inventory</p>
+                  <p className="text-green-200/70">Purchase items from the shop to add them to your inventory!</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add Item Modal */}

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Recycle, Sparkles, LayoutDashboard, Coins, User } from "lucide-react";
+import { ShoppingCart, CheckSquare, Recycle, Sparkles, LayoutDashboard, Coins, User, Users } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -110,6 +110,14 @@ export function TabBar() {
 
         {/* Gold and User Info - Right */}
         <div className="flex items-center gap-4">
+          {/* NPCs Button */}
+          <Link href="/npcs">
+            <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/30 border-2 border-blue-500/50 hover:bg-blue-600/40 hover:border-blue-400/60 transition-all">
+              <Users className="h-5 w-5 text-blue-300" />
+              <span className="text-sm font-semibold text-blue-100">NPCs</span>
+            </a>
+          </Link>
+
           {/* Gold Display */}
           <div className="flex items-center gap-2 bg-yellow-600/30 px-4 py-2 rounded-full border-2 border-yellow-500/50">
             <Coins className="h-5 w-5 text-yellow-400" />

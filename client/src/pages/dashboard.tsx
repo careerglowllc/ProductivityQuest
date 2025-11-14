@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Heart, MessageCircle, Target } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Heart, MessageCircle, Target, Crown, Handshake, Activity } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
@@ -20,9 +20,9 @@ const skillIcons: Record<string, any> = {
   Merchant: Briefcase,
   Warrior: Sword,
   Scholar: Book,
-  Healer: Heart,
+  Connector: Handshake,
   Charisma: MessageCircle,
-  Tactician: Target,
+  Health: Heart,
 };
 
 // Spider Chart Component
@@ -350,6 +350,36 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Main Campaign Section */}
+        <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Crown className="h-6 w-6 text-purple-400" />
+                <div>
+                  <h3 className="text-xl font-serif font-bold text-purple-100">Main Campaign</h3>
+                  <p className="text-purple-300/70 text-sm">Financial Independence Quest</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-purple-200/70 text-xs mb-1">Current Net Worth</p>
+                <p className="text-2xl font-bold text-purple-100">$500,000</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-purple-200/80">Goal: $1.3M Net Worth</span>
+                <span className="text-purple-100 font-bold">38.5%</span>
+              </div>
+              <Progress value={38.5} className="h-3 bg-slate-700/50">
+                <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" style={{ width: '38.5%' }} />
+              </Progress>
+              <p className="text-xs text-purple-300/60">$800,000 remaining to achieve financial freedom</p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Two-column layout for web, single column for mobile */}
         <div className={`${!isMobile ? 'grid grid-cols-2 gap-6' : 'space-y-6'} mb-8`}>

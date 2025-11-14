@@ -15,6 +15,7 @@ import Skills from "@/pages/skills";
 import Rewards from "@/pages/rewards";
 import SettingsPage from "@/pages/settings";
 import NotionIntegration from "@/pages/notion-integration";
+import NPCsPage from "@/pages/npcs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -70,6 +71,7 @@ function Router() {
             <Route path="/shop" component={Shop} />
             <Route path="/skills" component={Skills} />
             <Route path="/rewards" component={Rewards} />
+            <Route path="/npcs" component={NPCsPage} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
           </>

@@ -1028,6 +1028,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user's inventory with quantities
+  app.get("/api/inventory", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const purchases = await storage.getPurchases(userId);
+      
+      // Group by item and count unused vs used
+      const inventory = new Map();
+      
+      for (const purchase of purchases) {
+        if (!purchase.shopItemId) continue;
+        
+        const key = purchase.shopItemId;
+        if (!inventory.has(key)) {
+          const item = await storage.getShopItem(purchase.shopItemId);
+          inventory.set(key, {
+            itemId: purchase.shopItemId,
+            item: item,
+            unused: 0,
+            used: 0,
+            purchaseIds: [],
+          });
+        }
+        
+        const entry = inventory.get(key);
+        if (purchase.used) {
+          entry.used++;
+        } else {
+          entry.unused++;
+          entry.purchaseIds.push(purchase.id);
+        }
+      }
+      
+      res.json(Array.from(inventory.values()));
+    } catch (error) {
+      console.error("Inventory error:", error);
+      res.status(500).json({ error: "Failed to fetch inventory" });
+    }
+  });
+
   // Progress routes
   app.get("/api/progress", requireAuth, async (req: any, res) => {
     try {

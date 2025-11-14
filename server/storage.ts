@@ -418,9 +418,9 @@ export class DatabaseStorage implements IStorage {
       "Merchant",
       "Warrior",
       "Scholar",
-      "Healer",
+      "Connector",
       "Charisma",
-      "Tactician"
+      "Health"
     ];
 
     const defaultSkills: InsertUserSkill[] = skillNames.map(name => ({
