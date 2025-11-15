@@ -21,7 +21,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 
-type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "apple";
+type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-vi" | "business-general" | "business-sp" | "business-vel" | "business-cg";
+type BusinessFilterType = "Apple" | "Vi" | "General" | "SP" | "Vel" | "CG";
 type SortType = "due-date" | "importance";
 
 export default function Home() {
@@ -528,8 +529,23 @@ export default function Home() {
         task.recurType !== "one-time" && 
         task.recurType.trim() !== ""
       ).length,
-      apple: activeTasks.filter((task: any) => 
+      businessApple: activeTasks.filter((task: any) => 
         task.apple === true || task.businessWorkFilter === "Apple"
+      ).length,
+      businessVi: activeTasks.filter((task: any) => 
+        task.businessWorkFilter === "Vi"
+      ).length,
+      businessGeneral: activeTasks.filter((task: any) => 
+        task.businessWorkFilter === "General"
+      ).length,
+      businessSP: activeTasks.filter((task: any) => 
+        task.businessWorkFilter === "SP"
+      ).length,
+      businessVel: activeTasks.filter((task: any) => 
+        task.businessWorkFilter === "Vel"
+      ).length,
+      businessCG: activeTasks.filter((task: any) => 
+        task.businessWorkFilter === "CG"
       ).length
     };
   };
@@ -600,10 +616,34 @@ export default function Home() {
           task.recurType.trim() !== ""
         );
       
-      case "apple":
-        // Filter for Apple tasks (either apple checkbox OR businessWorkFilter is "Apple")
+      case "business-apple":
         return activeTasks.filter((task: any) => 
           task.apple === true || task.businessWorkFilter === "Apple"
+        );
+      
+      case "business-vi":
+        return activeTasks.filter((task: any) => 
+          task.businessWorkFilter === "Vi"
+        );
+      
+      case "business-general":
+        return activeTasks.filter((task: any) => 
+          task.businessWorkFilter === "General"
+        );
+      
+      case "business-sp":
+        return activeTasks.filter((task: any) => 
+          task.businessWorkFilter === "SP"
+        );
+      
+      case "business-vel":
+        return activeTasks.filter((task: any) => 
+          task.businessWorkFilter === "Vel"
+        );
+      
+      case "business-cg":
+        return activeTasks.filter((task: any) => 
+          task.businessWorkFilter === "CG"
         );
       
       default:
@@ -886,17 +926,93 @@ export default function Home() {
                   >
                     Routines ({filterCounts.routines})
                   </Badge>
-                  <Badge 
-                    variant={activeFilter === "apple" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "apple" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("apple")}
-                  >
-                    🍎 Apple ({filterCounts.apple})
-                  </Badge>
+                  
+                  {/* Business/Work Filter Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Badge 
+                        variant={
+                          activeFilter.startsWith("business-") ? "default" : "outline"
+                        }
+                        className={`cursor-pointer ${
+                          activeFilter.startsWith("business-")
+                            ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                            : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                        }`}
+                      >
+                        💼 Business ({
+                          filterCounts.businessApple + 
+                          filterCounts.businessVi + 
+                          filterCounts.businessGeneral + 
+                          filterCounts.businessSP + 
+                          filterCounts.businessVel + 
+                          filterCounts.businessCG
+                        })
+                      </Badge>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-apple")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-apple" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        🍎 Apple ({filterCounts.businessApple})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-vi")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-vi" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        Vi ({filterCounts.businessVi})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-general")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-general" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        General ({filterCounts.businessGeneral})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-sp")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-sp" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        SP ({filterCounts.businessSP})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-vel")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-vel" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        Vel ({filterCounts.businessVel})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-cg")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-cg" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        CG ({filterCounts.businessCG})
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 
                 <DropdownMenu>
