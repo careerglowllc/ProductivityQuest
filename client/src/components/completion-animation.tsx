@@ -22,12 +22,17 @@ interface CompletionAnimationProps {
 export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skillXPGains = [] }: CompletionAnimationProps) {
   useEffect(() => {
     if (isOpen) {
+      console.log('🎨 CompletionAnimation opened with:', {
+        task: task?.title,
+        skillXPGains,
+        skillXPGainsLength: skillXPGains.length
+      });
       const timer = setTimeout(() => {
         onClose();
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, skillXPGains]);
 
   if (!task) return null;
 

@@ -112,19 +112,6 @@ export default function Home() {
 
     // OPTIMISTIC UI: Update immediately
     setSelectedTasks(new Set());
-    
-    // Show completion animation
-    setCompletedTask({
-      ...tasksToComplete[0],
-      goldValue: totalGoldEarned
-    });
-    setShowCompletion(true);
-
-    // Show toast immediately
-    toast({
-      title: `${tasksToComplete.length} Quest${tasksToComplete.length > 1 ? 's' : ''} Complete!`,
-      description: `Earning ${totalGoldEarned} gold. Task${tasksToComplete.length > 1 ? 's' : ''} moved to recycling bin.`,
-    });
 
     try {
       // Call simplified batch endpoint - Notion updates happen in background
@@ -132,10 +119,22 @@ export default function Home() {
         taskIds: selectedTaskIds 
       });
       
-      // Update completion animation with skill XP gains
-      if (response.skillXPGains && response.skillXPGains.length > 0) {
-        setCompletionSkillXPGains(response.skillXPGains);
-      }
+      console.log('🎮 Completion response:', response);
+      console.log('🎯 Skill XP Gains:', response.skillXPGains);
+      
+      // Show completion animation with data from backend
+      setCompletedTask({
+        ...tasksToComplete[0],
+        goldValue: totalGoldEarned
+      });
+      setCompletionSkillXPGains(response.skillXPGains || []);
+      setShowCompletion(true);
+
+      // Show toast
+      toast({
+        title: `${tasksToComplete.length} Quest${tasksToComplete.length > 1 ? 's' : ''} Complete!`,
+        description: `Earning ${totalGoldEarned} gold. Task${tasksToComplete.length > 1 ? 's' : ''} moved to recycling bin.`,
+      });
       
       // Track for undo
       setLastAction({
