@@ -115,19 +115,21 @@ export default function Home() {
 
     try {
       // Call simplified batch endpoint - Notion updates happen in background
-      const response: any = await apiRequest("POST", "/api/tasks/complete-batch", { 
+      const response = await apiRequest("POST", "/api/tasks/complete-batch", { 
         taskIds: selectedTaskIds 
       });
       
-      console.log('🎮 Completion response:', response);
-      console.log('🎯 Skill XP Gains:', response.skillXPGains);
+      const data = await response.json();
+      
+      console.log('🎮 Completion response:', data);
+      console.log('🎯 Skill XP Gains:', data.skillXPGains);
       
       // Show completion animation with data from backend
       setCompletedTask({
         ...tasksToComplete[0],
         goldValue: totalGoldEarned
       });
-      setCompletionSkillXPGains(response.skillXPGains || []);
+      setCompletionSkillXPGains(data.skillXPGains || []);
       setShowCompletion(true);
 
       // Show toast
