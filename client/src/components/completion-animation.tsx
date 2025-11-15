@@ -9,6 +9,7 @@ interface SkillXPGain {
   newXP: number;
   newLevel: number;
   maxXP: number;
+  skillIcon?: string;
 }
 
 interface UserSkill {
@@ -102,10 +103,21 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
               <p className="text-yellow-200/70 text-sm">Skills Leveled</p>
               <div className="flex flex-wrap gap-3 justify-center">
                 {skillXPGains.map((gain, index) => {
-                  // Find the skill to get its icon
-                  const skill = skills.find(s => s.skillName === gain.skillName);
-                  const Icon = skill ? getSkillIcon(skill.skillIcon) : getSkillIcon(null);
+                  // Use icon from gain data (backend provides it), or find the skill to get its icon
+                  let iconName = gain.skillIcon;
+                  if (!iconName) {
+                    const skill = skills.find(s => s.skillName === gain.skillName);
+                    iconName = skill?.skillIcon;
+                  }
+                  const Icon = getSkillIcon(iconName);
                   const progressPercent = (gain.newXP / gain.maxXP) * 100;
+                  
+                  console.log('🎨 Rendering skill gain:', {
+                    skillName: gain.skillName,
+                    skillIcon: gain.skillIcon,
+                    foundIconName: iconName,
+                    Icon: Icon.name
+                  });
                   
                   return (
                     <div 
