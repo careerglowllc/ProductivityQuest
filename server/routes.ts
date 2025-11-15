@@ -489,14 +489,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalGoldRefunded = 0;
       const restoredTasks = [];
 
-      // Uncomplete all tasks
+      // Uncomplete all tasks and restore from recycling
       for (const taskId of taskIds) {
         const task = await storage.getTask(taskId, userId);
         if (task && task.completed) {
-          // Mark as incomplete
+          // Mark as incomplete and restore from recycling
           const updatedTask = await storage.updateTask(taskId, {
             completed: false,
-            completedAt: null
+            completedAt: null,
+            recycled: false,
+            recycledAt: null,
+            recycledReason: null
           }, userId);
           
           if (updatedTask) {
@@ -683,6 +686,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Task deletion error:", error);
       res.status(500).json({ error: "Failed to delete task" });
+    }
+  });
+
+  // Recycling bin routes
+  app.get("/api/recycled-tasks", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const recycledTasks = await storage.getRecycledTasks(userId);
+      res.json(recycledTasks);
+    } catch (error) {
+      console.error("Get recycled tasks error:", error);
+      res.status(500).json({ error: "Failed to get recycled tasks" });
+    }
+  });
+
+  app.post("/api/tasks/:id/restore", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const id = parseInt(req.params.id);
+      const restoredTask = await storage.restoreTask(id, userId);
+      if (!restoredTask) {
+        return res.status(404).json({ error: "Task not found in recycling bin" });
+      }
+      res.json(restoredTask);
+    } catch (error) {
+      console.error("Task restoration error:", error);
+      res.status(500).json({ error: "Failed to restore task" });
+    }
+  });
+
+  app.delete("/api/tasks/:id/permanent", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const id = parseInt(req.params.id);
+      const success = await storage.permanentlyDeleteTask(id, userId);
+      if (!success) {
+        return res.status(404).json({ error: "Task not found in recycling bin" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Permanent deletion error:", error);
+      res.status(500).json({ error: "Failed to permanently delete task" });
     }
   });
 
@@ -901,6 +946,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
+          // Skip completed tasks from Notion - they belong in recycling
+          if (notionTask.isCompleted) {
+            continue;
+          }
+          
           const taskData = {
             userId,
             notionId: notionTask.notionId,
@@ -909,7 +959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             duration: notionTask.duration,
             goldValue: notionTask.goldValue,
             dueDate: notionTask.dueDate,
-            completed: notionTask.isCompleted,
+            completed: false, // Only import non-completed tasks
             importance: notionTask.importance,
             kanbanStage: notionTask.kanbanStage,
             recurType: notionTask.recurType,

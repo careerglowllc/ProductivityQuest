@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen } from "lucide-react";
+import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function SettingsPage() {
@@ -32,6 +32,13 @@ export default function SettingsPage() {
       icon: Database,
       path: "/settings/notion",
       color: "from-purple-500 to-purple-600",
+    },
+    {
+      title: "Recycling Bin",
+      description: "View and restore deleted or completed tasks",
+      icon: Trash2,
+      path: "/recycling-bin",
+      color: "from-slate-500 to-slate-600",
     },
     {
       title: "Google Calendar",

@@ -123,7 +123,7 @@ export default function Home() {
     // Show toast immediately
     toast({
       title: `${tasksToComplete.length} Quest${tasksToComplete.length > 1 ? 's' : ''} Complete!`,
-      description: `Earning ${totalGoldEarned} gold...`,
+      description: `Earning ${totalGoldEarned} gold. Task${tasksToComplete.length > 1 ? 's' : ''} moved to recycling bin.`,
     });
 
     try {

@@ -20,6 +20,7 @@ import SettingsGuidesPage from "@/pages/settings-guides";
 import SkillClassificationGuidePage from "@/pages/settings-guides-skill-classification";
 import GettingStarted from "@/pages/getting-started";
 import NPCsPage from "@/pages/npcs";
+import RecyclingBin from "@/pages/recycling-bin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -81,6 +82,7 @@ function Router() {
             <Route path="/settings/notion" component={NotionIntegration} />
             <Route path="/settings/guides" component={SettingsGuidesPage} />
             <Route path="/settings/guides/skill-classification" component={SkillClassificationGuidePage} />
+            <Route path="/recycling-bin" component={RecyclingBin} />
             <Route path="/getting-started" component={GettingStarted} />
           </>
         )}

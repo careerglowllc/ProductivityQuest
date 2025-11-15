@@ -15,6 +15,9 @@ export interface IStorage {
   updateTask(id: number, task: Partial<Task>, userId: string): Promise<Task | undefined>;
   deleteTask(id: number, userId: string): Promise<boolean>;
   completeTask(id: number, userId: string): Promise<Task | undefined>;
+  getRecycledTasks(userId: string): Promise<Task[]>;
+  restoreTask(id: number, userId: string): Promise<Task | undefined>;
+  permanentlyDeleteTask(id: number, userId: string): Promise<boolean>;
   
   // Shop operations
   getShopItems(): Promise<ShopItem[]>;
@@ -159,7 +162,10 @@ export class DatabaseStorage implements IStorage {
   // Task operations
   async getTasks(userId: string): Promise<Task[]> {
     return await db.select().from(tasks)
-      .where(eq(tasks.userId, userId))
+      .where(and(
+        eq(tasks.userId, userId),
+        eq(tasks.recycled, false)
+      ))
       .orderBy(tasks.createdAt);
   }
 
@@ -184,9 +190,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTask(id: number, userId: string): Promise<boolean> {
-    const result = await db.delete(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
-    return (result.rowCount ?? 0) > 0;
+    // Move to recycling bin instead of hard delete
+    const [recycledTask] = await db
+      .update(tasks)
+      .set({
+        recycled: true,
+        recycledAt: new Date(),
+        recycledReason: 'deleted'
+      })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .returning();
+    return !!recycledTask;
   }
 
   async completeTask(id: number, userId: string): Promise<Task | undefined> {
@@ -198,6 +212,9 @@ export class DatabaseStorage implements IStorage {
       .set({
         completed: true,
         completedAt: new Date(),
+        recycled: true,
+        recycledAt: new Date(),
+        recycledReason: 'completed'
       })
       .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
       .returning();
@@ -216,6 +233,34 @@ export class DatabaseStorage implements IStorage {
     }
 
     return completedTask;
+  }
+
+  async getRecycledTasks(userId: string): Promise<Task[]> {
+    return await db.select().from(tasks)
+      .where(and(
+        eq(tasks.userId, userId),
+        eq(tasks.recycled, true)
+      ))
+      .orderBy(tasks.recycledAt);
+  }
+
+  async restoreTask(id: number, userId: string): Promise<Task | undefined> {
+    const [restoredTask] = await db
+      .update(tasks)
+      .set({
+        recycled: false,
+        recycledAt: null,
+        recycledReason: null
+      })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), eq(tasks.recycled, true)))
+      .returning();
+    return restoredTask;
+  }
+
+  async permanentlyDeleteTask(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), eq(tasks.recycled, true)));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Shop operations
