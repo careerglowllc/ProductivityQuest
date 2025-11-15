@@ -32,6 +32,7 @@ export default function Home() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedTask, setCompletedTask] = useState<any>(null);
+  const [completionSkillXPGains, setCompletionSkillXPGains] = useState<any[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [sortBy, setSortBy] = useState<SortType>("due-date");
   const [showImportConfirm, setShowImportConfirm] = useState(false);
@@ -127,9 +128,14 @@ export default function Home() {
 
     try {
       // Call simplified batch endpoint - Notion updates happen in background
-      await apiRequest("POST", "/api/tasks/complete-batch", { 
+      const response: any = await apiRequest("POST", "/api/tasks/complete-batch", { 
         taskIds: selectedTaskIds 
       });
+      
+      // Update completion animation with skill XP gains
+      if (response.skillXPGains && response.skillXPGains.length > 0) {
+        setCompletionSkillXPGains(response.skillXPGains);
+      }
       
       // Track for undo
       setLastAction({
@@ -1168,9 +1174,13 @@ export default function Home() {
       
       <CompletionAnimation
         isOpen={showCompletion}
-        onClose={() => setShowCompletion(false)}
+        onClose={() => {
+          setShowCompletion(false);
+          setCompletionSkillXPGains([]);
+        }}
         task={completedTask}
         newGoldTotal={progress.goldTotal}
+        skillXPGains={completionSkillXPGains}
       />
 
       {/* Import Confirmation Modal */}

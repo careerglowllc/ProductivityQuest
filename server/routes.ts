@@ -401,14 +401,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalGold = 0;
       let completedCount = 0;
       const completedTasks = [];
+      const allSkillXPGains: Array<{ skillName: string; xpGained: number; newXP: number; newLevel: number }> = [];
+
+      // Import XP calculation
+      const { calculateXPPerSkill } = await import("./xpCalculation");
 
       // Complete all tasks in one transaction
       for (const taskId of taskIds) {
+        // Get task before completion to calculate XP
+        const taskBefore = await storage.getTask(taskId, userId);
+        
+        // Calculate XP gains before completion
+        if (taskBefore && !taskBefore.completed && taskBefore.skillTags && taskBefore.skillTags.length > 0) {
+          const xpPerSkill = calculateXPPerSkill(taskBefore.importance, taskBefore.duration, taskBefore.skillTags.length);
+          
+          for (const skillName of taskBefore.skillTags) {
+            const skillBefore = await storage.getUserSkill(userId, skillName);
+            if (skillBefore) {
+              // Check if we already have XP for this skill (from previous tasks in batch)
+              const existingGain = allSkillXPGains.find(g => g.skillName === skillName);
+              if (existingGain) {
+                existingGain.xpGained += xpPerSkill;
+              } else {
+                allSkillXPGains.push({
+                  skillName,
+                  xpGained: xpPerSkill,
+                  newXP: skillBefore.xp + xpPerSkill,
+                  newLevel: skillBefore.level
+                });
+              }
+            }
+          }
+        }
+        
         const task = await storage.completeTask(taskId, userId);
         if (task) {
           totalGold += task.goldValue;
           completedCount++;
           completedTasks.push(task);
+        }
+      }
+
+      // Get updated skill info after XP awards
+      for (const gain of allSkillXPGains) {
+        const updatedSkill = await storage.getUserSkill(userId, gain.skillName);
+        if (updatedSkill) {
+          gain.newLevel = updatedSkill.level;
+          gain.newXP = updatedSkill.xp;
         }
       }
 
@@ -428,7 +467,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         completedCount,
         totalGold,
-        tasks: completedTasks
+        tasks: completedTasks,
+        skillXPGains: allSkillXPGains
       });
     } catch (error) {
       console.error("Batch completion error:", error);
