@@ -668,6 +668,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Categorize all uncategorized tasks
+  app.post("/api/tasks/categorize-all", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+
+      // Get all tasks without skillTags
+      const allTasks = await storage.getTasks(userId);
+      const uncategorizedTasks = allTasks.filter(
+        (task: any) => !task.skillTags || task.skillTags.length === 0
+      );
+
+      if (uncategorizedTasks.length === 0) {
+        return res.json({ categorizedCount: 0, message: "All tasks already categorized" });
+      }
+
+      // Fetch user's skills and training examples
+      const userSkills = await storage.getUserSkills(userId);
+      const trainingData = await db.select().from(skillCategorizationTraining)
+        .where(and(
+          eq(skillCategorizationTraining.userId, userId),
+          eq(skillCategorizationTraining.isApproved, true)
+        ))
+        .limit(50);
+
+      const trainingExamples = trainingData.map(t => ({
+        taskTitle: t.taskTitle,
+        taskDetails: t.taskDetails || undefined,
+        correctSkills: t.correctSkills
+      }));
+
+      let categorizedCount = 0;
+
+      // Categorize each task
+      for (const task of uncategorizedTasks) {
+        try {
+          const categorization = await categorizeTaskWithAI(
+            task.title,
+            task.details || undefined,
+            trainingExamples,
+            userSkills
+          );
+
+          if (categorization && categorization.skills.length > 0) {
+            await storage.updateTask(
+              task.id,
+              { skillTags: categorization.skills as any },
+              userId
+            );
+            categorizedCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to categorize task ${task.id}:`, error);
+          // Continue with next task
+        }
+      }
+
+      res.json({ 
+        categorizedCount, 
+        totalTasks: uncategorizedTasks.length,
+        message: `Categorized ${categorizedCount} of ${uncategorizedTasks.length} tasks`
+      });
+    } catch (error) {
+      console.error("Categorize all error:", error);
+      res.status(500).json({ error: "Failed to categorize tasks" });
+    }
+  });
+
   // Get training examples for review
   app.get("/api/tasks/training-examples", requireAuth, async (req: any, res) => {
     try {

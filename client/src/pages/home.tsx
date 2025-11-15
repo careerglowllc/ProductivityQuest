@@ -437,6 +437,46 @@ export default function Home() {
     }
   };
 
+  const handleCategorizeAll = async () => {
+    try {
+      // Get all tasks without skillTags
+      const uncategorizedTasks = (tasks as any[]).filter(
+        (task: any) => !task.skillTags || task.skillTags.length === 0
+      );
+
+      if (uncategorizedTasks.length === 0) {
+        toast({
+          title: "All Set!",
+          description: "All tasks are already categorized with skills.",
+        });
+        return;
+      }
+
+      toast({
+        title: "Categorizing Tasks...",
+        description: `Categorizing ${uncategorizedTasks.length} tasks with AI. This may take a moment.`,
+      });
+
+      // Send request to categorize all tasks
+      const response = await apiRequest("POST", "/api/tasks/categorize-all");
+      const data = await response.json();
+
+      toast({
+        title: "Categorization Complete!",
+        description: `Successfully categorized ${data.categorizedCount} tasks with skills.`,
+      });
+
+      // Refresh tasks to show updated skillTags
+      refetchTasks();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to categorize tasks. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleImportPrepare = async () => {
     try {
       const response = await apiRequest("GET", "/api/notion/check-duplicates");
@@ -846,6 +886,17 @@ export default function Home() {
               </svg>
               <span>Add Quest</span>
             </Button>
+            
+            {/* Categorize All Button */}
+            <Button 
+              onClick={handleCategorizeAll}
+              variant="outline"
+              className="flex items-center space-x-2 bg-purple-900/30 border-purple-500/40 text-purple-200 hover:bg-purple-600/30 hover:text-purple-100 hover:border-purple-500/60"
+            >
+              <Tag className="w-4 h-4" />
+              <span>Categorize All</span>
+            </Button>
+            
             {/* Undo Button - Always visible when there's a last action */}
             {lastAction.type && (
               <Button 
