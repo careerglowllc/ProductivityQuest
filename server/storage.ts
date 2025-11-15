@@ -517,6 +517,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async initializeUserSkills(userId: string): Promise<void> {
+    // Map skill names to their default icons
+    const skillIconMap: Record<string, string> = {
+      "Craftsman": "Wrench",
+      "Artist": "Palette",
+      "Mindset": "Brain",
+      "Merchant": "Briefcase",
+      "Physical": "Activity",
+      "Scholar": "Book",
+      "Connector": "Handshake",
+      "Charisma": "Users",
+      "Health": "Heart"
+    };
+
     const skillNames = [
       "Craftsman",
       "Artist", 
@@ -532,7 +545,7 @@ export class DatabaseStorage implements IStorage {
     const defaultSkills: InsertUserSkill[] = skillNames.map(name => ({
       userId,
       skillName: name,
-      skillIcon: null,
+      skillIcon: skillIconMap[name] || null,
       skillDescription: null,
       skillMilestones: null as string[] | null,
       isCustom: false,
@@ -545,6 +558,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async ensureDefaultSkills(userId: string): Promise<void> {
+    // Map skill names to their default icons
+    const skillIconMap: Record<string, string> = {
+      "Craftsman": "Wrench",
+      "Artist": "Palette",
+      "Mindset": "Brain",
+      "Merchant": "Briefcase",
+      "Physical": "Activity",
+      "Scholar": "Book",
+      "Connector": "Handshake",
+      "Charisma": "Users",
+      "Health": "Heart"
+    };
+
     const skillNames = [
       "Craftsman",
       "Artist", 
@@ -573,7 +599,7 @@ export class DatabaseStorage implements IStorage {
       const skillsToAdd: InsertUserSkill[] = missingSkills.map(name => ({
         userId,
         skillName: name,
-        skillIcon: null,
+        skillIcon: skillIconMap[name] || null,
         skillDescription: null,
         skillMilestones: null as string[] | null,
         isCustom: false,
@@ -591,6 +617,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async restoreDefaultSkills(userId: string): Promise<void> {
+    // Map skill names to their default icons
+    const skillIconMap: Record<string, string> = {
+      "Craftsman": "Wrench",
+      "Artist": "Palette",
+      "Mindset": "Brain",
+      "Merchant": "Briefcase",
+      "Physical": "Activity",
+      "Scholar": "Book",
+      "Connector": "Handshake",
+      "Charisma": "Users",
+      "Health": "Heart"
+    };
+
     const skillNames = [
       "Craftsman",
       "Artist", 
@@ -620,7 +659,7 @@ export class DatabaseStorage implements IStorage {
       const skillsToAdd: InsertUserSkill[] = skillNames.map(name => ({
         userId,
         skillName: name,
-        skillIcon: null,
+        skillIcon: skillIconMap[name] || null,
         skillDescription: null,
         skillMilestones: null as string[] | null,
         isCustom: false,

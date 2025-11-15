@@ -1,6 +1,6 @@
 import {
   Brain, Wrench, Palette, Briefcase, Sword, Book, Activity, Network, Users,
-  Heart, Trophy, Target, Star, Zap, Sparkles, Crown, Mountain, Gem, Flame
+  Heart, Trophy, Target, Star, Zap, Sparkles, Crown, Mountain, Gem, Flame, Handshake
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -15,6 +15,7 @@ export const SKILL_ICON_MAP: Record<string, LucideIcon> = {
   Activity,
   Network,
   Users,
+  Handshake,
   // Additional custom skill icons
   Heart,
   Trophy,
