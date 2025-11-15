@@ -540,6 +540,32 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
   }
 
+  async updateSkill(
+    userId: string, 
+    skillId: number, 
+    updates: { icon?: string; level?: number; xp?: number }
+  ): Promise<void> {
+    // Find the skill
+    const [skill] = await db.select().from(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
+    
+    if (!skill) {
+      throw new Error("Skill not found");
+    }
+
+    // Build update object
+    const updateData: any = {};
+    if (updates.icon) updateData.skillIcon = updates.icon;
+    if (updates.level !== undefined) updateData.level = updates.level;
+    if (updates.xp !== undefined) updateData.xp = updates.xp;
+    updateData.updatedAt = new Date();
+
+    // Update the skill
+    await db.update(userSkills)
+      .set(updateData)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
+  }
+
   private async initializeUserSkills(userId: string): Promise<void> {
     // Map skill names to their default icons
     const skillIconMap: Record<string, string> = {

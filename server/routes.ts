@@ -2020,12 +2020,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update skill icon
+  // Update skill icon, level, and XP
   app.patch("/api/skills/:skillId/icon", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
       const skillId = parseInt(req.params.skillId);
-      const { icon } = req.body;
+      const { icon, level, xp } = req.body;
 
       if (isNaN(skillId)) {
         return res.status(400).json({ error: "Invalid skill ID" });
@@ -2035,14 +2035,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Icon name is required" });
       }
 
-      await storage.updateSkillIcon(userId, skillId, icon);
-      res.json({ message: "Skill icon updated successfully" });
+      // Validate level and xp if provided
+      if (level !== undefined && (typeof level !== 'number' || level < 1)) {
+        return res.status(400).json({ error: "Level must be a positive number" });
+      }
+
+      if (xp !== undefined && (typeof xp !== 'number' || xp < 0)) {
+        return res.status(400).json({ error: "XP must be a non-negative number" });
+      }
+
+      await storage.updateSkill(userId, skillId, { 
+        icon, 
+        ...(level !== undefined && { level }),
+        ...(xp !== undefined && { xp })
+      });
+      
+      res.json({ message: "Skill updated successfully" });
     } catch (error) {
-      console.error("Error updating skill icon:", error);
+      console.error("Error updating skill:", error);
       if (error instanceof Error && error.message.includes("not found")) {
         res.status(404).json({ error: error.message });
       } else {
-        res.status(500).json({ error: "Failed to update skill icon" });
+        res.status(500).json({ error: "Failed to update skill" });
       }
     }
   });

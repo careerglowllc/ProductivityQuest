@@ -195,23 +195,33 @@ export default function Skills() {
   });
 
   const updateSkillIconMutation = useMutation({
-    mutationFn: async ({ skillId, icon }: { skillId: number; icon: string }) => {
-      return await apiRequest("PATCH", `/api/skills/${skillId}/icon`, { icon });
+    mutationFn: async ({ 
+      skillId, 
+      icon, 
+      level, 
+      xp 
+    }: { 
+      skillId: number; 
+      icon: string; 
+      level?: number; 
+      xp?: number; 
+    }) => {
+      return await apiRequest("PATCH", `/api/skills/${skillId}/icon`, { icon, level, xp });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
-        title: "✓ Icon Updated!",
-        description: "Skill icon has been changed successfully.",
+        title: "✓ Skill Updated!",
+        description: "Skill has been updated successfully.",
       });
       setShowEditIconModal(false);
       setSkillToEdit(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error Updating Icon",
-        description: error.message || "Failed to update skill icon",
+        title: "Error Updating Skill",
+        description: error.message || "Failed to update skill",
         variant: "destructive",
       });
     },
@@ -761,10 +771,15 @@ export default function Skills() {
           onOpenChange={setShowEditIconModal}
           skillName={skillToEdit.skillName}
           currentIcon={skillToEdit.skillIcon || 'Star'}
-          onSubmit={async (newIcon) => {
+          currentLevel={skillToEdit.level}
+          currentXp={skillToEdit.xp}
+          currentMaxXp={skillToEdit.maxXp}
+          onSubmit={async (data) => {
             await updateSkillIconMutation.mutateAsync({ 
               skillId: skillToEdit.id, 
-              icon: newIcon 
+              icon: data.icon,
+              level: data.level,
+              xp: data.xp
             });
           }}
         />
