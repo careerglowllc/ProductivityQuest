@@ -1,15 +1,24 @@
 import { useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Trophy, Coins, Sparkles } from "lucide-react";
+import { getSkillIcon } from "@/lib/skillIcons";
+
+interface SkillXPGain {
+  skillName: string;
+  xpGained: number;
+  newXP: number;
+  newLevel: number;
+}
 
 interface CompletionAnimationProps {
   isOpen: boolean;
   onClose: () => void;
   task: any;
   newGoldTotal: number;
+  skillXPGains?: SkillXPGain[];
 }
 
-export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal }: CompletionAnimationProps) {
+export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skillXPGains = [] }: CompletionAnimationProps) {
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
@@ -62,6 +71,66 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal }: Com
               <span className="text-yellow-200/80 text-lg">Gold</span>
             </div>
           </div>
+
+          {/* Skill XP Gains */}
+          {skillXPGains && skillXPGains.length > 0 && (
+            <div className="space-y-3 mb-4">
+              <p className="text-yellow-200/70 text-sm">Skills Leveled</p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                {skillXPGains.map((gain) => {
+                  const Icon = getSkillIcon(gain.skillName);
+                  const maxXP = 100; // You might want to get this from the skill data
+                  const progressPercent = (gain.newXP / maxXP) * 100;
+                  
+                  return (
+                    <div key={gain.skillName} className="bg-slate-700/50 border-2 border-purple-500/40 rounded-lg p-3 min-w-[120px]">
+                      {/* Skill Icon with fill animation */}
+                      <div className="relative w-16 h-16 mx-auto mb-2">
+                        <div className="absolute inset-0 bg-gradient-to-b from-purple-400/10 to-purple-600/10 rounded-2xl"></div>
+                        <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-purple-600/40 bg-slate-700/30">
+                          {/* Gray background */}
+                          <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
+                          
+                          {/* Purple fill from bottom based on XP */}
+                          <div 
+                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-600 to-purple-400 transition-all duration-1000 ease-out"
+                            style={{ 
+                              height: `${Math.min(progressPercent, 100)}%`,
+                              boxShadow: '0 0 20px rgba(168, 85, 247, 0.4)'
+                            }}
+                          ></div>
+                          
+                          {/* Icon */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Icon 
+                              className="h-8 w-8 text-slate-900/80 drop-shadow-lg" 
+                              strokeWidth={2.5}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Skill Name */}
+                      <p className="text-xs font-semibold text-purple-200 text-center mb-1">
+                        {gain.skillName}
+                      </p>
+                      
+                      {/* XP Gained */}
+                      <div className="text-center">
+                        <span className="text-lg font-bold text-purple-400">+{gain.xpGained}</span>
+                        <span className="text-xs text-purple-300/70 ml-1">XP</span>
+                      </div>
+                      
+                      {/* Level badge */}
+                      <p className="text-xs text-purple-300/60 text-center mt-1">
+                        Lvl {gain.newLevel}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           
           {/* Total Gold */}
           <div className="pt-4 border-t border-yellow-600/30">

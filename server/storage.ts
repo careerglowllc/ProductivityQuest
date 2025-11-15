@@ -31,6 +31,7 @@ export interface IStorage {
   
   // Skill operations
   getUserSkills(userId: string): Promise<UserSkill[]>;
+  getUserSkill(userId: string, skillName: string): Promise<UserSkill | undefined>;
   updateUserSkill(userId: string, skillName: string, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
   updateUserSkillById(userId: string, skillId: number, updates: Partial<UserSkill>): Promise<UserSkill | undefined>;
   addSkillXp(userId: string, skillName: string, xp: number): Promise<UserSkill | undefined>;
@@ -204,6 +205,16 @@ export class DatabaseStorage implements IStorage {
     // Award gold and update progress
     await this.addGold(userId, task.goldValue);
 
+    // Award XP to skills if task has skill tags
+    if (task.skillTags && task.skillTags.length > 0) {
+      const { calculateXPPerSkill } = await import("./xpCalculation");
+      const xpPerSkill = calculateXPPerSkill(task.importance, task.duration, task.skillTags.length);
+      
+      for (const skillName of task.skillTags) {
+        await this.addSkillXp(userId, skillName, xpPerSkill);
+      }
+    }
+
     return completedTask;
   }
 
@@ -327,6 +338,12 @@ export class DatabaseStorage implements IStorage {
   async getUserSkills(userId: string): Promise<UserSkill[]> {
     return await db.select().from(userSkills)
       .where(eq(userSkills.userId, userId));
+  }
+
+  async getUserSkill(userId: string, skillName: string): Promise<UserSkill | undefined> {
+    const [skill] = await db.select().from(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.skillName, skillName)));
+    return skill;
   }
 
   async updateUserSkill(userId: string, skillName: string, updates: Partial<UserSkill>): Promise<UserSkill | undefined> {

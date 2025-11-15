@@ -327,9 +327,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId;
       const id = parseInt(req.params.id);
+      
+      // Get task before completion to calculate XP
+      const taskBefore = await storage.getTask(id, userId);
+      if (!taskBefore || taskBefore.completed) {
+        return res.status(404).json({ error: "Task not found or already completed" });
+      }
+      
+      // Calculate XP gains before completion
+      const skillXPGains: Array<{ skillName: string; xpGained: number; newXP: number; newLevel: number }> = [];
+      if (taskBefore.skillTags && taskBefore.skillTags.length > 0) {
+        const { calculateXPPerSkill } = await import("./xpCalculation");
+        const xpPerSkill = calculateXPPerSkill(taskBefore.importance, taskBefore.duration, taskBefore.skillTags.length);
+        
+        for (const skillName of taskBefore.skillTags) {
+          const skillBefore = await storage.getUserSkill(userId, skillName);
+          if (skillBefore) {
+            const newXP = skillBefore.xp + xpPerSkill;
+            const newLevel = skillBefore.level; // Level will be updated by addSkillXp
+            skillXPGains.push({
+              skillName,
+              xpGained: xpPerSkill,
+              newXP,
+              newLevel
+            });
+          }
+        }
+      }
+      
       const task = await storage.completeTask(id, userId);
       if (!task) {
         return res.status(404).json({ error: "Task not found or already completed" });
+      }
+      
+      // Get updated skill info after XP award
+      for (const gain of skillXPGains) {
+        const updatedSkill = await storage.getUserSkill(userId, gain.skillName);
+        if (updatedSkill) {
+          gain.newLevel = updatedSkill.level;
+          gain.newXP = updatedSkill.xp;
+        }
       }
       
       // Update the task in Notion if it has a notionId
@@ -344,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(task);
+      res.json({ task, skillXPGains });
     } catch (error) {
       console.error("Task completion error:", error);
       res.status(500).json({ error: "Failed to complete task" });
