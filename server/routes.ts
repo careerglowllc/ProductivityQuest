@@ -411,9 +411,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get task before completion to calculate XP
         const taskBefore = await storage.getTask(taskId, userId);
         
+        console.log(`🎯 Completing task ${taskId}:`, {
+          title: taskBefore?.title,
+          skillTags: taskBefore?.skillTags,
+          hasSkillTags: taskBefore?.skillTags && taskBefore.skillTags.length > 0
+        });
+        
         // Calculate XP gains before completion
         if (taskBefore && !taskBefore.completed && taskBefore.skillTags && taskBefore.skillTags.length > 0) {
           const xpPerSkill = calculateXPPerSkill(taskBefore.importance, taskBefore.duration, taskBefore.skillTags.length);
+          
+          console.log(`💪 Awarding ${xpPerSkill} XP per skill for ${taskBefore.skillTags.length} skills`);
           
           for (const skillName of taskBefore.skillTags) {
             const skillBefore = await storage.getUserSkill(userId, skillName);
@@ -450,6 +458,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gain.newXP = updatedSkill.xp;
         }
       }
+
+      console.log(`✅ Batch completion: ${completedCount} tasks, ${totalGold} gold, ${allSkillXPGains.length} skill XP gains:`, allSkillXPGains);
 
       // Notion updates happen async in background (don't wait)
       const user = await storage.getUserById(userId);
