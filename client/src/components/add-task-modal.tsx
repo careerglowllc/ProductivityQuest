@@ -58,6 +58,11 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       });
       resetForm();
       onOpenChange(false);
+      
+      // Refetch tasks after a delay to pick up auto-categorized skillTags
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      }, 2000);
     },
     onError: (error: any) => {
       toast({
