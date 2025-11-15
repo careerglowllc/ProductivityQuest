@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Recycle, Sparkles, LayoutDashboard, Coins, User, Users, Crown } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -40,11 +40,6 @@ export function TabBar() {
       name: "Item Shop",
       path: "/shop",
       icon: ShoppingCart,
-    },
-    {
-      name: "Recycling",
-      path: "/rewards",
-      icon: Recycle,
     },
   ];
 

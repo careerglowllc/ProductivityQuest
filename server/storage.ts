@@ -16,12 +16,6 @@ export interface IStorage {
   deleteTask(id: number, userId: string): Promise<boolean>;
   completeTask(id: number, userId: string): Promise<Task | undefined>;
   
-  // Recycling operations
-  getRecycledTasks(userId: string): Promise<Task[]>;
-  recycleTask(id: number, reason: "completed" | "deleted", userId: string): Promise<Task | undefined>;
-  restoreTask(id: number, userId: string): Promise<Task | undefined>;
-  permanentlyDeleteTask(id: number, userId: string): Promise<boolean>;
-  
   // Shop operations
   getShopItems(): Promise<ShopItem[]>;
   getShopItemsForUser(userId: string): Promise<ShopItem[]>;
@@ -164,7 +158,7 @@ export class DatabaseStorage implements IStorage {
   // Task operations
   async getTasks(userId: string): Promise<Task[]> {
     return await db.select().from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.recycled, false)))
+      .where(eq(tasks.userId, userId))
       .orderBy(tasks.createdAt);
   }
 
@@ -189,8 +183,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTask(id: number, userId: string): Promise<boolean> {
-    const recycled = await this.recycleTask(id, "deleted", userId);
-    return recycled !== undefined;
+    const result = await db.delete(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async completeTask(id: number, userId: string): Promise<Task | undefined> {
@@ -208,65 +203,8 @@ export class DatabaseStorage implements IStorage {
 
     // Award gold and update progress
     await this.addGold(userId, task.goldValue);
-    
-    // Move completed task to recycling
-    const recycledTask = await this.recycleTask(id, "completed", userId);
 
-    return recycledTask || completedTask;
-  }
-
-  // Recycling operations
-  async getRecycledTasks(userId: string): Promise<Task[]> {
-    return await db.select().from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.recycled, true)))
-      .orderBy(tasks.recycledAt);
-  }
-
-  async recycleTask(id: number, reason: "completed" | "deleted", userId: string): Promise<Task | undefined> {
-    const [recycledTask] = await db
-      .update(tasks)
-      .set({
-        recycled: true,
-        recycledAt: new Date(),
-        recycledReason: reason,
-      })
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
-      .returning();
-    return recycledTask;
-  }
-
-  async restoreTask(id: number, userId: string): Promise<Task | undefined> {
-    const task = await this.getTask(id, userId);
-    if (!task || !task.recycled) return undefined;
-
-    const [restoredTask] = await db
-      .update(tasks)
-      .set({
-        recycled: false,
-        recycledAt: null,
-        recycledReason: null,
-        completed: task.recycledReason === "completed" ? false : task.completed,
-        completedAt: task.recycledReason === "completed" ? null : task.completedAt,
-      })
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
-      .returning();
-
-    // If task was completed, reduce gold and task count
-    if (task.recycledReason === "completed") {
-      const progress = await this.getUserProgress(userId);
-      await this.updateUserProgress(userId, {
-        goldTotal: (progress.goldTotal || 0) - task.goldValue,
-        tasksCompleted: (progress.tasksCompleted || 0) - 1,
-      });
-    }
-
-    return restoredTask;
-  }
-
-  async permanentlyDeleteTask(id: number, userId: string): Promise<boolean> {
-    const result = await db.delete(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
-    return (result.rowCount ?? 0) > 0;
+    return completedTask;
   }
 
   // Shop operations

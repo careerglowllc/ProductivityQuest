@@ -14,7 +14,6 @@ import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
 import { CompletionAnimation } from "@/components/completion-animation";
-import { RecyclingModal } from "@/components/recycling-modal";
 import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
 import { AddTaskModal } from "@/components/add-task-modal";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +41,6 @@ export default function Home() {
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [includeDuplicates, setIncludeDuplicates] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
-  const [showRecycling, setShowRecycling] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
@@ -1057,11 +1055,6 @@ export default function Home() {
         onClose={() => setShowCompletion(false)}
         task={completedTask}
         newGoldTotal={progress.goldTotal}
-      />
-
-      <RecyclingModal
-        isOpen={showRecycling}
-        onClose={() => setShowRecycling(false)}
       />
 
       {/* Import Confirmation Modal */}

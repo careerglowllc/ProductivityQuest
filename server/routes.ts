@@ -609,47 +609,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Recycling routes
-  app.get("/api/recycling", requireAuth, async (req: any, res) => {
-    try {
-      const userId = req.session.userId;
-      const tasks = await storage.getRecycledTasks(userId);
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch recycled tasks" });
-    }
-  });
-
-  app.patch("/api/recycling/:id/restore", requireAuth, async (req: any, res) => {
-    try {
-      const userId = req.session.userId;
-      const id = parseInt(req.params.id);
-      const task = await storage.restoreTask(id, userId);
-      if (!task) {
-        return res.status(404).json({ error: "Task not found in recycling" });
-      }
-      res.json(task);
-    } catch (error) {
-      console.error("Task restoration error:", error);
-      res.status(500).json({ error: "Failed to restore task" });
-    }
-  });
-
-  app.delete("/api/recycling/:id", requireAuth, async (req: any, res) => {
-    try {
-      const userId = req.session.userId;
-      const id = parseInt(req.params.id);
-      const success = await storage.permanentlyDeleteTask(id, userId);
-      if (!success) {
-        return res.status(404).json({ error: "Task not found in recycling" });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Permanent task deletion error:", error);
-      res.status(500).json({ error: "Failed to permanently delete task" });
-    }
-  });
-
   // Notion integration routes
   app.get("/api/notion/databases", requireAuth, async (req: any, res) => {
     try {
@@ -1192,7 +1151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all tasks from app (including ones created via AddTaskModal without notionId)
       const appTasks = await storage.getTasks(userId);
-      const activeTasks = appTasks.filter((task: any) => !task.completed && !task.recycled);
+      const activeTasks = appTasks.filter((task: any) => !task.completed);
       
       // Get all existing tasks from Notion
       const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
@@ -1804,24 +1763,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId;
       const tasks = await storage.getTasks(userId);
-      const recycledTasks = await storage.getRecycledTasks(userId);
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const completedToday = recycledTasks.filter(task => 
-        task.recycledReason === "completed" && 
-        task.recycledAt && 
-        new Date(task.recycledAt) >= today
+      const completedToday = tasks.filter(task => 
+        task.completed && 
+        task.completedAt && 
+        new Date(task.completedAt) >= today
       ).length;
       
-      const totalToday = tasks.length + recycledTasks.length;
+      const totalToday = tasks.length;
       
-      const goldEarnedToday = recycledTasks
+      const goldEarnedToday = tasks
         .filter(task => 
-          task.recycledReason === "completed" && 
-          task.recycledAt && 
-          new Date(task.recycledAt) >= today
+          task.completed && 
+          task.completedAt && 
+          new Date(task.completedAt) >= today
         )
         .reduce((sum, task) => sum + task.goldValue, 0);
 
