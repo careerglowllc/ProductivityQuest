@@ -11,21 +11,31 @@ interface SkillXPGain {
   maxXP: number;
 }
 
+interface UserSkill {
+  id: number;
+  skillName: string;
+  skillIcon: string;
+  currentXP: number;
+  currentLevel: number;
+}
+
 interface CompletionAnimationProps {
   isOpen: boolean;
   onClose: () => void;
   task: any;
   newGoldTotal: number;
   skillXPGains?: SkillXPGain[];
+  skills?: UserSkill[];
 }
 
-export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skillXPGains = [] }: CompletionAnimationProps) {
+export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skillXPGains = [], skills = [] }: CompletionAnimationProps) {
   console.log('🎨 CompletionAnimation render:', {
     isOpen,
     task: task?.title,
     skillXPGains,
     skillXPGainsLength: skillXPGains?.length,
-    hasSkillXPGains: skillXPGains && skillXPGains.length > 0
+    hasSkillXPGains: skillXPGains && skillXPGains.length > 0,
+    skills
   });
 
   useEffect(() => {
@@ -92,7 +102,9 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
               <p className="text-yellow-200/70 text-sm">Skills Leveled</p>
               <div className="flex flex-wrap gap-3 justify-center">
                 {skillXPGains.map((gain, index) => {
-                  const Icon = getSkillIcon(gain.skillName);
+                  // Find the skill to get its icon
+                  const skill = skills.find(s => s.skillName === gain.skillName);
+                  const Icon = skill ? getSkillIcon(skill.skillIcon) : getSkillIcon(null);
                   const progressPercent = (gain.newXP / gain.maxXP) * 100;
                   
                   return (
@@ -120,8 +132,9 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
                           {/* Icon */}
                           <div className="absolute inset-0 flex items-center justify-center">
                             <Icon 
-                              className="h-8 w-8 text-slate-900/80 drop-shadow-lg" 
+                              className="h-8 w-8 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" 
                               strokeWidth={2.5}
+                              fill="currentColor"
                             />
                           </div>
                         </div>

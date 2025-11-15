@@ -1300,6 +1300,7 @@ export default function Home() {
         task={completedTask}
         newGoldTotal={progress.goldTotal}
         skillXPGains={completionSkillXPGains}
+        skills={skills as any}
       />
 
       {/* Import Confirmation Modal */}
