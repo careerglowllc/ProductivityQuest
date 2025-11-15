@@ -132,9 +132,14 @@ export default function Home() {
         taskIds: selectedTaskIds 
       });
       
+      console.log('Batch complete response:', response);
+      
       // Update completion animation with skill XP gains
       if (response.skillXPGains && response.skillXPGains.length > 0) {
+        console.log('Setting skill XP gains:', response.skillXPGains);
         setCompletionSkillXPGains(response.skillXPGains);
+      } else {
+        console.log('No skill XP gains in response');
       }
       
       // Track for undo

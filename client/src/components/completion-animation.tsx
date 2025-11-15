@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Trophy, Coins, Sparkles } from "lucide-react";
 import { getSkillIcon } from "@/lib/skillIcons";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface SkillXPGain {
   skillName: string;
@@ -21,6 +22,7 @@ interface CompletionAnimationProps {
 export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skillXPGains = [] }: CompletionAnimationProps) {
   useEffect(() => {
     if (isOpen) {
+      console.log('CompletionAnimation opened with:', { task, skillXPGains });
       const timer = setTimeout(() => {
         onClose();
       }, 3000);
@@ -33,6 +35,9 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md bg-gradient-to-b from-slate-800 via-slate-900 to-indigo-950 border-2 border-yellow-500/50 shadow-2xl shadow-yellow-600/20">
+        <VisuallyHidden>
+          <DialogTitle>Quest Complete</DialogTitle>
+        </VisuallyHidden>
         {/* Starfield effect */}
         <div className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden rounded-lg">
           <div className="absolute top-5 left-5 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
