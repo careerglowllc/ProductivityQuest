@@ -14,6 +14,7 @@ import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
 import { CompletionAnimation } from "@/components/completion-animation";
+import { LevelUpModal } from "@/components/level-up-modal";
 import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
 import { AddTaskModal } from "@/components/add-task-modal";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,8 @@ export default function Home() {
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedTask, setCompletedTask] = useState<any>(null);
   const [completionSkillXPGains, setCompletionSkillXPGains] = useState<any[]>([]);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [leveledUpSkills, setLeveledUpSkills] = useState<any[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [sortBy, setSortBy] = useState<SortType>("due-date");
   const [showImportConfirm, setShowImportConfirm] = useState(false);
@@ -195,6 +198,12 @@ export default function Home() {
       const data = await response.json();
       
       console.log('🎮 Backend completion confirmed:', data);
+      
+      // Check for level-ups and queue them to show AFTER completion modal
+      if (data.leveledUpSkills && data.leveledUpSkills.length > 0) {
+        console.log('🎉 Level ups detected:', data.leveledUpSkills);
+        setLeveledUpSkills(data.leveledUpSkills);
+      }
       
       // Optionally update with accurate backend data if different
       // (Usually the optimistic calc is close enough, but backend is authoritative)
@@ -1296,11 +1305,24 @@ export default function Home() {
         onClose={() => {
           setShowCompletion(false);
           setCompletionSkillXPGains([]);
+          // After completion modal closes, check if we should show level-up modal
+          if (leveledUpSkills.length > 0) {
+            setShowLevelUp(true);
+          }
         }}
         task={completedTask}
         newGoldTotal={progress.goldTotal}
         skillXPGains={completionSkillXPGains}
         skills={skills as any}
+      />
+
+      <LevelUpModal
+        isOpen={showLevelUp}
+        onClose={() => {
+          setShowLevelUp(false);
+          setLeveledUpSkills([]);
+        }}
+        skills={leveledUpSkills}
       />
 
       {/* Import Confirmation Modal */}

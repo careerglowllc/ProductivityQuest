@@ -401,7 +401,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalGold = 0;
       let completedCount = 0;
       const completedTasks = [];
-      const allSkillXPGains: Array<{ skillName: string; xpGained: number; newXP: number; newLevel: number; maxXP: number }> = [];
+      const allSkillXPGains: Array<{ 
+        skillName: string; 
+        xpGained: number; 
+        newXP: number; 
+        newLevel: number; 
+        maxXP: number;
+        skillIcon?: string;
+        previousLevel?: number;
+        leveledUp?: boolean;
+      }> = [];
 
       // Import XP calculation
       const { calculateXPPerSkill } = await import("./xpCalculation");
@@ -436,7 +445,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   xpGained: xpPerSkill,
                   newXP: skillBefore.xp + xpPerSkill,
                   newLevel: skillBefore.level,
-                  maxXP: skillBefore.maxXp
+                  maxXP: skillBefore.maxXp,
+                  skillIcon: skillBefore.skillIcon || undefined,
+                  previousLevel: skillBefore.level
                 });
               }
             }
@@ -451,16 +462,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get updated skill info after XP awards
+      // Get updated skill info after XP awards to check for level ups
+      const leveledUpSkills: Array<{
+        skillName: string;
+        skillIcon: string;
+        newLevel: number;
+        currentXP: number;
+        maxXP: number;
+      }> = [];
+
       for (const gain of allSkillXPGains) {
         const updatedSkill = await storage.getUserSkill(userId, gain.skillName);
         if (updatedSkill) {
+          const previousLevel = gain.previousLevel || gain.newLevel;
           gain.newLevel = updatedSkill.level;
           gain.newXP = updatedSkill.xp;
+          gain.maxXP = updatedSkill.maxXp;
+          gain.skillIcon = updatedSkill.skillIcon || undefined;
+          
+          // Check if skill leveled up
+          if (updatedSkill.level > previousLevel) {
+            gain.leveledUp = true;
+            leveledUpSkills.push({
+              skillName: updatedSkill.skillName,
+              skillIcon: updatedSkill.skillIcon || 'Star',
+              newLevel: updatedSkill.level,
+              currentXP: updatedSkill.xp,
+              maxXP: updatedSkill.maxXp
+            });
+          }
         }
       }
 
       console.log(`✅ Batch completion: ${completedCount} tasks, ${totalGold} gold, ${allSkillXPGains.length} skill XP gains:`, allSkillXPGains);
+      console.log(`🎉 Level ups detected:`, leveledUpSkills);
 
       // Notion updates happen async in background (don't wait)
       const user = await storage.getUserById(userId);
@@ -479,7 +514,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         completedCount,
         totalGold,
         tasks: completedTasks,
-        skillXPGains: allSkillXPGains
+        skillXPGains: allSkillXPGains,
+        leveledUpSkills: leveledUpSkills
       });
     } catch (error) {
       console.error("Batch completion error:", error);
