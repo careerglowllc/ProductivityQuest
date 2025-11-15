@@ -35,6 +35,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [kanbanStage, setKanbanStage] = useState<string>("To Do");
   const [recurType, setRecurType] = useState<string>("⏳One-time");
   const [businessWorkFilter, setBusinessWorkFilter] = useState<string>("General");
+  const [campaign, setCampaign] = useState<string>("unassigned");
   
   // Checkbox filters
   const [apple, setApple] = useState(false);
@@ -89,6 +90,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setKanbanStage("To Do");
     setRecurType("⏳One-time");
     setBusinessWorkFilter("General");
+    setCampaign("unassigned");
     setApple(false);
     setSmartPrep(false);
     setDelegationTask(false);
@@ -138,6 +140,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       kanbanStage,
       recurType,
       businessWorkFilter,
+      campaign,
       apple,
       smartPrep,
       delegationTask,
@@ -340,6 +343,23 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                 <SelectItem value="SP">SP</SelectItem>
                 <SelectItem value="Vel">Vel</SelectItem>
                 <SelectItem value="CG">CG</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Campaign */}
+          <div className="space-y-2">
+            <Label htmlFor="campaign" className="text-yellow-200">
+              Campaign
+            </Label>
+            <Select value={campaign} onValueChange={setCampaign}>
+              <SelectTrigger className="bg-slate-800/50 border-yellow-600/30 text-yellow-100">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-yellow-600/40">
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="Main">Main</SelectItem>
+                <SelectItem value="Side">Side</SelectItem>
               </SelectContent>
             </Select>
           </div>

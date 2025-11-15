@@ -11,7 +11,9 @@ import {
   FileText,
   BarChart3,
   Repeat,
-  Heart
+  Heart,
+  Crown,
+  Flag
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -44,6 +46,15 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
       case 'SP': return 'bg-green-600 text-white border-green-500';
       case 'Vel': return 'bg-orange-600 text-white border-orange-500';
       case 'CG': return 'bg-pink-600 text-white border-pink-500';
+      default: return 'bg-slate-600 text-white border-slate-500';
+    }
+  };
+
+  const getCampaignBadgeColor = (campaign: string | null) => {
+    switch (campaign) {
+      case 'Main': return 'bg-purple-600 text-white border-purple-500';
+      case 'Side': return 'bg-indigo-600 text-white border-indigo-500';
+      case 'unassigned':
       default: return 'bg-slate-600 text-white border-slate-500';
     }
   };
@@ -133,6 +144,17 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
           {/* Additional Properties */}
           <div className="space-y-3">
+            {/* Campaign */}
+            <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
+              <div className="flex items-center gap-2 text-yellow-400">
+                <Crown className="w-4 h-4" />
+                <span className="text-sm font-semibold">Campaign</span>
+              </div>
+              <Badge className={getCampaignBadgeColor(task.campaign || 'unassigned')}>
+                {task.campaign || 'unassigned'}
+              </Badge>
+            </div>
+
             {/* Business/Work Filter */}
             {task.businessWorkFilter && (
               <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
