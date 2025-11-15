@@ -249,8 +249,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Don't await - return task immediately and categorize async
       (async () => {
         try {
+          console.log(`🤖 [AUTO-CAT] Starting for task ${task.id}: "${task.title}"`);
+          
           // Fetch user's skills (including custom ones)
           const userSkills = await storage.getUserSkills(userId);
+          console.log(`🤖 [AUTO-CAT] Found ${userSkills.length} user skills:`, userSkills.map(s => s.skillName).join(', '));
           
           // Fetch training examples for this user (approved categorizations)
           const trainingData = await db.select().from(skillCategorizationTraining)
@@ -260,6 +263,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ))
             .limit(50);
           
+          console.log(`🤖 [AUTO-CAT] Found ${trainingData.length} training examples`);
+          
           const trainingExamples = trainingData.map(t => ({
             taskTitle: t.taskTitle,
             taskDetails: t.taskDetails || undefined,
@@ -267,7 +272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }));
           
           // Categorize the newly created task
-          console.log(`🤖 Starting auto-categorization for task ${task.id}: "${task.title}"`);
+          console.log(`🤖 [AUTO-CAT] Calling OpenAI for task ${task.id}...`);
           const categorization = await categorizeTaskWithAI(
             task.title,
             task.details || undefined,
@@ -275,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userSkills
           );
           
-          console.log(`🤖 Categorization result:`, categorization);
+          console.log(`🤖 [AUTO-CAT] Result:`, JSON.stringify(categorization));
           
           // Update task with skill tags
           if (categorization && categorization.skills.length > 0) {
@@ -284,12 +289,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               { skillTags: categorization.skills as any },
               userId
             );
-            console.log(`✓ Auto-categorized task ${task.id}: ${categorization.skills.join(', ')}`);
+            console.log(`✅ [AUTO-CAT] Updated task ${task.id} with skills: ${categorization.skills.join(', ')}`);
           } else {
-            console.log(`⚠️ No skills categorized for task ${task.id}`);
+            console.log(`⚠️ [AUTO-CAT] No skills returned for task ${task.id}`);
           }
-        } catch (error) {
-          console.error('❌ Auto-categorization failed for new task:', error);
+        } catch (error: any) {
+          console.error(`❌ [AUTO-CAT] Failed for task ${task.id}:`, error.message);
+          console.error(`❌ [AUTO-CAT] Stack:`, error.stack);
           // Don't throw - categorization is optional, task is already created
         }
       })();
