@@ -4,6 +4,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { runStartupMigrations } from "./migrations";
 
 const app = express();
 
@@ -68,6 +69,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Run essential migrations before starting the server
+  await runStartupMigrations();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
