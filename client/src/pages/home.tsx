@@ -85,6 +85,10 @@ export default function Home() {
     queryKey: ["/api/stats"],
   });
 
+  const { data: skills = [] } = useQuery({
+    queryKey: ["/api/skills"],
+  });
+
   const handleTaskSelect = (taskId: number, selected: boolean) => {
     const newSelected = new Set(selectedTasks);
     if (selected) {
@@ -110,6 +114,61 @@ export default function Home() {
 
     if (tasksToComplete.length === 0) return;
 
+    // Calculate optimistic skill XP gains BEFORE backend call
+    const optimisticSkillXPGains: any[] = [];
+    const skillXPMap = new Map<string, { xpGained: number; currentXP: number; currentLevel: number; maxXP: number }>();
+    
+    // Simple XP calculation (matches backend logic)
+    const calculateOptimisticXP = (importance: string, duration: number, skillCount: number) => {
+      const importanceMultipliers: any = {
+        'Pareto': 3.0,
+        'High': 2.5,
+        'Med-High': 2.0,
+        'Medium': 1.5,
+        'Med-Low': 1.0,
+        'Low': 0.5
+      };
+      const baseXP = duration * 0.5;
+      const multiplier = importanceMultipliers[importance] || 1.5;
+      return Math.round((baseXP * multiplier) / Math.max(skillCount, 1));
+    };
+
+    // Calculate XP for all tasks being completed
+    tasksToComplete.forEach((task: any) => {
+      if (task.skillTags && task.skillTags.length > 0) {
+        const xpPerSkill = calculateOptimisticXP(task.importance, task.duration, task.skillTags.length);
+        
+        task.skillTags.forEach((skillName: string) => {
+          if (skillXPMap.has(skillName)) {
+            const existing = skillXPMap.get(skillName)!;
+            existing.xpGained += xpPerSkill;
+          } else {
+            // Find skill in current skills data
+            const currentSkill = (skills as any[])?.find((s: any) => s.skillName === skillName);
+            if (currentSkill) {
+              skillXPMap.set(skillName, {
+                xpGained: xpPerSkill,
+                currentXP: currentSkill.xp || 0,
+                currentLevel: currentSkill.level || 1,
+                maxXP: currentSkill.maxXp || 100
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // Convert to array format for display
+    skillXPMap.forEach((data, skillName) => {
+      optimisticSkillXPGains.push({
+        skillName,
+        xpGained: data.xpGained,
+        newXP: data.currentXP + data.xpGained,
+        newLevel: data.currentLevel,
+        maxXP: data.maxXP
+      });
+    });
+
     // OPTIMISTIC UI: Update immediately
     setSelectedTasks(new Set());
     
@@ -118,7 +177,7 @@ export default function Home() {
       ...tasksToComplete[0],
       goldValue: totalGoldEarned
     });
-    setCompletionSkillXPGains([]); // Start with empty, will update when response arrives
+    setCompletionSkillXPGains(optimisticSkillXPGains); // Show calculated XP immediately!
     setShowCompletion(true);
 
     // Show toast immediately
@@ -128,18 +187,19 @@ export default function Home() {
     });
 
     try {
-      // Call simplified batch endpoint - Notion updates happen in background
+      // Call backend to actually update database - happens in background
       const response = await apiRequest("POST", "/api/tasks/complete-batch", { 
         taskIds: selectedTaskIds 
       });
       
       const data = await response.json();
       
-      console.log('🎮 Completion response:', data);
-      console.log('🎯 Skill XP Gains:', data.skillXPGains);
+      console.log('🎮 Backend completion confirmed:', data);
       
-      // Update with real skill XP gains from backend
+      // Optionally update with accurate backend data if different
+      // (Usually the optimistic calc is close enough, but backend is authoritative)
       if (data.skillXPGains && data.skillXPGains.length > 0) {
+        // Backend returned actual XP with level-ups calculated
         setCompletionSkillXPGains(data.skillXPGains);
       }
       
