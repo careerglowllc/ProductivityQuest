@@ -37,7 +37,7 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
       });
       const timer = setTimeout(() => {
         onClose();
-      }, 3000);
+      }, 4000); // Extended to 4 seconds to show skills
       return () => clearTimeout(timer);
     }
   }, [isOpen, onClose, skillXPGains]);
@@ -88,15 +88,19 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
 
           {/* Skill XP Gains */}
           {skillXPGains && skillXPGains.length > 0 ? (
-            <div className="space-y-3 mb-4">
+            <div className="space-y-3 mb-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
               <p className="text-yellow-200/70 text-sm">Skills Leveled</p>
               <div className="flex flex-wrap gap-3 justify-center">
-                {skillXPGains.map((gain) => {
+                {skillXPGains.map((gain, index) => {
                   const Icon = getSkillIcon(gain.skillName);
                   const progressPercent = (gain.newXP / gain.maxXP) * 100;
                   
                   return (
-                    <div key={gain.skillName} className="bg-slate-700/50 border-2 border-purple-500/40 rounded-lg p-3 min-w-[120px]">
+                    <div 
+                      key={gain.skillName} 
+                      className="bg-slate-700/50 border-2 border-purple-500/40 rounded-lg p-3 min-w-[120px] animate-in fade-in-0 zoom-in-95 duration-300"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
                       {/* Skill Icon with fill animation */}
                       <div className="relative w-16 h-16 mx-auto mb-2">
                         <div className="absolute inset-0 bg-gradient-to-b from-purple-400/10 to-purple-600/10 rounded-2xl"></div>

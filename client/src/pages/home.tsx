@@ -112,6 +112,20 @@ export default function Home() {
 
     // OPTIMISTIC UI: Update immediately
     setSelectedTasks(new Set());
+    
+    // Show completion animation IMMEDIATELY with optimistic data
+    setCompletedTask({
+      ...tasksToComplete[0],
+      goldValue: totalGoldEarned
+    });
+    setCompletionSkillXPGains([]); // Start with empty, will update when response arrives
+    setShowCompletion(true);
+
+    // Show toast immediately
+    toast({
+      title: `${tasksToComplete.length} Quest${tasksToComplete.length > 1 ? 's' : ''} Complete!`,
+      description: `Earning ${totalGoldEarned} gold. Task${tasksToComplete.length > 1 ? 's' : ''} moved to recycling bin.`,
+    });
 
     try {
       // Call simplified batch endpoint - Notion updates happen in background
@@ -124,19 +138,10 @@ export default function Home() {
       console.log('🎮 Completion response:', data);
       console.log('🎯 Skill XP Gains:', data.skillXPGains);
       
-      // Show completion animation with data from backend
-      setCompletedTask({
-        ...tasksToComplete[0],
-        goldValue: totalGoldEarned
-      });
-      setCompletionSkillXPGains(data.skillXPGains || []);
-      setShowCompletion(true);
-
-      // Show toast
-      toast({
-        title: `${tasksToComplete.length} Quest${tasksToComplete.length > 1 ? 's' : ''} Complete!`,
-        description: `Earning ${totalGoldEarned} gold. Task${tasksToComplete.length > 1 ? 's' : ''} moved to recycling bin.`,
-      });
+      // Update with real skill XP gains from backend
+      if (data.skillXPGains && data.skillXPGains.length > 0) {
+        setCompletionSkillXPGains(data.skillXPGains);
+      }
       
       // Track for undo
       setLastAction({
