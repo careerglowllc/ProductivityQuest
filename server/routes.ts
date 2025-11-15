@@ -401,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalGold = 0;
       let completedCount = 0;
       const completedTasks = [];
-      const allSkillXPGains: Array<{ skillName: string; xpGained: number; newXP: number; newLevel: number }> = [];
+      const allSkillXPGains: Array<{ skillName: string; xpGained: number; newXP: number; newLevel: number; maxXP: number }> = [];
 
       // Import XP calculation
       const { calculateXPPerSkill } = await import("./xpCalculation");
@@ -435,7 +435,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   skillName,
                   xpGained: xpPerSkill,
                   newXP: skillBefore.xp + xpPerSkill,
-                  newLevel: skillBefore.level
+                  newLevel: skillBefore.level,
+                  maxXP: skillBefore.maxXp
                 });
               }
             }

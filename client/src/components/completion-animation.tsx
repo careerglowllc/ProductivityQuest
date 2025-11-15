@@ -1,14 +1,14 @@
 import { useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Trophy, Coins, Sparkles } from "lucide-react";
 import { getSkillIcon } from "@/lib/skillIcons";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface SkillXPGain {
   skillName: string;
   xpGained: number;
   newXP: number;
   newLevel: number;
+  maxXP: number;
 }
 
 interface CompletionAnimationProps {
@@ -27,16 +27,13 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, onClose, task, skillXPGains]);
+  }, [isOpen, onClose]);
 
   if (!task) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md bg-gradient-to-b from-slate-800 via-slate-900 to-indigo-950 border-2 border-yellow-500/50 shadow-2xl shadow-yellow-600/20">
-        <VisuallyHidden>
-          <DialogTitle>Quest Complete</DialogTitle>
-        </VisuallyHidden>
         {/* Starfield effect */}
         <div className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden rounded-lg">
           <div className="absolute top-5 left-5 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -83,8 +80,7 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
               <div className="flex flex-wrap gap-3 justify-center">
                 {skillXPGains.map((gain) => {
                   const Icon = getSkillIcon(gain.skillName);
-                  const maxXP = 100; // You might want to get this from the skill data
-                  const progressPercent = (gain.newXP / maxXP) * 100;
+                  const progressPercent = (gain.newXP / gain.maxXP) * 100;
                   
                   return (
                     <div key={gain.skillName} className="bg-slate-700/50 border-2 border-purple-500/40 rounded-lg p-3 min-w-[120px]">
@@ -125,8 +121,13 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
                         <span className="text-xs text-purple-300/70 ml-1">XP</span>
                       </div>
                       
+                      {/* XP Progress */}
+                      <p className="text-xs text-purple-300/60 text-center">
+                        {gain.newXP}/{gain.maxXP} XP
+                      </p>
+                      
                       {/* Level badge */}
-                      <p className="text-xs text-purple-300/60 text-center mt-1">
+                      <p className="text-xs text-purple-300/60 text-center">
                         Lvl {gain.newLevel}
                       </p>
                     </div>
