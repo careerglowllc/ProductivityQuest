@@ -1167,60 +1167,62 @@ export default function Home() {
               </div>
             </Card>
 
-            {/* Bulk Actions for Selected Tasks */}
+            {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
-              <Card className="p-4 bg-blue-900/40 backdrop-blur-md border-2 border-blue-500/40 mb-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-200 font-medium">
-                      {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
-                    </span>
+              <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-4">
+                <Card className="max-w-7xl mx-auto p-4 bg-blue-900/95 backdrop-blur-md border-2 border-blue-500/60 shadow-2xl">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-200 font-medium">
+                        {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
+                      </span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button 
+                        onClick={handleCompleteSelected}
+                        className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Complete Selected
+                      </Button>
+                      <Button 
+                        onClick={handleAppendToNotion}
+                        variant="outline"
+                        className="border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Append to Notion
+                      </Button>
+                      <Button 
+                        onClick={handleDeleteFromNotion}
+                        variant="outline"
+                        className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete from Notion
+                      </Button>
+                      <Button 
+                        onClick={handleCategorizeSkill}
+                        variant="outline"
+                        className="border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200"
+                        disabled={selectedTasks.size === 0}
+                      >
+                        <Tag className="w-4 h-4 mr-2" />
+                        Categorize Skill
+                      </Button>
+                      <Button 
+                        onClick={handleRecategorizeSelected}
+                        variant="outline"
+                        className="border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20 hover:text-yellow-200"
+                        disabled={selectedTasks.size === 0}
+                      >
+                        <Tag className="w-4 h-4 mr-2" />
+                        Recategorize
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={handleCompleteSelected}
-                      className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Complete Selected
-                    </Button>
-                    <Button 
-                      onClick={handleAppendToNotion}
-                      variant="outline"
-                      className="border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Append to Notion
-                    </Button>
-                    <Button 
-                      onClick={handleDeleteFromNotion}
-                      variant="outline"
-                      className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete from Notion
-                    </Button>
-                    <Button 
-                      onClick={handleCategorizeSkill}
-                      variant="outline"
-                      className="border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200"
-                      disabled={selectedTasks.size === 0}
-                    >
-                      <Tag className="w-4 h-4 mr-2" />
-                      Categorize Skill
-                    </Button>
-                    <Button 
-                      onClick={handleRecategorizeSelected}
-                      variant="outline"
-                      className="border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20 hover:text-yellow-200"
-                      disabled={selectedTasks.size === 0}
-                    >
-                      <Tag className="w-4 h-4 mr-2" />
-                      Recategorize
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             )}
 
             {/* Task List */}
