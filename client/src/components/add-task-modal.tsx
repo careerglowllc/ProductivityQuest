@@ -146,6 +146,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       delegationTask,
       velin,
       completed: false,
+      skillTags: [], // Initialize with empty array
     };
 
     createTaskMutation.mutate(taskData);

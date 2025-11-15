@@ -214,10 +214,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task routes
   app.get("/api/tasks", requireAuth, async (req: any, res) => {
     try {
+      console.log('📋 [GET /api/tasks] Fetching tasks for user:', req.session.userId);
       const userId = req.session.userId;
       const tasks = await storage.getTasks(userId);
+      console.log('📋 [GET /api/tasks] Successfully fetched', tasks.length, 'tasks');
       res.json(tasks);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [GET /api/tasks] Error:', error.message);
+      console.error('❌ [GET /api/tasks] Stack:', error.stack);
       res.status(500).json({ error: "Failed to fetch tasks" });
     }
   });
@@ -992,19 +996,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/notion/check-duplicates", requireAuth, async (req: any, res) => {
+    console.log('🔍 [CHECK-DUPLICATES] Endpoint called');
     try {
       const userId = req.session.userId;
+      console.log('🔍 [CHECK-DUPLICATES] User ID:', userId);
       const user = await storage.getUserById(userId);
+      console.log('🔍 [CHECK-DUPLICATES] User found:', !!user);
       
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
+        console.log('🔍 [CHECK-DUPLICATES] Missing credentials - API Key:', !!user?.notionApiKey, 'DB ID:', !!user?.notionDatabaseId);
         return res.status(400).json({ error: "Notion API key or database ID not configured" });
       }
       
+      console.log('Checking Notion duplicates for user:', userId);
+      console.log('Database ID:', user.notionDatabaseId);
+      
       // Get tasks from Notion
+      console.log('🔍 [CHECK-DUPLICATES] Fetching tasks from Notion...');
       const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
+      console.log('Fetched Notion tasks:', notionTasks.length);
       
       // Get existing tasks from database
       const existingTasks = await storage.getTasks(userId);
+      console.log('Existing tasks in database:', existingTasks.length);
       
       // Create a set of existing notionIds for quick lookup
       const existingNotionIds = new Set(
@@ -1016,14 +1030,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Count duplicates
       const duplicates = notionTasks.filter(task => existingNotionIds.has(task.notionId));
       
+      console.log('Duplicate count:', duplicates.length);
+      
       res.json({ 
         totalCount: notionTasks.length,
         duplicateCount: duplicates.length,
         newCount: notionTasks.length - duplicates.length
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Notion duplicate check error:", error);
-      res.status(500).json({ error: "Failed to check for duplicates" });
+      console.error("Error details:", error.message);
+      res.status(500).json({ 
+        error: "Failed to check for duplicates",
+        message: error.message 
+      });
     }
   });
 
@@ -1999,9 +2019,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update skill icon
+  app.patch("/api/skills/:skillId/icon", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const skillId = parseInt(req.params.skillId);
+      const { icon } = req.body;
+
+      if (isNaN(skillId)) {
+        return res.status(400).json({ error: "Invalid skill ID" });
+      }
+
+      if (!icon || typeof icon !== 'string') {
+        return res.status(400).json({ error: "Icon name is required" });
+      }
+
+      await storage.updateSkillIcon(userId, skillId, icon);
+      res.json({ message: "Skill icon updated successfully" });
+    } catch (error) {
+      console.error("Error updating skill icon:", error);
+      if (error instanceof Error && error.message.includes("not found")) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to update skill icon" });
+      }
+    }
+  });
+
   // Stats routes
   app.get("/api/stats", requireAuth, async (req: any, res) => {
     try {
+      console.log('📊 [GET /api/stats] Fetching stats for user:', req.session.userId);
       const userId = req.session.userId;
       const tasks = await storage.getTasks(userId);
       
@@ -2024,12 +2072,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .reduce((sum, task) => sum + task.goldValue, 0);
 
+      console.log('📊 [GET /api/stats] Success - Completed:', completedToday, 'Total:', totalToday, 'Gold:', goldEarnedToday);
       res.json({
         completedToday,
         totalToday,
         goldEarnedToday,
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [GET /api/stats] Error:', error.message);
+      console.error('❌ [GET /api/stats] Stack:', error.stack);
       res.status(500).json({ error: "Failed to fetch stats" });
     }
   });

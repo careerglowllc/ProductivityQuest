@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddSkillModal } from "@/components/add-skill-modal";
+import { EditSkillIconModal } from "@/components/edit-skill-icon-modal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -23,7 +24,8 @@ import {
   Grid3x3,
   List,
   Plus,
-  Trash2
+  Trash2,
+  Edit
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -147,6 +149,8 @@ export default function Skills() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [skillToDelete, setSkillToDelete] = useState<UserSkill | null>(null);
+  const [showEditIconModal, setShowEditIconModal] = useState(false);
+  const [skillToEdit, setSkillToEdit] = useState<UserSkill | null>(null);
 
   const createSkillMutation = useMutation({
     mutationFn: async (skillData: any) => {
@@ -185,6 +189,29 @@ export default function Skills() {
       toast({
         title: "Error Deleting Skill",
         description: error.message || "Failed to delete skill",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateSkillIconMutation = useMutation({
+    mutationFn: async ({ skillId, icon }: { skillId: number; icon: string }) => {
+      return await apiRequest("PATCH", `/api/skills/${skillId}/icon`, { icon });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "✓ Icon Updated!",
+        description: "Skill icon has been changed successfully.",
+      });
+      setShowEditIconModal(false);
+      setSkillToEdit(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Updating Icon",
+        description: error.message || "Failed to update skill icon",
         variant: "destructive",
       });
     },
@@ -306,21 +333,38 @@ export default function Skills() {
                   className="relative group cursor-pointer"
                   onClick={() => setSelectedSkill(skill)}
                 >
-                  {/* Delete Button for Custom Skills */}
-                  {skill.isCustom && (
+                  {/* Action Buttons */}
+                  <div className="absolute -top-2 -right-2 z-10 flex gap-2">
+                    {/* Edit Icon Button */}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSkillToDelete(skill);
-                        setShowDeleteDialog(true);
+                        setSkillToEdit(skill);
+                        setShowEditIconModal(true);
                       }}
-                      className="absolute -top-2 -right-2 z-10 h-8 w-8 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                      className="h-8 w-8 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
                     >
-                      <Trash2 className="h-4 w-4 text-white" />
+                      <Edit className="h-4 w-4 text-white" />
                     </Button>
-                  )}
+                    
+                    {/* Delete Button for Custom Skills */}
+                    {skill.isCustom && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSkillToDelete(skill);
+                          setShowDeleteDialog(true);
+                        }}
+                        className="h-8 w-8 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                      >
+                        <Trash2 className="h-4 w-4 text-white" />
+                      </Button>
+                    )}
+                  </div>
                   
                   {/* Constellation Card */}
                   <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all duration-500 overflow-hidden">
@@ -413,9 +457,42 @@ export default function Skills() {
               return (
                 <Card 
                   key={skill.id}
-                  className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all cursor-pointer overflow-hidden"
+                  className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all cursor-pointer overflow-hidden relative"
                   onClick={() => setSelectedSkill(skill)}
                 >
+                  {/* Action Buttons */}
+                  <div className="absolute top-2 right-2 z-10 flex gap-2">
+                    {/* Edit Icon Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSkillToEdit(skill);
+                        setShowEditIconModal(true);
+                      }}
+                      className="h-8 w-8 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
+                    >
+                      <Edit className="h-4 w-4 text-white" />
+                    </Button>
+                    
+                    {/* Delete Button for Custom Skills */}
+                    {skill.isCustom && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSkillToDelete(skill);
+                          setShowDeleteDialog(true);
+                        }}
+                        className="h-8 w-8 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                      >
+                        <Trash2 className="h-4 w-4 text-white" />
+                      </Button>
+                    )}
+                  </div>
+                  
                   <div className="p-4">
                     <div className="flex items-center gap-6">
                       {/* Icon Section */}
@@ -676,6 +753,22 @@ export default function Skills() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Skill Icon Modal */}
+      {skillToEdit && (
+        <EditSkillIconModal
+          open={showEditIconModal}
+          onOpenChange={setShowEditIconModal}
+          skillName={skillToEdit.skillName}
+          currentIcon={skillToEdit.skillIcon || 'Star'}
+          onSubmit={async (newIcon) => {
+            await updateSkillIconMutation.mutateAsync({ 
+              skillId: skillToEdit.id, 
+              icon: newIcon 
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

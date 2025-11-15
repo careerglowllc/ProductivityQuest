@@ -124,6 +124,8 @@ function formatDatabaseId(databaseId: string): string {
 
 // Get all tasks from the Notion database using user-specific API key
 export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
+    console.log('📥 [NOTION getTasks] Starting fetch...');
+    console.log('📥 [NOTION getTasks] Database ID:', tasksDatabaseId);
     try {
         // Create user-specific Notion client
         const userNotion = new Client({
@@ -132,62 +134,76 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
 
         // Format the database ID properly
         const formattedDatabaseId = formatDatabaseId(tasksDatabaseId);
-        console.log(`Querying Notion database: ${formattedDatabaseId}`);
+        console.log(`📥 [NOTION getTasks] Querying Notion database: ${formattedDatabaseId}`);
 
         const response = await userNotion.databases.query({
             database_id: formattedDatabaseId,
         });
 
-        return response.results.map((page: any) => {
-            const properties = page.properties;
+        console.log(`📥 [NOTION getTasks] Retrieved ${response.results.length} pages from Notion`);
 
-            // Extract due date from "Due" property (Date type)
-            const dueDate = properties.Due?.date?.start
-                ? new Date(properties.Due.date.start)
-                : null;
+        return response.results.map((page: any, index: number) => {
+            try {
+                const properties = page.properties;
+                console.log(`📥 [NOTION getTasks] Processing page ${index + 1}/${response.results.length}`);
 
-            // Default duration to 30 minutes (can be customized later)
-            const duration = 30;
+                // Extract due date from "Due" property (Date type)
+                const dueDate = properties.Due?.date?.start
+                    ? new Date(properties.Due.date.start)
+                    : null;
 
-            // Extract importance from "Importance" property (Select type)
-            // Options: Pareto, High, Med-High, Medium, Med-Low, Low
-            const importance = properties.Importance?.select?.name || "Medium";
-            
-            // Calculate gold value based on importance and duration
-            const goldValue = calculateGoldValue(importance, duration);
+                // Default duration to 30 minutes (can be customized later)
+                const duration = 30;
 
-            // Extract Kanban stage from "Kanban - Stage" property (Status type)
-            // Options: Not Started (To-Do), In Progress, Incubate (In progress), Done (Complete)
-            const kanbanStage = properties["Kanban - Stage"]?.status?.name || "Not Started";
-            const isCompleted = kanbanStage === "Done";
+                // Extract importance from "Importance" property (Select type)
+                // Options: Pareto, High, Med-High, Medium, Med-Low, Low
+                const importance = properties.Importance?.select?.name || "Medium";
+                
+                // Calculate gold value based on importance and duration
+                const goldValue = calculateGoldValue(importance, duration);
 
-            const completedAt = isCompleted ? new Date() : null;
+                // Extract Kanban stage from "Kanban - Stage" property (Status type)
+                // Options: Not Started (To-Do), In Progress, Incubate (In progress), Done (Complete)
+                const kanbanStage = properties["Kanban - Stage"]?.status?.name || "Not Started";
+                const isCompleted = kanbanStage === "Done";
 
-            // Extract recurrence from "Recur Type" property (Select type)
-            // Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly
-            const recurType = properties["Recur Type"]?.select?.name || "one-time";
+                const completedAt = isCompleted ? new Date() : null;
 
-            // Extract details from "Details" property (Text type)
-            const details = properties.Details?.rich_text?.[0]?.plain_text || "";
+                // Extract recurrence from "Recur Type" property (Select type)
+                // Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly
+                const recurType = properties["Recur Type"]?.select?.name || "one-time";
 
-            return {
-                notionId: page.id,
-                title: properties.Task?.title?.[0]?.plain_text || "Untitled Task",
-                description: "", // Can be added later if needed
-                details,
-                duration,
-                goldValue,
-                isCompleted,
-                dueDate,
-                completedAt,
-                importance,
-                kanbanStage,
-                recurType,
-                apple: false,
-                smartPrep: false,
-                delegationTask: false,
-                velin: false,
-            };
+                // Extract campaign from "Campaign" property (Select type)
+                // Options: unassigned, Main, Side
+                const campaign = properties.Campaign?.select?.name || "unassigned";
+
+                // Extract details from "Details" property (Text type)
+                const details = properties.Details?.rich_text?.[0]?.plain_text || "";
+
+                return {
+                    notionId: page.id,
+                    title: properties.Task?.title?.[0]?.plain_text || "Untitled Task",
+                    description: "", // Can be added later if needed
+                    details,
+                    duration,
+                    goldValue,
+                    isCompleted,
+                    dueDate,
+                    completedAt,
+                    importance,
+                    kanbanStage,
+                    recurType,
+                    campaign,
+                    apple: false,
+                    smartPrep: false,
+                    delegationTask: false,
+                    velin: false,
+                };
+            } catch (pageError: any) {
+                console.error(`Error processing page ${index}:`, pageError.message);
+                console.error('Page properties:', JSON.stringify(page.properties, null, 2));
+                throw pageError;
+            }
         });
     } catch (error: any) {
         console.error("Error fetching tasks from Notion:", error);

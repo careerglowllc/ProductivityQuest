@@ -498,10 +498,11 @@ export default function Home() {
       } else {
         setShowImportConfirm(true);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Notion check duplicates error:', error);
       toast({
-        title: "Error",
-        description: "Failed to get Notion task count",
+        title: "Error Checking Notion Tasks",
+        description: error.message || "Failed to get Notion task count. Check console for details.",
         variant: "destructive",
       });
     }

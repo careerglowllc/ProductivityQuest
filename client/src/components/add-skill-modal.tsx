@@ -13,7 +13,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Brain, Wrench, Palette, Briefcase, Sword, Book, Activity, Network, Users,
-  Heart, Trophy, Target, Star, Zap, Sparkles, Crown, Mountain, Gem, Flame
+  Heart, Trophy, Target, Star, Zap, Sparkles, Crown, Mountain, Gem, Flame,
+  Handshake, Hand, ThumbsUp, ThumbsDown, CircleDot, Waves, Coffee, Rocket,
+  Lightbulb, Code, Music, Camera, Dumbbell, Leaf, Globe, Shield, Hammer
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -49,7 +51,24 @@ const ICON_OPTIONS: Record<string, LucideIcon> = {
   Crown,
   Mountain,
   Gem,
-  Flame
+  Flame,
+  Handshake,
+  Hand,
+  ThumbsUp,
+  ThumbsDown,
+  CircleDot,
+  Waves,
+  Coffee,
+  Rocket,
+  Lightbulb,
+  Code,
+  Music,
+  Camera,
+  Dumbbell,
+  Leaf,
+  Globe,
+  Shield,
+  Hammer
 };
 
 export function AddSkillModal({ open, onOpenChange, onSubmit }: AddSkillModalProps) {

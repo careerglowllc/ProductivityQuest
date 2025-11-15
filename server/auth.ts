@@ -10,11 +10,15 @@ declare module 'express-session' {
 
 // Middleware to require authentication
 export const requireAuth: RequestHandler = async (req, res, next) => {
+  console.log('🔐 [AUTH] Checking authentication - Session exists:', !!req.session, 'User ID:', req.session?.userId);
+  
   // Check for session userId
   if (req.session?.userId) {
+    console.log('🔐 [AUTH] Authentication successful for user:', req.session.userId);
     return next();
   }
 
+  console.log('🔐 [AUTH] Authentication failed - no session or userId');
   return res.status(401).json({ message: "Authentication required" });
 };
 

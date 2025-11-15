@@ -161,12 +161,21 @@ export class DatabaseStorage implements IStorage {
 
   // Task operations
   async getTasks(userId: string): Promise<Task[]> {
-    return await db.select().from(tasks)
-      .where(and(
-        eq(tasks.userId, userId),
-        eq(tasks.recycled, false)
-      ))
-      .orderBy(tasks.createdAt);
+    try {
+      console.log('🗄️  [storage.getTasks] Querying tasks for user:', userId);
+      const result = await db.select().from(tasks)
+        .where(and(
+          eq(tasks.userId, userId),
+          eq(tasks.recycled, false)
+        ))
+        .orderBy(tasks.createdAt);
+      console.log('🗄️  [storage.getTasks] Found', result.length, 'tasks');
+      return result;
+    } catch (error: any) {
+      console.error('❌ [storage.getTasks] Error:', error.message);
+      console.error('❌ [storage.getTasks] Stack:', error.stack);
+      throw error;
+    }
   }
 
   async getTask(id: number, userId: string): Promise<Task | undefined> {
@@ -514,6 +523,21 @@ export class DatabaseStorage implements IStorage {
     }
 
     return true;
+  }
+
+  async updateSkillIcon(userId: string, skillId: number, icon: string): Promise<void> {
+    // Find the skill
+    const [skill] = await db.select().from(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
+    
+    if (!skill) {
+      throw new Error("Skill not found");
+    }
+
+    // Update the icon
+    await db.update(userSkills)
+      .set({ skillIcon: icon })
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
   }
 
   private async initializeUserSkills(userId: string): Promise<void> {
