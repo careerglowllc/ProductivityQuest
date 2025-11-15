@@ -263,12 +263,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }));
           
           // Categorize the newly created task
+          console.log(`🤖 Starting auto-categorization for task ${task.id}: "${task.title}"`);
           const categorization = await categorizeTaskWithAI(
             task.title,
             task.details || undefined,
             trainingExamples,
             userSkills
           );
+          
+          console.log(`🤖 Categorization result:`, categorization);
           
           // Update task with skill tags
           if (categorization && categorization.skills.length > 0) {
@@ -278,9 +281,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userId
             );
             console.log(`✓ Auto-categorized task ${task.id}: ${categorization.skills.join(', ')}`);
+          } else {
+            console.log(`⚠️ No skills categorized for task ${task.id}`);
           }
         } catch (error) {
-          console.error('Auto-categorization failed for new task:', error);
+          console.error('❌ Auto-categorization failed for new task:', error);
           // Don't throw - categorization is optional, task is already created
         }
       })();

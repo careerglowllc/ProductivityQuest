@@ -59,10 +59,15 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       resetForm();
       onOpenChange(false);
       
-      // Refetch tasks after a delay to pick up auto-categorized skillTags
+      // Refetch tasks after delays to pick up auto-categorized skillTags
+      // Try at 1s and 3s in case AI categorization takes longer
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      }, 2000);
+      }, 1000);
+      
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      }, 3000);
     },
     onError: (error: any) => {
       toast({

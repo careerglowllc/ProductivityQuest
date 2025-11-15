@@ -36,6 +36,11 @@ export async function categorizeTaskWithAI(
   userSkills: UserSkill[] = []
 ): Promise<CategorizationResult> {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("❌ OPENAI_API_KEY not configured");
+      throw new Error("OpenAI API key not configured");
+    }
+
     // Build skill descriptions from user's skills
     const skillDescriptions: Record<string, string> = {};
     const availableSkills: string[] = [];
@@ -130,8 +135,18 @@ Respond with a JSON object in this exact format:
       skills: validSkills,
       reasoning: result.reasoning
     };
-  } catch (error) {
-    console.error("Error categorizing task with AI:", error);
+  } catch (error: any) {
+    console.error("❌ Error categorizing task with AI:", error);
+    
+    // Log specific error details
+    if (error.status === 401) {
+      console.error("❌ Invalid OpenAI API key - check OPENAI_API_KEY in .env");
+    } else if (error.status === 429) {
+      console.error("❌ OpenAI rate limit exceeded");
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      console.error("❌ Network error connecting to OpenAI");
+    }
+    
     // Fallback to first available skill on error
     const fallbackSkill = userSkills[0]?.skillName || "Scholar";
     return {
