@@ -20,6 +20,14 @@ interface CompletionAnimationProps {
 }
 
 export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skillXPGains = [] }: CompletionAnimationProps) {
+  console.log('🎨 CompletionAnimation render:', {
+    isOpen,
+    task: task?.title,
+    skillXPGains,
+    skillXPGainsLength: skillXPGains?.length,
+    hasSkillXPGains: skillXPGains && skillXPGains.length > 0
+  });
+
   useEffect(() => {
     if (isOpen) {
       console.log('🎨 CompletionAnimation opened with:', {
@@ -79,7 +87,7 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
           </div>
 
           {/* Skill XP Gains */}
-          {skillXPGains && skillXPGains.length > 0 && (
+          {skillXPGains && skillXPGains.length > 0 ? (
             <div className="space-y-3 mb-4">
               <p className="text-yellow-200/70 text-sm">Skills Leveled</p>
               <div className="flex flex-wrap gap-3 justify-center">
@@ -139,6 +147,10 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
                   );
                 })}
               </div>
+            </div>
+          ) : (
+            <div className="mb-4">
+              <p className="text-yellow-200/50 text-xs">No skill XP gains (task may not have skills categorized)</p>
             </div>
           )}
           
