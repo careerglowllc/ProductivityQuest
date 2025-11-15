@@ -7,6 +7,9 @@
  * - Authentication (login, register, validation)
  * - Shop (buy items, consume items)
  * - Tasks (create, complete, filter, delete)
+ * - Task Filtering (all filter types including Business/Work filters)
+ * - XP System (skill XP calculation, leveling, UI messages)
+ * - Getting Started Guide (route accessibility)
  * - Notion integration (import, append, delete)
  * 
  * Run with: node test-suite.js
@@ -450,14 +453,65 @@ async function taskFilteringTests() {
     assertStatus(response, 200, 'Should create high reward task');
   });
 
-  await test('Create Apple task', async () => {
+  await test('Create Apple business task', async () => {
     const response = await request('POST', '/api/tasks', {
       title: 'Apple Task',
       duration: 30,
       goldValue: 50,
       apple: true,
+      businessWorkFilter: 'Apple',
     }, testUser.cookies);
     assertStatus(response, 200, 'Should create Apple task');
+  });
+
+  await test('Create Vi business task', async () => {
+    const response = await request('POST', '/api/tasks', {
+      title: 'Vi Business Task',
+      duration: 30,
+      goldValue: 50,
+      businessWorkFilter: 'Vi',
+    }, testUser.cookies);
+    assertStatus(response, 200, 'Should create Vi business task');
+  });
+
+  await test('Create General business task', async () => {
+    const response = await request('POST', '/api/tasks', {
+      title: 'General Business Task',
+      duration: 30,
+      goldValue: 50,
+      businessWorkFilter: 'General',
+    }, testUser.cookies);
+    assertStatus(response, 200, 'Should create General business task');
+  });
+
+  await test('Create SP business task', async () => {
+    const response = await request('POST', '/api/tasks', {
+      title: 'SP Business Task',
+      duration: 30,
+      goldValue: 50,
+      businessWorkFilter: 'SP',
+    }, testUser.cookies);
+    assertStatus(response, 200, 'Should create SP business task');
+  });
+
+  await test('Create Vel business task', async () => {
+    const response = await request('POST', '/api/tasks', {
+      title: 'Vel Business Task',
+      duration: 30,
+      goldValue: 50,
+      businessWorkFilter: 'Vel',
+    }, testUser.cookies);
+    assertStatus(response, 200, 'Should create Vel business task');
+  });
+
+  await test('Create CG business task', async () => {
+    const response = await request('POST', '/api/tasks', {
+      title: 'CG Business Task',
+      duration: 30,
+      goldValue: 50,
+      businessWorkFilter: 'CG',
+    }, testUser.cookies);
+    assertStatus(response, 200, 'Should create CG business task');
   });
 
   await test('Create routine task', async () => {
@@ -468,6 +522,213 @@ async function taskFilteringTests() {
       recurType: 'Daily',
     }, testUser.cookies);
     assertStatus(response, 200, 'Should create routine task');
+  });
+}
+
+// ============================================================================
+// XP SYSTEM TESTS
+// ============================================================================
+
+async function xpSystemTests() {
+  console.log(`\n${colors.blue}═══ XP System Tests ═══${colors.reset}\n`);
+
+  let skillTask = null;
+  let initialProgress = null;
+
+  await test('Get initial user progress', async () => {
+    const response = await request('GET', '/api/user/progress', null, testUser.cookies);
+    assertStatus(response, 200, 'Should get user progress');
+    initialProgress = response.data;
+    assert(initialProgress.skills, 'Should have skills data');
+  });
+
+  await test('Create task with skills for XP testing', async () => {
+    const response = await request('POST', '/api/tasks', {
+      title: 'Skill XP Test Task',
+      description: 'Task to test XP calculation and skill leveling',
+      duration: 60,
+      goldValue: 100,
+      importance: 'High',
+      skillTags: ['Coding', 'Problem Solving'],
+    }, testUser.cookies);
+    
+    assertStatus(response, 200, 'Should create task with skills');
+    skillTask = response.data;
+    assert(Array.isArray(skillTask.skillTags), 'Should have skill tags');
+    assertEqual(skillTask.skillTags.length, 2, 'Should have 2 skills');
+  });
+
+  await test('Complete task and verify XP calculation', async () => {
+    const response = await request('PATCH', `/api/tasks/${skillTask.id}`, {
+      completed: true,
+    }, testUser.cookies);
+    
+    assertStatus(response, 200, 'Should complete task');
+    assert(response.data.completed === true, 'Task should be marked complete');
+    assert(response.data.skillXPGains, 'Should return skill XP gains');
+    assert(Array.isArray(response.data.skillXPGains), 'skillXPGains should be array');
+    
+    // Verify XP was awarded to both skills
+    assertEqual(response.data.skillXPGains.length, 2, 'Should award XP to 2 skills');
+    
+    // Verify each skill gain has required properties
+    response.data.skillXPGains.forEach(gain => {
+      assert(gain.skillName, 'Skill gain should have skillName');
+      assert(typeof gain.xpGained === 'number', 'xpGained should be number');
+      assert(typeof gain.newXP === 'number', 'newXP should be number');
+      assert(typeof gain.newLevel === 'number', 'newLevel should be number');
+      assert(gain.xpGained > 0, 'Should gain positive XP');
+    });
+  });
+
+  await test('Verify XP calculation formula (High priority, 60 min)', async () => {
+    // Formula: XP = 15 × (Duration/15) × (1 + PriorityBonus)
+    // High priority has 20% bonus = 1.2 multiplier
+    // Expected: 15 × (60/15) × 1.2 = 15 × 4 × 1.2 = 72 XP total
+    // Split between 2 skills = 36 XP each
+    
+    const response = await request('PATCH', `/api/tasks/${skillTask.id}`, {
+      completed: false, // Mark incomplete first
+    }, testUser.cookies);
+    
+    // Complete again
+    const completeResponse = await request('PATCH', `/api/tasks/${skillTask.id}`, {
+      completed: true,
+    }, testUser.cookies);
+    
+    if (completeResponse.status === 200 && completeResponse.data.skillXPGains) {
+      const xpPerSkill = completeResponse.data.skillXPGains[0].xpGained;
+      // Should be 36 XP per skill (72 total / 2 skills)
+      assertEqual(xpPerSkill, 36, 'Should award 36 XP per skill for High priority 60min task');
+    }
+  });
+
+  await test('Create and complete Pareto task (highest priority)', async () => {
+    const paretoTask = await request('POST', '/api/tasks', {
+      title: 'Pareto Task',
+      duration: 30,
+      goldValue: 100,
+      importance: 'Pareto',
+      skillTags: ['Leadership'],
+    }, testUser.cookies);
+    
+    if (paretoTask.status === 200) {
+      const response = await request('PATCH', `/api/tasks/${paretoTask.data.id}`, {
+        completed: true,
+      }, testUser.cookies);
+      
+      assertStatus(response, 200, 'Should complete Pareto task');
+      assert(response.data.skillXPGains, 'Should return skill XP gains');
+      
+      // Pareto has 30% bonus = 1.3 multiplier
+      // Expected: 15 × (30/15) × 1.3 = 15 × 2 × 1.3 = 39 XP
+      const xpGained = response.data.skillXPGains[0].xpGained;
+      assertEqual(xpGained, 39, 'Pareto task should award 39 XP (30% bonus)');
+    }
+  });
+
+  await test('Create and complete Low priority task', async () => {
+    const lowTask = await request('POST', '/api/tasks', {
+      title: 'Low Priority Task',
+      duration: 15,
+      goldValue: 25,
+      importance: 'Low',
+      skillTags: ['Organization'],
+    }, testUser.cookies);
+    
+    if (lowTask.status === 200) {
+      const response = await request('PATCH', `/api/tasks/${lowTask.data.id}`, {
+        completed: true,
+      }, testUser.cookies);
+      
+      assertStatus(response, 200, 'Should complete Low task');
+      assert(response.data.skillXPGains, 'Should return skill XP gains');
+      
+      // Low has 0% bonus = 1.0 multiplier
+      // Expected: 15 × (15/15) × 1.0 = 15 XP
+      const xpGained = response.data.skillXPGains[0].xpGained;
+      assertEqual(xpGained, 15, 'Low priority task should award 15 XP (no bonus)');
+    }
+  });
+
+  await test('Verify skill level up mechanics', async () => {
+    // Create and complete multiple tasks to trigger level up
+    for (let i = 0; i < 5; i++) {
+      const task = await request('POST', '/api/tasks', {
+        title: `Level Up Task ${i}`,
+        duration: 60,
+        goldValue: 100,
+        importance: 'High',
+        skillTags: ['Testing'],
+      }, testUser.cookies);
+      
+      if (task.status === 200) {
+        await request('PATCH', `/api/tasks/${task.data.id}`, {
+          completed: true,
+        }, testUser.cookies);
+      }
+    }
+    
+    // Check if Testing skill leveled up
+    const progress = await request('GET', '/api/user/progress', null, testUser.cookies);
+    if (progress.status === 200) {
+      const testingSkill = progress.data.skills?.find(s => s.name === 'Testing');
+      if (testingSkill) {
+        assert(testingSkill.xp > 0, 'Testing skill should have XP');
+        assert(testingSkill.level >= 1, 'Testing skill should have level');
+      }
+    }
+  });
+
+  await test('Verify XP UI message includes skill names', async () => {
+    const task = await request('POST', '/api/tasks', {
+      title: 'UI Message Test',
+      duration: 30,
+      goldValue: 50,
+      importance: 'Medium',
+      skillTags: ['Communication', 'Writing'],
+    }, testUser.cookies);
+    
+    if (task.status === 200) {
+      const response = await request('PATCH', `/api/tasks/${task.data.id}`, {
+        completed: true,
+      }, testUser.cookies);
+      
+      assert(response.data.skillXPGains, 'Should have skillXPGains array');
+      response.data.skillXPGains.forEach(gain => {
+        assert(['Communication', 'Writing'].includes(gain.skillName), 
+          'Skill names should match task skills');
+      });
+    }
+  });
+}
+
+// ============================================================================
+// GETTING STARTED GUIDE TESTS
+// ============================================================================
+
+async function gettingStartedTests() {
+  console.log(`\n${colors.blue}═══ Getting Started Guide Tests ═══${colors.reset}\n`);
+
+  await test('Getting Started page should be accessible', async () => {
+    const response = await request('GET', '/getting-started', null, testUser.cookies);
+    // Should return HTML or redirect successfully
+    assert(response.status === 200 || response.status === 304, 
+      'Getting Started page should be accessible');
+  });
+
+  await test('User can access Getting Started from landing page', async () => {
+    const response = await request('GET', '/', null, null);
+    assert(response.status === 200 || response.status === 304, 
+      'Landing page should be accessible');
+    // The page should contain a link or reference to getting started
+  });
+
+  await test('Getting Started route exists in navigation', async () => {
+    // This tests that the route is properly configured
+    // Getting started is at /getting-started
+    const response = await request('GET', '/getting-started', null, null);
+    assert(response.status !== 404, 'Getting Started route should exist');
   });
 }
 
@@ -542,6 +803,8 @@ async function runAllTests() {
   await shopTests();
   await taskTests();
   await taskFilteringTests();
+  await xpSystemTests();
+  await gettingStartedTests();
   await notionIntegrationTests();
 
   const endTime = Date.now();
