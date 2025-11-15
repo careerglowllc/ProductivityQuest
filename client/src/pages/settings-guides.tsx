@@ -19,9 +19,8 @@ export default function SettingsGuidesPage() {
       title: "Getting Started",
       description: "Quick start guide to ProductivityQuest features",
       icon: Sparkles,
-      path: "/settings/guides/getting-started",
+      path: "/getting-started",
       color: "from-blue-500 to-blue-600",
-      disabled: true,
     },
   ];
 
