@@ -69,21 +69,21 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
-          {/* Description */}
-          {task.description && (
+          {/* Description - only show if not empty */}
+          {task.description && task.description.trim() && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-yellow-400">
                 <FileText className="w-4 h-4" />
                 <h3 className="font-semibold">Description</h3>
               </div>
-              <p className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
+              <p className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20 whitespace-pre-wrap">
                 {task.description}
               </p>
             </div>
           )}
 
-          {/* Details */}
-          {task.details && (
+          {/* Details - show if exists and not empty */}
+          {task.details && task.details.trim() && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-yellow-400">
                 <BarChart3 className="w-4 h-4" />
