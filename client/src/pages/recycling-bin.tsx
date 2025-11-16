@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Trash2, RotateCcw, AlertTriangle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Trash2, RotateCcw, AlertTriangle, CheckCircle, ArrowLeft, CheckSquare, XSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -22,6 +22,7 @@ type RecycledTask = {
   completedAt?: string;
   dueDate?: string;
   importance?: string;
+  skillTags?: string[];
 };
 
 export default function RecyclingBin() {
@@ -29,7 +30,9 @@ export default function RecyclingBin() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState<"all" | "completed" | "deleted">("all");
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState<number | null>(null);
+  const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
 
   // Fetch recycled tasks
   const { data: recycledTasks = [], isLoading } = useQuery<RecycledTask[]>({
@@ -99,6 +102,89 @@ export default function RecyclingBin() {
     },
   });
 
+  // Batch handlers
+  const handleTaskSelect = (taskId: number, selected: boolean) => {
+    const newSelected = new Set(selectedTasks);
+    if (selected) {
+      newSelected.add(taskId);
+    } else {
+      newSelected.delete(taskId);
+    }
+    setSelectedTasks(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    const newSelected = new Set<number>();
+    filteredTasks.forEach((task: any) => {
+      newSelected.add(task.id);
+    });
+    setSelectedTasks(newSelected);
+    toast({
+      title: "Tasks Selected",
+      description: `Selected ${filteredTasks.length} task${filteredTasks.length > 1 ? 's' : ''}`,
+    });
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedTasks(new Set());
+  };
+
+  const handleBatchRestore = async () => {
+    if (selectedTasks.size === 0) return;
+
+    try {
+      const response = await apiRequest("POST", "/api/tasks/restore", {
+        taskIds: Array.from(selectedTasks)
+      });
+
+      const data = await response.json();
+
+      queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+
+      toast({
+        title: "Tasks Restored",
+        description: `${data.restoredCount} task${data.restoredCount > 1 ? 's' : ''} restored to your quest list`,
+      });
+
+      setSelectedTasks(new Set());
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to restore tasks",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedTasks.size === 0) return;
+
+    try {
+      const response = await apiRequest("POST", "/api/tasks/permanent-delete", {
+        taskIds: Array.from(selectedTasks)
+      });
+
+      const data = await response.json();
+
+      queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] });
+
+      toast({
+        title: "Tasks Permanently Deleted",
+        description: `${data.deletedCount} task${data.deletedCount > 1 ? 's' : ''} permanently removed`,
+      });
+
+      setSelectedTasks(new Set());
+      setConfirmBatchDelete(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to permanently delete tasks",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Filter tasks by tab
   const filteredTasks = recycledTasks.filter(task => {
     if (selectedTab === "all") return true;
@@ -154,6 +240,59 @@ export default function RecyclingBin() {
           </Card>
         </div>
 
+        {/* Batch Selection Controls */}
+        {filteredTasks.length > 0 && (
+          <Card className="mb-6 bg-slate-800/60 backdrop-blur-md border-2 border-red-600/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex gap-2">
+                  {selectedTasks.size < filteredTasks.length ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleSelectAll}
+                      className="flex items-center gap-2 bg-slate-800/80 border-blue-500/40 text-blue-300 hover:bg-blue-600/20 hover:text-blue-100"
+                    >
+                      <CheckSquare className="w-4 h-4" />
+                      Select All ({filteredTasks.length})
+                    </Button>
+                  ) : selectedTasks.size > 0 ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleDeselectAll}
+                      className="flex items-center gap-2 bg-slate-800/80 border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-100"
+                    >
+                      <XSquare className="w-4 h-4" />
+                      Deselect All
+                    </Button>
+                  ) : null}
+                </div>
+                
+                {selectedTasks.size > 0 && (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleBatchRestore}
+                      className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white"
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Restore {selectedTasks.size} Task{selectedTasks.size > 1 ? 's' : ''}
+                    </Button>
+                    <Button
+                      onClick={() => setConfirmBatchDelete(true)}
+                      variant="outline"
+                      className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Permanently
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tabs */}
         <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as any)} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-slate-800/80 border border-yellow-600/40">
@@ -183,32 +322,60 @@ export default function RecyclingBin() {
             ) : (
               <div className="space-y-4">
                 {filteredTasks.map((task) => (
-                  <Card key={task.id} className="bg-slate-800/80 backdrop-blur border-2 border-yellow-600/40 hover:border-yellow-500/60 transition-all">
+                  <Card 
+                    key={task.id} 
+                    className={`bg-slate-800/80 backdrop-blur border-2 transition-all cursor-pointer ${
+                      selectedTasks.has(task.id)
+                        ? "border-blue-500/60 bg-blue-900/20"
+                        : "border-yellow-600/40 hover:border-yellow-500/60"
+                    }`}
+                    onClick={() => handleTaskSelect(task.id, !selectedTasks.has(task.id))}
+                  >
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-yellow-100 font-medium text-lg">{task.title}</h3>
-                            {task.recycledReason === "completed" ? (
-                              <Badge className="bg-green-600/80 text-white">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Completed
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-red-600/80 text-white">
-                                <Trash2 className="h-3 w-3 mr-1" />
-                                Deleted
-                              </Badge>
-                            )}
-                            {task.importance && (
-                              <Badge className={`${getImportanceBadgeColor(task.importance)} text-white`}>
-                                {task.importance}
-                              </Badge>
-                            )}
-                          </div>
+                        <div className="flex items-start gap-3 flex-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedTasks.has(task.id)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleTaskSelect(task.id, e.target.checked);
+                            }}
+                            className="w-4 h-4 mt-1 rounded border-slate-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-800"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-yellow-100 font-medium text-lg">{task.title}</h3>
+                              {task.recycledReason === "completed" ? (
+                                <Badge className="bg-green-600/80 text-white">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Completed
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-red-600/80 text-white">
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Deleted
+                                </Badge>
+                              )}
+                              {task.importance && (
+                                <Badge className={`${getImportanceBadgeColor(task.importance)} text-white`}>
+                                  {task.importance}
+                                </Badge>
+                              )}
+                            </div>
                           
                           {task.description && (
                             <p className="text-yellow-200/70 text-sm mb-3">{task.description}</p>
+                          )}
+
+                          {task.skillTags && task.skillTags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {task.skillTags.map((skill: string) => (
+                                <Badge key={skill} variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
                           
                           <div className="flex items-center gap-4 text-sm text-yellow-200/60">
@@ -228,12 +395,16 @@ export default function RecyclingBin() {
                             </div>
                           </div>
                         </div>
+                        </div>
 
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setConfirmRestore(task.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmRestore(task.id);
+                            }}
                             className="border-green-600/40 text-green-100 hover:bg-green-600/20"
                           >
                             <RotateCcw className="h-4 w-4 mr-2" />
@@ -320,6 +491,36 @@ export default function RecyclingBin() {
                 className="bg-red-600 hover:bg-red-700 text-white"
               >
                 {deleteMutation.isPending ? "Deleting..." : "Delete Forever"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Batch Delete Confirmation Dialog */}
+        <Dialog open={confirmBatchDelete} onOpenChange={setConfirmBatchDelete}>
+          <DialogContent className="bg-slate-800 border-2 border-red-600/40">
+            <DialogHeader>
+              <DialogTitle className="text-yellow-100 font-serif flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+                Permanently Delete {selectedTasks.size} Task{selectedTasks.size > 1 ? 's' : ''}?
+              </DialogTitle>
+              <DialogDescription className="text-yellow-200/70">
+                This action cannot be undone. {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} will be permanently removed from the database.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmBatchDelete(false)}
+                className="border-yellow-600/40 text-yellow-100 hover:bg-yellow-600/20"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBatchDelete}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete Forever
               </Button>
             </DialogFooter>
           </DialogContent>

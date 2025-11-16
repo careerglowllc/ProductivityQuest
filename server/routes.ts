@@ -987,6 +987,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch restore tasks from recycling bin
+  app.post("/api/tasks/restore", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "Invalid task IDs" });
+      }
+
+      let restoredCount = 0;
+      const restoredTasks = [];
+
+      for (const taskId of taskIds) {
+        const restoredTask = await storage.restoreTask(taskId, userId);
+        if (restoredTask) {
+          restoredCount++;
+          restoredTasks.push(restoredTask);
+        }
+      }
+
+      console.log(`♻️ Restored ${restoredCount} tasks from recycling bin`);
+
+      res.json({
+        restoredCount,
+        tasks: restoredTasks
+      });
+    } catch (error) {
+      console.error("Batch restore error:", error);
+      res.status(500).json({ error: "Failed to restore tasks" });
+    }
+  });
+
+  // Batch permanently delete tasks
+  app.post("/api/tasks/permanent-delete", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "Invalid task IDs" });
+      }
+
+      let deletedCount = 0;
+
+      for (const taskId of taskIds) {
+        const success = await storage.permanentlyDeleteTask(taskId, userId);
+        if (success) {
+          deletedCount++;
+        }
+      }
+
+      console.log(`🗑️ Permanently deleted ${deletedCount} tasks`);
+
+      res.json({
+        deletedCount
+      });
+    } catch (error) {
+      console.error("Batch permanent delete error:", error);
+      res.status(500).json({ error: "Failed to permanently delete tasks" });
+    }
+  });
+
   // Notion integration routes
   app.get("/api/notion/databases", requireAuth, async (req: any, res) => {
     try {

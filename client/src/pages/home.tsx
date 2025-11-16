@@ -954,6 +954,12 @@ export default function Home() {
                         Settings
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
+                      <Link href="/recycling-bin" className="flex items-center">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Recycling Bin
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
                       <LogOut className="w-4 h-4 mr-2" />
                       Logout
