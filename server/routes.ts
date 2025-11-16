@@ -1287,6 +1287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             notionId: notionTask.notionId,
             title: notionTask.title,
             description: notionTask.description,
+            details: notionTask.details,
             duration: notionTask.duration,
             goldValue: notionTask.goldValue,
             dueDate: notionTask.dueDate,
