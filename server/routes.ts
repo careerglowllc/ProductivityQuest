@@ -1030,14 +1030,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid task IDs" });
       }
 
-      let deletedCount = 0;
+      console.log(`🗑️ Starting permanent deletion of ${taskIds.length} tasks...`);
 
-      for (const taskId of taskIds) {
-        const success = await storage.permanentlyDeleteTask(taskId, userId);
-        if (success) {
-          deletedCount++;
-        }
-      }
+      // Use optimized batch delete instead of loop
+      const deletedCount = await storage.permanentlyDeleteTasks(taskIds, userId);
 
       console.log(`🗑️ Permanently deleted ${deletedCount} tasks`);
 

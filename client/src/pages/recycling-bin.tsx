@@ -80,6 +80,13 @@ export default function RecyclingBin() {
   // Permanent delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (taskId: number) => {
+      // Show loading toast immediately
+      toast({
+        title: "Deleting Task...",
+        description: "Permanently removing task from database. You can navigate away.",
+        duration: Infinity,
+      });
+      
       const response = await fetch(`/api/tasks/${taskId}/permanent`, {
         method: "DELETE",
         credentials: "include",
@@ -90,8 +97,8 @@ export default function RecyclingBin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] });
       toast({
-        title: "Task Permanently Deleted",
-        description: "The task has been permanently removed.",
+        title: "✅ Task Permanently Deleted",
+        description: "The task has been permanently removed from the database.",
       });
       setConfirmDelete(null);
     },
@@ -162,6 +169,18 @@ export default function RecyclingBin() {
   const handleBatchDelete = async () => {
     if (selectedTasks.size === 0) return;
 
+    const taskCount = selectedTasks.size;
+    
+    // Close confirmation dialog and show loading toast immediately
+    setConfirmBatchDelete(false);
+    
+    // Show persistent loading toast
+    toast({
+      title: "Deleting Tasks...",
+      description: `Permanently deleting ${taskCount} task${taskCount > 1 ? 's' : ''}. This may take a moment. You can navigate away - we'll notify you when it's done.`,
+      duration: Infinity, // Keep toast visible until we manually dismiss it
+    });
+
     try {
       const response = await apiRequest("POST", "/api/tasks/permanent-delete", {
         taskIds: Array.from(selectedTasks)
@@ -171,13 +190,13 @@ export default function RecyclingBin() {
 
       queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] });
 
+      // Dismiss loading toast and show success
       toast({
-        title: "Tasks Permanently Deleted",
-        description: `${data.deletedCount} task${data.deletedCount > 1 ? 's' : ''} permanently removed`,
+        title: "✅ Deletion Complete",
+        description: `${data.deletedCount} task${data.deletedCount > 1 ? 's' : ''} permanently removed from the database`,
       });
 
       setSelectedTasks(new Set());
-      setConfirmBatchDelete(false);
     } catch (error) {
       toast({
         title: "Error",

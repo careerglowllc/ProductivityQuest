@@ -1,6 +1,6 @@
 import { tasks, shopItems, userProgress, userSkills, purchases, users, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, isNull } from "drizzle-orm";
+import { eq, and, or, isNull, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -18,6 +18,7 @@ export interface IStorage {
   getRecycledTasks(userId: string): Promise<Task[]>;
   restoreTask(id: number, userId: string): Promise<Task | undefined>;
   permanentlyDeleteTask(id: number, userId: string): Promise<boolean>;
+  permanentlyDeleteTasks(taskIds: number[], userId: string): Promise<number>;
   
   // Shop operations
   getShopItems(): Promise<ShopItem[]>;
@@ -270,6 +271,19 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(tasks)
       .where(and(eq(tasks.id, id), eq(tasks.userId, userId), eq(tasks.recycled, true)));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async permanentlyDeleteTasks(taskIds: number[], userId: string): Promise<number> {
+    if (taskIds.length === 0) return 0;
+    
+    const result = await db.delete(tasks)
+      .where(and(
+        inArray(tasks.id, taskIds),
+        eq(tasks.userId, userId),
+        eq(tasks.recycled, true)
+      ));
+    
+    return result.rowCount ?? 0;
   }
 
   // Shop operations
