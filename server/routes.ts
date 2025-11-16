@@ -621,6 +621,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete tasks (move to recycling bin without gold/XP)
+  app.post("/api/tasks/delete-batch", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "Invalid task IDs" });
+      }
+
+      let deletedCount = 0;
+      const deletedTasks = [];
+
+      // Move all tasks to recycling bin
+      for (const taskId of taskIds) {
+        const task = await storage.getTask(taskId, userId);
+        
+        if (task && !task.completed) {
+          // Move to recycling bin without marking as complete (no gold/XP)
+          const updatedTask = await storage.updateTask(taskId, {
+            recycled: true,
+            recycledAt: new Date(),
+            recycledReason: 'deleted'
+          }, userId);
+          
+          if (updatedTask) {
+            deletedCount++;
+            deletedTasks.push(updatedTask);
+          }
+        }
+      }
+
+      console.log(`🗑️ Deleted ${deletedCount} tasks (moved to recycling bin)`);
+
+      res.json({
+        deletedCount,
+        tasks: deletedTasks
+      });
+    } catch (error) {
+      console.error("Batch deletion error:", error);
+      res.status(500).json({ error: "Failed to delete tasks" });
+    }
+  });
+
   // Undo task completion
   app.post("/api/tasks/undo-complete", requireAuth, async (req: any, res) => {
     try {

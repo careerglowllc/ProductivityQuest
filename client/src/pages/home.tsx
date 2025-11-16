@@ -254,6 +254,54 @@ export default function Home() {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedTasks.size === 0) return;
+
+    const selectedTaskIds = Array.from(selectedTasks);
+    const tasksToDelete = selectedTaskIds.map(id => {
+      return (tasks as any[]).find((t: any) => t.id === id);
+    }).filter(Boolean);
+
+    if (tasksToDelete.length === 0) return;
+
+    // OPTIMISTIC UI: Update immediately
+    setSelectedTasks(new Set());
+
+    // Show toast immediately
+    toast({
+      title: `${tasksToDelete.length} Quest${tasksToDelete.length > 1 ? 's' : ''} Deleted`,
+      description: `Task${tasksToDelete.length > 1 ? 's' : ''} moved to recycling bin without earning gold or XP.`,
+    });
+
+    try {
+      // Call backend to actually update database
+      const response = await apiRequest("POST", "/api/tasks/delete-batch", { 
+        taskIds: selectedTaskIds 
+      });
+      
+      const data = await response.json();
+      
+      console.log('🗑️ Backend deletion confirmed:', data);
+      
+      // Track for undo
+      setLastAction({
+        type: 'delete-notion', // Reusing the delete-notion type for undo
+        taskIds: selectedTaskIds
+      });
+      
+      // Refresh data after backend completes
+      refetchTasks();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete tasks. Refreshing...",
+        variant: "destructive",
+      });
+      // Force refresh to get correct state
+      refetchTasks();
+    }
+  };
+
   const handleAppendToNotion = async () => {
     if (selectedTasks.size === 0) return;
 
@@ -1271,6 +1319,14 @@ export default function Home() {
                       >
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Complete Selected
+                      </Button>
+                      <Button 
+                        onClick={handleDeleteSelected}
+                        variant="outline"
+                        className="border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Selected
                       </Button>
                       <Button 
                         onClick={handleAppendToNotion}
