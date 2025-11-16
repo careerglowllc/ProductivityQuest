@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -100,6 +100,26 @@ export default function Home() {
       newSelected.delete(taskId);
     }
     setSelectedTasks(newSelected);
+  };
+
+  const handleSelectAll = (tasksToSelect: any[]) => {
+    const newSelected = new Set<number>();
+    tasksToSelect.forEach((task: any) => {
+      newSelected.add(task.id);
+    });
+    setSelectedTasks(newSelected);
+    toast({
+      title: "Tasks Selected",
+      description: `Selected ${tasksToSelect.length} task${tasksToSelect.length > 1 ? 's' : ''}`,
+    });
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedTasks(new Set());
+    toast({
+      title: "Selection Cleared",
+      description: "All tasks deselected",
+    });
   };
 
   const handleCompleteSelected = async () => {
@@ -1176,32 +1196,61 @@ export default function Home() {
                   </DropdownMenu>
                 </div>
                 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100">
-                      <ArrowUpDown className="w-4 h-4" />
-                      Sort
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
-                    <DropdownMenuItem 
-                      onClick={() => setSortBy("due-date")}
-                      className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
-                    >
-                      <CalendarDays className="w-4 h-4" />
-                      <span>Due Date</span>
-                      {sortBy === "due-date" && <span className="ml-auto text-yellow-400">✓</span>}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => setSortBy("importance")}
-                      className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
-                    >
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>Importance</span>
-                      {sortBy === "importance" && <span className="ml-auto text-yellow-400">✓</span>}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex gap-2 items-center">
+                  {/* Select All / Deselect All Buttons */}
+                  {sortedTasks.length > 0 && (
+                    <>
+                      {selectedTasks.size < sortedTasks.length ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleSelectAll(sortedTasks)}
+                          className="flex items-center gap-2 bg-slate-800/80 border-blue-500/40 text-blue-300 hover:bg-blue-600/20 hover:text-blue-100"
+                        >
+                          <CheckSquare className="w-4 h-4" />
+                          Select All ({sortedTasks.length})
+                        </Button>
+                      ) : selectedTasks.size > 0 ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleDeselectAll}
+                          className="flex items-center gap-2 bg-slate-800/80 border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-100"
+                        >
+                          <XSquare className="w-4 h-4" />
+                          Deselect All
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100">
+                        <ArrowUpDown className="w-4 h-4" />
+                        Sort
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
+                      <DropdownMenuItem 
+                        onClick={() => setSortBy("due-date")}
+                        className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                      >
+                        <CalendarDays className="w-4 h-4" />
+                        <span>Due Date</span>
+                        {sortBy === "due-date" && <span className="ml-auto text-yellow-400">✓</span>}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setSortBy("importance")}
+                        className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                      >
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Importance</span>
+                        {sortBy === "importance" && <span className="ml-auto text-yellow-400">✓</span>}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </Card>
 
