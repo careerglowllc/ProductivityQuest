@@ -4,9 +4,10 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Trash2, RotateCcw, AlertTriangle, CheckCircle, ArrowLeft, CheckSquare, XSquare } from "lucide-react";
+import { Trash2, RotateCcw, AlertTriangle, CheckCircle, ArrowLeft, CheckSquare, XSquare, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -33,6 +34,7 @@ export default function RecyclingBin() {
   const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState<number | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch recycled tasks
   const { data: recycledTasks = [], isLoading } = useQuery<RecycledTask[]>({
@@ -185,10 +187,20 @@ export default function RecyclingBin() {
     }
   };
 
-  // Filter tasks by tab
+  // Filter tasks by tab and search query
   const filteredTasks = recycledTasks.filter(task => {
-    if (selectedTab === "all") return true;
-    return task.recycledReason === selectedTab;
+    // Filter by tab
+    const tabMatch = selectedTab === "all" || task.recycledReason === selectedTab;
+    
+    // Filter by search query
+    if (!searchQuery.trim()) return tabMatch;
+    
+    const query = searchQuery.toLowerCase();
+    const titleMatch = task.title.toLowerCase().includes(query);
+    const descriptionMatch = task.description?.toLowerCase().includes(query);
+    const skillMatch = task.skillTags?.some(skill => skill.toLowerCase().includes(query));
+    
+    return tabMatch && (titleMatch || descriptionMatch || skillMatch);
   });
 
   const getImportanceBadgeColor = (importance?: string) => {
@@ -240,6 +252,37 @@ export default function RecyclingBin() {
           </Card>
         </div>
 
+        {/* Search Bar */}
+        <Card className="mb-6 bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40">
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-yellow-400/60" />
+              <Input
+                type="text"
+                placeholder="Search recycled tasks by title, description, or skill..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10 bg-slate-900/60 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40 focus:border-yellow-500/60"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 text-yellow-400/60 hover:text-yellow-400 hover:bg-slate-700/50"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {searchQuery && (
+              <p className="text-sm text-yellow-200/60 mt-2">
+                Found {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Batch Selection Controls */}
         {filteredTasks.length > 0 && (
           <Card className="mb-6 bg-slate-800/60 backdrop-blur-md border-2 border-red-600/30">
@@ -273,15 +316,14 @@ export default function RecyclingBin() {
                   <div className="flex gap-2">
                     <Button
                       onClick={handleBatchRestore}
-                      className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white"
+                      className="bg-green-700 hover:bg-green-600 text-white border border-green-500/50"
                     >
                       <RotateCcw className="w-4 h-4 mr-2" />
                       Restore {selectedTasks.size} Task{selectedTasks.size > 1 ? 's' : ''}
                     </Button>
                     <Button
                       onClick={() => setConfirmBatchDelete(true)}
-                      variant="outline"
-                      className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                      className="bg-red-700 hover:bg-red-600 text-white border border-red-500/50"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete Permanently
@@ -311,12 +353,29 @@ export default function RecyclingBin() {
             {filteredTasks.length === 0 ? (
               <Card className="bg-slate-800/80 backdrop-blur border-2 border-yellow-600/40">
                 <CardContent className="py-12 text-center">
-                  <Trash2 className="h-12 w-12 text-yellow-600/40 mx-auto mb-4" />
-                  <p className="text-yellow-200/70">
-                    {selectedTab === "all" 
-                      ? "No tasks in recycling bin" 
-                      : `No ${selectedTab} tasks in recycling bin`}
-                  </p>
+                  {searchQuery ? (
+                    <>
+                      <Search className="h-12 w-12 text-yellow-600/40 mx-auto mb-4" />
+                      <p className="text-yellow-200/70 mb-2">No tasks found matching "{searchQuery}"</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSearchQuery("")}
+                        className="text-yellow-400 hover:text-yellow-300 hover:bg-slate-700/50"
+                      >
+                        Clear search
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-12 w-12 text-yellow-600/40 mx-auto mb-4" />
+                      <p className="text-yellow-200/70">
+                        {selectedTab === "all" 
+                          ? "No tasks in recycling bin" 
+                          : `No ${selectedTab} tasks in recycling bin`}
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -405,7 +464,7 @@ export default function RecyclingBin() {
                               e.stopPropagation();
                               setConfirmRestore(task.id);
                             }}
-                            className="border-green-600/40 text-green-100 hover:bg-green-600/20"
+                            className="bg-green-900/60 border-green-600/40 text-green-100 hover:bg-green-800/80 hover:border-green-500/60"
                           >
                             <RotateCcw className="h-4 w-4 mr-2" />
                             Restore
@@ -413,8 +472,11 @@ export default function RecyclingBin() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setConfirmDelete(task.id)}
-                            className="border-red-600/40 text-red-100 hover:bg-red-600/20"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete(task.id);
+                            }}
+                            className="bg-red-900/60 border-red-600/40 text-red-100 hover:bg-red-800/80 hover:border-red-500/60"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete Forever
