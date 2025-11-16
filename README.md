@@ -38,6 +38,8 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Recycle tasks** instead of deleting them for better task management
 - **Create custom skills** tailored to your personal development goals
 - **Recategorize tasks** - Manually adjust skill tags for selected tasks with sequential processing
+- **✨ NEW: Manually edit skills** - Adjust skill icons, levels, and XP directly for full control
+- **✨ NEW: Export tasks to CSV** - Download all your tasks as a spreadsheet for external analysis
 
 ### Key Differentiators
 
@@ -46,6 +48,8 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **✨ NEW: Recategorize Feature** - Manually adjust skill tags on selected tasks with sequential modal workflow
 - **✨ NEW: Automatic AI Categorization** - New tasks automatically get skill tags via background AI processing
 - **✨ NEW: Transparent Gold Formula** - Fair, modular calculation: Base × TimeWeight × (1 + PriorityBonus)
+- **✨ NEW: Manual Skill Editing** - Edit skill icons, levels, and XP for complete customization
+- **✨ NEW: CSV Export** - Export all tasks to Excel/Google Sheets compatible CSV format
 - **Dual-view support** (Grid/List) for different user preferences
 - **Batch operations** for managing multiple tasks efficiently
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
@@ -1051,6 +1055,54 @@ npm run db:push      # Apply database migrations
 - Built files served from `dist/public`
 - PostgreSQL database connection via `DATABASE_URL`
 - Process manager recommended (PM2, etc.)
+
+## 🆕 Recent Feature Additions
+
+### CSV Export (November 2025)
+**Export all your tasks to CSV/Excel format**
+
+- **Endpoint:** `GET /api/tasks/export/csv`
+- **Frontend:** Green "Export as CSV" button on home page
+- **Features:**
+  - Exports all non-recycled tasks for authenticated user
+  - CSV includes all task fields: title, description, duration, gold, importance, dates, skill tags, etc.
+  - Proper CSV escaping for special characters (commas, quotes, newlines)
+  - ISO 8601 date formatting
+  - Semicolon-separated skill tags
+  - Boolean fields as "Yes"/"No"
+  - File naming: `productivity-quest-tasks-YYYY-MM-DD.csv`
+- **Use Cases:**
+  - External data analysis in Excel/Google Sheets
+  - Backup your task data
+  - Import into other systems
+  - Share task lists with team members
+- **Test Cases:** See `CSV_EXPORT_TEST_CASES.md`
+
+### Manual Skill Editing (November 2025)
+**Full control over your skill progression**
+
+- **Feature:** Edit button on all skill cards
+- **Capabilities:**
+  - **Icon Selection:** Choose from 37+ Lucide icons (Wrench, Hammer, Rocket, etc.)
+  - **Level Adjustment:** Set skill level from 1-100
+  - **XP Adjustment:** Manually set XP within current level's maximum
+  - **Multi-Field Updates:** Change icon, level, and XP in one save
+- **Validation:**
+  - Level must be ≥ 1
+  - XP must be ≥ 0
+  - XP cannot exceed maxXp for current level
+  - Backend validates all constraints
+- **Integration:**
+  - Updates spider chart immediately
+  - Persists across page refreshes
+  - Works for both default and custom skills
+  - Single API call: `PATCH /api/skills/:skillId/icon`
+- **Use Cases:**
+  - Align in-game progress with real-world skill levels
+  - Bootstrap skills you already have experience in
+  - Correct XP if you've been working offline
+  - Match progression to external tracking systems
+- **Test Cases:** See `EDIT_SKILLS_TEST_CASES.md`
 
 ## 📈 Future Enhancements
 

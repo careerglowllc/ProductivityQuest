@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -514,6 +514,30 @@ export default function Home() {
     setShowExportConfirm(true);
   };
 
+  const handleExportCSV = async () => {
+    try {
+      toast({
+        title: "Exporting to CSV...",
+        description: "Preparing your task export",
+      });
+
+      // Trigger file download by navigating to the endpoint
+      window.location.href = '/api/tasks/export/csv';
+      
+      toast({
+        title: "✓ Export Started",
+        description: "Your CSV file should download shortly",
+      });
+    } catch (error) {
+      console.error("CSV export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export tasks to CSV",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleImportConfirm = async () => {
     try {
       const response = await apiRequest("POST", "/api/notion/import", {
@@ -934,6 +958,10 @@ export default function Home() {
             <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
               <Upload className="w-4 h-4" />
               <span>Export ALL to Notion</span>
+            </Button>
+            <Button onClick={handleExportCSV} variant="outline" className="flex items-center space-x-2 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 hover:text-emerald-100 hover:border-emerald-500/60">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Export as CSV</span>
             </Button>
           </div>
         </div>

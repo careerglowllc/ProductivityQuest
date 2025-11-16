@@ -226,6 +226,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export tasks as CSV
+  app.get("/api/tasks/export/csv", requireAuth, async (req: any, res) => {
+    try {
+      console.log('📊 [CSV EXPORT] Starting export for user:', req.session.userId);
+      const userId = req.session.userId;
+      const tasks = await storage.getTasks(userId);
+      
+      // CSV header
+      const headers = [
+        'ID',
+        'Title',
+        'Description',
+        'Details',
+        'Duration (min)',
+        'Gold Value',
+        'Importance',
+        'Kanban Stage',
+        'Recurrence',
+        'Campaign',
+        'Business/Work Filter',
+        'Due Date',
+        'Completed',
+        'Completed At',
+        'Created At',
+        'Skill Tags',
+        'Apple',
+        'Smart Prep',
+        'Delegation',
+        'Velin'
+      ];
+      
+      // Escape CSV field (handle quotes and commas)
+      const escapeCSV = (field: any): string => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+      
+      // Format date
+      const formatDate = (date: Date | null | undefined): string => {
+        if (!date) return '';
+        return new Date(date).toISOString();
+      };
+      
+      // Build CSV rows
+      const rows = tasks.map(task => [
+        task.id,
+        escapeCSV(task.title),
+        escapeCSV(task.description),
+        escapeCSV(task.details),
+        task.duration,
+        task.goldValue,
+        escapeCSV(task.importance),
+        escapeCSV(task.kanbanStage),
+        escapeCSV(task.recurType),
+        escapeCSV(task.campaign),
+        escapeCSV(task.businessWorkFilter),
+        formatDate(task.dueDate),
+        task.completed ? 'Yes' : 'No',
+        formatDate(task.completedAt),
+        formatDate(task.createdAt),
+        escapeCSV(task.skillTags?.join('; ')),
+        task.apple ? 'Yes' : 'No',
+        task.smartPrep ? 'Yes' : 'No',
+        task.delegationTask ? 'Yes' : 'No',
+        task.velin ? 'Yes' : 'No'
+      ].join(','));
+      
+      // Combine header and rows
+      const csv = [headers.join(','), ...rows].join('\n');
+      
+      // Set headers for file download
+      const timestamp = new Date().toISOString().split('T')[0];
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="productivity-quest-tasks-${timestamp}.csv"`);
+      
+      console.log(`📊 [CSV EXPORT] Successfully exported ${tasks.length} tasks`);
+      res.send(csv);
+    } catch (error: any) {
+      console.error('❌ [CSV EXPORT] Error:', error.message);
+      console.error('❌ [CSV EXPORT] Stack:', error.stack);
+      res.status(500).json({ error: "Failed to export tasks to CSV" });
+    }
+  });
+
   app.post("/api/tasks", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
