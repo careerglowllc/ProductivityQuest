@@ -2,10 +2,21 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Crown, TrendingUp, Heart, DollarSign, Home, Briefcase, GraduationCap, Target, ChevronDown, ChevronUp, Plus, Plane, Book, Users, Dumbbell, Globe, Trophy, Star, Sparkles, Rocket, Mountain, Compass, Flag, Award, Zap, Gift } from "lucide-react";
+import { Crown, TrendingUp, Heart, DollarSign, Home, Briefcase, GraduationCap, Target, ChevronDown, ChevronUp, Plus, Plane, Book, Users, Dumbbell, Globe, Trophy, Star, Sparkles, Rocket, Mountain, Compass, Flag, Award, Zap, Gift, Trash2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AddCampaignModal } from "@/components/add-campaign-modal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Icon mapping for custom campaigns
 const ICON_MAP: Record<string, any> = {
@@ -44,6 +55,9 @@ export default function CampaignsPage() {
   const [expandedFinancial, setExpandedFinancial] = useState(false);
   const [expandedPeace, setExpandedPeace] = useState(false);
   const [showAddCampaignModal, setShowAddCampaignModal] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch custom campaigns
   const { data: customCampaigns = [] } = useQuery({
@@ -54,6 +68,33 @@ export default function CampaignsPage() {
       });
       if (!response.ok) throw new Error("Failed to fetch campaigns");
       return response.json();
+    },
+  });
+
+  // Delete campaign mutation
+  const deleteCampaignMutation = useMutation({
+    mutationFn: async (campaignId: number) => {
+      const response = await fetch(`/api/campaigns/${campaignId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete campaign");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast({
+        title: "Campaign Deleted",
+        description: "Your campaign has been successfully removed.",
+      });
+      setCampaignToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete campaign. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -292,7 +333,7 @@ export default function CampaignsPage() {
               return (
                 <div
                   key={campaign.id}
-                  className="flex items-start gap-3 p-4 bg-purple-900/30 border border-purple-600/30 rounded-lg hover:bg-purple-900/40 transition-all"
+                  className="flex items-start gap-3 p-4 bg-purple-900/30 border border-purple-600/30 rounded-lg hover:bg-purple-900/40 transition-all group"
                 >
                   <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
                     <IconComponent className={`h-6 w-6 ${iconColor}`} />
@@ -305,6 +346,14 @@ export default function CampaignsPage() {
                       {campaign.description}
                     </p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCampaignToDelete(campaign)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               );
             })}
@@ -349,6 +398,32 @@ export default function CampaignsPage() {
         open={showAddCampaignModal}
         onClose={() => setShowAddCampaignModal(false)}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!campaignToDelete} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+        <AlertDialogContent className="bg-slate-900 border-2 border-red-600/40">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-serif text-yellow-100">
+              Delete Campaign?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-yellow-200/70">
+              Are you sure you want to delete <span className="font-semibold text-yellow-100">"{campaignToDelete?.title}"</span>? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-800 text-yellow-200 border-slate-600 hover:bg-slate-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => campaignToDelete && deleteCampaignMutation.mutate(campaignToDelete.id)}
+              className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white"
+            >
+              Delete Campaign
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
