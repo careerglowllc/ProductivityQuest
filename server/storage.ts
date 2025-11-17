@@ -602,6 +602,44 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
   }
 
+  async toggleMilestoneCompletion(
+    userId: string,
+    skillId: number,
+    milestoneId: string
+  ): Promise<any> {
+    // Find the skill
+    const [skill] = await db.select().from(userSkills)
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)));
+    
+    if (!skill) {
+      throw new Error("Skill not found");
+    }
+
+    // Get current completed milestones array
+    const completedMilestones = (skill.completedMilestones as string[]) || [];
+    
+    // Toggle: if milestone is completed, remove it; if not, add it
+    let updatedCompletedMilestones: string[];
+    if (completedMilestones.includes(milestoneId)) {
+      // Remove from completed
+      updatedCompletedMilestones = completedMilestones.filter(id => id !== milestoneId);
+    } else {
+      // Add to completed
+      updatedCompletedMilestones = [...completedMilestones, milestoneId];
+    }
+
+    // Update the skill
+    const [updatedSkill] = await db.update(userSkills)
+      .set({ 
+        completedMilestones: updatedCompletedMilestones,
+        updatedAt: new Date()
+      })
+      .where(and(eq(userSkills.userId, userId), eq(userSkills.id, skillId)))
+      .returning();
+
+    return updatedSkill;
+  }
+
   private async initializeUserSkills(userId: string): Promise<void> {
     // Map skill names to their default icons
     const skillIconMap: Record<string, string> = {

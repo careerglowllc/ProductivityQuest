@@ -2297,6 +2297,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Toggle milestone completion
+  app.patch("/api/skills/:skillId/milestones/:milestoneId/toggle", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const skillId = parseInt(req.params.skillId);
+      const milestoneId = req.params.milestoneId;
+
+      if (isNaN(skillId)) {
+        return res.status(400).json({ error: "Invalid skill ID" });
+      }
+
+      if (!milestoneId || typeof milestoneId !== 'string') {
+        return res.status(400).json({ error: "Invalid milestone ID" });
+      }
+
+      const skill = await storage.toggleMilestoneCompletion(userId, skillId, milestoneId);
+      
+      res.json(skill);
+    } catch (error) {
+      console.error("Error toggling milestone completion:", error);
+      if (error instanceof Error && error.message.includes("not found")) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to toggle milestone completion" });
+      }
+    }
+  });
+
   // Campaigns routes
   app.get("/api/campaigns", requireAuth, async (req: any, res) => {
     try {

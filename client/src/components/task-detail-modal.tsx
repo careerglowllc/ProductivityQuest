@@ -1,5 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { 
   Calendar, 
   Clock, 
@@ -13,9 +16,13 @@ import {
   Repeat,
   Heart,
   Crown,
-  Flag
+  Flag,
+  Edit2
 } from "lucide-react";
 import { format } from "date-fns";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface TaskDetailModalProps {
   task: any;
@@ -24,6 +31,38 @@ interface TaskDetailModalProps {
 }
 
 export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalProps) {
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const updateDueDateMutation = useMutation({
+    mutationFn: async (newDate: Date) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dueDate: newDate.toISOString() }),
+      });
+      if (!response.ok) throw new Error('Failed to update due date');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setIsDatePickerOpen(false);
+      toast({
+        title: "📅 Due Date Updated",
+        description: "Task due date has been changed successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update due date",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!task) return null;
 
   const getImportanceBadgeColor = (importance: string | null) => {
@@ -103,11 +142,37 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 <Calendar className="w-4 h-4" />
                 <span className="text-sm font-semibold">Due Date</span>
               </div>
-              <p className="text-yellow-100">
-                {task.dueDate 
-                  ? format(new Date(task.dueDate), 'MMM dd, yyyy')
-                  : 'No due date'}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-yellow-100 flex-1">
+                  {task.dueDate 
+                    ? format(new Date(task.dueDate), 'MMM dd, yyyy')
+                    : 'No due date'}
+                </p>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 hover:bg-yellow-600/20 text-yellow-400 hover:text-yellow-300"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-slate-900 border-yellow-600/30" align="end">
+                    <CalendarComponent
+                      mode="single"
+                      selected={task.dueDate ? new Date(task.dueDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          updateDueDateMutation.mutate(date);
+                        }
+                      }}
+                      initialFocus
+                      className="rounded-md border-0"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             {/* Duration */}

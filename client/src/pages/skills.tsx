@@ -30,7 +30,28 @@ import {
   Edit,
   HelpCircle,
   Compass,
-  Sparkles
+  Sparkles,
+  Target,
+  Trophy,
+  Zap,
+  Flame,
+  Rocket,
+  Award,
+  Flag,
+  Heart,
+  Shield,
+  Lightbulb,
+  GraduationCap,
+  TrendingUp,
+  CheckCircle,
+  Mountain,
+  Eye,
+  Gem,
+  Bolt,
+  Crosshair,
+  Dumbbell,
+  Bike,
+  Medal
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -379,6 +400,51 @@ export default function Skills() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
+  // Function to get icon for milestone based on title
+  const getMilestoneIcon = (title: string) => {
+    const lowerTitle = title.toLowerCase();
+    
+    // Check for keywords in title
+    if (lowerTitle.includes('start') || lowerTitle.includes('begin') || lowerTitle.includes('first')) return Flag;
+    if (lowerTitle.includes('master') || lowerTitle.includes('expert')) return Crown;
+    if (lowerTitle.includes('learn') || lowerTitle.includes('study') || lowerTitle.includes('education')) return GraduationCap;
+    if (lowerTitle.includes('achieve') || lowerTitle.includes('accomplish')) return Trophy;
+    if (lowerTitle.includes('goal') || lowerTitle.includes('target')) return Target;
+    if (lowerTitle.includes('skill') || lowerTitle.includes('ability')) return Sparkles;
+    if (lowerTitle.includes('champion') || lowerTitle.includes('winner')) return Medal;
+    if (lowerTitle.includes('power') || lowerTitle.includes('strength')) return Dumbbell;
+    if (lowerTitle.includes('speed') || lowerTitle.includes('fast')) return Zap;
+    if (lowerTitle.includes('endurance') || lowerTitle.includes('stamina')) return Bike;
+    if (lowerTitle.includes('think') || lowerTitle.includes('mind') || lowerTitle.includes('mental')) return Brain;
+    if (lowerTitle.includes('create') || lowerTitle.includes('build') || lowerTitle.includes('craft')) return Wrench;
+    if (lowerTitle.includes('art') || lowerTitle.includes('design')) return Palette;
+    if (lowerTitle.includes('business') || lowerTitle.includes('deal') || lowerTitle.includes('sale')) return Briefcase;
+    if (lowerTitle.includes('fight') || lowerTitle.includes('combat') || lowerTitle.includes('battle')) return Sword;
+    if (lowerTitle.includes('protect') || lowerTitle.includes('defend') || lowerTitle.includes('guard')) return Shield;
+    if (lowerTitle.includes('friend') || lowerTitle.includes('connect') || lowerTitle.includes('social')) return Users;
+    if (lowerTitle.includes('health') || lowerTitle.includes('wellness') || lowerTitle.includes('fit')) return Heart;
+    if (lowerTitle.includes('read') || lowerTitle.includes('book') || lowerTitle.includes('knowledge')) return Book;
+    if (lowerTitle.includes('discover') || lowerTitle.includes('explore') || lowerTitle.includes('find')) return Compass;
+    if (lowerTitle.includes('idea') || lowerTitle.includes('insight') || lowerTitle.includes('innovation')) return Lightbulb;
+    if (lowerTitle.includes('grow') || lowerTitle.includes('improve') || lowerTitle.includes('progress')) return TrendingUp;
+    if (lowerTitle.includes('peak') || lowerTitle.includes('summit') || lowerTitle.includes('mountain')) return Mountain;
+    if (lowerTitle.includes('vision') || lowerTitle.includes('see') || lowerTitle.includes('observe')) return Eye;
+    if (lowerTitle.includes('rare') || lowerTitle.includes('precious') || lowerTitle.includes('valuable')) return Gem;
+    if (lowerTitle.includes('energy') || lowerTitle.includes('electric')) return Bolt;
+    if (lowerTitle.includes('focus') || lowerTitle.includes('aim') || lowerTitle.includes('precision')) return Crosshair;
+    if (lowerTitle.includes('launch') || lowerTitle.includes('takeoff')) return Rocket;
+    if (lowerTitle.includes('fire') || lowerTitle.includes('passion') || lowerTitle.includes('burn')) return Flame;
+    if (lowerTitle.includes('reward') || lowerTitle.includes('prize')) return Award;
+    if (lowerTitle.includes('complete') || lowerTitle.includes('finish') || lowerTitle.includes('done')) return CheckCircle;
+    
+    // Default icon based on number in title if present
+    const hasNumber = /\d+/.test(title);
+    if (hasNumber) return Star;
+    
+    // Final fallback
+    return Sparkles;
+  };
+
   const { data: progress } = useQuery<UserProgress>({
     queryKey: ["/api/progress"],
   });
@@ -413,6 +479,31 @@ export default function Skills() {
       toast({
         title: "Error Creating Skill",
         description: error.message || "Failed to create custom skill",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleMilestoneMutation = useMutation({
+    mutationFn: async ({ skillId, milestoneId }: { skillId: number; milestoneId: string }) => {
+      const response = await fetch(`/api/skills/${skillId}/milestones/${milestoneId}/toggle`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to toggle milestone');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/skills'] });
+      toast({
+        title: "✨ Milestone Updated",
+        description: "Constellation progress saved!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Updating Milestone",
+        description: error.message || "Failed to toggle milestone",
         variant: "destructive",
       });
     },
@@ -1171,8 +1262,11 @@ export default function Skills() {
           
           {selectedSkill && (
             <>
-              {/* Edit Milestones Button */}
-              <div className="flex justify-end">
+              {/* Edit Milestones Button and Instructions */}
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-yellow-400/70 italic">
+                  💫 Drag to navigate • Scroll to explore • Click nodes to toggle completion
+                </p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -1187,23 +1281,141 @@ export default function Skills() {
                 </Button>
               </div>
 
-              <div className="relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-yellow-600/20 overflow-hidden">
-              {/* Background stars */}
-              <div className="absolute inset-0 opacity-20">
-                {Array.from({ length: 40 }).map((_, i) => (
+              <div 
+                className="relative w-full h-[600px] rounded-xl border border-yellow-600/20 overflow-auto cursor-grab active:cursor-grabbing"
+                style={{
+                  background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 50%, #020617 100%)',
+                }}
+                onMouseDown={(e) => {
+                  const elem = e.currentTarget;
+                  const startX = e.pageX - elem.offsetLeft;
+                  const startY = e.pageY - elem.offsetTop;
+                  const scrollLeft = elem.scrollLeft;
+                  const scrollTop = elem.scrollTop;
+                  
+                  const handleMouseMove = (e: MouseEvent) => {
+                    e.preventDefault();
+                    const x = e.pageX - elem.offsetLeft;
+                    const y = e.pageY - elem.offsetTop;
+                    const walkX = (x - startX) * 2;
+                    const walkY = (y - startY) * 2;
+                    elem.scrollLeft = scrollLeft - walkX;
+                    elem.scrollTop = scrollTop - walkY;
+                  };
+                  
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                  };
+                  
+                  document.addEventListener('mousemove', handleMouseMove);
+                  document.addEventListener('mouseup', handleMouseUp);
+                }}
+              >
+              {/* Aurora Borealis Effect Layers */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {/* Purple Aurora */}
+                <div 
+                  className="absolute top-0 left-0 w-full h-1/2 opacity-20"
+                  style={{
+                    background: 'radial-gradient(ellipse at 30% 20%, rgba(168, 85, 247, 0.4) 0%, transparent 50%)',
+                    filter: 'blur(60px)',
+                  }}
+                />
+                {/* Blue Aurora */}
+                <div 
+                  className="absolute top-0 right-0 w-full h-1/2 opacity-20"
+                  style={{
+                    background: 'radial-gradient(ellipse at 70% 30%, rgba(59, 130, 246, 0.4) 0%, transparent 50%)',
+                    filter: 'blur(60px)',
+                  }}
+                />
+                {/* Green Aurora */}
+                <div 
+                  className="absolute top-1/4 left-1/2 -translate-x-1/2 w-3/4 h-1/2 opacity-15"
+                  style={{
+                    background: 'radial-gradient(ellipse at center, rgba(34, 197, 94, 0.3) 0%, transparent 60%)',
+                    filter: 'blur(80px)',
+                  }}
+                />
+                {/* Cyan Glow */}
+                <div 
+                  className="absolute bottom-0 left-1/4 w-1/2 h-1/3 opacity-10"
+                  style={{
+                    background: 'radial-gradient(ellipse at bottom, rgba(6, 182, 212, 0.4) 0%, transparent 70%)',
+                    filter: 'blur(70px)',
+                  }}
+                />
+              </div>
+
+              {/* Milky Way Effect */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div 
+                  className="absolute top-0 left-1/4 w-1/2 h-full opacity-15 rotate-12"
+                  style={{
+                    background: 'linear-gradient(to bottom, transparent 0%, rgba(139, 92, 246, 0.2) 20%, rgba(167, 139, 250, 0.3) 50%, rgba(139, 92, 246, 0.2) 80%, transparent 100%)',
+                    filter: 'blur(40px)',
+                  }}
+                />
+              </div>
+
+              {/* Layered Star Field */}
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Large bright stars */}
+                {Array.from({ length: 30 }).map((_, i) => (
                   <div
-                    key={i}
-                    className="absolute w-0.5 h-0.5 bg-yellow-100 rounded-full animate-pulse"
+                    key={`large-${i}`}
+                    className="absolute rounded-full animate-pulse"
                     style={{
                       top: `${Math.random() * 100}%`,
                       left: `${Math.random() * 100}%`,
+                      width: `${2 + Math.random() * 2}px`,
+                      height: `${2 + Math.random() * 2}px`,
+                      background: `radial-gradient(circle, ${
+                        ['rgba(255, 255, 255, 0.9)', 'rgba(251, 191, 36, 0.8)', 'rgba(147, 197, 253, 0.8)', 'rgba(196, 181, 253, 0.8)'][Math.floor(Math.random() * 4)]
+                      } 0%, transparent 70%)`,
+                      boxShadow: `0 0 ${4 + Math.random() * 6}px ${
+                        ['rgba(255, 255, 255, 0.5)', 'rgba(251, 191, 36, 0.5)', 'rgba(147, 197, 253, 0.5)', 'rgba(196, 181, 253, 0.5)'][Math.floor(Math.random() * 4)]
+                      }`,
                       animationDelay: `${Math.random() * 3}s`,
-                      animationDuration: `${2 + Math.random() * 2}s`,
+                      animationDuration: `${2 + Math.random() * 3}s`,
+                    }}
+                  />
+                ))}
+                {/* Medium stars */}
+                {Array.from({ length: 80 }).map((_, i) => (
+                  <div
+                    key={`medium-${i}`}
+                    className="absolute bg-white rounded-full animate-pulse"
+                    style={{
+                      top: `${Math.random() * 100}%`,
+                      left: `${Math.random() * 100}%`,
+                      width: `${1 + Math.random()}px`,
+                      height: `${1 + Math.random()}px`,
+                      opacity: 0.3 + Math.random() * 0.4,
+                      animationDelay: `${Math.random() * 4}s`,
+                      animationDuration: `${3 + Math.random() * 2}s`,
+                    }}
+                  />
+                ))}
+                {/* Small twinkling stars */}
+                {Array.from({ length: 150 }).map((_, i) => (
+                  <div
+                    key={`small-${i}`}
+                    className="absolute bg-white rounded-full"
+                    style={{
+                      top: `${Math.random() * 100}%`,
+                      left: `${Math.random() * 100}%`,
+                      width: '0.5px',
+                      height: '0.5px',
+                      opacity: 0.2 + Math.random() * 0.3,
                     }}
                   />
                 ))}
               </div>
 
+              {/* Scrollable constellation container */}
+              <div className="relative w-[1200px] h-[1000px] p-20">
               {/* Milestone constellation */}
               {(() => {
                 // Use database milestones if available, otherwise use default
@@ -1223,8 +1435,9 @@ export default function Skills() {
                           const parent = milestones.find(m => m.id === parentId);
                           if (!parent) return null;
                           
-                          const isCompleted = selectedSkill.level >= milestone.level;
-                          const isParentCompleted = selectedSkill.level >= parent.level;
+                          const completedMilestones = (selectedSkill.completedMilestones as string[]) || [];
+                          const isCompleted = completedMilestones.includes(milestone.id);
+                          const isParentCompleted = completedMilestones.includes(parent.id);
                           const bothCompleted = isCompleted && isParentCompleted;
                           
                           return (
@@ -1249,13 +1462,22 @@ export default function Skills() {
                     {/* Milestone nodes */}
                     <div className="relative w-full h-full" style={{ zIndex: 2 }}>
                       {milestones.map((milestone) => {
-                        const isCompleted = selectedSkill.level >= milestone.level;
-                        const isCurrentGoal = selectedSkill.level >= (milestone.level - 10) && selectedSkill.level < milestone.level;
+                        const completedMilestones = (selectedSkill.completedMilestones as string[]) || [];
+                        const isCompleted = completedMilestones.includes(milestone.id);
+                        const isCurrentGoal = !isCompleted;
                         
                         return (
                           <div
                             key={milestone.id}
-                            className="absolute group transition-all duration-500"
+                            className="absolute group transition-all duration-500 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleMilestoneMutation.mutate({ 
+                                skillId: selectedSkill.id, 
+                                milestoneId: milestone.id 
+                              });
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
                             style={{
                               left: `${milestone.x}%`,
                               top: `${milestone.y}%`,
@@ -1280,13 +1502,19 @@ export default function Skills() {
                                 <div className="absolute inset-0 bg-gradient-to-t from-yellow-600 to-yellow-400" />
                               )}
                               
-                              {/* Level badge */}
+                              {/* Icon based on milestone title */}
                               <div className="absolute inset-0 flex items-center justify-center">
-                                <span className={`font-bold text-xs ${
-                                  isCompleted ? 'text-slate-900' : 'text-yellow-200/80'
-                                }`}>
-                                  {milestone.level}
-                                </span>
+                                {(() => {
+                                  const IconComponent = getMilestoneIcon(milestone.title);
+                                  return (
+                                    <IconComponent 
+                                      className={`w-6 h-6 ${
+                                        isCompleted ? 'text-slate-900' : 'text-yellow-200/80'
+                                      }`}
+                                      strokeWidth={2.5}
+                                    />
+                                  );
+                                })()}
                               </div>
                               
                               {/* Checkmark for completed */}
@@ -1314,7 +1542,7 @@ export default function Skills() {
                                   {milestone.title}
                                 </p>
                                 <p className="text-xs text-yellow-400/70 mt-1">
-                                  {isCompleted ? '✓ Achieved' : isCurrentGoal ? 'Next Goal' : `Level ${milestone.level}`}
+                                  {isCompleted ? '✓ Achieved' : 'Click to mark as complete'}
                                 </p>
                               </div>
                               {/* Arrow */}
@@ -1340,18 +1568,15 @@ export default function Skills() {
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-slate-700 border-2 border-blue-400 animate-pulse"></div>
-                          <span className="text-yellow-200/80">Next Goal</span>
+                          <span className="text-yellow-200/80">In Progress</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-slate-800 border-2 border-yellow-600/30"></div>
-                          <span className="text-yellow-200/80">Locked</span>
-                        </div>
-                        <p className="text-yellow-400/60 italic">Hover over nodes for details</p>
+                        <p className="text-yellow-400/60 italic">Click nodes to toggle completion • Hover for details</p>
                       </div>
                     </div>
                   </>
                 );
               })()}
+              </div>
             </div>
             </>
           )}
