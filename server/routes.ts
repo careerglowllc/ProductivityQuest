@@ -1879,21 +1879,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // OAuth authorization URL generation
   app.get("/api/google-calendar/authorize-url", requireAuth, async (req: any, res) => {
     try {
+      console.log('📝 [AUTH URL] Starting authorization URL generation...');
       const userId = req.session.userId;
+      console.log('📝 [AUTH URL] User ID:', userId);
+      
       const user = await storage.getUserById(userId);
+      console.log('📝 [AUTH URL] User found:', !!user);
+      console.log('📝 [AUTH URL] Has clientId:', !!user?.googleCalendarClientId);
+      console.log('📝 [AUTH URL] Has clientSecret:', !!user?.googleCalendarClientSecret);
 
       if (!user?.googleCalendarClientId || !user?.googleCalendarClientSecret) {
+        console.log('❌ [AUTH URL] Missing credentials');
         return res.status(400).json({ 
           error: "Please save your Client ID and Client Secret first" 
         });
       }
 
       // Generate OAuth URL with user's credentials
+      console.log('📝 [AUTH URL] Generating OAuth URL...');
       const { OAuth2Client } = require('google-auth-library');
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/google-calendar/callback`;
+      console.log('📝 [AUTH URL] Redirect URI:', redirectUri);
+      
       const oauth2Client = new OAuth2Client(
         user.googleCalendarClientId,
         user.googleCalendarClientSecret,
-        `${req.protocol}://${req.get('host')}/api/google-calendar/callback`
+        redirectUri
       );
 
       const authUrl = oauth2Client.generateAuthUrl({
@@ -1903,9 +1914,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         state: userId, // Pass userId in state to identify user in callback
       });
 
+      console.log('✅ [AUTH URL] Generated successfully');
       res.json({ authUrl });
     } catch (error) {
-      console.error("Error generating auth URL:", error);
+      console.error("❌ [AUTH URL] Error generating auth URL:", error);
       res.status(500).json({ error: "Failed to generate authorization URL" });
     }
   });
