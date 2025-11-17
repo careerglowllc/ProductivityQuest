@@ -46,18 +46,25 @@ ProductivityQuest transforms mundane task management into an engaging game-like 
 - Batch operations (complete/delete multiple)
 - Advanced filtering (due date, importance, life domain, custom flags)
 - Real-time search across all task fields
+- **✨ NEW: Recurring Tasks** - 11 recurrence patterns with auto-rescheduling
 
 ✅ **Gamification**
-- Gold rewards calculated from task duration × importance
+- Gold rewards calculated from transparent modular formula
 - 9 constellation-themed skills with levels and XP
 - Shop system with 26+ purchasable items
 - Inventory management with consumption tracking
 - Completion animations and visual feedback
 
 ✅ **External Integrations**
-- **Notion**: Bi-directional sync with existing databases
-- **Google Calendar**: OAuth2 integration with event creation
+- **Notion**: Bi-directional sync with existing databases (pagination for 100+ tasks)
+- **Google Calendar**: Per-user OAuth2 with token storage in database
+- **✨ NEW: Calendar View** - Month-based calendar with color-coded tasks
 - Task import/export between platforms
+
+✅ **AI Features**
+- **Automatic Categorization** - New tasks auto-tagged with skills
+- **Custom Skills Support** - AI recognizes user-created skills
+- **Training-based** - Learns from approved categorizations
 
 ✅ **UI/UX**
 - Dark fantasy theme with constellation aesthetics
@@ -227,6 +234,8 @@ ProductivityQuest/
 │       │   ├── rewards.tsx          # Purchased items/inventory
 │       │   ├── settings.tsx         # User settings
 │       │   ├── notion-integration.tsx # Notion setup
+│       │   ├── google-calendar-integration.tsx # Google Calendar OAuth setup
+│       │   ├── calendar.tsx         # Calendar month view with tasks
 │       │   ├── npcs.tsx             # Future feature
 │       │   └── not-found.tsx        # 404 page
 │       ├── hooks/
@@ -239,12 +248,15 @@ ProductivityQuest/
 │           └── authUtils.ts         # Auth helpers
 ├── server/                          # Express backend
 │   ├── index.ts                     # Server entry point (middleware, routes)
-│   ├── routes.ts                    # API route handlers (1267 lines)
-│   ├── storage.ts                   # Database operations (Drizzle ORM)
+│   ├── routes.ts                    # API route handlers (1900+ lines)
+│   ├── storage.ts                   # Database operations (Drizzle ORM, recurring tasks)
 │   ├── db.ts                        # Drizzle ORM configuration
 │   ├── auth.ts                      # Authentication middleware
-│   ├── notion.ts                    # Notion API integration
+│   ├── notion.ts                    # Notion API integration (with pagination)
 │   ├── google-calendar.ts           # Google Calendar OAuth & API
+│   ├── goldCalculation.ts           # Gold reward formula
+│   ├── xpCalculation.ts             # XP progression formula
+│   ├── openai-service.ts            # AI task categorization
 │   ├── vite.ts                      # Vite dev server integration
 │   └── setup-notion.ts              # Notion setup utilities
 ├── shared/                          # Shared TypeScript types

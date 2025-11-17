@@ -34,6 +34,8 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Purchase rewards** from a customizable shop using earned gold
 - **Sync with Notion** for seamless task management across platforms
 - **Integrate Google Calendar** for time-based task organization
+- **✨ NEW: Recurring Tasks** - Routine tasks automatically reschedule to next due date instead of completing
+- **✨ NEW: Calendar View** - Month-based calendar displaying tasks with color-coded importance levels
 - **Track progress** through detailed dashboards and statistics
 - **Recycle tasks** instead of deleting them for better task management
 - **Create custom skills** tailored to your personal development goals
@@ -66,7 +68,9 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Batch operations** for managing multiple tasks efficiently
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
 - **Notion bi-directional sync** (create, update, delete tasks)
-- **Google Calendar integration** for scheduling
+- **Google Calendar integration** for scheduling and OAuth-based event sync
+- **✨ NEW: Recurring Task System** - 11 recurrence patterns (daily, weekly, monthly, etc.) with auto-rescheduling
+- **✨ NEW: Calendar Page** - Interactive month view with task display and navigation
 - **Emoji-based shop system** with nature and celestial themes
 - **AI-powered task categorization** using OpenAI with your custom skills
 - **✨ NEW: Automatic AI Categorization** - Tasks automatically categorized with skills when created
@@ -527,11 +531,17 @@ interface ShopItem {
 - `GET /api/notion/test` - Test Notion connection
 
 ### Google Calendar Integration
-- `GET /api/google/auth` - Get OAuth authorization URL
-- `GET /api/google/callback` - Handle OAuth callback
-- `POST /api/google/sync` - Sync selected tasks to calendar
-- `GET /api/google/test` - Test Google Calendar connection
-- `POST /api/google/disconnect` - Disconnect Google Calendar
+- `POST /api/google-calendar/save-credentials` - Save OAuth Client ID and Secret
+- `GET /api/google-calendar/callback` - Handle OAuth callback from Google
+- `GET /api/google-calendar/events` - Get tasks/events for specified month (query: year, month)
+- `POST /api/google-calendar/sync-manual` - Trigger manual sync
+- `POST /api/google-calendar/settings` - Update sync settings (enabled, direction)
+- `POST /api/google-calendar/disconnect` - Disconnect Google Calendar integration
+- `GET /api/google/auth` - Get OAuth authorization URL (legacy)
+- `GET /api/google/callback` - Handle OAuth callback (legacy)
+- `POST /api/google/sync` - Sync selected tasks to calendar (legacy)
+- `GET /api/google/test` - Test Google Calendar connection (legacy)
+- `POST /api/google/disconnect` - Disconnect Google Calendar (legacy)
 
 ### Settings
 - `GET /api/user/settings` - Get user settings
@@ -556,6 +566,20 @@ interface ShopItem {
 - **Task Counter**: Modal shows "Task X of Y" when processing multiple tasks
 - **Queue Management**: Automatic cleanup when modal closes or all tasks processed
 - See [RECATEGORIZE_TEST_CASES.md](RECATEGORIZE_TEST_CASES.md) for 25 comprehensive test cases
+
+### ✨ Recurring Tasks (NEW)
+- **Automatic Rescheduling**: Tasks with `recurType` reschedule instead of completing
+- **11 Recurrence Patterns**: daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly
+- **Logic**: On completion, award gold/XP and update `dueDate` to next occurrence
+- **Behavior**: Task remains active and visible in task list
+- See [RECURRING_TASKS_TEST_CASES.md](RECURRING_TASKS_TEST_CASES.md) for 20 comprehensive test cases
+
+### ✨ Google Calendar Integration (NEW)
+- **Per-User OAuth**: Each user stores their own Google credentials in database
+- **Calendar View**: Month-based calendar displaying tasks with color-coded importance
+- **Sync Modes**: Import, Export, or Both (user-configurable)
+- **API Endpoints**: `/api/google-calendar/events`, `/api/google-calendar/sync-manual`, etc.
+- See [GOOGLE_CALENDAR_INTEGRATION_TEST_CASES.md](GOOGLE_CALENDAR_INTEGRATION_TEST_CASES.md) for 18 comprehensive test cases
 
 ### ✨ Automatic AI Categorization (NEW)
 - **Background Processing**: Tasks auto-categorized with skills when created
@@ -872,7 +896,316 @@ See [AUTO_CLASSIFICATION_TEST_CASES.md](AUTO_CLASSIFICATION_TEST_CASES.md) for:
 
 ---
 
-## 📋 Task Management Features (NEW)
+## � Recurring Tasks System (NEW)
+
+ProductivityQuest supports **automatic task rescheduling** for routine tasks. When you complete a task with a recurrence pattern, it automatically moves to the next due date instead of being marked complete.
+
+### Behavior
+
+**Recurring Tasks (with `recurType`):**
+- ✅ Gold and XP awarded normally
+- ✅ Task remains active (not completed)
+- ✅ Due date updates to next occurrence
+- ✅ Task stays in active list
+- ❌ Does NOT move to recycling bin
+
+**One-Time Tasks (no `recurType`):**
+- ✅ Gold and XP awarded
+- ✅ Task marked as completed
+- ✅ Moves to recycling bin
+- ❌ Removed from active list
+
+### Recurrence Patterns
+
+| Recur Type | Frequency | Next Due Date |
+|------------|-----------|---------------|
+| `daily` | Every day | +1 day |
+| `every other day` | Every 2 days | +2 days |
+| `2x week` | Twice per week | +3 days |
+| `3x week` | Three times per week | +2 days |
+| `weekly` | Once per week | +7 days |
+| `2x month` | Twice per month | +15 days |
+| `monthly` | Once per month | +1 month |
+| `every 2 months` | Bi-monthly | +2 months |
+| `quarterly` | Every 3 months | +3 months |
+| `every 6 months` | Semi-annually | +6 months |
+| `yearly` | Annually | +1 year |
+
+### Example Usage
+
+**Daily Meditation:**
+```typescript
+{
+  title: "Morning meditation",
+  recurType: "daily",
+  dueDate: "2024-11-17"
+}
+```
+Complete on Nov 17 → New due date: Nov 18 ✨
+
+**Weekly Team Meeting:**
+```typescript
+{
+  title: "Team standup",
+  recurType: "weekly",
+  dueDate: "2024-11-17" // Sunday
+}
+```
+Complete on Nov 17 → New due date: Nov 24 (next Sunday) ✨
+
+**Monthly Financial Review:**
+```typescript
+{
+  title: "Review finances",
+  recurType: "monthly",
+  dueDate: "2024-11-17"
+}
+```
+Complete on Nov 17 → New due date: Dec 17 ✨
+
+### Implementation
+
+**Backend Logic (`server/storage.ts`):**
+```typescript
+async completeTask(userId: number, taskId: number): Promise<void> {
+  const task = await this.getTask(userId, taskId);
+  
+  // Award gold and XP (both task types)
+  await this.awardGoldAndXP(userId, task);
+  
+  if (task.recurType) {
+    // RECURRING TASK: Reschedule to next occurrence
+    const nextDueDate = this.calculateNextDueDate(
+      task.dueDate, 
+      task.recurType
+    );
+    
+    await db.update(tasks)
+      .set({ dueDate: nextDueDate })
+      .where(eq(tasks.id, taskId));
+      
+  } else {
+    // ONE-TIME TASK: Mark complete and recycle
+    await db.update(tasks)
+      .set({ completed: true, completedAt: new Date() })
+      .where(eq(tasks.id, taskId));
+  }
+}
+
+private calculateNextDueDate(currentDate: Date, recurType: string): Date {
+  const next = new Date(currentDate);
+  
+  switch (recurType) {
+    case 'daily': next.setDate(next.getDate() + 1); break;
+    case 'every other day': next.setDate(next.getDate() + 2); break;
+    case '2x week': next.setDate(next.getDate() + 3); break;
+    case '3x week': next.setDate(next.getDate() + 2); break;
+    case 'weekly': next.setDate(next.getDate() + 7); break;
+    case '2x month': next.setDate(next.getDate() + 15); break;
+    case 'monthly': next.setMonth(next.getMonth() + 1); break;
+    case 'every 2 months': next.setMonth(next.getMonth() + 2); break;
+    case 'quarterly': next.setMonth(next.getMonth() + 3); break;
+    case 'every 6 months': next.setMonth(next.getMonth() + 6); break;
+    case 'yearly': next.setFullYear(next.getFullYear() + 1); break;
+  }
+  
+  return next;
+}
+```
+
+### Edge Cases Handled
+
+- ✅ **Month Boundaries:** Daily tasks cross months correctly (Nov 30 → Dec 1)
+- ✅ **Year Boundaries:** Tasks cross years correctly (Dec 31 → Jan 1)
+- ✅ **Leap Years:** Monthly tasks adjust to last day of month (Jan 31 → Feb 29/28)
+- ✅ **Multiple Completions:** Sequential completions increment correctly
+
+### UI/UX Features
+
+- **Visual Indicator:** Consider adding ♻️ or 🔁 icon to recurring task cards (optional)
+- **Toast Messages:** "Task completed! +25 gold. Next due: Nov 18"
+- **Calendar Integration:** Recurring tasks visible on calendar view
+- **Due Date Badges:** Automatically update after completion ("Today" → "Tomorrow")
+
+### Testing
+
+See [RECURRING_TASKS_TEST_CASES.md](RECURRING_TASKS_TEST_CASES.md) for:
+- 11 recurrence type tests (one per pattern)
+- 5 edge case tests (boundaries, leap years, sequences)
+- 4 UI/UX tests (animations, recycling bin, badges)
+- **Total:** 20 comprehensive test cases
+
+---
+
+## 📅 Google Calendar Integration (NEW)
+
+ProductivityQuest integrates with Google Calendar using **per-user OAuth 2.0** credentials. Each user stores their own Google OAuth tokens in the database, enabling secure calendar access without sharing a single API key.
+
+### Architecture
+
+- **Per-User OAuth:** Each user has individual Client ID/Secret
+- **Database Storage:** Credentials stored in `users` table (encrypted)
+- **Token Refresh:** Access tokens automatically refreshed when expired
+- **Sync Directions:** Import, Export, or Both (user-configurable)
+
+### Setup Flow
+
+1. **Navigate to Integration Page:** `/google-calendar-integration`
+2. **Create OAuth Credentials:**
+   - Go to Google Cloud Console
+   - Create new OAuth 2.0 Client ID
+   - Add authorized redirect URI: `https://yourapp.com/api/google-calendar/callback`
+   - Copy Client ID and Client Secret
+3. **Save Credentials:** Paste into ProductivityQuest
+4. **Authorize Access:** OAuth flow redirects to Google consent screen
+5. **Grant Permissions:** Allow access to calendar data
+6. **Start Syncing:** View tasks on calendar page
+
+### Database Schema
+
+**Users Table Additions:**
+```typescript
+googleCalendarClientId: text (nullable)
+googleCalendarClientSecret: text (nullable)
+googleCalendarRefreshToken: text (nullable)
+googleCalendarAccessToken: text (nullable)
+googleCalendarTokenExpiry: timestamp (nullable)
+googleCalendarSyncEnabled: boolean (default: false)
+googleCalendarSyncDirection: text (default: 'both')
+googleCalendarLastSync: timestamp (nullable)
+```
+
+**Tasks Table Addition:**
+```typescript
+googleEventId: text (nullable) // Links task to Google Calendar event
+```
+
+### Calendar Page Features
+
+**Month View Calendar:**
+- 7-day week grid layout (Sunday - Saturday)
+- Navigation: Previous Month, Next Month, Today buttons
+- Current date highlighted in yellow
+- Month/year header display
+
+**Task Display:**
+- Tasks appear on correct due date cells
+- Up to 3 tasks shown per day
+- "+N more" indicator if >3 tasks
+- Truncated titles with hover tooltips
+- **Color Coding:**
+  - 🔴 **Red:** High/Pareto importance
+  - 🟣 **Purple:** Normal importance
+  - ⚫ **Gray:** Completed tasks (strikethrough)
+
+**API Integration:**
+```typescript
+GET /api/google-calendar/events?year=2024&month=11
+
+Response:
+{
+  "success": true,
+  "events": [
+    {
+      "id": 123,
+      "title": "Task title",
+      "start": "2024-11-17T10:00:00Z",
+      "end": "2024-11-17T11:00:00Z",
+      "description": "Task description",
+      "completed": false,
+      "importance": "high",
+      "goldValue": 25,
+      "campaign": "Work",
+      "skillTags": ["coding", "productivity"]
+    }
+  ],
+  "month": 11,
+  "year": 2024
+}
+```
+
+### Sync Options
+
+**Import Mode:**
+- Google Calendar events → ProductivityQuest tasks
+- `googleEventId` field populated
+- Due date = event start time
+- Title = event summary
+
+**Export Mode:**
+- ProductivityQuest tasks → Google Calendar events
+- Event summary = task title
+- Event start time = task due date
+- Event description = task details
+
+**Both Mode:**
+- Bi-directional sync
+- Changes reflected in both platforms
+- Conflict resolution (latest wins)
+
+### API Endpoints
+
+```typescript
+// Save OAuth credentials
+POST /api/google-calendar/save-credentials
+Body: { clientId: string, clientSecret: string }
+
+// OAuth callback
+GET /api/google-calendar/callback?code=...
+
+// Get events for month
+GET /api/google-calendar/events?year=2024&month=11
+
+// Manual sync
+POST /api/google-calendar/sync-manual
+
+// Update settings
+POST /api/google-calendar/settings
+Body: { syncEnabled: boolean, syncDirection: string }
+
+// Disconnect calendar
+POST /api/google-calendar/disconnect
+```
+
+### Security Features
+
+- ✅ Client Secret encrypted at rest
+- ✅ Access tokens encrypted in database
+- ✅ HTTPS required for OAuth callbacks
+- ✅ CSRF protection on OAuth flow
+- ✅ Token refresh server-side only
+- ✅ Users can only access their own calendar data
+
+### Error Handling
+
+**Invalid Credentials:**
+- Toast: "Invalid credentials. Please check your Client ID and Secret."
+- User remains on setup page
+
+**Expired Refresh Token:**
+- Toast: "Google Calendar access expired. Please reconnect."
+- Redirect to setup page
+
+**Network Timeout:**
+- Toast: "Sync failed. Please try again later."
+- App remains functional
+
+**API Not Enabled:**
+- Toast: "Google Calendar API is not enabled. Please enable it in Google Cloud Console."
+- Link to enable API in error message
+
+### Testing
+
+See [GOOGLE_CALENDAR_INTEGRATION_TEST_CASES.md](GOOGLE_CALENDAR_INTEGRATION_TEST_CASES.md) for:
+- 5 OAuth setup tests (credentials, authorization, token refresh)
+- 5 calendar display tests (month view, navigation, colors)
+- 4 task sync tests (import/export/both modes)
+- 4 error handling tests (invalid creds, timeouts, API disabled)
+- **Total:** 18 comprehensive test cases
+
+---
+
+## �📋 Task Management Features (NEW)
 
 ### Select All / Deselect All
 
