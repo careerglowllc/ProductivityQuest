@@ -537,7 +537,12 @@ export default function Skills() {
       if (!response.ok) throw new Error('Failed to toggle milestone');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedSkill) => {
+      // Update the selectedSkill state immediately with the returned data
+      if (selectedSkill && updatedSkill.id === selectedSkill.id) {
+        setSelectedSkill(updatedSkill);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/skills'] });
       toast({
         title: "✨ Milestone Updated",
