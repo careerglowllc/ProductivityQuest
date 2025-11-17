@@ -28,7 +28,8 @@ import {
   Trash2,
   Edit,
   HelpCircle,
-  Compass
+  Compass,
+  Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -157,7 +158,7 @@ export default function Skills() {
   });
 
   const [selectedSkill, setSelectedSkill] = useState<UserSkill | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'constellation'>('grid');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [skillToDelete, setSkillToDelete] = useState<UserSkill | null>(null);
@@ -315,6 +316,17 @@ export default function Skills() {
               <span className="font-semibold">Grid</span>
             </button>
             <button
+              onClick={() => setViewMode('constellation')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                viewMode === 'constellation'
+                  ? 'bg-yellow-600/40 border-2 border-yellow-500/60 text-yellow-100'
+                  : 'bg-slate-800/30 border-2 border-yellow-600/20 text-yellow-200/60 hover:border-yellow-500/40'
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="font-semibold">Constellation</span>
+            </button>
+            <button
               onClick={() => setViewMode('list')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
                 viewMode === 'list'
@@ -351,7 +363,196 @@ export default function Skills() {
 
       {/* Skills Constellation Grid or List */}
       <div className="max-w-6xl mx-auto px-4 py-12">
-        {viewMode === 'grid' ? (
+        {viewMode === 'constellation' ? (
+          /* Constellation View */
+          <div className="relative min-h-[700px] bg-slate-900/30 rounded-3xl border-2 border-yellow-600/20 p-8 overflow-hidden">
+            {/* Background stars */}
+            <div className="absolute inset-0 opacity-20">
+              {Array.from({ length: 50 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-1 h-1 bg-yellow-100 rounded-full animate-pulse"
+                  style={{
+                    top: `${Math.random() * 100}%`,
+                    left: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 3}s`,
+                    animationDuration: `${2 + Math.random() * 2}s`,
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Constellation nodes and connections */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+              {/* Draw connecting lines between nodes */}
+              {skills.map((skill, index) => {
+                if (index === 0) return null;
+                const prevIndex = index - 1;
+                
+                // Calculate positions (same as nodes below)
+                const angle = (index / skills.length) * 2 * Math.PI - Math.PI / 2;
+                const radius = 250;
+                const centerX = 50; // percentage
+                const centerY = 50; // percentage
+                
+                const x = centerX + (radius / 6) * Math.cos(angle);
+                const y = centerY + (radius / 6) * Math.sin(angle);
+                
+                const prevAngle = (prevIndex / skills.length) * 2 * Math.PI - Math.PI / 2;
+                const prevX = centerX + (radius / 6) * Math.cos(prevAngle);
+                const prevY = centerY + (radius / 6) * Math.sin(prevAngle);
+                
+                return (
+                  <line
+                    key={`line-${skill.id}`}
+                    x1={`${prevX}%`}
+                    y1={`${prevY}%`}
+                    x2={`${x}%`}
+                    y2={`${y}%`}
+                    stroke="rgba(250, 204, 21, 0.3)"
+                    strokeWidth="2"
+                    className="transition-all duration-300"
+                  />
+                );
+              })}
+              
+              {/* Connect last to first to close the constellation */}
+              {skills.length > 1 && (() => {
+                const lastIndex = skills.length - 1;
+                const angle = (lastIndex / skills.length) * 2 * Math.PI - Math.PI / 2;
+                const radius = 250;
+                const centerX = 50;
+                const centerY = 50;
+                
+                const x = centerX + (radius / 6) * Math.cos(angle);
+                const y = centerY + (radius / 6) * Math.sin(angle);
+                
+                const firstAngle = -Math.PI / 2;
+                const firstX = centerX + (radius / 6) * Math.cos(firstAngle);
+                const firstY = centerY + (radius / 6) * Math.sin(firstAngle);
+                
+                return (
+                  <line
+                    x1={`${x}%`}
+                    y1={`${y}%`}
+                    x2={`${firstX}%`}
+                    y2={`${firstY}%`}
+                    stroke="rgba(250, 204, 21, 0.3)"
+                    strokeWidth="2"
+                  />
+                );
+              })()}
+            </svg>
+
+            {/* Skill nodes */}
+            <div className="relative" style={{ zIndex: 2 }}>
+              {skills.map((skill, index) => {
+                const Icon = getSkillIconComponent(skill);
+                const constellation = getConstellation(skill);
+                const progressPercent = (skill.xp / skill.maxXp) * 100;
+                
+                // Calculate position in a circle
+                const angle = (index / skills.length) * 2 * Math.PI - Math.PI / 2;
+                const radius = 250; // Distance from center
+                const centerX = 50; // percentage
+                const centerY = 50; // percentage
+                
+                const x = centerX + (radius / 6) * Math.cos(angle);
+                const y = centerY + (radius / 6) * Math.sin(angle);
+                
+                return (
+                  <div
+                    key={skill.id}
+                    className="absolute group cursor-pointer"
+                    style={{
+                      left: `${x}%`,
+                      top: `${y}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                    onClick={() => setSelectedSkill(skill)}
+                  >
+                    {/* Glow effect on hover */}
+                    <div className="absolute inset-0 -m-8 bg-yellow-400/0 group-hover:bg-yellow-400/20 rounded-full blur-2xl transition-all duration-500" />
+                    
+                    {/* Node circle */}
+                    <div className="relative w-20 h-20 rounded-full border-4 border-yellow-600/40 group-hover:border-yellow-400 bg-slate-800/80 backdrop-blur-sm transition-all duration-300 group-hover:scale-125 overflow-hidden">
+                      {/* Progress fill */}
+                      <div 
+                        className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all"
+                        style={{ height: `${progressPercent}%` }}
+                      />
+                      
+                      {/* Icon */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Icon className="h-10 w-10 text-yellow-100 group-hover:text-white drop-shadow-lg transition-all group-hover:scale-110" strokeWidth={2} />
+                      </div>
+                      
+                      {/* Level badge */}
+                      <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 border-2 border-yellow-400 flex items-center justify-center text-slate-900 font-bold text-xs shadow-lg">
+                        {skill.level}
+                      </div>
+                    </div>
+                    
+                    {/* Skill name tooltip on hover */}
+                    <div className="absolute top-24 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap">
+                      <div className="bg-slate-900/95 backdrop-blur-md px-4 py-2 rounded-lg border-2 border-yellow-500/60 shadow-xl">
+                        <p className="text-yellow-100 font-serif font-bold text-sm">{skill.skillName}</p>
+                        <p className="text-yellow-400/70 text-xs italic">{constellation}</p>
+                        <p className="text-yellow-300 text-xs mt-1">Level {skill.level} • {Math.round(progressPercent)}% XP</p>
+                      </div>
+                      {/* Arrow pointing up */}
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-l-2 border-t-2 border-yellow-500/60 rotate-45" />
+                    </div>
+
+                    {/* Action buttons on hover */}
+                    <div className="absolute -top-4 -right-16 opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSkillToEdit(skill);
+                          setShowEditIconModal(true);
+                        }}
+                        className="h-7 w-7 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
+                      >
+                        <Edit className="h-3 w-3 text-white" />
+                      </Button>
+                      
+                      {skill.isCustom && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSkillToDelete(skill);
+                            setShowDeleteDialog(true);
+                          }}
+                          className="h-7 w-7 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                        >
+                          <Trash2 className="h-3 w-3 text-white" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Center decoration */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+              <div className="w-16 h-16 rounded-full border-2 border-yellow-600/30 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center">
+                <Crown className="h-8 w-8 text-yellow-400/50" />
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md px-4 py-3 rounded-lg border border-yellow-600/30 text-xs text-yellow-200/70">
+              <p className="font-serif italic">Hover over nodes to reveal details</p>
+              <p className="font-serif italic">Click to view full skill information</p>
+            </div>
+          </div>
+        ) : viewMode === 'grid' ? (
           /* Grid View */
           <div className="grid grid-cols-3 gap-8">
             {skills.map((skill) => {
