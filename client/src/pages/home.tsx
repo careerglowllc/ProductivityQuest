@@ -1544,11 +1544,12 @@ export default function Home() {
                         ({batch.tasks.length})
                       </span>
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
                       {batch.tasks.map((task: any) => (
                         <TaskCard
                           key={task.id}
                           task={task}
+                          isCompact={viewType === "grid"}
                           onSelect={handleTaskSelect}
                           isSelected={selectedTasks.has(task.id)}
                         />

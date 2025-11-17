@@ -58,9 +58,10 @@ interface TaskCardProps {
   };
   onSelect: (taskId: number, selected: boolean) => void;
   isSelected: boolean;
+  isCompact?: boolean;
 }
 
-export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
+export function TaskCard({ task, onSelect, isSelected, isCompact = false }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   
   // Fetch user skills for dynamic rendering
@@ -114,6 +115,120 @@ export function TaskCard({ task, onSelect, isSelected }: TaskCardProps) {
     });
   };
 
+  // Compact grid view version
+  if (isCompact) {
+    return (
+      <>
+        <Card 
+          className={cn(
+            "bg-slate-800/40 backdrop-blur-md border-2 transition-all cursor-pointer relative h-full",
+            isSelected 
+              ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
+              : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
+            task.completed && "opacity-60"
+          )}
+          onClick={() => !task.completed && onSelect(task.id, !isSelected)}
+        >
+          <CardContent className="p-3">
+            <div className="flex flex-col gap-2">
+              {/* Title */}
+              <h3 className={cn(
+                "text-sm font-semibold text-yellow-100 line-clamp-2 leading-tight",
+                task.completed && "line-through text-yellow-400/60"
+              )}>
+                {task.title}
+              </h3>
+              
+              {/* Gold and Priority */}
+              <div className="flex items-center justify-between gap-2">
+                <Badge 
+                  variant={task.completed ? "secondary" : "default"}
+                  className={cn(
+                    "flex items-center space-x-1 px-2 py-0.5 text-xs",
+                    task.completed 
+                      ? "bg-green-900/40 text-green-200 border border-green-600/40"
+                      : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
+                  )}
+                >
+                  <Coins className="w-3 h-3" />
+                  <span className="font-semibold">{task.goldValue}</span>
+                </Badge>
+                
+                {task.importance && (
+                  <span className="text-xs" title={task.importance}>
+                    {task.importance === "Pareto" ? "🔥" : 
+                     task.importance === "High" ? "🚨" : 
+                     task.importance === "Med-High" ? "⚠️" : 
+                     task.importance === "Medium" ? "📋" : 
+                     task.importance === "Med-Low" ? "📝" : "📄"}
+                  </span>
+                )}
+              </div>
+              
+              {/* Duration and Due Date */}
+              <div className="flex items-center justify-between text-xs text-yellow-300/60 gap-2">
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-3 h-3" />
+                  <span>{formatDuration(task.duration)}</span>
+                </div>
+                {task.dueDate && (
+                  <div className="flex items-center space-x-1 truncate">
+                    <Calendar className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Skill Tags - Show max 2 */}
+              {task.skillTags && task.skillTags.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {task.skillTags.slice(0, 2).map((skillName) => {
+                    const SkillIcon = getSkillIconComponent(skillName);
+                    
+                    return (
+                      <Badge 
+                        key={skillName} 
+                        variant="outline" 
+                        className={cn("text-[10px] border px-1 py-0", getSkillColor(skillName))}
+                      >
+                        <SkillIcon className="w-2.5 h-2.5 mr-0.5" />
+                        {skillName.length > 8 ? skillName.substring(0, 8) + '...' : skillName}
+                      </Badge>
+                    );
+                  })}
+                  {task.skillTags.length > 2 && (
+                    <span className="text-[10px] text-yellow-400/60">+{task.skillTags.length - 2}</span>
+                  )}
+                </div>
+              )}
+              
+              {/* Details button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto px-2 py-1 text-yellow-400/60 hover:text-yellow-400 hover:bg-slate-700/50 flex items-center justify-center gap-1 w-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDetailModal(true);
+                }}
+              >
+                <Info className="h-3 w-3" />
+                <span className="text-xs">Details</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <TaskDetailModal 
+          task={task}
+          open={showDetailModal}
+          onOpenChange={setShowDetailModal}
+        />
+      </>
+    );
+  }
+
+  // Full list view version
   return (
     <>
       <Card 

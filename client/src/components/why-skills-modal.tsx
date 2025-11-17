@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { HelpCircle, Activity, Brain, Briefcase, Book, Users, Network, Wrench, Palette, Sword, Edit3, Save, X } from "lucide-react";
+import { HelpCircle, Activity, Brain, Briefcase, Book, Users, Network, Wrench, Palette, Sword, Edit3, Save, X, Compass } from "lucide-react";
 import { useState } from "react";
 
 interface WhySkillsModalProps {
@@ -194,7 +194,20 @@ export function WhySkillsModal({ open, onClose }: WhySkillsModalProps) {
               <div>
                 <h3 className="text-yellow-100 font-bold text-lg">Artist & Craftsman</h3>
                 <p className="text-yellow-200/80 mt-1">
-                  <span className="font-semibold text-yellow-100">Goal:</span> Adventure — see the world, do new things, embrace what life has to offer. Create, build, and express yourself authentically through your work and experiences. Mental zest for life and excitement for the future.
+                  <span className="font-semibold text-yellow-100">Goal:</span> Create, build, and express yourself authentically through your work and craft. Bring ideas to life through art and physical creation. Mental zest for making things real.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Explorer */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-yellow-600/20">
+            <div className="flex items-start gap-3 mb-2">
+              <Compass className="h-5 w-5 text-emerald-400 mt-1 flex-shrink-0" />
+              <div>
+                <h3 className="text-yellow-100 font-bold text-lg">Explorer</h3>
+                <p className="text-yellow-200/80 mt-1">
+                  <span className="font-semibold text-yellow-100">Goal:</span> You only have one life — answer the call to adventure. Explore the world, embrace new experiences, try exotic foods, immerse yourself in different cultures. Each new adventure enriches your soul and expands your perspective. Personal growth through discovery and the courage to step into the unknown. Life is meant to be experienced, not just observed.
                 </p>
               </div>
             </div>
