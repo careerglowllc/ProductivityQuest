@@ -181,7 +181,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/user/settings', requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const { notionApiKey, notionDatabaseId } = req.body;
+      const { 
+        notionApiKey, 
+        notionDatabaseId,
+        googleCalendarClientId,
+        googleCalendarClientSecret,
+        googleCalendarSyncEnabled,
+        googleCalendarSyncDirection
+      } = req.body;
       
       // Validate and parse Notion configuration if provided
       let parsedNotionDatabaseId = notionDatabaseId;
@@ -198,10 +205,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const user = await storage.updateUserSettings(userId, {
-        notionApiKey,
-        notionDatabaseId: parsedNotionDatabaseId,
-      });
+      // Build update object with only provided fields
+      const updates: any = {};
+      if (notionApiKey !== undefined) updates.notionApiKey = notionApiKey;
+      if (parsedNotionDatabaseId !== undefined) updates.notionDatabaseId = parsedNotionDatabaseId;
+      if (googleCalendarClientId !== undefined) updates.googleCalendarClientId = googleCalendarClientId;
+      if (googleCalendarClientSecret !== undefined) updates.googleCalendarClientSecret = googleCalendarClientSecret;
+      if (googleCalendarSyncEnabled !== undefined) updates.googleCalendarSyncEnabled = googleCalendarSyncEnabled;
+      if (googleCalendarSyncDirection !== undefined) updates.googleCalendarSyncDirection = googleCalendarSyncDirection;
+      
+      const user = await storage.updateUserSettings(userId, updates);
       
       res.json({
         message: "Settings updated successfully",
@@ -209,6 +222,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notionDatabaseId: user.notionDatabaseId,
         hasGoogleAuth: !!(user.googleAccessToken && user.googleRefreshToken),
         googleConnected: !!(user.googleAccessToken && user.googleRefreshToken),
+        googleCalendarSyncEnabled: user.googleCalendarSyncEnabled,
+        googleCalendarClientId: user.googleCalendarClientId ? '***' : null,
+        googleCalendarClientSecret: user.googleCalendarClientSecret ? '***' : null,
       });
     } catch (error) {
       console.error("Error updating user settings:", error);

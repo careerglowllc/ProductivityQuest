@@ -116,7 +116,8 @@ export default function GoogleCalendarIntegration() {
 
     updateMutation.mutate({ 
       googleCalendarClientId: clientId, 
-      googleCalendarClientSecret: clientSecret 
+      googleCalendarClientSecret: clientSecret,
+      googleCalendarSyncEnabled: true // Enable sync when credentials are saved
     });
   };
 

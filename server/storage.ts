@@ -6,7 +6,17 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string; googleAccessToken?: string; googleRefreshToken?: string; googleTokenExpiry?: Date }): Promise<User>;
+  updateUserSettings(userId: string, settings: { 
+    notionApiKey?: string; 
+    notionDatabaseId?: string; 
+    googleAccessToken?: string; 
+    googleRefreshToken?: string; 
+    googleTokenExpiry?: Date;
+    googleCalendarClientId?: string;
+    googleCalendarClientSecret?: string;
+    googleCalendarSyncEnabled?: boolean;
+    googleCalendarSyncDirection?: string;
+  }): Promise<User>;
   
   // Task operations
   getTasks(userId: string): Promise<Task[]>;
@@ -144,17 +154,38 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserSettings(userId: string, settings: { notionApiKey?: string; notionDatabaseId?: string; googleAccessToken?: string; googleRefreshToken?: string; googleTokenExpiry?: Date }): Promise<User> {
+  async updateUserSettings(
+    userId: string, 
+    settings: { 
+      notionApiKey?: string; 
+      notionDatabaseId?: string; 
+      googleAccessToken?: string; 
+      googleRefreshToken?: string; 
+      googleTokenExpiry?: Date;
+      googleCalendarClientId?: string;
+      googleCalendarClientSecret?: string;
+      googleCalendarSyncEnabled?: boolean;
+      googleCalendarSyncDirection?: string;
+    }
+  ): Promise<User> {
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+    
+    // Only update fields that are provided
+    if (settings.notionApiKey !== undefined) updateData.notionApiKey = settings.notionApiKey;
+    if (settings.notionDatabaseId !== undefined) updateData.notionDatabaseId = settings.notionDatabaseId;
+    if (settings.googleAccessToken !== undefined) updateData.googleAccessToken = settings.googleAccessToken;
+    if (settings.googleRefreshToken !== undefined) updateData.googleRefreshToken = settings.googleRefreshToken;
+    if (settings.googleTokenExpiry !== undefined) updateData.googleTokenExpiry = settings.googleTokenExpiry;
+    if (settings.googleCalendarClientId !== undefined) updateData.googleCalendarClientId = settings.googleCalendarClientId;
+    if (settings.googleCalendarClientSecret !== undefined) updateData.googleCalendarClientSecret = settings.googleCalendarClientSecret;
+    if (settings.googleCalendarSyncEnabled !== undefined) updateData.googleCalendarSyncEnabled = settings.googleCalendarSyncEnabled;
+    if (settings.googleCalendarSyncDirection !== undefined) updateData.googleCalendarSyncDirection = settings.googleCalendarSyncDirection;
+    
     const [user] = await db
       .update(users)
-      .set({
-        notionApiKey: settings.notionApiKey,
-        notionDatabaseId: settings.notionDatabaseId,
-        googleAccessToken: settings.googleAccessToken,
-        googleRefreshToken: settings.googleRefreshToken,
-        googleTokenExpiry: settings.googleTokenExpiry,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     return user;
