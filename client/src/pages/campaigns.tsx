@@ -57,6 +57,18 @@ export default function CampaignsPage() {
     },
   });
 
+  // Combine default and custom campaigns, limit to 5 total on web
+  const allCampaigns = [
+    { type: 'financial', title: 'Financial Independence', icon: 'DollarSign' },
+    { type: 'peace', title: 'Peace of Mind', icon: 'Heart' },
+    ...customCampaigns.map((c: any) => ({ type: 'custom', ...c }))
+  ];
+  
+  const displayedCampaigns = isMobile ? allCampaigns : allCampaigns.slice(0, 5);
+  const showCustomCampaigns = displayedCampaigns.filter((c: any) => c.type === 'custom');
+  const showFinancial = displayedCampaigns.some((c: any) => c.type === 'financial');
+  const showPeace = displayedCampaigns.some((c: any) => c.type === 'peace');
+
   return (
     <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? 'pb-20' : 'pt-20'} px-4`}>
       <div className="max-w-6xl mx-auto py-8">
@@ -71,40 +83,43 @@ export default function CampaignsPage() {
           </p>
         </div>
 
-        {/* Main Campaign - Financial Independence */}
+        {/* Main Campaigns Card */}
         <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
           <CardHeader className="border-b border-purple-600/30">
             <div className="flex items-center gap-3">
               <Crown className="h-6 w-6 text-purple-400" />
-              <CardTitle className="text-2xl font-serif font-bold text-purple-100">Main Campaign</CardTitle>
+              <CardTitle className="text-2xl font-serif font-bold text-purple-100">
+                Your Campaigns {!isMobile && `(showing ${displayedCampaigns.length} of ${allCampaigns.length})`}
+              </CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-6 space-y-6">
             {/* Financial Independence Section - Collapsible */}
-            <div className="mb-6">
-              <button
-                onClick={() => setExpandedFinancial(!expandedFinancial)}
-                className="w-full flex items-center gap-3 p-4 bg-purple-900/30 hover:bg-purple-900/40 border border-purple-600/30 rounded-lg transition-all group"
-              >
-                <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
-                  <DollarSign className="h-6 w-6 text-purple-300" />
-                </div>
-                <div className="flex-1 text-left">
-                  <h3 className="text-2xl font-serif font-bold text-purple-100">Financial Independence</h3>
-                  <p className="text-purple-300/70 text-sm">Build wealth and achieve freedom</p>
-                </div>
-                <div className="text-right mr-2">
-                  <p className="text-purple-200/70 text-xs mb-1">Current Net Worth</p>
-                  <p className="text-2xl font-bold text-purple-100">$500,000</p>
-                </div>
-                {expandedFinancial ? (
-                  <ChevronUp className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                ) : (
-                  <ChevronDown className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                )}
-              </button>
+            {showFinancial && (
+              <div>
+                <button
+                  onClick={() => setExpandedFinancial(!expandedFinancial)}
+                  className="w-full flex items-center gap-3 p-4 bg-purple-900/30 hover:bg-purple-900/40 border border-purple-600/30 rounded-lg transition-all group"
+                >
+                  <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
+                    <DollarSign className="h-6 w-6 text-purple-300" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-2xl font-serif font-bold text-purple-100">Financial Independence</h3>
+                    <p className="text-purple-300/70 text-sm">Build wealth and achieve freedom</p>
+                  </div>
+                  <div className="text-right mr-2">
+                    <p className="text-purple-200/70 text-xs mb-1">Current Net Worth</p>
+                    <p className="text-2xl font-bold text-purple-100">$500,000</p>
+                  </div>
+                  {expandedFinancial ? (
+                    <ChevronUp className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                  ) : (
+                    <ChevronDown className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                  )}
+                </button>
 
-              {expandedFinancial && (
+                {expandedFinancial && (
                 <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
                   {/* Progress Section */}
                   <div className="bg-purple-900/30 border border-purple-600/30 rounded-lg p-4 mb-4">
@@ -212,28 +227,30 @@ export default function CampaignsPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Peace of Mind Section - Collapsible */}
-            <div>
-              <button
-                onClick={() => setExpandedPeace(!expandedPeace)}
-                className="w-full flex items-center gap-3 p-4 bg-purple-900/30 hover:bg-purple-900/40 border border-purple-600/30 rounded-lg transition-all group"
-              >
-                <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
-                  <Heart className="h-6 w-6 text-purple-300" />
-                </div>
-                <div className="flex-1 text-left">
-                  <h3 className="text-2xl font-serif font-bold text-purple-100">Peace of Mind</h3>
-                  <p className="text-purple-300/70 text-sm">Mental clarity and emotional balance</p>
-                </div>
-                {expandedPeace ? (
-                  <ChevronUp className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                ) : (
-                  <ChevronDown className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                )}
-              </button>
+            {showPeace && (
+              <div>
+                <button
+                  onClick={() => setExpandedPeace(!expandedPeace)}
+                  className="w-full flex items-center gap-3 p-4 bg-purple-900/30 hover:bg-purple-900/40 border border-purple-600/30 rounded-lg transition-all group"
+                >
+                  <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
+                    <Heart className="h-6 w-6 text-purple-300" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-2xl font-serif font-bold text-purple-100">Peace of Mind</h3>
+                    <p className="text-purple-300/70 text-sm">Mental clarity and emotional balance</p>
+                  </div>
+                  {expandedPeace ? (
+                    <ChevronUp className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                  ) : (
+                    <ChevronDown className="h-6 w-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                  )}
+                </button>
 
-              {expandedPeace && (
+                {expandedPeace && (
                 <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
                   <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-6">
                     <blockquote className="text-purple-200/90 text-lg italic leading-relaxed mb-4">
@@ -264,63 +281,67 @@ export default function CampaignsPage() {
                   </div>
                 </div>
               )}
-            </div>
+              </div>
+            )}
+
+            {/* Custom Campaigns */}
+            {showCustomCampaigns.map((campaign: any) => {
+              const IconComponent = ICON_MAP[campaign.icon] || Target;
+              const iconColor = ICON_COLORS[campaign.icon] || "text-purple-400";
+              
+              return (
+                <div
+                  key={campaign.id}
+                  className="flex items-start gap-3 p-4 bg-purple-900/30 border border-purple-600/30 rounded-lg hover:bg-purple-900/40 transition-all"
+                >
+                  <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
+                    <IconComponent className={`h-6 w-6 ${iconColor}`} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-serif font-bold text-purple-100 mb-1">
+                      {campaign.title}
+                    </h3>
+                    <p className="text-purple-300/70 text-sm">
+                      {campaign.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
-        {/* Future Campaigns Placeholder */}
-        {customCampaigns.length > 0 && (
-          <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
-            <CardHeader className="border-b border-purple-600/30">
-              <div className="flex items-center gap-3">
-                <Target className="h-6 w-6 text-purple-400" />
-                <CardTitle className="text-2xl font-serif font-bold text-purple-100">Custom Campaigns</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              {customCampaigns.map((campaign: any) => {
-                const IconComponent = ICON_MAP[campaign.icon] || Target;
-                const iconColor = ICON_COLORS[campaign.icon] || "text-purple-400";
-                
-                return (
-                  <div
-                    key={campaign.id}
-                    className="flex items-start gap-3 p-4 bg-purple-900/30 border border-purple-600/30 rounded-lg hover:bg-purple-900/40 transition-all"
-                  >
-                    <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
-                      <IconComponent className={`h-6 w-6 ${iconColor}`} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-serif font-bold text-purple-100 mb-1">
-                        {campaign.title}
-                      </h3>
-                      <p className="text-purple-300/70 text-sm">
-                        {campaign.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+        {/* Add Campaign Card */}
+        {(isMobile || allCampaigns.length < 5) && (
+          <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-slate-600/30">
+            <CardContent className="p-8 text-center">
+              <Crown className="h-12 w-12 text-slate-400 mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-serif font-bold text-slate-300 mb-2">Add Your Own Campaign</h3>
+              <p className="text-slate-400 text-sm mb-6">
+                Create custom life campaigns to track your unique goals and objectives
+                {!isMobile && allCampaigns.length >= 3 && ` (${5 - allCampaigns.length} slot${5 - allCampaigns.length === 1 ? '' : 's'} remaining)`}
+              </p>
+              <Button
+                onClick={() => setShowAddCampaignModal(true)}
+                className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-semibold"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Create Custom Campaign
+              </Button>
             </CardContent>
           </Card>
         )}
 
-        <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-slate-600/30">
-          <CardContent className="p-8 text-center">
-            <Crown className="h-12 w-12 text-slate-400 mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-serif font-bold text-slate-300 mb-2">Add Your Own Campaign</h3>
-            <p className="text-slate-400 text-sm mb-6">
-              Create custom life campaigns to track your unique goals and objectives
-            </p>
-            <Button
-              onClick={() => setShowAddCampaignModal(true)}
-              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-semibold"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Create Custom Campaign
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Max campaigns reached message */}
+        {!isMobile && allCampaigns.length >= 5 && (
+          <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-slate-600/30">
+            <CardContent className="p-6 text-center">
+              <p className="text-slate-400 text-sm">
+                Maximum of 5 campaigns reached on web view. View all campaigns on mobile or remove some to add new ones.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Add Campaign Modal */}
