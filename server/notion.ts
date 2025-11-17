@@ -136,16 +136,33 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
         const formattedDatabaseId = formatDatabaseId(tasksDatabaseId);
         console.log(`📥 [NOTION getTasks] Querying Notion database: ${formattedDatabaseId}`);
 
-        const response = await userNotion.databases.query({
-            database_id: formattedDatabaseId,
-        });
+        // Fetch all pages with pagination
+        let allResults: any[] = [];
+        let hasMore = true;
+        let startCursor: string | undefined = undefined;
+        let pageCount = 0;
 
-        console.log(`📥 [NOTION getTasks] Retrieved ${response.results.length} pages from Notion`);
+        while (hasMore) {
+            const response = await userNotion.databases.query({
+                database_id: formattedDatabaseId,
+                start_cursor: startCursor,
+                page_size: 100, // Maximum allowed by Notion API
+            });
 
-        return response.results.map((page: any, index: number) => {
+            allResults = allResults.concat(response.results);
+            hasMore = response.has_more;
+            startCursor = response.next_cursor || undefined;
+            pageCount++;
+
+            console.log(`📥 [NOTION getTasks] Fetched page ${pageCount}: ${response.results.length} tasks (Total so far: ${allResults.length})`);
+        }
+
+        console.log(`📥 [NOTION getTasks] Retrieved ${allResults.length} total pages from Notion across ${pageCount} API calls`);
+
+        return allResults.map((page: any, index: number) => {
             try {
                 const properties = page.properties;
-                console.log(`📥 [NOTION getTasks] Processing page ${index + 1}/${response.results.length}`);
+                console.log(`📥 [NOTION getTasks] Processing page ${index + 1}/${allResults.length}`);
 
                 // Extract due date from "Due" property (Date type)
                 const dueDate = properties.Due?.date?.start
