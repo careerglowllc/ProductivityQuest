@@ -1,13 +1,20 @@
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronRight, Brain, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronRight, Brain, Sparkles, Target } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function SettingsGuidesPage() {
   const isMobile = useIsMobile();
 
   const guides = [
+    {
+      title: "Measure What Matters",
+      description: "Master quantitative goals and the science of gamification through measurable progress",
+      icon: Target,
+      path: "/settings/guides/measure-what-matters",
+      color: "from-purple-500 to-purple-600",
+    },
     {
       title: "Skill Classification Guide",
       description: "Learn how AI categorizes your tasks and how to train it for your journey",
@@ -56,16 +63,11 @@ export default function SettingsGuidesPage() {
           <div className="space-y-4">
             {guides.map((guide) => {
               const Icon = guide.icon;
-              const isDisabled = guide.disabled;
               
               return (
-                <Link key={guide.path} href={isDisabled ? "#" : guide.path}>
+                <Link key={guide.path} href={guide.path}>
                   <Card 
-                    className={`bg-slate-800/60 backdrop-blur-md border-2 transition-all ${
-                      isDisabled 
-                        ? 'border-slate-700/40 opacity-60 cursor-not-allowed'
-                        : 'border-yellow-600/30 hover:border-yellow-500/50 cursor-pointer hover:shadow-lg hover:shadow-yellow-600/10'
-                    }`}
+                    className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 cursor-pointer hover:shadow-lg hover:shadow-yellow-600/10 transition-all"
                   >
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -77,22 +79,15 @@ export default function SettingsGuidesPage() {
                           
                           {/* Content */}
                           <div>
-                            <h3 className="text-lg font-serif font-bold text-yellow-100 mb-1 flex items-center gap-2">
+                            <h3 className="text-lg font-serif font-bold text-yellow-100 mb-1">
                               {guide.title}
-                              {isDisabled && (
-                                <span className="text-xs bg-slate-700 text-yellow-200/60 px-2 py-0.5 rounded">
-                                  Coming Soon
-                                </span>
-                              )}
                             </h3>
                             <p className="text-sm text-yellow-200/70">{guide.description}</p>
                           </div>
                         </div>
                         
                         {/* Arrow */}
-                        {!isDisabled && (
-                          <ChevronRight className="w-6 h-6 text-yellow-400" />
-                        )}
+                        <ChevronRight className="w-6 h-6 text-yellow-400" />
                       </div>
                     </CardContent>
                   </Card>

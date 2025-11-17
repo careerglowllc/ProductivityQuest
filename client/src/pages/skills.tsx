@@ -53,7 +53,7 @@ import {
   Bike,
   Medal
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import type { LucideIcon } from "lucide-react";
@@ -463,6 +463,47 @@ export default function Skills() {
   const [showWhySkillsModal, setShowWhySkillsModal] = useState(false);
   const [showEditMilestonesModal, setShowEditMilestonesModal] = useState(false);
   const [skillToEditMilestones, setSkillToEditMilestones] = useState<UserSkill | null>(null);
+  const [selectedMilestone, setSelectedMilestone] = useState<{id: string; title: string; x: number; y: number} | null>(null);
+  const constellationScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-center constellation view on starting node when modal opens
+  useEffect(() => {
+    if (selectedSkill && constellationScrollRef.current) {
+      const scrollContainer = constellationScrollRef.current;
+      
+      // Get milestones for this skill
+      const milestones = selectedSkill.constellationMilestones && selectedSkill.constellationMilestones.length > 0
+        ? selectedSkill.constellationMilestones
+        : skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
+      
+      // Find the starting node (level 1 or first node)
+      const startingNode = milestones.find((m: any) => m.level === 1) || milestones[0];
+      
+      if (startingNode) {
+        // Calculate scroll position to center on starting node
+        // Container is 1200px wide, 1000px tall with 20px padding
+        const containerWidth = 1200;
+        const containerHeight = 1000;
+        const viewportWidth = scrollContainer.clientWidth;
+        const viewportHeight = scrollContainer.clientHeight;
+        
+        // Node position as percentage converted to pixels
+        const nodeX = (startingNode.x / 100) * containerWidth;
+        const nodeY = (startingNode.y / 100) * containerHeight;
+        
+        // Center the viewport on this node
+        const scrollLeft = nodeX - (viewportWidth / 2);
+        const scrollTop = nodeY - (viewportHeight / 2);
+        
+        // Smooth scroll to position
+        scrollContainer.scrollTo({
+          left: scrollLeft,
+          top: scrollTop,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [selectedSkill]);
 
   const createSkillMutation = useMutation({
     mutationFn: async (skillData: any) => {
@@ -716,18 +757,109 @@ export default function Skills() {
       <div className="max-w-6xl mx-auto px-4 py-12">
         {viewMode === 'constellation' ? (
           /* Constellation View */
-          <div className="relative w-full h-[800px] bg-slate-900/30 rounded-3xl border-2 border-yellow-600/20 p-8 overflow-hidden">
-            {/* Background stars */}
-            <div className="absolute inset-0 opacity-20">
-              {Array.from({ length: 50 }).map((_, i) => (
+          <div 
+            className="relative w-full h-[800px] rounded-3xl border-2 border-yellow-600/20 p-8 overflow-hidden"
+            style={{
+              background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 50%, #020617 100%)',
+            }}
+          >
+            {/* Aurora Borealis Effect Layers */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {/* Purple Aurora */}
+              <div 
+                className="absolute top-0 left-0 w-full h-1/2 opacity-20"
+                style={{
+                  background: 'radial-gradient(ellipse at 30% 20%, rgba(168, 85, 247, 0.4) 0%, transparent 50%)',
+                  filter: 'blur(60px)',
+                }}
+              />
+              {/* Blue Aurora */}
+              <div 
+                className="absolute top-0 right-0 w-full h-1/2 opacity-20"
+                style={{
+                  background: 'radial-gradient(ellipse at 70% 30%, rgba(59, 130, 246, 0.4) 0%, transparent 50%)',
+                  filter: 'blur(60px)',
+                }}
+              />
+              {/* Green Aurora */}
+              <div 
+                className="absolute top-1/4 left-1/2 -translate-x-1/2 w-3/4 h-1/2 opacity-15"
+                style={{
+                  background: 'radial-gradient(ellipse at center, rgba(34, 197, 94, 0.3) 0%, transparent 60%)',
+                  filter: 'blur(80px)',
+                }}
+              />
+              {/* Cyan Glow */}
+              <div 
+                className="absolute bottom-0 left-1/4 w-1/2 h-1/3 opacity-10"
+                style={{
+                  background: 'radial-gradient(ellipse at bottom, rgba(6, 182, 212, 0.4) 0%, transparent 70%)',
+                  filter: 'blur(70px)',
+                }}
+              />
+            </div>
+
+            {/* Milky Way Effect */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div 
+                className="absolute top-0 left-1/4 w-1/2 h-full opacity-15 rotate-12"
+                style={{
+                  background: 'linear-gradient(to bottom, transparent 0%, rgba(139, 92, 246, 0.2) 20%, rgba(167, 139, 250, 0.3) 50%, rgba(139, 92, 246, 0.2) 80%, transparent 100%)',
+                  filter: 'blur(40px)',
+                }}
+              />
+            </div>
+
+            {/* Layered Star Field */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Large bright stars */}
+              {Array.from({ length: 25 }).map((_, i) => (
                 <div
-                  key={i}
-                  className="absolute w-1 h-1 bg-yellow-100 rounded-full animate-pulse"
+                  key={`large-${i}`}
+                  className="absolute rounded-full animate-pulse"
                   style={{
                     top: `${Math.random() * 100}%`,
                     left: `${Math.random() * 100}%`,
+                    width: `${2 + Math.random() * 2}px`,
+                    height: `${2 + Math.random() * 2}px`,
+                    background: `radial-gradient(circle, ${
+                      ['rgba(255, 255, 255, 0.9)', 'rgba(251, 191, 36, 0.8)', 'rgba(147, 197, 253, 0.8)', 'rgba(196, 181, 253, 0.8)'][Math.floor(Math.random() * 4)]
+                    } 0%, transparent 70%)`,
+                    boxShadow: `0 0 ${4 + Math.random() * 6}px ${
+                      ['rgba(255, 255, 255, 0.5)', 'rgba(251, 191, 36, 0.5)', 'rgba(147, 197, 253, 0.5)', 'rgba(196, 181, 253, 0.5)'][Math.floor(Math.random() * 4)]
+                    }`,
                     animationDelay: `${Math.random() * 3}s`,
-                    animationDuration: `${2 + Math.random() * 2}s`,
+                    animationDuration: `${2 + Math.random() * 3}s`,
+                  }}
+                />
+              ))}
+              {/* Medium stars */}
+              {Array.from({ length: 60 }).map((_, i) => (
+                <div
+                  key={`medium-${i}`}
+                  className="absolute bg-white rounded-full animate-pulse"
+                  style={{
+                    top: `${Math.random() * 100}%`,
+                    left: `${Math.random() * 100}%`,
+                    width: `${1 + Math.random()}px`,
+                    height: `${1 + Math.random()}px`,
+                    opacity: 0.3 + Math.random() * 0.4,
+                    animationDelay: `${Math.random() * 4}s`,
+                    animationDuration: `${3 + Math.random() * 2}s`,
+                  }}
+                />
+              ))}
+              {/* Small twinkling stars */}
+              {Array.from({ length: 120 }).map((_, i) => (
+                <div
+                  key={`small-${i}`}
+                  className="absolute bg-white rounded-full"
+                  style={{
+                    top: `${Math.random() * 100}%`,
+                    left: `${Math.random() * 100}%`,
+                    width: '0.5px',
+                    height: '0.5px',
+                    opacity: 0.2 + Math.random() * 0.3,
                   }}
                 />
               ))}
@@ -1282,6 +1414,7 @@ export default function Skills() {
               </div>
 
               <div 
+                ref={constellationScrollRef}
                 className="relative w-full h-[600px] rounded-xl border border-yellow-600/20 overflow-auto cursor-grab active:cursor-grabbing"
                 style={{
                   background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 50%, #020617 100%)',
@@ -1311,6 +1444,7 @@ export default function Skills() {
                   document.addEventListener('mousemove', handleMouseMove);
                   document.addEventListener('mouseup', handleMouseUp);
                 }}
+                onClick={() => setSelectedMilestone(null)}
               >
               {/* Aurora Borealis Effect Layers */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -1461,10 +1595,11 @@ export default function Skills() {
 
                     {/* Milestone nodes */}
                     <div className="relative w-full h-full" style={{ zIndex: 2 }}>
-                      {milestones.map((milestone) => {
+                      {milestones.map((milestone, index) => {
                         const completedMilestones = (selectedSkill.completedMilestones as string[]) || [];
                         const isCompleted = completedMilestones.includes(milestone.id);
-                        const isCurrentGoal = !isCompleted;
+                        const isStartingNode = milestone.level === 1 || index === 0; // First/bottom node
+                        const isCurrentGoal = !isCompleted && !isStartingNode;
                         
                         return (
                           <div
@@ -1472,9 +1607,12 @@ export default function Skills() {
                             className="absolute group transition-all duration-500 cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleMilestoneMutation.mutate({ 
-                                skillId: selectedSkill.id, 
-                                milestoneId: milestone.id 
+                              // Open submenu instead of immediately toggling
+                              setSelectedMilestone({
+                                id: milestone.id,
+                                title: milestone.title,
+                                x: milestone.x,
+                                y: milestone.y
                               });
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
@@ -1484,7 +1622,7 @@ export default function Skills() {
                               transform: 'translate(-50%, -50%)',
                             }}
                           >
-                            {/* Glow for current goal */}
+                            {/* Glow for current goal (not for starting node or completed) */}
                             {isCurrentGoal && (
                               <div className="absolute inset-0 -m-6 bg-blue-400/20 rounded-full blur-xl animate-pulse" />
                             )}
@@ -1493,12 +1631,14 @@ export default function Skills() {
                             <div className={`relative w-14 h-14 rounded-full border-4 transition-all duration-300 group-hover:scale-110 overflow-hidden ${
                               isCompleted 
                                 ? 'border-yellow-400 bg-yellow-600 shadow-lg shadow-yellow-600/50' 
+                                : isStartingNode
+                                ? 'border-yellow-400 bg-yellow-600 shadow-lg shadow-yellow-600/50' // Starting node is yellow like completed
                                 : isCurrentGoal
                                 ? 'border-blue-400 bg-slate-800/80 shadow-lg shadow-blue-400/50 animate-pulse'
                                 : 'border-yellow-600/30 bg-slate-800/60'
                             }`}>
-                              {/* Filled background for completed */}
-                              {isCompleted && (
+                              {/* Filled background for completed or starting node */}
+                              {(isCompleted || isStartingNode) && (
                                 <div className="absolute inset-0 bg-gradient-to-t from-yellow-600 to-yellow-400" />
                               )}
                               
@@ -1509,7 +1649,7 @@ export default function Skills() {
                                   return (
                                     <IconComponent 
                                       className={`w-6 h-6 ${
-                                        isCompleted ? 'text-slate-900' : 'text-yellow-200/80'
+                                        (isCompleted || isStartingNode) ? 'text-slate-900' : 'text-yellow-200/80'
                                       }`}
                                       strokeWidth={2.5}
                                     />
@@ -1517,8 +1657,8 @@ export default function Skills() {
                                 })()}
                               </div>
                               
-                              {/* Checkmark for completed */}
-                              {isCompleted && (
+                              {/* Checkmark for completed (but not for starting node) */}
+                              {isCompleted && !isStartingNode && (
                                 <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-slate-900 flex items-center justify-center">
                                   <svg className="w-3 h-3 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" viewBox="0 0 24 24" stroke="currentColor">
                                     <path d="M5 13l4 4L19 7"></path>
@@ -1530,24 +1670,24 @@ export default function Skills() {
                             {/* Tooltip with milestone title */}
                             <div className="absolute top-16 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-50">
                               <div className={`px-4 py-2 rounded-lg border-2 shadow-xl ${
-                                isCompleted 
+                                (isCompleted || isStartingNode) 
                                   ? 'bg-yellow-900/95 border-yellow-500/60 backdrop-blur-md'
                                   : isCurrentGoal
                                   ? 'bg-blue-900/95 border-blue-500/60 backdrop-blur-md'
                                   : 'bg-slate-900/95 border-yellow-600/40 backdrop-blur-md'
                               }`}>
                                 <p className={`font-serif font-bold text-sm ${
-                                  isCompleted ? 'text-yellow-100' : isCurrentGoal ? 'text-blue-100' : 'text-yellow-200/80'
+                                  (isCompleted || isStartingNode) ? 'text-yellow-100' : isCurrentGoal ? 'text-blue-100' : 'text-yellow-200/80'
                                 }`}>
                                   {milestone.title}
                                 </p>
                                 <p className="text-xs text-yellow-400/70 mt-1">
-                                  {isCompleted ? '✓ Achieved' : 'Click to mark as complete'}
+                                  {isCompleted ? '✓ Achieved' : isStartingNode ? '⚡ Starting Point' : 'Click to view details'}
                                 </p>
                               </div>
                               {/* Arrow */}
                               <div className={`absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 ${
-                                isCompleted 
+                                (isCompleted || isStartingNode) 
                                   ? 'bg-yellow-900 border-l-2 border-t-2 border-yellow-500/60'
                                   : isCurrentGoal
                                   ? 'bg-blue-900 border-l-2 border-t-2 border-blue-500/60'
@@ -1558,6 +1698,97 @@ export default function Skills() {
                         );
                       })}
                     </div>
+
+                    {/* Milestone Submenu Modal */}
+                    {selectedMilestone && selectedSkill && (
+                      <div 
+                        className="absolute z-50 bg-slate-900/98 backdrop-blur-md rounded-xl border-2 border-yellow-600/40 p-6 shadow-2xl"
+                        style={{
+                          left: `${selectedMilestone.x}%`,
+                          top: `${selectedMilestone.y}%`,
+                          transform: 'translate(-50%, calc(-50% - 80px))',
+                          minWidth: '280px',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Close button */}
+                        <button
+                          onClick={() => setSelectedMilestone(null)}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded-full border border-yellow-600/40 flex items-center justify-center text-yellow-400 hover:text-yellow-300 transition-colors"
+                        >
+                          ✕
+                        </button>
+
+                        {/* Milestone info */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            {(() => {
+                              const IconComponent = getMilestoneIcon(selectedMilestone.title);
+                              return <IconComponent className="w-8 h-8 text-yellow-400" strokeWidth={2.5} />;
+                            })()}
+                            <h3 className="font-serif text-xl text-yellow-100 font-bold">{selectedMilestone.title}</h3>
+                          </div>
+
+                          {/* Status */}
+                          <div className="flex items-center gap-2">
+                            {(() => {
+                              const completedMilestones = (selectedSkill.completedMilestones as string[]) || [];
+                              const isCompleted = completedMilestones.includes(selectedMilestone.id);
+                              return isCompleted ? (
+                                <Badge className="bg-green-600 text-white border-green-400">
+                                  ✓ Achieved
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-blue-600 text-white border-blue-400">
+                                  In Progress
+                                </Badge>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Complete/Uncomplete button */}
+                          {(() => {
+                            const completedMilestones = (selectedSkill.completedMilestones as string[]) || [];
+                            const isCompleted = completedMilestones.includes(selectedMilestone.id);
+                            const milestones = selectedSkill.constellationMilestones && selectedSkill.constellationMilestones.length > 0
+                              ? selectedSkill.constellationMilestones
+                              : skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
+                            const milestoneIndex = milestones.findIndex(m => m.id === selectedMilestone.id);
+                            const isStartingNode = milestones[milestoneIndex]?.level === 1 || milestoneIndex === 0;
+
+                            if (isStartingNode) {
+                              return (
+                                <p className="text-yellow-400/70 text-sm italic">
+                                  Starting point - automatically unlocked
+                                </p>
+                              );
+                            }
+
+                            return (
+                              <Button
+                                onClick={() => {
+                                  toggleMilestoneMutation.mutate({ 
+                                    skillId: selectedSkill.id, 
+                                    milestoneId: selectedMilestone.id 
+                                  });
+                                  setSelectedMilestone(null);
+                                }}
+                                className={`w-full ${
+                                  isCompleted 
+                                    ? 'bg-slate-700 hover:bg-slate-600 text-yellow-200 border-yellow-600/40'
+                                    : 'bg-yellow-600 hover:bg-yellow-700 text-slate-900 border-yellow-400'
+                                }`}
+                              >
+                                {isCompleted ? 'Mark as Incomplete' : 'Mark as Complete'}
+                              </Button>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Arrow pointing to milestone */}
+                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 rotate-45 bg-slate-900 border-r-2 border-b-2 border-yellow-600/40" />
+                      </div>
+                    )}
 
                     {/* Legend */}
                     <div className="absolute bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md px-4 py-3 rounded-lg border border-yellow-600/30 text-xs z-10">
