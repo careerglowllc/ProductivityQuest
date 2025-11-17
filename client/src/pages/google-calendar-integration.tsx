@@ -203,14 +203,23 @@ export default function GoogleCalendarIntegration() {
                             const response = await fetch('/api/google-calendar/authorize-url', {
                               credentials: 'include'
                             });
+                            
+                            if (!response.ok) {
+                              const error = await response.json();
+                              throw new Error(error.error || error.details || 'Failed to get authorization URL');
+                            }
+                            
                             const data = await response.json();
                             if (data.authUrl) {
                               window.location.href = data.authUrl;
+                            } else {
+                              throw new Error('No authorization URL received');
                             }
-                          } catch (error) {
+                          } catch (error: any) {
+                            console.error('Authorization error:', error);
                             toast({
-                              title: "Error",
-                              description: "Failed to get authorization URL",
+                              title: "Authorization Error",
+                              description: error.message || "Failed to get authorization URL",
                               variant: "destructive",
                             });
                           }

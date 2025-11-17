@@ -1880,13 +1880,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/google-calendar/authorize-url", requireAuth, async (req: any, res) => {
     try {
       console.log('📝 [AUTH URL] Starting authorization URL generation...');
-      const userId = req.session.userId;
+      const userId = req.session?.userId;
       console.log('📝 [AUTH URL] User ID:', userId);
+      console.log('📝 [AUTH URL] Session:', JSON.stringify(req.session));
+      
+      if (!userId) {
+        console.log('❌ [AUTH URL] No user ID in session');
+        return res.status(401).json({ error: "Not authenticated" });
+      }
       
       const user = await storage.getUserById(userId);
       console.log('📝 [AUTH URL] User found:', !!user);
-      console.log('📝 [AUTH URL] Has clientId:', !!user?.googleCalendarClientId);
-      console.log('📝 [AUTH URL] Has clientSecret:', !!user?.googleCalendarClientSecret);
+      console.log('📝 [AUTH URL] User data:', user ? {
+        id: user.id,
+        hasClientId: !!user.googleCalendarClientId,
+        hasClientSecret: !!user.googleCalendarClientSecret,
+        clientIdLength: user.googleCalendarClientId?.length,
+        clientSecretLength: user.googleCalendarClientSecret?.length
+      } : null);
 
       if (!user?.googleCalendarClientId || !user?.googleCalendarClientSecret) {
         console.log('❌ [AUTH URL] Missing credentials');
@@ -1900,6 +1911,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { OAuth2Client } = require('google-auth-library');
       const redirectUri = `${req.protocol}://${req.get('host')}/api/google-calendar/callback`;
       console.log('📝 [AUTH URL] Redirect URI:', redirectUri);
+      console.log('📝 [AUTH URL] Protocol:', req.protocol);
+      console.log('📝 [AUTH URL] Host:', req.get('host'));
       
       const oauth2Client = new OAuth2Client(
         user.googleCalendarClientId,
@@ -1914,11 +1927,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         state: userId, // Pass userId in state to identify user in callback
       });
 
-      console.log('✅ [AUTH URL] Generated successfully');
+      console.log('✅ [AUTH URL] Generated successfully:', authUrl);
       res.json({ authUrl });
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ [AUTH URL] Error generating auth URL:", error);
-      res.status(500).json({ error: "Failed to generate authorization URL" });
+      console.error("❌ [AUTH URL] Error message:", error?.message);
+      console.error("❌ [AUTH URL] Error stack:", error?.stack);
+      res.status(500).json({ 
+        error: "Failed to generate authorization URL",
+        details: error?.message 
+      });
     }
   });
 
