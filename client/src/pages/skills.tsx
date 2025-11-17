@@ -132,230 +132,231 @@ const skillConstellations: Record<string, string> = {
 };
 
 // Milestone constellations for each skill
-const skillMilestones: Record<string, Array<{ 
-  id: string; 
-  title: string; 
+const skillMilestones: Record<string, Array<{
+  id: string;
+  title: string;
   level: number;
-  x: number; 
-  y: number; 
+  x: number;
+  y: number;
+  parents?: string[]; // IDs of parent nodes
 }>> = {
   Explorer: [
     // Level 1: Starting point (center bottom)
     { id: 'start', title: 'Starting point', level: 1, x: 50, y: 90 },
     
     // Level 2: Three branches from start (2-3 nodes above)
-    { id: 'countries-5', title: 'Visit 5 countries', level: 5, x: 25, y: 75 },
-    { id: 'abroad-4mo', title: 'Live in another country 4 months', level: 10, x: 50, y: 72 },
-    { id: 'citizen-2', title: 'Get citizenship in 2 countries', level: 8, x: 75, y: 75 },
+    { id: 'countries-5', title: 'Visit 5 countries', level: 5, x: 25, y: 75, parents: ['start'] },
+    { id: 'abroad-4mo', title: 'Live in another country 4 months', level: 10, x: 50, y: 72, parents: ['start'] },
+    { id: 'citizen-2', title: 'Get citizenship in 2 countries', level: 8, x: 75, y: 75, parents: ['start'] },
     
     // Level 3: Left branch continues (1 node)
-    { id: 'countries-10', title: 'Visit 10 countries', level: 15, x: 20, y: 58 },
+    { id: 'countries-10', title: 'Visit 10 countries', level: 15, x: 20, y: 58, parents: ['countries-5'] },
     
     // Level 3: Middle branch splits (2 nodes from middle)
-    { id: 'abroad-12mo', title: 'Live in another country 12 months', level: 20, x: 45, y: 55 },
-    { id: 'lang-2', title: 'Learn 2 languages', level: 18, x: 60, y: 58 },
+    { id: 'abroad-12mo', title: 'Live in another country 12 months', level: 20, x: 45, y: 55, parents: ['abroad-4mo'] },
+    { id: 'lang-2', title: 'Learn 2 languages', level: 18, x: 60, y: 58, parents: ['abroad-4mo'] },
     
     // Level 3: Right branch continues (1 node)
-    { id: 'citizen-3', title: 'Get citizenship in 3 countries', level: 22, x: 78, y: 58 },
+    { id: 'citizen-3', title: 'Get citizenship in 3 countries', level: 22, x: 78, y: 58, parents: ['citizen-2'] },
     
     // Level 4: Remaining nodes, each attached to one parent
-    { id: 'countries-20', title: 'Visit 20 countries', level: 30, x: 18, y: 40 },
-    { id: 'abroad-3yr', title: 'Live in another country 3 years', level: 35, x: 42, y: 38 },
-    { id: 'lang-3', title: 'Learn 3 languages', level: 32, x: 62, y: 40 },
-    { id: 'citizen-5', title: 'Get citizenship in 5 countries', level: 40, x: 80, y: 40 },
+    { id: 'countries-20', title: 'Visit 20 countries', level: 30, x: 18, y: 40, parents: ['countries-10'] },
+    { id: 'abroad-3yr', title: 'Live in another country 3 years', level: 35, x: 42, y: 38, parents: ['abroad-12mo'] },
+    { id: 'lang-3', title: 'Learn 3 languages', level: 32, x: 62, y: 40, parents: ['lang-2'] },
+    { id: 'citizen-5', title: 'Get citizenship in 5 countries', level: 40, x: 80, y: 40, parents: ['citizen-3'] },
     
     // Level 5: Final milestones
-    { id: 'countries-50', title: 'Visit 50 countries', level: 60, x: 20, y: 22 },
-    { id: 'citizen-10', title: 'Get citizenship in 10 countries', level: 75, x: 78, y: 20 },
+    { id: 'countries-50', title: 'Visit 50 countries', level: 60, x: 20, y: 22, parents: ['countries-20'] },
+    { id: 'citizen-10', title: 'Get citizenship in 10 countries', level: 75, x: 78, y: 20, parents: ['citizen-5'] },
   ],
   Craftsman: [
     // Level 1: Start
     { id: 'start', title: 'Pick Up Your Tools', level: 1, x: 50, y: 88 },
     
     // Level 2: Two initial branches
-    { id: 'project-1', title: 'Complete First Project', level: 5, x: 35, y: 72 },
-    { id: 'tools-master', title: 'Master Basic Tools', level: 8, x: 65, y: 72 },
+    { id: 'project-1', title: 'Complete First Project', level: 5, x: 35, y: 72, parents: ['start'] },
+    { id: 'tools-master', title: 'Master Basic Tools', level: 8, x: 65, y: 72, parents: ['start'] },
     
     // Level 3: Each branch splits
-    { id: 'furniture', title: 'Build Custom Furniture', level: 15, x: 28, y: 56 },
-    { id: 'apprentice', title: 'Teach an Apprentice', level: 18, x: 45, y: 54 },
-    { id: 'workshop', title: 'Set Up Workshop', level: 20, x: 70, y: 56 },
+    { id: 'furniture', title: 'Build Custom Furniture', level: 15, x: 28, y: 56, parents: ['project-1'] },
+    { id: 'apprentice', title: 'Teach an Apprentice', level: 18, x: 45, y: 54, parents: ['project-1'] },
+    { id: 'workshop', title: 'Set Up Workshop', level: 20, x: 70, y: 56, parents: ['tools-master'] },
     
     // Level 4: Branches converge and continue
-    { id: 'masterwork', title: 'Create a Masterwork', level: 40, x: 38, y: 36 },
-    { id: 'innovate', title: 'Innovate New Technique', level: 45, x: 62, y: 36 },
+    { id: 'masterwork', title: 'Create a Masterwork', level: 40, x: 38, y: 36, parents: ['furniture', 'apprentice'] },
+    { id: 'innovate', title: 'Innovate New Technique', level: 45, x: 62, y: 36, parents: ['workshop'] },
     
     // Level 5: Final milestone
-    { id: 'legacy', title: 'Leave a Lasting Legacy', level: 80, x: 50, y: 18 },
+    { id: 'legacy', title: 'Leave a Lasting Legacy', level: 80, x: 50, y: 18, parents: ['masterwork', 'innovate'] },
   ],
   Artist: [
     // Level 1: Start
     { id: 'start', title: 'First Creation', level: 1, x: 50, y: 88 },
     
     // Level 2: Three paths
-    { id: 'medium', title: 'Choose Your Medium', level: 5, x: 30, y: 72 },
-    { id: 'daily', title: 'Create Daily for 30 Days', level: 7, x: 50, y: 70 },
-    { id: 'study', title: 'Study the Masters', level: 6, x: 70, y: 72 },
+    { id: 'medium', title: 'Choose Your Medium', level: 5, x: 30, y: 72, parents: ['start'] },
+    { id: 'daily', title: 'Create Daily for 30 Days', level: 7, x: 50, y: 70, parents: ['start'] },
+    { id: 'study', title: 'Study the Masters', level: 6, x: 70, y: 72, parents: ['start'] },
     
     // Level 3: Development
-    { id: 'style', title: 'Develop Unique Style', level: 15, x: 25, y: 54 },
-    { id: 'show', title: 'First Public Show', level: 18, x: 50, y: 52 },
-    { id: 'technique', title: 'Master Technique', level: 20, x: 75, y: 54 },
+    { id: 'style', title: 'Develop Unique Style', level: 15, x: 25, y: 54, parents: ['medium'] },
+    { id: 'show', title: 'First Public Show', level: 18, x: 50, y: 52, parents: ['daily'] },
+    { id: 'technique', title: 'Master Technique', level: 20, x: 75, y: 54, parents: ['study'] },
     
     // Level 4: Professional
-    { id: 'sell', title: 'Sell Your Art', level: 30, x: 35, y: 36 },
-    { id: 'commission', title: 'Work on Commission', level: 35, x: 65, y: 36 },
+    { id: 'sell', title: 'Sell Your Art', level: 30, x: 35, y: 36, parents: ['style', 'show'] },
+    { id: 'commission', title: 'Work on Commission', level: 35, x: 65, y: 36, parents: ['show', 'technique'] },
     
     // Level 5: Legacy
-    { id: 'inspire', title: 'Inspire Generations', level: 75, x: 50, y: 18 },
+    { id: 'inspire', title: 'Inspire Generations', level: 75, x: 50, y: 18, parents: ['sell', 'commission'] },
   ],
   Mindset: [
     // Level 1: Start
     { id: 'start', title: 'Begin Transformation', level: 1, x: 50, y: 88 },
     
     // Level 2: Foundation practices
-    { id: 'gratitude', title: 'Daily Gratitude Practice', level: 5, x: 35, y: 72 },
-    { id: 'reframe', title: 'Master Reframing', level: 7, x: 65, y: 72 },
+    { id: 'gratitude', title: 'Daily Gratitude Practice', level: 5, x: 35, y: 72, parents: ['start'] },
+    { id: 'reframe', title: 'Master Reframing', level: 7, x: 65, y: 72, parents: ['start'] },
     
     // Level 3: Deeper practice
-    { id: 'meditation', title: '100 Days of Meditation', level: 15, x: 28, y: 56 },
-    { id: 'awareness', title: 'Develop Self-Awareness', level: 17, x: 50, y: 54 },
-    { id: 'resilience', title: 'Unshakeable Resilience', level: 20, x: 72, y: 56 },
+    { id: 'meditation', title: '100 Days of Meditation', level: 15, x: 28, y: 56, parents: ['gratitude'] },
+    { id: 'awareness', title: 'Develop Self-Awareness', level: 17, x: 50, y: 54, parents: ['gratitude', 'reframe'] },
+    { id: 'resilience', title: 'Unshakeable Resilience', level: 20, x: 72, y: 56, parents: ['reframe'] },
     
     // Level 4: Mastery
-    { id: 'flow', title: 'Enter Flow State', level: 35, x: 40, y: 38 },
-    { id: 'teach', title: 'Teach Others', level: 40, x: 60, y: 38 },
+    { id: 'flow', title: 'Enter Flow State', level: 35, x: 40, y: 38, parents: ['meditation', 'awareness'] },
+    { id: 'teach', title: 'Teach Others', level: 40, x: 60, y: 38, parents: ['awareness', 'resilience'] },
     
     // Level 5: Peak states
-    { id: 'mastery', title: 'Peak Mental State', level: 65, x: 50, y: 22 },
-    { id: 'transcend', title: 'Transcendent Mastery', level: 90, x: 50, y: 8 },
+    { id: 'mastery', title: 'Peak Mental State', level: 65, x: 50, y: 22, parents: ['flow', 'teach'] },
+    { id: 'transcend', title: 'Transcendent Mastery', level: 90, x: 50, y: 8, parents: ['mastery'] },
   ],
   Merchant: [
     // Level 1: Start
     { id: 'start', title: 'First Sale', level: 1, x: 50, y: 88 },
     
     // Level 2: Initial growth
-    { id: 'revenue-1k', title: '$1,000 in Revenue', level: 5, x: 38, y: 72 },
-    { id: 'client-10', title: '10 Repeat Clients', level: 7, x: 62, y: 72 },
+    { id: 'revenue-1k', title: '$1,000 in Revenue', level: 5, x: 38, y: 72, parents: ['start'] },
+    { id: 'client-10', title: '10 Repeat Clients', level: 7, x: 62, y: 72, parents: ['start'] },
     
     // Level 3: Expansion
-    { id: 'revenue-10k', title: '$10,000 Monthly', level: 15, x: 30, y: 56 },
-    { id: 'team', title: 'Build a Team', level: 18, x: 50, y: 54 },
-    { id: 'venture', title: 'Launch a Venture', level: 20, x: 70, y: 56 },
+    { id: 'revenue-10k', title: '$10,000 Monthly', level: 15, x: 30, y: 56, parents: ['revenue-1k'] },
+    { id: 'team', title: 'Build a Team', level: 18, x: 50, y: 54, parents: ['revenue-1k', 'client-10'] },
+    { id: 'venture', title: 'Launch a Venture', level: 20, x: 70, y: 56, parents: ['client-10'] },
     
     // Level 4: Scale
-    { id: 'revenue-100k', title: '$100,000 Yearly', level: 35, x: 38, y: 38 },
-    { id: 'multiple', title: 'Multiple Revenue Streams', level: 40, x: 62, y: 38 },
+    { id: 'revenue-100k', title: '$100,000 Yearly', level: 35, x: 38, y: 38, parents: ['revenue-10k', 'team'] },
+    { id: 'multiple', title: 'Multiple Revenue Streams', level: 40, x: 62, y: 38, parents: ['team', 'venture'] },
     
     // Level 5: Empire
-    { id: 'empire', title: 'Build Business Empire', level: 65, x: 50, y: 22 },
-    { id: 'legend', title: 'Industry Legend', level: 90, x: 50, y: 8 },
+    { id: 'empire', title: 'Build Business Empire', level: 65, x: 50, y: 22, parents: ['revenue-100k', 'multiple'] },
+    { id: 'legend', title: 'Industry Legend', level: 90, x: 50, y: 8, parents: ['empire'] },
   ],
   Physical: [
     // Level 1: Start
     { id: 'start', title: 'Begin Training', level: 1, x: 50, y: 88 },
     
     // Level 2: Foundation
-    { id: 'basics', title: 'Master Basic Techniques', level: 5, x: 35, y: 72 },
-    { id: 'endurance', title: 'Build Endurance', level: 7, x: 65, y: 72 },
+    { id: 'basics', title: 'Master Basic Techniques', level: 5, x: 35, y: 72, parents: ['start'] },
+    { id: 'endurance', title: 'Build Endurance', level: 7, x: 65, y: 72, parents: ['start'] },
     
     // Level 3: Development
-    { id: 'strength', title: 'Intermediate Strength', level: 15, x: 25, y: 56 },
-    { id: 'martial', title: '3 Years Martial Arts', level: 18, x: 50, y: 54 },
-    { id: 'flexibility', title: 'Peak Flexibility', level: 20, x: 75, y: 56 },
+    { id: 'strength', title: 'Intermediate Strength', level: 15, x: 25, y: 56, parents: ['basics'] },
+    { id: 'martial', title: '3 Years Martial Arts', level: 18, x: 50, y: 54, parents: ['basics', 'endurance'] },
+    { id: 'flexibility', title: 'Peak Flexibility', level: 20, x: 75, y: 56, parents: ['endurance'] },
     
     // Level 4: Advanced
-    { id: 'combat', title: 'Advanced Combat Skills', level: 35, x: 35, y: 38 },
-    { id: 'elite', title: 'Elite Athlete Status', level: 40, x: 65, y: 38 },
+    { id: 'combat', title: 'Advanced Combat Skills', level: 35, x: 35, y: 38, parents: ['strength', 'martial'] },
+    { id: 'elite', title: 'Elite Athlete Status', level: 40, x: 65, y: 38, parents: ['martial', 'flexibility'] },
     
     // Level 5: Mastery
-    { id: 'compete', title: 'Competition Ready', level: 65, x: 50, y: 22 },
-    { id: 'warrior', title: 'Legendary Warrior', level: 90, x: 50, y: 8 },
+    { id: 'compete', title: 'Competition Ready', level: 65, x: 50, y: 22, parents: ['combat', 'elite'] },
+    { id: 'warrior', title: 'Legendary Warrior', level: 90, x: 50, y: 8, parents: ['compete'] },
   ],
   Scholar: [
     // Level 1: Start
     { id: 'start', title: 'Curiosity Awakens', level: 1, x: 50, y: 88 },
     
     // Level 2: Learning paths
-    { id: 'read-12', title: 'Read 12 Books/Year', level: 5, x: 32, y: 72 },
-    { id: 'focus', title: 'Choose Focus Area', level: 6, x: 50, y: 70 },
-    { id: 'research', title: 'Begin Research', level: 7, x: 68, y: 72 },
+    { id: 'read-12', title: 'Read 12 Books/Year', level: 5, x: 32, y: 72, parents: ['start'] },
+    { id: 'focus', title: 'Choose Focus Area', level: 6, x: 50, y: 70, parents: ['start'] },
+    { id: 'research', title: 'Begin Research', level: 7, x: 68, y: 72, parents: ['start'] },
     
     // Level 3: Depth
-    { id: 'domain', title: 'Master One Domain', level: 15, x: 28, y: 54 },
-    { id: 'degree', title: 'Advanced Degree', level: 18, x: 50, y: 52 },
-    { id: 'teach', title: 'Teach Your Knowledge', level: 20, x: 72, y: 54 },
+    { id: 'domain', title: 'Master One Domain', level: 15, x: 28, y: 54, parents: ['read-12'] },
+    { id: 'degree', title: 'Advanced Degree', level: 18, x: 50, y: 52, parents: ['focus'] },
+    { id: 'teach', title: 'Teach Your Knowledge', level: 20, x: 72, y: 54, parents: ['research'] },
     
     // Level 4: Recognition
-    { id: 'publish', title: 'Publish Research', level: 35, x: 38, y: 36 },
-    { id: 'expert', title: 'Recognized Expert', level: 40, x: 62, y: 36 },
+    { id: 'publish', title: 'Publish Research', level: 35, x: 38, y: 36, parents: ['domain', 'degree'] },
+    { id: 'expert', title: 'Recognized Expert', level: 40, x: 62, y: 36, parents: ['degree', 'teach'] },
     
     // Level 5: Mastery
-    { id: 'polymath', title: 'True Polymath', level: 70, x: 50, y: 20 },
-    { id: 'wisdom', title: 'Timeless Wisdom', level: 95, x: 50, y: 6 },
+    { id: 'polymath', title: 'True Polymath', level: 70, x: 50, y: 20, parents: ['publish', 'expert'] },
+    { id: 'wisdom', title: 'Timeless Wisdom', level: 95, x: 50, y: 6, parents: ['polymath'] },
   ],
   Health: [
     // Level 1: Start
     { id: 'start', title: 'Choose Wellness', level: 1, x: 50, y: 88 },
     
     // Level 2: Foundation
-    { id: 'nutrition', title: 'Nutrition Basics', level: 5, x: 35, y: 72 },
-    { id: 'sleep', title: 'Quality Sleep Routine', level: 7, x: 65, y: 72 },
+    { id: 'nutrition', title: 'Nutrition Basics', level: 5, x: 35, y: 72, parents: ['start'] },
+    { id: 'sleep', title: 'Quality Sleep Routine', level: 7, x: 65, y: 72, parents: ['start'] },
     
     // Level 3: Optimization
-    { id: 'exercise', title: 'Regular Exercise', level: 15, x: 28, y: 56 },
-    { id: 'markers', title: 'Optimal Health Markers', level: 18, x: 50, y: 54 },
-    { id: 'habits', title: '5 Years Healthy Habits', level: 20, x: 72, y: 56 },
+    { id: 'exercise', title: 'Regular Exercise', level: 15, x: 28, y: 56, parents: ['nutrition'] },
+    { id: 'markers', title: 'Optimal Health Markers', level: 18, x: 50, y: 54, parents: ['nutrition', 'sleep'] },
+    { id: 'habits', title: '5 Years Healthy Habits', level: 20, x: 72, y: 56, parents: ['sleep'] },
     
     // Level 4: Peak
-    { id: 'optimize', title: 'Peak Optimization', level: 35, x: 38, y: 38 },
-    { id: 'longevity', title: 'Longevity Protocols', level: 40, x: 62, y: 38 },
+    { id: 'optimize', title: 'Peak Optimization', level: 35, x: 38, y: 38, parents: ['exercise', 'markers'] },
+    { id: 'longevity', title: 'Longevity Protocols', level: 40, x: 62, y: 38, parents: ['markers', 'habits'] },
     
     // Level 5: Mastery
-    { id: 'biohack', title: 'Master Biohacking', level: 65, x: 50, y: 22 },
-    { id: 'vitality', title: 'Legendary Vitality', level: 90, x: 50, y: 8 },
+    { id: 'biohack', title: 'Master Biohacking', level: 65, x: 50, y: 22, parents: ['optimize', 'longevity'] },
+    { id: 'vitality', title: 'Legendary Vitality', level: 90, x: 50, y: 8, parents: ['biohack'] },
   ],
   Connector: [
     // Level 1: Start
     { id: 'start', title: 'Build First Connection', level: 1, x: 50, y: 88 },
     
     // Level 2: Build circle
-    { id: 'friends-10', title: '10 Deep Friendships', level: 5, x: 38, y: 72 },
-    { id: 'network-50', title: 'Network of 50', level: 8, x: 62, y: 72 },
+    { id: 'friends-10', title: '10 Deep Friendships', level: 5, x: 38, y: 72, parents: ['start'] },
+    { id: 'network-50', title: 'Network of 50', level: 8, x: 62, y: 72, parents: ['start'] },
     
     // Level 3: Expand
-    { id: 'maintain', title: 'Master Maintaining Bonds', level: 15, x: 30, y: 56 },
-    { id: 'mentor', title: 'Find Mentors', level: 18, x: 50, y: 54 },
-    { id: 'introduce', title: 'Make 100 Introductions', level: 20, x: 70, y: 56 },
+    { id: 'maintain', title: 'Master Maintaining Bonds', level: 15, x: 30, y: 56, parents: ['friends-10'] },
+    { id: 'mentor', title: 'Find Mentors', level: 18, x: 50, y: 54, parents: ['friends-10', 'network-50'] },
+    { id: 'introduce', title: 'Make 100 Introductions', level: 20, x: 70, y: 56, parents: ['network-50'] },
     
     // Level 4: Community
-    { id: 'community', title: 'Build a Community', level: 35, x: 38, y: 38 },
-    { id: 'network-500', title: 'Network of 500+', level: 40, x: 62, y: 38 },
+    { id: 'community', title: 'Build a Community', level: 35, x: 38, y: 38, parents: ['maintain', 'mentor'] },
+    { id: 'network-500', title: 'Network of 500+', level: 40, x: 62, y: 38, parents: ['mentor', 'introduce'] },
     
     // Level 5: Master
-    { id: 'connector', title: 'Master Connector', level: 75, x: 50, y: 20 },
-    { id: 'hub', title: 'Social Hub', level: 95, x: 50, y: 6 },
+    { id: 'connector', title: 'Master Connector', level: 75, x: 50, y: 20, parents: ['community', 'network-500'] },
+    { id: 'hub', title: 'Social Hub', level: 95, x: 50, y: 6, parents: ['connector'] },
   ],
   Charisma: [
     // Level 1: Start
     { id: 'start', title: 'First Impression', level: 1, x: 50, y: 88 },
     
     // Level 2: Foundation
-    { id: 'listen', title: 'Active Listening', level: 5, x: 38, y: 72 },
-    { id: 'presence', title: 'Confident Presence', level: 7, x: 62, y: 72 },
+    { id: 'listen', title: 'Active Listening', level: 5, x: 38, y: 72, parents: ['start'] },
+    { id: 'presence', title: 'Confident Presence', level: 7, x: 62, y: 72, parents: ['start'] },
     
     // Level 3: Skills
-    { id: 'speak', title: 'Public Speaking', level: 15, x: 30, y: 56 },
-    { id: 'storytelling', title: 'Master Storytelling', level: 17, x: 50, y: 54 },
-    { id: 'influence', title: 'Influence Skills', level: 20, x: 70, y: 56 },
+    { id: 'speak', title: 'Public Speaking', level: 15, x: 30, y: 56, parents: ['listen'] },
+    { id: 'storytelling', title: 'Master Storytelling', level: 17, x: 50, y: 54, parents: ['listen', 'presence'] },
+    { id: 'influence', title: 'Influence Skills', level: 20, x: 70, y: 56, parents: ['presence'] },
     
     // Level 4: Leadership
-    { id: 'lead', title: 'Lead a Team', level: 35, x: 38, y: 38 },
-    { id: 'inspire', title: 'Inspire Hundreds', level: 40, x: 62, y: 38 },
+    { id: 'lead', title: 'Lead a Team', level: 35, x: 38, y: 38, parents: ['speak', 'storytelling'] },
+    { id: 'inspire', title: 'Inspire Hundreds', level: 40, x: 62, y: 38, parents: ['storytelling', 'influence'] },
     
     // Level 5: Legend
-    { id: 'movement', title: 'Start a Movement', level: 70, x: 50, y: 22 },
-    { id: 'legend', title: 'Legendary Influencer', level: 95, x: 50, y: 8 },
+    { id: 'movement', title: 'Start a Movement', level: 70, x: 50, y: 22, parents: ['lead', 'inspire'] },
+    { id: 'legend', title: 'Legendary Influencer', level: 95, x: 50, y: 8, parents: ['movement'] },
   ],
 };
 
@@ -1214,28 +1215,34 @@ export default function Skills() {
                   <>
                     {/* Connection lines */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-                      {milestones.map((milestone, index) => {
-                        if (index === milestones.length - 1) return null;
+                      {milestones.map((milestone) => {
+                        // Draw lines from this milestone to all its parents
+                        if (!milestone.parents || milestone.parents.length === 0) return null;
                         
-                        const nextMilestone = milestones[index + 1];
-                        const isCompleted = selectedSkill.level >= milestone.level;
-                        const isNextCompleted = selectedSkill.level >= nextMilestone.level;
-                        
-                        return (
-                          <line
-                            key={`line-${milestone.id}`}
-                            x1={`${milestone.x}%`}
-                            y1={`${milestone.y}%`}
-                            x2={`${nextMilestone.x}%`}
-                            y2={`${nextMilestone.y}%`}
-                            stroke={isCompleted && isNextCompleted ? "rgba(250, 204, 21, 0.8)" : "rgba(250, 204, 21, 0.2)"}
-                            strokeWidth={isCompleted && isNextCompleted ? "3" : "2"}
-                            className="transition-all duration-500"
-                            style={{
-                              filter: isCompleted && isNextCompleted ? 'drop-shadow(0 0 8px rgba(250, 204, 21, 0.6))' : 'none',
-                            }}
-                          />
-                        );
+                        return milestone.parents.map((parentId) => {
+                          const parent = milestones.find(m => m.id === parentId);
+                          if (!parent) return null;
+                          
+                          const isCompleted = selectedSkill.level >= milestone.level;
+                          const isParentCompleted = selectedSkill.level >= parent.level;
+                          const bothCompleted = isCompleted && isParentCompleted;
+                          
+                          return (
+                            <line
+                              key={`line-${parent.id}-${milestone.id}`}
+                              x1={`${parent.x}%`}
+                              y1={`${parent.y}%`}
+                              x2={`${milestone.x}%`}
+                              y2={`${milestone.y}%`}
+                              stroke={bothCompleted ? "rgba(250, 204, 21, 0.8)" : "rgba(250, 204, 21, 0.2)"}
+                              strokeWidth={bothCompleted ? "3" : "2"}
+                              className="transition-all duration-500"
+                              style={{
+                                filter: bothCompleted ? 'drop-shadow(0 0 8px rgba(250, 204, 21, 0.6))' : 'none',
+                              }}
+                            />
+                          );
+                        });
                       })}
                     </svg>
 
