@@ -85,6 +85,7 @@ function Router() {
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
             <Route path="/settings/google-calendar" component={GoogleCalendarIntegration} />
+            <Route path="/google-calendar-integration" component={GoogleCalendarIntegration} />
             <Route path="/settings/guides" component={SettingsGuidesPage} />
             <Route path="/settings/guides/skill-classification" component={SkillClassificationGuidePage} />
             <Route path="/settings/guides/measure-what-matters" component={MeasureWhatMattersGuidePage} />
