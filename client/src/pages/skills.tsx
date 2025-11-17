@@ -140,14 +140,23 @@ const skillMilestones: Record<string, Array<{
   y: number; 
 }>> = {
   Explorer: [
-    { id: 'start', title: 'Begin Your Journey', level: 1, x: 50, y: 85 },
-    { id: 'countries-10', title: 'Visit 10 Countries', level: 10, x: 35, y: 65 },
-    { id: 'language-1', title: 'Learn a Second Language', level: 15, x: 65, y: 65 },
-    { id: 'immersion-4months', title: 'Spend 4 Months Abroad', level: 20, x: 50, y: 50 },
-    { id: 'countries-20', title: 'Visit 20 Countries', level: 30, x: 30, y: 35 },
-    { id: 'language-2', title: 'Master Two Languages', level: 35, x: 70, y: 35 },
-    { id: 'continents-5', title: 'Visit 5 Continents', level: 50, x: 50, y: 20 },
-    { id: 'citizen-world', title: 'Become a Citizen of the World', level: 99, x: 50, y: 5 },
+    { id: 'start', title: 'Starting point', level: 1, x: 50, y: 90 },
+    // Left branch - visiting countries
+    { id: 'countries-5', title: 'Visit 5 countries', level: 5, x: 20, y: 75 },
+    { id: 'countries-10', title: 'Visit 10 countries', level: 10, x: 15, y: 60 },
+    { id: 'countries-20', title: 'Visit 20 countries', level: 20, x: 25, y: 45 },
+    { id: 'countries-50', title: 'Visit 50 countries', level: 50, x: 20, y: 25 },
+    // Middle branch - living abroad
+    { id: 'abroad-4mo', title: 'Live in another country 4 months', level: 15, x: 45, y: 70 },
+    { id: 'abroad-12mo', title: 'Live in another country 12 months', level: 25, x: 50, y: 55 },
+    { id: 'abroad-3yr', title: 'Live in another country 3 years', level: 40, x: 45, y: 35 },
+    // Right branch - citizenship and languages
+    { id: 'citizen-2', title: 'Get citizenship in 2 countries', level: 20, x: 65, y: 75 },
+    { id: 'citizen-3', title: 'Get citizenship in 3 countries', level: 30, x: 70, y: 60 },
+    { id: 'lang-2', title: 'Learn 2 languages', level: 35, x: 75, y: 75 },
+    { id: 'lang-3', title: 'Learn 3 languages', level: 45, x: 85, y: 60 },
+    { id: 'citizen-5', title: 'Get citizenship in 5 countries', level: 55, x: 75, y: 45 },
+    { id: 'citizen-10', title: 'Get citizenship in 10 countries', level: 75, x: 80, y: 25 },
   ],
   Craftsman: [
     { id: 'start', title: 'Pick Up Your Tools', level: 1, x: 50, y: 85 },
@@ -269,7 +278,7 @@ export default function Skills() {
   });
 
   const [selectedSkill, setSelectedSkill] = useState<UserSkill | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'constellation'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'constellation'>('constellation');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [skillToDelete, setSkillToDelete] = useState<UserSkill | null>(null);
