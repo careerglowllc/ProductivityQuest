@@ -2259,6 +2259,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update skill constellation milestones
+  app.patch("/api/skills/:skillId/milestones", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const skillId = parseInt(req.params.skillId);
+      const { milestones } = req.body;
+
+      if (isNaN(skillId)) {
+        return res.status(400).json({ error: "Invalid skill ID" });
+      }
+
+      if (!Array.isArray(milestones)) {
+        return res.status(400).json({ error: "Milestones must be an array" });
+      }
+
+      // Validate milestone structure
+      for (const milestone of milestones) {
+        if (!milestone.id || !milestone.title || typeof milestone.level !== 'number' ||
+            typeof milestone.x !== 'number' || typeof milestone.y !== 'number') {
+          return res.status(400).json({ 
+            error: "Each milestone must have id, title, level, x, and y properties" 
+          });
+        }
+      }
+
+      await storage.updateSkillMilestones(userId, skillId, milestones);
+      
+      res.json({ message: "Milestones updated successfully" });
+    } catch (error) {
+      console.error("Error updating skill milestones:", error);
+      if (error instanceof Error && error.message.includes("not found")) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to update milestones" });
+      }
+    }
+  });
+
   // Campaigns routes
   app.get("/api/campaigns", requireAuth, async (req: any, res) => {
     try {

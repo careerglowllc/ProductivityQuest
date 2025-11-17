@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddSkillModal } from "@/components/add-skill-modal";
 import { EditSkillIconModal } from "@/components/edit-skill-icon-modal";
+import { EditMilestonesModal } from "@/components/edit-milestones-modal";
 import { WhySkillsModal } from "@/components/why-skills-modal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
@@ -275,6 +276,8 @@ export default function Skills() {
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [skillToEdit, setSkillToEdit] = useState<UserSkill | null>(null);
   const [showWhySkillsModal, setShowWhySkillsModal] = useState(false);
+  const [showEditMilestonesModal, setShowEditMilestonesModal] = useState(false);
+  const [skillToEditMilestones, setSkillToEditMilestones] = useState<UserSkill | null>(null);
 
   const createSkillMutation = useMutation({
     mutationFn: async (skillData: any) => {
@@ -346,6 +349,34 @@ export default function Skills() {
       toast({
         title: "Error Updating Skill",
         description: error.message || "Failed to update skill",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMilestonesMutation = useMutation({
+    mutationFn: async ({ 
+      skillId, 
+      milestones 
+    }: { 
+      skillId: number; 
+      milestones: Array<{ id: string; title: string; level: number; x: number; y: number }>;
+    }) => {
+      return await apiRequest("PATCH", `/api/skills/${skillId}/milestones`, { milestones });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
+      toast({
+        title: "✓ Milestones Updated!",
+        description: "Constellation path has been customized successfully.",
+      });
+      setShowEditMilestonesModal(false);
+      setSkillToEditMilestones(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Updating Milestones",
+        description: error.message || "Failed to update milestones",
         variant: "destructive",
       });
     },
@@ -1020,7 +1051,24 @@ export default function Skills() {
           </DialogHeader>
           
           {selectedSkill && (
-            <div className="relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-yellow-600/20 mt-4 overflow-hidden">
+            <>
+              {/* Edit Milestones Button */}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSkillToEditMilestones(selectedSkill);
+                    setShowEditMilestonesModal(true);
+                  }}
+                  className="bg-slate-700/50 hover:bg-slate-600/50 text-yellow-200 border-yellow-600/40 hover:border-yellow-500/60"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Customize Milestones
+                </Button>
+              </div>
+
+              <div className="relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-yellow-600/20 overflow-hidden">
               {/* Background stars */}
               <div className="absolute inset-0 opacity-20">
                 {Array.from({ length: 40 }).map((_, i) => (
@@ -1039,7 +1087,10 @@ export default function Skills() {
 
               {/* Milestone constellation */}
               {(() => {
-                const milestones = skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
+                // Use database milestones if available, otherwise use default
+                const milestones = selectedSkill.constellationMilestones && selectedSkill.constellationMilestones.length > 0
+                  ? selectedSkill.constellationMilestones
+                  : skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
                 
                 return (
                   <>
@@ -1177,6 +1228,7 @@ export default function Skills() {
                 );
               })()}
             </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
@@ -1228,6 +1280,23 @@ export default function Skills() {
               icon: data.icon,
               level: data.level,
               xp: data.xp
+            });
+          }}
+        />
+      )}
+
+      {skillToEditMilestones && (
+        <EditMilestonesModal
+          open={showEditMilestonesModal}
+          onOpenChange={setShowEditMilestonesModal}
+          skillName={skillToEditMilestones.skillName}
+          currentMilestones={skillToEditMilestones.constellationMilestones || 
+            skillMilestones[skillToEditMilestones.skillName] || 
+            skillMilestones.Explorer}
+          onSubmit={async (milestones) => {
+            await updateMilestonesMutation.mutateAsync({
+              skillId: skillToEditMilestones.id,
+              milestones
             });
           }}
         />
