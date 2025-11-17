@@ -1876,6 +1876,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Diagnostic endpoint to check user's Google Calendar credentials
+  app.get("/api/google-calendar/debug", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.json({ error: "No user ID in session" });
+      }
+      
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.json({ error: "User not found" });
+      }
+      
+      res.json({
+        userId: user.id,
+        hasClientId: !!user.googleCalendarClientId,
+        clientIdLength: user.googleCalendarClientId?.length || 0,
+        clientIdPrefix: user.googleCalendarClientId?.substring(0, 10) || null,
+        hasClientSecret: !!user.googleCalendarClientSecret,
+        clientSecretLength: user.googleCalendarClientSecret?.length || 0,
+        hasAccessToken: !!user.googleCalendarAccessToken,
+        hasRefreshToken: !!user.googleCalendarRefreshToken,
+        syncEnabled: user.googleCalendarSyncEnabled,
+        syncDirection: user.googleCalendarSyncDirection,
+      });
+    } catch (error: any) {
+      res.json({ error: error.message, stack: error.stack });
+    }
+  });
+
   // OAuth authorization URL generation
   app.get("/api/google-calendar/authorize-url", requireAuth, async (req: any, res) => {
     try {
