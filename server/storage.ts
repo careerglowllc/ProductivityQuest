@@ -591,7 +591,8 @@ export class DatabaseStorage implements IStorage {
       "Scholar": "Book",
       "Connector": "Handshake",
       "Charisma": "Users",
-      "Health": "Heart"
+      "Health": "Heart",
+      "Explorer": "Compass"
     };
 
     const skillNames = [
@@ -603,7 +604,8 @@ export class DatabaseStorage implements IStorage {
       "Scholar",
       "Connector",
       "Charisma",
-      "Health"
+      "Health",
+      "Explorer"
     ];
 
     const defaultSkills: InsertUserSkill[] = skillNames.map(name => ({
@@ -632,7 +634,8 @@ export class DatabaseStorage implements IStorage {
       "Scholar": "Book",
       "Connector": "Handshake",
       "Charisma": "Users",
-      "Health": "Heart"
+      "Health": "Heart",
+      "Explorer": "Compass"
     };
 
     const skillNames = [
@@ -644,7 +647,8 @@ export class DatabaseStorage implements IStorage {
       "Scholar",
       "Connector",
       "Charisma",
-      "Health"
+      "Health",
+      "Explorer"
     ];
 
     console.log("ensureDefaultSkills called for user:", userId);
@@ -691,7 +695,8 @@ export class DatabaseStorage implements IStorage {
       "Scholar": "Book",
       "Connector": "Handshake",
       "Charisma": "Users",
-      "Health": "Heart"
+      "Health": "Heart",
+      "Explorer": "Compass"
     };
 
     const skillNames = [
@@ -703,7 +708,8 @@ export class DatabaseStorage implements IStorage {
       "Scholar",
       "Connector",
       "Charisma",
-      "Health"
+      "Health",
+      "Explorer"
     ];
 
     console.log("restoreDefaultSkills called for user:", userId);

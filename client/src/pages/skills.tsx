@@ -27,7 +27,8 @@ import {
   Plus,
   Trash2,
   Edit,
-  HelpCircle
+  HelpCircle,
+  Compass
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -104,6 +105,13 @@ const skillDescriptions = {
     level30: "Charismatic communicator - 5+ years of intentional social skill development. Natural networker, compelling speaker, builds rapport easily. People are drawn to your presence and influence.",
     level50: "Master of influence - exceptional charisma and social mastery. Inspirational leader, captivating speaker, builds deep connections effortlessly. Professional-level influence (think Tony Robbins, world-class politicians, or master networkers).",
     level99: "Legendary influencer - transcendent charisma that moves millions. World-stage presence, unparalleled social mastery, and ability to inspire transformative change globally."
+  },
+  Explorer: {
+    description: "The spirit of adventure and discovery - world travel, cultural immersion, trying new experiences, foods, and activities. This represents your commitment to exploring the world and embracing novel experiences.",
+    level10: "Curious adventurer - starting to explore beyond comfort zone. Trying new restaurants, local travel, and occasional new experiences. Building courage to explore unfamiliar territory.",
+    level30: "Seasoned explorer - 5+ years of intentional exploration. Traveled to 10+ countries/regions, regularly tries new cuisines and activities, embraces cultural differences. Comfortable navigating unfamiliar environments.",
+    level50: "Master adventurer - extensive world travel across 30+ countries, deep cultural immersion, fluent in multiple languages, expert at adapting to new environments. Living embodiment of wanderlust and cultural appreciation.",
+    level99: "Legendary explorer - visited all continents, mastered cultural navigation worldwide, speaks 5+ languages, and has transformative experiences that inspire others. A true citizen of the world whose adventures reshape perspectives."
   }
 };
 
@@ -117,7 +125,8 @@ const skillConstellations: Record<string, string> = {
   Scholar: "The Sage",
   Health: "The Vitality",
   Connector: "The Bridge",
-  Charisma: "The Influencer"
+  Charisma: "The Influencer",
+  Explorer: "The Wanderer"
 };
 
 // Default skill icon mapping
@@ -130,7 +139,8 @@ const defaultSkillIcons: Record<string, any> = {
   Scholar: Book,
   Health: Activity,
   Connector: Network,
-  Charisma: Users
+  Charisma: Users,
+  Explorer: Compass
 };
 
 export default function Skills() {

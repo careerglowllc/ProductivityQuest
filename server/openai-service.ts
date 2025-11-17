@@ -15,7 +15,8 @@ const DEFAULT_SKILL_DESCRIPTIONS = {
   Scholar: "Academic knowledge, learning, research, reading, studying, intellectual pursuits, education",
   Health: "Physical wellness, nutrition, sleep, recovery, longevity, biological health, fitness foundation",
   Connector: "Networking, relationships, friendships, building connections, maintaining relationships, social capital",
-  Charisma: "Social influence, communication, leadership, charm, public speaking, persuasion, interpersonal skills"
+  Charisma: "Social influence, communication, leadership, charm, public speaking, persuasion, interpersonal skills",
+  Explorer: "World travel, cultural immersion, trying new experiences, new foods, adventure, discovering new places, exploring unfamiliar territory, embracing novel activities, wanderlust"
 };
 
 export interface CategorizationResult {
