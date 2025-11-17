@@ -28,6 +28,14 @@ export const users = pgTable("users", {
   googleAccessToken: text("google_access_token"),
   googleRefreshToken: text("google_refresh_token"),
   googleTokenExpiry: timestamp("google_token_expiry"),
+  googleCalendarClientId: text("google_calendar_client_id"),
+  googleCalendarClientSecret: text("google_calendar_client_secret"),
+  googleCalendarRefreshToken: text("google_calendar_refresh_token"),
+  googleCalendarAccessToken: text("google_calendar_access_token"),
+  googleCalendarTokenExpiry: timestamp("google_calendar_token_expiry"),
+  googleCalendarSyncEnabled: boolean("google_calendar_sync_enabled").default(false),
+  googleCalendarSyncDirection: text("google_calendar_sync_direction").default("both"),
+  googleCalendarLastSync: timestamp("google_calendar_last_sync"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -36,6 +44,7 @@ export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
   notionId: text("notion_id"),
+  googleEventId: text("google_event_id"),
   title: text("title").notNull(),
   description: text("description").default(""),
   details: text("details"),
@@ -207,6 +216,11 @@ export type UserSettings = {
   notionDatabaseId: string | null;
   hasGoogleAuth: boolean;
   googleConnected: boolean;
+  googleCalendarClientId: string | null;
+  googleCalendarClientSecret: string | null;
+  googleCalendarSyncEnabled: boolean;
+  googleCalendarSyncDirection: string;
+  googleCalendarLastSync: Date | null;
 };
 
 // User types

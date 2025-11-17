@@ -864,6 +864,41 @@ export class DatabaseStorage implements IStorage {
     );
     return true;
   }
+
+  // Google Calendar operations
+  async getTaskByGoogleEventId(userId: string, eventId: string): Promise<Task | undefined> {
+    const result = await db.select().from(tasks).where(
+      and(eq(tasks.userId, userId), eq(tasks.googleEventId, eventId))
+    ).limit(1);
+    return result[0];
+  }
+
+  async getUncompletedTasks(userId: string): Promise<Task[]> {
+    return db.select().from(tasks).where(
+      and(eq(tasks.userId, userId), eq(tasks.completed, false))
+    );
+  }
+
+  async updateGoogleCalendarSettings(
+    userId: string,
+    settings: {
+      googleCalendarClientId?: string;
+      googleCalendarClientSecret?: string;
+      googleCalendarRefreshToken?: string;
+      googleCalendarAccessToken?: string;
+      googleCalendarTokenExpiry?: Date;
+      googleCalendarSyncEnabled?: boolean;
+      googleCalendarSyncDirection?: string;
+      googleCalendarLastSync?: Date;
+    }
+  ): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set(settings)
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
 }
 
 export const storage = new DatabaseStorage();

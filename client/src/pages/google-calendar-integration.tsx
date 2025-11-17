@@ -1,0 +1,482 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { CheckCircle, ArrowLeft, Calendar, Key, ExternalLink, Copy, AlertCircle, Loader2, RefreshCw, Download } from "lucide-react";
+import type { UserSettings } from "@/../../shared/schema";
+
+export default function GoogleCalendarIntegration() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [showClientSecret, setShowClientSecret] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [syncEnabled, setSyncEnabled] = useState(false);
+  const [syncDirection, setSyncDirection] = useState<'import' | 'export' | 'both'>('both');
+
+  const { data: settings, isLoading } = useQuery<UserSettings>({
+    queryKey: ["/api/user/settings"],
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setSyncEnabled(settings.googleCalendarSyncEnabled || false);
+      setSyncDirection((settings.googleCalendarSyncDirection as any) || 'both');
+    }
+  }, [settings]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: { 
+      googleCalendarClientId?: string; 
+      googleCalendarClientSecret?: string;
+      googleCalendarSyncEnabled?: boolean;
+      googleCalendarSyncDirection?: string;
+    }) => {
+      const response = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update settings');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
+      toast({
+        title: "Success!",
+        description: "Your Google Calendar integration has been configured.",
+      });
+      setClientId("");
+      setClientSecret("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const syncNowMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/google-calendar/sync', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to sync calendar');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Sync Complete!",
+        description: `Synced ${data.imported || 0} events from Google Calendar`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Sync Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!clientId || !clientSecret) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both Client ID and Client Secret",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateMutation.mutate({ 
+      googleCalendarClientId: clientId, 
+      googleCalendarClientSecret: clientSecret 
+    });
+  };
+
+  const handleSyncToggle = (enabled: boolean) => {
+    setSyncEnabled(enabled);
+    updateMutation.mutate({ googleCalendarSyncEnabled: enabled });
+  };
+
+  const handleSyncDirectionChange = (direction: 'import' | 'export' | 'both') => {
+    setSyncDirection(direction);
+    updateMutation.mutate({ googleCalendarSyncDirection: direction });
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard`,
+    });
+  };
+
+  const isConfigured = settings?.googleCalendarClientId && settings?.googleCalendarClientSecret;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center pb-20">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pb-20 px-4">
+      {/* Header */}
+      <div className="max-w-4xl mx-auto pt-8">
+        <Link href="/settings">
+          <Button variant="ghost" className="mb-6 text-yellow-200 hover:text-yellow-100 hover:bg-slate-800/50">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Settings
+          </Button>
+        </Link>
+
+        <div className="mb-8">
+          <h1 className="text-4xl font-serif font-bold text-yellow-100 mb-2 flex items-center gap-3">
+            <Calendar className="h-10 w-10 text-purple-400" />
+            Google Calendar Integration
+          </h1>
+          <p className="text-yellow-200/70">
+            Sync your tasks with Google Calendar to keep everything in one place
+          </p>
+        </div>
+
+        {/* Status Card */}
+        {isConfigured && (
+          <Alert className="mb-6 border-green-600/40 bg-green-900/20">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            <AlertDescription className="text-green-100">
+              Google Calendar integration is active and configured
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Sync Controls (if configured) */}
+        {isConfigured && (
+          <Card className="mb-6 bg-slate-800/60 backdrop-blur-md border-2 border-purple-600/30">
+            <CardHeader>
+              <CardTitle className="text-yellow-100">Sync Controls</CardTitle>
+              <CardDescription className="text-yellow-200/70">
+                Manage how your tasks sync with Google Calendar
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Enable/Disable Sync */}
+              <div className="flex items-center justify-between p-4 bg-slate-900/40 rounded-lg border border-purple-500/20">
+                <div>
+                  <Label htmlFor="sync-enabled" className="text-yellow-100 font-semibold">
+                    Enable Automatic Sync
+                  </Label>
+                  <p className="text-sm text-yellow-200/60 mt-1">
+                    Automatically sync tasks and calendar events
+                  </p>
+                </div>
+                <Switch
+                  id="sync-enabled"
+                  checked={syncEnabled}
+                  onCheckedChange={handleSyncToggle}
+                />
+              </div>
+
+              {/* Sync Direction */}
+              {syncEnabled && (
+                <div className="space-y-3">
+                  <Label className="text-yellow-100 font-semibold">Sync Direction</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Button
+                      variant={syncDirection === 'import' ? 'default' : 'outline'}
+                      onClick={() => handleSyncDirectionChange('import')}
+                      className={syncDirection === 'import' 
+                        ? 'bg-purple-600 hover:bg-purple-700' 
+                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Import Only
+                    </Button>
+                    <Button
+                      variant={syncDirection === 'export' ? 'default' : 'outline'}
+                      onClick={() => handleSyncDirectionChange('export')}
+                      className={syncDirection === 'export' 
+                        ? 'bg-purple-600 hover:bg-purple-700' 
+                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Export Only
+                    </Button>
+                    <Button
+                      variant={syncDirection === 'both' ? 'default' : 'outline'}
+                      onClick={() => handleSyncDirectionChange('both')}
+                      className={syncDirection === 'both' 
+                        ? 'bg-purple-600 hover:bg-purple-700' 
+                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Two-Way Sync
+                    </Button>
+                  </div>
+                  <p className="text-xs text-yellow-200/60">
+                    {syncDirection === 'import' && 'Tasks from Google Calendar will be imported to ProductivityQuest'}
+                    {syncDirection === 'export' && 'Tasks from ProductivityQuest will be exported to Google Calendar'}
+                    {syncDirection === 'both' && 'Tasks will sync in both directions automatically'}
+                  </p>
+                </div>
+              )}
+
+              {/* Manual Sync Button */}
+              <Button
+                onClick={() => syncNowMutation.mutate()}
+                disabled={syncNowMutation.isPending || !syncEnabled}
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400"
+              >
+                {syncNowMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Sync Now
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Setup Instructions */}
+        <Card className="mb-6 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
+          <CardHeader>
+            <CardTitle className="text-yellow-100">Setup Instructions</CardTitle>
+            <CardDescription className="text-yellow-200/70">
+              Follow these steps to connect your Google Calendar
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Step 1 */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 1 ? 'bg-purple-600' : 'bg-slate-700'} flex-shrink-0`}>
+                  <span className="text-white font-bold">1</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-100 mb-2">Create a Google Cloud Project</h3>
+                  <ol className="space-y-2 text-sm text-yellow-200/80 list-decimal list-inside">
+                    <li>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline inline-flex items-center gap-1">
+                      Google Cloud Console <ExternalLink className="h-3 w-3" />
+                    </a></li>
+                    <li>Create a new project or select an existing one</li>
+                    <li>Name it something like "ProductivityQuest Calendar Sync"</li>
+                  </ol>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 border-purple-500/40 text-purple-300 hover:bg-purple-900/20"
+                    onClick={() => setCurrentStep(Math.max(currentStep, 2))}
+                  >
+                    Next Step
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 2 ? 'bg-purple-600' : 'bg-slate-700'} flex-shrink-0`}>
+                  <span className="text-white font-bold">2</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-100 mb-2">Enable Google Calendar API</h3>
+                  <ol className="space-y-2 text-sm text-yellow-200/80 list-decimal list-inside">
+                    <li>In your Google Cloud Project, go to "APIs & Services" → "Enable APIs and Services"</li>
+                    <li>Search for "Google Calendar API"</li>
+                    <li>Click on it and press "Enable"</li>
+                  </ol>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 border-purple-500/40 text-purple-300 hover:bg-purple-900/20"
+                    onClick={() => setCurrentStep(Math.max(currentStep, 3))}
+                    disabled={currentStep < 2}
+                  >
+                    Next Step
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 3 ? 'bg-purple-600' : 'bg-slate-700'} flex-shrink-0`}>
+                  <span className="text-white font-bold">3</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-100 mb-2">Create OAuth 2.0 Credentials</h3>
+                  <ol className="space-y-2 text-sm text-yellow-200/80 list-decimal list-inside">
+                    <li>Go to "APIs & Services" → "Credentials"</li>
+                    <li>Click "Create Credentials" → "OAuth client ID"</li>
+                    <li>Application type: "Web application"</li>
+                    <li>Add Authorized redirect URI:
+                      <div className="mt-2 flex items-center gap-2">
+                        <code className="flex-1 bg-slate-900/60 border border-purple-500/30 px-3 py-2 rounded text-xs text-purple-300">
+                          {window.location.origin}/api/google-calendar/callback
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyToClipboard(`${window.location.origin}/api/google-calendar/callback`, "Redirect URI")}
+                          className="border-purple-500/40 text-purple-300 hover:bg-purple-900/20"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </li>
+                    <li>Click "Create" and you'll receive your Client ID and Client Secret</li>
+                  </ol>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 border-purple-500/40 text-purple-300 hover:bg-purple-900/20"
+                    onClick={() => setCurrentStep(4)}
+                    disabled={currentStep < 3}
+                  >
+                    Next Step
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 4 - Enter Credentials */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 4 ? 'bg-purple-600' : 'bg-slate-700'} flex-shrink-0`}>
+                  <span className="text-white font-bold">4</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-100 mb-2">Enter Your Credentials</h3>
+                  <p className="text-sm text-yellow-200/70 mb-4">
+                    Paste the Client ID and Client Secret from Google Cloud Console
+                  </p>
+                  
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="client-id" className="text-yellow-100">
+                        Client ID
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="client-id"
+                          type="text"
+                          value={clientId}
+                          onChange={(e) => setClientId(e.target.value)}
+                          placeholder="1234567890-abcdefghijk.apps.googleusercontent.com"
+                          className="flex-1 bg-slate-900/60 border-purple-500/30 text-yellow-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="client-secret" className="text-yellow-100">
+                        Client Secret
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="client-secret"
+                          type={showClientSecret ? "text" : "password"}
+                          value={clientSecret}
+                          onChange={(e) => setClientSecret(e.target.value)}
+                          placeholder="GOCSPX-xxxxxxxxxxxxx"
+                          className="flex-1 bg-slate-900/60 border-purple-500/30 text-yellow-100"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowClientSecret(!showClientSecret)}
+                          className="border-purple-500/40 text-purple-300 hover:bg-purple-900/20"
+                        >
+                          {showClientSecret ? "Hide" : "Show"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={updateMutation.isPending}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400"
+                    >
+                      {updateMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Save Credentials
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Help Card */}
+        <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-blue-600/30">
+          <CardHeader>
+            <CardTitle className="text-yellow-100 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-blue-400" />
+              Important Notes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-yellow-200/80">
+            <p>
+              <strong className="text-yellow-100">🔒 Security:</strong> Your credentials are encrypted and stored securely. ProductivityQuest never has access to your Google account password.
+            </p>
+            <p>
+              <strong className="text-yellow-100">📅 Sync Behavior:</strong> Tasks with due dates will be synced as calendar events. Changes made in either system will be reflected in the other.
+            </p>
+            <p>
+              <strong className="text-yellow-100">⏱️ Sync Frequency:</strong> Automatic sync occurs every 15 minutes when enabled. You can also trigger manual sync anytime.
+            </p>
+            <p>
+              <strong className="text-yellow-100">🗑️ Deletion Handling:</strong> Deleting a task in ProductivityQuest will remove it from Google Calendar and vice versa (in two-way sync mode).
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

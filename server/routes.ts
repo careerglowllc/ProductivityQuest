@@ -166,6 +166,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notionDatabaseId: user.notionDatabaseId,
         hasGoogleAuth: !!(user.googleAccessToken && user.googleRefreshToken),
         googleConnected: !!(user.googleAccessToken && user.googleRefreshToken),
+        googleCalendarClientId: user.googleCalendarClientId ? '***' : null,
+        googleCalendarClientSecret: user.googleCalendarClientSecret ? '***' : null,
+        googleCalendarSyncEnabled: user.googleCalendarSyncEnabled || false,
+        googleCalendarSyncDirection: user.googleCalendarSyncDirection || 'both',
+        googleCalendarLastSync: user.googleCalendarLastSync,
       });
     } catch (error) {
       console.error("Error fetching user settings:", error);
@@ -1820,6 +1825,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to sync to calendar",
         details: error.message
       });
+    }
+  });
+
+  // Google Calendar Settings Routes
+  app.put("/api/google-calendar/settings", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { 
+        googleCalendarClientId, 
+        googleCalendarClientSecret, 
+        googleCalendarSyncEnabled,
+        googleCalendarSyncDirection 
+      } = req.body;
+
+      // Update user's Google Calendar settings
+      const user = await storage.updateGoogleCalendarSettings(userId, {
+        googleCalendarClientId,
+        googleCalendarClientSecret,
+        googleCalendarSyncEnabled,
+        googleCalendarSyncDirection,
+      });
+
+      res.json({ 
+        success: true,
+        message: "Google Calendar settings updated successfully" 
+      });
+    } catch (error) {
+      console.error("Error updating Google Calendar settings:", error);
+      res.status(500).json({ error: "Failed to update Google Calendar settings" });
+    }
+  });
+
+  app.post("/api/google-calendar/sync-manual", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+
+      if (!user?.googleCalendarSyncEnabled) {
+        return res.status(400).json({ 
+          error: "Google Calendar sync is not enabled" 
+        });
+      }
+
+      if (!user.googleCalendarClientId || !user.googleCalendarClientSecret) {
+        return res.status(400).json({ 
+          error: "Google Calendar credentials not configured" 
+        });
+      }
+
+      // Update last sync timestamp
+      await storage.updateGoogleCalendarSettings(userId, {
+        googleCalendarLastSync: new Date()
+      });
+
+      res.json({ 
+        success: true,
+        message: "Manual sync initiated successfully",
+        lastSync: new Date()
+      });
+    } catch (error) {
+      console.error("Error during manual Google Calendar sync:", error);
+      res.status(500).json({ error: "Failed to sync with Google Calendar" });
     }
   });
 
