@@ -35,7 +35,8 @@ export default function Calendar() {
 
   const googleConnected = settings?.googleCalendarSyncEnabled && 
                           settings?.googleCalendarClientId && 
-                          settings?.googleCalendarClientSecret;
+                          settings?.googleCalendarClientSecret &&
+                          settings?.googleCalendarAccessToken; // Must have access token from OAuth
 
   // Fetch calendar events for current month
   const year = currentDate.getFullYear();
@@ -170,7 +171,7 @@ export default function Calendar() {
                 Follow our easy setup guide to get started.
               </p>
 
-              <Link href="/settings/google-calendar">
+              <Link href="/google-calendar-integration">
                 <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
                   <Settings className="w-4 h-4 mr-2" />
                   Set Up Google Calendar
