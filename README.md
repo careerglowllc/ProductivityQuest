@@ -44,6 +44,7 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **✨ NEW: Why These Skills modal** - Understand and customize macro life goals behind the skills system
 - **✨ NEW: Manually edit skills** - Adjust skill icons, levels, and XP directly for full control
 - **✨ NEW: Export tasks to CSV** - Download all your tasks as a spreadsheet for external analysis
+- **✨ NEW: Grid view with smart batching** - View tasks in 4-column grid organized by priority or due date
 
 ### Key Differentiators
 
@@ -54,6 +55,7 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **✨ NEW: Transparent Gold Formula** - Fair, modular calculation: Base × TimeWeight × (1 + PriorityBonus)
 - **✨ NEW: Manual Skill Editing** - Edit skill icons, levels, and XP for complete customization
 - **✨ NEW: CSV Export** - Export all tasks to Excel/Google Sheets compatible CSV format
+- **✨ NEW: Grid View** - Responsive 4-column layout with smart batching by priority/date
 - **Dual-view support** (Grid/List) for different user preferences
 - **Batch operations** for managing multiple tasks efficiently
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
@@ -1213,6 +1215,120 @@ const hasCustomGoals = localStorage.getItem('customMacroGoals');
 
 ---
 
+### Grid View with Smart Batching
+
+View tasks in a responsive 4-column grid layout with automatic batching based on sort criteria.
+
+**Features:**
+- **View Toggle:** Switch between List and Grid views
+- **Responsive Layout:** 4 columns (desktop), 2 columns (tablet), 1 column (mobile)
+- **Smart Batching:** Automatic grouping by priority or due date
+- **Batch Headers:** Clear section headers with icons and task counts
+- **All Task Actions:** Selection, completion, categorization work in grid view
+
+**Batching Logic:**
+
+When sorted by **Due Date** → Batch by Priority:
+- Pareto Priority
+- High Priority
+- Med-High Priority
+- Medium Priority
+- Med-Low Priority
+- Low Priority
+- None Priority
+
+When sorted by **Importance** → Batch by Time:
+- Due Today
+- Due This Week
+- Due This Month
+- Due This Year
+- No Due Date
+
+**Implementation:**
+```typescript
+// client/src/pages/home.tsx
+const getBatchedTasks = (sortedTasks: any[]) => {
+  if (sortBy === "due-date") {
+    // Batch by priority level
+    const priorityGroups = {
+      "Pareto": [], "High": [], "Med-High": [],
+      "Medium": [], "Med-Low": [], "Low": [], "None": []
+    };
+    
+    sortedTasks.forEach(task => {
+      const priority = task.importance || "None";
+      priorityGroups[priority].push(task);
+    });
+    
+    return Object.entries(priorityGroups)
+      .filter(([_, tasks]) => tasks.length > 0)
+      .map(([priority, tasks]) => ({
+        title: `${priority} Priority`,
+        tasks,
+        priority
+      }));
+  } else {
+    // Batch by due date timeframes
+    const now = new Date();
+    const groups = {
+      "today": [], "week": [], "month": [], 
+      "year": [], "none": []
+    };
+    
+    sortedTasks.forEach(task => {
+      if (!task.dueDate) {
+        groups.none.push(task);
+      } else {
+        const dueDate = new Date(task.dueDate);
+        // Logic to categorize into timeframes
+      }
+    });
+    
+    return batches; // Array of batch objects
+  }
+};
+```
+
+**Grid Layout:**
+```tsx
+{viewType === "grid" ? (
+  batchedTasks.map((batch) => (
+    <div key={batch.title}>
+      <h3 className="text-lg font-serif font-bold text-yellow-100">
+        {sortBy === "due-date" ? (
+          <AlertTriangle className="w-5 h-5 text-yellow-400" />
+        ) : (
+          <CalendarDays className="w-5 h-5 text-yellow-400" />
+        )}
+        {batch.title} ({batch.tasks.length})
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {batch.tasks.map(task => (
+          <TaskCard key={task.id} task={task} />
+        ))}
+      </div>
+    </div>
+  ))
+) : (
+  // List view
+)}
+```
+
+**Benefits:**
+- **Better Overview:** See more tasks at once
+- **Visual Organization:** Clear grouping by priority/date
+- **Responsive:** Adapts to screen size automatically
+- **Productivity Boost:** Quickly identify high-priority batches
+- **Flexible:** Toggle between views based on preference
+
+**Use Cases:**
+- Review all high-priority tasks in one glance
+- See what's due this week vs. this month
+- Get overview of task distribution across priorities
+- Visual planning for time-blocked work sessions
+
+---
+
 ### Testing
 
 See [TASK_MANAGEMENT_TEST_CASES.md](TASK_MANAGEMENT_TEST_CASES.md) for:
@@ -1232,6 +1348,19 @@ See [WHY_SKILLS_MODAL_TEST_CASES.md](WHY_SKILLS_MODAL_TEST_CASES.md) for:
 - 8 Integration & Edge Case tests
 - 4 Accessibility tests
 - **Total:** 33 comprehensive test cases
+
+See [GRID_VIEW_TEST_CASES.md](GRID_VIEW_TEST_CASES.md) for:
+- 2 View Toggle tests
+- 3 Grid Layout Responsiveness tests
+- 6 Batching by Priority tests
+- 5 Batching by Due Date tests
+- 4 Batch Header Display tests
+- 4 Task Card Interaction tests
+- 3 Filter and Search Compatibility tests
+- 4 Performance and Edge Case tests
+- 3 Integration tests
+- 2 Accessibility tests
+- **Total:** 48 comprehensive test cases
 
 ---
 
