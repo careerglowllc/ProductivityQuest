@@ -538,9 +538,14 @@ export default function Skills() {
       return response.json();
     },
     onSuccess: (updatedSkill) => {
+      console.log('Mutation success, updated skill:', updatedSkill);
+      console.log('Current selectedSkill:', selectedSkill);
+      
       // Update the selectedSkill state immediately with the returned data
+      // Create a new object to ensure React detects the change
       if (selectedSkill && updatedSkill.id === selectedSkill.id) {
-        setSelectedSkill(updatedSkill);
+        console.log('Updating selectedSkill with new data');
+        setSelectedSkill({ ...updatedSkill });
       }
       
       queryClient.invalidateQueries({ queryKey: ['/api/skills'] });
