@@ -480,27 +480,30 @@ export default function Skills() {
       const startingNode = milestones.find((m: any) => m.level === 1) || milestones[0];
       
       if (startingNode) {
-        // Calculate scroll position to center on starting node
-        // Container is 1200px wide, 1000px tall with 20px padding
-        const containerWidth = 1200;
-        const containerHeight = 1000;
-        const viewportWidth = scrollContainer.clientWidth;
-        const viewportHeight = scrollContainer.clientHeight;
-        
-        // Node position as percentage converted to pixels
-        const nodeX = (startingNode.x / 100) * containerWidth;
-        const nodeY = (startingNode.y / 100) * containerHeight;
-        
-        // Center the viewport on this node
-        const scrollLeft = nodeX - (viewportWidth / 2);
-        const scrollTop = nodeY - (viewportHeight / 2);
-        
-        // Smooth scroll to position
-        scrollContainer.scrollTo({
-          left: scrollLeft,
-          top: scrollTop,
-          behavior: 'smooth'
-        });
+        // Small delay to ensure DOM is fully rendered
+        setTimeout(() => {
+          // Calculate scroll position to center on starting node
+          // Container is 1200px wide, 1000px tall with 20px padding
+          const containerWidth = 1200;
+          const containerHeight = 1000;
+          const viewportWidth = scrollContainer.clientWidth;
+          const viewportHeight = scrollContainer.clientHeight;
+          
+          // Node position as percentage converted to pixels
+          const nodeX = (startingNode.x / 100) * containerWidth;
+          const nodeY = (startingNode.y / 100) * containerHeight;
+          
+          // Center the viewport on this node
+          const scrollLeft = nodeX - (viewportWidth / 2);
+          const scrollTop = nodeY - (viewportHeight / 2);
+          
+          // Smooth scroll to position
+          scrollContainer.scrollTo({
+            left: scrollLeft,
+            top: scrollTop,
+            behavior: 'smooth'
+          });
+        }, 100);
       }
     }
   }, [selectedSkill]);
