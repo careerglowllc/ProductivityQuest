@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -25,6 +25,7 @@ import { apiRequest } from "@/lib/queryClient";
 type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-vi" | "business-general" | "business-sp" | "business-vel" | "business-cg";
 type BusinessFilterType = "Apple" | "Vi" | "General" | "SP" | "Vel" | "CG";
 type SortType = "due-date" | "importance";
+type ViewType = "list" | "grid";
 
 export default function Home() {
   const [location] = useLocation();
@@ -38,6 +39,7 @@ export default function Home() {
   const [leveledUpSkills, setLeveledUpSkills] = useState<any[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [sortBy, setSortBy] = useState<SortType>("due-date");
+  const [viewType, setViewType] = useState<ViewType>("list");
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [importTaskCount, setImportTaskCount] = useState(0);
@@ -899,8 +901,98 @@ export default function Home() {
     return sortedTasks;
   };
 
+  // Batch tasks for grid view
+  const getBatchedTasks = (sortedTasks: any[]) => {
+    if (sortBy === "due-date") {
+      // When sorted by due date, batch by priority
+      const batches: { title: string; tasks: any[]; priority: string }[] = [];
+      
+      const priorityGroups = {
+        "Pareto": [] as any[],
+        "High": [] as any[],
+        "Med-High": [] as any[],
+        "Medium": [] as any[],
+        "Med-Low": [] as any[],
+        "Low": [] as any[],
+        "None": [] as any[]
+      };
+      
+      sortedTasks.forEach(task => {
+        const priority = task.importance || "None";
+        if (priorityGroups[priority as keyof typeof priorityGroups]) {
+          priorityGroups[priority as keyof typeof priorityGroups].push(task);
+        } else {
+          priorityGroups["None"].push(task);
+        }
+      });
+      
+      Object.entries(priorityGroups).forEach(([priority, tasks]) => {
+        if (tasks.length > 0) {
+          batches.push({ title: `${priority} Priority`, tasks, priority });
+        }
+      });
+      
+      return batches;
+    } else {
+      // When sorted by importance, batch by due date
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfWeek = new Date(today);
+      endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const endOfYear = new Date(today.getFullYear(), 11, 31);
+      
+      const batches: { title: string; tasks: any[]; period: string }[] = [];
+      const groups = {
+        "today": [] as any[],
+        "week": [] as any[],
+        "month": [] as any[],
+        "year": [] as any[],
+        "none": [] as any[]
+      };
+      
+      sortedTasks.forEach(task => {
+        if (!task.dueDate) {
+          groups.none.push(task);
+        } else {
+          const dueDate = new Date(task.dueDate);
+          if (dueDate <= today) {
+            groups.today.push(task);
+          } else if (dueDate <= endOfWeek) {
+            groups.week.push(task);
+          } else if (dueDate <= endOfMonth) {
+            groups.month.push(task);
+          } else if (dueDate <= endOfYear) {
+            groups.year.push(task);
+          } else {
+            groups.none.push(task);
+          }
+        }
+      });
+      
+      if (groups.today.length > 0) {
+        batches.push({ title: "Due Today", tasks: groups.today, period: "today" });
+      }
+      if (groups.week.length > 0) {
+        batches.push({ title: "Due This Week", tasks: groups.week, period: "week" });
+      }
+      if (groups.month.length > 0) {
+        batches.push({ title: "Due This Month", tasks: groups.month, period: "month" });
+      }
+      if (groups.year.length > 0) {
+        batches.push({ title: "Due This Year", tasks: groups.year, period: "year" });
+      }
+      if (groups.none.length > 0) {
+        batches.push({ title: "No Due Date", tasks: groups.none, period: "none" });
+      }
+      
+      return batches;
+    }
+  };
+
   const filteredTasks = getFilteredTasks();
   const sortedTasks = getSortedTasks(filteredTasks);
+  const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} relative overflow-hidden`}>
@@ -1279,6 +1371,25 @@ export default function Home() {
                     </>
                   )}
                   
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewType(viewType === "list" ? "grid" : "list")}
+                    className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100"
+                  >
+                    {viewType === "list" ? (
+                      <>
+                        <LayoutGrid className="w-4 h-4" />
+                        Grid
+                      </>
+                    ) : (
+                      <>
+                        <List className="w-4 h-4" />
+                        List
+                      </>
+                    )}
+                  </Button>
+                  
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100">
@@ -1409,7 +1520,7 @@ export default function Home() {
                     </Button>
                   </div>
                 </Card>
-              ) : (
+              ) : viewType === "list" ? (
                 sortedTasks.map((task: any) => (
                   <TaskCard
                     key={task.id}
@@ -1417,6 +1528,33 @@ export default function Home() {
                     onSelect={handleTaskSelect}
                     isSelected={selectedTasks.has(task.id)}
                   />
+                ))
+              ) : (
+                // Grid View with Batches
+                batchedTasks.map((batch, batchIndex) => (
+                  <div key={batchIndex} className="space-y-3">
+                    <h3 className="text-lg font-serif font-bold text-yellow-100 px-2 flex items-center gap-2">
+                      {sortBy === "due-date" ? (
+                        <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                      ) : (
+                        <CalendarDays className="w-5 h-5 text-yellow-400" />
+                      )}
+                      {batch.title}
+                      <span className="text-sm font-normal text-yellow-200/70">
+                        ({batch.tasks.length})
+                      </span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {batch.tasks.map((task: any) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onSelect={handleTaskSelect}
+                          isSelected={selectedTasks.has(task.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))
               )}
             </div>
