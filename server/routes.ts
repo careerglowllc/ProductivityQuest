@@ -2010,6 +2010,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Calendar sync endpoint
+  app.post("/api/google-calendar/sync", requireAuth, async (req: any, res) => {
+    try {
+      console.log('📅 [SYNC] Starting Google Calendar sync...');
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      console.log('📅 [SYNC] User:', userId, 'Sync enabled:', user?.googleCalendarSyncEnabled);
+
+      if (!user?.googleCalendarSyncEnabled) {
+        return res.status(400).json({ 
+          error: "Google Calendar sync is not enabled" 
+        });
+      }
+
+      if (!user.googleCalendarClientId || !user.googleCalendarClientSecret) {
+        return res.status(400).json({ 
+          error: "Google Calendar credentials not configured" 
+        });
+      }
+
+      if (!user.googleCalendarAccessToken) {
+        return res.status(400).json({ 
+          error: "Google Calendar not authorized. Please click 'Authorize Google Account' first." 
+        });
+      }
+
+      // Fetch events from Google Calendar for the current month
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      console.log('📅 [SYNC] Fetching events from', startDate, 'to', endDate);
+      const googleEvents = await googleCalendar.getEvents(user, startDate, endDate);
+      console.log('📅 [SYNC] Fetched', googleEvents.length, 'events from Google Calendar');
+
+      // Import events as tasks based on sync direction
+      let imported = 0;
+      if (user.googleCalendarSyncDirection === 'import' || user.googleCalendarSyncDirection === 'both') {
+        for (const event of googleEvents) {
+          // Check if we already have a task for this event
+          const existingTasks = await storage.getTasks(userId);
+          const exists = existingTasks.some(task => 
+            task.title === event.summary && 
+            task.dueDate && 
+            new Date(task.dueDate).toDateString() === new Date(event.start.dateTime || event.start.date).toDateString()
+          );
+
+          if (!exists) {
+            await storage.createTask({
+              userId,
+              title: event.summary || 'Untitled Event',
+              details: event.description || null,
+              dueDate: new Date(event.start.dateTime || event.start.date),
+              completed: false,
+              recycled: false,
+              skillTags: ['Work'], // Default to Work skill
+            });
+            imported++;
+          }
+        }
+      }
+
+      console.log('✅ [SYNC] Imported', imported, 'new events as tasks');
+
+      res.json({ 
+        success: true,
+        imported,
+        total: googleEvents.length,
+        message: `Imported ${imported} events from Google Calendar`
+      });
+    } catch (error: any) {
+      console.error("❌ [SYNC] Error during Google Calendar sync:", error);
+      console.error("❌ [SYNC] Error stack:", error.stack);
+      res.status(500).json({ 
+        error: error.message || "Failed to sync with Google Calendar" 
+      });
+    }
+  });
+
   app.post("/api/google-calendar/sync-manual", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
