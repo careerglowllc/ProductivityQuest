@@ -14,6 +14,9 @@ export interface IStorage {
     googleTokenExpiry?: Date;
     googleCalendarClientId?: string;
     googleCalendarClientSecret?: string;
+    googleCalendarAccessToken?: string;
+    googleCalendarRefreshToken?: string;
+    googleCalendarTokenExpiry?: Date | null;
     googleCalendarSyncEnabled?: boolean;
     googleCalendarSyncDirection?: string;
   }): Promise<User>;
@@ -164,6 +167,9 @@ export class DatabaseStorage implements IStorage {
       googleTokenExpiry?: Date;
       googleCalendarClientId?: string;
       googleCalendarClientSecret?: string;
+      googleCalendarAccessToken?: string;
+      googleCalendarRefreshToken?: string;
+      googleCalendarTokenExpiry?: Date | null;
       googleCalendarSyncEnabled?: boolean;
       googleCalendarSyncDirection?: string;
     }
@@ -180,6 +186,9 @@ export class DatabaseStorage implements IStorage {
     if (settings.googleTokenExpiry !== undefined) updateData.googleTokenExpiry = settings.googleTokenExpiry;
     if (settings.googleCalendarClientId !== undefined) updateData.googleCalendarClientId = settings.googleCalendarClientId;
     if (settings.googleCalendarClientSecret !== undefined) updateData.googleCalendarClientSecret = settings.googleCalendarClientSecret;
+    if (settings.googleCalendarAccessToken !== undefined) updateData.googleCalendarAccessToken = settings.googleCalendarAccessToken;
+    if (settings.googleCalendarRefreshToken !== undefined) updateData.googleCalendarRefreshToken = settings.googleCalendarRefreshToken;
+    if (settings.googleCalendarTokenExpiry !== undefined) updateData.googleCalendarTokenExpiry = settings.googleCalendarTokenExpiry;
     if (settings.googleCalendarSyncEnabled !== undefined) updateData.googleCalendarSyncEnabled = settings.googleCalendarSyncEnabled;
     if (settings.googleCalendarSyncDirection !== undefined) updateData.googleCalendarSyncDirection = settings.googleCalendarSyncDirection;
     

@@ -190,6 +190,41 @@ export default function GoogleCalendarIntegration() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Authorization Status */}
+              {!settings?.googleCalendarAccessToken && (
+                <Alert className="border-yellow-600/40 bg-yellow-900/20">
+                  <AlertCircle className="h-5 w-5 text-yellow-500" />
+                  <AlertDescription className="text-yellow-100">
+                    <div className="space-y-3">
+                      <p>You need to authorize access to your Google Calendar to complete the setup.</p>
+                      <Button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/google-calendar/authorize-url', {
+                              credentials: 'include'
+                            });
+                            const data = await response.json();
+                            if (data.authUrl) {
+                              window.location.href = data.authUrl;
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to get authorization URL",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className="bg-yellow-600 hover:bg-yellow-700"
+                      >
+                        <Key className="mr-2 h-4 w-4" />
+                        Authorize Google Account
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Enable/Disable Sync */}
               <div className="flex items-center justify-between p-4 bg-slate-900/40 rounded-lg border border-purple-500/20">
                 <div>

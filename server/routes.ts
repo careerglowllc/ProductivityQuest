@@ -168,6 +168,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         googleConnected: !!(user.googleAccessToken && user.googleRefreshToken),
         googleCalendarClientId: user.googleCalendarClientId ? '***' : null,
         googleCalendarClientSecret: user.googleCalendarClientSecret ? '***' : null,
+        googleCalendarAccessToken: user.googleCalendarAccessToken ? '***' : null,
+        googleCalendarRefreshToken: user.googleCalendarRefreshToken ? '***' : null,
+        googleCalendarTokenExpiry: user.googleCalendarTokenExpiry,
         googleCalendarSyncEnabled: user.googleCalendarSyncEnabled || false,
         googleCalendarSyncDirection: user.googleCalendarSyncDirection || 'both',
         googleCalendarLastSync: user.googleCalendarLastSync,
@@ -1873,6 +1876,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // OAuth authorization URL generation
+  app.get("/api/google-calendar/authorize-url", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+
+      if (!user?.googleCalendarClientId || !user?.googleCalendarClientSecret) {
+        return res.status(400).json({ 
+          error: "Please save your Client ID and Client Secret first" 
+        });
+      }
+
+      // Generate OAuth URL with user's credentials
+      const { OAuth2Client } = require('google-auth-library');
+      const oauth2Client = new OAuth2Client(
+        user.googleCalendarClientId,
+        user.googleCalendarClientSecret,
+        `${req.protocol}://${req.get('host')}/api/google-calendar/callback`
+      );
+
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: ['https://www.googleapis.com/auth/calendar.readonly'],
+        prompt: 'consent',
+        state: userId, // Pass userId in state to identify user in callback
+      });
+
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error generating auth URL:", error);
+      res.status(500).json({ error: "Failed to generate authorization URL" });
+    }
+  });
+
+  // OAuth callback endpoint
+  app.get("/api/google-calendar/callback", async (req: any, res) => {
+    try {
+      const { code, state: userId } = req.query;
+
+      if (!code || !userId) {
+        return res.status(400).send('Missing authorization code or user ID');
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user?.googleCalendarClientId || !user?.googleCalendarClientSecret) {
+        return res.status(400).send('User credentials not found');
+      }
+
+      // Exchange code for tokens
+      const { OAuth2Client } = require('google-auth-library');
+      const oauth2Client = new OAuth2Client(
+        user.googleCalendarClientId,
+        user.googleCalendarClientSecret,
+        `${req.protocol}://${req.get('host')}/api/google-calendar/callback`
+      );
+
+      const { tokens } = await oauth2Client.getToken(code);
+
+      // Save tokens to database
+      await storage.updateUserSettings(userId, {
+        googleCalendarAccessToken: tokens.access_token,
+        googleCalendarRefreshToken: tokens.refresh_token,
+        googleCalendarTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        googleCalendarSyncEnabled: true,
+      });
+
+      // Redirect back to integration page with success
+      res.redirect('/google-calendar-integration?auth=success');
+    } catch (error) {
+      console.error("OAuth callback error:", error);
+      res.redirect('/google-calendar-integration?auth=error');
+    }
+  });
+
   app.post("/api/google-calendar/sync-manual", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
@@ -1926,7 +2003,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = new Date(year, month, 1);
       const endDate = new Date(year, month + 1, 0, 23, 59, 59);
 
-      // Fetch tasks for this user that have due dates in this month
+      // Try to fetch actual Google Calendar events
+      let googleEvents: any[] = [];
+      let calendarError = null;
+      
+      try {
+        googleEvents = await googleCalendar.getEvents(user, startDate, endDate);
+        console.log(`✅ Fetched ${googleEvents.length} events from Google Calendar for ${year}-${month + 1}`);
+      } catch (error: any) {
+        console.error('❌ Error fetching Google Calendar events:', error.message);
+        calendarError = error.message;
+        
+        // If auth expired, clear the credentials
+        if (error.message === 'CALENDAR_AUTH_EXPIRED') {
+          await storage.updateUserSettings(userId, {
+            googleCalendarSyncEnabled: false
+          });
+        }
+      }
+
+      // Also fetch ProductivityQuest tasks for this month
       const tasks = await storage.getTasks(userId);
       const tasksInMonth = tasks.filter(task => {
         if (!task.dueDate) return false;
@@ -1934,25 +2030,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return dueDate >= startDate && dueDate <= endDate;
       });
 
-      // Convert tasks to calendar events format
-      const events = tasksInMonth.map(task => ({
-        id: task.id.toString(),
-        title: task.title,
-        start: task.dueDate,
-        end: task.dueDate,
-        description: task.description || task.details || '',
-        completed: task.completed,
-        importance: task.importance,
-        goldValue: task.goldValue,
-        campaign: task.campaign,
-        skillTags: task.skillTags || [],
-      }));
+      // Combine Google Calendar events and ProductivityQuest tasks
+      const events: any[] = [];
 
-      res.json({ 
+      // Add Google Calendar events
+      for (const gEvent of googleEvents) {
+        events.push({
+          id: `google-${gEvent.id}`,
+          title: gEvent.summary || 'Untitled Event',
+          start: gEvent.start?.dateTime || gEvent.start?.date,
+          end: gEvent.end?.dateTime || gEvent.end?.date,
+          description: gEvent.description || '',
+          completed: false,
+          importance: 'Medium',
+          goldValue: 0,
+          campaign: 'Google Calendar',
+          skillTags: [],
+          source: 'google'
+        });
+      }
+
+      // Add ProductivityQuest tasks
+      for (const task of tasksInMonth) {
+        events.push({
+          id: task.id.toString(),
+          title: task.title,
+          start: task.dueDate,
+          end: task.dueDate,
+          description: task.description || task.details || '',
+          completed: task.completed,
+          importance: task.importance,
+          goldValue: task.goldValue,
+          campaign: task.campaign,
+          skillTags: task.skillTags || [],
+          source: 'productivityquest'
+        });
+      }
+
+      res.json({
         success: true,
         events,
         month,
-        year
+        year,
+        stats: {
+          googleEvents: googleEvents.length,
+          productivityQuestTasks: tasksInMonth.length,
+          total: events.length,
+          calendarError
+        }
       });
     } catch (error) {
       console.error("Error fetching Google Calendar events:", error);

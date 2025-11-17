@@ -218,6 +218,9 @@ export type UserSettings = {
   googleConnected: boolean;
   googleCalendarClientId: string | null;
   googleCalendarClientSecret: string | null;
+  googleCalendarAccessToken: string | null;
+  googleCalendarRefreshToken: string | null;
+  googleCalendarTokenExpiry: Date | null;
   googleCalendarSyncEnabled: boolean;
   googleCalendarSyncDirection: string;
   googleCalendarLastSync: Date | null;

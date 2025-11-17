@@ -115,10 +115,11 @@ export class GoogleCalendarService {
       // If token is expired, try to refresh it
       if (error.code === 401 && user.googleRefreshToken) {
         try {
+          const { clientId, clientSecret } = getGoogleCredentials();
           const oauth2Client = new OAuth2Client(
-            GOOGLE_CLIENT_ID,
-            GOOGLE_CLIENT_SECRET,
-            REDIRECT_URI
+            clientId,
+            clientSecret,
+            getRedirectUri()
           );
           
           oauth2Client.setCredentials({
@@ -184,7 +185,7 @@ export class GoogleCalendarService {
         try {
           const event = {
             summary: task.title,
-            description: `${task.description}\n\nGold Reward: ${task.goldValue}\nImportance: ${task.importance || 'Not set'}\nLife Domain: ${task.lifeDomain || 'Not set'}`,
+            description: `${task.description}\n\nGold Reward: ${task.goldValue}\nImportance: ${task.importance || 'Not set'}`,
             start: {
               dateTime: task.dueDate.toISOString(),
               timeZone: 'UTC',
@@ -201,7 +202,7 @@ export class GoogleCalendarService {
               ],
             },
             // Color based on importance
-            colorId: this.getColorForImportance(task.importance),
+            colorId: this.getColorForImportance(task.importance || undefined),
           };
 
           await calendar.events.insert({
@@ -221,6 +222,54 @@ export class GoogleCalendarService {
     }
 
     return { success, failed };
+  }
+
+  async getEvents(user: User, startDate: Date, endDate: Date): Promise<any[]> {
+    try {
+      // Use per-user credentials if available
+      let auth: OAuth2Client;
+      
+      if (user.googleCalendarClientId && user.googleCalendarClientSecret && 
+          user.googleCalendarAccessToken && user.googleCalendarRefreshToken) {
+        // Use user's own OAuth credentials
+        auth = new OAuth2Client(
+          user.googleCalendarClientId,
+          user.googleCalendarClientSecret,
+          'http://localhost:5000/api/google-calendar/callback'
+        );
+        
+        auth.setCredentials({
+          access_token: user.googleCalendarAccessToken,
+          refresh_token: user.googleCalendarRefreshToken,
+          expiry_date: user.googleCalendarTokenExpiry?.getTime(),
+        });
+      } else {
+        // Fallback to legacy credentials
+        auth = this.getAuthenticatedClient(user);
+      }
+
+      const calendar = google.calendar({ version: 'v3', auth });
+
+      const response = await calendar.events.list({
+        calendarId: 'primary',
+        timeMin: startDate.toISOString(),
+        timeMax: endDate.toISOString(),
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 100,
+      });
+
+      return response.data.items || [];
+    } catch (error: any) {
+      console.error('Error fetching Google Calendar events:', error);
+      
+      // If token expired, we should handle refresh here
+      if (error.code === 401 || error.message?.includes('invalid_grant')) {
+        throw new Error('CALENDAR_AUTH_EXPIRED');
+      }
+      
+      throw error;
+    }
   }
 
   private getColorForImportance(importance?: string): string {
