@@ -17,6 +17,7 @@ import CampaignsPage from "@/pages/campaigns";
 import SettingsPage from "@/pages/settings";
 import NotionIntegration from "@/pages/notion-integration";
 import GoogleCalendarIntegration from "@/pages/google-calendar-integration";
+import CalendarPage from "@/pages/calendar";
 import SettingsGuidesPage from "@/pages/settings-guides";
 import SkillClassificationGuidePage from "@/pages/settings-guides-skill-classification";
 import MeasureWhatMattersGuidePage from "@/pages/settings-guides-measure-what-matters";
@@ -75,6 +76,7 @@ function Router() {
             </Route>
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/tasks" component={Tasks} />
+            <Route path="/calendar" component={CalendarPage} />
             <Route path="/shop" component={Shop} />
             <Route path="/skills" component={Skills} />
             <Route path="/rewards" component={Rewards} />
