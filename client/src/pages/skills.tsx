@@ -1633,7 +1633,7 @@ export default function Skills() {
                           >
                             {/* Glow for current goal (not for starting node or completed) */}
                             {isCurrentGoal && (
-                              <div className="absolute inset-0 -m-6 bg-blue-400/20 rounded-full blur-xl animate-pulse" />
+                              <div className="absolute inset-0 -m-6 bg-blue-400/20 rounded-full blur-xl animate-pulse-slow" />
                             )}
                             
                             {/* Node circle */}
@@ -1643,7 +1643,7 @@ export default function Skills() {
                                 : isStartingNode
                                 ? 'border-yellow-400 bg-yellow-600 shadow-lg shadow-yellow-600/50' // Starting node is yellow like completed
                                 : isCurrentGoal
-                                ? 'border-blue-400 bg-slate-800/80 shadow-lg shadow-blue-400/50 animate-pulse'
+                                ? 'border-blue-400 bg-slate-800/80 shadow-lg shadow-blue-400/50 animate-pulse-slow'
                                 : 'border-yellow-600/30 bg-slate-800/60'
                             }`}>
                               {/* Filled background for completed or starting node */}
@@ -1779,8 +1779,12 @@ export default function Skills() {
                                   toggleMilestoneMutation.mutate({ 
                                     skillId: selectedSkill.id, 
                                     milestoneId: selectedMilestone.id 
+                                  }, {
+                                    onSuccess: () => {
+                                      // Close the submenu after successful toggle
+                                      setSelectedMilestone(null);
+                                    }
                                   });
-                                  setSelectedMilestone(null);
                                 }}
                                 className={`w-full ${
                                   isCompleted 
