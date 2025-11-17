@@ -217,32 +217,117 @@ export class DatabaseStorage implements IStorage {
     const task = await this.getTask(id, userId);
     if (!task || task.completed) return undefined;
 
-    const [completedTask] = await db
-      .update(tasks)
-      .set({
-        completed: true,
-        completedAt: new Date(),
-        recycled: true,
-        recycledAt: new Date(),
-        recycledReason: 'completed'
-      })
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
-      .returning();
-
-    // Award gold and update progress
-    await this.addGold(userId, task.goldValue);
-
-    // Award XP to skills if task has skill tags
-    if (task.skillTags && task.skillTags.length > 0) {
-      const { calculateXPPerSkill } = await import("./xpCalculation");
-      const xpPerSkill = calculateXPPerSkill(task.importance, task.duration, task.skillTags.length);
+    // Check if task is recurring
+    const isRecurring = task.recurType && task.recurType !== 'one-time';
+    
+    if (isRecurring) {
+      // For recurring tasks: award rewards but reschedule instead of completing
+      const nextDueDate = this.calculateNextDueDate(task.dueDate, task.recurType);
       
-      for (const skillName of task.skillTags) {
-        await this.addSkillXp(userId, skillName, xpPerSkill);
+      const [rescheduledTask] = await db
+        .update(tasks)
+        .set({
+          dueDate: nextDueDate,
+          // Don't mark as completed, just reschedule
+        })
+        .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+        .returning();
+
+      // Award gold and update progress
+      await this.addGold(userId, task.goldValue);
+
+      // Award XP to skills if task has skill tags
+      if (task.skillTags && task.skillTags.length > 0) {
+        const { calculateXPPerSkill } = await import("./xpCalculation");
+        const xpPerSkill = calculateXPPerSkill(task.importance, task.duration, task.skillTags.length);
+        
+        for (const skillName of task.skillTags) {
+          await this.addSkillXp(userId, skillName, xpPerSkill);
+        }
       }
+
+      return rescheduledTask;
+    } else {
+      // For one-time tasks: complete and recycle as before
+      const [completedTask] = await db
+        .update(tasks)
+        .set({
+          completed: true,
+          completedAt: new Date(),
+          recycled: true,
+          recycledAt: new Date(),
+          recycledReason: 'completed'
+        })
+        .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+        .returning();
+
+      // Award gold and update progress
+      await this.addGold(userId, task.goldValue);
+
+      // Award XP to skills if task has skill tags
+      if (task.skillTags && task.skillTags.length > 0) {
+        const { calculateXPPerSkill } = await import("./xpCalculation");
+        const xpPerSkill = calculateXPPerSkill(task.importance, task.duration, task.skillTags.length);
+        
+        for (const skillName of task.skillTags) {
+          await this.addSkillXp(userId, skillName, xpPerSkill);
+        }
+      }
+
+      return completedTask;
+    }
+  }
+
+  /**
+   * Calculate the next due date for a recurring task
+   */
+  private calculateNextDueDate(currentDueDate: Date | null, recurType: string | null): Date {
+    const baseDate = currentDueDate ? new Date(currentDueDate) : new Date();
+    const nextDate = new Date(baseDate);
+
+    switch (recurType) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + 1);
+        break;
+      case 'every other day':
+        nextDate.setDate(nextDate.getDate() + 2);
+        break;
+      case '2x week':
+        // Twice a week = approximately every 3-4 days
+        nextDate.setDate(nextDate.getDate() + 3);
+        break;
+      case '3x week':
+        // Three times a week = approximately every 2-3 days
+        nextDate.setDate(nextDate.getDate() + 2);
+        break;
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + 7);
+        break;
+      case '2x month':
+        // Twice a month = approximately every 15 days
+        nextDate.setDate(nextDate.getDate() + 15);
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        break;
+      case 'every 2 months':
+        nextDate.setMonth(nextDate.getMonth() + 2);
+        break;
+      case 'quarterly':
+        nextDate.setMonth(nextDate.getMonth() + 3);
+        break;
+      case 'every 6 months':
+        nextDate.setMonth(nextDate.getMonth() + 6);
+        break;
+      case 'yearly':
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+        break;
+      default:
+        // Default to next day if unknown recur type
+        nextDate.setDate(nextDate.getDate() + 1);
     }
 
-    return completedTask;
+    return nextDate;
   }
 
   async getRecycledTasks(userId: string): Promise<Task[]> {
