@@ -1394,6 +1394,15 @@ export default function Skills() {
           
           {selectedSkill && (
             <>
+              {/* Skill Description */}
+              <div className="mb-4 p-4 bg-slate-800/40 border border-yellow-600/30 rounded-lg">
+                <p className="text-yellow-200/90 text-sm leading-relaxed">
+                  {selectedSkill.skillDescription || 
+                   (skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions]?.description) || 
+                   "Develop expertise in this skill area through focused practice and achievement."}
+                </p>
+              </div>
+
               {/* Edit Milestones Button and Instructions */}
               <div className="flex justify-between items-center">
                 <p className="text-sm text-yellow-400/70 italic">
