@@ -234,26 +234,92 @@ export default function Dashboard() {
     return priorityMap[importance || ''] || 0;
   };
 
-  // Get top 3 uncompleted tasks - prioritize by due date (today first), then by importance
+  // Get top 4 uncompleted tasks with advanced priority logic
   const getTopTasks = () => {
     const incompleteTasks = (tasks as any[]).filter((task: any) => !task.completed);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayTime = today.getTime();
     
-    return incompleteTasks
-      .sort((a, b) => {
-        // Check if tasks are due today
-        const aDueToday = a.dueDate ? new Date(a.dueDate).setHours(0, 0, 0, 0) === today.getTime() : false;
-        const bDueToday = b.dueDate ? new Date(b.dueDate).setHours(0, 0, 0, 0) === today.getTime() : false;
+    // Helper to get days until due date
+    const getDaysUntilDue = (task: any) => {
+      if (!task.dueDate) return Infinity;
+      const dueDate = new Date(task.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      const diffTime = dueDate.getTime() - todayTime;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    };
+    
+    // Priority tiers based on requirements
+    const categorizedTasks = {
+      tier1: [] as any[], // Due today or earlier + High priority
+      tier2: [] as any[], // Next 3 days + High priority
+      tier3: [] as any[], // Next 3 days + Med-High priority
+      tier4: [] as any[], // Next 7 days + High priority
+      tier5: [] as any[], // Next 7 days + Med-High priority
+      tier6: [] as any[], // Everything else
+    };
+    
+    incompleteTasks.forEach(task => {
+      const daysUntilDue = getDaysUntilDue(task);
+      const importance = task.importance || '';
+      
+      // Tier 1: Due today or earlier + High priority
+      if (daysUntilDue <= 0 && importance === 'High') {
+        categorizedTasks.tier1.push(task);
+      }
+      // Tier 2: Next 3 days (1-3 days) + High priority
+      else if (daysUntilDue >= 1 && daysUntilDue <= 3 && importance === 'High') {
+        categorizedTasks.tier2.push(task);
+      }
+      // Tier 3: Next 3 days (1-3 days) + Med-High priority
+      else if (daysUntilDue >= 1 && daysUntilDue <= 3 && importance === 'Med-High') {
+        categorizedTasks.tier3.push(task);
+      }
+      // Tier 4: Next week (4-7 days) + High priority
+      else if (daysUntilDue >= 4 && daysUntilDue <= 7 && importance === 'High') {
+        categorizedTasks.tier4.push(task);
+      }
+      // Tier 5: Next week (4-7 days) + Med-High priority
+      else if (daysUntilDue >= 4 && daysUntilDue <= 7 && importance === 'Med-High') {
+        categorizedTasks.tier5.push(task);
+      }
+      // Tier 6: Everything else
+      else {
+        categorizedTasks.tier6.push(task);
+      }
+    });
+    
+    // Within each tier, sort by due date (closest first), then by importance
+    const sortTier = (tasks: any[]) => {
+      return tasks.sort((a, b) => {
+        const aDays = getDaysUntilDue(a);
+        const bDays = getDaysUntilDue(b);
         
-        // Prioritize tasks due today
-        if (aDueToday && !bDueToday) return -1;
-        if (!aDueToday && bDueToday) return 1;
+        // First by due date
+        if (aDays !== bDays) return aDays - bDays;
         
-        // If both due today or both not due today, sort by importance
+        // Then by importance
         return getPriorityValue(b.importance) - getPriorityValue(a.importance);
-      })
-      .slice(0, 3);
+      });
+    };
+    
+    // Sort each tier
+    Object.keys(categorizedTasks).forEach(tier => {
+      categorizedTasks[tier as keyof typeof categorizedTasks] = 
+        sortTier(categorizedTasks[tier as keyof typeof categorizedTasks]);
+    });
+    
+    // Combine tiers in order and take first 4
+    return [
+      ...categorizedTasks.tier1,
+      ...categorizedTasks.tier2,
+      ...categorizedTasks.tier3,
+      ...categorizedTasks.tier4,
+      ...categorizedTasks.tier5,
+      ...categorizedTasks.tier6,
+    ].slice(0, 4);
   };
 
   const topTasks = getTopTasks();
