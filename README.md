@@ -38,25 +38,31 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Recycle tasks** instead of deleting them for better task management
 - **Create custom skills** tailored to your personal development goals
 - **Recategorize tasks** - Manually adjust skill tags for selected tasks with sequential processing
-- **✨ NEW: Bulk task operations** - Select all, delete selected, batch restore with optimized performance
-- **✨ NEW: Enhanced recycling bin** - Search, filter, and manage deleted/completed tasks efficiently
-- **✨ NEW: Dark theme toasts** - Consistent notification styling matching the app's aesthetic
-- **✨ NEW: Why These Skills modal** - Understand and customize macro life goals behind the skills system
-- **✨ NEW: Manually edit skills** - Adjust skill icons, levels, and XP directly for full control
-- **✨ NEW: Export tasks to CSV** - Download all your tasks as a spreadsheet for external analysis
-- **✨ NEW: Grid view with smart batching** - View tasks in 4-column grid organized by priority or due date
+- **✨ NEW: Constellation View** - Interactive star-map visualization of skills and milestones with customizable nodes
+- **✨ NEW: Customizable Milestones** - Edit milestone titles, levels, and positions for each skill's progression map
+- **✨ NEW: 6-Column Grid Layout** - Expanded grid view with compact cards for better task overview
+- **✨ NEW: Unified Campaigns** - Custom and default campaigns displayed together (5 max on web, unlimited on mobile)
+- **✨ NEW: Compass Icon** - Added to custom skill icon selection for explorer/travel skills
+- **Bulk task operations** - Select all, delete selected, batch restore with optimized performance
+- **Enhanced recycling bin** - Search, filter, and manage deleted/completed tasks efficiently
+- **Dark theme toasts** - Consistent notification styling matching the app's aesthetic
+- **Why These Skills modal** - Understand and customize macro life goals behind the skills system
+- **Manually edit skills** - Adjust skill icons, levels, and XP directly for full control
+- **Export tasks to CSV** - Download all your tasks as a spreadsheet for external analysis
 
 ### Key Differentiators
 
-- **Constellation-themed skills system** with 9 default skills
-- **✨ NEW: Custom Skills System** - Create unlimited personalized skills with AI categorization
-- **✨ NEW: Recategorize Feature** - Manually adjust skill tags on selected tasks with sequential modal workflow
-- **✨ NEW: Automatic AI Categorization** - New tasks automatically get skill tags via background AI processing
-- **✨ NEW: Transparent Gold Formula** - Fair, modular calculation: Base × TimeWeight × (1 + PriorityBonus)
-- **✨ NEW: Manual Skill Editing** - Edit skill icons, levels, and XP for complete customization
-- **✨ NEW: CSV Export** - Export all tasks to Excel/Google Sheets compatible CSV format
-- **✨ NEW: Grid View** - Responsive 4-column layout with smart batching by priority/date
-- **Dual-view support** (Grid/List) for different user preferences
+- **Constellation-themed skills system** with 9 default skills + interactive milestone maps
+- **✨ NEW: Constellation View** - Cosmic visualization of skills as connected nodes with branching milestone progressions
+- **✨ NEW: Customizable Milestones** - Create and edit custom milestone constellations for each skill
+- **Custom Skills System** - Create unlimited personalized skills with AI categorization
+- **Recategorize Feature** - Manually adjust skill tags on selected tasks with sequential modal workflow
+- **Automatic AI Categorization** - New tasks automatically get skill tags via background AI processing
+- **Transparent Gold Formula** - Fair, modular calculation: Base × TimeWeight × (1 + PriorityBonus)
+- **Manual Skill Editing** - Edit skill icons, levels, and XP for complete customization
+- **CSV Export** - Export all tasks to Excel/Google Sheets compatible CSV format
+- **6-Column Grid View** - Responsive layout with compact cards (6 cols desktop, 3 tablet, 1 mobile)
+- **Dual-view support** (Grid/List/Constellation) for different user preferences
 - **Batch operations** for managing multiple tasks efficiently
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
 - **Notion bi-directional sync** (create, update, delete tasks)
@@ -1364,7 +1370,75 @@ See [GRID_VIEW_TEST_CASES.md](GRID_VIEW_TEST_CASES.md) for:
 
 ---
 
-## 🎨 UI Components & Styling
+## � Constellation View
+
+**✨ NEW: Interactive Skills Visualization**
+
+Constellation View transforms your skills into an interactive cosmic star map, with each skill as a glowing node connected by lines. Click any skill to reveal its milestone constellation - a branching progression map showing your journey from beginner to mastery.
+
+### Features
+
+**Skills Constellation**
+- **Dynamic Positioning**: Automatically arranges 1-20+ skills in organic circular patterns
+- **Connection Lines**: SVG paths connect related skills visually
+- **Interactive Nodes**: Click to open milestone details, hover for effects
+- **Default View**: Constellation is now the default view mode for Skills page
+- **Responsive**: Adapts layout for different screen sizes
+
+**Milestone Constellations**
+- **Branching Paths**: Each skill has a unique constellation of milestones
+- **Visual Status**: 
+  - ✨ **Completed**: Glowing gold nodes with shining connections
+  - 🔵 **Next Goal**: Pulsing blue animation on your next milestone
+  - 🔒 **Locked**: Dim gray nodes for future achievements
+- **Custom Layouts**: Each skill has a themed constellation (e.g., Explorer has 3 branches for countries, living abroad, and citizenship)
+
+**Customizable Milestones**
+- **Edit Any Milestone**: Click "Customize Milestones" to open the editor
+- **Full Control**: 
+  - Change milestone titles
+  - Adjust required levels (1-99)
+  - Position nodes anywhere (X: 10-90%, Y: 5-90%)
+  - Add or remove milestone nodes
+- **Database Persistence**: Custom milestones saved in PostgreSQL JSONB column
+- **Reset Option**: Revert to default milestones anytime
+- **Auto-Sorting**: Milestones automatically sorted by level
+
+### Example: Explorer Skill Constellation
+
+```
+Starting point (bottom center)
+    ├─ Left Branch: Visit 5 → 10 → 20 → 50 countries
+    ├─ Middle Branch: Live abroad 4mo → 12mo → 3yr
+    └─ Right Branch: Citizenship (2→3→5→10) + Languages (2→3)
+```
+
+### Technical Implementation
+
+**Frontend** (`client/src/pages/skills.tsx`):
+- Three view modes: Grid, List, Constellation
+- Dynamic SVG rendering for connection lines
+- React state management for modal interactions
+- TanStack Query for milestone data
+
+**Backend**:
+- `constellation_milestones` JSONB column in `user_skills` table
+- API endpoint: `PATCH /api/skills/:skillId/milestones`
+- Validation: Ensures valid milestone structure (id, title, level, x, y)
+
+**Components**:
+- `EditMilestonesModal`: Full-featured editor for customizing milestone nodes
+- Inline constellation rendering in skill detail modal
+- Hover tooltips with milestone details
+
+### Test Coverage
+- **CONSTELLATION_TEST_CASES.md**: 6 core functionality tests
+- **MILESTONE_CUSTOMIZATION_TEST_CASES.md**: 13 customization workflow tests
+- Covers view modes, node interactions, status colors, persistence, validation
+
+---
+
+## �🎨 UI Components & Styling
 
 ### Component Architecture
 - **Radix UI**: Headless, accessible components
@@ -1469,8 +1543,13 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - **RECATEGORIZE_TEST_CASES.md** - 25 test cases for task recategorization feature
 - **AUTO_CLASSIFICATION_TEST_CASES.md** - 20 test cases for automatic AI categorization
 - **GOLD_CALCULATION_TEST_CASES.md** - 25 test cases for modular gold formula
-- **✨ TASK_MANAGEMENT_TEST_CASES.md (NEW)** - 35 test cases for bulk operations and recycling bin
-- **✨ WHY_SKILLS_MODAL_TEST_CASES.md (NEW)** - 33 test cases for macro goals modal
+- **TASK_MANAGEMENT_TEST_CASES.md** - 35 test cases for bulk operations and recycling bin
+- **WHY_SKILLS_MODAL_TEST_CASES.md** - 33 test cases for macro goals modal
+- **✨ CONSTELLATION_TEST_CASES.md (NEW)** - 6 core tests for constellation view
+- **✨ MILESTONE_CUSTOMIZATION_TEST_CASES.md (NEW)** - 13 tests for customizable milestones
+- **✨ CAMPAIGNS_PAGE_TEST_CASES.md (NEW)** - 6 tests for unified campaigns display
+- **✨ GRID_COMPACT_TEST_CASES.md (NEW)** - 8 tests for 6-column grid layout
+- **✨ COMPASS_ICON_TEST_CASES.md (NEW)** - 5 tests for Compass icon addition
 - **TESTING.md** - Comprehensive testing documentation
 
 ### Debug Tools
