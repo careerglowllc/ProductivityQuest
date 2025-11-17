@@ -1939,10 +1939,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate OAuth URL with user's credentials
       console.log('📝 [AUTH URL] Generating OAuth URL...');
       const { OAuth2Client } = require('google-auth-library');
-      const redirectUri = `${req.protocol}://${req.get('host')}/api/google-calendar/callback`;
+      
+      // Determine the correct redirect URI
+      // In production (Render), use the environment variable
+      // In development, construct from request
+      const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || 
+        `${req.protocol}://${req.get('host')}/api/google-calendar/callback`;
+      
       console.log('📝 [AUTH URL] Redirect URI:', redirectUri);
       console.log('📝 [AUTH URL] Protocol:', req.protocol);
       console.log('📝 [AUTH URL] Host:', req.get('host'));
+      console.log('📝 [AUTH URL] ENV redirect:', process.env.GOOGLE_CALENDAR_REDIRECT_URI);
+      
+      console.log('📝 [AUTH URL] Creating OAuth2Client with clientId length:', user.googleCalendarClientId.length);
+      console.log('📝 [AUTH URL] Creating OAuth2Client with clientSecret length:', user.googleCalendarClientSecret.length);
       
       const oauth2Client = new OAuth2Client(
         user.googleCalendarClientId,
@@ -1950,6 +1960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         redirectUri
       );
 
+      console.log('📝 [AUTH URL] OAuth2Client created, generating auth URL...');
       const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: ['https://www.googleapis.com/auth/calendar.readonly'],
@@ -1957,12 +1968,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         state: userId, // Pass userId in state to identify user in callback
       });
 
-      console.log('✅ [AUTH URL] Generated successfully:', authUrl);
+      console.log('✅ [AUTH URL] Generated successfully:', authUrl.substring(0, 100) + '...');
       res.json({ authUrl });
     } catch (error: any) {
       console.error("❌ [AUTH URL] Error generating auth URL:", error);
       console.error("❌ [AUTH URL] Error message:", error?.message);
       console.error("❌ [AUTH URL] Error stack:", error?.stack);
+      console.error("❌ [AUTH URL] Error name:", error?.name);
+      console.error("❌ [AUTH URL] Full error object:", JSON.stringify(error, null, 2));
       res.status(500).json({ 
         error: "Failed to generate authorization URL",
         details: error?.message 
@@ -1973,26 +1986,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // OAuth callback endpoint
   app.get("/api/google-calendar/callback", async (req: any, res) => {
     try {
+      console.log('📝 [CALLBACK] OAuth callback received');
       const { code, state: userId } = req.query;
+      console.log('📝 [CALLBACK] Code present:', !!code, 'User ID:', userId);
 
       if (!code || !userId) {
         return res.status(400).send('Missing authorization code or user ID');
       }
 
       const user = await storage.getUserById(userId);
+      console.log('📝 [CALLBACK] User found:', !!user);
+      
       if (!user?.googleCalendarClientId || !user?.googleCalendarClientSecret) {
         return res.status(400).send('User credentials not found');
       }
 
       // Exchange code for tokens
       const { OAuth2Client } = require('google-auth-library');
+      const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || 
+        `${req.protocol}://${req.get('host')}/api/google-calendar/callback`;
+      
+      console.log('📝 [CALLBACK] Redirect URI:', redirectUri);
+      
       const oauth2Client = new OAuth2Client(
         user.googleCalendarClientId,
         user.googleCalendarClientSecret,
-        `${req.protocol}://${req.get('host')}/api/google-calendar/callback`
+        redirectUri
       );
 
+      console.log('📝 [CALLBACK] Exchanging code for tokens...');
       const { tokens } = await oauth2Client.getToken(code);
+      console.log('📝 [CALLBACK] Tokens received:', {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        expiryDate: tokens.expiry_date
+      });
 
       // Save tokens to database
       await storage.updateUserSettings(userId, {
@@ -2002,10 +2030,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         googleCalendarSyncEnabled: true,
       });
 
+      console.log('✅ [CALLBACK] Tokens saved successfully');
       // Redirect back to integration page with success
       res.redirect('/google-calendar-integration?auth=success');
-    } catch (error) {
-      console.error("OAuth callback error:", error);
+    } catch (error: any) {
+      console.error('❌ [CALLBACK] Error during OAuth callback:', error);
+      console.error('❌ [CALLBACK] Error message:', error?.message);
       res.redirect('/google-calendar-integration?auth=error');
     }
   });
