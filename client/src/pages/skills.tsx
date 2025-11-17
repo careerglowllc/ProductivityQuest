@@ -365,7 +365,7 @@ export default function Skills() {
       <div className="max-w-6xl mx-auto px-4 py-12">
         {viewMode === 'constellation' ? (
           /* Constellation View */
-          <div className="relative min-h-[700px] bg-slate-900/30 rounded-3xl border-2 border-yellow-600/20 p-8 overflow-hidden">
+          <div className="relative w-full h-[800px] bg-slate-900/30 rounded-3xl border-2 border-yellow-600/20 p-8 overflow-hidden">
             {/* Background stars */}
             <div className="absolute inset-0 opacity-20">
               {Array.from({ length: 50 }).map((_, i) => (
@@ -382,175 +382,214 @@ export default function Skills() {
               ))}
             </div>
 
-            {/* Constellation nodes and connections */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-              {/* Draw connecting lines between nodes */}
-              {skills.map((skill, index) => {
-                if (index === 0) return null;
-                const prevIndex = index - 1;
+            {/* Calculate positions dynamically */}
+            {(() => {
+              const getNodePositions = (count: number) => {
+                if (count === 0) return [];
                 
-                // Calculate positions (same as nodes below)
-                const angle = (index / skills.length) * 2 * Math.PI - Math.PI / 2;
-                const radius = 250;
-                const centerX = 50; // percentage
-                const centerY = 50; // percentage
+                // Use a more organic constellation layout
+                const positions: { x: number; y: number }[] = [];
+                const padding = 12; // Percentage padding from edges
+                const availableWidth = 100 - (padding * 2);
+                const availableHeight = 100 - (padding * 2);
                 
-                const x = centerX + (radius / 6) * Math.cos(angle);
-                const y = centerY + (radius / 6) * Math.sin(angle);
+                if (count === 1) {
+                  positions.push({ x: 50, y: 50 });
+                } else if (count === 2) {
+                  positions.push({ x: 30, y: 50 });
+                  positions.push({ x: 70, y: 50 });
+                } else if (count === 3) {
+                  positions.push({ x: 50, y: 25 });
+                  positions.push({ x: 30, y: 70 });
+                  positions.push({ x: 70, y: 70 });
+                } else if (count === 4) {
+                  positions.push({ x: 30, y: 30 });
+                  positions.push({ x: 70, y: 30 });
+                  positions.push({ x: 70, y: 70 });
+                  positions.push({ x: 30, y: 70 });
+                } else if (count <= 6) {
+                  // Pentagon/Hexagon arrangement
+                  for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
+                    const radius = 35;
+                    positions.push({
+                      x: 50 + radius * Math.cos(angle),
+                      y: 50 + radius * Math.sin(angle),
+                    });
+                  }
+                } else if (count <= 10) {
+                  // Circular arrangement for 7-10 skills
+                  for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
+                    const radius = 38;
+                    positions.push({
+                      x: 50 + radius * Math.cos(angle),
+                      y: 50 + radius * Math.sin(angle),
+                    });
+                  }
+                } else {
+                  // For more than 10, use a double circle pattern
+                  const innerCount = Math.ceil(count / 2);
+                  const outerCount = count - innerCount;
+                  
+                  // Inner circle
+                  for (let i = 0; i < innerCount; i++) {
+                    const angle = (i / innerCount) * 2 * Math.PI - Math.PI / 2;
+                    const radius = 25;
+                    positions.push({
+                      x: 50 + radius * Math.cos(angle),
+                      y: 50 + radius * Math.sin(angle),
+                    });
+                  }
+                  
+                  // Outer circle
+                  for (let i = 0; i < outerCount; i++) {
+                    const angle = (i / outerCount) * 2 * Math.PI - Math.PI / 2;
+                    const radius = 40;
+                    positions.push({
+                      x: 50 + radius * Math.cos(angle),
+                      y: 50 + radius * Math.sin(angle),
+                    });
+                  }
+                }
                 
-                const prevAngle = (prevIndex / skills.length) * 2 * Math.PI - Math.PI / 2;
-                const prevX = centerX + (radius / 6) * Math.cos(prevAngle);
-                const prevY = centerY + (radius / 6) * Math.sin(prevAngle);
-                
-                return (
-                  <line
-                    key={`line-${skill.id}`}
-                    x1={`${prevX}%`}
-                    y1={`${prevY}%`}
-                    x2={`${x}%`}
-                    y2={`${y}%`}
-                    stroke="rgba(250, 204, 21, 0.3)"
-                    strokeWidth="2"
-                    className="transition-all duration-300"
-                  />
-                );
-              })}
-              
-              {/* Connect last to first to close the constellation */}
-              {skills.length > 1 && (() => {
-                const lastIndex = skills.length - 1;
-                const angle = (lastIndex / skills.length) * 2 * Math.PI - Math.PI / 2;
-                const radius = 250;
-                const centerX = 50;
-                const centerY = 50;
-                
-                const x = centerX + (radius / 6) * Math.cos(angle);
-                const y = centerY + (radius / 6) * Math.sin(angle);
-                
-                const firstAngle = -Math.PI / 2;
-                const firstX = centerX + (radius / 6) * Math.cos(firstAngle);
-                const firstY = centerY + (radius / 6) * Math.sin(firstAngle);
-                
-                return (
-                  <line
-                    x1={`${x}%`}
-                    y1={`${y}%`}
-                    x2={`${firstX}%`}
-                    y2={`${firstY}%`}
-                    stroke="rgba(250, 204, 21, 0.3)"
-                    strokeWidth="2"
-                  />
-                );
-              })()}
-            </svg>
+                return positions;
+              };
 
-            {/* Skill nodes */}
-            <div className="relative" style={{ zIndex: 2 }}>
-              {skills.map((skill, index) => {
-                const Icon = getSkillIconComponent(skill);
-                const constellation = getConstellation(skill);
-                const progressPercent = (skill.xp / skill.maxXp) * 100;
-                
-                // Calculate position in a circle
-                const angle = (index / skills.length) * 2 * Math.PI - Math.PI / 2;
-                const radius = 250; // Distance from center
-                const centerX = 50; // percentage
-                const centerY = 50; // percentage
-                
-                const x = centerX + (radius / 6) * Math.cos(angle);
-                const y = centerY + (radius / 6) * Math.sin(angle);
-                
-                return (
-                  <div
-                    key={skill.id}
-                    className="absolute group cursor-pointer"
-                    style={{
-                      left: `${x}%`,
-                      top: `${y}%`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                    onClick={() => setSelectedSkill(skill)}
-                  >
-                    {/* Glow effect on hover */}
-                    <div className="absolute inset-0 -m-8 bg-yellow-400/0 group-hover:bg-yellow-400/20 rounded-full blur-2xl transition-all duration-500" />
-                    
-                    {/* Node circle */}
-                    <div className="relative w-20 h-20 rounded-full border-4 border-yellow-600/40 group-hover:border-yellow-400 bg-slate-800/80 backdrop-blur-sm transition-all duration-300 group-hover:scale-125 overflow-hidden">
-                      {/* Progress fill */}
-                      <div 
-                        className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all"
-                        style={{ height: `${progressPercent}%` }}
-                      />
-                      
-                      {/* Icon */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Icon className="h-10 w-10 text-yellow-100 group-hover:text-white drop-shadow-lg transition-all group-hover:scale-110" strokeWidth={2} />
-                      </div>
-                      
-                      {/* Level badge */}
-                      <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 border-2 border-yellow-400 flex items-center justify-center text-slate-900 font-bold text-xs shadow-lg">
-                        {skill.level}
-                      </div>
-                    </div>
-                    
-                    {/* Skill name tooltip on hover */}
-                    <div className="absolute top-24 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap">
-                      <div className="bg-slate-900/95 backdrop-blur-md px-4 py-2 rounded-lg border-2 border-yellow-500/60 shadow-xl">
-                        <p className="text-yellow-100 font-serif font-bold text-sm">{skill.skillName}</p>
-                        <p className="text-yellow-400/70 text-xs italic">{constellation}</p>
-                        <p className="text-yellow-300 text-xs mt-1">Level {skill.level} • {Math.round(progressPercent)}% XP</p>
-                      </div>
-                      {/* Arrow pointing up */}
-                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-l-2 border-t-2 border-yellow-500/60 rotate-45" />
-                    </div>
+              const positions = getNodePositions(skills.length);
 
-                    {/* Action buttons on hover */}
-                    <div className="absolute -top-4 -right-16 opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSkillToEdit(skill);
-                          setShowEditIconModal(true);
-                        }}
-                        className="h-7 w-7 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
-                      >
-                        <Edit className="h-3 w-3 text-white" />
-                      </Button>
+              return (
+                <>
+                  {/* Constellation connections - SVG lines */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                    {/* Draw lines connecting each node to the next */}
+                    {skills.map((skill, index) => {
+                      if (index === skills.length - 1) return null; // Skip last one
                       
-                      {skill.isCustom && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSkillToDelete(skill);
-                            setShowDeleteDialog(true);
+                      const pos1 = positions[index];
+                      const pos2 = positions[index + 1];
+                      
+                      if (!pos1 || !pos2) return null;
+                      
+                      return (
+                        <line
+                          key={`line-${skill.id}`}
+                          x1={`${pos1.x}%`}
+                          y1={`${pos1.y}%`}
+                          x2={`${pos2.x}%`}
+                          y2={`${pos2.y}%`}
+                          stroke="rgba(250, 204, 21, 0.3)"
+                          strokeWidth="2"
+                          className="transition-all duration-500"
+                        />
+                      );
+                    })}
+                  </svg>
+
+                  {/* Skill nodes */}
+                  <div className="relative w-full h-full" style={{ zIndex: 2 }}>
+                    {skills.map((skill, index) => {
+                      const Icon = getSkillIconComponent(skill);
+                      const constellation = getConstellation(skill);
+                      const progressPercent = (skill.xp / skill.maxXp) * 100;
+                      const pos = positions[index];
+                      
+                      if (!pos) return null;
+                      
+                      return (
+                        <div
+                          key={skill.id}
+                          className="absolute group cursor-pointer transition-all duration-500"
+                          style={{
+                            left: `${pos.x}%`,
+                            top: `${pos.y}%`,
+                            transform: 'translate(-50%, -50%)',
                           }}
-                          className="h-7 w-7 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                          onClick={() => setSelectedSkill(skill)}
                         >
-                          <Trash2 className="h-3 w-3 text-white" />
-                        </Button>
-                      )}
+                          {/* Glow effect on hover */}
+                          <div className="absolute inset-0 -m-8 bg-yellow-400/0 group-hover:bg-yellow-400/20 rounded-full blur-2xl transition-all duration-500" />
+                          
+                          {/* Node circle */}
+                          <div className="relative w-20 h-20 rounded-full border-4 border-yellow-600/40 group-hover:border-yellow-400 bg-slate-800/80 backdrop-blur-sm transition-all duration-300 group-hover:scale-125 overflow-hidden shadow-lg">
+                            {/* Progress fill */}
+                            <div 
+                              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all duration-500"
+                              style={{ height: `${progressPercent}%` }}
+                            />
+                            
+                            {/* Icon */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Icon className="h-10 w-10 text-yellow-100 group-hover:text-white drop-shadow-lg transition-all group-hover:scale-110" strokeWidth={2} />
+                            </div>
+                            
+                            {/* Level badge */}
+                            <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 border-2 border-yellow-400 flex items-center justify-center text-slate-900 font-bold text-xs shadow-lg">
+                              {skill.level}
+                            </div>
+                          </div>
+                          
+                          {/* Skill name tooltip on hover */}
+                          <div className="absolute top-24 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50">
+                            <div className="bg-slate-900/95 backdrop-blur-md px-4 py-2 rounded-lg border-2 border-yellow-500/60 shadow-xl">
+                              <p className="text-yellow-100 font-serif font-bold text-sm">{skill.skillName}</p>
+                              <p className="text-yellow-400/70 text-xs italic">{constellation}</p>
+                              <p className="text-yellow-300 text-xs mt-1">Level {skill.level} • {Math.round(progressPercent)}% XP</p>
+                            </div>
+                            {/* Arrow pointing up */}
+                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-l-2 border-t-2 border-yellow-500/60 rotate-45" />
+                          </div>
+
+                          {/* Action buttons on hover */}
+                          <div className="absolute -top-4 -right-16 opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-1 z-50">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSkillToEdit(skill);
+                                setShowEditIconModal(true);
+                              }}
+                              className="h-7 w-7 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
+                            >
+                              <Edit className="h-3 w-3 text-white" />
+                            </Button>
+                            
+                            {skill.isCustom && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSkillToDelete(skill);
+                                  setShowDeleteDialog(true);
+                                }}
+                                className="h-7 w-7 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                              >
+                                <Trash2 className="h-3 w-3 text-white" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Center decoration */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
+                    <div className="w-16 h-16 rounded-full border-2 border-yellow-600/20 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center">
+                      <Crown className="h-8 w-8 text-yellow-400/30" />
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Center decoration */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-              <div className="w-16 h-16 rounded-full border-2 border-yellow-600/30 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center">
-                <Crown className="h-8 w-8 text-yellow-400/50" />
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md px-4 py-3 rounded-lg border border-yellow-600/30 text-xs text-yellow-200/70">
-              <p className="font-serif italic">Hover over nodes to reveal details</p>
-              <p className="font-serif italic">Click to view full skill information</p>
-            </div>
+                  {/* Legend */}
+                  <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md px-4 py-3 rounded-lg border border-yellow-600/30 text-xs text-yellow-200/70 z-10">
+                    <p className="font-serif italic">Hover over nodes to reveal details</p>
+                    <p className="font-serif italic">Click to view full skill information</p>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         ) : viewMode === 'grid' ? (
           /* Grid View */
