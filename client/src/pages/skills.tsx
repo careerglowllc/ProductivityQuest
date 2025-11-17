@@ -130,6 +130,116 @@ const skillConstellations: Record<string, string> = {
   Explorer: "The Wanderer"
 };
 
+// Milestone constellations for each skill
+const skillMilestones: Record<string, Array<{ 
+  id: string; 
+  title: string; 
+  level: number;
+  x: number; 
+  y: number; 
+}>> = {
+  Explorer: [
+    { id: 'start', title: 'Begin Your Journey', level: 1, x: 50, y: 85 },
+    { id: 'countries-10', title: 'Visit 10 Countries', level: 10, x: 35, y: 65 },
+    { id: 'language-1', title: 'Learn a Second Language', level: 15, x: 65, y: 65 },
+    { id: 'immersion-4months', title: 'Spend 4 Months Abroad', level: 20, x: 50, y: 50 },
+    { id: 'countries-20', title: 'Visit 20 Countries', level: 30, x: 30, y: 35 },
+    { id: 'language-2', title: 'Master Two Languages', level: 35, x: 70, y: 35 },
+    { id: 'continents-5', title: 'Visit 5 Continents', level: 50, x: 50, y: 20 },
+    { id: 'citizen-world', title: 'Become a Citizen of the World', level: 99, x: 50, y: 5 },
+  ],
+  Craftsman: [
+    { id: 'start', title: 'Pick Up Your Tools', level: 1, x: 50, y: 85 },
+    { id: 'project-1', title: 'Complete First Project', level: 5, x: 40, y: 70 },
+    { id: 'tools-master', title: 'Master Basic Tools', level: 10, x: 60, y: 70 },
+    { id: 'furniture', title: 'Build Custom Furniture', level: 20, x: 35, y: 55 },
+    { id: 'workshop', title: 'Set Up Workshop', level: 25, x: 65, y: 55 },
+    { id: 'apprentice', title: 'Teach an Apprentice', level: 40, x: 50, y: 40 },
+    { id: 'masterwork', title: 'Create a Masterwork', level: 60, x: 40, y: 25 },
+    { id: 'legacy', title: 'Leave a Lasting Legacy', level: 99, x: 50, y: 5 },
+  ],
+  Artist: [
+    { id: 'start', title: 'First Creation', level: 1, x: 50, y: 85 },
+    { id: 'medium', title: 'Choose Your Medium', level: 5, x: 45, y: 70 },
+    { id: 'daily', title: 'Create Daily for 30 Days', level: 10, x: 55, y: 70 },
+    { id: 'style', title: 'Develop Unique Style', level: 20, x: 35, y: 55 },
+    { id: 'show', title: 'First Public Show', level: 25, x: 65, y: 55 },
+    { id: 'sell', title: 'Sell Your Art', level: 35, x: 50, y: 40 },
+    { id: 'commission', title: 'Work on Commission', level: 50, x: 40, y: 25 },
+    { id: 'inspire', title: 'Inspire Generations', level: 99, x: 50, y: 5 },
+  ],
+  Mindset: [
+    { id: 'start', title: 'Begin Transformation', level: 1, x: 50, y: 85 },
+    { id: 'gratitude', title: 'Daily Gratitude Practice', level: 5, x: 40, y: 70 },
+    { id: 'reframe', title: 'Master Reframing', level: 10, x: 60, y: 70 },
+    { id: 'meditation', title: '100 Days of Meditation', level: 20, x: 35, y: 55 },
+    { id: 'resilience', title: 'Unshakeable Resilience', level: 30, x: 65, y: 55 },
+    { id: 'teach', title: 'Teach Others', level: 50, x: 50, y: 35 },
+    { id: 'mastery', title: 'Peak Mental State', level: 75, x: 45, y: 20 },
+    { id: 'transcend', title: 'Transcendent Mastery', level: 99, x: 50, y: 5 },
+  ],
+  Merchant: [
+    { id: 'start', title: 'First Sale', level: 1, x: 50, y: 85 },
+    { id: 'revenue-1k', title: '$1,000 in Revenue', level: 5, x: 40, y: 70 },
+    { id: 'client-10', title: '10 Repeat Clients', level: 10, x: 60, y: 70 },
+    { id: 'revenue-10k', title: '$10,000 Monthly', level: 25, x: 35, y: 55 },
+    { id: 'venture', title: 'Launch a Venture', level: 30, x: 65, y: 55 },
+    { id: 'revenue-100k', title: '$100,000 Yearly', level: 50, x: 50, y: 40 },
+    { id: 'empire', title: 'Build Business Empire', level: 75, x: 45, y: 20 },
+    { id: 'legend', title: 'Industry Legend', level: 99, x: 50, y: 5 },
+  ],
+  Physical: [
+    { id: 'start', title: 'Begin Training', level: 1, x: 50, y: 85 },
+    { id: 'basics', title: 'Master Basic Techniques', level: 10, x: 40, y: 70 },
+    { id: 'strength', title: 'Intermediate Strength', level: 15, x: 60, y: 70 },
+    { id: 'martial', title: '3 Years Martial Arts', level: 25, x: 35, y: 55 },
+    { id: 'combat', title: 'Advanced Combat Skills', level: 35, x: 65, y: 55 },
+    { id: 'elite', title: 'Elite Athlete Status', level: 50, x: 50, y: 40 },
+    { id: 'compete', title: 'Competition Ready', level: 70, x: 45, y: 25 },
+    { id: 'warrior', title: 'Legendary Warrior', level: 99, x: 50, y: 5 },
+  ],
+  Scholar: [
+    { id: 'start', title: 'Curiosity Awakens', level: 1, x: 50, y: 85 },
+    { id: 'read-12', title: 'Read 12 Books/Year', level: 5, x: 40, y: 70 },
+    { id: 'domain', title: 'Master One Domain', level: 15, x: 60, y: 70 },
+    { id: 'degree', title: 'Advanced Degree', level: 25, x: 35, y: 55 },
+    { id: 'publish', title: 'Publish Research', level: 35, x: 65, y: 55 },
+    { id: 'expert', title: 'Recognized Expert', level: 50, x: 50, y: 40 },
+    { id: 'polymath', title: 'True Polymath', level: 75, x: 45, y: 25 },
+    { id: 'wisdom', title: 'Timeless Wisdom', level: 99, x: 50, y: 5 },
+  ],
+  Health: [
+    { id: 'start', title: 'Choose Wellness', level: 1, x: 50, y: 85 },
+    { id: 'nutrition', title: 'Nutrition Basics', level: 5, x: 40, y: 70 },
+    { id: 'sleep', title: 'Quality Sleep Routine', level: 10, x: 60, y: 70 },
+    { id: 'markers', title: 'Optimal Health Markers', level: 25, x: 35, y: 55 },
+    { id: 'habits', title: '5 Years Healthy Habits', level: 30, x: 65, y: 55 },
+    { id: 'optimize', title: 'Peak Optimization', level: 50, x: 50, y: 40 },
+    { id: 'longevity', title: 'Longevity Protocols', level: 75, x: 45, y: 25 },
+    { id: 'vitality', title: 'Legendary Vitality', level: 99, x: 50, y: 5 },
+  ],
+  Connector: [
+    { id: 'start', title: 'Build First Connection', level: 1, x: 50, y: 85 },
+    { id: 'friends-10', title: '10 Deep Friendships', level: 10, x: 40, y: 70 },
+    { id: 'network-50', title: 'Network of 50', level: 20, x: 60, y: 70 },
+    { id: 'maintain', title: 'Master Maintaining Bonds', level: 30, x: 35, y: 55 },
+    { id: 'introduce', title: 'Make 100 Introductions', level: 40, x: 65, y: 55 },
+    { id: 'community', title: 'Build a Community', level: 60, x: 50, y: 35 },
+    { id: 'network-500', title: 'Network of 500+', level: 80, x: 45, y: 20 },
+    { id: 'connector', title: 'Master Connector', level: 99, x: 50, y: 5 },
+  ],
+  Charisma: [
+    { id: 'start', title: 'First Impression', level: 1, x: 50, y: 85 },
+    { id: 'listen', title: 'Active Listening', level: 5, x: 40, y: 70 },
+    { id: 'presence', title: 'Confident Presence', level: 10, x: 60, y: 70 },
+    { id: 'speak', title: 'Public Speaking', level: 20, x: 35, y: 55 },
+    { id: 'influence', title: 'Influence Skills', level: 30, x: 65, y: 55 },
+    { id: 'lead', title: 'Lead a Team', level: 50, x: 50, y: 40 },
+    { id: 'inspire', title: 'Inspire Hundreds', level: 75, x: 45, y: 25 },
+    { id: 'legend', title: 'Legendary Influencer', level: 99, x: 50, y: 5 },
+  ],
+};
+
 // Default skill icon mapping
 const defaultSkillIcons: Record<string, any> = {
   Craftsman: Wrench,
@@ -876,13 +986,12 @@ export default function Skills() {
 
       {/* Skill Detail Modal */}
       <Dialog open={!!selectedSkill} onOpenChange={(open) => !open && setSelectedSkill(null)}>
-        <DialogContent className="bg-slate-800 border-2 border-yellow-600/40 text-yellow-100 max-w-3xl">
+        <DialogContent className="bg-slate-900/95 border-2 border-yellow-600/40 text-yellow-100 max-w-4xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-2xl font-serif text-yellow-100 flex items-center gap-3">
               {selectedSkill && (
                 <>
-                  <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-yellow-600/40 bg-slate-700/30">
-                    <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-yellow-600/40 bg-slate-800/80">
                     <div 
                       className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400"
                       style={{ 
@@ -892,14 +1001,14 @@ export default function Skills() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       {(() => {
                         const Icon = getSkillIconComponent(selectedSkill);
-                        return <Icon className="h-10 w-10 text-slate-900/80" strokeWidth={2.5} />;
+                        return <Icon className="h-6 w-6 text-yellow-100" strokeWidth={2} />;
                       })()}
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       {selectedSkill.skillName}
-                      <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold">
+                      <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-sm">
                         Level {selectedSkill.level}
                       </Badge>
                     </div>
@@ -910,86 +1019,163 @@ export default function Skills() {
             </DialogTitle>
           </DialogHeader>
           
-          {selectedSkill && skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions] && (
-            <div className="space-y-6 mt-4">
-              {/* Description */}
-              <div className="bg-slate-900/50 rounded-lg p-4 border border-yellow-600/20">
-                <p className="text-yellow-200/90 font-serif leading-relaxed">
-                  {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].description}
-                </p>
+          {selectedSkill && (
+            <div className="relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-yellow-600/20 mt-4 overflow-hidden">
+              {/* Background stars */}
+              <div className="absolute inset-0 opacity-20">
+                {Array.from({ length: 40 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-0.5 h-0.5 bg-yellow-100 rounded-full animate-pulse"
+                    style={{
+                      top: `${Math.random() * 100}%`,
+                      left: `${Math.random() * 100}%`,
+                      animationDelay: `${Math.random() * 3}s`,
+                      animationDuration: `${2 + Math.random() * 2}s`,
+                    }}
+                  />
+                ))}
               </div>
 
-              {/* Level Milestones */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-serif font-bold text-yellow-400 flex items-center gap-2">
-                  <Star className="h-5 w-5" />
-                  Mastery Milestones
-                </h3>
+              {/* Milestone constellation */}
+              {(() => {
+                const milestones = skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
+                
+                return (
+                  <>
+                    {/* Connection lines */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                      {milestones.map((milestone, index) => {
+                        if (index === milestones.length - 1) return null;
+                        
+                        const nextMilestone = milestones[index + 1];
+                        const isCompleted = selectedSkill.level >= milestone.level;
+                        const isNextCompleted = selectedSkill.level >= nextMilestone.level;
+                        
+                        return (
+                          <line
+                            key={`line-${milestone.id}`}
+                            x1={`${milestone.x}%`}
+                            y1={`${milestone.y}%`}
+                            x2={`${nextMilestone.x}%`}
+                            y2={`${nextMilestone.y}%`}
+                            stroke={isCompleted && isNextCompleted ? "rgba(250, 204, 21, 0.8)" : "rgba(250, 204, 21, 0.2)"}
+                            strokeWidth={isCompleted && isNextCompleted ? "3" : "2"}
+                            className="transition-all duration-500"
+                            style={{
+                              filter: isCompleted && isNextCompleted ? 'drop-shadow(0 0 8px rgba(250, 204, 21, 0.6))' : 'none',
+                            }}
+                          />
+                        );
+                      })}
+                    </svg>
 
-                {/* Level 10 */}
-                <div className="bg-slate-900/30 rounded-lg p-4 border-l-4 border-blue-500/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className="bg-blue-900/40 text-blue-200 border border-blue-600/40">Level 10</Badge>
-                    <span className="text-sm text-blue-200/70 font-serif italic">Novice</span>
-                  </div>
-                  <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level10}
-                  </p>
-                </div>
+                    {/* Milestone nodes */}
+                    <div className="relative w-full h-full" style={{ zIndex: 2 }}>
+                      {milestones.map((milestone) => {
+                        const isCompleted = selectedSkill.level >= milestone.level;
+                        const isCurrentGoal = selectedSkill.level >= (milestone.level - 10) && selectedSkill.level < milestone.level;
+                        
+                        return (
+                          <div
+                            key={milestone.id}
+                            className="absolute group transition-all duration-500"
+                            style={{
+                              left: `${milestone.x}%`,
+                              top: `${milestone.y}%`,
+                              transform: 'translate(-50%, -50%)',
+                            }}
+                          >
+                            {/* Glow for current goal */}
+                            {isCurrentGoal && (
+                              <div className="absolute inset-0 -m-6 bg-blue-400/20 rounded-full blur-xl animate-pulse" />
+                            )}
+                            
+                            {/* Node circle */}
+                            <div className={`relative w-14 h-14 rounded-full border-4 transition-all duration-300 group-hover:scale-110 overflow-hidden ${
+                              isCompleted 
+                                ? 'border-yellow-400 bg-yellow-600 shadow-lg shadow-yellow-600/50' 
+                                : isCurrentGoal
+                                ? 'border-blue-400 bg-slate-800/80 shadow-lg shadow-blue-400/50 animate-pulse'
+                                : 'border-yellow-600/30 bg-slate-800/60'
+                            }`}>
+                              {/* Filled background for completed */}
+                              {isCompleted && (
+                                <div className="absolute inset-0 bg-gradient-to-t from-yellow-600 to-yellow-400" />
+                              )}
+                              
+                              {/* Level badge */}
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className={`font-bold text-xs ${
+                                  isCompleted ? 'text-slate-900' : 'text-yellow-200/80'
+                                }`}>
+                                  {milestone.level}
+                                </span>
+                              </div>
+                              
+                              {/* Checkmark for completed */}
+                              {isCompleted && (
+                                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-slate-900 flex items-center justify-center">
+                                  <svg className="w-3 h-3 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path d="M5 13l4 4L19 7"></path>
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Tooltip with milestone title */}
+                            <div className="absolute top-16 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-50">
+                              <div className={`px-4 py-2 rounded-lg border-2 shadow-xl ${
+                                isCompleted 
+                                  ? 'bg-yellow-900/95 border-yellow-500/60 backdrop-blur-md'
+                                  : isCurrentGoal
+                                  ? 'bg-blue-900/95 border-blue-500/60 backdrop-blur-md'
+                                  : 'bg-slate-900/95 border-yellow-600/40 backdrop-blur-md'
+                              }`}>
+                                <p className={`font-serif font-bold text-sm ${
+                                  isCompleted ? 'text-yellow-100' : isCurrentGoal ? 'text-blue-100' : 'text-yellow-200/80'
+                                }`}>
+                                  {milestone.title}
+                                </p>
+                                <p className="text-xs text-yellow-400/70 mt-1">
+                                  {isCompleted ? '✓ Achieved' : isCurrentGoal ? 'Next Goal' : `Level ${milestone.level}`}
+                                </p>
+                              </div>
+                              {/* Arrow */}
+                              <div className={`absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 ${
+                                isCompleted 
+                                  ? 'bg-yellow-900 border-l-2 border-t-2 border-yellow-500/60'
+                                  : isCurrentGoal
+                                  ? 'bg-blue-900 border-l-2 border-t-2 border-blue-500/60'
+                                  : 'bg-slate-900 border-l-2 border-t-2 border-yellow-600/40'
+                              }`} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                {/* Level 30 */}
-                <div className="bg-slate-900/30 rounded-lg p-4 border-l-4 border-purple-500/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className="bg-purple-900/40 text-purple-200 border border-purple-600/40">Level 30</Badge>
-                    <span className="text-sm text-purple-200/70 font-serif italic">Expert</span>
-                  </div>
-                  <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level30}
-                  </p>
-                </div>
-
-                {/* Level 50 */}
-                <div className="bg-slate-900/30 rounded-lg p-4 border-l-4 border-yellow-500/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className="bg-yellow-900/40 text-yellow-200 border border-yellow-600/40">Level 50</Badge>
-                    <span className="text-sm text-yellow-200/70 font-serif italic">Grandmaster</span>
-                  </div>
-                  <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level50}
-                  </p>
-                </div>
-
-                {/* Level 99 */}
-                <div className="bg-slate-900/30 rounded-lg p-4 border-l-4 border-red-500/50 shadow-lg shadow-red-500/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className="bg-gradient-to-r from-red-900/60 to-orange-900/60 text-red-100 border border-red-500/60 shadow-md">Level 99</Badge>
-                    <span className="text-sm text-red-200/90 font-serif italic font-bold">✨ Legendary ✨</span>
-                  </div>
-                  <p className="text-yellow-200/80 text-sm leading-relaxed">
-                    {skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions].level99}
-                  </p>
-                </div>
-              </div>
-
-              {/* Current Progress */}
-              <div className="bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 rounded-lg p-4 border border-yellow-600/30">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-yellow-100 font-semibold">Current Progress</span>
-                  <span className="text-yellow-400">{selectedSkill.xp} / {selectedSkill.maxXp} XP</span>
-                </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all"
-                    style={{ width: `${(selectedSkill.xp / selectedSkill.maxXp) * 100}%` }}
-                  ></div>
-                </div>
-                <p className="text-yellow-300/60 text-xs mt-2 text-center font-serif italic">
-                  {selectedSkill.level >= 99 
-                    ? "⭐ Maximum Level Achieved! ⭐" 
-                    : `${selectedSkill.maxXp - selectedSkill.xp} XP until Level ${selectedSkill.level + 1}`
-                  }
-                </p>
-              </div>
+                    {/* Legend */}
+                    <div className="absolute bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md px-4 py-3 rounded-lg border border-yellow-600/30 text-xs z-10">
+                      <div className="flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-yellow-500 border-2 border-yellow-400"></div>
+                          <span className="text-yellow-200/80">Completed</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-slate-700 border-2 border-blue-400 animate-pulse"></div>
+                          <span className="text-yellow-200/80">Next Goal</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-slate-800 border-2 border-yellow-600/30"></div>
+                          <span className="text-yellow-200/80">Locked</span>
+                        </div>
+                        <p className="text-yellow-400/60 italic">Hover over nodes for details</p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
         </DialogContent>
