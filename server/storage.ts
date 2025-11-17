@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, isNull, inArray } from "drizzle-orm";
 
@@ -780,6 +780,23 @@ export class DatabaseStorage implements IStorage {
   async verifyPassword(password: string, passwordHash: string): Promise<boolean> {
     const bcrypt = await import('bcryptjs');
     return bcrypt.compare(password, passwordHash);
+  }
+
+  // Campaign operations
+  async getCampaigns(userId: string): Promise<Campaign[]> {
+    return db.select().from(campaigns).where(eq(campaigns.userId, userId));
+  }
+
+  async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
+    const [newCampaign] = await db.insert(campaigns).values(campaign).returning();
+    return newCampaign;
+  }
+
+  async deleteCampaign(userId: string, campaignId: number): Promise<boolean> {
+    const result = await db.delete(campaigns).where(
+      and(eq(campaigns.id, campaignId), eq(campaigns.userId, userId))
+    );
+    return true;
   }
 }
 

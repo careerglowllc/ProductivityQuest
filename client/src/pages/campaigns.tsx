@@ -1,13 +1,61 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Crown, TrendingUp, Heart, DollarSign, Home, Briefcase, GraduationCap, Target, ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Crown, TrendingUp, Heart, DollarSign, Home, Briefcase, GraduationCap, Target, ChevronDown, ChevronUp, Plus, Plane, Book, Users, Dumbbell, Globe, Trophy, Star, Sparkles, Rocket, Mountain, Compass, Flag, Award, Zap, Gift } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AddCampaignModal } from "@/components/add-campaign-modal";
+import { useQuery } from "@tanstack/react-query";
+
+// Icon mapping for custom campaigns
+const ICON_MAP: Record<string, any> = {
+  Heart, DollarSign, Target, Briefcase, Home, GraduationCap,
+  Plane, Book, Users, Dumbbell, Globe, Trophy, Star, Sparkles,
+  Crown, Rocket, Mountain, Compass, Flag, Award, Zap, Gift
+};
+
+const ICON_COLORS: Record<string, string> = {
+  Heart: "text-pink-400",
+  DollarSign: "text-green-400",
+  Target: "text-blue-400",
+  Briefcase: "text-purple-400",
+  Home: "text-orange-400",
+  GraduationCap: "text-indigo-400",
+  Plane: "text-cyan-400",
+  Book: "text-amber-400",
+  Users: "text-teal-400",
+  Dumbbell: "text-red-400",
+  Globe: "text-emerald-400",
+  Trophy: "text-yellow-400",
+  Star: "text-yellow-300",
+  Sparkles: "text-pink-300",
+  Crown: "text-purple-300",
+  Rocket: "text-blue-300",
+  Mountain: "text-slate-400",
+  Compass: "text-orange-300",
+  Flag: "text-red-300",
+  Award: "text-amber-300",
+  Zap: "text-yellow-400",
+  Gift: "text-rose-400",
+};
 
 export default function CampaignsPage() {
   const isMobile = useIsMobile();
   const [expandedFinancial, setExpandedFinancial] = useState(false);
   const [expandedPeace, setExpandedPeace] = useState(false);
+  const [showAddCampaignModal, setShowAddCampaignModal] = useState(false);
+
+  // Fetch custom campaigns
+  const { data: customCampaigns = [] } = useQuery({
+    queryKey: ["campaigns"],
+    queryFn: async () => {
+      const response = await fetch("/api/campaigns", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch campaigns");
+      return response.json();
+    },
+  });
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? 'pb-20' : 'pt-20'} px-4`}>
@@ -221,16 +269,65 @@ export default function CampaignsPage() {
         </Card>
 
         {/* Future Campaigns Placeholder */}
+        {customCampaigns.length > 0 && (
+          <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
+            <CardHeader className="border-b border-purple-600/30">
+              <div className="flex items-center gap-3">
+                <Target className="h-6 w-6 text-purple-400" />
+                <CardTitle className="text-2xl font-serif font-bold text-purple-100">Custom Campaigns</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              {customCampaigns.map((campaign: any) => {
+                const IconComponent = ICON_MAP[campaign.icon] || Target;
+                const iconColor = ICON_COLORS[campaign.icon] || "text-purple-400";
+                
+                return (
+                  <div
+                    key={campaign.id}
+                    className="flex items-start gap-3 p-4 bg-purple-900/30 border border-purple-600/30 rounded-lg hover:bg-purple-900/40 transition-all"
+                  >
+                    <div className="p-3 bg-purple-600/30 rounded-lg border border-purple-500/50">
+                      <IconComponent className={`h-6 w-6 ${iconColor}`} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-serif font-bold text-purple-100 mb-1">
+                        {campaign.title}
+                      </h3>
+                      <p className="text-purple-300/70 text-sm">
+                        {campaign.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-slate-600/30">
           <CardContent className="p-8 text-center">
             <Crown className="h-12 w-12 text-slate-400 mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-serif font-bold text-slate-300 mb-2">More Campaigns Coming Soon</h3>
-            <p className="text-slate-400 text-sm">
-              Additional life campaigns and objectives will be available here
+            <h3 className="text-xl font-serif font-bold text-slate-300 mb-2">Add Your Own Campaign</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Create custom life campaigns to track your unique goals and objectives
             </p>
+            <Button
+              onClick={() => setShowAddCampaignModal(true)}
+              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-semibold"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create Custom Campaign
+            </Button>
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Campaign Modal */}
+      <AddCampaignModal
+        open={showAddCampaignModal}
+        onClose={() => setShowAddCampaignModal(false)}
+      />
     </div>
   );
 }

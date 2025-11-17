@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddSkillModal } from "@/components/add-skill-modal";
 import { EditSkillIconModal } from "@/components/edit-skill-icon-modal";
+import { WhySkillsModal } from "@/components/why-skills-modal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -25,7 +26,8 @@ import {
   List,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  HelpCircle
 } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -151,6 +153,7 @@ export default function Skills() {
   const [skillToDelete, setSkillToDelete] = useState<UserSkill | null>(null);
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [skillToEdit, setSkillToEdit] = useState<UserSkill | null>(null);
+  const [showWhySkillsModal, setShowWhySkillsModal] = useState(false);
 
   const createSkillMutation = useMutation({
     mutationFn: async (skillData: any) => {
@@ -314,14 +317,23 @@ export default function Skills() {
             </button>
           </div>
           
-          {/* Create Custom Skill Button */}
-          <div className="flex items-center justify-center mt-4">
+          {/* Create Custom Skill Button & Why Skills Button */}
+          <div className="flex items-center justify-center gap-3 mt-4">
             <Button
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white border-2 border-purple-400 shadow-lg"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Custom Skill
+            </Button>
+            
+            <Button
+              onClick={() => setShowWhySkillsModal(true)}
+              variant="outline"
+              className="bg-slate-800/50 hover:bg-slate-700/50 text-yellow-200 border-2 border-yellow-600/40 hover:border-yellow-500/60 shadow-lg"
+            >
+              <HelpCircle className="h-4 w-4 mr-2" />
+              Why these skills?
             </Button>
           </div>
         </div>
@@ -784,6 +796,12 @@ export default function Skills() {
           }}
         />
       )}
+
+      {/* Why Skills Modal */}
+      <WhySkillsModal 
+        open={showWhySkillsModal}
+        onClose={() => setShowWhySkillsModal(false)}
+      />
     </div>
   );
 }

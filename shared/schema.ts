@@ -118,6 +118,17 @@ export const skillCategorizationTraining = pgTable("skill_categorization_trainin
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Custom campaigns table for user-defined life goals
+export const campaigns = pgTable("campaigns", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(), // Icon name from lucide-react
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
@@ -150,6 +161,12 @@ export const insertPurchaseSchema = createInsertSchema(purchases).omit({
 export const insertSkillCategorizationTrainingSchema = createInsertSchema(skillCategorizationTraining).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertCampaignSchema = createInsertSchema(campaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Auth schemas for registration and login
@@ -209,3 +226,5 @@ export type Purchase = typeof purchases.$inferSelect;
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
 export type SkillCategorizationTraining = typeof skillCategorizationTraining.$inferSelect;
 export type InsertSkillCategorizationTraining = z.infer<typeof insertSkillCategorizationTrainingSchema>;
+export type Campaign = typeof campaigns.$inferSelect;
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;

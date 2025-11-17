@@ -2259,6 +2259,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Campaigns routes
+  app.get("/api/campaigns", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const campaigns = await storage.getCampaigns(userId);
+      res.json(campaigns);
+    } catch (error: any) {
+      console.error("Error fetching campaigns:", error);
+      res.status(500).json({ error: "Failed to fetch campaigns" });
+    }
+  });
+
+  app.post("/api/campaigns", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { title, description, icon } = req.body;
+
+      if (!title || !description || !icon) {
+        return res.status(400).json({ error: "Title, description, and icon are required" });
+      }
+
+      const campaign = await storage.createCampaign({
+        userId,
+        title,
+        description,
+        icon,
+      });
+
+      res.json(campaign);
+    } catch (error: any) {
+      console.error("Error creating campaign:", error);
+      res.status(500).json({ error: "Failed to create campaign" });
+    }
+  });
+
+  app.delete("/api/campaigns/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const campaignId = parseInt(req.params.id);
+
+      await storage.deleteCampaign(userId, campaignId);
+      res.json({ message: "Campaign deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting campaign:", error);
+      res.status(500).json({ error: "Failed to delete campaign" });
+    }
+  });
+
   // Stats routes
   app.get("/api/stats", requireAuth, async (req: any, res) => {
     try {

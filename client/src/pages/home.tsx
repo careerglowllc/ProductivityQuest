@@ -796,8 +796,9 @@ export default function Home() {
         });
       
       case "high-reward":
-        // Filter tasks with high gold value (50+)
-        return activeTasks.filter((task: any) => task.goldValue >= 50);
+        // Filter tasks with high gold value (50+) and sort by gold value descending
+        const highRewardTasks = activeTasks.filter((task: any) => task.goldValue >= 50);
+        return highRewardTasks.sort((a: any, b: any) => b.goldValue - a.goldValue);
       
       case "quick-tasks":
         return activeTasks.filter((task: any) => task.duration <= 30);

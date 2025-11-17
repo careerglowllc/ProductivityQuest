@@ -38,6 +38,10 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Recycle tasks** instead of deleting them for better task management
 - **Create custom skills** tailored to your personal development goals
 - **Recategorize tasks** - Manually adjust skill tags for selected tasks with sequential processing
+- **✨ NEW: Bulk task operations** - Select all, delete selected, batch restore with optimized performance
+- **✨ NEW: Enhanced recycling bin** - Search, filter, and manage deleted/completed tasks efficiently
+- **✨ NEW: Dark theme toasts** - Consistent notification styling matching the app's aesthetic
+- **✨ NEW: Why These Skills modal** - Understand and customize macro life goals behind the skills system
 - **✨ NEW: Manually edit skills** - Adjust skill icons, levels, and XP directly for full control
 - **✨ NEW: Export tasks to CSV** - Download all your tasks as a spreadsheet for external analysis
 
@@ -860,6 +864,377 @@ See [AUTO_CLASSIFICATION_TEST_CASES.md](AUTO_CLASSIFICATION_TEST_CASES.md) for:
 
 ---
 
+## 📋 Task Management Features (NEW)
+
+### Select All / Deselect All
+
+Efficiently manage multiple tasks with bulk selection controls.
+
+**Features:**
+- **Select All Button:** Select all tasks in current view/filter
+- **Deselect All Button:** Clear all selections instantly
+- **Smart Counting:** Shows number of selected tasks (e.g., "Select All (15)")
+- **Filter-Aware:** Only selects tasks matching active filter
+- **Icons:** CheckSquare (select all) and XSquare (deselect all)
+
+**Implementation:**
+```typescript
+// client/src/pages/home.tsx
+const handleSelectAll = () => {
+  const allIds = sortedTasks.map((task: any) => task.id);
+  setSelectedTasks(new Set(allIds));
+};
+
+const handleDeselectAll = () => {
+  setSelectedTasks(new Set());
+};
+```
+
+**Use Cases:**
+- Bulk delete tasks from a specific skill category
+- Select all "Due Today" tasks for batch operations
+- Quickly select all high-reward tasks (≥50 gold)
+
+---
+
+### Delete Selected (Bulk Delete to Recycling Bin)
+
+Delete multiple tasks at once without earning gold or XP rewards.
+
+**Key Differences from Complete:**
+- **No Rewards:** Tasks moved to recycling bin without gold/XP
+- **Batch Operation:** Single API call for multiple tasks
+- **Fast Deletion:** Optimized SQL query with `IN` clause
+- **Reversible:** Can restore from recycling bin
+
+**Features:**
+- **Delete Button:** Orange theme, only visible when tasks selected
+- **Batch Endpoint:** `POST /api/tasks/delete-batch`
+- **Performance:** Single SQL query instead of N queries
+- **UI Feedback:** Shows count of deleted tasks
+
+**Implementation:**
+```typescript
+// client/src/pages/home.tsx
+const handleDeleteSelected = async () => {
+  const taskIds = Array.from(selectedTasks);
+  await fetch("/api/tasks/delete-batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskIds })
+  });
+  
+  queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+  setSelectedTasks(new Set());
+};
+
+// server/routes.ts
+router.post("/api/tasks/delete-batch", async (req, res) => {
+  const { taskIds } = req.body;
+  
+  await db.update(tasks)
+    .set({ 
+      recycled: true, 
+      recycledAt: new Date(),
+      recycledReason: "deleted"
+    })
+    .where(and(
+      eq(tasks.userId, userId),
+      inArray(tasks.id, taskIds)
+    ));
+  
+  res.json({ success: true, count: taskIds.length });
+});
+```
+
+**Use Cases:**
+- Bulk remove outdated tasks
+- Clean up tasks from completed projects
+- Delete duplicate or mistaken task entries
+
+---
+
+### Recycling Bin
+
+View and manage deleted/completed tasks before permanent deletion.
+
+**Access:**
+- User dropdown menu → "Recycling Bin" option
+- Route: `/recycling-bin`
+
+**Tabs:**
+- **All:** Shows all recycled tasks (completed + deleted)
+- **Completed:** Only tasks marked as completed (earned rewards)
+- **Deleted:** Only tasks that were deleted (no rewards)
+
+**Features:**
+
+#### 1. Search Functionality
+- **Real-time filtering:** Filter as you type
+- **Searches:** Title, description, skill tags (case-insensitive)
+- **Clear button:** X icon to reset search
+- **UI:** Search icon + input field with dark theme
+
+```typescript
+const filteredTasks = recycleBinTasks.filter((task) => {
+  const searchLower = searchQuery.toLowerCase();
+  return (
+    task.title.toLowerCase().includes(searchLower) ||
+    task.description?.toLowerCase().includes(searchLower) ||
+    task.skillTags?.some(tag => 
+      tag.toLowerCase().includes(searchLower)
+    )
+  );
+});
+```
+
+#### 2. Batch Restore
+- **Select tasks:** Checkbox selection like active tasks
+- **Restore button:** Green gradient (bg-green-900/60)
+- **Endpoint:** `POST /api/tasks/restore` (batch)
+- **Result:** Tasks return to active Quests page
+
+#### 3. Permanent Delete
+- **Delete Forever button:** Red gradient (bg-red-900/60)
+- **Optimized:** Single SQL query with `inArray()`
+- **Loading feedback:** Toast notification with infinite duration
+- **Non-blocking:** User can navigate during deletion
+
+```typescript
+// server/storage.ts
+async permanentlyDeleteTasks(
+  taskIds: number[], 
+  userId: string
+): Promise<number> {
+  const result = await db.delete(tasks)
+    .where(and(
+      eq(tasks.userId, userId),
+      inArray(tasks.id, taskIds),
+      eq(tasks.recycled, true)
+    ));
+  
+  return result.rowCount || 0;
+}
+```
+
+#### 4. Enhanced Button Visibility
+- **Darker backgrounds:** Better contrast on dark UI
+- **Restore button:** `bg-green-900/60` hover `bg-green-800/60`
+- **Delete button:** `bg-red-900/60` hover `bg-red-800/60`
+- **Icons:** Readable and visible
+
+#### 5. Performance Optimization
+- **Before:** Loop through tasks (N queries) – 20-60s for 429 tasks
+- **After:** Single query with `WHERE id IN (...)` – 2-5s for 429 tasks
+- **Loading toast:** "Deleting Tasks..." with navigation freedom
+- **Success notification:** ✅ emoji confirmation
+
+**Use Cases:**
+- Recover accidentally deleted tasks
+- Review completed task history
+- Search for specific old tasks
+- Bulk cleanup of recycling bin
+
+---
+
+### High Reward Filter Sorting
+
+View high-value tasks sorted by gold reward (highest first).
+
+**Filter Criteria:**
+- Shows tasks with `goldValue >= 50`
+- Sorted descending by gold value (150 → 100 → 75 → 50)
+
+**Implementation:**
+```typescript
+case "high-reward":
+  const highRewardTasks = activeTasks.filter(
+    (task: any) => task.goldValue >= 50
+  );
+  return highRewardTasks.sort(
+    (a: any, b: any) => b.goldValue - a.goldValue
+  );
+```
+
+**UI:**
+- Filter button in Quests page
+- Highlights highest-value tasks first
+- Helps prioritize work by reward potential
+
+---
+
+### Dark Theme Toast Notifications
+
+Consistent dark theme styling for all toast notifications.
+
+**Default Toast:**
+- Background: `bg-slate-800/95`
+- Border: `border-yellow-600/30`
+- Text: `text-yellow-100`
+- Backdrop blur effect: `backdrop-blur-sm`
+- Enhanced shadow: `shadow-xl`
+
+**Error Toast:**
+- Background: `bg-slate-900/95` (darker)
+- Border: `border-red-600/40`
+- Text: `text-red-100`
+
+**Close Button:**
+- Color: `text-yellow-200/60`
+- Hover: `text-yellow-100`
+- Focus ring: `focus:ring-yellow-600`
+
+**Implementation:**
+```typescript
+// client/src/components/ui/toast.tsx
+const toastVariants = cva(
+  "group pointer-events-auto ... backdrop-blur-sm",
+  {
+    variants: {
+      variant: {
+        default: "border-yellow-600/30 bg-slate-800/95 text-yellow-100 shadow-xl",
+        destructive: "border-red-600/40 bg-slate-900/95 text-red-100 shadow-xl",
+      },
+    },
+  }
+);
+```
+
+**Benefits:**
+- Matches app's purple/slate/yellow theme
+- Better visibility on dark backgrounds
+- Consistent UX across all notifications
+- Modern glassmorphism effect
+
+---
+
+### Notion Details Field Import
+
+Import the "Details" field from Notion tasks.
+
+**Before:**
+- Details field extracted from Notion
+- But dropped during import (missing from taskData)
+- Detail modal showed empty details
+
+**After:**
+- Details field included in taskData object
+- Preserved during import
+- Visible in task detail modal
+
+**Fix:**
+```typescript
+// server/routes.ts - POST /api/notion/import
+const taskData = {
+  // ...other fields
+  details: notionTask.details,  // ← Added this line
+  skillTags: notionTask.skillTags || []
+};
+```
+
+**Testing:**
+- Create Notion task with populated Details field
+- Import via Notion integration
+- Open task detail modal → Details visible ✓
+
+---
+
+### Why These Skills Modal
+
+Interactive modal explaining macro life goals behind the skills system.
+
+**Access:**
+- Skills page → "Why these skills?" button (next to Create Custom Skill)
+- Styled with HelpCircle icon and yellow outline theme
+
+**Features:**
+
+#### 1. Default Content
+Displays 7 macro life goals mapped to skills:
+- **Health & Athlete** – Good health, minimal aches, peak fitness
+- **Mindset** – Positive, clear mindset; feeling alpha and capable
+- **Merchant** – Power, freedom, financial independence
+- **Scholar** – Meaning, purpose, existential resonance
+- **Charisma & Connector** – Meaningful relationships, authenticity
+- **Physical** – Complete physical mastery, martial arts, strength
+- **Artist & Craftsman** – Adventure, creativity, mental zest
+
+Each goal includes:
+- Skill icon (color-coded)
+- Bold skill name
+- Goal description and justification
+
+#### 2. Custom Goals Editor
+Users can write their own macro goals:
+
+**Edit Link:** "Not you? Write your own" (top-right corner)
+- Switches to edit mode
+- Large textarea with placeholder example
+- Save Goals button (green gradient)
+- Cancel button to discard changes
+
+**After Saving:**
+- Link text changes to "Edit your goals"
+- Custom content displayed in formatted card
+- Saves to localStorage for persistence
+
+**Implementation:**
+```typescript
+// client/src/components/why-skills-modal.tsx
+const [isEditing, setIsEditing] = useState(false);
+const [customGoals, setCustomGoals] = useState("");
+
+const handleSaveCustomGoals = () => {
+  localStorage.setItem('customMacroGoals', customGoals);
+  setIsEditing(false);
+};
+
+const hasCustomGoals = localStorage.getItem('customMacroGoals');
+```
+
+#### 3. Persistence
+- Custom goals saved to localStorage
+- Persists between sessions
+- Can edit or clear anytime
+- Returns to default if cleared
+
+**Modal Styling:**
+- Background: gradient from slate-800 → slate-900 → purple-900
+- Border: 2px yellow-600/30
+- Max width: 3xl, max height: 85vh
+- Scrollable content
+- Matches app's dark theme
+
+**Use Cases:**
+- Understand philosophy behind skill system
+- Personalize goals to individual journey
+- Reference macro goals while task planning
+- Educational tool for new users
+
+---
+
+### Testing
+
+See [TASK_MANAGEMENT_TEST_CASES.md](TASK_MANAGEMENT_TEST_CASES.md) for:
+- 5 Select All/Deselect All tests
+- 5 Delete Selected tests
+- 10 Recycling Bin tests
+- 3 High Reward Filter tests
+- 4 Toast Notification tests
+- 3 Notion Details Import tests
+- 5 Performance & Edge Case tests
+- **Total:** 35 comprehensive test cases
+
+See [WHY_SKILLS_MODAL_TEST_CASES.md](WHY_SKILLS_MODAL_TEST_CASES.md) for:
+- 5 Modal Display & Navigation tests
+- 10 Custom Goals Editing tests
+- 6 Button & Link Styling tests
+- 8 Integration & Edge Case tests
+- 4 Accessibility tests
+- **Total:** 33 comprehensive test cases
+
+---
+
 ## 🎨 UI Components & Styling
 
 ### Component Architecture
@@ -965,6 +1340,8 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - **RECATEGORIZE_TEST_CASES.md** - 25 test cases for task recategorization feature
 - **AUTO_CLASSIFICATION_TEST_CASES.md** - 20 test cases for automatic AI categorization
 - **GOLD_CALCULATION_TEST_CASES.md** - 25 test cases for modular gold formula
+- **✨ TASK_MANAGEMENT_TEST_CASES.md (NEW)** - 35 test cases for bulk operations and recycling bin
+- **✨ WHY_SKILLS_MODAL_TEST_CASES.md (NEW)** - 33 test cases for macro goals modal
 - **TESTING.md** - Comprehensive testing documentation
 
 ### Debug Tools
