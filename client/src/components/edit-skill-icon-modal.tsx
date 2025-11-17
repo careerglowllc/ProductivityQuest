@@ -14,7 +14,7 @@ import {
   Brain, Wrench, Palette, Briefcase, Sword, Book, Activity, Network, Users,
   Heart, Trophy, Target, Star, Zap, Sparkles, Crown, Mountain, Gem, Flame,
   Handshake, Hand, ThumbsUp, ThumbsDown, CircleDot, Waves, Coffee, Rocket,
-  Lightbulb, Code, Music, Camera, Dumbbell, Leaf, Globe, Shield, Hammer
+  Lightbulb, Code, Music, Camera, Dumbbell, Leaf, Globe, Shield, Hammer, Compass
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -66,7 +66,8 @@ const ICON_OPTIONS: Record<string, LucideIcon> = {
   Leaf,
   Globe,
   Shield,
-  Hammer
+  Hammer,
+  Compass
 };
 
 export function EditSkillIconModal({ 
