@@ -1890,6 +1890,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/google-calendar/events", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+
+      if (!user?.googleCalendarSyncEnabled || !user.googleCalendarClientId || !user.googleCalendarClientSecret) {
+        return res.status(400).json({ 
+          error: "Google Calendar not configured",
+          events: []
+        });
+      }
+
+      // Get month from query params (default to current month)
+      const year = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
+      const month = req.query.month ? parseInt(req.query.month) : new Date().getMonth();
+
+      // Calculate start and end of month
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+      // Fetch tasks for this user that have due dates in this month
+      const tasks = await storage.getTasks(userId);
+      const tasksInMonth = tasks.filter(task => {
+        if (!task.dueDate) return false;
+        const dueDate = new Date(task.dueDate);
+        return dueDate >= startDate && dueDate <= endDate;
+      });
+
+      // Convert tasks to calendar events format
+      const events = tasksInMonth.map(task => ({
+        id: task.id.toString(),
+        title: task.title,
+        start: task.dueDate,
+        end: task.dueDate,
+        description: task.description || task.details || '',
+        completed: task.completed,
+        importance: task.importance,
+        goldValue: task.goldValue,
+        campaign: task.campaign,
+        skillTags: task.skillTags || [],
+      }));
+
+      res.json({ 
+        success: true,
+        events,
+        month,
+        year
+      });
+    } catch (error) {
+      console.error("Error fetching Google Calendar events:", error);
+      res.status(500).json({ error: "Failed to fetch calendar events", events: [] });
+    }
+  });
+
   // Shop routes
   app.get("/api/shop/items", requireAuth, async (req: any, res) => {
     try {

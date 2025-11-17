@@ -12,6 +12,19 @@ type UserSettings = {
   googleCalendarLastSync?: Date | null;
 };
 
+type CalendarEvent = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  description?: string;
+  completed?: boolean;
+  importance?: string;
+  goldValue?: number;
+  campaign?: string;
+  skillTags?: string[];
+};
+
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -24,9 +37,16 @@ export default function Calendar() {
                           settings?.googleCalendarClientId && 
                           settings?.googleCalendarClientSecret;
 
-  // Get calendar data
+  // Fetch calendar events for current month
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  const { data: calendarData } = useQuery<{ events: CalendarEvent[] }>({
+    queryKey: ['/api/google-calendar/events', { year, month }],
+    enabled: !!googleConnected,
+  });
+
+  const events = calendarData?.events || [];
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const daysInMonth = lastDay.getDate();
@@ -54,6 +74,16 @@ export default function Calendar() {
            year === today.getFullYear();
   };
 
+  // Get events for a specific day
+  const getEventsForDay = (day: number) => {
+    return events.filter(event => {
+      const eventDate = new Date(event.start);
+      return eventDate.getDate() === day &&
+             eventDate.getMonth() === month &&
+             eventDate.getFullYear() === year;
+    });
+  };
+
   // Generate calendar grid
   const calendarDays = [];
   
@@ -64,6 +94,8 @@ export default function Calendar() {
   
   // Days of the month
   for (let day = 1; day <= daysInMonth; day++) {
+    const dayEvents = getEventsForDay(day);
+    
     calendarDays.push(
       <div
         key={day}
@@ -76,7 +108,29 @@ export default function Calendar() {
         }`}>
           {day}
         </div>
-        {/* Events will be added here in future */}
+        {/* Display events for this day */}
+        <div className="space-y-1">
+          {dayEvents.slice(0, 3).map(event => (
+            <div
+              key={event.id}
+              className={`text-xs p-1 rounded truncate ${
+                event.completed 
+                  ? 'bg-gray-700/50 text-gray-400 line-through' 
+                  : event.importance === 'Pareto' || event.importance === 'High'
+                    ? 'bg-red-500/20 text-red-300'
+                    : 'bg-purple-500/20 text-purple-300'
+              }`}
+              title={event.title}
+            >
+              {event.title}
+            </div>
+          ))}
+          {dayEvents.length > 3 && (
+            <div className="text-xs text-gray-500">
+              +{dayEvents.length - 3} more
+            </div>
+          )}
+        </div>
       </div>
     );
   }
