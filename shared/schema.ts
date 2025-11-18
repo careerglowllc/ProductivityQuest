@@ -45,6 +45,7 @@ export const tasks = pgTable("tasks", {
   userId: varchar("user_id").notNull().references(() => users.id),
   notionId: text("notion_id"),
   googleEventId: text("google_event_id"),
+  googleCalendarId: text("google_calendar_id"), // Which Google Calendar this event is from
   title: text("title").notNull(),
   description: text("description").default(""),
   details: text("details"),
@@ -67,6 +68,7 @@ export const tasks = pgTable("tasks", {
   recycledAt: timestamp("recycled_at"),
   recycledReason: text("recycled_reason"), // "completed" or "deleted"
   skillTags: jsonb("skill_tags").$type<string[]>().default([]), // AI-generated skill tags
+  calendarColor: text("calendar_color"), // Hex color from Google Calendar or custom
 });
 
 export const shopItems = pgTable("shop_items", {

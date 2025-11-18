@@ -250,11 +250,19 @@ export class GoogleCalendarService {
 
       const calendar = google.calendar({ version: 'v3', auth });
       
+      // First fetch the calendar list to get color information
+      const calendarListResponse = await calendar.calendarList.list();
+      const calendarsMetadata = calendarListResponse.data.items || [];
+      
+      // Create a map of calendar ID to metadata
+      const calendarMetadataMap = new Map(
+        calendarsMetadata.map(cal => [cal.id!, cal])
+      );
+      
       // If no specific calendars requested, fetch from all calendars
       let calendarsToFetch = calendarIds;
       if (!calendarsToFetch || calendarsToFetch.length === 0) {
-        const calendarListResponse = await calendar.calendarList.list();
-        calendarsToFetch = calendarListResponse.data.items?.map(cal => cal.id!) || ['primary'];
+        calendarsToFetch = calendarsMetadata.map(cal => cal.id!) || ['primary'];
       }
 
       // Fetch events from all calendars
@@ -272,9 +280,14 @@ export class GoogleCalendarService {
           });
 
           const events = response.data.items || [];
+          const calMetadata = calendarMetadataMap.get(calId);
+          
           // Add calendar info to each event
           events.forEach(event => {
-            event.calendarId = calId;
+            (event as any).calendarId = calId;
+            (event as any).calendarName = calMetadata?.summary || 'Unknown';
+            (event as any).calendarBackgroundColor = calMetadata?.backgroundColor;
+            (event as any).calendarForegroundColor = calMetadata?.foregroundColor;
           });
           allEvents.push(...events);
         } catch (error) {

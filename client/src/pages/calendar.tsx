@@ -25,11 +25,36 @@ type CalendarEvent = {
   goldValue?: number;
   campaign?: string;
   skillTags?: string[];
+  source?: string;
+  calendarColor?: string;
+  calendarName?: string;
 };
 
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>('month');
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+
+  // Helper function to get event background style
+  const getEventStyle = (event: CalendarEvent) => {
+    // If event has a calendar color, use it
+    if (event.calendarColor) {
+      return {
+        backgroundColor: event.calendarColor + '40', // Add transparency
+        borderColor: event.calendarColor,
+        color: '#fff'
+      };
+    }
+    
+    // Otherwise use importance-based colors
+    if (event.completed) {
+      return { className: 'bg-gray-700/50 text-gray-400 line-through border-gray-600' };
+    } else if (event.importance === 'Pareto' || event.importance === 'High') {
+      return { className: 'bg-red-500/20 text-red-300 border-red-500/30' };
+    } else {
+      return { className: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
+    }
+  };
 
   // Fetch user settings to check if Google Calendar is connected
   const { data: settings } = useQuery<UserSettings>({
@@ -197,21 +222,27 @@ export default function Calendar() {
         </div>
         {/* Display events for this day */}
         <div className="space-y-1">
-          {dayEvents.slice(0, 3).map(event => (
-            <div
-              key={event.id}
-              className={`text-xs p-1 rounded truncate ${
-                event.completed 
-                  ? 'bg-gray-700/50 text-gray-400 line-through' 
-                  : event.importance === 'Pareto' || event.importance === 'High'
-                    ? 'bg-red-500/20 text-red-300'
-                    : 'bg-purple-500/20 text-purple-300'
-              }`}
-              title={event.title}
-            >
-              {event.title}
-            </div>
-          ))}
+          {dayEvents.slice(0, 3).map(event => {
+            const eventStyle = getEventStyle(event);
+            return (
+              <div
+                key={event.id}
+                className={`text-xs p-1 rounded truncate border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                style={eventStyle.backgroundColor ? { 
+                  backgroundColor: eventStyle.backgroundColor,
+                  borderColor: eventStyle.borderColor,
+                  color: eventStyle.color
+                } : undefined}
+                title={`${event.title}${event.calendarName ? ` (${event.calendarName})` : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedEvent(event);
+                }}
+              >
+                {event.title}
+              </div>
+            );
+          })}
           {dayEvents.length > 3 && (
             <div className="text-xs text-gray-500">
               +{dayEvents.length - 3} more
@@ -440,25 +471,33 @@ export default function Calendar() {
                           {label}
                         </div>
                         <div className="bg-gray-900/20 p-2 min-h-[60px] relative">
-                          {hourEvents.map((event, idx) => (
-                            <div
-                              key={idx}
-                              className={`p-2 mb-1 rounded text-xs ${
-                                event.completed 
-                                  ? 'bg-gray-600/40 text-gray-400 line-through'
-                                  : event.importance === 'Pareto' || event.importance === 'High'
-                                    ? 'bg-red-900/30 text-red-300 border border-red-500/30'
-                                    : 'bg-purple-900/30 text-purple-300 border border-purple-500/30'
-                              }`}
-                            >
-                              <div className="font-medium truncate">{event.title}</div>
-                              {event.description && (
-                                <div className="text-gray-400 truncate mt-1">
-                                  {event.description}
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                          {hourEvents.map((event, idx) => {
+                            const eventStyle = getEventStyle(event);
+                            return (
+                              <div
+                                key={idx}
+                                className={`p-2 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                style={eventStyle.backgroundColor ? { 
+                                  backgroundColor: eventStyle.backgroundColor,
+                                  borderColor: eventStyle.borderColor,
+                                  color: eventStyle.color
+                                } : undefined}
+                                onClick={() => setSelectedEvent(event)}
+                              >
+                                <div className="font-medium truncate">{event.title}</div>
+                                {event.description && (
+                                  <div className="opacity-80 truncate mt-1">
+                                    {event.description}
+                                  </div>
+                                )}
+                                {event.calendarName && (
+                                  <div className="text-[10px] opacity-60 mt-1">
+                                    {event.calendarName}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </React.Fragment>
                     );
@@ -498,20 +537,23 @@ export default function Calendar() {
                         const hourEvents = getEventsForHour(date, hour);
                         return (
                           <div key={idx} className="bg-gray-900/20 p-2 min-h-[60px] relative">
-                            {hourEvents.map((event, eventIdx) => (
-                              <div
-                                key={eventIdx}
-                                className={`p-1.5 mb-1 rounded text-xs ${
-                                  event.completed 
-                                    ? 'bg-gray-600/40 text-gray-400 line-through'
-                                    : event.importance === 'Pareto' || event.importance === 'High'
-                                      ? 'bg-red-900/30 text-red-300 border border-red-500/30'
-                                      : 'bg-purple-900/30 text-purple-300 border border-purple-500/30'
-                                }`}
-                              >
-                                <div className="font-medium truncate">{event.title}</div>
-                              </div>
-                            ))}
+                            {hourEvents.map((event, eventIdx) => {
+                              const eventStyle = getEventStyle(event);
+                              return (
+                                <div
+                                  key={eventIdx}
+                                  className={`p-1.5 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                  style={eventStyle.backgroundColor ? { 
+                                    backgroundColor: eventStyle.backgroundColor,
+                                    borderColor: eventStyle.borderColor,
+                                    color: eventStyle.color
+                                  } : undefined}
+                                  onClick={() => setSelectedEvent(event)}
+                                >
+                                  <div className="font-medium truncate">{event.title}</div>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}
@@ -555,20 +597,23 @@ export default function Calendar() {
                         const hourEvents = getEventsForHour(date, hour);
                         return (
                           <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative">
-                            {hourEvents.map((event, eventIdx) => (
-                              <div
-                                key={eventIdx}
-                                className={`p-1 mb-1 rounded text-xs ${
-                                  event.completed 
-                                    ? 'bg-gray-600/40 text-gray-400'
-                                    : event.importance === 'Pareto' || event.importance === 'High'
-                                      ? 'bg-red-900/30 text-red-300'
-                                      : 'bg-purple-900/30 text-purple-300'
-                                }`}
-                              >
-                                <div className="font-medium truncate text-[10px]">{event.title}</div>
-                              </div>
-                            ))}
+                            {hourEvents.map((event, eventIdx) => {
+                              const eventStyle = getEventStyle(event);
+                              return (
+                                <div
+                                  key={eventIdx}
+                                  className={`p-1 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                  style={eventStyle.backgroundColor ? { 
+                                    backgroundColor: eventStyle.backgroundColor,
+                                    borderColor: eventStyle.borderColor,
+                                    color: eventStyle.color
+                                  } : undefined}
+                                  onClick={() => setSelectedEvent(event)}
+                                >
+                                  <div className="font-medium truncate text-[10px]">{event.title}</div>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}
@@ -592,6 +637,94 @@ export default function Calendar() {
               : 'Never'}
           </div>
         </div>
+
+        {/* Color Picker Modal */}
+        {selectedEvent && selectedEvent.source === 'productivityquest' && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setSelectedEvent(null)}
+          >
+            <Card 
+              className="bg-gray-900/95 border-purple-500/30 p-6 max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-white mb-4">
+                {selectedEvent.title}
+              </h3>
+              
+              {selectedEvent.calendarName && (
+                <p className="text-sm text-gray-400 mb-2">
+                  From: {selectedEvent.calendarName}
+                </p>
+              )}
+              
+              {selectedEvent.description && (
+                <p className="text-gray-300 mb-4">
+                  {selectedEvent.description}
+                </p>
+              )}
+
+              <div className="mb-4">
+                <label className="text-sm text-gray-400 block mb-2">
+                  Calendar Color
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  {[
+                    '#9333ea', // Purple (default)
+                    '#ef4444', // Red
+                    '#f97316', // Orange
+                    '#eab308', // Yellow
+                    '#22c55e', // Green
+                    '#3b82f6', // Blue
+                    '#ec4899', // Pink
+                    '#8b5cf6', // Violet
+                    '#06b6d4', // Cyan
+                    '#14b8a6', // Teal
+                    '#a855f7', // Purple Light
+                    '#6366f1', // Indigo
+                  ].map(color => (
+                    <button
+                      key={color}
+                      className={`w-10 h-10 rounded border-2 transition-transform hover:scale-110 ${
+                        selectedEvent.calendarColor === color ? 'border-white scale-110' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/tasks/${selectedEvent.id.replace('google-', '')}/color`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ color })
+                          });
+                          
+                          if (response.ok) {
+                            // Update the local event
+                            setSelectedEvent({ ...selectedEvent, calendarColor: color });
+                            // Refresh calendar data
+                            window.location.reload();
+                          }
+                        } catch (error) {
+                          console.error('Failed to update color:', error);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <Button
+                  onClick={() => setSelectedEvent(null)}
+                  variant="outline"
+                  className="border-purple-500/30"
+                >
+                  Close
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
