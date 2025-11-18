@@ -224,7 +224,7 @@ export class GoogleCalendarService {
     return { success, failed };
   }
 
-  async getEvents(user: User, startDate: Date, endDate: Date): Promise<any[]> {
+  async getEvents(user: User, startDate: Date, endDate: Date, calendarIds?: string[]): Promise<any[]> {
     try {
       // Use per-user credentials if available
       let auth: OAuth2Client;
@@ -249,21 +249,89 @@ export class GoogleCalendarService {
       }
 
       const calendar = google.calendar({ version: 'v3', auth });
+      
+      // If no specific calendars requested, fetch from all calendars
+      let calendarsToFetch = calendarIds;
+      if (!calendarsToFetch || calendarsToFetch.length === 0) {
+        const calendarListResponse = await calendar.calendarList.list();
+        calendarsToFetch = calendarListResponse.data.items?.map(cal => cal.id!) || ['primary'];
+      }
 
-      const response = await calendar.events.list({
-        calendarId: 'primary',
-        timeMin: startDate.toISOString(),
-        timeMax: endDate.toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-        maxResults: 100,
-      });
+      // Fetch events from all calendars
+      const allEvents: any[] = [];
+      
+      for (const calId of calendarsToFetch) {
+        try {
+          const response = await calendar.events.list({
+            calendarId: calId,
+            timeMin: startDate.toISOString(),
+            timeMax: endDate.toISOString(),
+            singleEvents: true,
+            orderBy: 'startTime',
+            maxResults: 250,
+          });
 
-      return response.data.items || [];
+          const events = response.data.items || [];
+          // Add calendar info to each event
+          events.forEach(event => {
+            event.calendarId = calId;
+          });
+          allEvents.push(...events);
+        } catch (error) {
+          console.error(`Error fetching events from calendar ${calId}:`, error);
+          // Continue with other calendars even if one fails
+        }
+      }
+
+      return allEvents;
     } catch (error: any) {
       console.error('Error fetching Google Calendar events:', error);
       
       // If token expired, we should handle refresh here
+      if (error.code === 401 || error.message?.includes('invalid_grant')) {
+        throw new Error('CALENDAR_AUTH_EXPIRED');
+      }
+      
+      throw error;
+    }
+  }
+
+  async getCalendarList(user: User): Promise<any[]> {
+    try {
+      let auth: OAuth2Client;
+      
+      if (user.googleCalendarClientId && user.googleCalendarClientSecret && 
+          user.googleCalendarAccessToken && user.googleCalendarRefreshToken) {
+        auth = new OAuth2Client(
+          user.googleCalendarClientId,
+          user.googleCalendarClientSecret,
+          'http://localhost:5000/api/google-calendar/callback'
+        );
+        
+        auth.setCredentials({
+          access_token: user.googleCalendarAccessToken,
+          refresh_token: user.googleCalendarRefreshToken,
+          expiry_date: user.googleCalendarTokenExpiry?.getTime(),
+        });
+      } else {
+        auth = this.getAuthenticatedClient(user);
+      }
+
+      const calendar = google.calendar({ version: 'v3', auth });
+      const response = await calendar.calendarList.list();
+      
+      return (response.data.items || []).map(cal => ({
+        id: cal.id,
+        summary: cal.summary,
+        description: cal.description,
+        primary: cal.primary,
+        backgroundColor: cal.backgroundColor,
+        foregroundColor: cal.foregroundColor,
+        selected: cal.selected,
+      }));
+    } catch (error: any) {
+      console.error('Error fetching calendar list:', error);
+      
       if (error.code === 401 || error.message?.includes('invalid_grant')) {
         throw new Error('CALENDAR_AUTH_EXPIRED');
       }

@@ -2164,6 +2164,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get list of available calendars
+  app.get("/api/google-calendar/calendars", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+
+      if (!user?.googleCalendarAccessToken) {
+        return res.status(400).json({ 
+          error: "Google Calendar not authorized",
+          calendars: []
+        });
+      }
+
+      const calendars = await googleCalendar.getCalendarList(user);
+      res.json({ calendars });
+    } catch (error: any) {
+      console.error("Error fetching calendar list:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch calendar list",
+        details: error.message 
+      });
+    }
+  });
+
   app.get("/api/google-calendar/events", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
