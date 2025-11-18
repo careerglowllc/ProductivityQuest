@@ -44,7 +44,7 @@ export default function Calendar() {
   const month = currentDate.getMonth();
 
   const { data: calendarData } = useQuery<{ events: CalendarEvent[] }>({
-    queryKey: ['/api/google-calendar/events', { year, month }],
+    queryKey: [`/api/google-calendar/events?year=${year}&month=${month}`],
     enabled: !!googleConnected,
   });
 
