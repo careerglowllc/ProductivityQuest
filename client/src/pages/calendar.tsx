@@ -9,6 +9,7 @@ type UserSettings = {
   googleCalendarSyncEnabled?: boolean;
   googleCalendarClientId?: string | null;
   googleCalendarClientSecret?: string | null;
+  googleCalendarAccessToken?: string | null;
   googleCalendarLastSync?: Date | null;
 };
 
