@@ -3,7 +3,7 @@ import { Calendar as CalendarIcon, Settings, Plus } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import React from "react";
 
 type UserSettings = {
@@ -34,6 +34,20 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>('month');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const dayViewRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to current time in Day view
+  useEffect(() => {
+    if (view === 'day' && dayViewRef.current) {
+      const currentHour = new Date().getHours();
+      // Scroll to current hour (each time slot is approximately 60px height)
+      const scrollPosition = currentHour * 76; // 60px height + 16px padding
+      dayViewRef.current.scrollTo({
+        top: scrollPosition - 100, // Offset to show some context above
+        behavior: 'smooth'
+      });
+    }
+  }, [view]);
 
   // Helper function to get event background style
   const getEventStyle = (event: CalendarEvent) => {
@@ -443,7 +457,7 @@ export default function Calendar() {
 
           {/* Day View */}
           {view === 'day' && (
-            <div className="overflow-auto max-h-[600px]">
+            <div ref={dayViewRef} className="overflow-auto max-h-[600px]">
               <div className="min-w-[600px]">
                 {/* Day Header */}
                 <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20 sticky top-0 z-10">
