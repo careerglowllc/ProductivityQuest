@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 interface Milestone {
   id: string;
   title: string;
-  level: number;
+  level?: number; // Optional - milestones are not tied to skill levels
   x: number;
   y: number;
 }
@@ -48,7 +48,6 @@ export function EditMilestonesModal({
     const newMilestone: Milestone = {
       id: newId,
       title: "New Milestone",
-      level: 10,
       x: 50,
       y: 50,
     };
@@ -82,8 +81,8 @@ export function EditMilestonesModal({
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Sort by level before submitting
-      const sortedMilestones = [...milestones].sort((a, b) => a.level - b.level);
+      // Sort by y position (top to bottom) before submitting
+      const sortedMilestones = [...milestones].sort((a, b) => a.y - b.y);
       await onSubmit(sortedMilestones);
       onOpenChange(false);
     } catch (error) {
@@ -143,20 +142,6 @@ export function EditMilestonesModal({
                     }
                     className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 mt-1"
                     placeholder="e.g., Visit 10 Countries"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-yellow-200/80 text-sm">Required Level</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="99"
-                    value={milestone.level}
-                    onChange={(e) =>
-                      handleUpdateMilestone(milestone.id, "level", e.target.value)
-                    }
-                    className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 mt-1"
                   />
                 </div>
 

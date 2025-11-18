@@ -156,7 +156,7 @@ const skillConstellations: Record<string, string> = {
 const skillMilestones: Record<string, Array<{
   id: string;
   title: string;
-  level: number;
+  level?: number; // Optional - milestones are not tied to skill levels
   x: number;
   y: number;
   parents?: string[]; // IDs of parent nodes
@@ -253,30 +253,30 @@ const skillMilestones: Record<string, Array<{
     { id: 'transcend', title: 'Transcendent Mastery', level: 90, x: 50, y: 8, parents: ['mastery'] },
   ],
   Merchant: [
-    // Level 1: Start
-    { id: 'start', title: 'First Sale', level: 1, x: 50, y: 88 },
+    // Start
+    { id: 'start', title: 'First Sale', x: 50, y: 88 },
     
-    // Level 2: Initial growth
-    { id: 'revenue-1k', title: '$1,000 in Revenue', level: 5, x: 38, y: 72, parents: ['start'] },
-    { id: 'client-10', title: '10 Repeat Clients', level: 7, x: 62, y: 72, parents: ['start'] },
+    // Initial growth
+    { id: 'revenue-1k', title: '$1,000 in Revenue', x: 38, y: 72, parents: ['start'] },
+    { id: 'client-10', title: '10 Repeat Clients', x: 62, y: 72, parents: ['start'] },
     
-    // Level 3: Business foundations
-    { id: 'start-business', title: 'Start a Business', level: 10, x: 25, y: 64, parents: ['revenue-1k'] },
-    { id: 'revenue-10k', title: '$10,000 Monthly', level: 15, x: 30, y: 56, parents: ['start-business'] },
-    { id: 'team', title: 'Build a Team', level: 18, x: 50, y: 54, parents: ['revenue-1k', 'client-10'] },
-    { id: 'venture', title: 'Launch a Venture', level: 20, x: 70, y: 56, parents: ['client-10'] },
+    // Business foundations
+    { id: 'start-business', title: 'Start a Business', x: 25, y: 64, parents: ['revenue-1k'] },
+    { id: 'revenue-10k', title: '$10,000 Monthly', x: 30, y: 56, parents: ['start-business'] },
+    { id: 'team', title: 'Build a Team', x: 50, y: 54, parents: ['revenue-1k', 'client-10'] },
+    { id: 'venture', title: 'Launch a Venture', x: 70, y: 56, parents: ['client-10'] },
     
-    // Level 4: Scale & Innovation
-    { id: 'revenue-100k', title: '$100,000 Yearly', level: 35, x: 38, y: 38, parents: ['revenue-10k', 'team'] },
-    { id: 'saas-launch', title: 'Create & Launch a SaaS App', level: 42, x: 50, y: 36, parents: ['team', 'venture'] },
-    { id: 'multiple', title: 'Multiple Revenue Streams', level: 40, x: 62, y: 38, parents: ['venture'] },
+    // Scale & Innovation
+    { id: 'revenue-100k', title: '$100,000 Yearly', x: 38, y: 38, parents: ['revenue-10k', 'team'] },
+    { id: 'saas-launch', title: 'Create & Launch a SaaS App', x: 50, y: 36, parents: ['team', 'venture'] },
+    { id: 'multiple', title: 'Multiple Revenue Streams', x: 62, y: 38, parents: ['venture'] },
     
-    // Level 5: Advanced experience
-    { id: 'close-business', title: 'Close a Business', level: 50, x: 30, y: 28, parents: ['revenue-100k'] },
+    // Advanced experience
+    { id: 'close-business', title: 'Close a Business', x: 30, y: 28, parents: ['revenue-100k'] },
     
-    // Level 6: Empire
-    { id: 'empire', title: 'Build Business Empire', level: 65, x: 50, y: 22, parents: ['revenue-100k', 'saas-launch', 'multiple', 'close-business'] },
-    { id: 'legend', title: 'Industry Legend', level: 90, x: 50, y: 8, parents: ['empire'] },
+    // Empire
+    { id: 'empire', title: 'Build Business Empire', x: 50, y: 22, parents: ['revenue-100k', 'saas-launch', 'multiple', 'close-business'] },
+    { id: 'legend', title: 'Industry Legend', x: 50, y: 8, parents: ['empire'] },
   ],
   Physical: [
     // Level 1: Start
@@ -625,7 +625,7 @@ export default function Skills() {
       milestones 
     }: { 
       skillId: number; 
-      milestones: Array<{ id: string; title: string; level: number; x: number; y: number }>;
+      milestones: Array<{ id: string; title: string; level?: number; x: number; y: number }>;
     }) => {
       return await apiRequest("PATCH", `/api/skills/${skillId}/milestones`, { milestones });
     },
@@ -1631,7 +1631,7 @@ export default function Skills() {
                       {milestones.map((milestone, index) => {
                         const completedMilestones = (selectedSkill.completedMilestones as string[]) || [];
                         const isCompleted = completedMilestones.includes(milestone.id);
-                        const isStartingNode = milestone.level === 1 || index === 0; // First/bottom node
+                        const isStartingNode = milestone.id === 'start'; // Starting node always has id 'start'
                         const isCurrentGoal = !isCompleted && !isStartingNode;
                         
                         return (
