@@ -981,14 +981,22 @@ export default function Skills() {
                     {/* Spider chart polygon connecting all skill levels - fills based on actual skill levels */}
                     {polygonPoints.length > 0 && (
                       <>
+                        {/* Filled polygon area */}
                         <polygon
                           points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
-                          fill="rgba(234, 179, 8, 0.3)"
+                          fill="rgba(234, 179, 8, 0.4)"
+                          className="transition-all duration-500"
+                          style={{ filter: 'drop-shadow(0 0 20px rgba(234, 179, 8, 0.5))' }}
+                        />
+                        {/* Polygon outline connecting the dots */}
+                        <polygon
+                          points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
+                          fill="none"
                           stroke="rgb(234, 179, 8)"
                           strokeWidth="3"
                           strokeLinejoin="round"
+                          strokeLinecap="round"
                           className="transition-all duration-500"
-                          style={{ filter: 'drop-shadow(0 0 12px rgba(234, 179, 8, 0.6)) drop-shadow(0 0 24px rgba(234, 179, 8, 0.3))' }}
                         />
                         {/* Dots at each polygon vertex to show skill level points */}
                         {polygonPoints.map((point, idx) => (
@@ -996,12 +1004,12 @@ export default function Skills() {
                             key={`vertex-${idx}`}
                             cx={`${point.x}%`}
                             cy={`${point.y}%`}
-                            r="4"
+                            r="5"
                             fill="rgb(234, 179, 8)"
                             stroke="rgb(250, 204, 21)"
                             strokeWidth="2"
                             className="transition-all duration-500"
-                            style={{ filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.8))' }}
+                            style={{ filter: 'drop-shadow(0 0 6px rgba(234, 179, 8, 1))' }}
                           />
                         ))}
                       </>
