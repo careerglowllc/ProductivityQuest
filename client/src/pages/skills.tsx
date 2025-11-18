@@ -883,35 +883,55 @@ export default function Skills() {
               const maxLevel = Math.max(...skills.map(s => s.level), 0);
               const chartMax = Math.min(maxLevel + 10, 99);
               
-              // Calculate spider chart positions
-              const getSpiderPositions = () => {
+              // Maximum radius for outer boundary (where skill nodes are placed)
+              const maxRadius = 38;
+              
+              // Calculate fixed outer positions for skill nodes
+              const getOuterPositions = () => {
                 const count = skills.length;
                 if (count === 0) return [];
                 
                 const positions: { x: number; y: number; angle: number }[] = [];
-                const maxRadius = 38; // Maximum radius percentage from center
                 
                 for (let i = 0; i < count; i++) {
                   const angle = (2 * Math.PI * i) / count - Math.PI / 2; // Start from top
-                  const skill = skills[i];
-                  const radiusRatio = skill.level / chartMax; // Scale based on level
-                  const radius = radiusRatio * maxRadius;
+                  // Nodes are always at the outer edge
+                  const x = centerX + maxRadius * Math.cos(angle);
+                  const y = centerY + maxRadius * Math.sin(angle);
                   
-                  positions.push({
-                    x: centerX + radius * Math.cos(angle),
-                    y: centerY + radius * Math.sin(angle),
-                    angle: angle
-                  });
+                  positions.push({ x, y, angle });
                 }
                 
                 return positions;
               };
 
-              const positions = getSpiderPositions();
+              // Calculate polygon points based on skill levels
+              const getPolygonPoints = () => {
+                const count = skills.length;
+                if (count === 0) return [];
+                
+                const points: { x: number; y: number }[] = [];
+                
+                for (let i = 0; i < count; i++) {
+                  const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+                  const skill = skills[i];
+                  const radiusRatio = skill.level / chartMax; // Scale based on level
+                  const radius = radiusRatio * maxRadius;
+                  
+                  points.push({
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle)
+                  });
+                }
+                
+                return points;
+              };
+
+              const outerPositions = getOuterPositions();
+              const polygonPoints = getPolygonPoints();
               
               // Create grid circle levels for spider chart (25%, 50%, 75%, 100% of max)
               const gridLevels = [0.25, 0.5, 0.75, 1.0];
-              const maxRadius = 38;
 
               return (
                 <>
@@ -954,9 +974,9 @@ export default function Skills() {
                     })}
                     
                     {/* Spider chart polygon connecting all skill levels */}
-                    {positions.length > 0 && (
+                    {polygonPoints.length > 0 && (
                       <polygon
-                        points={positions.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
+                        points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
                         fill="rgba(234, 179, 8, 0.2)"
                         stroke="rgb(234, 179, 8)"
                         strokeWidth="3"
@@ -972,7 +992,7 @@ export default function Skills() {
                       const Icon = getSkillIconComponent(skill);
                       const constellation = getConstellation(skill);
                       const progressPercent = (skill.xp / skill.maxXp) * 100;
-                      const pos = positions[index];
+                      const pos = outerPositions[index];
                       
                       if (!pos) return null;
                       
