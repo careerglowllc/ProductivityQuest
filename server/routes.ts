@@ -2272,6 +2272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           goldValue: task.goldValue,
           campaign: task.campaign,
           skillTags: task.skillTags || [],
+          duration: task.duration,
           source: 'productivityquest',
           calendarColor: task.calendarColor
         });

@@ -25,6 +25,7 @@ type CalendarEvent = {
   goldValue?: number;
   campaign?: string;
   skillTags?: string[];
+  duration?: number;
   source?: string;
   calendarColor?: string;
   calendarName?: string;
@@ -164,6 +165,10 @@ export default function Calendar() {
             // Invalidate calendar query to refetch updated data
             queryClient.invalidateQueries({ 
               queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
+            });
+            // Also invalidate tasks query so task detail modals show updated data
+            queryClient.invalidateQueries({ 
+              queryKey: ['/api/tasks'] 
             });
           } else {
             console.error('Failed to update task:', await response.text());
