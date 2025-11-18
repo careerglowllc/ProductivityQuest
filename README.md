@@ -33,9 +33,9 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Auto-categorize tasks** - AI automatically assigns skill tags when tasks are created
 - **Purchase rewards** from a customizable shop using earned gold
 - **Sync with Notion** for seamless task management across platforms
-- **Integrate Google Calendar** for time-based task organization
+- **✨ ENHANCED: Google Calendar Integration** - Full OAuth 2.0 with multi-calendar support, 4 view modes (Day/3-Day/Week/Month), calendar color preservation, and smart separation (Google events visible in calendar only, PQ tasks in both calendar and tasks list)
 - **✨ NEW: Recurring Tasks** - Routine tasks automatically reschedule to next due date instead of completing
-- **✨ NEW: Calendar View** - Month-based calendar displaying tasks with color-coded importance levels
+- **✨ NEW: Calendar View** - Interactive calendar with multiple view modes and color-coded events
 - **Track progress** through detailed dashboards and statistics
 - **Recycle tasks** instead of deleting them for better task management
 - **Create custom skills** tailored to your personal development goals
