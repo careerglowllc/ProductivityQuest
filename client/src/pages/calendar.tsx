@@ -1056,7 +1056,7 @@ export default function Calendar() {
 
                     {selectedEvent.campaign && (
                       <div>
-                        <p className="text-sm text-gray-400 mb-1">Campaign</p>
+                        <p className="text-sm text-gray-400 mb-1">Questline</p>
                         <p className="text-white">{selectedEvent.campaign}</p>
                       </div>
                     )}

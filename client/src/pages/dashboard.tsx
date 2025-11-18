@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect } from "react";
@@ -202,9 +202,9 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
   const highestSkillLevel = Math.max(...skills.map(s => s.level), 0);
   const chartMax = Math.min(highestSkillLevel + 10, 99);
   
-  const size = 500; // Increased from 400 to 500
+  const size = 400; // Reduced from 500 for more compact display
   const center = size / 2;
-  const radius = size / 2 - 100; // Increased padding from 60 to 100 for more label space
+  const radius = size / 2 - 80; // Reduced padding from 100 to 80
   const numSkills = skills.length;
 
   // Helper function to get skill icon
@@ -246,9 +246,9 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
   // Create background grid circles
   const gridLevels = [chartMax * 0.25, chartMax * 0.5, chartMax * 0.75, chartMax];
   
-  // Create polygon path for skill levels (using default gold color for now)
+  // Create polygon points for skill levels
   const skillPoints = skills.map((skill, i) => getPoint(i, skill.level));
-  const skillPath = skillPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+  const polygonPointsString = skillPoints.map(p => `${p.x},${p.y}`).join(' ');
 
   return (
     <div className="flex items-center justify-center overflow-hidden">
@@ -284,14 +284,27 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
           );
         })}
 
-        {/* Skill level polygon */}
-        <path
-          d={skillPath}
-          fill="rgba(234, 179, 8, 0.15)"
-          stroke="rgb(234, 179, 8)"
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
+        {/* Skill level polygon - filled area */}
+        {skillPoints.length > 0 && (
+          <>
+            <polygon
+              points={polygonPointsString}
+              fill="rgba(234, 179, 8, 0.3)"
+              className="transition-all duration-500"
+              style={{ filter: 'drop-shadow(0 0 15px rgba(234, 179, 8, 0.4))' }}
+            />
+            {/* Polygon outline */}
+            <polygon
+              points={polygonPointsString}
+              fill="none"
+              stroke="rgb(234, 179, 8)"
+              strokeWidth="3"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              className="transition-all duration-500"
+            />
+          </>
+        )}
 
         {/* Skill level points */}
         {skillPoints.map((point, i) => (
@@ -299,10 +312,12 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
             key={i}
             cx={point.x}
             cy={point.y}
-            r="5"
+            r="6"
             fill="rgb(250, 204, 21)"
             stroke="rgb(234, 179, 8)"
             strokeWidth="2"
+            className="transition-all duration-300"
+            style={{ filter: 'drop-shadow(0 0 6px rgba(234, 179, 8, 1))' }}
           />
         ))}
 
@@ -369,6 +384,47 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  
+  // State for expanded campaigns
+  const [expandedCampaigns, setExpandedCampaigns] = useState<{ [key: string]: boolean }>({});
+  
+  // Mock selected campaigns data (replace with API call in production)
+  const selectedCampaigns = [
+    {
+      id: 'maximize-looks',
+      title: 'Maximize Looks',
+      description: 'A comprehensive transformation journey covering fitness, grooming, style, and confidence',
+      progress: 35,
+      quests: [
+        { id: 1, title: 'Foundation Assessment Complete', status: 'completed' },
+        { id: 2, title: 'Skincare Routine Established', status: 'completed' },
+        { id: 3, title: 'Fitness Fundamentals', status: 'in-progress' },
+        { id: 4, title: 'Wardrobe Optimization', status: 'locked' },
+        { id: 5, title: 'Confidence & Presence', status: 'locked' },
+      ],
+    },
+    {
+      id: 'remote-business',
+      title: 'Build a Self-Sufficient Remote Business',
+      description: 'Launch and scale a profitable online business that generates passive income and location freedom',
+      progress: 60,
+      quests: [
+        { id: 1, title: 'Market Research & Niche Selection', status: 'completed' },
+        { id: 2, title: 'MVP Development & Launch', status: 'completed' },
+        { id: 3, title: 'First 10 Paying Customers', status: 'completed' },
+        { id: 4, title: 'Scale to $10K MRR', status: 'in-progress' },
+        { id: 5, title: 'Automation & Systems', status: 'locked' },
+        { id: 6, title: 'Full Location Independence', status: 'locked' },
+      ],
+    },
+  ];
+  
+  const toggleCampaign = (campaignId: string) => {
+    setExpandedCampaigns(prev => ({
+      ...prev,
+      [campaignId]: !prev[campaignId]
+    }));
+  };
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["/api/tasks"],
@@ -528,51 +584,124 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-        {/* Main Campaign Section */}
+        {/* Active Questlines Section */}
         <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Crown className="h-4 w-4 text-purple-400" />
-                <h3 className="text-sm font-serif font-bold text-purple-100">Main Campaign</h3>
+                <Target className="h-4 w-4 text-purple-400" />
+                <h3 className="text-sm font-serif font-bold text-purple-100">Active Questlines</h3>
               </div>
               <Link href="/campaigns">
                 <Button variant="outline" size="sm" className="h-7 px-3 text-xs border-purple-600/40 bg-slate-700/50 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100 hover:border-purple-500/60">
-                  Details
+                  <Target className="w-3 h-3 mr-1" />
+                  Manage
                 </Button>
               </Link>
             </div>
 
-            {/* Compact Objective: Financial Independence */}
-            <div className="mb-2 pb-2 border-b border-purple-600/30">
-              <div className="flex items-center justify-between mb-1">
-                <h4 className="text-xs font-serif font-semibold text-purple-100">Financial Independence</h4>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-purple-100">$500,000</p>
-                  <p className="text-[9px] text-purple-200/70">Current Net Worth</p>
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-purple-200/80">Goal: $1.3M</span>
-                  <span className="text-purple-100 font-bold">38.5%</span>
-                </div>
-                <Progress value={38.5} className="h-1.5 bg-slate-700/50">
-                  <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" style={{ width: '38.5%' }} />
-                </Progress>
-              </div>
-            </div>
-
-            {/* Compact Objective: Peace of Mind */}
-            <div>
-              <h4 className="text-xs font-serif font-semibold text-purple-100 mb-1">Peace of Mind</h4>
-              <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-2">
-                <p className="text-purple-200/80 text-[10px] italic leading-relaxed">
-                  "Peace is a choice. The journey is all there is."
+            {/* No Campaigns Selected State */}
+            {selectedCampaigns.length === 0 ? (
+              <div className="text-center py-6">
+                <Target className="w-12 h-12 text-purple-400/40 mx-auto mb-3" />
+                <h4 className="text-sm font-semibold text-purple-200 mb-1">No Active Questlines</h4>
+                <p className="text-xs text-purple-300/70 mb-3 max-w-md mx-auto">
+                  Select up to 2 questlines from the Questlines page to track your major life objectives.
                 </p>
+                <Link href="/campaigns">
+                  <Button size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 h-8 text-xs">
+                    <Plus className="w-3 h-3 mr-1" />
+                    Select Questlines
+                  </Button>
+                </Link>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedCampaigns.map((campaign) => (
+                  <Card 
+                    key={campaign.id}
+                    className="bg-slate-800/60 border-purple-500/30 hover:border-purple-400/50 transition-all cursor-pointer"
+                    onClick={() => toggleCampaign(campaign.id)}
+                  >
+                    <CardContent className="p-3">
+                      {/* Collapsed View */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="text-xs font-serif font-semibold text-purple-100">
+                              {campaign.title}
+                            </h4>
+                            <span className="text-[10px] font-bold text-purple-200">{campaign.progress}%</span>
+                          </div>
+                          <Progress value={campaign.progress} className="h-1.5 bg-slate-700/50 mb-1">
+                            <div 
+                              className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" 
+                              style={{ width: `${campaign.progress}%` }} 
+                            />
+                          </Progress>
+                          {!expandedCampaigns[campaign.id] && (
+                            <p className="text-[9px] text-purple-300/70 line-clamp-1">{campaign.description}</p>
+                          )}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="ml-3 text-purple-300 hover:text-purple-100 h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleCampaign(campaign.id);
+                          }}
+                        >
+                          {expandedCampaigns[campaign.id] ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Expanded View */}
+                      {expandedCampaigns[campaign.id] && (
+                        <div className="mt-3 pt-3 border-t border-purple-500/20">
+                          <p className="text-[10px] text-purple-200/80 mb-3">{campaign.description}</p>
+                          
+                          {/* Quest Steps */}
+                          <div className="space-y-1.5">
+                            {campaign.quests.map((quest) => (
+                              <div 
+                                key={quest.id}
+                                className="flex items-center gap-2 p-1.5 rounded bg-slate-900/40"
+                              >
+                                {quest.status === 'completed' && (
+                                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                                )}
+                                {quest.status === 'in-progress' && (
+                                  <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                                    <div className="w-2.5 h-2.5 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
+                                  </div>
+                                )}
+                                {quest.status === 'locked' && (
+                                  <div className="w-4 h-4 flex-shrink-0 rounded-full bg-slate-600/50 flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                  </div>
+                                )}
+                                <span className={`text-[10px] ${
+                                  quest.status === 'completed' ? 'text-green-300' :
+                                  quest.status === 'in-progress' ? 'text-yellow-200 font-medium' :
+                                  'text-slate-400'
+                                }`}>
+                                  Quest {quest.id}: {quest.title}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -595,7 +724,7 @@ export default function Dashboard() {
               <Dialog>
                 <DialogTrigger asChild>
                   <div className="cursor-pointer relative group w-full">
-                    <div className={`${!isMobile ? 'scale-[0.9]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? 'my-0' : '-my-32'}`}>
+                    <div className={`${!isMobile ? 'scale-[0.7]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? '-my-12' : '-my-32'}`}>
                       {skillsLoading ? (
                         <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
                           Loading skills...

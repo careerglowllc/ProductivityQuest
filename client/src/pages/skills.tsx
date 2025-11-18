@@ -194,21 +194,34 @@ const skillMilestones: Record<string, Array<{
     // Level 1: Start
     { id: 'start', title: 'Pick Up Your Tools', level: 1, x: 50, y: 88 },
     
-    // Level 2: Two initial branches
+    // Level 2: Basic skills branch out from start
+    { id: 'change-tire', title: 'Change a Tire', x: 20, y: 78, parents: ['start'] },
     { id: 'project-1', title: 'Complete First Project', level: 5, x: 35, y: 72, parents: ['start'] },
     { id: 'tools-master', title: 'Master Basic Tools', level: 8, x: 65, y: 72, parents: ['start'] },
+    { id: 'paint-wall', title: 'Paint a Wall', x: 80, y: 78, parents: ['start'] },
     
-    // Level 3: Each branch splits
-    { id: 'furniture', title: 'Build Custom Furniture', level: 15, x: 28, y: 56, parents: ['project-1'] },
-    { id: 'apprentice', title: 'Teach an Apprentice', level: 18, x: 45, y: 54, parents: ['project-1'] },
-    { id: 'workshop', title: 'Set Up Workshop', level: 20, x: 70, y: 56, parents: ['tools-master'] },
+    // Level 3: Home & automotive maintenance
+    { id: 'change-oil', title: "Change Your Car's Oil", x: 15, y: 68, parents: ['change-tire'] },
+    { id: 'fix-drywall', title: 'Fix Drywall', x: 28, y: 62, parents: ['project-1'] },
+    { id: 'reflip-breakers', title: 'Reflip Breakers After Power Outage', x: 42, y: 64, parents: ['tools-master'] },
+    { id: 'furniture', title: 'Build Custom Furniture', level: 15, x: 58, y: 56, parents: ['tools-master'] },
+    { id: 'workshop', title: 'Set Up Workshop', level: 20, x: 70, y: 62, parents: ['tools-master'] },
+    { id: 'repair-fridge', title: 'Learn to Repair a Refrigerator', x: 82, y: 68, parents: ['paint-wall'] },
     
-    // Level 4: Branches converge and continue
-    { id: 'masterwork', title: 'Create a Masterwork', level: 40, x: 38, y: 36, parents: ['furniture', 'apprentice'] },
-    { id: 'innovate', title: 'Innovate New Technique', level: 45, x: 62, y: 36, parents: ['workshop'] },
+    // Level 4: Advanced building & digital skills
+    { id: 'build-fence', title: 'Build a Fence', x: 22, y: 52, parents: ['change-oil', 'fix-drywall'] },
+    { id: 'create-website', title: 'Create a Website', x: 38, y: 48, parents: ['fix-drywall'] },
+    { id: 'apprentice', title: 'Teach an Apprentice', level: 18, x: 50, y: 46, parents: ['reflip-breakers', 'furniture'] },
+    { id: 'create-app', title: 'Create a Software App', x: 62, y: 48, parents: ['furniture', 'workshop'] },
+    { id: 'innovate', title: 'Innovate New Technique', level: 45, x: 75, y: 52, parents: ['workshop', 'repair-fridge'] },
     
-    // Level 5: Final milestone
-    { id: 'legacy', title: 'Leave a Lasting Legacy', level: 80, x: 50, y: 18, parents: ['masterwork', 'innovate'] },
+    // Level 5: Major construction & mastery
+    { id: 'build-house', title: 'Build a House', x: 30, y: 34, parents: ['build-fence', 'create-website'] },
+    { id: 'masterwork', title: 'Create a Masterwork', level: 40, x: 50, y: 30, parents: ['apprentice', 'create-app'] },
+    { id: 'advanced-systems', title: 'Master Advanced Systems', x: 70, y: 34, parents: ['innovate'] },
+    
+    // Level 6: Final milestone
+    { id: 'legacy', title: 'Leave a Lasting Legacy', level: 80, x: 50, y: 14, parents: ['build-house', 'masterwork', 'advanced-systems'] },
   ],
   Artist: [
     // Level 1: Start
@@ -254,93 +267,188 @@ const skillMilestones: Record<string, Array<{
   ],
   Merchant: [
     // Start
-    { id: 'start', title: 'First Sale', x: 50, y: 88 },
+    { id: 'start', title: 'First Sale', x: 50, y: 90 },
     
-    // Initial growth
-    { id: 'revenue-1k', title: '$1,000 in Revenue', x: 38, y: 72, parents: ['start'] },
-    { id: 'client-10', title: '10 Repeat Clients', x: 62, y: 72, parents: ['start'] },
+    // Level 2: First steps in wealth & business
+    { id: 'taxes-first', title: 'Do Your Taxes for the First Time', x: 30, y: 84, parents: ['start'] },
+    { id: 'net-worth-1k', title: 'Get $1,000 Net Worth', x: 45, y: 82, parents: ['start'] },
+    { id: 'revenue-1k', title: '$1,000 in Revenue', x: 60, y: 82, parents: ['start'] },
+    { id: 'second-job', title: 'Get a Second Job Earning at Least $1,000 a Month', x: 75, y: 84, parents: ['start'] },
     
-    // Business foundations
-    { id: 'start-business', title: 'Start a Business', x: 25, y: 64, parents: ['revenue-1k'] },
-    { id: 'revenue-10k', title: '$10,000 Monthly', x: 30, y: 56, parents: ['start-business'] },
-    { id: 'team', title: 'Build a Team', x: 50, y: 54, parents: ['revenue-1k', 'client-10'] },
-    { id: 'venture', title: 'Launch a Venture', x: 70, y: 56, parents: ['client-10'] },
+    // Level 3: Building foundations
+    { id: 'tax-deductions', title: 'Take Tax Deductions Out for the First Time', x: 25, y: 74, parents: ['taxes-first'] },
+    { id: 'net-worth-10k', title: 'Get $10,000 Net Worth', x: 38, y: 72, parents: ['net-worth-1k'] },
+    { id: 'client-10', title: '10 Repeat Clients', x: 52, y: 74, parents: ['revenue-1k'] },
+    { id: 'remote-business', title: 'Get a Remote Business', x: 68, y: 72, parents: ['second-job'] },
+    { id: 'start-business', title: 'Start a Business', x: 82, y: 74, parents: ['second-job'] },
     
-    // Scale & Innovation
-    { id: 'revenue-100k', title: '$100,000 Yearly', x: 38, y: 38, parents: ['revenue-10k', 'team'] },
-    { id: 'saas-launch', title: 'Create & Launch a SaaS App', x: 50, y: 36, parents: ['team', 'venture'] },
-    { id: 'multiple', title: 'Multiple Revenue Streams', x: 62, y: 38, parents: ['venture'] },
+    // Level 4: Growing wealth & systems
+    { id: 'net-worth-50k', title: 'Get $50,000 Net Worth', x: 20, y: 64, parents: ['tax-deductions', 'net-worth-10k'] },
+    { id: 'net-worth-100k', title: 'Get $100,000 Net Worth', x: 35, y: 62, parents: ['net-worth-10k'] },
+    { id: 'revenue-10k', title: '$10,000 Monthly', x: 50, y: 64, parents: ['client-10', 'remote-business'] },
+    { id: 'venture', title: 'Launch a Venture', x: 65, y: 62, parents: ['remote-business', 'start-business'] },
+    { id: 'offshore-trust', title: 'Get an Offshore Trust', x: 80, y: 64, parents: ['start-business'] },
     
-    // Advanced experience
-    { id: 'close-business', title: 'Close a Business', x: 30, y: 28, parents: ['revenue-100k'] },
+    // Level 5: Significant wealth accumulation
+    { id: 'net-worth-250k', title: 'Get $250,000 Net Worth', x: 25, y: 52, parents: ['net-worth-50k', 'net-worth-100k'] },
+    { id: 'net-worth-500k', title: 'Get $500,000 Net Worth', x: 40, y: 50, parents: ['net-worth-100k'] },
+    { id: 'team', title: 'Build a Team', x: 55, y: 52, parents: ['revenue-10k', 'venture'] },
+    { id: 'revenue-100k', title: '$100,000 Yearly', x: 70, y: 50, parents: ['venture', 'offshore-trust'] },
     
-    // Empire
-    { id: 'empire', title: 'Build Business Empire', x: 50, y: 22, parents: ['revenue-100k', 'saas-launch', 'multiple', 'close-business'] },
-    { id: 'legend', title: 'Industry Legend', x: 50, y: 8, parents: ['empire'] },
+    // Level 6: Millionaire status
+    { id: 'net-worth-1m', title: 'Get $1,000,000 Net Worth', x: 30, y: 40, parents: ['net-worth-250k', 'net-worth-500k'] },
+    { id: 'net-worth-1.5m', title: 'Get $1,500,000 Net Worth', x: 45, y: 38, parents: ['net-worth-500k'] },
+    { id: 'saas-launch', title: 'Create & Launch a SaaS App', x: 60, y: 40, parents: ['team', 'revenue-100k'] },
+    { id: 'multiple', title: 'Multiple Revenue Streams', x: 75, y: 38, parents: ['revenue-100k'] },
+    
+    // Level 7: Multi-millionaire & advanced business
+    { id: 'net-worth-2m', title: 'Get $2,000,000 Net Worth', x: 35, y: 28, parents: ['net-worth-1m', 'net-worth-1.5m'] },
+    { id: 'net-worth-3m', title: 'Get $3,000,000 Net Worth', x: 50, y: 26, parents: ['net-worth-1.5m', 'saas-launch'] },
+    { id: 'close-business', title: 'Close a Business', x: 65, y: 28, parents: ['saas-launch', 'multiple'] },
+    
+    // Level 8: Elite wealth
+    { id: 'net-worth-5m', title: 'Get $5,000,000 Net Worth', x: 40, y: 16, parents: ['net-worth-2m', 'net-worth-3m'] },
+    { id: 'empire', title: 'Build Business Empire', x: 60, y: 16, parents: ['net-worth-3m', 'close-business'] },
+    
+    // Level 9: Ultimate achievement
+    { id: 'legend', title: 'Industry Legend', x: 50, y: 6, parents: ['net-worth-5m', 'empire'] },
   ],
   Physical: [
     // Level 1: Start
-    { id: 'start', title: 'Begin Training', level: 1, x: 50, y: 88 },
+    { id: 'start', title: 'Begin Training', level: 1, x: 50, y: 90 },
     
-    // Level 2: Foundation
-    { id: 'basics', title: 'Master Basic Techniques', level: 5, x: 35, y: 72, parents: ['start'] },
-    { id: 'endurance', title: 'Build Endurance', level: 7, x: 65, y: 72, parents: ['start'] },
+    // Level 2: Foundation - Multiple disciplines branch out
+    { id: 'mma-first', title: 'Take an MMA Class for the First Time', x: 15, y: 84, parents: ['start'] },
+    { id: 'run-10min', title: 'Run a Mile in 10 Minutes or Less', x: 30, y: 82, parents: ['start'] },
+    { id: 'basics', title: 'Master Basic Techniques', level: 5, x: 45, y: 80, parents: ['start'] },
+    { id: 'squat-135', title: 'Barbell Squat 5x5 for 135 Pounds', x: 55, y: 80, parents: ['start'] },
+    { id: 'endurance', title: 'Build Endurance', level: 7, x: 70, y: 82, parents: ['start'] },
+    { id: 'firing-range-first', title: 'Go to a Firing Range for the First Time', x: 85, y: 84, parents: ['start'] },
     
-    // Level 3: Development
-    { id: 'strength', title: 'Intermediate Strength', level: 15, x: 25, y: 56, parents: ['basics'] },
-    { id: 'martial', title: '3 Years Martial Arts', level: 18, x: 50, y: 54, parents: ['basics', 'endurance'] },
-    { id: 'flexibility', title: 'Peak Flexibility', level: 20, x: 75, y: 56, parents: ['endurance'] },
+    // Level 3: Early progression across disciplines
+    { id: 'mma-10', title: 'Take 10 MMA Classes', x: 12, y: 74, parents: ['mma-first'] },
+    { id: 'run-8min', title: 'Run a Mile in 8 Minutes or Less', x: 24, y: 72, parents: ['run-10min'] },
+    { id: 'squat-160', title: 'Barbell Squat 5x5 for 160 Pounds', x: 36, y: 70, parents: ['squat-135'] },
+    { id: 'wrestling-mock-1', title: 'Do One Wrestling Class with Mock Firearm', x: 48, y: 72, parents: ['basics'] },
+    { id: 'run-7min', title: 'Run a Mile in 7 Minutes or Less', x: 60, y: 70, parents: ['run-8min', 'endurance'] },
+    { id: 'firing-range-5', title: 'Go to a Firing Range 5 Times', x: 72, y: 72, parents: ['firing-range-first'] },
+    { id: 'firing-training', title: 'Have a Formal Firing Range Training Course', x: 88, y: 74, parents: ['firing-range-first'] },
     
-    // Level 4: Advanced
-    { id: 'combat', title: 'Advanced Combat Skills', level: 35, x: 35, y: 38, parents: ['strength', 'martial'] },
-    { id: 'elite', title: 'Elite Athlete Status', level: 40, x: 65, y: 38, parents: ['martial', 'flexibility'] },
+    // Level 4: Intermediate development
+    { id: 'mma-30', title: 'Take 30 MMA Classes', x: 10, y: 64, parents: ['mma-10'] },
+    { id: 'run-6min', title: 'Run a Mile in 6 Minutes or Less', x: 22, y: 62, parents: ['run-8min'] },
+    { id: 'squat-180', title: 'Barbell Squat 5x5 for 180 Pounds', x: 34, y: 60, parents: ['squat-160'] },
+    { id: 'wrestling-mock-5', title: 'Do 5 Wrestling Classes with Mock Firearms', x: 46, y: 62, parents: ['wrestling-mock-1'] },
+    { id: 'strength', title: 'Intermediate Strength', level: 15, x: 54, y: 60, parents: ['basics', 'squat-180'] },
+    { id: 'firing-range-10', title: 'Go to a Firing Range 10 Times', x: 66, y: 62, parents: ['firing-range-5'] },
+    { id: 'firing-range-20', title: 'Go to a Firing Range 20 Times', x: 78, y: 60, parents: ['firing-training'] },
+    { id: 'quickdraw-5hr', title: 'Spend 5 Hours on Quickdraw Practice', x: 90, y: 64, parents: ['firing-training'] },
     
-    // Level 5: Mastery
-    { id: 'compete', title: 'Competition Ready', level: 65, x: 50, y: 22, parents: ['combat', 'elite'] },
-    { id: 'warrior', title: 'Legendary Warrior', level: 90, x: 50, y: 8, parents: ['compete'] },
+    // Level 5: Advanced training
+    { id: 'mma-50', title: 'Take 50 MMA Classes', x: 8, y: 52, parents: ['mma-30'] },
+    { id: 'run-5:30', title: 'Run a Mile in 5:30 or Less', x: 20, y: 50, parents: ['run-6min'] },
+    { id: 'squat-190', title: 'Barbell Squat 5x5 for 190 Pounds', x: 32, y: 48, parents: ['squat-180'] },
+    { id: 'squat-225', title: 'Barbell Squat 5x5 for 225 Pounds', x: 40, y: 50, parents: ['squat-190', 'strength'] },
+    { id: 'wrestling-mock-20', title: 'Do 20 Wrestling Classes with Mock Firearms', x: 48, y: 48, parents: ['wrestling-mock-5'] },
+    { id: 'martial', title: '3 Years Martial Arts', level: 18, x: 56, y: 50, parents: ['strength'] },
+    { id: 'run-5:15', title: 'Run a Mile in 5:15 or Less', x: 64, y: 48, parents: ['run-5:30'] },
+    { id: 'flexibility', title: 'Peak Flexibility', level: 20, x: 72, y: 50, parents: ['strength'] },
+    { id: 'firing-range-50', title: 'Go to a Firing Range 50 Times', x: 80, y: 48, parents: ['firing-range-20'] },
+    { id: 'firing-range-100', title: 'Go to a Firing Range 100 Times', x: 92, y: 52, parents: ['quickdraw-5hr'] },
+    
+    // Level 6: Elite progression
+    { id: 'mma-100', title: 'Take 100 MMA Classes', x: 10, y: 40, parents: ['mma-50'] },
+    { id: 'run-5min', title: 'Run a Mile in 5 Minutes or Less', x: 22, y: 38, parents: ['run-5:15'] },
+    { id: 'squat-250', title: 'Barbell Squat 5x5 for 250 Pounds', x: 34, y: 36, parents: ['squat-225'] },
+    { id: 'squat-300', title: 'Barbell Squat 5x5 for 300 Pounds', x: 42, y: 38, parents: ['squat-250'] },
+    { id: 'combat', title: 'Advanced Combat Skills', level: 35, x: 50, y: 36, parents: ['wrestling-mock-20', 'martial'] },
+    { id: 'run-4:45', title: 'Run a Mile in 4:45 or Less', x: 58, y: 38, parents: ['run-5min'] },
+    { id: 'elite', title: 'Elite Athlete Status', level: 40, x: 66, y: 36, parents: ['martial', 'flexibility'] },
+    { id: 'squat-315', title: 'Barbell Squat 5x5 for 315 Pounds', x: 74, y: 38, parents: ['squat-300'] },
+    { id: 'firing-range-200', title: 'Go to a Firing Range 200 Times', x: 82, y: 36, parents: ['firing-range-100'] },
+    { id: 'mma-200', title: 'Take 200 MMA Classes', x: 90, y: 40, parents: ['firing-range-100'] },
+    
+    // Level 7: Combat ready & competition
+    { id: 'amateur-fight', title: 'Take an Amateur Martial Arts Fight', x: 18, y: 26, parents: ['mma-100'] },
+    { id: 'endurance-elite', title: 'Elite Endurance Achievement', x: 32, y: 24, parents: ['run-4:45', 'elite'] },
+    { id: 'strength-elite', title: 'Elite Strength Achievement', x: 48, y: 22, parents: ['squat-315', 'combat'] },
+    { id: 'compete', title: 'Competition Ready', level: 65, x: 64, y: 24, parents: ['combat', 'elite'] },
+    { id: 'tactical-mastery', title: 'Tactical Firearms Mastery', x: 82, y: 26, parents: ['firing-range-200', 'mma-200'] },
+    
+    // Level 8: Ultimate achievement
+    { id: 'real-fight', title: 'Survive and Succeed in a Real Life Fight', x: 30, y: 14, parents: ['amateur-fight', 'endurance-elite'] },
+    { id: 'complete-athlete', title: 'Complete Athlete Mastery', x: 50, y: 12, parents: ['endurance-elite', 'strength-elite', 'compete'] },
+    { id: 'warrior', title: 'Legendary Warrior', level: 90, x: 70, y: 14, parents: ['compete', 'tactical-mastery'] },
+    
+    // Level 9: Apex
+    { id: 'apex', title: 'Apex Predator', x: 50, y: 4, parents: ['real-fight', 'complete-athlete', 'warrior'] },
   ],
   Scholar: [
     // Level 1: Start
     { id: 'start', title: 'Curiosity Awakens', level: 1, x: 50, y: 88 },
     
     // Level 2: Learning paths
-    { id: 'read-12', title: 'Read 12 Books/Year', level: 5, x: 32, y: 72, parents: ['start'] },
-    { id: 'focus', title: 'Choose Focus Area', level: 6, x: 50, y: 70, parents: ['start'] },
-    { id: 'research', title: 'Begin Research', level: 7, x: 68, y: 72, parents: ['start'] },
+    { id: 'read-12', title: 'Read 12 Books/Year', level: 5, x: 30, y: 72, parents: ['start'] },
+    { id: 'philosophy-1', title: 'Read 1 Book on Philosophy', x: 45, y: 74, parents: ['start'] },
+    { id: 'focus', title: 'Choose Focus Area', level: 6, x: 60, y: 70, parents: ['start'] },
+    { id: 'research', title: 'Begin Research', level: 7, x: 75, y: 72, parents: ['start'] },
     
     // Level 3: Depth
-    { id: 'domain', title: 'Master One Domain', level: 15, x: 28, y: 54, parents: ['read-12'] },
-    { id: 'degree', title: 'Advanced Degree', level: 18, x: 50, y: 52, parents: ['focus'] },
-    { id: 'teach', title: 'Teach Your Knowledge', level: 20, x: 72, y: 54, parents: ['research'] },
+    { id: 'domain', title: 'Master One Domain', level: 15, x: 25, y: 58, parents: ['read-12'] },
+    { id: 'philosophy-10', title: 'Read 10 Books on Philosophy', x: 40, y: 56, parents: ['philosophy-1'] },
+    { id: 'degree', title: 'Advanced Degree', level: 18, x: 55, y: 54, parents: ['focus', 'philosophy-1'] },
+    { id: 'teach', title: 'Teach Your Knowledge', level: 20, x: 70, y: 56, parents: ['research'] },
+    { id: 'philosophy-essay', title: 'Write an Essay Reflecting on Philosophy', x: 82, y: 58, parents: ['research'] },
     
     // Level 4: Recognition
-    { id: 'publish', title: 'Publish Research', level: 35, x: 38, y: 36, parents: ['domain', 'degree'] },
-    { id: 'expert', title: 'Recognized Expert', level: 40, x: 62, y: 36, parents: ['degree', 'teach'] },
+    { id: 'publish', title: 'Publish Research', level: 35, x: 35, y: 40, parents: ['domain', 'philosophy-10'] },
+    { id: 'deep-thinker', title: 'Deep Philosophical Thinker', x: 50, y: 38, parents: ['philosophy-10', 'degree', 'philosophy-essay'] },
+    { id: 'expert', title: 'Recognized Expert', level: 40, x: 65, y: 40, parents: ['teach', 'philosophy-essay'] },
     
     // Level 5: Mastery
-    { id: 'polymath', title: 'True Polymath', level: 70, x: 50, y: 20, parents: ['publish', 'expert'] },
-    { id: 'wisdom', title: 'Timeless Wisdom', level: 95, x: 50, y: 6, parents: ['polymath'] },
+    { id: 'polymath', title: 'True Polymath', level: 70, x: 50, y: 24, parents: ['publish', 'deep-thinker', 'expert'] },
+    { id: 'wisdom', title: 'Timeless Wisdom', level: 95, x: 50, y: 10, parents: ['polymath'] },
   ],
   Health: [
     // Level 1: Start
-    { id: 'start', title: 'Choose Wellness', level: 1, x: 50, y: 88 },
+    { id: 'start', title: 'Choose Wellness', level: 1, x: 50, y: 90 },
     
-    // Level 2: Foundation
-    { id: 'nutrition', title: 'Nutrition Basics', level: 5, x: 35, y: 72, parents: ['start'] },
-    { id: 'sleep', title: 'Quality Sleep Routine', level: 7, x: 65, y: 72, parents: ['start'] },
+    // Level 2: Foundation - Basic health monitoring
+    { id: 'dentist-checkup', title: 'Latest Dentist Appointment No New Issues', x: 25, y: 82, parents: ['start'] },
+    { id: 'nutrition', title: 'Nutrition Basics', level: 5, x: 40, y: 80, parents: ['start'] },
+    { id: 'sleep', title: 'Quality Sleep Routine', level: 7, x: 60, y: 80, parents: ['start'] },
+    { id: 'doctor-checkup', title: 'Latest Doctor Appointment No New Issues', x: 75, y: 82, parents: ['start'] },
     
-    // Level 3: Optimization
-    { id: 'exercise', title: 'Regular Exercise', level: 15, x: 28, y: 56, parents: ['nutrition'] },
-    { id: 'markers', title: 'Optimal Health Markers', level: 18, x: 50, y: 54, parents: ['nutrition', 'sleep'] },
-    { id: 'habits', title: '5 Years Healthy Habits', level: 20, x: 72, y: 56, parents: ['sleep'] },
+    // Level 3: Building healthy habits
+    { id: 'blood-biomarkers', title: 'Within Range for Blood Test Biomarkers', x: 20, y: 72, parents: ['dentist-checkup', 'doctor-checkup'] },
+    { id: 'exercise', title: 'Regular Exercise', level: 15, x: 35, y: 70, parents: ['nutrition'] },
+    { id: 'sleep-30days', title: 'Get at Least 8 Hours of Sleep for 30 Nights Straight', x: 50, y: 68, parents: ['sleep'] },
+    { id: 'resting-hr', title: 'Resting Heart Rate Under 80 BPM', x: 65, y: 70, parents: ['sleep', 'doctor-checkup'] },
+    { id: 'markers', title: 'Optimal Health Markers', level: 18, x: 80, y: 72, parents: ['doctor-checkup'] },
     
-    // Level 4: Peak
-    { id: 'optimize', title: 'Peak Optimization', level: 35, x: 38, y: 38, parents: ['exercise', 'markers'] },
-    { id: 'longevity', title: 'Longevity Protocols', level: 40, x: 62, y: 38, parents: ['markers', 'habits'] },
+    // Level 4: Sustained improvement
+    { id: 'sleep-60days', title: 'Get at Least 8 Hours of Sleep for 60 Nights Straight', x: 25, y: 58, parents: ['sleep-30days'] },
+    { id: 'optimize-nutrition', title: 'Optimized Nutrition Plan', x: 40, y: 56, parents: ['exercise', 'blood-biomarkers'] },
+    { id: 'sleep-90days', title: 'Get at Least 8 Hours of Sleep for 90 Nights Straight', x: 55, y: 54, parents: ['sleep-60days'] },
+    { id: 'advanced-metrics', title: 'Advanced Health Metrics', x: 70, y: 56, parents: ['resting-hr', 'markers'] },
     
-    // Level 5: Mastery
-    { id: 'biohack', title: 'Master Biohacking', level: 65, x: 50, y: 22, parents: ['optimize', 'longevity'] },
-    { id: 'vitality', title: 'Legendary Vitality', level: 90, x: 50, y: 8, parents: ['biohack'] },
+    // Level 5: Long-term consistency
+    { id: 'sleep-100days', title: 'Get at Least 8 Hours of Sleep for 100 Nights Straight', x: 30, y: 44, parents: ['sleep-90days'] },
+    { id: 'optimize', title: 'Peak Optimization', level: 35, x: 45, y: 42, parents: ['optimize-nutrition', 'sleep-90days'] },
+    { id: 'sleep-150days', title: 'Get at Least 8 Hours of Sleep for 150 Nights Straight', x: 60, y: 40, parents: ['sleep-100days'] },
+    { id: 'longevity', title: 'Longevity Protocols', level: 40, x: 75, y: 44, parents: ['advanced-metrics'] },
+    
+    // Level 6: Elite habits
+    { id: 'habits', title: '5 Years Healthy Habits', level: 20, x: 35, y: 30, parents: ['optimize'] },
+    { id: 'sleep-80percent', title: 'Get at Least 8 Hours of Sleep for 80% of the Year', x: 50, y: 28, parents: ['sleep-150days'] },
+    { id: 'biohack', title: 'Master Biohacking', level: 65, x: 65, y: 30, parents: ['longevity'] },
+    
+    // Level 7: Ultimate vitality
+    { id: 'complete-wellness', title: 'Complete Wellness Mastery', x: 42, y: 16, parents: ['habits', 'sleep-80percent'] },
+    { id: 'vitality', title: 'Legendary Vitality', level: 90, x: 58, y: 16, parents: ['sleep-80percent', 'biohack'] },
+    
+    // Level 8: Apex health
+    { id: 'health-apex', title: 'Apex of Human Health', x: 50, y: 6, parents: ['complete-wellness', 'vitality'] },
   ],
   Connector: [
     // Level 1: Start

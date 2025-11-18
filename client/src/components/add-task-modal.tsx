@@ -351,7 +351,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           {/* Campaign */}
           <div className="space-y-2">
             <Label htmlFor="campaign" className="text-yellow-200">
-              Campaign
+              Questline
             </Label>
             <Select value={campaign} onValueChange={setCampaign}>
               <SelectTrigger className="bg-slate-800/50 border-yellow-600/30 text-yellow-100">
