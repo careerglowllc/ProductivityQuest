@@ -53,6 +53,21 @@
 - ✅ Events positioned in correct time slots
 - ✅ Event details visible (title, description)
 - ✅ Scrollable interface
+- ✅ **Auto-scrolls to current time on load**
+- ✅ **Current time slot visible without manual scrolling**
+
+### Test Case 2.2b: Day View Auto-Scroll
+**Steps:**
+1. Navigate to Calendar page at 2:00 PM
+2. Select "Day" view
+3. Observe initial scroll position
+
+**Expected Result:**
+- ✅ View automatically scrolls to around 1:00 PM - 3:00 PM range
+- ✅ Current hour (2:00 PM) is visible on screen
+- ✅ Some context visible above current time
+- ✅ Smooth scroll animation
+- ✅ Does NOT start at 12:00 AM
 
 ### Test Case 2.3: 3-Day View
 **Steps:**
