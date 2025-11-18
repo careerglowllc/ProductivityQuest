@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import React from "react";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -88,6 +88,29 @@ function TodayCalendarWidget() {
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
   
+  // Ref for scrollable container
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-scroll to current time on mount
+  useEffect(() => {
+    if (scrollContainerRef.current && currentHour >= 6 && currentHour <= 23) {
+      // Scroll with a small delay to ensure render is complete
+      setTimeout(() => {
+        const currentHourElement = document.getElementById(`hour-${currentHour}`);
+        if (currentHourElement && scrollContainerRef.current) {
+          const containerTop = scrollContainerRef.current.offsetTop;
+          const elementTop = currentHourElement.offsetTop;
+          const scrollPosition = elementTop - containerTop;
+          
+          scrollContainerRef.current.scrollTo({
+            top: scrollPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    }
+  }, [currentHour]);
+  
   return (
     <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-blue-600/30 hover:border-blue-500/50 transition-all">
       <CardHeader className="border-b border-blue-600/20 pb-3">
@@ -105,7 +128,7 @@ function TodayCalendarWidget() {
         </div>
       </CardHeader>
       <CardContent className="pt-4 pb-2">
-        <div className="overflow-auto max-h-[300px]">
+        <div ref={scrollContainerRef} className="overflow-auto max-h-[300px]">
           <div className="space-y-px">
             {timeSlots.map(({ hour, label }) => {
               const hourEvents = getEventsForHour(hour);
@@ -113,7 +136,11 @@ function TodayCalendarWidget() {
               const timeIndicatorPosition = (currentMinute / 60) * 100;
               
               return (
-                <div key={hour} className="grid grid-cols-[60px_1fr] gap-2 min-h-[40px]">
+                <div 
+                  key={hour} 
+                  id={`hour-${hour}`}
+                  className="grid grid-cols-[60px_1fr] gap-2 min-h-[40px]"
+                >
                   <div className="text-xs text-gray-500 text-right pr-2 pt-1">
                     {label}
                   </div>
