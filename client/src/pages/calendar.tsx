@@ -331,6 +331,28 @@ export default function Calendar() {
     });
   };
 
+  // Calculate absolute position and height for an event
+  // Each hour slot is 60px tall
+  const getEventPosition = (event: CalendarEvent) => {
+    const displayTime = getEventDisplayTime(event);
+    const startDate = new Date(displayTime.start);
+    const endDate = new Date(displayTime.end);
+    
+    const startHour = startDate.getHours();
+    const startMinute = startDate.getMinutes();
+    const endHour = endDate.getHours();
+    const endMinute = endDate.getMinutes();
+    
+    // Calculate top position: hour * 60px + (minute/60) * 60px
+    const top = startHour * 60 + (startMinute / 60) * 60;
+    
+    // Calculate height: total minutes * (60px per hour / 60 minutes)
+    const durationMinutes = (endDate.getTime() - startDate.getTime()) / 60000;
+    const height = (durationMinutes / 60) * 60;
+    
+    return { top, height: Math.max(height, 20) }; // Minimum 20px height
+  };
+
   // Get dates for 3-day view
   const get3DayDates = () => {
     const dates = [];
@@ -628,95 +650,105 @@ export default function Calendar() {
                 </div>
 
                 {/* Time Slots */}
-                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20 relative">
-                  {timeSlots.map(({ hour, label }) => {
-                    const hourEvents = getEventsForHour(currentDate, hour);
-                    const now = new Date();
-                    const isToday = currentDate.toDateString() === now.toDateString();
-                    const currentHour = now.getHours();
-                    const currentMinute = now.getMinutes();
+                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20">
+                  <div className="bg-gray-900/20">
+                    {/* Time labels column */}
+                    {timeSlots.map(({ hour, label }) => (
+                      <div key={hour} className="p-2 text-xs text-gray-500 text-right pr-3 h-[60px] border-b border-purple-500/10">
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-gray-900/20 relative" style={{ height: '1440px' }}> {/* 24 hours * 60px */}
+                    {/* Hour grid lines */}
+                    {timeSlots.map(({ hour }) => (
+                      <div 
+                        key={hour}
+                        className="absolute left-0 right-0 h-[60px] border-b border-purple-500/10"
+                        style={{ top: `${hour * 60}px` }}
+                      />
+                    ))}
                     
-                    // Calculate if current time indicator should appear in this hour slot
-                    const showTimeIndicator = isToday && hour === currentHour;
-                    const timeIndicatorPosition = (currentMinute / 60) * 100; // Percentage through the hour
+                    {/* Current Time Indicator */}
+                    {(() => {
+                      const now = new Date();
+                      const isToday = currentDate.toDateString() === now.toDateString();
+                      if (isToday) {
+                        const currentHour = now.getHours();
+                        const currentMinute = now.getMinutes();
+                        const topPosition = currentHour * 60 + (currentMinute / 60) * 60;
+                        return (
+                          <div 
+                            className="absolute left-0 right-0 flex items-center z-20"
+                            style={{ top: `${topPosition}px` }}
+                          >
+                            <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
+                            <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     
-                    return (
-                      <React.Fragment key={hour}>
-                        <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
-                          {label}
-                        </div>
-                        <div className="bg-gray-900/20 p-2 min-h-[60px] relative">
-                          {/* Current Time Indicator */}
-                          {showTimeIndicator && (
-                            <div 
-                              className="absolute left-0 right-0 flex items-center z-20"
-                              style={{ top: `${timeIndicatorPosition}%` }}
-                            >
-                              <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
-                              <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
+                    {/* Events with absolute positioning */}
+                    {getEventsForDate(currentDate).map((event, idx) => {
+                      const eventStyle = getEventStyle(event);
+                      const displayTime = getEventDisplayTime(event);
+                      const position = getEventPosition(event);
+                      const isDragging = draggingEvent?.id === event.id;
+                      const isResizing = resizingEvent?.id === event.id;
+                      const isDraggable = event.source === 'productivityquest';
+                      
+                      return (
+                        <div
+                          key={idx}
+                          className={`absolute left-2 right-2 p-2 rounded text-xs border group ${
+                            isDraggable ? 'cursor-move' : 'cursor-pointer'
+                          } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
+                          style={{ 
+                            top: `${position.top}px`,
+                            height: `${position.height}px`,
+                            backgroundColor: eventStyle.backgroundColor,
+                            borderColor: eventStyle.borderColor,
+                            color: eventStyle.color,
+                            zIndex: 10
+                          }}
+                          onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                          onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
+                        >
+                          {/* Top resize handle */}
+                          {isDraggable && (
+                            <div
+                              className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t"
+                              onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                            />
+                          )}
+                          
+                          <div className="font-medium truncate">{event.title}</div>
+                          {position.height > 30 && (
+                            <div className="text-[10px] opacity-70">
+                              {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                              {' - '}
+                              {displayTime.end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                            </div>
+                          )}
+                          {position.height > 50 && event.description && (
+                            <div className="opacity-80 truncate mt-1 text-[10px]">
+                              {event.description}
                             </div>
                           )}
                           
-                          {hourEvents.map((event, idx) => {
-                            const eventStyle = getEventStyle(event);
-                            const displayTime = getEventDisplayTime(event);
-                            const isDragging = draggingEvent?.id === event.id;
-                            const isResizing = resizingEvent?.id === event.id;
-                            const isDraggable = event.source === 'productivityquest';
-                            
-                            return (
-                              <div
-                                key={idx}
-                                className={`p-2 mb-1 rounded text-xs border relative group ${
-                                  isDraggable ? 'cursor-move' : 'cursor-pointer'
-                                } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
-                                style={eventStyle.backgroundColor ? { 
-                                  backgroundColor: eventStyle.backgroundColor,
-                                  borderColor: eventStyle.borderColor,
-                                  color: eventStyle.color
-                                } : undefined}
-                                onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
-                                onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
-                              >
-                                {/* Top resize handle */}
-                                {isDraggable && (
-                                  <div
-                                    className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
-                                    onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
-                                  />
-                                )}
-                                
-                                <div className="font-medium truncate">{event.title}</div>
-                                <div className="text-[10px] opacity-70">
-                                  {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                  {' - '}
-                                  {displayTime.end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                </div>
-                                {event.description && (
-                                  <div className="opacity-80 truncate mt-1">
-                                    {event.description}
-                                  </div>
-                                )}
-                                {event.calendarName && (
-                                  <div className="text-[10px] opacity-60 mt-1">
-                                    {event.calendarName}
-                                  </div>
-                                )}
-                                
-                                {/* Bottom resize handle */}
-                                {isDraggable && (
-                                  <div
-                                    className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
-                                    onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
+                          {/* Bottom resize handle */}
+                          {isDraggable && (
+                            <div
+                              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b"
+                              onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                            />
+                          )}
                         </div>
-                      </React.Fragment>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
