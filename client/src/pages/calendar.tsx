@@ -28,6 +28,7 @@ type CalendarEvent = {
 
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>('month');
 
   // Fetch user settings to check if Google Calendar is connected
   const { data: settings } = useQuery<UserSettings>({
@@ -227,11 +228,58 @@ export default function Calendar() {
 
         {/* Calendar Card */}
         <Card className="p-6 bg-gray-900/60 border-purple-500/20">
-          {/* Month Navigation */}
+          {/* View Selector and Month Navigation */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">
-              {monthNames[month]} {year}
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold text-white">
+                {monthNames[month]} {year}
+              </h2>
+              
+              {/* View Selector */}
+              <div className="flex gap-1 bg-gray-800/60 p-1 rounded-lg border border-purple-500/20">
+                <button
+                  onClick={() => setView('day')}
+                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                    view === 'day' 
+                      ? 'bg-purple-600 text-white' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Day
+                </button>
+                <button
+                  onClick={() => setView('3day')}
+                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                    view === '3day' 
+                      ? 'bg-purple-600 text-white' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  3 Days
+                </button>
+                <button
+                  onClick={() => setView('week')}
+                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                    view === 'week' 
+                      ? 'bg-purple-600 text-white' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setView('month')}
+                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                    view === 'month' 
+                      ? 'bg-purple-600 text-white' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Month
+                </button>
+              </div>
+            </div>
+            
             <div className="flex gap-2">
               <Button
                 onClick={previousMonth}
@@ -257,22 +305,46 @@ export default function Calendar() {
             </div>
           </div>
 
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 gap-px mb-px">
-            {dayNames.map(day => (
-              <div
-                key={day}
-                className="p-3 text-center font-semibold text-purple-300 bg-gray-800/60"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
+          {/* Day Headers - Only show for month view */}
+          {view === 'month' && (
+            <div className="grid grid-cols-7 gap-px mb-px">
+              {dayNames.map(day => (
+                <div
+                  key={day}
+                  className="p-3 text-center font-semibold text-purple-300 bg-gray-800/60"
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+          )}
 
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-px bg-purple-500/20">
-            {calendarDays}
-          </div>
+          {/* Calendar Grid - Month View */}
+          {view === 'month' && (
+            <div className="grid grid-cols-7 gap-px bg-purple-500/20">
+              {calendarDays}
+            </div>
+          )}
+
+          {/* Day/Week Views - Coming soon placeholder */}
+          {view !== 'month' && (
+            <div className="text-center py-20">
+              <p className="text-gray-400 text-lg mb-2">
+                {view === 'day' && 'Day View'}
+                {view === '3day' && '3-Day View'}
+                {view === 'week' && 'Week View'}
+              </p>
+              <p className="text-gray-500 text-sm">
+                This view is coming soon! For now, use Month view to see all your events.
+              </p>
+              <Button
+                onClick={() => setView('month')}
+                className="mt-4 bg-purple-600 hover:bg-purple-500"
+              >
+                Switch to Month View
+              </Button>
+            </div>
+          )}
         </Card>
 
         {/* Status Bar */}
