@@ -714,89 +714,219 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Color Picker Modal */}
-        {selectedEvent && selectedEvent.source === 'productivityquest' && (
+        {/* Event Detail Modal */}
+        {selectedEvent && (
           <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
             onClick={() => setSelectedEvent(null)}
           >
             <Card 
-              className="bg-gray-900/95 border-purple-500/30 p-6 max-w-md w-full mx-4"
+              className="bg-gray-900/95 border-purple-500/30 max-w-lg w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-white mb-4">
-                {selectedEvent.title}
-              </h3>
+              {/* Header with colored accent */}
+              <div 
+                className="h-2 rounded-t-lg"
+                style={{ 
+                  backgroundColor: selectedEvent.calendarColor || '#9333ea'
+                }}
+              />
               
-              {selectedEvent.calendarName && (
-                <p className="text-sm text-gray-400 mb-2">
-                  From: {selectedEvent.calendarName}
-                </p>
-              )}
-              
-              {selectedEvent.description && (
-                <p className="text-gray-300 mb-4">
-                  {selectedEvent.description}
-                </p>
-              )}
+              <div className="p-6">
+                {/* Title */}
+                <h3 className="text-2xl font-bold text-white mb-4">
+                  {selectedEvent.title}
+                </h3>
 
-              <div className="mb-4">
-                <label className="text-sm text-gray-400 block mb-2">
-                  Calendar Color
-                </label>
-                <div className="grid grid-cols-6 gap-2">
-                  {[
-                    '#9333ea', // Purple (default)
-                    '#ef4444', // Red
-                    '#f97316', // Orange
-                    '#eab308', // Yellow
-                    '#22c55e', // Green
-                    '#3b82f6', // Blue
-                    '#ec4899', // Pink
-                    '#8b5cf6', // Violet
-                    '#06b6d4', // Cyan
-                    '#14b8a6', // Teal
-                    '#a855f7', // Purple Light
-                    '#6366f1', // Indigo
-                  ].map(color => (
-                    <button
-                      key={color}
-                      className={`w-10 h-10 rounded border-2 transition-transform hover:scale-110 ${
-                        selectedEvent.calendarColor === color ? 'border-white scale-110' : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`/api/tasks/${selectedEvent.id.replace('google-', '')}/color`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ color })
-                          });
-                          
-                          if (response.ok) {
-                            // Update the local event
-                            setSelectedEvent({ ...selectedEvent, calendarColor: color });
-                            // Refresh calendar data
-                            window.location.reload();
-                          }
-                        } catch (error) {
-                          console.error('Failed to update color:', error);
-                        }
-                      }}
-                    />
-                  ))}
+                {/* Time */}
+                <div className="flex items-start gap-3 mb-4">
+                  <CalendarIcon className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-white">
+                      {new Date(selectedEvent.start).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                    <p className="text-gray-400">
+                      {new Date(selectedEvent.start).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                      {' - '}
+                      {new Date(selectedEvent.end).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex gap-2 justify-end">
-                <Button
-                  onClick={() => setSelectedEvent(null)}
-                  variant="outline"
-                  className="border-purple-500/30"
-                >
-                  Close
-                </Button>
+                {/* Calendar Name */}
+                {selectedEvent.calendarName && (
+                  <div className="flex items-start gap-3 mb-4">
+                    <div 
+                      className="w-5 h-5 rounded-full mt-0.5"
+                      style={{ backgroundColor: selectedEvent.calendarColor || '#9333ea' }}
+                    />
+                    <div>
+                      <p className="text-sm text-gray-400">Calendar</p>
+                      <p className="text-white">{selectedEvent.calendarName}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                {selectedEvent.description && (
+                  <div className="mb-4 pb-4 border-b border-gray-700">
+                    <p className="text-sm text-gray-400 mb-1">Description</p>
+                    <p className="text-gray-300 whitespace-pre-wrap">
+                      {selectedEvent.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* ProductivityQuest specific fields */}
+                {selectedEvent.source === 'productivityquest' && (
+                  <div className="space-y-3 mb-4 pb-4 border-b border-gray-700">
+                    {selectedEvent.importance && (
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">Importance</p>
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                          selectedEvent.importance === 'urgent' ? 'bg-red-500/20 text-red-300' :
+                          selectedEvent.importance === 'important' ? 'bg-orange-500/20 text-orange-300' :
+                          'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {selectedEvent.importance.toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+
+                    {selectedEvent.goldValue !== undefined && (
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">Gold Reward</p>
+                        <p className="text-yellow-400 font-bold">
+                          🪙 {selectedEvent.goldValue} Gold
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedEvent.campaign && (
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">Campaign</p>
+                        <p className="text-white">{selectedEvent.campaign}</p>
+                      </div>
+                    )}
+
+                    {selectedEvent.skillTags && selectedEvent.skillTags.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">Skills</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedEvent.skillTags.map((skill, idx) => (
+                            <span 
+                              key={idx}
+                              className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 text-xs"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedEvent.completed !== undefined && (
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">Status</p>
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                          selectedEvent.completed 
+                            ? 'bg-green-500/20 text-green-300' 
+                            : 'bg-gray-500/20 text-gray-300'
+                        }`}>
+                          {selectedEvent.completed ? '✓ Completed' : 'Pending'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Color Picker for ProductivityQuest tasks */}
+                {selectedEvent.source === 'productivityquest' && (
+                  <div className="mb-4">
+                    <label className="text-sm text-gray-400 block mb-2">
+                      Calendar Color
+                    </label>
+                    <div className="grid grid-cols-6 gap-2">
+                      {[
+                        '#9333ea', '#ef4444', '#f97316', '#eab308',
+                        '#22c55e', '#3b82f6', '#ec4899', '#8b5cf6',
+                        '#06b6d4', '#14b8a6', '#a855f7', '#6366f1',
+                      ].map(color => (
+                        <button
+                          key={color}
+                          className={`w-10 h-10 rounded border-2 transition-transform hover:scale-110 ${
+                            selectedEvent.calendarColor === color ? 'border-white scale-110' : 'border-transparent'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`/api/tasks/${selectedEvent.id.replace('google-', '')}/color`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ color })
+                              });
+                              
+                              if (response.ok) {
+                                setSelectedEvent({ ...selectedEvent, calendarColor: color });
+                                window.location.reload();
+                              }
+                            } catch (error) {
+                              console.error('Failed to update color:', error);
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 justify-end">
+                  {selectedEvent.source === 'google' && (
+                    <Button
+                      variant="outline"
+                      className="border-purple-500/30"
+                      onClick={() => {
+                        // Open in Google Calendar
+                        const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
+                        window.open(googleCalendarUrl, '_blank');
+                      }}
+                    >
+                      Open in Google Calendar
+                    </Button>
+                  )}
+                  {selectedEvent.source === 'productivityquest' && (
+                    <Button
+                      variant="outline"
+                      className="border-purple-500/30"
+                      onClick={() => {
+                        window.location.href = '/';
+                      }}
+                    >
+                      View Task Details
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => setSelectedEvent(null)}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    Close
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>
