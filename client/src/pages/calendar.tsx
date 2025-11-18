@@ -35,15 +35,28 @@ export default function Calendar() {
   const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>('month');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const dayViewRef = useRef<HTMLDivElement>(null);
+  const threeDayViewRef = useRef<HTMLDivElement>(null);
+  const weekViewRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to current time in Day view
+  // Auto-scroll to current time in Day, 3-Day, and Week views
   useEffect(() => {
+    const currentHour = new Date().getHours();
+    // Scroll to current hour (each time slot is approximately 60px height)
+    const scrollPosition = currentHour * 76; // 60px height + 16px padding
+    
     if (view === 'day' && dayViewRef.current) {
-      const currentHour = new Date().getHours();
-      // Scroll to current hour (each time slot is approximately 60px height)
-      const scrollPosition = currentHour * 76; // 60px height + 16px padding
       dayViewRef.current.scrollTo({
         top: scrollPosition - 100, // Offset to show some context above
+        behavior: 'smooth'
+      });
+    } else if (view === '3day' && threeDayViewRef.current) {
+      threeDayViewRef.current.scrollTo({
+        top: scrollPosition - 100,
+        behavior: 'smooth'
+      });
+    } else if (view === 'week' && weekViewRef.current) {
+      weekViewRef.current.scrollTo({
+        top: scrollPosition - 100,
         behavior: 'smooth'
       });
     }
@@ -543,7 +556,7 @@ export default function Calendar() {
 
           {/* 3-Day View */}
           {view === '3day' && (
-            <div className="overflow-auto max-h-[600px]">
+            <div ref={threeDayViewRef} className="overflow-auto max-h-[600px]">
               <div className="min-w-[800px]">
                 {/* Day Headers */}
                 <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(3, 1fr)' }}>
@@ -621,7 +634,7 @@ export default function Calendar() {
 
           {/* Week View */}
           {view === 'week' && (
-            <div className="overflow-auto max-h-[600px]">
+            <div ref={weekViewRef} className="overflow-auto max-h-[600px]">
               <div className="min-w-[1200px]">
                 {/* Day Headers */}
                 <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
