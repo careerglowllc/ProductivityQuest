@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { 
@@ -17,7 +18,9 @@ import {
   Heart,
   Crown,
   Flag,
-  Edit2
+  Edit2,
+  Check,
+  X
 } from "lucide-react";
 import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +35,8 @@ interface TaskDetailModalProps {
 
 export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalProps) {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isEditingDuration, setIsEditingDuration] = useState(false);
+  const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -62,6 +67,53 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
       });
     },
   });
+
+  const updateDurationMutation = useMutation({
+    mutationFn: async (newDuration: number) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ duration: newDuration }),
+      });
+      if (!response.ok) throw new Error('Failed to update duration');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      setIsEditingDuration(false);
+      toast({
+        title: "⏱️ Duration Updated",
+        description: "Task duration has been changed successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update duration",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDurationSave = () => {
+    const duration = parseInt(durationInput);
+    if (isNaN(duration) || duration <= 0) {
+      toast({
+        title: "Invalid Duration",
+        description: "Duration must be a positive number.",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateDurationMutation.mutate(duration);
+  };
+
+  const handleDurationCancel = () => {
+    setDurationInput(task?.duration?.toString() || "30");
+    setIsEditingDuration(false);
+  };
 
   if (!task) return null;
 
@@ -181,7 +233,50 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 <Clock className="w-4 h-4" />
                 <span className="text-sm font-semibold">Duration</span>
               </div>
-              <p className="text-yellow-100">{task.duration} minutes</p>
+              {isEditingDuration ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={durationInput}
+                    onChange={(e) => setDurationInput(e.target.value)}
+                    className="h-8 bg-slate-900/50 border-yellow-600/30 text-yellow-100 flex-1"
+                    min="1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleDurationSave();
+                      if (e.key === 'Escape') handleDurationCancel();
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-green-600/20 text-green-400 hover:text-green-300"
+                    onClick={handleDurationSave}
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-red-600/20 text-red-400 hover:text-red-300"
+                    onClick={handleDurationCancel}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className="text-yellow-100 flex-1">{task.duration} minutes</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-yellow-600/20 text-yellow-400 hover:text-yellow-300"
+                    onClick={() => setIsEditingDuration(true)}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Gold Value */}
