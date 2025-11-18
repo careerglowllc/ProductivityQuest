@@ -2095,12 +2095,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60)); // Duration in minutes
             }
             
+            // Calculate gold value based on duration (same as regular tasks)
+            const goldValue = Math.max(10, Math.floor(duration / 15) * 5); // 5 gold per 15 minutes, min 10
+            
             await storage.createTask({
               userId,
               title: event.summary || 'Untitled Event',
               details: event.description || null,
               dueDate: new Date(event.start.dateTime || event.start.date),
-              duration, // Add the duration field
+              duration,
+              goldValue,
               completed: false,
               recycled: false,
               skillTags: ['Work'], // Default to Work skill
