@@ -44,6 +44,9 @@ function TodayCalendarWidget() {
     queryKey: ["/api/google-calendar/events"],
   });
 
+  // Ensure calendarEvents is always an array
+  const safeCalendarEvents = Array.isArray(calendarEvents) ? calendarEvents : [];
+
   const today = new Date();
   
   // Time slots for today (6 AM to 11 PM)
@@ -58,10 +61,10 @@ function TodayCalendarWidget() {
   // Get events for a specific hour
   const getEventsForHour = (hour: number) => {
     // Ensure calendarEvents is an array before filtering
-    if (!Array.isArray(calendarEvents)) {
+    if (!Array.isArray(safeCalendarEvents)) {
       return [];
     }
-    return calendarEvents.filter(event => {
+    return safeCalendarEvents.filter(event => {
       const eventStart = new Date(event.start);
       const eventHour = eventStart.getHours();
       const isToday = eventStart.toDateString() === today.toDateString();
@@ -339,6 +342,9 @@ export default function Dashboard() {
     queryKey: ["/api/tasks"],
   });
 
+  // Ensure tasks is always an array
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
   const { data: progress = { goldTotal: 0, tasksCompleted: 0 } } = useQuery<UserProgress>({
     queryKey: ["/api/progress"],
   });
@@ -356,6 +362,9 @@ export default function Dashboard() {
     queryKey: ["/api/skills"],
   });
 
+  // Ensure skills is always an array
+  const safeSkills = Array.isArray(skills) ? skills : [];
+
   // Priority ranking: Pareto > High > Med-High > Medium > Med-Low > Low
   const getPriorityValue = (importance: string | null) => {
     const priorityMap: { [key: string]: number } = {
@@ -372,10 +381,10 @@ export default function Dashboard() {
   // Get top 4 uncompleted tasks with advanced priority logic
   const getTopTasks = () => {
     // Ensure tasks is an array before filtering
-    if (!Array.isArray(tasks)) {
+    if (!Array.isArray(safeTasks)) {
       return [];
     }
-    const incompleteTasks = (tasks as any[]).filter((task: any) => !task.completed);
+    const incompleteTasks = (safeTasks as any[]).filter((task: any) => !task.completed);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayTime = today.getTime();
@@ -560,7 +569,7 @@ export default function Dashboard() {
                           Loading skills...
                         </div>
                       ) : (
-                        <SpiderChart skills={skills} />
+                        <SpiderChart skills={safeSkills} />
                       )}
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -580,7 +589,7 @@ export default function Dashboard() {
                       Loading skills...
                     </div>
                   ) : (
-                    <SpiderChart skills={skills} />
+                    <SpiderChart skills={safeSkills} />
                   )}
                   <div className="mt-4 text-center">
                     <p className="text-sm text-yellow-200/80">
