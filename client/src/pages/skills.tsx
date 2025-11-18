@@ -1049,7 +1049,11 @@ export default function Skills() {
               return (
                 <>
                   {/* Spider Chart Grid - Background circles and radial lines */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                  <svg 
+                    className="absolute inset-0 w-full h-full" 
+                    style={{ zIndex: 5, pointerEvents: 'none' }}
+                    preserveAspectRatio="none"
+                  >
                     {/* Grid circles */}
                     {gridLevels.map((level, i) => (
                       <ellipse
@@ -1059,8 +1063,8 @@ export default function Skills() {
                         rx={`${level * maxRadius}%`}
                         ry={`${level * maxRadius}%`}
                         fill="none"
-                        stroke="rgba(250, 204, 21, 0.2)"
-                        strokeWidth="1"
+                        stroke="rgba(250, 204, 21, 0.3)"
+                        strokeWidth="2"
                         className="transition-all duration-500"
                       />
                     ))}
@@ -1078,9 +1082,8 @@ export default function Skills() {
                           y1={`${centerY}%`}
                           x2={`${endX}%`}
                           y2={`${endY}%`}
-                          stroke="rgba(250, 204, 21, 0.2)"
-                          strokeWidth="1"
-                          strokeDasharray="4,4"
+                          stroke="rgba(250, 204, 21, 0.25)"
+                          strokeWidth="2"
                           className="transition-all duration-500"
                         />
                       );
@@ -1092,19 +1095,20 @@ export default function Skills() {
                         {/* Filled polygon area */}
                         <polygon
                           points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
-                          fill="rgba(234, 179, 8, 0.4)"
+                          fill="rgba(234, 179, 8, 0.5)"
                           className="transition-all duration-500"
-                          style={{ filter: 'drop-shadow(0 0 20px rgba(234, 179, 8, 0.5))' }}
+                          style={{ filter: 'drop-shadow(0 0 25px rgba(234, 179, 8, 0.8))' }}
                         />
                         {/* Polygon outline connecting the dots */}
                         <polygon
                           points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
                           fill="none"
-                          stroke="rgb(234, 179, 8)"
-                          strokeWidth="3"
+                          stroke="rgb(250, 204, 21)"
+                          strokeWidth="4"
                           strokeLinejoin="round"
                           strokeLinecap="round"
                           className="transition-all duration-500"
+                          style={{ filter: 'drop-shadow(0 0 8px rgba(250, 204, 21, 1))' }}
                         />
                         {/* Dots at each polygon vertex to show skill level points */}
                         {polygonPoints.map((point, idx) => (
@@ -1112,12 +1116,12 @@ export default function Skills() {
                             key={`vertex-${idx}`}
                             cx={`${point.x}%`}
                             cy={`${point.y}%`}
-                            r="5"
-                            fill="rgb(234, 179, 8)"
-                            stroke="rgb(250, 204, 21)"
-                            strokeWidth="2"
+                            r="7"
+                            fill="rgb(250, 204, 21)"
+                            stroke="rgb(255, 255, 255)"
+                            strokeWidth="3"
                             className="transition-all duration-500"
-                            style={{ filter: 'drop-shadow(0 0 6px rgba(234, 179, 8, 1))' }}
+                            style={{ filter: 'drop-shadow(0 0 10px rgba(250, 204, 21, 1))' }}
                           />
                         ))}
                       </>
@@ -1125,7 +1129,7 @@ export default function Skills() {
                   </svg>
 
                   {/* Skill nodes */}
-                  <div className="relative w-full h-full" style={{ zIndex: 2 }}>
+                  <div className="relative w-full h-full" style={{ zIndex: 10 }}>
                     {skills.map((skill, index) => {
                       const Icon = getSkillIconComponent(skill);
                       const constellation = getConstellation(skill);
