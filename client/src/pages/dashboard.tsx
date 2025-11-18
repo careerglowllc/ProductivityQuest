@@ -57,6 +57,10 @@ function TodayCalendarWidget() {
 
   // Get events for a specific hour
   const getEventsForHour = (hour: number) => {
+    // Ensure calendarEvents is an array before filtering
+    if (!Array.isArray(calendarEvents)) {
+      return [];
+    }
     return calendarEvents.filter(event => {
       const eventStart = new Date(event.start);
       const eventHour = eventStart.getHours();
@@ -154,6 +158,11 @@ function TodayCalendarWidget() {
 
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: UserSkill[] }) {
+  // Ensure skills is an array
+  if (!Array.isArray(skills) || skills.length === 0) {
+    return null;
+  }
+  
   // Calculate max chart value: highest skill level + 10, capped at 99
   const highestSkillLevel = Math.max(...skills.map(s => s.level), 0);
   const chartMax = Math.min(highestSkillLevel + 10, 99);
@@ -362,6 +371,10 @@ export default function Dashboard() {
 
   // Get top 4 uncompleted tasks with advanced priority logic
   const getTopTasks = () => {
+    // Ensure tasks is an array before filtering
+    if (!Array.isArray(tasks)) {
+      return [];
+    }
     const incompleteTasks = (tasks as any[]).filter((task: any) => !task.completed);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
