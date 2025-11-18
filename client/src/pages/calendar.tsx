@@ -34,7 +34,16 @@ type CalendarEvent = {
 export default function Calendar() {
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>('month');
+  
+  // Load saved view preference from localStorage, default to 'month'
+  const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>(() => {
+    const savedView = localStorage.getItem('calendarView');
+    if (savedView === 'day' || savedView === '3day' || savedView === 'week' || savedView === 'month') {
+      return savedView;
+    }
+    return 'month';
+  });
+  
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const dayViewRef = useRef<HTMLDivElement>(null);
   const threeDayViewRef = useRef<HTMLDivElement>(null);
@@ -47,6 +56,11 @@ export default function Calendar() {
   const [dragStartY, setDragStartY] = useState<number>(0);
   const [dragStartTime, setDragStartTime] = useState<Date | null>(null);
   const [tempEventTime, setTempEventTime] = useState<{ start: Date; end: Date } | null>(null);
+
+  // Save view preference whenever it changes
+  useEffect(() => {
+    localStorage.setItem('calendarView', view);
+  }, [view]);
 
   // Auto-scroll to current time in Day, 3-Day, and Week views
   useEffect(() => {
