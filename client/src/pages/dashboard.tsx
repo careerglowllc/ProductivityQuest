@@ -10,6 +10,7 @@ import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calenda
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
+import React from "react";
 import type { UserProgress, UserSkill } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
 
@@ -25,6 +26,131 @@ const skillIcons: Record<string, any> = {
   Connector: Network,
   Charisma: UsersIcon,
 };
+
+// Mini Today Calendar Widget Component
+function TodayCalendarWidget() {
+  type CalendarEvent = {
+    id: string;
+    title: string;
+    start: string;
+    end: string;
+    description?: string;
+    source?: string;
+    calendarColor?: string;
+    calendarName?: string;
+  };
+
+  const { data: calendarEvents = [] } = useQuery<CalendarEvent[]>({
+    queryKey: ["/api/google-calendar/events"],
+  });
+
+  const today = new Date();
+  
+  // Time slots for today (6 AM to 11 PM)
+  const timeSlots = Array.from({ length: 18 }, (_, i) => {
+    const hour = i + 6;
+    return {
+      hour,
+      label: hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`
+    };
+  });
+
+  // Get events for a specific hour
+  const getEventsForHour = (hour: number) => {
+    return calendarEvents.filter(event => {
+      const eventStart = new Date(event.start);
+      const eventHour = eventStart.getHours();
+      const isToday = eventStart.toDateString() === today.toDateString();
+      return isToday && eventHour === hour;
+    });
+  };
+
+  // Get event styling
+  const getEventStyle = (event: CalendarEvent) => {
+    if (event.calendarColor) {
+      return {
+        backgroundColor: event.calendarColor,
+        borderColor: event.calendarColor,
+        color: '#ffffff'
+      };
+    }
+    return { className: 'bg-purple-600/40 border-purple-500' };
+  };
+
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  
+  return (
+    <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-blue-600/30 hover:border-blue-500/50 transition-all">
+      <CardHeader className="border-b border-blue-600/20 pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-serif font-bold text-blue-100">Today's Schedule</CardTitle>
+          <Link href="/calendar">
+            <Button variant="outline" size="sm" className="flex items-center gap-2 border-blue-600/40 bg-slate-700/50 text-blue-200 hover:bg-blue-600/20 hover:text-blue-100 hover:border-blue-500/60">
+              Full Calendar
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+        <div className="text-sm text-blue-300/80 mt-1">
+          {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4 pb-2">
+        <div className="overflow-auto max-h-[300px]">
+          <div className="space-y-px">
+            {timeSlots.map(({ hour, label }) => {
+              const hourEvents = getEventsForHour(hour);
+              const showTimeIndicator = hour === currentHour;
+              const timeIndicatorPosition = (currentMinute / 60) * 100;
+              
+              return (
+                <div key={hour} className="grid grid-cols-[60px_1fr] gap-2 min-h-[40px]">
+                  <div className="text-xs text-gray-500 text-right pr-2 pt-1">
+                    {label}
+                  </div>
+                  <div className="bg-gray-900/20 rounded p-1 relative">
+                    {/* Current Time Indicator */}
+                    {showTimeIndicator && (
+                      <div 
+                        className="absolute left-0 right-0 flex items-center z-20"
+                        style={{ top: `${timeIndicatorPosition}%` }}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
+                        <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
+                      </div>
+                    )}
+                    
+                    {hourEvents.map((event, idx) => {
+                      const eventStyle = getEventStyle(event);
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-1.5 mb-1 rounded text-xs border ${eventStyle.className || ''}`}
+                          style={eventStyle.backgroundColor ? { 
+                            backgroundColor: eventStyle.backgroundColor,
+                            borderColor: eventStyle.borderColor,
+                            color: eventStyle.color
+                          } : undefined}
+                        >
+                          <div className="font-medium truncate text-[11px]">{event.title}</div>
+                          {event.calendarName && (
+                            <div className="text-[9px] opacity-70 truncate">{event.calendarName}</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: UserSkill[] }) {
@@ -453,8 +579,13 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Right Column - Top Priority Tasks (Web) or full width (Mobile) */}
-          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
+          {/* Right Column - Mini Today Calendar + Top Priority Tasks */}
+          <div className="space-y-6">
+            {/* Mini Today Calendar Widget */}
+            <TodayCalendarWidget />
+
+            {/* Top Priority Tasks */}
+            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
             <CardHeader className="border-b border-yellow-600/20">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
@@ -523,6 +654,7 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
 
         {/* Quick Actions - Skyrim Style */}

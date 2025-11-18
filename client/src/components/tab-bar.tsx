@@ -34,11 +34,6 @@ export function TabBar() {
       icon: CheckSquare,
     },
     {
-      name: "Calendar",
-      path: "/calendar",
-      icon: Calendar,
-    },
-    {
       name: "Skills",
       path: "/skills",
       icon: Sparkles,
@@ -103,7 +98,7 @@ export function TabBar() {
                       <Link href={tab.path}>
                         <a
                           className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                            isActive || location === "/campaigns"
+                            isActive || location === "/campaigns" || location === "/calendar"
                               ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
                               : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
                           }`}
@@ -123,6 +118,14 @@ export function TabBar() {
                     onMouseEnter={() => setQuestsMenuOpen(true)}
                     onMouseLeave={() => setQuestsMenuOpen(false)}
                   >
+                    <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                      <Link href="/calendar">
+                        <a className="flex items-center gap-2 w-full">
+                          <Calendar className="h-4 w-4 text-blue-400" />
+                          Calendar
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
                       <Link href="/campaigns">
                         <a className="flex items-center gap-2 w-full">

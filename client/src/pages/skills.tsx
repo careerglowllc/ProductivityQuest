@@ -874,108 +874,95 @@ export default function Skills() {
               ))}
             </div>
 
-            {/* Calculate positions dynamically */}
+            {/* Calculate positions dynamically - Spider Chart Layout */}
             {(() => {
-              const getNodePositions = (count: number) => {
+              const centerX = 50; // Center X percentage
+              const centerY = 50; // Center Y percentage
+              
+              // Calculate max level for spider chart scale (highest level + 10, capped at 99)
+              const maxLevel = Math.max(...skills.map(s => s.level), 0);
+              const chartMax = Math.min(maxLevel + 10, 99);
+              
+              // Calculate spider chart positions
+              const getSpiderPositions = () => {
+                const count = skills.length;
                 if (count === 0) return [];
                 
-                // Use a more organic constellation layout
-                const positions: { x: number; y: number }[] = [];
-                const padding = 12; // Percentage padding from edges
-                const availableWidth = 100 - (padding * 2);
-                const availableHeight = 100 - (padding * 2);
+                const positions: { x: number; y: number; angle: number }[] = [];
+                const maxRadius = 38; // Maximum radius percentage from center
                 
-                if (count === 1) {
-                  positions.push({ x: 50, y: 50 });
-                } else if (count === 2) {
-                  positions.push({ x: 30, y: 50 });
-                  positions.push({ x: 70, y: 50 });
-                } else if (count === 3) {
-                  positions.push({ x: 50, y: 25 });
-                  positions.push({ x: 30, y: 70 });
-                  positions.push({ x: 70, y: 70 });
-                } else if (count === 4) {
-                  positions.push({ x: 30, y: 30 });
-                  positions.push({ x: 70, y: 30 });
-                  positions.push({ x: 70, y: 70 });
-                  positions.push({ x: 30, y: 70 });
-                } else if (count <= 6) {
-                  // Pentagon/Hexagon arrangement
-                  for (let i = 0; i < count; i++) {
-                    const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
-                    const radius = 35;
-                    positions.push({
-                      x: 50 + radius * Math.cos(angle),
-                      y: 50 + radius * Math.sin(angle),
-                    });
-                  }
-                } else if (count <= 10) {
-                  // Circular arrangement for 7-10 skills
-                  for (let i = 0; i < count; i++) {
-                    const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
-                    const radius = 38;
-                    positions.push({
-                      x: 50 + radius * Math.cos(angle),
-                      y: 50 + radius * Math.sin(angle),
-                    });
-                  }
-                } else {
-                  // For more than 10, use a double circle pattern
-                  const innerCount = Math.ceil(count / 2);
-                  const outerCount = count - innerCount;
+                for (let i = 0; i < count; i++) {
+                  const angle = (2 * Math.PI * i) / count - Math.PI / 2; // Start from top
+                  const skill = skills[i];
+                  const radiusRatio = skill.level / chartMax; // Scale based on level
+                  const radius = radiusRatio * maxRadius;
                   
-                  // Inner circle
-                  for (let i = 0; i < innerCount; i++) {
-                    const angle = (i / innerCount) * 2 * Math.PI - Math.PI / 2;
-                    const radius = 25;
-                    positions.push({
-                      x: 50 + radius * Math.cos(angle),
-                      y: 50 + radius * Math.sin(angle),
-                    });
-                  }
-                  
-                  // Outer circle
-                  for (let i = 0; i < outerCount; i++) {
-                    const angle = (i / outerCount) * 2 * Math.PI - Math.PI / 2;
-                    const radius = 40;
-                    positions.push({
-                      x: 50 + radius * Math.cos(angle),
-                      y: 50 + radius * Math.sin(angle),
-                    });
-                  }
+                  positions.push({
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle),
+                    angle: angle
+                  });
                 }
                 
                 return positions;
               };
 
-              const positions = getNodePositions(skills.length);
+              const positions = getSpiderPositions();
+              
+              // Create grid circle levels for spider chart (25%, 50%, 75%, 100% of max)
+              const gridLevels = [0.25, 0.5, 0.75, 1.0];
+              const maxRadius = 38;
 
               return (
                 <>
-                  {/* Constellation connections - SVG lines */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-                    {/* Draw lines connecting each node to the next */}
+                  {/* Spider Chart Grid - Background circles and radial lines */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+                    {/* Grid circles */}
+                    {gridLevels.map((level, i) => (
+                      <ellipse
+                        key={`grid-${i}`}
+                        cx={`${centerX}%`}
+                        cy={`${centerY}%`}
+                        rx={`${level * maxRadius}%`}
+                        ry={`${level * maxRadius}%`}
+                        fill="none"
+                        stroke="rgba(250, 204, 21, 0.15)"
+                        strokeWidth="1"
+                        className="transition-all duration-500"
+                      />
+                    ))}
+                    
+                    {/* Radial axis lines from center to each skill position */}
                     {skills.map((skill, index) => {
-                      if (index === skills.length - 1) return null; // Skip last one
-                      
-                      const pos1 = positions[index];
-                      const pos2 = positions[index + 1];
-                      
-                      if (!pos1 || !pos2) return null;
+                      const angle = (2 * Math.PI * index) / skills.length - Math.PI / 2;
+                      const endX = centerX + maxRadius * Math.cos(angle);
+                      const endY = centerY + maxRadius * Math.sin(angle);
                       
                       return (
                         <line
-                          key={`line-${skill.id}`}
-                          x1={`${pos1.x}%`}
-                          y1={`${pos1.y}%`}
-                          x2={`${pos2.x}%`}
-                          y2={`${pos2.y}%`}
-                          stroke="rgba(250, 204, 21, 0.3)"
-                          strokeWidth="2"
+                          key={`axis-${skill.id}`}
+                          x1={`${centerX}%`}
+                          y1={`${centerY}%`}
+                          x2={`${endX}%`}
+                          y2={`${endY}%`}
+                          stroke="rgba(250, 204, 21, 0.2)"
+                          strokeWidth="1"
+                          strokeDasharray="4,4"
                           className="transition-all duration-500"
                         />
                       );
                     })}
+                    
+                    {/* Spider chart polygon connecting all skill levels */}
+                    {positions.length > 0 && (
+                      <polygon
+                        points={positions.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
+                        fill="rgba(234, 179, 8, 0.15)"
+                        stroke="rgba(234, 179, 8, 0.5)"
+                        strokeWidth="2"
+                        className="transition-all duration-500"
+                      />
+                    )}
                   </svg>
 
                   {/* Skill nodes */}
@@ -1076,8 +1063,9 @@ export default function Skills() {
 
                   {/* Legend */}
                   <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md px-4 py-3 rounded-lg border border-yellow-600/30 text-xs text-yellow-200/70 z-10">
-                    <p className="font-serif italic">Hover over nodes to reveal details</p>
-                    <p className="font-serif italic">Click to view full skill information</p>
+                    <p className="font-serif italic">Spider Chart: Distance from center = Skill Level</p>
+                    <p className="font-serif italic">Max scale: Level {chartMax}</p>
+                    <p className="font-serif italic mt-1">Hover over nodes • Click for details</p>
                   </div>
                 </>
               );
