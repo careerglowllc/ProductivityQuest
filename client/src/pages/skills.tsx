@@ -942,15 +942,6 @@ export default function Skills() {
                 <>
                   {/* Spider Chart Grid - Background circles and radial lines */}
                   <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-                    <defs>
-                      {/* Radial gradient for spider chart fill */}
-                      <radialGradient id="spiderChartGradient" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="rgba(234, 179, 8, 0.4)" />
-                        <stop offset="50%" stopColor="rgba(234, 179, 8, 0.25)" />
-                        <stop offset="100%" stopColor="rgba(234, 179, 8, 0.1)" />
-                      </radialGradient>
-                    </defs>
-                    
                     {/* Grid circles */}
                     {gridLevels.map((level, i) => (
                       <ellipse
@@ -987,17 +978,33 @@ export default function Skills() {
                       );
                     })}
                     
-                    {/* Spider chart polygon connecting all skill levels with radial gradient */}
+                    {/* Spider chart polygon connecting all skill levels - fills based on actual skill levels */}
                     {polygonPoints.length > 0 && (
-                      <polygon
-                        points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
-                        fill="url(#spiderChartGradient)"
-                        stroke="rgb(234, 179, 8)"
-                        strokeWidth="3"
-                        strokeLinejoin="round"
-                        className="transition-all duration-500"
-                        style={{ filter: 'drop-shadow(0 0 12px rgba(234, 179, 8, 0.6)) drop-shadow(0 0 24px rgba(234, 179, 8, 0.3))' }}
-                      />
+                      <>
+                        <polygon
+                          points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
+                          fill="rgba(234, 179, 8, 0.3)"
+                          stroke="rgb(234, 179, 8)"
+                          strokeWidth="3"
+                          strokeLinejoin="round"
+                          className="transition-all duration-500"
+                          style={{ filter: 'drop-shadow(0 0 12px rgba(234, 179, 8, 0.6)) drop-shadow(0 0 24px rgba(234, 179, 8, 0.3))' }}
+                        />
+                        {/* Dots at each polygon vertex to show skill level points */}
+                        {polygonPoints.map((point, idx) => (
+                          <circle
+                            key={`vertex-${idx}`}
+                            cx={`${point.x}%`}
+                            cy={`${point.y}%`}
+                            r="4"
+                            fill="rgb(234, 179, 8)"
+                            stroke="rgb(250, 204, 21)"
+                            strokeWidth="2"
+                            className="transition-all duration-500"
+                            style={{ filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.8))' }}
+                          />
+                        ))}
+                      </>
                     )}
                   </svg>
 
