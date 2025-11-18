@@ -40,21 +40,26 @@ function TodayCalendarWidget() {
     calendarName?: string;
   };
 
-  const { data: calendarEvents = [] } = useQuery<CalendarEvent[]>({
-    queryKey: ["/api/google-calendar/events"],
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  const { data: calendarData } = useQuery<{ events: CalendarEvent[] }>({
+    queryKey: [`/api/google-calendar/events?year=${year}&month=${month}`],
   });
 
   // Ensure calendarEvents is always an array
-  const safeCalendarEvents = Array.isArray(calendarEvents) ? calendarEvents : [];
+  const safeCalendarEvents = Array.isArray(calendarData?.events) ? calendarData.events : [];
 
-  const today = new Date();
   
-  // Time slots for today (6 AM to 11 PM)
-  const timeSlots = Array.from({ length: 18 }, (_, i) => {
-    const hour = i + 6;
+  // Time slots for today (full 24 hours to match main calendar)
+  const timeSlots = Array.from({ length: 24 }, (_, i) => {
+    const hour = i;
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour < 12 ? 'AM' : 'PM';
     return {
       hour,
-      label: hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`
+      label: `${displayHour}:00 ${ampm}`
     };
   });
 
