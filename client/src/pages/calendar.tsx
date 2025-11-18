@@ -162,8 +162,8 @@ export default function Calendar() {
           });
 
           if (response.ok) {
-            // Invalidate calendar query to refetch updated data
-            queryClient.invalidateQueries({ 
+            // Refetch calendar query to get updated data and wait for it to complete
+            await queryClient.refetchQueries({ 
               queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
             });
             // Also invalidate tasks query so task detail modals show updated data
@@ -179,7 +179,7 @@ export default function Calendar() {
       }
     }
 
-    // Reset drag state
+    // Reset drag state after query invalidation completes
     setDraggingEvent(null);
     setResizingEvent(null);
     setResizeEdge(null);
