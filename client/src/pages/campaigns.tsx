@@ -381,6 +381,209 @@ export default function CampaignsPage() {
           </Card>
         )}
 
+        {/* Questlines Section */}
+        <Card className="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-md border-2 border-blue-600/40 hover:border-blue-500/60 transition-all mt-8">
+          <CardHeader className="border-b border-blue-600/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Compass className="h-6 w-6 text-blue-400" />
+                <CardTitle className="text-2xl font-serif font-bold text-blue-100">
+                  Active Questlines
+                </CardTitle>
+              </div>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Questline
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <p className="text-blue-300/70 mb-6 text-sm">
+              Questlines are interconnected series of tasks that guide you towards specific transformations. 
+              Each completed quest unlocks the next step in your journey.
+            </p>
+
+            <div className="space-y-4">
+              {/* Questline 1: Maximize Looks */}
+              <Card className="bg-blue-900/30 border-2 border-blue-600/40 hover:border-blue-500/60 transition-all overflow-hidden">
+                <div className="relative">
+                  {/* Progress bar at top */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-blue-950/50">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-400" style={{ width: '35%' }} />
+                  </div>
+                  
+                  <CardContent className="pt-6 pb-4 px-6">
+                    <div className="flex items-start gap-4">
+                      {/* Icon */}
+                      <div className="p-3 bg-gradient-to-br from-blue-600/30 to-cyan-600/30 rounded-xl border-2 border-blue-500/50 flex-shrink-0">
+                        <Sparkles className="h-7 w-7 text-blue-300" />
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div>
+                            <h3 className="text-xl font-serif font-bold text-blue-100 mb-1">
+                              Maximize Looks
+                            </h3>
+                            <p className="text-blue-300/70 text-sm">
+                              A comprehensive transformation journey covering fitness, grooming, style, and confidence
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-blue-200/70 text-xs mb-1">Progress</p>
+                            <p className="text-2xl font-bold text-blue-100">35%</p>
+                          </div>
+                        </div>
+
+                        {/* Quest Chain */}
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                              <span className="text-green-300 text-xs">✓</span>
+                            </div>
+                            <span className="text-sm text-blue-200/90">Quest 1: Foundation Assessment Complete</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                              <span className="text-green-300 text-xs">✓</span>
+                            </div>
+                            <span className="text-sm text-blue-200/90">Quest 2: Skincare Routine Established</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-yellow-600/30 border-2 border-yellow-500 flex items-center justify-center flex-shrink-0 animate-pulse">
+                              <span className="text-yellow-300 text-xs font-bold">!</span>
+                            </div>
+                            <span className="text-sm text-blue-100 font-semibold">Quest 3: Fitness Fundamentals (In Progress)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-900/50 border-2 border-blue-600/40 flex items-center justify-center flex-shrink-0">
+                              <span className="text-blue-400/50 text-xs">4</span>
+                            </div>
+                            <span className="text-sm text-blue-300/50">Quest 4: Wardrobe Optimization (Locked)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-900/50 border-2 border-blue-600/40 flex items-center justify-center flex-shrink-0">
+                              <span className="text-blue-400/50 text-xs">5</span>
+                            </div>
+                            <span className="text-sm text-blue-300/50">Quest 5: Confidence & Presence (Locked)</span>
+                          </div>
+                        </div>
+
+                        {/* Rewards Preview */}
+                        <div className="mt-4 p-3 bg-blue-950/40 rounded-lg border border-blue-600/30">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Gift className="h-4 w-4 text-blue-400" />
+                            <span className="text-xs font-semibold text-blue-200">Questline Rewards</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-blue-300/80">
+                            <span>🏆 Achievement Badge</span>
+                            <span>💎 500 Bonus Gold</span>
+                            <span>⚡ Exclusive Title</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </div>
+              </Card>
+
+              {/* Questline 2: Self-Sufficient Remote Business */}
+              <Card className="bg-blue-900/30 border-2 border-blue-600/40 hover:border-blue-500/60 transition-all overflow-hidden">
+                <div className="relative">
+                  {/* Progress bar at top */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-blue-950/50">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-400" style={{ width: '60%' }} />
+                  </div>
+                  
+                  <CardContent className="pt-6 pb-4 px-6">
+                    <div className="flex items-start gap-4">
+                      {/* Icon */}
+                      <div className="p-3 bg-gradient-to-br from-blue-600/30 to-cyan-600/30 rounded-xl border-2 border-blue-500/50 flex-shrink-0">
+                        <Rocket className="h-7 w-7 text-cyan-300" />
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div>
+                            <h3 className="text-xl font-serif font-bold text-blue-100 mb-1">
+                              Build a Self-Sufficient Remote Business
+                            </h3>
+                            <p className="text-blue-300/70 text-sm">
+                              Launch and scale a profitable online business that generates passive income and location freedom
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-blue-200/70 text-xs mb-1">Progress</p>
+                            <p className="text-2xl font-bold text-blue-100">60%</p>
+                          </div>
+                        </div>
+
+                        {/* Quest Chain */}
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                              <span className="text-green-300 text-xs">✓</span>
+                            </div>
+                            <span className="text-sm text-blue-200/90">Quest 1: Market Research & Niche Selection</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                              <span className="text-green-300 text-xs">✓</span>
+                            </div>
+                            <span className="text-sm text-blue-200/90">Quest 2: MVP Development & Launch</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                              <span className="text-green-300 text-xs">✓</span>
+                            </div>
+                            <span className="text-sm text-blue-200/90">Quest 3: First 10 Paying Customers</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-yellow-600/30 border-2 border-yellow-500 flex items-center justify-center flex-shrink-0 animate-pulse">
+                              <span className="text-yellow-300 text-xs font-bold">!</span>
+                            </div>
+                            <span className="text-sm text-blue-100 font-semibold">Quest 4: Scale to $10K MRR (In Progress)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-900/50 border-2 border-blue-600/40 flex items-center justify-center flex-shrink-0">
+                              <span className="text-blue-400/50 text-xs">5</span>
+                            </div>
+                            <span className="text-sm text-blue-300/50">Quest 5: Automation & Systems (Locked)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-900/50 border-2 border-blue-600/40 flex items-center justify-center flex-shrink-0">
+                              <span className="text-blue-400/50 text-xs">6</span>
+                            </div>
+                            <span className="text-sm text-blue-300/50">Quest 6: Full Location Independence (Locked)</span>
+                          </div>
+                        </div>
+
+                        {/* Rewards Preview */}
+                        <div className="mt-4 p-3 bg-blue-950/40 rounded-lg border border-blue-600/30">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Gift className="h-4 w-4 text-blue-400" />
+                            <span className="text-xs font-semibold text-blue-200">Questline Rewards</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-blue-300/80">
+                            <span>🏆 Entrepreneur Badge</span>
+                            <span>💎 1000 Bonus Gold</span>
+                            <span>⚡ "Digital Nomad" Title</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </div>
+              </Card>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Max campaigns reached message */}
         {!isMobile && allCampaigns.length >= 5 && (
           <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-slate-600/30">
