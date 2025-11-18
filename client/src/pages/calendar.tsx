@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
+import React from "react";
 
 type UserSettings = {
   googleCalendarSyncEnabled?: boolean;
@@ -63,11 +64,39 @@ export default function Calendar() {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const previousMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
+    if (view === 'month') {
+      setCurrentDate(new Date(year, month - 1, 1));
+    } else if (view === 'day') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(currentDate.getDate() - 1);
+      setCurrentDate(newDate);
+    } else if (view === '3day') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(currentDate.getDate() - 3);
+      setCurrentDate(newDate);
+    } else if (view === 'week') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(currentDate.getDate() - 7);
+      setCurrentDate(newDate);
+    }
   };
 
   const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
+    if (view === 'month') {
+      setCurrentDate(new Date(year, month + 1, 1));
+    } else if (view === 'day') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(currentDate.getDate() + 1);
+      setCurrentDate(newDate);
+    } else if (view === '3day') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(currentDate.getDate() + 3);
+      setCurrentDate(newDate);
+    } else if (view === 'week') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(currentDate.getDate() + 7);
+      setCurrentDate(newDate);
+    }
   };
 
   const today = new Date();
@@ -85,6 +114,61 @@ export default function Calendar() {
              eventDate.getMonth() === month &&
              eventDate.getFullYear() === year;
     });
+  };
+
+  // Get events for a specific date
+  const getEventsForDate = (date: Date) => {
+    return events.filter(event => {
+      const eventDate = new Date(event.start);
+      return eventDate.getDate() === date.getDate() &&
+             eventDate.getMonth() === date.getMonth() &&
+             eventDate.getFullYear() === date.getFullYear();
+    });
+  };
+
+  // Generate time slots (24 hours)
+  const timeSlots = Array.from({ length: 24 }, (_, i) => {
+    const hour = i;
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour < 12 ? 'AM' : 'PM';
+    return { hour, label: `${displayHour}:00 ${ampm}` };
+  });
+
+  // Get events for a specific hour on a specific date
+  const getEventsForHour = (date: Date, hour: number) => {
+    return events.filter(event => {
+      const eventDate = new Date(event.start);
+      const eventHour = eventDate.getHours();
+      return eventDate.getDate() === date.getDate() &&
+             eventDate.getMonth() === date.getMonth() &&
+             eventDate.getFullYear() === date.getFullYear() &&
+             eventHour === hour;
+    });
+  };
+
+  // Get dates for 3-day view
+  const get3DayDates = () => {
+    const dates = [];
+    for (let i = 0; i < 3; i++) {
+      const date = new Date(currentDate);
+      date.setDate(currentDate.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+
+  // Get dates for week view
+  const getWeekDates = () => {
+    const dates = [];
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Start on Sunday
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
   };
 
   // Generate calendar grid
@@ -326,23 +410,172 @@ export default function Calendar() {
             </div>
           )}
 
-          {/* Day/Week Views - Coming soon placeholder */}
-          {view !== 'month' && (
-            <div className="text-center py-20">
-              <p className="text-gray-400 text-lg mb-2">
-                {view === 'day' && 'Day View'}
-                {view === '3day' && '3-Day View'}
-                {view === 'week' && 'Week View'}
-              </p>
-              <p className="text-gray-500 text-sm">
-                This view is coming soon! For now, use Month view to see all your events.
-              </p>
-              <Button
-                onClick={() => setView('month')}
-                className="mt-4 bg-purple-600 hover:bg-purple-500"
-              >
-                Switch to Month View
-              </Button>
+          {/* Day View */}
+          {view === 'day' && (
+            <div className="overflow-auto max-h-[600px]">
+              <div className="min-w-[600px]">
+                {/* Day Header */}
+                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20 sticky top-0 z-10">
+                  <div className="bg-gray-800/60 p-3"></div>
+                  <div className="bg-gray-800/60 p-3 text-center">
+                    <div className="font-semibold text-purple-300">
+                      {currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                    </div>
+                    <div className="text-2xl font-bold text-white">
+                      {currentDate.getDate()}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      {currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Slots */}
+                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20">
+                  {timeSlots.map(({ hour, label }) => {
+                    const hourEvents = getEventsForHour(currentDate, hour);
+                    return (
+                      <React.Fragment key={hour}>
+                        <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
+                          {label}
+                        </div>
+                        <div className="bg-gray-900/20 p-2 min-h-[60px] relative">
+                          {hourEvents.map((event, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-2 mb-1 rounded text-xs ${
+                                event.completed 
+                                  ? 'bg-gray-600/40 text-gray-400 line-through'
+                                  : event.importance === 'Pareto' || event.importance === 'High'
+                                    ? 'bg-red-900/30 text-red-300 border border-red-500/30'
+                                    : 'bg-purple-900/30 text-purple-300 border border-purple-500/30'
+                              }`}
+                            >
+                              <div className="font-medium truncate">{event.title}</div>
+                              {event.description && (
+                                <div className="text-gray-400 truncate mt-1">
+                                  {event.description}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 3-Day View */}
+          {view === '3day' && (
+            <div className="overflow-auto max-h-[600px]">
+              <div className="min-w-[800px]">
+                {/* Day Headers */}
+                <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(3, 1fr)' }}>
+                  <div className="bg-gray-800/60 p-3"></div>
+                  {get3DayDates().map((date, idx) => (
+                    <div key={idx} className="bg-gray-800/60 p-3 text-center">
+                      <div className="font-semibold text-purple-300">
+                        {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </div>
+                      <div className="text-xl font-bold text-white">
+                        {date.getDate()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Time Slots */}
+                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: '80px repeat(3, 1fr)' }}>
+                  {timeSlots.map(({ hour, label }) => (
+                    <React.Fragment key={hour}>
+                      <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
+                        {label}
+                      </div>
+                      {get3DayDates().map((date, idx) => {
+                        const hourEvents = getEventsForHour(date, hour);
+                        return (
+                          <div key={idx} className="bg-gray-900/20 p-2 min-h-[60px] relative">
+                            {hourEvents.map((event, eventIdx) => (
+                              <div
+                                key={eventIdx}
+                                className={`p-1.5 mb-1 rounded text-xs ${
+                                  event.completed 
+                                    ? 'bg-gray-600/40 text-gray-400 line-through'
+                                    : event.importance === 'Pareto' || event.importance === 'High'
+                                      ? 'bg-red-900/30 text-red-300 border border-red-500/30'
+                                      : 'bg-purple-900/30 text-purple-300 border border-purple-500/30'
+                                }`}
+                              >
+                                <div className="font-medium truncate">{event.title}</div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Week View */}
+          {view === 'week' && (
+            <div className="overflow-auto max-h-[600px]">
+              <div className="min-w-[1200px]">
+                {/* Day Headers */}
+                <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
+                  <div className="bg-gray-800/60 p-3"></div>
+                  {getWeekDates().map((date, idx) => {
+                    const isCurrentDay = date.toDateString() === today.toDateString();
+                    return (
+                      <div key={idx} className={`bg-gray-800/60 p-3 text-center ${isCurrentDay ? 'border-2 border-purple-500' : ''}`}>
+                        <div className="font-semibold text-purple-300">
+                          {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                        </div>
+                        <div className={`text-xl font-bold ${isCurrentDay ? 'text-purple-400' : 'text-white'}`}>
+                          {date.getDate()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Time Slots */}
+                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
+                  {timeSlots.map(({ hour, label }) => (
+                    <React.Fragment key={hour}>
+                      <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
+                        {label}
+                      </div>
+                      {getWeekDates().map((date, idx) => {
+                        const hourEvents = getEventsForHour(date, hour);
+                        return (
+                          <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative">
+                            {hourEvents.map((event, eventIdx) => (
+                              <div
+                                key={eventIdx}
+                                className={`p-1 mb-1 rounded text-xs ${
+                                  event.completed 
+                                    ? 'bg-gray-600/40 text-gray-400'
+                                    : event.importance === 'Pareto' || event.importance === 'High'
+                                      ? 'bg-red-900/30 text-red-300'
+                                      : 'bg-purple-900/30 text-purple-300'
+                                }`}
+                              >
+                                <div className="font-medium truncate text-[10px]">{event.title}</div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </Card>
