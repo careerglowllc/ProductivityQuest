@@ -130,7 +130,7 @@ export function TabBar() {
                       <Link href="/campaigns">
                         <a className="flex items-center gap-2 w-full">
                           <Crown className="h-4 w-4 text-purple-400" />
-                          Campaigns
+                          Questlines
                         </a>
                       </Link>
                     </DropdownMenuItem>
