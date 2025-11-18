@@ -353,6 +353,70 @@ export class GoogleCalendarService {
     }
   }
 
+  async updateEvent(task: Task, user: User): Promise<any> {
+    try {
+      if (!task.googleEventId || !task.googleCalendarId || !task.dueDate) {
+        return null; // Task is not synced to Google Calendar
+      }
+
+      let auth: OAuth2Client;
+      
+      if (user.googleCalendarClientId && user.googleCalendarClientSecret && 
+          user.googleCalendarAccessToken && user.googleCalendarRefreshToken) {
+        auth = new OAuth2Client(
+          user.googleCalendarClientId,
+          user.googleCalendarClientSecret,
+          'http://localhost:5000/api/google-calendar/callback'
+        );
+        
+        auth.setCredentials({
+          access_token: user.googleCalendarAccessToken,
+          refresh_token: user.googleCalendarRefreshToken,
+          expiry_date: user.googleCalendarTokenExpiry?.getTime(),
+        });
+      } else {
+        auth = this.getAuthenticatedClient(user);
+      }
+
+      const calendar = google.calendar({ version: 'v3', auth });
+      
+      const event = {
+        summary: task.title,
+        description: `${task.description}\n\nGold Reward: ${task.goldValue}\nImportance: ${task.importance || 'Not set'}`,
+        start: {
+          dateTime: task.dueDate.toISOString(),
+          timeZone: 'UTC',
+        },
+        end: {
+          dateTime: new Date(task.dueDate.getTime() + task.duration * 60000).toISOString(),
+          timeZone: 'UTC',
+        },
+        colorId: this.getColorForImportance(task.importance || undefined),
+      };
+
+      const response = await calendar.events.update({
+        calendarId: task.googleCalendarId,
+        eventId: task.googleEventId,
+        requestBody: event,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Error updating Google Calendar event:', error);
+      
+      if (error.code === 401 || error.message?.includes('invalid_grant')) {
+        throw new Error('CALENDAR_AUTH_EXPIRED');
+      }
+      
+      // If event not found, it may have been deleted from Google Calendar
+      if (error.code === 404) {
+        return null;
+      }
+      
+      throw error;
+    }
+  }
+
   private getColorForImportance(importance?: string): string {
     const colorMap: { [key: string]: string } = {
       'Pareto': '11', // Red

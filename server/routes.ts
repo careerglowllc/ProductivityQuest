@@ -439,6 +439,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
+      
+      // If task has Google Calendar event and time/duration changed, update it
+      if (task.googleEventId && task.googleCalendarId && 
+          (updateData.dueDate !== undefined || updateData.duration !== undefined)) {
+        try {
+          const user = await storage.getUser(userId);
+          if (user && user.googleCalendarAccessToken) {
+            await googleCalendar.updateEvent(task, user);
+          }
+        } catch (error) {
+          console.error('Failed to update Google Calendar event:', error);
+          // Don't fail the request if Google Calendar sync fails
+        }
+      }
+      
       res.json(task);
     } catch (error: any) {
       console.error("Task update error:", error);

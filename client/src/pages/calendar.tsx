@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar as CalendarIcon, Settings, Plus } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -31,12 +31,21 @@ type CalendarEvent = {
 };
 
 export default function Calendar() {
+  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>('month');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const dayViewRef = useRef<HTMLDivElement>(null);
   const threeDayViewRef = useRef<HTMLDivElement>(null);
   const weekViewRef = useRef<HTMLDivElement>(null);
+  
+  // Drag and resize state
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
+  const [resizingEvent, setResizingEvent] = useState<CalendarEvent | null>(null);
+  const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom' | null>(null);
+  const [dragStartY, setDragStartY] = useState<number>(0);
+  const [dragStartTime, setDragStartTime] = useState<Date | null>(null);
+  const [tempEventTime, setTempEventTime] = useState<{ start: Date; end: Date } | null>(null);
 
   // Auto-scroll to current time in Day, 3-Day, and Week views
   useEffect(() => {
@@ -61,6 +70,125 @@ export default function Calendar() {
       });
     }
   }, [view]);
+
+  // Drag and drop handlers
+  const handleEventMouseDown = (event: CalendarEvent, e: React.MouseEvent, edge?: 'top' | 'bottom') => {
+    // Only allow dragging/resizing ProductivityQuest tasks, not external Google Calendar events
+    if (event.source !== 'productivityquest') return;
+
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (edge) {
+      // Resizing
+      setResizingEvent(event);
+      setResizeEdge(edge);
+      setDragStartY(e.clientY);
+      setDragStartTime(new Date(edge === 'top' ? event.start : event.end));
+    } else {
+      // Moving
+      setDraggingEvent(event);
+      setDragStartY(e.clientY);
+      setDragStartTime(new Date(event.start));
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggingEvent && !resizingEvent) return;
+
+    const deltaY = e.clientY - dragStartY;
+    // Each 60px (height of time slot) = 1 hour, snap to 5-minute intervals
+    const minutesDelta = Math.round((deltaY / 60) * 60 / 5) * 5; // Round to nearest 5 minutes
+
+    if (draggingEvent && dragStartTime) {
+      // Calculate new start and end times
+      const newStart = new Date(dragStartTime);
+      newStart.setMinutes(newStart.getMinutes() + minutesDelta);
+
+      const eventDuration = new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime();
+      const newEnd = new Date(newStart.getTime() + eventDuration);
+
+      setTempEventTime({ start: newStart, end: newEnd });
+    } else if (resizingEvent && dragStartTime && resizeEdge) {
+      // Calculate new start or end time based on which edge is being dragged
+      const currentStart = new Date(resizingEvent.start);
+      const currentEnd = new Date(resizingEvent.end);
+
+      if (resizeEdge === 'top') {
+        const newStart = new Date(dragStartTime);
+        newStart.setMinutes(newStart.getMinutes() + minutesDelta);
+
+        // Ensure minimum duration of 5 minutes
+        const minEnd = new Date(newStart.getTime() + 5 * 60000);
+        if (currentEnd > minEnd) {
+          setTempEventTime({ start: newStart, end: currentEnd });
+        }
+      } else {
+        const newEnd = new Date(dragStartTime);
+        newEnd.setMinutes(newEnd.getMinutes() + minutesDelta);
+
+        // Ensure minimum duration of 5 minutes
+        const minEnd = new Date(currentStart.getTime() + 5 * 60000);
+        if (newEnd >= minEnd) {
+          setTempEventTime({ start: currentStart, end: newEnd });
+        }
+      }
+    }
+  };
+
+  const handleMouseUp = async () => {
+    if ((draggingEvent || resizingEvent) && tempEventTime) {
+      const eventToUpdate = draggingEvent || resizingEvent;
+      
+      if (eventToUpdate && eventToUpdate.source === 'productivityquest') {
+        // Extract task ID from event ID (format: task-{id})
+        const taskId = eventToUpdate.id.replace('task-', '');
+        
+        // Calculate duration in minutes
+        const durationMs = tempEventTime.end.getTime() - tempEventTime.start.getTime();
+        const durationMinutes = Math.round(durationMs / 60000);
+
+        try {
+          // Update task via API
+          const response = await fetch(`/api/tasks/${taskId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              dueDate: tempEventTime.start.toISOString(),
+              duration: durationMinutes,
+            }),
+          });
+
+          if (response.ok) {
+            // Invalidate calendar query to refetch updated data
+            queryClient.invalidateQueries({ 
+              queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
+            });
+          } else {
+            console.error('Failed to update task:', await response.text());
+          }
+        } catch (error) {
+          console.error('Failed to update task:', error);
+        }
+      }
+    }
+
+    // Reset drag state
+    setDraggingEvent(null);
+    setResizingEvent(null);
+    setResizeEdge(null);
+    setDragStartY(0);
+    setDragStartTime(null);
+    setTempEventTime(null);
+  };
+
+  const getEventDisplayTime = (event: CalendarEvent) => {
+    if ((draggingEvent?.id === event.id || resizingEvent?.id === event.id) && tempEventTime) {
+      return tempEventTime;
+    }
+    return { start: new Date(event.start), end: new Date(event.end) };
+  };
 
   // Helper function to get event background style
   const getEventStyle = (event: CalendarEvent) => {
@@ -470,7 +598,13 @@ export default function Calendar() {
 
           {/* Day View */}
           {view === 'day' && (
-            <div ref={dayViewRef} className="overflow-auto max-h-[600px]">
+            <div 
+              ref={dayViewRef} 
+              className="overflow-auto max-h-[600px]"
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
               <div className="min-w-[600px]">
                 {/* Day Header */}
                 <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20 sticky top-0 z-10">
@@ -520,18 +654,39 @@ export default function Calendar() {
                           
                           {hourEvents.map((event, idx) => {
                             const eventStyle = getEventStyle(event);
+                            const displayTime = getEventDisplayTime(event);
+                            const isDragging = draggingEvent?.id === event.id;
+                            const isResizing = resizingEvent?.id === event.id;
+                            const isDraggable = event.source === 'productivityquest';
+                            
                             return (
                               <div
                                 key={idx}
-                                className={`p-2 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                className={`p-2 mb-1 rounded text-xs border relative group ${
+                                  isDraggable ? 'cursor-move' : 'cursor-pointer'
+                                } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                 style={eventStyle.backgroundColor ? { 
                                   backgroundColor: eventStyle.backgroundColor,
                                   borderColor: eventStyle.borderColor,
                                   color: eventStyle.color
                                 } : undefined}
-                                onClick={() => setSelectedEvent(event)}
+                                onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                                onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
                               >
+                                {/* Top resize handle */}
+                                {isDraggable && (
+                                  <div
+                                    className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                    onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                                  />
+                                )}
+                                
                                 <div className="font-medium truncate">{event.title}</div>
+                                <div className="text-[10px] opacity-70">
+                                  {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                  {' - '}
+                                  {displayTime.end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                </div>
                                 {event.description && (
                                   <div className="opacity-80 truncate mt-1">
                                     {event.description}
@@ -541,6 +696,14 @@ export default function Calendar() {
                                   <div className="text-[10px] opacity-60 mt-1">
                                     {event.calendarName}
                                   </div>
+                                )}
+                                
+                                {/* Bottom resize handle */}
+                                {isDraggable && (
+                                  <div
+                                    className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                    onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                                  />
                                 )}
                               </div>
                             );
@@ -556,7 +719,13 @@ export default function Calendar() {
 
           {/* 3-Day View */}
           {view === '3day' && (
-            <div ref={threeDayViewRef} className="overflow-auto max-h-[600px]">
+            <div 
+              ref={threeDayViewRef} 
+              className="overflow-auto max-h-[600px]"
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
               <div className="min-w-[800px]">
                 {/* Day Headers */}
                 <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(3, 1fr)' }}>
@@ -606,18 +775,45 @@ export default function Calendar() {
                               
                               {hourEvents.map((event, eventIdx) => {
                                 const eventStyle = getEventStyle(event);
+                                const displayTime = getEventDisplayTime(event);
+                                const isDragging = draggingEvent?.id === event.id;
+                                const isResizing = resizingEvent?.id === event.id;
+                                const isDraggable = event.source === 'productivityquest';
+                                
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`p-1.5 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                    className={`p-1.5 mb-1 rounded text-xs border relative group ${
+                                      isDraggable ? 'cursor-move' : 'cursor-pointer'
+                                    } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                     style={eventStyle.backgroundColor ? { 
                                       backgroundColor: eventStyle.backgroundColor,
                                       borderColor: eventStyle.borderColor,
                                       color: eventStyle.color
                                     } : undefined}
-                                    onClick={() => setSelectedEvent(event)}
+                                    onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                                    onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
                                   >
+                                    {/* Top resize handle */}
+                                    {isDraggable && (
+                                      <div
+                                        className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                                      />
+                                    )}
+                                    
                                     <div className="font-medium truncate">{event.title}</div>
+                                    <div className="text-[9px] opacity-70">
+                                      {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                    </div>
+                                    
+                                    {/* Bottom resize handle */}
+                                    {isDraggable && (
+                                      <div
+                                        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                                      />
+                                    )}
                                   </div>
                                 );
                               })}
@@ -634,7 +830,13 @@ export default function Calendar() {
 
           {/* Week View */}
           {view === 'week' && (
-            <div ref={weekViewRef} className="overflow-auto max-h-[600px]">
+            <div 
+              ref={weekViewRef} 
+              className="overflow-auto max-h-[600px]"
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
               <div className="min-w-[1200px]">
                 {/* Day Headers */}
                 <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
@@ -687,18 +889,42 @@ export default function Calendar() {
                               
                               {hourEvents.map((event, eventIdx) => {
                                 const eventStyle = getEventStyle(event);
+                                const displayTime = getEventDisplayTime(event);
+                                const isDragging = draggingEvent?.id === event.id;
+                                const isResizing = resizingEvent?.id === event.id;
+                                const isDraggable = event.source === 'productivityquest';
+                                
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`p-1 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                    className={`p-1 mb-1 rounded text-xs border relative group ${
+                                      isDraggable ? 'cursor-move' : 'cursor-pointer'
+                                    } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                     style={eventStyle.backgroundColor ? { 
                                       backgroundColor: eventStyle.backgroundColor,
                                       borderColor: eventStyle.borderColor,
                                       color: eventStyle.color
                                     } : undefined}
-                                    onClick={() => setSelectedEvent(event)}
+                                    onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                                    onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
                                   >
+                                    {/* Top resize handle */}
+                                    {isDraggable && (
+                                      <div
+                                        className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                                      />
+                                    )}
+                                    
                                     <div className="font-medium truncate text-[10px]">{event.title}</div>
+                                    
+                                    {/* Bottom resize handle */}
+                                    {isDraggable && (
+                                      <div
+                                        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                                      />
+                                    )}
                                   </div>
                                 );
                               })}

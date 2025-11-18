@@ -577,9 +577,9 @@ export default function Dashboard() {
         </Card>
 
         {/* Two-column layout for web, single column for mobile */}
-        <div className={`${!isMobile ? 'grid grid-cols-2 gap-6' : 'space-y-6'} mb-8`}>
+        <div className={`${!isMobile ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-6'} mb-8`}>
           {/* Left Column - Spider Chart (Web) or full width (Mobile) */}
-          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
+          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full">
             <CardHeader className="border-b border-yellow-600/20 pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
@@ -591,11 +591,11 @@ export default function Dashboard() {
                 </Link>
               </div>
             </CardHeader>
-            <CardContent className="pt-4 pb-4">
+            <CardContent className="pt-4 pb-4 flex items-center justify-center">
               <Dialog>
                 <DialogTrigger asChild>
-                  <div className="cursor-pointer relative group">
-                    <div className={`${!isMobile ? 'scale-[0.8]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? '-my-20' : '-my-32'}`}>
+                  <div className="cursor-pointer relative group w-full">
+                    <div className={`${!isMobile ? 'scale-[0.9]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? 'my-0' : '-my-32'}`}>
                       {skillsLoading ? (
                         <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
                           Loading skills...
@@ -604,7 +604,7 @@ export default function Dashboard() {
                         <SpiderChart skills={safeSkills} />
                       )}
                     </div>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
                         <Maximize2 className="w-4 h-4" />
                         <span className="text-sm">Click to enlarge</span>
