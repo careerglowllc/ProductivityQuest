@@ -941,7 +941,7 @@ export default function Skills() {
               return (
                 <>
                   {/* Spider Chart Grid - Background circles and radial lines */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
                     {/* Grid circles */}
                     {gridLevels.map((level, i) => (
                       <ellipse
@@ -982,11 +982,12 @@ export default function Skills() {
                     {polygonPoints.length > 0 && (
                       <polygon
                         points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
-                        fill="rgba(234, 179, 8, 0.2)"
+                        fill="rgba(234, 179, 8, 0.25)"
                         stroke="rgb(234, 179, 8)"
                         strokeWidth="3"
                         strokeLinejoin="round"
                         className="transition-all duration-500"
+                        style={{ filter: 'drop-shadow(0 0 8px rgba(234, 179, 8, 0.4))' }}
                       />
                     )}
                   </svg>
