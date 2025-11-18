@@ -260,17 +260,22 @@ const skillMilestones: Record<string, Array<{
     { id: 'revenue-1k', title: '$1,000 in Revenue', level: 5, x: 38, y: 72, parents: ['start'] },
     { id: 'client-10', title: '10 Repeat Clients', level: 7, x: 62, y: 72, parents: ['start'] },
     
-    // Level 3: Expansion
-    { id: 'revenue-10k', title: '$10,000 Monthly', level: 15, x: 30, y: 56, parents: ['revenue-1k'] },
+    // Level 3: Business foundations
+    { id: 'start-business', title: 'Start a Business', level: 10, x: 25, y: 64, parents: ['revenue-1k'] },
+    { id: 'revenue-10k', title: '$10,000 Monthly', level: 15, x: 30, y: 56, parents: ['start-business'] },
     { id: 'team', title: 'Build a Team', level: 18, x: 50, y: 54, parents: ['revenue-1k', 'client-10'] },
     { id: 'venture', title: 'Launch a Venture', level: 20, x: 70, y: 56, parents: ['client-10'] },
     
-    // Level 4: Scale
+    // Level 4: Scale & Innovation
     { id: 'revenue-100k', title: '$100,000 Yearly', level: 35, x: 38, y: 38, parents: ['revenue-10k', 'team'] },
-    { id: 'multiple', title: 'Multiple Revenue Streams', level: 40, x: 62, y: 38, parents: ['team', 'venture'] },
+    { id: 'saas-launch', title: 'Create & Launch a SaaS App', level: 42, x: 50, y: 36, parents: ['team', 'venture'] },
+    { id: 'multiple', title: 'Multiple Revenue Streams', level: 40, x: 62, y: 38, parents: ['venture'] },
     
-    // Level 5: Empire
-    { id: 'empire', title: 'Build Business Empire', level: 65, x: 50, y: 22, parents: ['revenue-100k', 'multiple'] },
+    // Level 5: Advanced experience
+    { id: 'close-business', title: 'Close a Business', level: 50, x: 30, y: 28, parents: ['revenue-100k'] },
+    
+    // Level 6: Empire
+    { id: 'empire', title: 'Build Business Empire', level: 65, x: 50, y: 22, parents: ['revenue-100k', 'saas-launch', 'multiple', 'close-business'] },
     { id: 'legend', title: 'Industry Legend', level: 90, x: 50, y: 8, parents: ['empire'] },
   ],
   Physical: [
