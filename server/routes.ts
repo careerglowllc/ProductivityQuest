@@ -2088,64 +2088,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Fetch events from Google Calendar for the current month
-      const now = new Date();
-      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-      console.log('📅 [SYNC] Fetching events from', startDate, 'to', endDate);
-      const googleEvents = await googleCalendar.getEvents(user, startDate, endDate);
-      console.log('📅 [SYNC] Fetched', googleEvents.length, 'events from Google Calendar');
-
-      // Import events as tasks based on sync direction
-      let imported = 0;
-      if (user.googleCalendarSyncDirection === 'import' || user.googleCalendarSyncDirection === 'both') {
-        for (const event of googleEvents) {
-          // Check if we already have a task for this event
-          const existingTasks = await storage.getTasks(userId);
-          const exists = existingTasks.some(task => 
-            task.title === event.summary && 
-            task.dueDate && 
-            new Date(task.dueDate).toDateString() === new Date(event.start.dateTime || event.start.date).toDateString()
-          );
-
-          if (!exists) {
-            // Calculate duration from event start and end times
-            let duration = 60; // Default 1 hour
-            if (event.start.dateTime && event.end.dateTime) {
-              const start = new Date(event.start.dateTime);
-              const end = new Date(event.end.dateTime);
-              duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60)); // Duration in minutes
-            }
-            
-            // Calculate gold value based on duration (same as regular tasks)
-            const goldValue = Math.max(10, Math.floor(duration / 15) * 5); // 5 gold per 15 minutes, min 10
-            
-            await storage.createTask({
-              userId,
-              title: event.summary || 'Untitled Event',
-              details: event.description || null,
-              dueDate: new Date(event.start.dateTime || event.start.date),
-              duration,
-              goldValue,
-              completed: false,
-              skillTags: ['Work'], // Default to Work skill
-              googleEventId: event.id,
-              googleCalendarId: (event as any).calendarId,
-              calendarColor: (event as any).calendarBackgroundColor,
-            });
-            imported++;
-          }
-        }
-      }
-
-      console.log('✅ [SYNC] Imported', imported, 'new events as tasks');
+      // Note: We no longer auto-import Google Calendar events as tasks
+      // Google Calendar events are displayed in the calendar view only
+      // ProductivityQuest tasks are the source of truth for the tasks list
+      
+      console.log('✅ [SYNC] Google Calendar is connected and ready');
+      console.log('📅 [SYNC] Calendar events will be displayed in calendar view only');
+      console.log('📝 [SYNC] Tasks list remains independent from Google Calendar events');
 
       res.json({ 
         success: true,
-        imported,
-        total: googleEvents.length,
-        message: `Imported ${imported} events from Google Calendar`
+        imported: 0,
+        total: 0,
+        message: 'Google Calendar connected. Events visible in calendar view only.'
       });
     } catch (error: any) {
       console.error("❌ [SYNC] Error during Google Calendar sync:", error);
@@ -2286,11 +2241,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add ProductivityQuest tasks
       for (const task of tasksInMonth) {
+        // Calculate end time based on task duration
+        const startTime = task.dueDate ? new Date(task.dueDate) : new Date();
+        const endTime = new Date(startTime);
+        endTime.setMinutes(endTime.getMinutes() + (task.duration || 60));
+        
         events.push({
           id: task.id.toString(),
           title: task.title,
-          start: task.dueDate,
-          end: task.dueDate,
+          start: startTime.toISOString(),
+          end: endTime.toISOString(),
           description: task.description || task.details || '',
           completed: task.completed,
           importance: task.importance,
