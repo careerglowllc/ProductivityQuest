@@ -558,6 +558,9 @@ export default function Home() {
 
   const handleImportPrepare = async () => {
     try {
+      // Refetch tasks to get the latest count before showing the modal
+      await refetchTasks();
+      
       const response = await apiRequest("GET", "/api/notion/check-duplicates");
       const result = await response.json();
       setImportTaskCount(result.totalCount);
