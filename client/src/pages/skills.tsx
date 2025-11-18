@@ -926,7 +926,7 @@ export default function Skills() {
                         rx={`${level * maxRadius}%`}
                         ry={`${level * maxRadius}%`}
                         fill="none"
-                        stroke="rgba(250, 204, 21, 0.15)"
+                        stroke="rgba(250, 204, 21, 0.2)"
                         strokeWidth="1"
                         className="transition-all duration-500"
                       />
@@ -957,9 +957,10 @@ export default function Skills() {
                     {positions.length > 0 && (
                       <polygon
                         points={positions.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
-                        fill="rgba(234, 179, 8, 0.15)"
-                        stroke="rgba(234, 179, 8, 0.5)"
-                        strokeWidth="2"
+                        fill="rgba(234, 179, 8, 0.2)"
+                        stroke="rgb(234, 179, 8)"
+                        strokeWidth="3"
+                        strokeLinejoin="round"
                         className="transition-all duration-500"
                       />
                     )}
