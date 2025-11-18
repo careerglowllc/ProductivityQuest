@@ -34,6 +34,9 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Purchase rewards** from a customizable shop using earned gold
 - **Sync with Notion** for seamless task management across platforms
 - **✨ ENHANCED: Google Calendar Integration** - Full OAuth 2.0 with multi-calendar support, 4 view modes (Day/3-Day/Week/Month), calendar color preservation, and smart separation (Google events visible in calendar only, PQ tasks in both calendar and tasks list)
+- **✨ NEW: Calendar Drag & Resize** - Visually adjust task times and durations by dragging/resizing events directly in calendar view
+- **✨ NEW: Calendar View Persistence** - Your last selected view (Day/3-Day/Week/Month) is remembered across sessions
+- **✨ NEW: Task Duration Inline Editing** - Edit task duration directly in detail modal with save/cancel buttons
 - **✨ NEW: Recurring Tasks** - Routine tasks automatically reschedule to next due date instead of completing
 - **✨ NEW: Calendar View** - Interactive calendar with multiple view modes and color-coded events
 - **Track progress** through detailed dashboards and statistics
@@ -1703,7 +1706,92 @@ See [GRID_VIEW_TEST_CASES.md](GRID_VIEW_TEST_CASES.md) for:
 
 ---
 
-## � Constellation View
+## 📅 Calendar Features
+
+**✨ NEW: Enhanced Calendar Interaction & Persistence**
+
+The calendar page now features advanced interaction capabilities, persistent view preferences, and inline editing for task management directly from the calendar interface.
+
+### Calendar Drag & Resize
+
+**Visual Task Scheduling**
+- **Drag Events**: Click and drag any ProductivityQuest task to a new time slot
+- **Resize from Top**: Adjust start time by dragging the top edge
+- **Resize from Bottom**: Extend or shorten duration by dragging bottom edge
+- **5-Minute Snapping**: Events snap to 5-minute intervals for precision
+- **Real-time Updates**: Events update visually as you drag/resize
+- **Database Sync**: Changes immediately save to database and sync to Google Calendar
+
+**Absolute Positioning System**
+- Events use pixel-perfect positioning based on time
+- Each hour = 60px, allowing minute-level accuracy
+- Events span across multiple hours visually
+- Height automatically calculated from duration
+- Formula: `top = startHour × 60 + (startMinute / 60) × 60`
+- Formula: `height = (durationMinutes / 60) × 60`
+
+**Technical Features**
+- ✅ Query invalidation triggers automatic UI refresh
+- ✅ No page refresh required
+- ✅ Optimistic updates prevent visual snap-back
+- ✅ Google Calendar events are read-only (cannot drag/resize)
+- ✅ Minimum duration: 5 minutes enforced
+
+### Calendar View Persistence
+
+**Remember User Preferences**
+- **localStorage Integration**: Saves your last selected view (Day/3-Day/Week/Month)
+- **Instant Restoration**: Calendar opens in your preferred view every time
+- **No Flash**: Smooth loading without flickering to default view
+- **Session Persistence**: Survives browser restarts and page refreshes
+
+**Supported Views**
+1. **Day View**: Single day with hourly time slots
+2. **3 Days View**: Three consecutive days side-by-side
+3. **Week View**: Full week (Sun-Sat) overview
+4. **Month View**: Traditional month calendar grid
+
+**Implementation**
+```javascript
+// View is saved to localStorage whenever user switches
+localStorage.setItem('calendarView', 'day'); // 'day' | '3day' | 'week' | 'month'
+
+// Restored on page load
+const savedView = localStorage.getItem('calendarView') || 'month';
+```
+
+### Task Duration Inline Editing
+
+**Quick Duration Updates**
+- **Edit Button**: ✏️ icon appears next to duration in task detail modal
+- **Inline Input**: Click to switch duration to editable input field
+- **Save/Cancel**: ✓ (Save) and ✗ (Cancel) buttons for quick actions
+- **Keyboard Shortcuts**:
+  - **Enter** → Save changes
+  - **Escape** → Cancel and revert
+- **Validation**: Ensures positive numbers only (min: 1 minute)
+
+**Auto-Sync Features**
+- ✅ Calendar events auto-update their visual height
+- ✅ Google Calendar events sync new duration
+- ✅ Task list views refresh automatically
+- ✅ Success toast notification on save
+- ✅ Error handling with retry capability
+
+**User Experience**
+- Matches Due Date editing UX pattern
+- Consistent button styling and positioning
+- Auto-focus on input when entering edit mode
+- Input pre-filled with current duration value
+
+### Test Coverage
+- **CALENDAR_DRAG_RESIZE_TEST_CASES.md**: 10 core functionality tests + edge cases
+- **CALENDAR_VIEW_PERSISTENCE_TEST_CASES.md**: 10 persistence tests + edge cases
+- **TASK_DURATION_EDIT_TEST_CASES.md**: 20 comprehensive edit workflow tests
+
+---
+
+## ⭐ Constellation View
 
 **✨ NEW: Interactive Skills Visualization**
 
