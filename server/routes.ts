@@ -2087,11 +2087,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
           if (!exists) {
+            // Calculate duration from event start and end times
+            let duration = 60; // Default 1 hour
+            if (event.start.dateTime && event.end.dateTime) {
+              const start = new Date(event.start.dateTime);
+              const end = new Date(event.end.dateTime);
+              duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60)); // Duration in minutes
+            }
+            
             await storage.createTask({
               userId,
               title: event.summary || 'Untitled Event',
               details: event.description || null,
               dueDate: new Date(event.start.dateTime || event.start.date),
+              duration, // Add the duration field
               completed: false,
               recycled: false,
               skillTags: ['Work'], // Default to Work skill
