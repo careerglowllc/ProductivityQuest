@@ -229,6 +229,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
               
               {/* Details button - removed since whole card is clickable now */}
             </div>
+            </div>
           </CardContent>
         </Card>
         
