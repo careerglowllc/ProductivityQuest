@@ -121,15 +121,40 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
       <>
         <Card 
           className={cn(
-            "bg-slate-800/40 backdrop-blur-md border-2 transition-all cursor-pointer relative h-full",
+            "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative h-full",
             isSelected 
               ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
               : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
             task.completed && "opacity-60"
           )}
-          onClick={() => !task.completed && onSelect(task.id, !isSelected)}
         >
-          <CardContent className="p-3">
+          <CardContent className="p-3 flex gap-2">
+            {/* Checkbox for selection */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!task.completed) {
+                  onSelect(task.id, !isSelected);
+                }
+              }}
+              className={cn(
+                "flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all mt-0.5",
+                isSelected 
+                  ? "bg-yellow-500 border-yellow-500" 
+                  : "border-yellow-600/40 hover:border-yellow-500",
+                task.completed && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {isSelected && (
+                <CheckCircle className="w-full h-full text-slate-900" />
+              )}
+            </button>
+            
+            {/* Main content area - clickable to open details */}
+            <div 
+              className="flex-1 cursor-pointer"
+              onClick={() => setShowDetailModal(true)}
+            >
             <div className="flex flex-col gap-2">
               {/* Title */}
               <h3 className={cn(
@@ -202,19 +227,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                 </div>
               )}
               
-              {/* Details button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto px-2 py-1 text-yellow-400/60 hover:text-yellow-400 hover:bg-slate-700/50 flex items-center justify-center gap-1 w-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDetailModal(true);
-                }}
-              >
-                <Info className="h-3 w-3" />
-                <span className="text-xs">Details</span>
-              </Button>
+              {/* Details button - removed since whole card is clickable now */}
             </div>
           </CardContent>
         </Card>
@@ -233,15 +246,40 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
     <>
       <Card 
         className={cn(
-          "bg-slate-800/40 backdrop-blur-md border-2 transition-all cursor-pointer relative",
+          "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative",
           isSelected 
             ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
             : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
           task.completed && "opacity-60"
         )}
-        onClick={() => !task.completed && onSelect(task.id, !isSelected)}
       >
-        <CardContent className="p-6">
+        <CardContent className="p-6 flex gap-4">
+          {/* Checkbox for selection */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!task.completed) {
+                onSelect(task.id, !isSelected);
+              }
+            }}
+            className={cn(
+              "flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all mt-1",
+              isSelected 
+                ? "bg-yellow-500 border-yellow-500" 
+                : "border-yellow-600/40 hover:border-yellow-500",
+              task.completed && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            {isSelected && (
+              <CheckCircle className="w-full h-full text-slate-900" />
+            )}
+          </button>
+          
+          {/* Main content area - clickable to open details */}
+          <div 
+            className="flex-1 cursor-pointer"
+            onClick={() => setShowDetailModal(true)}
+          >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <h3 className={cn(
@@ -368,20 +406,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
               <span className="font-semibold">{task.goldValue}</span>
             </Badge>
           </div>
-          
-          {/* Details button in bottom-right corner */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute bottom-2 right-2 h-auto px-2 py-1 text-yellow-400/60 hover:text-yellow-400 hover:bg-slate-700/50 flex items-center gap-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDetailModal(true);
-            }}
-          >
-            <Info className="h-5 w-5" />
-            <span className="text-xs">Details</span>
-          </Button>
+          </div>
         </CardContent>
       </Card>
       
