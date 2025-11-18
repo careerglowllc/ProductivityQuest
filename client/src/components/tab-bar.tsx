@@ -1,15 +1,17 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Settings, LogOut } from "lucide-react";
+import { useState } from "react";
 
 export function TabBar() {
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const [questsMenuOpen, setQuestsMenuOpen] = useState(false);
 
   const { data: progress = { goldTotal: 0 } } = useQuery({
     queryKey: ["/api/progress"],
@@ -89,6 +91,51 @@ export function TabBar() {
             const Icon = tab.icon;
             const isActive = location === tab.path;
             
+            // Special handling for Quests tab with dropdown
+            if (tab.name === "Quests") {
+              return (
+                <DropdownMenu key={tab.path} open={questsMenuOpen} onOpenChange={setQuestsMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <div
+                      onMouseEnter={() => setQuestsMenuOpen(true)}
+                      onMouseLeave={() => setQuestsMenuOpen(false)}
+                    >
+                      <Link href={tab.path}>
+                        <a
+                          className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
+                            isActive || location === "/campaigns"
+                              ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
+                              : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
+                          }`}
+                        >
+                          <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
+                          <span className={`text-sm ${isActive ? "font-semibold" : "font-medium"}`}>
+                            {tab.name}
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-60" />
+                        </a>
+                      </Link>
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="start" 
+                    className="bg-slate-800 border-yellow-600/30"
+                    onMouseEnter={() => setQuestsMenuOpen(true)}
+                    onMouseLeave={() => setQuestsMenuOpen(false)}
+                  >
+                    <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                      <Link href="/campaigns">
+                        <a className="flex items-center gap-2 w-full">
+                          <Crown className="h-4 w-4 text-purple-400" />
+                          Campaigns
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+            
             return (
               <Link key={tab.path} href={tab.path}>
                 <a
@@ -110,14 +157,6 @@ export function TabBar() {
 
         {/* Gold and User Info - Right */}
         <div className="flex items-center gap-4">
-          {/* Campaign Button */}
-          <Link href="/campaigns">
-            <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/30 border-2 border-purple-500/50 hover:bg-purple-600/40 hover:border-purple-400/60 transition-all">
-              <Crown className="h-5 w-5 text-purple-300" />
-              <span className="text-sm font-semibold text-purple-100">Campaigns</span>
-            </a>
-          </Link>
-
           {/* NPCs Button */}
           <Link href="/npcs">
             <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/30 border-2 border-blue-500/50 hover:bg-blue-600/40 hover:border-blue-400/60 transition-all">
