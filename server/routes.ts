@@ -9,6 +9,7 @@ import { z } from "zod";
 import { categorizeTaskWithAI, categorizeMultipleTasks } from "./openai-service";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
+import { OAuth2Client } from 'google-auth-library';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -1938,7 +1939,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate OAuth URL with user's credentials
       console.log('📝 [AUTH URL] Generating OAuth URL...');
-      const { OAuth2Client } = require('google-auth-library');
       
       // Determine the correct redirect URI
       // In production (Render), use the environment variable
@@ -2002,7 +2002,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Exchange code for tokens
-      const { OAuth2Client } = require('google-auth-library');
       const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || 
         `${req.protocol}://${req.get('host')}/api/google-calendar/callback`;
       
