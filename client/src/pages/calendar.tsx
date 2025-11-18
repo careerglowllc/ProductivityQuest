@@ -476,15 +476,35 @@ export default function Calendar() {
                 </div>
 
                 {/* Time Slots */}
-                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20">
+                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20 relative">
                   {timeSlots.map(({ hour, label }) => {
                     const hourEvents = getEventsForHour(currentDate, hour);
+                    const now = new Date();
+                    const isToday = currentDate.toDateString() === now.toDateString();
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+                    
+                    // Calculate if current time indicator should appear in this hour slot
+                    const showTimeIndicator = isToday && hour === currentHour;
+                    const timeIndicatorPosition = (currentMinute / 60) * 100; // Percentage through the hour
+                    
                     return (
                       <React.Fragment key={hour}>
                         <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
                           {label}
                         </div>
                         <div className="bg-gray-900/20 p-2 min-h-[60px] relative">
+                          {/* Current Time Indicator */}
+                          {showTimeIndicator && (
+                            <div 
+                              className="absolute left-0 right-0 flex items-center z-20"
+                              style={{ top: `${timeIndicatorPosition}%` }}
+                            >
+                              <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
+                              <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
+                            </div>
+                          )}
+                          
                           {hourEvents.map((event, idx) => {
                             const eventStyle = getEventStyle(event);
                             return (
@@ -542,37 +562,58 @@ export default function Calendar() {
 
                 {/* Time Slots */}
                 <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: '80px repeat(3, 1fr)' }}>
-                  {timeSlots.map(({ hour, label }) => (
-                    <React.Fragment key={hour}>
-                      <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
-                        {label}
-                      </div>
-                      {get3DayDates().map((date, idx) => {
-                        const hourEvents = getEventsForHour(date, hour);
-                        return (
-                          <div key={idx} className="bg-gray-900/20 p-2 min-h-[60px] relative">
-                            {hourEvents.map((event, eventIdx) => {
-                              const eventStyle = getEventStyle(event);
-                              return (
-                                <div
-                                  key={eventIdx}
-                                  className={`p-1.5 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
-                                  style={eventStyle.backgroundColor ? { 
-                                    backgroundColor: eventStyle.backgroundColor,
-                                    borderColor: eventStyle.borderColor,
-                                    color: eventStyle.color
-                                  } : undefined}
-                                  onClick={() => setSelectedEvent(event)}
+                  {timeSlots.map(({ hour, label }) => {
+                    const now = new Date();
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+                    const timeIndicatorPosition = (currentMinute / 60) * 100;
+                    
+                    return (
+                      <React.Fragment key={hour}>
+                        <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
+                          {label}
+                        </div>
+                        {get3DayDates().map((date, idx) => {
+                          const hourEvents = getEventsForHour(date, hour);
+                          const isToday = date.toDateString() === now.toDateString();
+                          const showTimeIndicator = isToday && hour === currentHour;
+                          
+                          return (
+                            <div key={idx} className="bg-gray-900/20 p-2 min-h-[60px] relative">
+                              {/* Current Time Indicator */}
+                              {showTimeIndicator && (
+                                <div 
+                                  className="absolute left-0 right-0 flex items-center z-20"
+                                  style={{ top: `${timeIndicatorPosition}%` }}
                                 >
-                                  <div className="font-medium truncate">{event.title}</div>
+                                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
+                                  <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
+                              )}
+                              
+                              {hourEvents.map((event, eventIdx) => {
+                                const eventStyle = getEventStyle(event);
+                                return (
+                                  <div
+                                    key={eventIdx}
+                                    className={`p-1.5 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                    style={eventStyle.backgroundColor ? { 
+                                      backgroundColor: eventStyle.backgroundColor,
+                                      borderColor: eventStyle.borderColor,
+                                      color: eventStyle.color
+                                    } : undefined}
+                                    onClick={() => setSelectedEvent(event)}
+                                  >
+                                    <div className="font-medium truncate">{event.title}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -602,37 +643,58 @@ export default function Calendar() {
 
                 {/* Time Slots */}
                 <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
-                  {timeSlots.map(({ hour, label }) => (
-                    <React.Fragment key={hour}>
-                      <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
-                        {label}
-                      </div>
-                      {getWeekDates().map((date, idx) => {
-                        const hourEvents = getEventsForHour(date, hour);
-                        return (
-                          <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative">
-                            {hourEvents.map((event, eventIdx) => {
-                              const eventStyle = getEventStyle(event);
-                              return (
-                                <div
-                                  key={eventIdx}
-                                  className={`p-1 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
-                                  style={eventStyle.backgroundColor ? { 
-                                    backgroundColor: eventStyle.backgroundColor,
-                                    borderColor: eventStyle.borderColor,
-                                    color: eventStyle.color
-                                  } : undefined}
-                                  onClick={() => setSelectedEvent(event)}
+                  {timeSlots.map(({ hour, label }) => {
+                    const now = new Date();
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+                    const timeIndicatorPosition = (currentMinute / 60) * 100;
+                    
+                    return (
+                      <React.Fragment key={hour}>
+                        <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
+                          {label}
+                        </div>
+                        {getWeekDates().map((date, idx) => {
+                          const hourEvents = getEventsForHour(date, hour);
+                          const isToday = date.toDateString() === now.toDateString();
+                          const showTimeIndicator = isToday && hour === currentHour;
+                          
+                          return (
+                            <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative">
+                              {/* Current Time Indicator */}
+                              {showTimeIndicator && (
+                                <div 
+                                  className="absolute left-0 right-0 flex items-center z-20"
+                                  style={{ top: `${timeIndicatorPosition}%` }}
                                 >
-                                  <div className="font-medium truncate text-[10px]">{event.title}</div>
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
+                                  <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
+                              )}
+                              
+                              {hourEvents.map((event, eventIdx) => {
+                                const eventStyle = getEventStyle(event);
+                                return (
+                                  <div
+                                    key={eventIdx}
+                                    className={`p-1 mb-1 rounded text-xs border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                                    style={eventStyle.backgroundColor ? { 
+                                      backgroundColor: eventStyle.backgroundColor,
+                                      borderColor: eventStyle.borderColor,
+                                      color: eventStyle.color
+                                    } : undefined}
+                                    onClick={() => setSelectedEvent(event)}
+                                  >
+                                    <div className="font-medium truncate text-[10px]">{event.title}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
             </div>
