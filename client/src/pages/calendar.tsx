@@ -425,7 +425,7 @@ export default function Calendar() {
             return (
               <div
                 key={event.id}
-                className={`${isMobile ? 'text-[8px] p-0.5' : 'text-xs p-1'} rounded truncate border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                className={`${isMobile ? 'text-[8px] p-0.5' : 'text-xs p-1'} rounded truncate border cursor-pointer hover:opacity-80 overflow-hidden leading-tight ${eventStyle.className || ''}`}
                 style={eventStyle.backgroundColor ? { 
                   backgroundColor: eventStyle.backgroundColor,
                   borderColor: eventStyle.borderColor,
@@ -718,7 +718,7 @@ export default function Calendar() {
                       return (
                         <div
                           key={idx}
-                          className={`absolute left-2 right-2 p-2 rounded text-xs border group ${
+                          className={`absolute left-2 right-2 rounded border group overflow-hidden ${
                             isDraggable ? 'cursor-move' : 'cursor-pointer'
                           } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                           style={{ 
@@ -727,35 +727,42 @@ export default function Calendar() {
                             backgroundColor: eventStyle.backgroundColor,
                             borderColor: eventStyle.borderColor,
                             color: eventStyle.color,
-                            zIndex: 10
+                            zIndex: 10,
+                            padding: position.height < 25 ? '2px 4px' : position.height < 40 ? '4px 6px' : '8px'
                           }}
                           onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
                           onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
                         >
                           {/* Top resize handle */}
-                          {isDraggable && (
+                          {isDraggable && position.height > 20 && (
                             <div
                               className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t"
                               onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
                             />
                           )}
                           
-                          <div className="font-medium truncate">{event.title}</div>
-                          {position.height > 30 && (
-                            <div className="text-[10px] opacity-70">
+                          <div className={`font-medium truncate ${position.height < 25 ? 'text-[9px]' : position.height < 40 ? 'text-[10px]' : 'text-xs'}`}>
+                            {event.title}
+                          </div>
+                          {position.height > 35 && (
+                            <div className="text-[10px] opacity-70 truncate">
                               {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                              {' - '}
-                              {displayTime.end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                              {position.height > 45 && (
+                                <>
+                                  {' - '}
+                                  {displayTime.end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                </>
+                              )}
                             </div>
                           )}
-                          {position.height > 50 && event.description && (
+                          {position.height > 60 && event.description && (
                             <div className="opacity-80 truncate mt-1 text-[10px]">
                               {event.description}
                             </div>
                           )}
                           
                           {/* Bottom resize handle */}
-                          {isDraggable && (
+                          {isDraggable && position.height > 20 && (
                             <div
                               className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b"
                               onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
@@ -836,7 +843,7 @@ export default function Calendar() {
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`${isMobile ? 'p-1 mb-0.5 text-[10px]' : 'p-1.5 mb-1 text-xs'} rounded border relative group ${
+                                    className={`${isMobile ? 'p-1 mb-0.5 text-[10px]' : 'p-1.5 mb-1 text-xs'} rounded border relative group overflow-hidden ${
                                       isDraggable ? 'cursor-move' : 'cursor-pointer'
                                     } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                     style={eventStyle.backgroundColor ? { 
@@ -855,9 +862,9 @@ export default function Calendar() {
                                       />
                                     )}
                                     
-                                    <div className="font-medium truncate">{event.title}</div>
+                                    <div className="font-medium truncate leading-tight">{event.title}</div>
                                     {!isMobile && (
-                                      <div className="text-[9px] opacity-70">
+                                      <div className="text-[9px] opacity-70 truncate leading-tight">
                                         {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                                       </div>
                                     )}
@@ -952,7 +959,7 @@ export default function Calendar() {
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`p-1 mb-1 rounded text-xs border relative group ${
+                                    className={`p-1 mb-1 rounded text-xs border relative group overflow-hidden ${
                                       isDraggable ? 'cursor-move' : 'cursor-pointer'
                                     } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                     style={eventStyle.backgroundColor ? { 
@@ -971,7 +978,7 @@ export default function Calendar() {
                                       />
                                     )}
                                     
-                                    <div className="font-medium truncate text-[10px]">{event.title}</div>
+                                    <div className="font-medium truncate text-[10px] leading-tight">{event.title}</div>
                                     
                                     {/* Bottom resize handle */}
                                     {isDraggable && (
