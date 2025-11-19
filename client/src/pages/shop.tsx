@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles } from "lucide-react";
+import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles, Pencil } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -34,6 +34,8 @@ const EMOJI_OPTIONS = [
 export default function Shop() {
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editPrice, setEditPrice] = useState("");
   const [newItemName, setNewItemName] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newItemCost, setNewItemCost] = useState("");
@@ -196,6 +198,29 @@ export default function Shop() {
     },
   });
 
+  const updatePriceMutation = useMutation({
+    mutationFn: async ({ itemId, cost }: { itemId: number; cost: number }) => {
+      const response = await apiRequest("PATCH", `/api/shop/items/${itemId}`, { cost });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Price Updated!",
+        description: "Shop item price changed successfully",
+      });
+      refetchItems();
+      setEditingItemId(null);
+      setEditPrice("");
+    },
+    onError: () => {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update item price",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleBuyItem = () => {
     if (selectedItemId) {
       purchaseMutation.mutate(selectedItemId);
@@ -225,6 +250,30 @@ export default function Shop() {
       cost,
       icon: newItemIcon,
     });
+  };
+
+  const handleStartEdit = (itemId: number, currentPrice: number) => {
+    setEditingItemId(itemId);
+    setEditPrice(currentPrice.toString());
+  };
+
+  const handleSavePrice = (itemId: number) => {
+    const cost = parseInt(editPrice);
+    if (!cost || cost <= 0) {
+      toast({
+        title: "Invalid Price",
+        description: "Please enter a valid price greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updatePriceMutation.mutate({ itemId, cost });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setEditPrice("");
   };
 
   const selectedItem = shopItems.find((item: any) => item.id === selectedItemId);
@@ -297,9 +346,53 @@ export default function Shop() {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 text-yellow-400 font-bold">
-                    <Coins className="h-4 w-4" />
-                    {item.cost}
+                  <div className="flex items-center gap-2">
+                    {editingItemId === item.id ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          type="number"
+                          value={editPrice}
+                          onChange={(e) => setEditPrice(e.target.value)}
+                          className="w-20 h-7 text-sm text-yellow-400 bg-slate-900/60 border-yellow-500/30"
+                          min="1"
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handleSavePrice(item.id)}
+                          className="h-7 px-2 bg-green-600 hover:bg-green-500 text-xs"
+                        >
+                          ✓
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleCancelEdit}
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                        >
+                          ✗
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-1 text-yellow-400 font-bold">
+                          <Coins className="h-4 w-4" />
+                          {item.cost}
+                        </div>
+                        {!item.isGlobal && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEdit(item.id, item.cost);
+                            }}
+                            className="p-1 hover:bg-yellow-500/20 rounded transition-colors"
+                            title="Edit price"
+                          >
+                            <Pencil className="h-3 w-3 text-yellow-400/60 hover:text-yellow-400" />
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
                 <CardTitle className="text-lg text-yellow-100">{item.name}</CardTitle>
