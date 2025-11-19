@@ -1278,61 +1278,66 @@ export default function Calendar() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 justify-between">
-                  <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
+                  {/* First row - Main actions */}
+                  <div className="flex gap-2 flex-wrap">
                     {/* Reschedule Button - For all events */}
                     <Button
                       variant="outline"
-                      className="border-blue-500/30 hover:bg-blue-500/10"
+                      size="sm"
+                      className="border-blue-500/30 hover:bg-blue-500/10 text-xs"
                       onClick={handleReschedule}
                     >
-                      <Clock className="w-4 h-4 mr-2" />
+                      <Clock className="w-3 h-3 mr-1" />
                       Reschedule
                     </Button>
                     
                     {/* Delete Button - For all events */}
                     <Button
                       variant="outline"
-                      className="border-red-500/30 hover:bg-red-500/10 text-red-400"
+                      size="sm"
+                      className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
                       onClick={() => setShowDeleteMenu(!showDeleteMenu)}
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <Trash2 className="w-3 h-3 mr-1" />
                       Delete
                     </Button>
-                  </div>
 
-                  <div className="flex gap-2">
                     {selectedEvent.source === 'google' && (
                       <Button
                         variant="outline"
-                        className="border-purple-500/30"
+                        size="sm"
+                        className="border-purple-500/30 text-xs"
                         onClick={() => {
                           // Open in Google Calendar
                           const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
                           window.open(googleCalendarUrl, '_blank');
                         }}
                       >
-                        Open in Google Calendar
+                        Open in Google
                       </Button>
                     )}
                     {selectedEvent.source === 'productivityquest' && (
                       <Button
                         variant="outline"
-                        className="border-purple-500/30"
+                        size="sm"
+                        className="border-purple-500/30 text-xs"
                         onClick={() => {
                           window.location.href = '/';
                         }}
                       >
-                        View Task Details
+                        View Details
                       </Button>
                     )}
+                    
                     <Button
+                      size="sm"
                       onClick={() => {
                         setSelectedEvent(null);
                         setShowDeleteMenu(false);
                         setShowRescheduleModal(false);
                       }}
-                      className="bg-purple-600 hover:bg-purple-700"
+                      className="bg-purple-600 hover:bg-purple-700 text-xs ml-auto"
                     >
                       Close
                     </Button>
@@ -1341,8 +1346,8 @@ export default function Calendar() {
 
                 {/* Delete Options Menu */}
                 {showDeleteMenu && (
-                  <div className="mt-4 p-4 bg-gray-800/50 border border-red-500/30 rounded-lg space-y-2">
-                    <p className="text-sm text-gray-400 mb-3">Choose delete option:</p>
+                  <div className="mt-4 p-3 bg-gray-800/50 border border-red-500/30 rounded-lg space-y-2">
+                    <p className="text-xs text-gray-400 mb-2">Choose delete option:</p>
                     
                     {/* Show different options based on event source */}
                     {selectedEvent.source === 'google' ? (
@@ -1350,7 +1355,8 @@ export default function Calendar() {
                       <>
                         <Button
                           variant="outline"
-                          className={`w-full justify-start ${
+                          size="sm"
+                          className={`w-full justify-start text-xs ${
                             !isTwoWaySync 
                               ? 'opacity-50 cursor-not-allowed border-gray-600' 
                               : 'border-red-500/30 hover:bg-red-500/10'
@@ -1370,23 +1376,23 @@ export default function Calendar() {
                             }
                           }}
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                           <div className="text-left flex-1">
-                            <div className="text-sm">Delete from Google Calendar</div>
+                            <div className="text-xs font-medium">Delete from Google Calendar</div>
                             {!isTwoWaySync ? (
-                              <div className="text-xs text-gray-500 mt-1">
-                                Enable Two-Way Sync in Google Calendar settings to use this option
+                              <div className="text-[10px] text-gray-500 mt-0.5">
+                                Enable Two-Way Sync to use this
                               </div>
                             ) : (
-                              <div className="text-xs text-gray-400 mt-1">
-                                Opens Google Calendar where you can delete this event
+                              <div className="text-[10px] text-gray-400 mt-0.5">
+                                Opens Google Calendar to delete
                               </div>
                             )}
                           </div>
                         </Button>
 
-                        <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-800/30 rounded">
-                          This is a Google Calendar event. To delete it, use Google Calendar directly.
+                        <div className="text-[10px] text-gray-500 mt-1 p-1.5 bg-gray-800/30 rounded">
+                          Google Calendar event - delete via Google Calendar
                         </div>
                       </>
                     ) : (
@@ -1394,7 +1400,8 @@ export default function Calendar() {
                       <>
                         <Button
                           variant="outline"
-                          className={`w-full justify-start ${
+                          size="sm"
+                          className={`w-full justify-start text-xs ${
                             !isTwoWaySync 
                               ? 'opacity-50 cursor-not-allowed border-gray-600' 
                               : 'border-red-500/30 hover:bg-red-500/10'
@@ -1402,12 +1409,12 @@ export default function Calendar() {
                           disabled={!isTwoWaySync}
                           onClick={() => handleDeleteEvent(true)}
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                           <div className="text-left flex-1">
-                            <div className="text-sm">Delete from App & Google Calendar</div>
+                            <div className="text-xs font-medium">App & Google Calendar</div>
                             {!isTwoWaySync && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                Enable Two-Way Sync in Google Calendar settings to use this option
+                              <div className="text-[10px] text-gray-500 mt-0.5">
+                                Enable Two-Way Sync to use this
                               </div>
                             )}
                           </div>
@@ -1415,14 +1422,15 @@ export default function Calendar() {
 
                         <Button
                           variant="outline"
-                          className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10"
+                          size="sm"
+                          className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-xs"
                           onClick={() => handleDeleteEvent(false)}
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                           <div className="text-left flex-1">
-                            <div className="text-sm">Delete from App Only</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Removes from app calendar and task list, keeps in Google Calendar
+                            <div className="text-xs font-medium">App Only</div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">
+                              Keeps in Google Calendar
                             </div>
                           </div>
                         </Button>
