@@ -433,6 +433,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (bodyData.dueDate && typeof bodyData.dueDate === 'string') {
         bodyData.dueDate = new Date(bodyData.dueDate);
       }
+      if (bodyData.scheduledTime && typeof bodyData.scheduledTime === 'string') {
+        bodyData.scheduledTime = new Date(bodyData.scheduledTime);
+      }
       
       const updateData = insertTaskSchema.partial().parse(bodyData);
       const task = await storage.updateTask(id, updateData, userId);
