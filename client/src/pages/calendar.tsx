@@ -678,6 +678,102 @@ export default function Calendar() {
     return { top, height: Math.max(height, 20) }; // Minimum 20px height
   };
 
+  // Detect overlapping events and calculate their layout columns
+  const getEventLayout = (events: CalendarEvent[]) => {
+    const layout: Map<string, { column: number; totalColumns: number }> = new Map();
+    
+    // Sort events by start time, then by duration (longer first)
+    const sortedEvents = [...events].sort((a, b) => {
+      const aStart = new Date(getEventDisplayTime(a).start).getTime();
+      const bStart = new Date(getEventDisplayTime(b).start).getTime();
+      if (aStart !== bStart) return aStart - bStart;
+      
+      // If same start time, longer events first
+      const aDuration = new Date(getEventDisplayTime(a).end).getTime() - aStart;
+      const bDuration = new Date(getEventDisplayTime(b).end).getTime() - bStart;
+      return bDuration - aDuration;
+    });
+    
+    // Track which columns are occupied at which time ranges
+    const columns: Array<{ start: number; end: number; eventId: string }[]> = [];
+    
+    sortedEvents.forEach(event => {
+      const displayTime = getEventDisplayTime(event);
+      const eventStart = new Date(displayTime.start).getTime();
+      const eventEnd = new Date(displayTime.end).getTime();
+      
+      // Find the first available column
+      let columnIndex = 0;
+      while (true) {
+        if (!columns[columnIndex]) {
+          columns[columnIndex] = [];
+        }
+        
+        // Check if this column has any overlapping events
+        const hasOverlap = columns[columnIndex].some(occupiedEvent => {
+          return !(eventEnd <= occupiedEvent.start || eventStart >= occupiedEvent.end);
+        });
+        
+        if (!hasOverlap) {
+          // This column is free, use it
+          columns[columnIndex].push({ start: eventStart, end: eventEnd, eventId: event.id });
+          break;
+        }
+        
+        columnIndex++;
+      }
+      
+      // Find all events that overlap with this one to determine total columns
+      let maxColumn = columnIndex;
+      sortedEvents.forEach(otherEvent => {
+        const otherTime = getEventDisplayTime(otherEvent);
+        const otherStart = new Date(otherTime.start).getTime();
+        const otherEnd = new Date(otherTime.end).getTime();
+        
+        // Check if events overlap
+        if (!(eventEnd <= otherStart || eventStart >= otherEnd)) {
+          const otherLayout = layout.get(otherEvent.id);
+          if (otherLayout && otherLayout.column > maxColumn) {
+            maxColumn = otherLayout.column;
+          }
+        }
+      });
+      
+      layout.set(event.id, { column: columnIndex, totalColumns: maxColumn + 1 });
+    });
+    
+    // Update all overlapping events to have the same totalColumns
+    layout.forEach((value, eventId) => {
+      const event = sortedEvents.find(e => e.id === eventId);
+      if (!event) return;
+      
+      const displayTime = getEventDisplayTime(event);
+      const eventStart = new Date(displayTime.start).getTime();
+      const eventEnd = new Date(displayTime.end).getTime();
+      
+      let maxColumns = value.totalColumns;
+      layout.forEach((otherValue, otherEventId) => {
+        if (eventId === otherEventId) return;
+        
+        const otherEvent = sortedEvents.find(e => e.id === otherEventId);
+        if (!otherEvent) return;
+        
+        const otherTime = getEventDisplayTime(otherEvent);
+        const otherStart = new Date(otherTime.start).getTime();
+        const otherEnd = new Date(otherTime.end).getTime();
+        
+        // Check if events overlap
+        if (!(eventEnd <= otherStart || eventStart >= otherEnd)) {
+          maxColumns = Math.max(maxColumns, otherValue.totalColumns);
+        }
+      });
+      
+      value.totalColumns = maxColumns;
+    });
+    
+    return layout;
+  };
+
   // Get dates for 3-day view
   const get3DayDates = () => {
     const dates = [];
@@ -1016,70 +1112,83 @@ export default function Calendar() {
                     })()}
                     
                     {/* Events with absolute positioning */}
-                    {getEventsForDate(currentDate).map((event, idx) => {
-                      const eventStyle = getEventStyle(event);
-                      const displayTime = getEventDisplayTime(event);
-                      const position = getEventPosition(event);
-                      const isDragging = draggingEvent?.id === event.id;
-                      const isResizing = resizingEvent?.id === event.id;
-                      const isDraggable = event.source === 'productivityquest';
+                    {(() => {
+                      const dayEvents = getEventsForDate(currentDate);
+                      const eventLayout = getEventLayout(dayEvents);
                       
-                      return (
-                        <div
-                          key={idx}
-                          className={`absolute left-2 right-2 rounded border group overflow-hidden ${
-                            isDraggable ? 'cursor-move' : 'cursor-pointer'
-                          } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
-                          style={{ 
-                            top: `${position.top}px`,
-                            height: `${position.height}px`,
-                            backgroundColor: eventStyle.backgroundColor,
-                            borderColor: eventStyle.borderColor,
-                            color: eventStyle.color,
-                            zIndex: 10,
-                            padding: position.height < 25 ? '2px 4px' : position.height < 40 ? '4px 6px' : '8px'
-                          }}
-                          onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
-                          onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
-                        >
-                          {/* Top resize handle */}
-                          {isDraggable && position.height > 20 && (
-                            <div
-                              className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t"
-                              onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
-                            />
-                          )}
-                          
-                          <div className={`font-medium truncate ${position.height < 25 ? 'text-[9px]' : position.height < 40 ? 'text-[10px]' : 'text-xs'}`}>
-                            {event.title}
+                      return dayEvents.map((event, idx) => {
+                        const eventStyle = getEventStyle(event);
+                        const displayTime = getEventDisplayTime(event);
+                        const position = getEventPosition(event);
+                        const layout = eventLayout.get(event.id) || { column: 0, totalColumns: 1 };
+                        const isDragging = draggingEvent?.id === event.id;
+                        const isResizing = resizingEvent?.id === event.id;
+                        const isDraggable = event.source === 'productivityquest';
+                        
+                        // Calculate left and width based on column layout
+                        const columnWidth = 100 / layout.totalColumns;
+                        const leftPercent = layout.column * columnWidth;
+                        const widthPercent = columnWidth;
+                        
+                        return (
+                          <div
+                            key={idx}
+                            className={`absolute rounded border group overflow-hidden ${
+                              isDraggable ? 'cursor-move' : 'cursor-pointer'
+                            } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
+                            style={{ 
+                              top: `${position.top}px`,
+                              left: `calc(0.5rem + ${leftPercent}%)`,
+                              width: `calc(${widthPercent}% - ${layout.totalColumns > 1 ? '0.25rem' : '1rem'})`,
+                              height: `${position.height}px`,
+                              backgroundColor: eventStyle.backgroundColor,
+                              borderColor: eventStyle.borderColor,
+                              color: eventStyle.color,
+                              zIndex: 10,
+                              padding: position.height < 25 ? '2px 4px' : position.height < 40 ? '4px 6px' : '8px'
+                            }}
+                            onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                            onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
+                          >
+                            {/* Top resize handle */}
+                            {isDraggable && position.height > 20 && (
+                              <div
+                                className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t"
+                                onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                              />
+                            )}
+                            
+                            <div className={`font-medium truncate ${position.height < 25 ? 'text-[9px]' : position.height < 40 ? 'text-[10px]' : 'text-xs'}`}>
+                              {event.title}
+                            </div>
+                            {position.height > 35 && (
+                              <div className="text-[10px] opacity-70 truncate">
+                                {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                {position.height > 45 && (
+                                  <>
+                                    {' - '}
+                                    {displayTime.end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {position.height > 60 && event.description && (
+                              <div className="opacity-80 truncate mt-1 text-[10px]">
+                                {event.description}
+                              </div>
+                            )}
+                            
+                            {/* Bottom resize handle */}
+                            {isDraggable && position.height > 20 && (
+                              <div
+                                className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b"
+                                onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                              />
+                            )}
                           </div>
-                          {position.height > 35 && (
-                            <div className="text-[10px] opacity-70 truncate">
-                              {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                              {position.height > 45 && (
-                                <>
-                                  {' - '}
-                                  {displayTime.end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                </>
-                              )}
-                            </div>
-                          )}
-                          {position.height > 60 && event.description && (
-                            <div className="opacity-80 truncate mt-1 text-[10px]">
-                              {event.description}
-                            </div>
-                          )}
-                          
-                          {/* Bottom resize handle */}
-                          {isDraggable && position.height > 20 && (
-                            <div
-                              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b"
-                              onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>
