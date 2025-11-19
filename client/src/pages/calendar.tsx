@@ -916,39 +916,25 @@ export default function Calendar() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-24 pb-8 px-8">
       <div className={`${isMobile ? 'max-w-full' : 'max-w-7xl'} mx-auto`}>
-        {/* Header */}
-        <div className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'} mb-8`}>
-          <div className="flex items-center gap-3">
-            <div className={`${isMobile ? 'p-2' : 'p-3'} bg-purple-500/20 rounded-lg`}>
-              <CalendarIcon className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-purple-400`} />
-            </div>
-            <div>
-              <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400`}>
-                Calendar
-              </h1>
-              <p className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>Synced with Google Calendar</p>
-            </div>
-          </div>
-
-          <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
-            <Link href="/settings/google-calendar">
-              <Button variant="outline" className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs' : ''}`}>
-                <Settings className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
-                Settings
-              </Button>
-            </Link>
-            <Button className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 ${isMobile ? 'flex-1 text-xs' : ''}`}>
-              <Plus className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
-              New Event
-            </Button>
-          </div>
-        </div>
-
         {/* Calendar Card */}
         <Card className={`${isMobile ? 'p-3' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
           {/* View Selector and Month Navigation */}
           <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'} mb-6`}>
             <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center gap-4'}`}>
+              {/* Settings and New Event buttons */}
+              <div className="flex gap-2">
+                <Link href="/settings/google-calendar">
+                  <Button variant="outline" size={isMobile ? "sm" : "default"} className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10">
+                    <Settings className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${isMobile ? '' : 'mr-2'}`} />
+                    {!isMobile && 'Settings'}
+                  </Button>
+                </Link>
+                <Button size={isMobile ? "sm" : "default"} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
+                  <Plus className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${isMobile ? '' : 'mr-2'}`} />
+                  {!isMobile && 'New Event'}
+                </Button>
+              </div>
+
               <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
                 {monthNames[month]} {year}
               </h2>
@@ -1048,7 +1034,7 @@ export default function Calendar() {
           {view === 'day' && (
             <div 
               ref={dayViewRef} 
-              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-300px)]' : 'max-h-[600px]'}`}
+              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-240px)]' : 'max-h-[calc(100vh-280px)]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
@@ -1199,7 +1185,7 @@ export default function Calendar() {
           {view === '3day' && (
             <div 
               ref={threeDayViewRef} 
-              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'max-h-[calc(100vh-300px)]' : 'max-h-[600px]'}`}
+              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'max-h-[calc(100vh-240px)]' : 'max-h-[calc(100vh-280px)]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
@@ -1312,7 +1298,7 @@ export default function Calendar() {
           {view === 'week' && (
             <div 
               ref={weekViewRef} 
-              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-300px)]' : 'max-h-[600px]'}`}
+              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-240px)]' : 'max-h-[calc(100vh-280px)]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
