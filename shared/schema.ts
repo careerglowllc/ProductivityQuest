@@ -52,7 +52,7 @@ export const tasks = pgTable("tasks", {
   duration: integer("duration").notNull(), // in minutes
   goldValue: integer("gold_value").notNull(),
   dueDate: timestamp("due_date"),
-  scheduledTime: text("scheduled_time"), // Time of day (HH:MM format) when task is scheduled in calendar
+  scheduledTime: timestamp("scheduledTime"), // Timestamp when task is scheduled in calendar (if null, defaults to 9 AM on due date)
   completed: boolean("completed").default(false),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
