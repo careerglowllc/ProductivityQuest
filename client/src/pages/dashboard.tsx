@@ -616,7 +616,7 @@ export default function Dashboard() {
             </Card>
           </Link>
 
-          <Link href="/rewards">
+          <Link href="/recycling-bin">
             <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group ${isMobile ? 'h-full' : ''}`}>
               <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
                 <Trash2 className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-orange-400 group-hover:text-orange-300 transition-colors`} />
