@@ -53,6 +53,7 @@ export default function Calendar() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const dayViewRef = useRef<HTMLDivElement>(null);
   const threeDayViewRef = useRef<HTMLDivElement>(null);
   const weekViewRef = useRef<HTMLDivElement>(null);
@@ -516,6 +517,66 @@ export default function Calendar() {
   const handleReschedule = () => {
     setShowRescheduleModal(true);
     setShowDeleteMenu(false);
+    setShowColorPicker(false);
+  };
+
+  // Calendar color options (Apple Calendar style)
+  const calendarColors = [
+    { name: 'Purple', value: '#9333ea' },
+    { name: 'Pink', value: '#ec4899' },
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Orange', value: '#f97316' },
+    { name: 'Yellow', value: '#eab308' },
+    { name: 'Green', value: '#22c55e' },
+    { name: 'Teal', value: '#14b8a6' },
+    { name: 'Cyan', value: '#06b6d4' },
+    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Indigo', value: '#6366f1' },
+    { name: 'Violet', value: '#8b5cf6' },
+    { name: 'Fuchsia', value: '#d946ef' },
+  ];
+
+  // Handle color change
+  const handleColorChange = async (color: string) => {
+    if (!selectedEvent || selectedEvent.source !== 'productivityquest') return;
+
+    const taskId = selectedEvent.id.replace('task-', '');
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ calendarColor: color }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Color Updated",
+          description: "Event color changed successfully",
+        });
+
+        // Update local state
+        setSelectedEvent({ ...selectedEvent, calendarColor: color });
+
+        // Refresh calendar data
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+
+        setShowColorPicker(false);
+      } else {
+        throw new Error('Failed to update color');
+      }
+    } catch (error) {
+      console.error('Failed to update color:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update event color. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Helper function to get event background style
@@ -1423,10 +1484,13 @@ export default function Calendar() {
         {selectedEvent && (
           <div 
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setSelectedEvent(null)}
+            onClick={() => {
+              setSelectedEvent(null);
+              setShowColorPicker(false);
+            }}
           >
             <Card 
-              className="bg-gray-900/95 border-purple-500/30 max-w-lg w-full"
+              className="bg-gray-900/95 border-purple-500/30 max-w-lg w-full relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header with colored accent */}
@@ -1437,9 +1501,44 @@ export default function Calendar() {
                 }}
               />
               
+              {/* Color Picker Button (Only for ProductivityQuest events) */}
+              {selectedEvent.source === 'productivityquest' && (
+                <div className="absolute top-4 right-4 z-10">
+                  <button
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="w-8 h-8 rounded-full border-2 border-white/20 hover:border-white/40 transition-colors shadow-lg"
+                    style={{ backgroundColor: selectedEvent.calendarColor || '#9333ea' }}
+                    title="Change color"
+                  />
+                  
+                  {/* Color Picker Dropdown */}
+                  {showColorPicker && (
+                    <div 
+                      className="absolute top-10 right-0 bg-gray-800/95 border border-purple-500/30 rounded-lg shadow-xl p-3 backdrop-blur-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="grid grid-cols-4 gap-2 w-40">
+                        {calendarColors.map((color) => (
+                          <button
+                            key={color.value}
+                            onClick={() => handleColorChange(color.value)}
+                            className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
+                            style={{ 
+                              backgroundColor: color.value,
+                              borderColor: selectedEvent.calendarColor === color.value ? '#fff' : 'transparent'
+                            }}
+                            title={color.name}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="p-6">
                 {/* Title */}
-                <h3 className="text-2xl font-bold text-white mb-4">
+                <h3 className="text-2xl font-bold text-white mb-4 pr-8">
                   {selectedEvent.title}
                 </h3>
 
@@ -1619,7 +1718,10 @@ export default function Calendar() {
                       variant="outline"
                       size="sm"
                       className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
-                      onClick={() => setShowDeleteMenu(!showDeleteMenu)}
+                      onClick={() => {
+                        setShowDeleteMenu(!showDeleteMenu);
+                        setShowColorPicker(false);
+                      }}
                     >
                       <Trash2 className="w-3 h-3 mr-1" />
                       Delete
