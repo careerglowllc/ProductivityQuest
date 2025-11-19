@@ -252,10 +252,12 @@ const skillMilestones: Record<string, Array<{
     { id: 'gratitude', title: 'Daily Gratitude Practice', level: 5, x: 35, y: 72, parents: ['start'] },
     { id: 'reframe', title: 'Master Reframing', level: 7, x: 65, y: 72, parents: ['start'] },
     
-    // Level 3: Deeper practice
+    // Level 3: Deeper practice & Habit elimination
+    { id: 'eliminate-1-habit', title: 'Eliminate 1 Bad Habit', level: 12, x: 20, y: 62, parents: ['gratitude'] },
     { id: 'meditation', title: '100 Days of Meditation', level: 15, x: 28, y: 56, parents: ['gratitude'] },
     { id: 'awareness', title: 'Develop Self-Awareness', level: 17, x: 50, y: 54, parents: ['gratitude', 'reframe'] },
     { id: 'resilience', title: 'Unshakeable Resilience', level: 20, x: 72, y: 56, parents: ['reframe'] },
+    { id: 'eliminate-2-habits', title: 'Eliminate 2 Bad Habits', level: 25, x: 18, y: 45, parents: ['eliminate-1-habit'] },
     
     // Level 4: Mastery
     { id: 'flow', title: 'Enter Flow State', level: 35, x: 40, y: 38, parents: ['meditation', 'awareness'] },
@@ -422,12 +424,14 @@ const skillMilestones: Record<string, Array<{
     // Level 3: Building healthy habits
     { id: 'blood-biomarkers', title: 'Within Range for Blood Test Biomarkers', x: 20, y: 72, parents: ['dentist-checkup', 'doctor-checkup'] },
     { id: 'exercise', title: 'Regular Exercise', level: 15, x: 35, y: 70, parents: ['nutrition'] },
+    { id: 'keto-3months', title: 'Keto Diet for 3 Months', level: 15, x: 12, y: 68, parents: ['nutrition'] },
     { id: 'sleep-30days', title: 'Get at Least 8 Hours of Sleep for 30 Nights Straight', x: 50, y: 68, parents: ['sleep'] },
     { id: 'resting-hr', title: 'Resting Heart Rate Under 80 BPM', x: 65, y: 70, parents: ['sleep', 'doctor-checkup'] },
     { id: 'markers', title: 'Optimal Health Markers', level: 18, x: 80, y: 72, parents: ['doctor-checkup'] },
     
     // Level 4: Sustained improvement
     { id: 'sleep-60days', title: 'Get at Least 8 Hours of Sleep for 60 Nights Straight', x: 25, y: 58, parents: ['sleep-30days'] },
+    { id: 'keto-1year', title: 'Keto Diet for 1 Year', level: 30, x: 10, y: 52, parents: ['keto-3months'] },
     { id: 'optimize-nutrition', title: 'Optimized Nutrition Plan', x: 40, y: 56, parents: ['exercise', 'blood-biomarkers'] },
     { id: 'sleep-90days', title: 'Get at Least 8 Hours of Sleep for 90 Nights Straight', x: 55, y: 54, parents: ['sleep-60days'] },
     { id: 'advanced-metrics', title: 'Advanced Health Metrics', x: 70, y: 56, parents: ['resting-hr', 'markers'] },
@@ -435,6 +439,7 @@ const skillMilestones: Record<string, Array<{
     // Level 5: Long-term consistency
     { id: 'sleep-100days', title: 'Get at Least 8 Hours of Sleep for 100 Nights Straight', x: 30, y: 44, parents: ['sleep-90days'] },
     { id: 'optimize', title: 'Peak Optimization', level: 35, x: 45, y: 42, parents: ['optimize-nutrition', 'sleep-90days'] },
+    { id: 'keto-3years', title: 'Keto Diet for 3 Years', level: 50, x: 8, y: 36, parents: ['keto-1year'] },
     { id: 'sleep-150days', title: 'Get at Least 8 Hours of Sleep for 150 Nights Straight', x: 60, y: 40, parents: ['sleep-100days'] },
     { id: 'longevity', title: 'Longevity Protocols', level: 40, x: 75, y: 44, parents: ['advanced-metrics'] },
     
