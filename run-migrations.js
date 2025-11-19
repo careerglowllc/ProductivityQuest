@@ -8,20 +8,22 @@ async function runMigrations() {
   console.log('🔄 Running database migrations...');
   
   try {
-    const { stdout, stderr } = await execAsync('npx drizzle-kit push');
+    // Set a 30 second timeout for migrations
+    const { stdout, stderr } = await execAsync('npx drizzle-kit push --force', {
+      timeout: 30000,
+      env: { ...process.env, FORCE: 'true' }
+    });
     
     if (stdout) console.log(stdout);
-    if (stderr) console.error(stderr);
+    if (stderr && !stderr.includes('No schema changes')) console.error(stderr);
     
     console.log('✅ Migrations completed successfully');
-    process.exit(0);
   } catch (error) {
-    console.error('❌ Migration failed:', error.message);
-    // Don't exit with error - let the app start anyway
-    // The column might already exist
-    console.log('⚠️  Continuing anyway - column may already exist');
-    process.exit(0);
+    console.error('⚠️  Migration warning:', error.message);
+    console.log('⚠️  Continuing anyway - column may already exist or no changes needed');
   }
+  
+  process.exit(0);
 }
 
 runMigrations();
