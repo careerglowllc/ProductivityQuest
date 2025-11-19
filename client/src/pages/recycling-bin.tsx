@@ -62,6 +62,11 @@ export default function RecyclingBin() {
       queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/progress"] });
+      // Invalidate all calendar event queries (matches any year/month params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0]?.toString().startsWith('/api/google-calendar/events') || false
+      });
       toast({
         title: "Task Restored",
         description: `"${data.title}" has been restored to your task list.`,
@@ -150,6 +155,11 @@ export default function RecyclingBin() {
 
       queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      // Invalidate all calendar event queries (matches any year/month params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0]?.toString().startsWith('/api/google-calendar/events') || false
+      });
 
       toast({
         title: "Tasks Restored",

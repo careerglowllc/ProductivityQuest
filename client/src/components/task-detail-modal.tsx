@@ -55,6 +55,11 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      // Invalidate all calendar event queries (matches any year/month params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0]?.toString().startsWith('/api/google-calendar/events') || false
+      });
       setIsDatePickerOpen(false);
       toast({
         title: "📅 Due Date Updated",
@@ -83,7 +88,11 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      // Invalidate all calendar event queries (matches any year/month params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0]?.toString().startsWith('/api/google-calendar/events') || false
+      });
       setIsEditingDuration(false);
       toast({
         title: "⏱️ Duration Updated",

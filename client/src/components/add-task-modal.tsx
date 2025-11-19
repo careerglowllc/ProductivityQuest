@@ -53,6 +53,11 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      // Invalidate all calendar event queries (matches any year/month params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0]?.toString().startsWith('/api/google-calendar/events') || false
+      });
       toast({
         title: "✓ Quest Created!",
         description: "Your new quest has been added to the list.",
