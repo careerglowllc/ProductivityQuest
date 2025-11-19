@@ -281,7 +281,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
             className="flex-1 cursor-pointer"
             onClick={() => setShowDetailModal(true)}
           >
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h3 className={cn(
                 "text-lg font-semibold text-yellow-100 mb-1",
@@ -292,31 +292,31 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
               <p className="text-yellow-200/70 text-sm mb-2">
                 {task.description}
               </p>
-              <div className="flex items-center space-x-4 text-sm text-yellow-300/60 mb-2">
-                <div className="flex items-center space-x-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{formatDuration(task.duration)}</span>
+              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-yellow-300/60 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 flex-shrink-0" />
+                  <span className="whitespace-nowrap">{formatDuration(task.duration)}</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>{formatDate(task.dueDate)}</span>
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <span className="whitespace-nowrap">{formatDate(task.dueDate)}</span>
                 </div>
                 {task.importance && (
-                  <div className="flex items-center space-x-1">
-                    <span>{task.importance === "Pareto" ? "🔥" : task.importance === "High" ? "🚨" : task.importance === "Med-High" ? "⚠️" : task.importance === "Medium" ? "📋" : task.importance === "Med-Low" ? "📝" : "📄"}</span>
-                    <span>{task.importance}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex-shrink-0">{task.importance === "Pareto" ? "🔥" : task.importance === "High" ? "🚨" : task.importance === "Med-High" ? "⚠️" : task.importance === "Medium" ? "📋" : task.importance === "Med-Low" ? "📝" : "📄"}</span>
+                    <span className="whitespace-nowrap">{task.importance}</span>
                   </div>
                 )}
                 {task.recurType && (
-                  <div className="flex items-center space-x-1">
-                    <span>{task.recurType === "🔄Recurring" ? "🔄" : "⏳"}</span>
-                    <span>{task.recurType === "🔄Recurring" ? "Recurring" : "One-time"}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex-shrink-0">{task.recurType === "🔄Recurring" ? "🔄" : "⏳"}</span>
+                    <span className="whitespace-nowrap">{task.recurType === "🔄Recurring" ? "Recurring" : "One-time"}</span>
                   </div>
                 )}
                 {task.completed && task.completedAt && (
-                  <div className="flex items-center space-x-1 text-green-400">
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Completed</span>
+                  <div className="flex items-center gap-1.5 text-green-400">
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Completed</span>
                   </div>
                 )}
               </div>
@@ -397,14 +397,14 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
             <Badge 
               variant={task.completed ? "secondary" : "default"}
               className={cn(
-                "flex items-center space-x-1 px-3 py-1",
+                "flex items-center gap-1.5 px-2.5 py-1 flex-shrink-0",
                 task.completed 
                   ? "bg-green-900/40 text-green-200 border border-green-600/40"
                   : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
               )}
             >
-              <Coins className="w-4 h-4" />
-              <span className="font-semibold">{task.goldValue}</span>
+              <Coins className="w-4 h-4 flex-shrink-0" />
+              <span className="font-semibold whitespace-nowrap">{task.goldValue}</span>
             </Badge>
           </div>
           </div>

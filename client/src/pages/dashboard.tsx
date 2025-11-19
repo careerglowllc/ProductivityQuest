@@ -204,7 +204,7 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
   
   const size = 400; // Reduced from 500 for more compact display
   const center = size / 2;
-  const radius = size / 2 - 80; // Reduced padding from 100 to 80
+  const radius = size / 2 - 90; // Increased padding from 80 to 90 for better fit
   const numSkills = skills.length;
 
   // Helper function to get skill icon
@@ -583,17 +583,101 @@ export default function Dashboard() {
         <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+        {/* Quick Actions - At top on mobile, 1x4 horizontal */}
+        <div className={`${isMobile ? 'grid grid-cols-4 gap-2 mb-2' : 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-8'}`}>
+          <Link href="/tasks">
+            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group ${isMobile ? 'h-full' : ''}`}>
+              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+                <CheckCircle className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-purple-400 group-hover:text-purple-300 transition-colors`} />
+                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Tasks</h3>
+                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Manage your quests</p>}
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/skills">
+            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-blue-500/30 hover:border-blue-400/60 group ${isMobile ? 'h-full' : ''}`}>
+              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+                <Sparkles className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-blue-400 group-hover:text-blue-300 transition-colors`} />
+                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Skills</h3>
+                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Level up abilities</p>}
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/shop">
+            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-green-500/30 hover:border-green-400/60 group ${isMobile ? 'h-full' : ''}`}>
+              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+                <ShoppingCart className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-green-400 group-hover:text-green-300 transition-colors`} />
+                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Item Shop</h3>
+                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Spend your gold</p>}
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/rewards">
+            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group ${isMobile ? 'h-full' : ''}`}>
+              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+                <Trash2 className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-orange-400 group-hover:text-orange-300 transition-colors`} />
+                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Recycling</h3>
+                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">View completed</p>}
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Second Row - NPCs, Calendar, Settings, Placeholder */}
+        <div className={`${isMobile ? 'grid grid-cols-4 gap-2 mb-4' : 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-8'}`}>
+          <Link href="/npcs">
+            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-cyan-500/30 hover:border-cyan-400/60 group ${isMobile ? 'h-full' : ''}`}>
+              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+                <User className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-cyan-400 group-hover:text-cyan-300 transition-colors`} />
+                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>NPCs</h3>
+                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Your network</p>}
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/calendar">
+            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-pink-500/30 hover:border-pink-400/60 group ${isMobile ? 'h-full' : ''}`}>
+              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+                <Calendar className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-pink-400 group-hover:text-pink-300 transition-colors`} />
+                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Calendar</h3>
+                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Schedule events</p>}
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/settings">
+            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/30 hover:border-yellow-400/60 group ${isMobile ? 'h-full' : ''}`}>
+              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+                <Settings className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-yellow-400 group-hover:text-yellow-300 transition-colors`} />
+                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Settings</h3>
+                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Manage account</p>}
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group ${isMobile ? 'h-full' : ''}`}>
+            <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
+              <Target className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-gray-400 group-hover:text-gray-300 transition-colors`} />
+              <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Placeholder</h3>
+              {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Coming soon</p>}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Active Questlines Section */}
         <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
-          <CardContent className="p-3">
+          <CardContent className={isMobile ? 'p-3' : 'p-3'}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-purple-400" />
-                <h3 className="text-sm font-serif font-bold text-purple-100">Active Questlines</h3>
+                <Target className={`${isMobile ? 'h-4 w-4' : 'h-4 w-4'} text-purple-400`} />
+                <h3 className={`${isMobile ? 'text-sm' : 'text-sm'} font-serif font-bold text-purple-100`}>Active Questlines</h3>
               </div>
               <Link href="/campaigns">
-                <Button variant="outline" size="sm" className="h-7 px-3 text-xs border-purple-600/40 bg-slate-700/50 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100 hover:border-purple-500/60">
+                <Button variant="outline" size="sm" className={`h-7 px-3 ${isMobile ? 'text-xs' : 'text-xs'} border-purple-600/40 bg-slate-700/50 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100 hover:border-purple-500/60`}>
                   <Target className="w-3 h-3 mr-1" />
                   Manage
                 </Button>
@@ -603,9 +687,9 @@ export default function Dashboard() {
             {/* No Campaigns Selected State */}
             {selectedCampaigns.length === 0 ? (
               <div className="text-center py-6">
-                <Target className="w-12 h-12 text-purple-400/40 mx-auto mb-3" />
-                <h4 className="text-sm font-semibold text-purple-200 mb-1">No Active Questlines</h4>
-                <p className="text-xs text-purple-300/70 mb-3 max-w-md mx-auto">
+                <Target className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} text-purple-400/40 mx-auto mb-3`} />
+                <h4 className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-purple-200 mb-1`}>No Active Questlines</h4>
+                <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-purple-300/70 mb-3 max-w-md mx-auto`}>
                   Select up to 2 questlines from the Questlines page to track your major life objectives.
                 </p>
                 <Link href="/campaigns">
@@ -724,7 +808,7 @@ export default function Dashboard() {
               <Dialog>
                 <DialogTrigger asChild>
                   <div className="cursor-pointer relative group w-full">
-                    <div className={`${!isMobile ? 'scale-[0.7]' : 'scale-[0.45]'} origin-center transform ${!isMobile ? '-my-12' : '-my-32'}`}>
+                    <div className={`${!isMobile ? 'scale-[0.7]' : 'scale-[0.5]'} origin-center transform ${!isMobile ? '-my-12' : '-my-28'}`}>
                       {skillsLoading ? (
                         <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
                           Loading skills...
@@ -838,49 +922,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           </div>
-        </div>
-
-        {/* Quick Actions - Skyrim Style */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link href="/tasks">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group">
-              <CardContent className="p-6 text-center">
-                <CheckCircle className="w-12 h-12 mx-auto mb-3 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                <h3 className="font-semibold text-yellow-100 font-serif">Tasks</h3>
-                <p className="text-sm text-yellow-200/60 mt-1">Manage your quests</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/skills">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-blue-500/30 hover:border-blue-400/60 group">
-              <CardContent className="p-6 text-center">
-                <Sparkles className="w-12 h-12 mx-auto mb-3 text-blue-400 group-hover:text-blue-300 transition-colors" />
-                <h3 className="font-semibold text-yellow-100 font-serif">Skills</h3>
-                <p className="text-sm text-yellow-200/60 mt-1">Level up abilities</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/shop">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-green-500/30 hover:border-green-400/60 group">
-              <CardContent className="p-6 text-center">
-                <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-green-400 group-hover:text-green-300 transition-colors" />
-                <h3 className="font-semibold text-yellow-100 font-serif">Item Shop</h3>
-                <p className="text-sm text-yellow-200/60 mt-1">Spend your gold</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/rewards">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group">
-              <CardContent className="p-6 text-center">
-                <Trash2 className="w-12 h-12 mx-auto mb-3 text-orange-400 group-hover:text-orange-300 transition-colors" />
-                <h3 className="font-semibold text-yellow-100 font-serif">Recycling</h3>
-                <p className="text-sm text-yellow-200/60 mt-1">View completed</p>
-              </CardContent>
-            </Card>
-          </Link>
         </div>
       </div>
     </div>

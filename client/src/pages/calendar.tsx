@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useState, useEffect, useRef } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import React from "react";
 
 type UserSettings = {
@@ -33,6 +34,7 @@ type CalendarEvent = {
 
 export default function Calendar() {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   
   // Load saved view preference from localStorage, default to 'month'
@@ -397,7 +399,7 @@ export default function Calendar() {
   
   // Empty cells for days before month starts
   for (let i = 0; i < startingDayOfWeek; i++) {
-    calendarDays.push(<div key={`empty-${i}`} className="min-h-24 p-2 bg-gray-900/20" />);
+    calendarDays.push(<div key={`empty-${i}`} className={`${isMobile ? 'min-h-12 p-0.5' : 'min-h-24 p-2'} bg-gray-900/20`} />);
   }
   
   // Days of the month
@@ -407,23 +409,23 @@ export default function Calendar() {
     calendarDays.push(
       <div
         key={day}
-        className={`min-h-24 p-2 border border-purple-500/20 bg-gray-900/40 hover:bg-gray-800/60 transition-colors cursor-pointer ${
+        className={`${isMobile ? 'min-h-12 p-0.5' : 'min-h-24 p-2'} border border-purple-500/20 bg-gray-900/40 hover:bg-gray-800/60 transition-colors cursor-pointer ${
           isToday(day) ? 'ring-2 ring-yellow-400/50 bg-yellow-400/10' : ''
         }`}
       >
-        <div className={`text-sm font-medium mb-1 ${
+        <div className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-medium mb-1 ${
           isToday(day) ? 'text-yellow-400' : 'text-purple-300'
         }`}>
           {day}
         </div>
         {/* Display events for this day */}
-        <div className="space-y-1">
-          {dayEvents.slice(0, 3).map(event => {
+        <div className="space-y-0.5">
+          {dayEvents.slice(0, isMobile ? 1 : 3).map(event => {
             const eventStyle = getEventStyle(event);
             return (
               <div
                 key={event.id}
-                className={`text-xs p-1 rounded truncate border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
+                className={`${isMobile ? 'text-[8px] p-0.5' : 'text-xs p-1'} rounded truncate border cursor-pointer hover:opacity-80 ${eventStyle.className || ''}`}
                 style={eventStyle.backgroundColor ? { 
                   backgroundColor: eventStyle.backgroundColor,
                   borderColor: eventStyle.borderColor,
@@ -439,9 +441,9 @@ export default function Calendar() {
               </div>
             );
           })}
-          {dayEvents.length > 3 && (
-            <div className="text-xs text-gray-500">
-              +{dayEvents.length - 3} more
+          {dayEvents.length > (isMobile ? 1 : 3) && (
+            <div className={`${isMobile ? 'text-[8px]' : 'text-xs'} text-gray-500`}>
+              +{dayEvents.length - (isMobile ? 1 : 3)}
             </div>
           )}
         </div>
@@ -451,7 +453,7 @@ export default function Calendar() {
 
   if (!googleConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-24 pb-8 px-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -507,50 +509,50 @@ export default function Calendar() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-24 pb-8 px-8">
+      <div className={`${isMobile ? 'max-w-full' : 'max-w-7xl'} mx-auto`}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'} mb-8`}>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-500/20 rounded-lg">
-              <CalendarIcon className="w-8 h-8 text-purple-400" />
+            <div className={`${isMobile ? 'p-2' : 'p-3'} bg-purple-500/20 rounded-lg`}>
+              <CalendarIcon className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-purple-400`} />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+              <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400`}>
                 Calendar
               </h1>
-              <p className="text-gray-400 text-sm">Synced with Google Calendar</p>
+              <p className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>Synced with Google Calendar</p>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
             <Link href="/settings/google-calendar">
-              <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10">
-                <Settings className="w-4 h-4 mr-2" />
+              <Button variant="outline" className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs' : ''}`}>
+                <Settings className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
                 Settings
               </Button>
             </Link>
-            <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 ${isMobile ? 'flex-1 text-xs' : ''}`}>
+              <Plus className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
               New Event
             </Button>
           </div>
         </div>
 
         {/* Calendar Card */}
-        <Card className="p-6 bg-gray-900/60 border-purple-500/20">
+        <Card className={`${isMobile ? 'p-3' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
           {/* View Selector and Month Navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-bold text-white">
+          <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'} mb-6`}>
+            <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center gap-4'}`}>
+              <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
                 {monthNames[month]} {year}
               </h2>
               
               {/* View Selector */}
-              <div className="flex gap-1 bg-gray-800/60 p-1 rounded-lg border border-purple-500/20">
+              <div className={`flex gap-1 bg-gray-800/60 p-1 rounded-lg border border-purple-500/20 ${isMobile ? 'w-full' : ''}`}>
                 <button
                   onClick={() => setView('day')}
-                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === 'day' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -560,7 +562,7 @@ export default function Calendar() {
                 </button>
                 <button
                   onClick={() => setView('3day')}
-                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === '3day' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -570,7 +572,7 @@ export default function Calendar() {
                 </button>
                 <button
                   onClick={() => setView('week')}
-                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === 'week' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -580,7 +582,7 @@ export default function Calendar() {
                 </button>
                 <button
                   onClick={() => setView('month')}
-                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === 'month' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -591,27 +593,27 @@ export default function Calendar() {
               </div>
             </div>
             
-            <div className="flex gap-2">
+            <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
               <Button
                 onClick={previousMonth}
                 variant="outline"
-                className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-8' : ''}`}
               >
-                ← Previous
+                {isMobile ? '←' : '← Previous'}
               </Button>
               <Button
                 onClick={() => setCurrentDate(new Date())}
                 variant="outline"
-                className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-8' : ''}`}
               >
                 Today
               </Button>
               <Button
                 onClick={nextMonth}
                 variant="outline"
-                className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-8' : ''}`}
               >
-                Next →
+                {isMobile ? '→' : 'Next →'}
               </Button>
             </div>
           </div>
@@ -622,9 +624,9 @@ export default function Calendar() {
               {dayNames.map(day => (
                 <div
                   key={day}
-                  className="p-3 text-center font-semibold text-purple-300 bg-gray-800/60"
+                  className={`${isMobile ? 'p-1.5 text-xs' : 'p-3'} text-center font-semibold text-purple-300 bg-gray-800/60`}
                 >
-                  {day}
+                  {isMobile ? day.slice(0, 3) : day}
                 </div>
               ))}
             </div>
@@ -641,34 +643,34 @@ export default function Calendar() {
           {view === 'day' && (
             <div 
               ref={dayViewRef} 
-              className="overflow-auto max-h-[600px]"
+              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-300px)]' : 'max-h-[600px]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <div className="min-w-[600px]">
+              <div className={isMobile ? 'min-w-full' : 'min-w-[600px]'}>
                 {/* Day Header */}
-                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20 sticky top-0 z-10">
+                <div className={`grid ${isMobile ? 'grid-cols-[60px_1fr]' : 'grid-cols-[80px_1fr]'} gap-px bg-purple-500/20 sticky top-0 z-10`}>
                   <div className="bg-gray-800/60 p-3"></div>
-                  <div className="bg-gray-800/60 p-3 text-center">
-                    <div className="font-semibold text-purple-300">
-                      {currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                  <div className={`bg-gray-800/60 ${isMobile ? 'p-2' : 'p-3'} text-center`}>
+                    <div className={`font-semibold text-purple-300 ${isMobile ? 'text-xs' : ''}`}>
+                      {currentDate.toLocaleDateString('en-US', { weekday: isMobile ? 'short' : 'long' })}
                     </div>
-                    <div className="text-2xl font-bold text-white">
+                    <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
                       {currentDate.getDate()}
                     </div>
-                    <div className="text-sm text-gray-400">
+                    <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-400`}>
                       {currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                 </div>
 
                 {/* Time Slots */}
-                <div className="grid grid-cols-[80px_1fr] gap-px bg-purple-500/20">
+                <div className={`grid ${isMobile ? 'grid-cols-[60px_1fr]' : 'grid-cols-[80px_1fr]'} gap-px bg-purple-500/20`}>
                   <div className="bg-gray-900/20">
                     {/* Time labels column */}
                     {timeSlots.map(({ hour, label }) => (
-                      <div key={hour} className="p-2 text-xs text-gray-500 text-right pr-3 h-[60px] border-b border-purple-500/10">
+                      <div key={hour} className={`${isMobile ? 'p-1 text-[10px] pr-2' : 'p-2 text-xs pr-3'} text-gray-500 text-right h-[60px] border-b border-purple-500/10`}>
                         {label}
                       </div>
                     ))}
@@ -772,21 +774,21 @@ export default function Calendar() {
           {view === '3day' && (
             <div 
               ref={threeDayViewRef} 
-              className="overflow-auto max-h-[600px]"
+              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'max-h-[calc(100vh-300px)]' : 'max-h-[600px]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <div className="min-w-[800px]">
+              <div className="w-full">
                 {/* Day Headers */}
-                <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(3, 1fr)' }}>
-                  <div className="bg-gray-800/60 p-3"></div>
+                <div className={`grid gap-px bg-purple-500/20 sticky top-0 z-10`} style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
+                  <div className="bg-gray-800/60 p-2"></div>
                   {get3DayDates().map((date, idx) => (
-                    <div key={idx} className="bg-gray-800/60 p-3 text-center">
-                      <div className="font-semibold text-purple-300">
+                    <div key={idx} className={`bg-gray-800/60 ${isMobile ? 'p-1' : 'p-2'} text-center`}>
+                      <div className={`font-semibold text-purple-300 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
                         {date.toLocaleDateString('en-US', { weekday: 'short' })}
                       </div>
-                      <div className="text-xl font-bold text-white">
+                      <div className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold text-white`}>
                         {date.getDate()}
                       </div>
                     </div>
@@ -794,7 +796,7 @@ export default function Calendar() {
                 </div>
 
                 {/* Time Slots */}
-                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: '80px repeat(3, 1fr)' }}>
+                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
                   {timeSlots.map(({ hour, label }) => {
                     const now = new Date();
                     const currentHour = now.getHours();
@@ -803,8 +805,8 @@ export default function Calendar() {
                     
                     return (
                       <React.Fragment key={hour}>
-                        <div className="bg-gray-900/20 p-2 text-xs text-gray-500 text-right pr-3">
-                          {label}
+                        <div className={`bg-gray-900/20 ${isMobile ? 'p-0.5 text-[9px] pr-0.5' : 'p-2 text-xs pr-2'} text-gray-500 text-right`}>
+                          {isMobile ? label.replace(' ', '').slice(0, -1) : label}
                         </div>
                         {get3DayDates().map((date, idx) => {
                           const hourEvents = getEventsForHour(date, hour);
@@ -812,7 +814,7 @@ export default function Calendar() {
                           const showTimeIndicator = isToday && hour === currentHour;
                           
                           return (
-                            <div key={idx} className="bg-gray-900/20 p-2 min-h-[60px] relative">
+                            <div key={idx} className={`bg-gray-900/20 ${isMobile ? 'p-0.5' : 'p-2'} min-h-[60px] relative`}>
                               {/* Current Time Indicator */}
                               {showTimeIndicator && (
                                 <div 
@@ -834,7 +836,7 @@ export default function Calendar() {
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`p-1.5 mb-1 rounded text-xs border relative group ${
+                                    className={`${isMobile ? 'p-1 mb-0.5 text-[10px]' : 'p-1.5 mb-1 text-xs'} rounded border relative group ${
                                       isDraggable ? 'cursor-move' : 'cursor-pointer'
                                     } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                     style={eventStyle.backgroundColor ? { 
@@ -846,7 +848,7 @@ export default function Calendar() {
                                     onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
                                   >
                                     {/* Top resize handle */}
-                                    {isDraggable && (
+                                    {isDraggable && !isMobile && (
                                       <div
                                         className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
                                         onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
@@ -854,12 +856,14 @@ export default function Calendar() {
                                     )}
                                     
                                     <div className="font-medium truncate">{event.title}</div>
-                                    <div className="text-[9px] opacity-70">
-                                      {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                    </div>
+                                    {!isMobile && (
+                                      <div className="text-[9px] opacity-70">
+                                        {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                      </div>
+                                    )}
                                     
                                     {/* Bottom resize handle */}
-                                    {isDraggable && (
+                                    {isDraggable && !isMobile && (
                                       <div
                                         className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
                                         onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
@@ -883,23 +887,23 @@ export default function Calendar() {
           {view === 'week' && (
             <div 
               ref={weekViewRef} 
-              className="overflow-auto max-h-[600px]"
+              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-300px)]' : 'max-h-[600px]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <div className="min-w-[1200px]">
+              <div className={isMobile ? 'min-w-full overflow-x-auto' : 'min-w-[1200px]'}>
                 {/* Day Headers */}
-                <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
+                <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: isMobile ? '40px repeat(7, minmax(60px, 1fr))' : '80px repeat(7, 1fr)' }}>
                   <div className="bg-gray-800/60 p-3"></div>
                   {getWeekDates().map((date, idx) => {
                     const isCurrentDay = date.toDateString() === today.toDateString();
                     return (
-                      <div key={idx} className={`bg-gray-800/60 p-3 text-center ${isCurrentDay ? 'border-2 border-purple-500' : ''}`}>
-                        <div className="font-semibold text-purple-300">
-                          {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                      <div key={idx} className={`bg-gray-800/60 ${isMobile ? 'p-1' : 'p-3'} text-center ${isCurrentDay ? 'border-2 border-purple-500' : ''}`}>
+                        <div className={`font-semibold text-purple-300 ${isMobile ? 'text-[10px]' : ''}`}>
+                          {isMobile ? date.toLocaleDateString('en-US', { weekday: 'narrow' }) : date.toLocaleDateString('en-US', { weekday: 'short' })}
                         </div>
-                        <div className={`text-xl font-bold ${isCurrentDay ? 'text-purple-400' : 'text-white'}`}>
+                        <div className={`${isMobile ? 'text-sm' : 'text-xl'} font-bold ${isCurrentDay ? 'text-purple-400' : 'text-white'}`}>
                           {date.getDate()}
                         </div>
                       </div>
@@ -908,7 +912,7 @@ export default function Calendar() {
                 </div>
 
                 {/* Time Slots */}
-                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
+                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: isMobile ? '40px repeat(7, minmax(60px, 1fr))' : '80px repeat(7, 1fr)' }}>
                   {timeSlots.map(({ hour, label }) => {
                     const now = new Date();
                     const currentHour = now.getHours();

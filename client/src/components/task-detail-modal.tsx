@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskDetailModalProps {
   task: any;
@@ -34,6 +35,7 @@ interface TaskDetailModalProps {
 }
 
 export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalProps) {
+  const isMobile = useIsMobile();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
@@ -152,14 +154,14 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30">
+      <DialogContent className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none p-4' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30`}>
         <DialogHeader>
-          <DialogTitle className="text-2xl font-serif text-yellow-100 pr-8">
+          <DialogTitle className={`${isMobile ? 'text-xl pr-10' : 'text-2xl pr-8'} font-serif text-yellow-100`}>
             {task.title}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
+        <div className={`${isMobile ? 'space-y-4 mt-2' : 'space-y-6 mt-4'}`}>
           {/* Description - only show if not empty */}
           {task.description && task.description.trim() && (
             <div className="space-y-2">
@@ -187,12 +189,12 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
           )}
 
           {/* Key Information Grid */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-2 gap-4'}`}>
             {/* Due Date */}
-            <div className="bg-slate-800/50 rounded-lg p-4 border border-yellow-600/20">
+            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
-                <Calendar className="w-4 h-4" />
-                <span className="text-sm font-semibold">Due Date</span>
+                <Calendar className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Due Date</span>
               </div>
               <div className="flex items-center gap-2">
                 <p className="text-yellow-100 flex-1">
@@ -228,10 +230,10 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
             </div>
 
             {/* Duration */}
-            <div className="bg-slate-800/50 rounded-lg p-4 border border-yellow-600/20">
+            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm font-semibold">Duration</span>
+                <Clock className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Duration</span>
               </div>
               {isEditingDuration ? (
                 <div className="flex items-center gap-2">
@@ -280,19 +282,19 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
             </div>
 
             {/* Gold Value */}
-            <div className="bg-slate-800/50 rounded-lg p-4 border border-yellow-600/20">
+            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
-                <Coins className="w-4 h-4" />
-                <span className="text-sm font-semibold">Reward</span>
+                <Coins className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Reward</span>
               </div>
-              <p className="text-yellow-100 font-bold">{task.goldValue} Gold</p>
+              <p className={`text-yellow-100 font-bold ${isMobile ? 'text-sm' : ''}`}>{task.goldValue} Gold</p>
             </div>
 
             {/* Importance */}
-            <div className="bg-slate-800/50 rounded-lg p-4 border border-yellow-600/20">
+            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
-                <AlertTriangle className="w-4 h-4" />
-                <span className="text-sm font-semibold">Importance</span>
+                <AlertTriangle className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Importance</span>
               </div>
               {task.importance && (
                 <Badge className={getImportanceBadgeColor(task.importance)}>
@@ -303,12 +305,12 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
           </div>
 
           {/* Additional Properties */}
-          <div className="space-y-3">
+          <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
             {/* Questline */}
-            <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
+            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
-                <Crown className="w-4 h-4" />
-                <span className="text-sm font-semibold">Questline</span>
+                <Crown className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Questline</span>
               </div>
               <Badge className={getCampaignBadgeColor(task.campaign || 'unassigned')}>
                 {task.campaign || 'unassigned'}
@@ -317,10 +319,10 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
             {/* Business/Work Filter */}
             {task.businessWorkFilter && (
-              <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
+              <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
                 <div className="flex items-center gap-2 text-yellow-400">
-                  <Briefcase className="w-4 h-4" />
-                  <span className="text-sm font-semibold">Business/Work Filter</span>
+                  <Briefcase className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Business/Work Filter</span>
                 </div>
                 <Badge className={getBusinessFilterBadgeColor(task.businessWorkFilter)}>
                   {task.businessWorkFilter}
@@ -330,10 +332,10 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
             {/* Kanban Stage */}
             {task.kanbanStage && (
-              <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
+              <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
                 <div className="flex items-center gap-2 text-yellow-400">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="text-sm font-semibold">Kanban Stage</span>
+                  <BarChart3 className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Kanban Stage</span>
                 </div>
                 <Badge className="bg-indigo-600 text-white border-indigo-500">
                   {task.kanbanStage}
@@ -343,9 +345,9 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
             {/* Recurrence Type */}
             {task.recurType && (
-              <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20">
+              <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
                 <div className="flex items-center gap-2 text-yellow-400">
-                  <Repeat className="w-4 h-4" />
+                  <Repeat className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                   <span className="text-sm font-semibold">Recurrence</span>
                 </div>
                 <Badge className="bg-purple-600 text-white border-purple-500">

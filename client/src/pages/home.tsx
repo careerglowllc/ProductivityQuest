@@ -1068,23 +1068,23 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
         {/* Your Quests Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+        <div className={`flex flex-col ${isMobile ? 'gap-3 mb-4' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
-            <h2 className="text-2xl font-serif font-bold text-yellow-100">
+            <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-serif font-bold text-yellow-100`}>
               Your Quests 
-              <span className="ml-2 text-lg font-normal text-yellow-300/80">({filterCounts.all})</span>
+              <span className={`ml-2 ${isMobile ? 'text-base' : 'text-lg'} font-normal text-yellow-300/80`}>({filterCounts.all})</span>
             </h2>
-            <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>
+            <p className={`text-yellow-200/70 ${isMobile ? 'text-xs' : ''}`}>Complete tasks to earn gold and unlock rewards</p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className={`flex flex-wrap ${isMobile ? 'gap-2' : 'gap-3'}`}>
             {/* Add Quest Button */}
             <Button 
               onClick={() => setShowAddTask(true)}
-              className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
+              className={`flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 ${isMobile ? 'text-xs h-8 px-3' : ''}`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "14" : "16"} height={isMobile ? "14" : "16"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
@@ -1547,7 +1547,7 @@ export default function Home() {
                         ({batch.tasks.length})
                       </span>
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>
                       {batch.tasks.map((task: any) => (
                         <TaskCard
                           key={task.id}

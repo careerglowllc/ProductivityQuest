@@ -24,6 +24,7 @@ import MeasureWhatMattersGuidePage from "@/pages/settings-guides-measure-what-ma
 import GettingStarted from "@/pages/getting-started";
 import NPCsPage from "@/pages/npcs";
 import RecyclingBin from "@/pages/recycling-bin";
+import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -82,6 +83,7 @@ function Router() {
             <Route path="/rewards" component={Rewards} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
+            <Route path="/profile" component={Profile} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
             <Route path="/settings/google-calendar" component={GoogleCalendarIntegration} />

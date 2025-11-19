@@ -43,13 +43,18 @@ export function TabBar() {
       path: "/shop",
       icon: ShoppingCart,
     },
+    {
+      name: "Profile",
+      path: "/profile",
+      icon: User,
+    },
   ];
 
-  // Mobile: bottom navigation (white background)
+  // Mobile: bottom navigation (dark theme)
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom z-50">
-        <nav className="flex justify-around items-center h-16 max-w-lg mx-auto px-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-yellow-600/30 safe-area-inset-bottom z-50">
+        <nav className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = location === tab.path;
@@ -59,12 +64,12 @@ export function TabBar() {
                 <a
                   className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                     isActive
-                      ? "text-purple-600"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "text-yellow-400"
+                      : "text-yellow-200/60 hover:text-yellow-200"
                   }`}
                 >
-                  <Icon className={`h-6 w-6 ${isActive ? "stroke-[2.5]" : ""}`} />
-                  <span className={`text-xs mt-1 ${isActive ? "font-semibold" : "font-medium"}`}>
+                  <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
+                  <span className={`text-[10px] mt-0.5 ${isActive ? "font-semibold" : "font-medium"}`}>
                     {tab.name}
                   </span>
                 </a>

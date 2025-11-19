@@ -589,37 +589,36 @@ export default function Skills() {
         ? selectedSkill.constellationMilestones
         : skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
       
-      // Find the starting node (level 1 or first node)
-      const startingNode = milestones.find((m: any) => m.level === 1) || milestones[0];
+      // Find the center of the constellation (roughly 50%, 50%)
+      const centerX = 50;
+      const centerY = 50;
       
-      if (startingNode) {
-        // Small delay to ensure DOM is fully rendered
-        setTimeout(() => {
-          // Calculate scroll position to center on starting node
-          // Container is 1200px wide, 1000px tall with 20px padding
-          const containerWidth = 1200;
-          const containerHeight = 1000;
-          const viewportWidth = scrollContainer.clientWidth;
-          const viewportHeight = scrollContainer.clientHeight;
-          
-          // Node position as percentage converted to pixels
-          const nodeX = (startingNode.x / 100) * containerWidth;
-          const nodeY = (startingNode.y / 100) * containerHeight;
-          
-          // Center the viewport on this node
-          const scrollLeft = nodeX - (viewportWidth / 2);
-          const scrollTop = nodeY - (viewportHeight / 2);
-          
-          // Smooth scroll to position
-          scrollContainer.scrollTo({
-            left: scrollLeft,
-            top: scrollTop,
-            behavior: 'smooth'
-          });
-        }, 100);
-      }
+      // Small delay to ensure DOM is fully rendered
+      setTimeout(() => {
+        // Calculate scroll position to center on map center
+        // Mobile: 500px x 500px with 6px padding, Desktop: 1200px x 1000px with 20px padding
+        const containerWidth = isMobile ? 500 : 1200;
+        const containerHeight = isMobile ? 500 : 1000;
+        const viewportWidth = scrollContainer.clientWidth;
+        const viewportHeight = scrollContainer.clientHeight;
+        
+        // Center position as percentage converted to pixels
+        const nodeX = (centerX / 100) * containerWidth;
+        const nodeY = (centerY / 100) * containerHeight;
+        
+        // Center the viewport on the constellation center
+        const scrollLeft = nodeX - (viewportWidth / 2);
+        const scrollTop = nodeY - (viewportHeight / 2);
+        
+        // Smooth scroll to position
+        scrollContainer.scrollTo({
+          left: scrollLeft,
+          top: scrollTop,
+          behavior: 'smooth'
+        });
+      }, 100);
     }
-  }, [selectedSkill]);
+  }, [selectedSkill, isMobile]);
 
   const createSkillMutation = useMutation({
     mutationFn: async (skillData: any) => {
@@ -786,7 +785,7 @@ export default function Skills() {
   }
   
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : 'pt-2'} pb-24 relative overflow-hidden`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -797,27 +796,27 @@ export default function Skills() {
       </div>
 
       {/* Header */}
-      <div className="relative pt-8 pb-12 px-4 border-b border-yellow-600/30">
+      <div className={`relative ${isMobile ? 'pt-4 pb-6 px-3' : 'pt-8 pb-12 px-4'} border-b border-yellow-600/30`}>
         <div className="max-w-5xl mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Crown className="h-8 w-8 text-yellow-400" />
-            <h1 className="text-4xl font-serif font-bold text-yellow-100 tracking-wide">Celestial Skills</h1>
-            <Crown className="h-8 w-8 text-yellow-400" />
+            <Crown className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-yellow-400`} />
+            <h1 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-serif font-bold text-yellow-100 tracking-wide`}>Celestial Skills</h1>
+            <Crown className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-yellow-400`} />
           </div>
-          <p className="text-yellow-200/80 text-lg italic mb-6">Ascend Through the Constellations</p>
+          <p className={`text-yellow-200/80 ${isMobile ? 'text-sm' : 'text-lg'} italic mb-6`}>Ascend Through the Constellations</p>
           
           {/* Stats and View Toggle */}
-          <div className="flex items-center justify-center gap-6 mb-4">
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg px-6 py-3 border border-yellow-600/30">
+          <div className={`flex items-center justify-center ${isMobile ? 'gap-3 mb-3' : 'gap-6 mb-4'}`}>
+            <div className={`bg-slate-800/50 backdrop-blur-sm rounded-lg ${isMobile ? 'px-4 py-2' : 'px-6 py-3'} border border-yellow-600/30`}>
               <div className="flex items-center gap-2">
-                <Star className="h-5 w-5 text-yellow-400" />
-                <span className="text-yellow-100 font-semibold">Total XP: {(progress?.tasksCompleted || 0) * 100}</span>
+                <Star className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'} text-yellow-400`} />
+                <span className={`text-yellow-100 font-semibold ${isMobile ? 'text-xs' : ''}`}>Total XP: {(progress?.tasksCompleted || 0) * 100}</span>
               </div>
             </div>
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center justify-center gap-2 mb-4">
+          <div className={`flex items-center justify-center gap-2 ${isMobile ? 'mb-3' : 'mb-4'}`}>
             <button
               onClick={() => setViewMode('grid')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -880,7 +879,7 @@ export default function Skills() {
         {viewMode === 'constellation' ? (
           /* Constellation View */
           <div 
-            className="relative w-full h-[800px] rounded-3xl border-2 border-yellow-600/20 p-8 overflow-hidden"
+            className={`relative w-full ${isMobile ? 'aspect-square' : 'h-[800px]'} rounded-3xl border-2 border-yellow-600/20 ${isMobile ? 'p-4' : 'p-8'} overflow-hidden`}
             style={{
               background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 50%, #020617 100%)',
             }}
@@ -990,7 +989,7 @@ export default function Skills() {
             {/* Calculate positions dynamically - Spider Chart Layout */}
             {(() => {
               const centerX = 50; // Center X percentage
-              const centerY = 50; // Center Y percentage
+              const centerY = isMobile ? 52 : 50; // Center Y percentage - slightly lower on mobile to account for header
               
               // Calculate max level for spider chart scale (highest level + 10, capped at 99)
               const maxLevel = Math.max(...skills.map(s => s.level), 0);
@@ -1052,7 +1051,8 @@ export default function Skills() {
                   <svg 
                     className="absolute inset-0 w-full h-full" 
                     style={{ zIndex: 5, pointerEvents: 'none' }}
-                    preserveAspectRatio="none"
+                    preserveAspectRatio="xMidYMid meet"
+                    viewBox="0 0 100 100"
                   >
                     {/* Grid circles */}
                     {gridLevels.map((level, i) => (
@@ -1064,7 +1064,7 @@ export default function Skills() {
                         ry={`${level * maxRadius}%`}
                         fill="none"
                         stroke="rgba(250, 204, 21, 0.3)"
-                        strokeWidth="2"
+                        strokeWidth={isMobile ? "1" : "2"}
                         className="transition-all duration-500"
                       />
                     ))}
@@ -1083,7 +1083,7 @@ export default function Skills() {
                           x2={`${endX}%`}
                           y2={`${endY}%`}
                           stroke="rgba(250, 204, 21, 0.25)"
-                          strokeWidth="2"
+                          strokeWidth={isMobile ? "1" : "2"}
                           className="transition-all duration-500"
                         />
                       );
@@ -1097,18 +1097,18 @@ export default function Skills() {
                           points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
                           fill="rgba(234, 179, 8, 0.5)"
                           className="transition-all duration-500"
-                          style={{ filter: 'drop-shadow(0 0 25px rgba(234, 179, 8, 0.8))' }}
+                          style={{ filter: isMobile ? 'drop-shadow(0 0 15px rgba(234, 179, 8, 0.8))' : 'drop-shadow(0 0 25px rgba(234, 179, 8, 0.8))' }}
                         />
                         {/* Polygon outline connecting the dots */}
                         <polygon
                           points={polygonPoints.map(pos => `${pos.x}%,${pos.y}%`).join(' ')}
                           fill="none"
                           stroke="rgb(250, 204, 21)"
-                          strokeWidth="4"
+                          strokeWidth={isMobile ? "2" : "4"}
                           strokeLinejoin="round"
                           strokeLinecap="round"
                           className="transition-all duration-500"
-                          style={{ filter: 'drop-shadow(0 0 8px rgba(250, 204, 21, 1))' }}
+                          style={{ filter: isMobile ? 'drop-shadow(0 0 4px rgba(250, 204, 21, 1))' : 'drop-shadow(0 0 8px rgba(250, 204, 21, 1))' }}
                         />
                         {/* Dots at each polygon vertex to show skill level points */}
                         {polygonPoints.map((point, idx) => (
@@ -1116,12 +1116,12 @@ export default function Skills() {
                             key={`vertex-${idx}`}
                             cx={`${point.x}%`}
                             cy={`${point.y}%`}
-                            r="7"
+                            r={isMobile ? "1" : "1.75"}
                             fill="rgb(250, 204, 21)"
                             stroke="rgb(255, 255, 255)"
-                            strokeWidth="3"
+                            strokeWidth={isMobile ? "0.5" : "0.75"}
                             className="transition-all duration-500"
-                            style={{ filter: 'drop-shadow(0 0 10px rgba(250, 204, 21, 1))' }}
+                            style={{ filter: isMobile ? 'drop-shadow(0 0 2px rgba(250, 204, 21, 1))' : 'drop-shadow(0 0 3px rgba(250, 204, 21, 1))' }}
                           />
                         ))}
                       </>
@@ -1150,10 +1150,10 @@ export default function Skills() {
                           onClick={() => setSelectedSkill(skill)}
                         >
                           {/* Glow effect on hover */}
-                          <div className="absolute inset-0 -m-8 bg-yellow-400/0 group-hover:bg-yellow-400/20 rounded-full blur-2xl transition-all duration-500" />
+                          <div className={`absolute inset-0 ${isMobile ? '-m-3' : '-m-8'} bg-yellow-400/0 group-hover:bg-yellow-400/20 rounded-full blur-2xl transition-all duration-500`} />
                           
                           {/* Node circle */}
-                          <div className="relative w-20 h-20 rounded-full border-4 border-yellow-600/40 group-hover:border-yellow-400 bg-slate-800/80 backdrop-blur-sm transition-all duration-300 group-hover:scale-125 overflow-hidden shadow-lg">
+                          <div className={`relative ${isMobile ? 'w-12 h-12 border-2' : 'w-20 h-20 border-4'} rounded-full border-yellow-600/40 group-hover:border-yellow-400 bg-slate-800/80 backdrop-blur-sm transition-all duration-300 group-hover:scale-125 overflow-hidden shadow-lg`}>
                             {/* Progress fill */}
                             <div 
                               className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all duration-500"
@@ -1162,28 +1162,30 @@ export default function Skills() {
                             
                             {/* Icon */}
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Icon className="h-10 w-10 text-yellow-100 group-hover:text-white drop-shadow-lg transition-all group-hover:scale-110" strokeWidth={2} />
+                              <Icon className={`${isMobile ? 'h-6 w-6' : 'h-10 w-10'} text-yellow-100 group-hover:text-white drop-shadow-lg transition-all group-hover:scale-110`} strokeWidth={2} />
                             </div>
                             
-                            {/* Level badge */}
-                            <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 border-2 border-yellow-400 flex items-center justify-center text-slate-900 font-bold text-xs shadow-lg">
-                              {skill.level}
-                            </div>
+                            {/* Level badge - hide on mobile */}
+                            {!isMobile && (
+                              <div className="absolute -top-1 -right-1 w-8 h-8 text-xs border-2 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 border-yellow-400 flex items-center justify-center text-slate-900 font-bold shadow-lg">
+                                {skill.level}
+                              </div>
+                            )}
                           </div>
                           
                           {/* Skill name tooltip on hover */}
-                          <div className="absolute top-24 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50">
-                            <div className="bg-slate-900/95 backdrop-blur-md px-4 py-2 rounded-lg border-2 border-yellow-500/60 shadow-xl">
-                              <p className="text-yellow-100 font-serif font-bold text-sm">{skill.skillName}</p>
-                              <p className="text-yellow-400/70 text-xs italic">{constellation}</p>
-                              <p className="text-yellow-300 text-xs mt-1">Level {skill.level} • {Math.round(progressPercent)}% XP</p>
+                          <div className={`absolute ${isMobile ? 'top-14' : 'top-24'} left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50`}>
+                            <div className={`bg-slate-900/95 backdrop-blur-md ${isMobile ? 'px-2 py-1' : 'px-4 py-2'} rounded-lg border-2 border-yellow-500/60 shadow-xl`}>
+                              <p className={`text-yellow-100 font-serif font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{skill.skillName}</p>
+                              <p className={`text-yellow-400/70 ${isMobile ? 'text-[10px]' : 'text-xs'} italic`}>{constellation}</p>
+                              <p className={`text-yellow-300 ${isMobile ? 'text-[10px]' : 'text-xs'} mt-1`}>Level {skill.level} • {Math.round(progressPercent)}% XP</p>
                             </div>
                             {/* Arrow pointing up */}
                             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-l-2 border-t-2 border-yellow-500/60 rotate-45" />
                           </div>
 
                           {/* Action buttons on hover */}
-                          <div className="absolute -top-4 -right-16 opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-1 z-50">
+                          <div className={`absolute ${isMobile ? '-top-1 -right-8' : '-top-4 -right-16'} opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-1 z-50`}>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1192,9 +1194,9 @@ export default function Skills() {
                                 setSkillToEdit(skill);
                                 setShowEditIconModal(true);
                               }}
-                              className="h-7 w-7 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
+                              className={`${isMobile ? 'h-6 w-6' : 'h-7 w-7'} p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400`}
                             >
-                              <Edit className="h-3 w-3 text-white" />
+                              <Edit className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-white`} />
                             </Button>
                             
                             {skill.isCustom && (
@@ -1206,9 +1208,9 @@ export default function Skills() {
                                   setSkillToDelete(skill);
                                   setShowDeleteDialog(true);
                                 }}
-                                className="h-7 w-7 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                                className={`${isMobile ? 'h-6 w-6' : 'h-7 w-7'} p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400`}
                               >
-                                <Trash2 className="h-3 w-3 text-white" />
+                                <Trash2 className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-white`} />
                               </Button>
                             )}
                           </div>
@@ -1219,16 +1221,9 @@ export default function Skills() {
 
                   {/* Center decoration */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
-                    <div className="w-16 h-16 rounded-full border-2 border-yellow-600/20 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center">
-                      <Crown className="h-8 w-8 text-yellow-400/30" />
+                    <div className={`${isMobile ? 'w-10 h-10' : 'w-16 h-16'} rounded-full border-2 border-yellow-600/20 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center`}>
+                      <Crown className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} text-yellow-400/30`} />
                     </div>
-                  </div>
-
-                  {/* Legend */}
-                  <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md px-4 py-3 rounded-lg border border-yellow-600/30 text-xs text-yellow-200/70 z-10">
-                    <p className="font-serif italic">Spider Chart: Distance from center = Skill Level</p>
-                    <p className="font-serif italic">Max scale: Level {chartMax}</p>
-                    <p className="font-serif italic mt-1">Hover over nodes • Click for details</p>
                   </div>
                 </>
               );
@@ -1236,7 +1231,7 @@ export default function Skills() {
           </div>
         ) : viewMode === 'grid' ? (
           /* Grid View */
-          <div className="grid grid-cols-3 gap-8">
+          <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-3 gap-8'}`}>
             {skills.map((skill) => {
               const Icon = getSkillIconComponent(skill);
               const constellation = getConstellation(skill);
@@ -1249,7 +1244,7 @@ export default function Skills() {
                   onClick={() => setSelectedSkill(skill)}
                 >
                   {/* Action Buttons */}
-                  <div className="absolute -top-2 -right-2 z-10 flex gap-2">
+                  <div className={`absolute ${isMobile ? '-top-1 -right-1' : '-top-2 -right-2'} z-10 flex gap-2`}>
                     {/* Edit Icon Button */}
                     <Button
                       variant="ghost"
@@ -1259,9 +1254,9 @@ export default function Skills() {
                         setSkillToEdit(skill);
                         setShowEditIconModal(true);
                       }}
-                      className="h-8 w-8 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
+                      className={`${isMobile ? 'h-6 w-6 p-0' : 'h-8 w-8 p-0'} bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400`}
                     >
-                      <Edit className="h-4 w-4 text-white" />
+                      <Edit className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-white`} />
                     </Button>
                     
                     {/* Delete Button for Custom Skills */}
@@ -1274,30 +1269,30 @@ export default function Skills() {
                           setSkillToDelete(skill);
                           setShowDeleteDialog(true);
                         }}
-                        className="h-8 w-8 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                        className={`${isMobile ? 'h-6 w-6 p-0' : 'h-8 w-8 p-0'} bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400`}
                       >
-                        <Trash2 className="h-4 w-4 text-white" />
+                        <Trash2 className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-white`} />
                       </Button>
                     )}
                   </div>
                   
                   {/* Constellation Card */}
                   <Card className="bg-slate-800/40 backdrop-blur-md border-2 border-yellow-600/20 hover:border-yellow-500/60 transition-all duration-500 overflow-hidden">
-                    <div className="p-6">
+                    <div className={isMobile ? 'p-3' : 'p-6'}>
                       {/* Level Badge */}
-                      <Badge className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-sm px-3 py-1 shadow-lg">
+                      <Badge className={`absolute ${isMobile ? 'top-2 right-2 text-xs px-2 py-0.5' : 'top-3 right-3 text-sm px-3 py-1'} bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold shadow-lg`}>
                         Level {skill.level}
                       </Badge>
                       
                       {/* Custom Skill Badge */}
                       {skill.isCustom && (
-                        <Badge className="absolute top-3 left-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white border-purple-400 font-bold text-xs px-2 py-1">
+                        <Badge className={`absolute ${isMobile ? 'top-2 left-2 text-[10px] px-1.5 py-0.5' : 'top-3 left-3 text-xs px-2 py-1'} bg-gradient-to-r from-purple-600 to-purple-500 text-white border-purple-400 font-bold`}>
                           Custom
                         </Badge>
                       )}
 
                       {/* Rounded Square Icon with Bottom-to-Top Fill */}
-                      <div className="relative w-28 h-28 mx-auto mb-4">
+                      <div className={`relative ${isMobile ? 'w-20 h-20' : 'w-28 h-28'} mx-auto mb-4`}>
                         {/* Background glow */}
                         <div className="absolute inset-0 bg-yellow-400/10 rounded-2xl blur-xl group-hover:bg-yellow-400/20 transition-all"></div>
                         
@@ -1318,7 +1313,7 @@ export default function Skills() {
                           {/* Icon overlay - always centered and visible */}
                           <div className="absolute inset-0 flex items-center justify-center">
                             <Icon 
-                              className="h-16 w-16 text-slate-900/80 drop-shadow-lg" 
+                              className={`${isMobile ? 'h-10 w-10' : 'h-16 w-16'} text-slate-900/80 drop-shadow-lg`}
                               strokeWidth={2.5}
                               style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))' }}
                             />
@@ -1328,22 +1323,22 @@ export default function Skills() {
 
                       {/* Constellation Name */}
                       <div className="text-center mb-3">
-                        <h3 className="text-xl font-serif font-bold text-yellow-100 mb-1 tracking-wide">
+                        <h3 className={`${isMobile ? 'text-sm' : 'text-xl'} font-serif font-bold text-yellow-100 mb-1 tracking-wide`}>
                           {skill.skillName}
                         </h3>
-                        <p className="text-xs text-yellow-400/70 italic font-serif">
+                        <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-yellow-400/70 italic font-serif`}>
                           {constellation}
                         </p>
                       </div>
 
                       {/* XP Display */}
-                      <div className="bg-slate-900/50 rounded-lg p-3 border border-yellow-600/20">
+                      <div className={`bg-slate-900/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp} XP</span>
-                          <span className="text-sm text-yellow-400 font-bold">{Math.round(progressPercent)}%</span>
+                          <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-yellow-200/80 font-semibold`}>{skill.xp} / {skill.maxXp} XP</span>
+                          <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-yellow-400 font-bold`}>{Math.round(progressPercent)}%</span>
                         </div>
                         
-                        <p className="text-center text-xs text-yellow-300/60 font-serif italic">
+                        <p className={`text-center ${isMobile ? 'text-[10px]' : 'text-xs'} text-yellow-300/60 font-serif italic`}>
                           {skill.maxXp - skill.xp} XP to next level
                         </p>
                       </div>
@@ -1353,8 +1348,8 @@ export default function Skills() {
                     <div className="absolute inset-0 bg-gradient-to-t from-yellow-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                   </Card>
 
-                  {/* Connecting constellation lines (decorative) */}
-                  {skill.id % 3 !== 0 && (
+                  {/* Connecting constellation lines (decorative) - hide on mobile */}
+                  {!isMobile && skill.id % 3 !== 0 && (
                     <div className="absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-yellow-600/30 to-transparent hidden lg:block"></div>
                   )}
                 </div>
@@ -1363,7 +1358,7 @@ export default function Skills() {
           </div>
         ) : (
           /* List View - Two Columns */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-1 md:grid-cols-2 gap-4'}`}>
             {skills.map((skill) => {
               const Icon = getSkillIconComponent(skill);
               const constellation = getConstellation(skill);
@@ -1376,7 +1371,7 @@ export default function Skills() {
                   onClick={() => setSelectedSkill(skill)}
                 >
                   {/* Action Buttons */}
-                  <div className="absolute top-2 right-2 z-10 flex gap-2">
+                  <div className={`absolute ${isMobile ? 'top-1 right-1' : 'top-2 right-2'} z-10 flex gap-2`}>
                     {/* Edit Icon Button */}
                     <Button
                       variant="ghost"
@@ -1386,9 +1381,9 @@ export default function Skills() {
                         setSkillToEdit(skill);
                         setShowEditIconModal(true);
                       }}
-                      className="h-8 w-8 p-0 bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400"
+                      className={`${isMobile ? 'h-6 w-6 p-0' : 'h-8 w-8 p-0'} bg-blue-600/90 hover:bg-blue-700 rounded-full border-2 border-blue-400`}
                     >
-                      <Edit className="h-4 w-4 text-white" />
+                      <Edit className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-white`} />
                     </Button>
                     
                     {/* Delete Button for Custom Skills */}
@@ -1401,17 +1396,17 @@ export default function Skills() {
                           setSkillToDelete(skill);
                           setShowDeleteDialog(true);
                         }}
-                        className="h-8 w-8 p-0 bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400"
+                        className={`${isMobile ? 'h-6 w-6 p-0' : 'h-8 w-8 p-0'} bg-red-600/90 hover:bg-red-700 rounded-full border-2 border-red-400`}
                       >
-                        <Trash2 className="h-4 w-4 text-white" />
+                        <Trash2 className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-white`} />
                       </Button>
                     )}
                   </div>
                   
-                  <div className="p-4">
-                    <div className="flex items-center gap-6">
+                  <div className={isMobile ? 'p-3' : 'p-4'}>
+                    <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-6'}`}>
                       {/* Icon Section */}
-                      <div className="relative w-20 h-20 flex-shrink-0">
+                      <div className={`relative ${isMobile ? 'w-16 h-16' : 'w-20 h-20'} flex-shrink-0`}>
                         <div className="absolute inset-0 bg-yellow-400/10 rounded-2xl blur-lg"></div>
                         <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-yellow-600/40 bg-slate-700/30">
                           <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
@@ -1424,7 +1419,7 @@ export default function Skills() {
                           ></div>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <Icon 
-                              className="h-12 w-12 text-slate-900/80 drop-shadow-lg" 
+                              className={`${isMobile ? 'h-9 w-9' : 'h-12 w-12'} text-slate-900/80 drop-shadow-lg`}
                               strokeWidth={2.5}
                             />
                           </div>
@@ -1433,21 +1428,21 @@ export default function Skills() {
 
                       {/* Info Section */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-2xl font-serif font-bold text-yellow-100 tracking-wide">
+                        <div className={`flex items-center ${isMobile ? 'gap-2 mb-1' : 'gap-3 mb-2'}`}>
+                          <h3 className={`${isMobile ? 'text-base' : 'text-2xl'} font-serif font-bold text-yellow-100 tracking-wide`}>
                             {skill.skillName}
                           </h3>
-                          <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold">
+                          <Badge className={`bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold ${isMobile ? 'text-xs' : ''}`}>
                             Level {skill.level}
                           </Badge>
                         </div>
-                        <p className="text-sm text-yellow-400/70 italic font-serif mb-3">
+                        <p className={`${isMobile ? 'text-xs mb-2' : 'text-sm mb-3'} text-yellow-400/70 italic font-serif`}>
                           {constellation}
                         </p>
                         
                         {/* Progress Bar */}
                         <div className="space-y-2">
-                          <div className="flex justify-between items-center text-sm">
+                          <div className={`flex justify-between items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
                             <span className="text-yellow-200/80 font-semibold">{skill.xp} / {skill.maxXp} XP</span>
                             <span className="text-yellow-400 font-bold">{Math.round(progressPercent)}%</span>
                           </div>
@@ -1519,12 +1514,12 @@ export default function Skills() {
 
       {/* Skill Detail Modal */}
       <Dialog open={!!selectedSkill} onOpenChange={(open) => !open && setSelectedSkill(null)}>
-        <DialogContent className="bg-slate-900/95 border-2 border-yellow-600/40 text-yellow-100 max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogContent className={`bg-slate-900/95 border-2 border-yellow-600/40 text-yellow-100 ${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none' : 'max-w-4xl max-h-[90vh]'} overflow-hidden`}>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-serif text-yellow-100 flex items-center gap-3">
+            <DialogTitle className={`${isMobile ? 'text-xl' : 'text-2xl'} font-serif text-yellow-100 flex items-center gap-3`}>
               {selectedSkill && (
                 <>
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-yellow-600/40 bg-slate-800/80">
+                  <div className={`relative ${isMobile ? 'w-10 h-10' : 'w-12 h-12'} rounded-full overflow-hidden border-2 border-yellow-600/40 bg-slate-800/80`}>
                     <div 
                       className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-yellow-600 to-yellow-400"
                       style={{ 
@@ -1534,18 +1529,18 @@ export default function Skills() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       {(() => {
                         const Icon = getSkillIconComponent(selectedSkill);
-                        return <Icon className="h-6 w-6 text-yellow-100" strokeWidth={2} />;
+                        return <Icon className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} text-yellow-100`} strokeWidth={2} />;
                       })()}
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      {selectedSkill.skillName}
-                      <Badge className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold text-sm">
+                      <span className={isMobile ? 'text-base' : ''}>{selectedSkill.skillName}</span>
+                      <Badge className={`bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>
                         Level {selectedSkill.level}
                       </Badge>
                     </div>
-                    <p className="text-sm text-yellow-400/70 italic font-normal mt-1">{getConstellation(selectedSkill)}</p>
+                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-yellow-400/70 italic font-normal mt-1`}>{getConstellation(selectedSkill)}</p>
                   </div>
                 </>
               )}
@@ -1555,8 +1550,8 @@ export default function Skills() {
           {selectedSkill && (
             <>
               {/* Skill Description */}
-              <div className="mb-4 p-4 bg-slate-800/40 border border-yellow-600/30 rounded-lg">
-                <p className="text-yellow-200/90 text-sm leading-relaxed">
+              <div className={`${isMobile ? 'mb-2 p-3' : 'mb-4 p-4'} bg-slate-800/40 border border-yellow-600/30 rounded-lg`}>
+                <p className={`text-yellow-200/90 ${isMobile ? 'text-xs' : 'text-sm'} leading-relaxed`}>
                   {selectedSkill.skillDescription || 
                    (skillDescriptions[selectedSkill.skillName as keyof typeof skillDescriptions]?.description) || 
                    "Develop expertise in this skill area through focused practice and achievement."}
@@ -1564,9 +1559,9 @@ export default function Skills() {
               </div>
 
               {/* Edit Milestones Button and Instructions */}
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-yellow-400/70 italic">
-                  💫 Drag to navigate • Scroll to explore • Click nodes to toggle completion
+              <div className={`flex ${isMobile ? 'flex-col gap-2' : 'justify-between'} items-center`}>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-yellow-400/70 italic`}>
+                  💫 {isMobile ? 'Tap nodes to toggle' : 'Drag to navigate • Scroll to explore • Click nodes to toggle completion'}
                 </p>
                 <Button
                   variant="outline"
@@ -1575,16 +1570,16 @@ export default function Skills() {
                     setSkillToEditMilestones(selectedSkill);
                     setShowEditMilestonesModal(true);
                   }}
-                  className="bg-slate-700/50 hover:bg-slate-600/50 text-yellow-200 border-yellow-600/40 hover:border-yellow-500/60"
+                  className={`bg-slate-700/50 hover:bg-slate-600/50 text-yellow-200 border-yellow-600/40 hover:border-yellow-500/60 ${isMobile ? 'w-full text-xs' : ''}`}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} mr-2`} />
                   Customize Milestones
                 </Button>
               </div>
 
               <div 
                 ref={constellationScrollRef}
-                className="relative w-full h-[600px] rounded-xl border border-yellow-600/20 overflow-auto cursor-grab active:cursor-grabbing"
+                className={`relative w-full ${isMobile ? 'h-[calc(100vh-280px)]' : 'h-[600px]'} rounded-xl border border-yellow-600/20 overflow-auto cursor-grab active:cursor-grabbing`}
                 style={{
                   background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 50%, #020617 100%)',
                 }}
@@ -1612,6 +1607,34 @@ export default function Skills() {
                   
                   document.addEventListener('mousemove', handleMouseMove);
                   document.addEventListener('mouseup', handleMouseUp);
+                }}
+                onTouchStart={(e) => {
+                  if (!isMobile) return;
+                  const elem = e.currentTarget;
+                  const touch = e.touches[0];
+                  const startX = touch.pageX - elem.offsetLeft;
+                  const startY = touch.pageY - elem.offsetTop;
+                  const scrollLeft = elem.scrollLeft;
+                  const scrollTop = elem.scrollTop;
+                  
+                  const handleTouchMove = (e: TouchEvent) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const x = touch.pageX - elem.offsetLeft;
+                    const y = touch.pageY - elem.offsetTop;
+                    const walkX = (x - startX) * 2;
+                    const walkY = (y - startY) * 2;
+                    elem.scrollLeft = scrollLeft - walkX;
+                    elem.scrollTop = scrollTop - walkY;
+                  };
+                  
+                  const handleTouchEnd = () => {
+                    document.removeEventListener('touchmove', handleTouchMove);
+                    document.removeEventListener('touchend', handleTouchEnd);
+                  };
+                  
+                  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                  document.addEventListener('touchend', handleTouchEnd);
                 }}
                 onClick={() => setSelectedMilestone(null)}
               >
@@ -1662,10 +1685,10 @@ export default function Skills() {
                 />
               </div>
 
-              {/* Layered Star Field */}
+              {/* Layered Star Field - Reduced for mobile */}
               <div className="absolute inset-0 pointer-events-none">
                 {/* Large bright stars */}
-                {Array.from({ length: 30 }).map((_, i) => (
+                {Array.from({ length: isMobile ? 15 : 30 }).map((_, i) => (
                   <div
                     key={`large-${i}`}
                     className="absolute rounded-full animate-pulse"
@@ -1686,7 +1709,7 @@ export default function Skills() {
                   />
                 ))}
                 {/* Medium stars */}
-                {Array.from({ length: 80 }).map((_, i) => (
+                {Array.from({ length: isMobile ? 40 : 80 }).map((_, i) => (
                   <div
                     key={`medium-${i}`}
                     className="absolute bg-white rounded-full animate-pulse"
@@ -1702,7 +1725,7 @@ export default function Skills() {
                   />
                 ))}
                 {/* Small twinkling stars */}
-                {Array.from({ length: 150 }).map((_, i) => (
+                {Array.from({ length: isMobile ? 75 : 150 }).map((_, i) => (
                   <div
                     key={`small-${i}`}
                     className="absolute bg-white rounded-full"
@@ -1718,7 +1741,7 @@ export default function Skills() {
               </div>
 
               {/* Scrollable constellation container */}
-              <div className="relative w-[1200px] h-[1000px] p-20">
+              <div className={`relative ${isMobile ? 'w-[500px] h-[500px] p-6' : 'w-[1200px] h-[1000px] p-20'}`}>
               {/* Milestone constellation */}
               {(() => {
                 // Use database milestones if available, otherwise use default
@@ -1825,15 +1848,6 @@ export default function Skills() {
                                   );
                                 })()}
                               </div>
-                              
-                              {/* Checkmark for completed (but not for starting node) */}
-                              {isCompleted && !isStartingNode && (
-                                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-slate-900 flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path d="M5 13l4 4L19 7"></path>
-                                  </svg>
-                                </div>
-                              )}
                             </div>
                             
                             {/* Tooltip with milestone title */}
