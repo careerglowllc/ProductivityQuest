@@ -170,35 +170,76 @@ export default function Calendar() {
         const durationMs = tempEventTime.end.getTime() - tempEventTime.start.getTime();
         const durationMinutes = Math.round(durationMs / 60000);
 
-        try {
-          // Get the original event start time
-          const originalStart = new Date(eventToUpdate.start);
-          const newStart = tempEventTime.start;
-          
-          // Check if we're moving within the same day (same date, different time)
-          const isSameDay = 
-            originalStart.getFullYear() === newStart.getFullYear() &&
-            originalStart.getMonth() === newStart.getMonth() &&
-            originalStart.getDate() === newStart.getDate();
-          
-          let updatePayload: any;
-          
-          if (isSameDay && draggingEvent) {
-            // Moving within the same day - only update scheduledTime (keep dueDate)
-            updatePayload = {
-              scheduledTime: newStart.toISOString(),
-              duration: durationMinutes,
-            };
-          } else {
-            // Moving across days or resizing - update both dueDate and scheduledTime
-            updatePayload = {
-              dueDate: newStart.toISOString(),
-              scheduledTime: newStart.toISOString(),
-              duration: durationMinutes,
-            };
-          }
+        // Get the original event start time
+        const originalStart = new Date(eventToUpdate.start);
+        const newStart = tempEventTime.start;
+        
+        // Check if we're moving within the same day (same date, different time)
+        const isSameDay = 
+          originalStart.getFullYear() === newStart.getFullYear() &&
+          originalStart.getMonth() === newStart.getMonth() &&
+          originalStart.getDate() === newStart.getDate();
+        
+        let updatePayload: any;
+        
+        if (isSameDay && draggingEvent) {
+          // Moving within the same day - only update scheduledTime (keep dueDate)
+          updatePayload = {
+            scheduledTime: newStart.toISOString(),
+            duration: durationMinutes,
+          };
+        } else {
+          // Moving across days or resizing - update both dueDate and scheduledTime
+          updatePayload = {
+            dueDate: newStart.toISOString(),
+            scheduledTime: newStart.toISOString(),
+            duration: durationMinutes,
+          };
+        }
 
-          // Update task via API
+        // OPTIMISTIC UPDATE: Update cache immediately
+        const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+        const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+        
+        // Show instant toast notification
+        toast({
+          title: draggingEvent ? "Event Rescheduled" : "Duration Updated",
+          description: `Updated to ${newStart.toLocaleString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true 
+          })} (${durationMinutes} min)`,
+        });
+
+        // Optimistically update the UI
+        if (previousData?.events) {
+          const optimisticData = {
+            events: previousData.events.map(event => 
+              event.id === eventToUpdate.id
+                ? {
+                    ...event,
+                    start: newStart.toISOString(),
+                    end: tempEventTime.end.toISOString(),
+                    duration: durationMinutes
+                  }
+                : event
+            )
+          };
+          queryClient.setQueryData(queryKey, optimisticData);
+        }
+
+        // Reset drag state immediately for instant UI feedback
+        setDraggingEvent(null);
+        setResizingEvent(null);
+        setResizeEdge(null);
+        setDragStartY(0);
+        setDragStartTime(null);
+        setTempEventTime(null);
+
+        // Then update backend in the background
+        try {
           const response = await fetch(`/api/tasks/${taskId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -207,24 +248,39 @@ export default function Calendar() {
           });
 
           if (response.ok) {
-            // Refetch calendar query to get updated data and wait for it to complete
-            await queryClient.refetchQueries({ 
-              queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
-            });
-            // Also invalidate tasks query so task detail modals show updated data
-            queryClient.invalidateQueries({ 
-              queryKey: ['/api/tasks'] 
-            });
+            // Refetch to ensure data consistency
+            queryClient.invalidateQueries({ queryKey });
+            queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
           } else {
+            // Revert on error
+            if (previousData) {
+              queryClient.setQueryData(queryKey, previousData);
+            }
+            toast({
+              title: "Update Failed",
+              description: "Failed to save changes. Reverting...",
+              variant: "destructive",
+            });
             console.error('Failed to update task:', await response.text());
           }
         } catch (error) {
+          // Revert on error
+          if (previousData) {
+            queryClient.setQueryData(queryKey, previousData);
+          }
+          toast({
+            title: "Update Failed",
+            description: "Failed to save changes. Reverting...",
+            variant: "destructive",
+          });
           console.error('Failed to update task:', error);
         }
+        
+        return; // Exit early since we handled everything
       }
     }
 
-    // Reset drag state after query invalidation completes
+    // Reset drag state for non-ProductivityQuest events or if no temp time
     setDraggingEvent(null);
     setResizingEvent(null);
     setResizeEdge(null);
