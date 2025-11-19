@@ -1829,6 +1829,69 @@ Every calendar event now has dedicated Reschedule and Delete buttons in the deta
 - **Responsive Layout**: Buttons wrap to multiple rows if needed
 - **Shortened Labels**: "Reschedule", "Delete", "View Details", "Open in Google"
 
+### Undo Feature
+
+**Keyboard Shortcuts**
+- **Mac**: `Cmd + Z` - Undo last drag or resize operation
+- **Windows/Linux**: `Ctrl + Z` - Undo last drag or resize operation
+- **Mobile**: Tap "Undo" button in toast notification (no keyboard shortcut)
+
+**Undo Button in Toast**
+- Appears after every drag or resize operation
+- Visible for 5 seconds in toast notification
+- Shows Undo2 icon with "Undo" label
+- Click to instantly revert changes
+
+**What Can Be Undone**
+- **Drag Operations**: Revert event to previous time/date
+- **Resize Operations**: Restore original event duration
+- **Cross-Day Moves**: Return event to original day and time
+- **Duration Changes**: Undo both height and time adjustments
+
+**How It Works**
+- **Single-Level Undo**: Stores only the last change (standard behavior)
+- **Optimistic Revert**: UI updates instantly when undo is triggered
+- **Backend Sync**: Reverted state synced to database after visual update
+- **State Cleared**: Undo stack clears after execution (no repeat undo)
+- **Session Only**: Does not persist across page refreshes
+
+**Limitations**
+- Only one undo level (cannot undo multiple changes in sequence)
+- Undo state lost on page refresh
+- Only works for ProductivityQuest events (not Google Calendar events)
+
+### Overlapping Events Layout
+
+**Side-by-Side Display (Apple Calendar Style)**
+- **Day View Only**: Overlapping events appear in columns
+- **Equal Width Columns**: Each event gets proportional width based on overlap count
+- **Smart Algorithm**: Events sorted by start time, then duration (longer first)
+- **Automatic Adjustment**: Layout recalculates when events are dragged/resized
+
+**Column Calculation**
+- 2 overlapping events → 50% width each
+- 3 overlapping events → ~33% width each
+- 4+ overlapping events → width divided equally
+- Events maintain small gap between columns
+
+**Layout Rules**
+- **Longer Events First**: Events with longer duration appear in left columns
+- **Partial Overlap**: Only overlapping portions share columns
+- **Full Width When Alone**: Events expand to full width when no overlap
+- **Dynamic Recalculation**: Layout updates instantly after drag/resize
+
+**View-Specific Behavior**
+- **Day View**: Absolute positioning with side-by-side columns
+- **3-Day View**: Grid-based layout, events stack vertically in hour cells
+- **Week View**: Grid-based layout, events stack vertically in hour cells
+- **Month View**: Shows event count, no detailed layout
+
+**Example Scenarios**
+1. **Same Start Time**: Events A (2:00-3:00) and B (2:00-4:00) → both 50% width
+2. **Partial Overlap**: Events A (2:00-3:00) and B (2:30-3:30) → columns only 2:30-3:00
+3. **Multiple Events**: Four events at 10:00 AM → four 25% width columns
+4. **No Overlap**: Event alone → 100% width
+
 ### Calendar View Persistence
 
 **Remember User Preferences**
@@ -1881,6 +1944,7 @@ const savedView = localStorage.getItem('calendarView') || 'month';
 - **CALENDAR_VIEW_PERSISTENCE_TEST_CASES.md**: 10 persistence tests + edge cases
 - **TASK_DURATION_EDIT_TEST_CASES.md**: 20 comprehensive edit workflow tests
 - **CALENDAR_EVENT_MODAL_TEST_CASES.md**: 20 modal action tests (Reschedule/Delete) + 3 edge cases
+- **CALENDAR_UNDO_OVERLAP_TEST_CASES.md**: 10 undo tests + 10 overlapping events tests + 3 edge cases
 
 ---
 
@@ -2077,6 +2141,7 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - **✨ GRID_COMPACT_TEST_CASES.md (NEW)** - 8 tests for 6-column grid layout
 - **✨ COMPASS_ICON_TEST_CASES.md (NEW)** - 5 tests for Compass icon addition
 - **✨ CALENDAR_EVENT_MODAL_TEST_CASES.md (NEW)** - 20 tests for Reschedule/Delete modal actions + 3 edge cases
+- **✨ CALENDAR_UNDO_OVERLAP_TEST_CASES.md (NEW)** - 10 undo tests + 10 overlap layout tests + 3 edge cases
 - **TESTING.md** - Comprehensive testing documentation
 
 ### Debug Tools
