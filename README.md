@@ -1786,6 +1786,49 @@ The calendar page now features advanced interaction capabilities, persistent vie
 - ✅ Minimum duration: 5 minutes enforced
 - ✅ scheduledTime field added to database schema (nullable timestamp)
 
+### Event Modal Actions
+
+**Reschedule and Delete Buttons**
+
+Every calendar event now has dedicated Reschedule and Delete buttons in the detail modal.
+
+**Reschedule Button**
+- **ProductivityQuest Events**: Opens reschedule modal with option to drag in calendar or go to task details page
+- **Google Calendar Events**: Opens reschedule modal with option to drag in calendar or open Google Calendar
+- **Seamless UX**: Provides clear guidance on available reschedule methods
+
+**Delete Button - ProductivityQuest Events**
+- **Two Delete Options**:
+  1. **App & Google Calendar**: Delete from both ProductivityQuest and Google Calendar (requires Two-Way Sync)
+  2. **App Only**: Delete from ProductivityQuest only, keeps in Google Calendar
+- **Two-Way Sync Check**: "App & Google Calendar" option is greyed out if Two-Way Sync is disabled
+- **Warning Messages**: Shows "Enable Two-Way Sync to use this" when sync is not enabled
+
+**Delete Button - Google Calendar Events**
+- **Single Option**: "Delete from Google Calendar" opens Google Calendar in new tab
+- **Two-Way Sync Required**: Option greyed out if Two-Way Sync disabled
+- **Toast Notification**: Instructs user to delete in Google Calendar for auto-sync
+- **Read-Only Philosophy**: Maintains separation between Google Calendar and ProductivityQuest task management
+
+**Optimistic UI Updates**
+- **Instant Feedback**: Events move/resize immediately when dragged (no waiting for backend)
+- **Toast Notifications**: Success messages appear instantly during drag operations
+- **Cache Manipulation**: TanStack Query cache updated immediately for visual responsiveness
+- **Background Sync**: Backend requests execute after optimistic update
+- **Auto-Revert**: If backend fails, event snaps back to original position with error toast
+
+**Smart Modal Behavior**
+- **No Popup After Drag**: Modal does NOT open when releasing drag/resize operations
+- **Click Detection**: Uses `hasDragged` and `hasResized` flags to distinguish drag from click
+- **100ms Delay**: Flags reset 100ms after drag completes to enable next click
+- **Intentional Clicks Only**: Ensures modal only opens on deliberate event clicks
+
+**UI Design**
+- **Compact Buttons**: Size `sm` with `text-xs` (12px) font
+- **Small Icons**: 12px (w-3 h-3) icon size for better fit
+- **Responsive Layout**: Buttons wrap to multiple rows if needed
+- **Shortened Labels**: "Reschedule", "Delete", "View Details", "Open in Google"
+
 ### Calendar View Persistence
 
 **Remember User Preferences**
@@ -1837,6 +1880,7 @@ const savedView = localStorage.getItem('calendarView') || 'month';
 - **CALENDAR_DRAG_RESIZE_TEST_CASES.md**: 10 core functionality tests + edge cases
 - **CALENDAR_VIEW_PERSISTENCE_TEST_CASES.md**: 10 persistence tests + edge cases
 - **TASK_DURATION_EDIT_TEST_CASES.md**: 20 comprehensive edit workflow tests
+- **CALENDAR_EVENT_MODAL_TEST_CASES.md**: 20 modal action tests (Reschedule/Delete) + 3 edge cases
 
 ---
 
@@ -2032,6 +2076,7 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - **✨ CAMPAIGNS_PAGE_TEST_CASES.md (NEW)** - 6 tests for unified campaigns display
 - **✨ GRID_COMPACT_TEST_CASES.md (NEW)** - 8 tests for 6-column grid layout
 - **✨ COMPASS_ICON_TEST_CASES.md (NEW)** - 5 tests for Compass icon addition
+- **✨ CALENDAR_EVENT_MODAL_TEST_CASES.md (NEW)** - 20 tests for Reschedule/Delete modal actions + 3 edge cases
 - **TESTING.md** - Comprehensive testing documentation
 
 ### Debug Tools
