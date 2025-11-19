@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ToastAction } from "@/components/ui/toast";
 import { useState, useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
@@ -66,10 +67,43 @@ export default function Calendar() {
   const [hasDragged, setHasDragged] = useState(false);
   const [hasResized, setHasResized] = useState(false);
 
+  // Undo state - stores the last change for undo functionality
+  const [undoStack, setUndoStack] = useState<{
+    taskId: string;
+    previousState: {
+      start: string;
+      end: string;
+      duration: number;
+      dueDate?: string;
+      scheduledTime?: string;
+    };
+    currentState: {
+      start: string;
+      end: string;
+      duration: number;
+      dueDate?: string;
+      scheduledTime?: string;
+    };
+  } | null>(null);
+
   // Save view preference whenever it changes
   useEffect(() => {
     localStorage.setItem('calendarView', view);
   }, [view]);
+
+  // Keyboard shortcut for undo (Cmd+Z on Mac, Ctrl+Z on Windows)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undoStack]); // Re-attach listener when undoStack changes
 
   // Auto-scroll to current time in Day, 3-Day, and Week views
   useEffect(() => {
@@ -94,6 +128,88 @@ export default function Calendar() {
       });
     }
   }, [view]);
+
+  // Undo function - reverts the last drag/resize change
+  const handleUndo = async () => {
+    if (!undoStack) {
+      toast({
+        title: "Nothing to Undo",
+        description: "No recent calendar changes to undo",
+      });
+      return;
+    }
+
+    const { taskId, previousState } = undoStack;
+
+    // OPTIMISTIC UPDATE: Revert UI immediately
+    const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+    const currentData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+
+    if (currentData?.events) {
+      const revertedData = {
+        events: currentData.events.map(event => 
+          event.id === `task-${taskId}`
+            ? {
+                ...event,
+                start: previousState.start,
+                end: previousState.end,
+                duration: previousState.duration
+              }
+            : event
+        )
+      };
+      queryClient.setQueryData(queryKey, revertedData);
+    }
+
+    // Show toast notification
+    toast({
+      title: "Undone",
+      description: "Event reverted to previous state",
+    });
+
+    // Clear undo stack
+    setUndoStack(null);
+
+    // Update backend
+    try {
+      const updatePayload: any = {
+        scheduledTime: previousState.scheduledTime || previousState.start,
+        duration: previousState.duration,
+      };
+
+      // If dueDate was changed, restore it
+      if (previousState.dueDate) {
+        updatePayload.dueDate = previousState.dueDate;
+      }
+
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (response.ok) {
+        // Refetch to ensure data consistency
+        queryClient.invalidateQueries({ queryKey });
+        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      } else {
+        toast({
+          title: "Undo Failed",
+          description: "Failed to revert changes on server",
+          variant: "destructive",
+        });
+        console.error('Failed to undo task update:', await response.text());
+      }
+    } catch (error) {
+      toast({
+        title: "Undo Failed",
+        description: "Failed to revert changes on server",
+        variant: "destructive",
+      });
+      console.error('Failed to undo task update:', error);
+    }
+  };
 
   // Drag and drop handlers
   const handleEventMouseDown = (event: CalendarEvent, e: React.MouseEvent, edge?: 'top' | 'bottom') => {
@@ -211,7 +327,29 @@ export default function Calendar() {
         const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
         const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
         
-        // Show instant toast notification
+        // Store undo state BEFORE making changes
+        const originalEvent = previousData?.events.find(e => e.id === eventToUpdate.id);
+        if (originalEvent) {
+          setUndoStack({
+            taskId,
+            previousState: {
+              start: originalEvent.start,
+              end: originalEvent.end,
+              duration: originalEvent.duration || 30,
+              dueDate: originalEvent.start, // Store original dueDate
+              scheduledTime: originalEvent.start,
+            },
+            currentState: {
+              start: newStart.toISOString(),
+              end: tempEventTime.end.toISOString(),
+              duration: durationMinutes,
+              dueDate: updatePayload.dueDate,
+              scheduledTime: updatePayload.scheduledTime,
+            }
+          });
+        }
+        
+        // Show instant toast notification with Undo button
         toast({
           title: draggingEvent ? "Event Rescheduled" : "Duration Updated",
           description: `Updated to ${newStart.toLocaleString('en-US', { 
@@ -221,6 +359,17 @@ export default function Calendar() {
             minute: '2-digit',
             hour12: true 
           })} (${durationMinutes} min)`,
+          action: (
+            <ToastAction 
+              altText="Undo change" 
+              onClick={handleUndo}
+              className="border-yellow-500/30 hover:bg-yellow-600/20 hover:border-yellow-400/50"
+            >
+              <Undo2 className="w-3 h-3 mr-1" />
+              Undo
+            </ToastAction>
+          ),
+          duration: 5000, // Keep toast visible for 5 seconds
         });
 
         // Optimistically update the UI
