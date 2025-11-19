@@ -63,6 +63,8 @@ export default function Calendar() {
   const [dragStartY, setDragStartY] = useState<number>(0);
   const [dragStartTime, setDragStartTime] = useState<Date | null>(null);
   const [tempEventTime, setTempEventTime] = useState<{ start: Date; end: Date } | null>(null);
+  const [hasDragged, setHasDragged] = useState(false);
+  const [hasResized, setHasResized] = useState(false);
 
   // Save view preference whenever it changes
   useEffect(() => {
@@ -117,6 +119,14 @@ export default function Calendar() {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!draggingEvent && !resizingEvent) return;
+
+    // Set dragging/resizing flag when mouse actually moves
+    if (draggingEvent && !hasDragged) {
+      setHasDragged(true);
+    }
+    if (resizingEvent && !hasResized) {
+      setHasResized(true);
+    }
 
     const deltaY = e.clientY - dragStartY;
     // Each 60px (height of time slot) = 1 hour, snap to 5-minute intervals
@@ -237,6 +247,12 @@ export default function Calendar() {
         setDragStartY(0);
         setDragStartTime(null);
         setTempEventTime(null);
+        
+        // Use setTimeout to reset dragging flags after event handlers complete
+        setTimeout(() => {
+          setHasDragged(false);
+          setHasResized(false);
+        }, 100);
 
         // Then update backend in the background
         try {
@@ -287,6 +303,12 @@ export default function Calendar() {
     setDragStartY(0);
     setDragStartTime(null);
     setTempEventTime(null);
+    
+    // Use setTimeout to reset dragging flags after event handlers complete
+    setTimeout(() => {
+      setHasDragged(false);
+      setHasResized(false);
+    }, 100);
   };
 
   const getEventDisplayTime = (event: CalendarEvent) => {
@@ -869,7 +891,7 @@ export default function Calendar() {
                             padding: position.height < 25 ? '2px 4px' : position.height < 40 ? '4px 6px' : '8px'
                           }}
                           onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
-                          onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
+                          onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
                         >
                           {/* Top resize handle */}
                           {isDraggable && position.height > 20 && (
@@ -990,7 +1012,7 @@ export default function Calendar() {
                                       color: eventStyle.color
                                     } : undefined}
                                     onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
-                                    onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
+                                    onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
                                   >
                                     {/* Top resize handle */}
                                     {isDraggable && !isMobile && (
@@ -1106,7 +1128,7 @@ export default function Calendar() {
                                       color: eventStyle.color
                                     } : undefined}
                                     onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
-                                    onClick={() => !isDragging && !isResizing && setSelectedEvent(event)}
+                                    onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
                                   >
                                     {/* Top resize handle */}
                                     {isDraggable && (
