@@ -246,6 +246,7 @@ ProductivityQuest/
   duration: integer (required)       // Task duration in minutes
   goldValue: integer (required)      // Gold reward for completion
   dueDate: timestamp                 // When task is due
+  scheduledTime: timestamp           // ✨ NEW: Specific time scheduled on calendar
   completed: boolean                 // Completion status (default: false)
   completedAt: timestamp             // Completion timestamp
   createdAt: timestamp               // Creation timestamp
@@ -269,6 +270,7 @@ ProductivityQuest/
 - **Notion sync** via `notionId` for bi-directional integration
 - **Gold rewards** automatically calculated from duration
 - **Flexible metadata** for complex categorization needs
+- **✨ NEW: scheduledTime** - Track when tasks are scheduled on calendar (distinct from dueDate)
 
 #### `userProgress` - Aggregate Statistics
 ```typescript
@@ -416,6 +418,39 @@ ProductivityQuest/
 - Indexed on `expire` for efficient cleanup
 - Stores serialized session data (userId, timestamps)
 - Automatic expiration via connect-pg-simple
+
+### Database Migrations
+
+#### Manual Migration for Production (Neon Database)
+
+When deploying schema changes to production, you may need to run manual SQL migrations in the Neon console:
+
+**Recent Migrations:**
+
+**scheduledTime Field (November 2025)**
+- **Purpose**: Add calendar scheduling support for drag-to-schedule feature
+- **Migration SQL**:
+  ```sql
+  ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "scheduledTime" TIMESTAMP;
+  ```
+- **How to Apply**:
+  1. Log in to [Neon Console](https://console.neon.tech/)
+  2. Navigate to your database → SQL Editor
+  3. Paste the migration SQL above
+  4. Click "Run" to execute
+  5. Verify column exists: `SELECT column_name FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'scheduledTime';`
+
+**Why Manual Migration?**
+- `npm run db:push` (Drizzle Kit) can hang on interactive prompts in CI/CD environments
+- Auto-migrations in start scripts cause deployment timeouts on platforms like Render
+- Manual migrations provide immediate control and visibility
+- `IF NOT EXISTS` clause makes migrations idempotent and safe to re-run
+
+**Best Practices:**
+- Always use `IF NOT EXISTS` or `IF NOT EXISTS` clauses
+- Test migrations on development database first
+- Keep migration SQL files in `/migrations/` directory for documentation
+- Verify migrations completed successfully before deploying code changes
 
 ---
 - Shows search results count and active search terms
@@ -1722,6 +1757,19 @@ The calendar page now features advanced interaction capabilities, persistent vie
 - **Real-time Updates**: Events update visually as you drag/resize
 - **Database Sync**: Changes immediately save to database and sync to Google Calendar
 
+**Drag-to-Schedule Feature**
+- **Same-Day Drag**: Moving a task within its due date updates `scheduledTime` only (preserves due date)
+- **Cross-Day Drag**: Moving a task to a different day updates both `dueDate` and `scheduledTime`
+- **Smart Defaults**: Tasks without `scheduledTime` default to 9:00 AM on their due date in calendar view
+- **Time Precision**: `scheduledTime` stores exact timestamp (date + time) for precise scheduling
+- **Apple/Google Calendar Style**: Mimics familiar drag-to-schedule behavior from popular calendar apps
+
+**scheduledTime vs dueDate**
+- **dueDate**: The day a task is due (used for filtering, sorting, and task list display)
+- **scheduledTime**: The specific time scheduled on calendar (used for visual positioning in calendar view)
+- **Independence**: Tasks can be scheduled at any time on their due date, or remain unscheduled
+- **Default Behavior**: If `scheduledTime` is null, calendar displays task at 9:00 AM on `dueDate`
+
 **Absolute Positioning System**
 - Events use pixel-perfect positioning based on time
 - Each hour = 60px, allowing minute-level accuracy
@@ -1736,6 +1784,7 @@ The calendar page now features advanced interaction capabilities, persistent vie
 - ✅ Optimistic updates prevent visual snap-back
 - ✅ Google Calendar events are read-only (cannot drag/resize)
 - ✅ Minimum duration: 5 minutes enforced
+- ✅ scheduledTime field added to database schema (nullable timestamp)
 
 ### Calendar View Persistence
 
@@ -1813,6 +1862,17 @@ Constellation View transforms your skills into an interactive cosmic star map, w
   - 🔵 **Next Goal**: Pulsing blue animation on your next milestone
   - 🔒 **Locked**: Dim gray nodes for future achievements
 - **Custom Layouts**: Each skill has a themed constellation (e.g., Explorer has 3 branches for countries, living abroad, and citizenship)
+
+**✨ NEW: Expanded Milestone Nodes (November 2025)**
+- **Mindset Skill Additions**:
+  - "Eliminate 1 Bad Habit" (Level 12) - Branch from Daily Gratitude Practice
+  - "Eliminate 2 Bad Habits" (Level 25) - Progress from eliminating 1 habit
+- **Health Skill Additions**:
+  - "Keto Diet for 3 Months" (Level 15) - Branch from Nutrition Basics
+  - "Keto Diet for 1 Year" (Level 30) - Long-term keto adherence
+  - "Keto Diet for 3 Years" (Level 50) - Elite dietary discipline
+- **Purpose**: Provide granular milestone tracking for specific health and mindset goals
+- **Integration**: Seamlessly connects to existing constellation architecture
 
 **Customizable Milestones**
 - **Edit Any Milestone**: Click "Customize Milestones" to open the editor
@@ -1968,6 +2028,7 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - **WHY_SKILLS_MODAL_TEST_CASES.md** - 33 test cases for macro goals modal
 - **✨ CONSTELLATION_TEST_CASES.md (NEW)** - 6 core tests for constellation view
 - **✨ MILESTONE_CUSTOMIZATION_TEST_CASES.md (NEW)** - 13 tests for customizable milestones
+- **✨ MILESTONE_NODES_TEST_CASES.md (NEW)** - 12 tests for expanded Mindset & Health milestone nodes
 - **✨ CAMPAIGNS_PAGE_TEST_CASES.md (NEW)** - 6 tests for unified campaigns display
 - **✨ GRID_COMPACT_TEST_CASES.md (NEW)** - 8 tests for 6-column grid layout
 - **✨ COMPASS_ICON_TEST_CASES.md (NEW)** - 5 tests for Compass icon addition
