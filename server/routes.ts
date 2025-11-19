@@ -2256,8 +2256,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add ProductivityQuest tasks
       for (const task of tasksInMonth) {
+        // Use scheduledTime if available, otherwise default to 9 AM on the due date
+        let startTime: Date;
+        
+        if (task.scheduledTime) {
+          // scheduledTime is a timestamp - use it directly
+          startTime = new Date(task.scheduledTime);
+        } else if (task.dueDate) {
+          // No scheduledTime - default to 9 AM on the due date
+          startTime = new Date(task.dueDate);
+          startTime.setHours(9, 0, 0, 0);
+        } else {
+          startTime = new Date();
+        }
+        
         // Calculate end time based on task duration
-        const startTime = task.dueDate ? new Date(task.dueDate) : new Date();
         const endTime = new Date(startTime);
         endTime.setMinutes(endTime.getMinutes() + (task.duration || 60));
         

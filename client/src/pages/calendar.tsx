@@ -166,15 +166,39 @@ export default function Calendar() {
         const durationMinutes = Math.round(durationMs / 60000);
 
         try {
+          // Get the original event start time
+          const originalStart = new Date(eventToUpdate.start);
+          const newStart = tempEventTime.start;
+          
+          // Check if we're moving within the same day (same date, different time)
+          const isSameDay = 
+            originalStart.getFullYear() === newStart.getFullYear() &&
+            originalStart.getMonth() === newStart.getMonth() &&
+            originalStart.getDate() === newStart.getDate();
+          
+          let updatePayload: any;
+          
+          if (isSameDay && draggingEvent) {
+            // Moving within the same day - only update scheduledTime (keep dueDate)
+            updatePayload = {
+              scheduledTime: newStart.toISOString(),
+              duration: durationMinutes,
+            };
+          } else {
+            // Moving across days or resizing - update both dueDate and scheduledTime
+            updatePayload = {
+              dueDate: newStart.toISOString(),
+              scheduledTime: newStart.toISOString(),
+              duration: durationMinutes,
+            };
+          }
+
           // Update task via API
           const response = await fetch(`/api/tasks/${taskId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({
-              dueDate: tempEventTime.start.toISOString(),
-              duration: durationMinutes,
-            }),
+            body: JSON.stringify(updatePayload),
           });
 
           if (response.ok) {
