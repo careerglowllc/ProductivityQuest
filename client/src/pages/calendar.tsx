@@ -1280,29 +1280,25 @@ export default function Calendar() {
                 {/* Action Buttons */}
                 <div className="flex gap-2 justify-between">
                   <div className="flex gap-2">
-                    {/* Reschedule Button - Only for ProductivityQuest events */}
-                    {selectedEvent.source === 'productivityquest' && (
-                      <Button
-                        variant="outline"
-                        className="border-blue-500/30 hover:bg-blue-500/10"
-                        onClick={handleReschedule}
-                      >
-                        <Clock className="w-4 h-4 mr-2" />
-                        Reschedule
-                      </Button>
-                    )}
+                    {/* Reschedule Button - For all events */}
+                    <Button
+                      variant="outline"
+                      className="border-blue-500/30 hover:bg-blue-500/10"
+                      onClick={handleReschedule}
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      Reschedule
+                    </Button>
                     
-                    {/* Delete Button - Only for ProductivityQuest events */}
-                    {selectedEvent.source === 'productivityquest' && (
-                      <Button
-                        variant="outline"
-                        className="border-red-500/30 hover:bg-red-500/10 text-red-400"
-                        onClick={() => setShowDeleteMenu(!showDeleteMenu)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </Button>
-                    )}
+                    {/* Delete Button - For all events */}
+                    <Button
+                      variant="outline"
+                      className="border-red-500/30 hover:bg-red-500/10 text-red-400"
+                      onClick={() => setShowDeleteMenu(!showDeleteMenu)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
                   </div>
 
                   <div className="flex gap-2">
@@ -1344,46 +1340,94 @@ export default function Calendar() {
                 </div>
 
                 {/* Delete Options Menu */}
-                {showDeleteMenu && selectedEvent.source === 'productivityquest' && (
+                {showDeleteMenu && (
                   <div className="mt-4 p-4 bg-gray-800/50 border border-red-500/30 rounded-lg space-y-2">
                     <p className="text-sm text-gray-400 mb-3">Choose delete option:</p>
                     
-                    {/* Option 1: Delete from both */}
-                    <Button
-                      variant="outline"
-                      className={`w-full justify-start ${
-                        !isTwoWaySync 
-                          ? 'opacity-50 cursor-not-allowed border-gray-600' 
-                          : 'border-red-500/30 hover:bg-red-500/10'
-                      }`}
-                      disabled={!isTwoWaySync}
-                      onClick={() => handleDeleteEvent(true)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      <div className="text-left flex-1">
-                        <div className="text-sm">Delete from App & Google Calendar</div>
-                        {!isTwoWaySync && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            Enable Two-Way Sync in Google Calendar settings to use this option
+                    {/* Show different options based on event source */}
+                    {selectedEvent.source === 'google' ? (
+                      // For Google Calendar events - only delete from Google
+                      <>
+                        <Button
+                          variant="outline"
+                          className={`w-full justify-start ${
+                            !isTwoWaySync 
+                              ? 'opacity-50 cursor-not-allowed border-gray-600' 
+                              : 'border-red-500/30 hover:bg-red-500/10'
+                          }`}
+                          disabled={!isTwoWaySync}
+                          onClick={() => {
+                            if (isTwoWaySync) {
+                              // Delete from Google Calendar
+                              const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
+                              window.open(googleCalendarUrl, '_blank');
+                              toast({
+                                title: "Delete in Google Calendar",
+                                description: "Please delete this event in Google Calendar. It will sync automatically.",
+                              });
+                              setSelectedEvent(null);
+                              setShowDeleteMenu(false);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          <div className="text-left flex-1">
+                            <div className="text-sm">Delete from Google Calendar</div>
+                            {!isTwoWaySync ? (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Enable Two-Way Sync in Google Calendar settings to use this option
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-400 mt-1">
+                                Opens Google Calendar where you can delete this event
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </Button>
+                        </Button>
 
-                    {/* Option 2: Delete from app only */}
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10"
-                      onClick={() => handleDeleteEvent(false)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      <div className="text-left flex-1">
-                        <div className="text-sm">Delete from App Only</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Removes from app calendar and task list, keeps in Google Calendar
+                        <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-800/30 rounded">
+                          This is a Google Calendar event. To delete it, use Google Calendar directly.
                         </div>
-                      </div>
-                    </Button>
+                      </>
+                    ) : (
+                      // For ProductivityQuest events - show both options
+                      <>
+                        <Button
+                          variant="outline"
+                          className={`w-full justify-start ${
+                            !isTwoWaySync 
+                              ? 'opacity-50 cursor-not-allowed border-gray-600' 
+                              : 'border-red-500/30 hover:bg-red-500/10'
+                          }`}
+                          disabled={!isTwoWaySync}
+                          onClick={() => handleDeleteEvent(true)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          <div className="text-left flex-1">
+                            <div className="text-sm">Delete from App & Google Calendar</div>
+                            {!isTwoWaySync && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Enable Two-Way Sync in Google Calendar settings to use this option
+                              </div>
+                            )}
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10"
+                          onClick={() => handleDeleteEvent(false)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          <div className="text-left flex-1">
+                            <div className="text-sm">Delete from App Only</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Removes from app calendar and task list, keeps in Google Calendar
+                            </div>
+                          </div>
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1411,27 +1455,56 @@ export default function Calendar() {
                   {selectedEvent.title}
                 </p>
 
-                <p className="text-sm text-gray-400 mb-6">
-                  Drag the event in the calendar view to reschedule it, or click below to view the task details page for more options.
-                </p>
+                {selectedEvent.source === 'google' ? (
+                  <>
+                    <p className="text-sm text-gray-400 mb-6">
+                      This is a Google Calendar event. You can drag it in the calendar view to reschedule, or use Google Calendar directly for more options.
+                    </p>
 
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    className="border-purple-500/30"
-                    onClick={() => {
-                      window.location.href = '/';
-                    }}
-                  >
-                    Go to Task Details
-                  </Button>
-                  <Button
-                    onClick={() => setShowRescheduleModal(false)}
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    Close
-                  </Button>
-                </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        className="border-purple-500/30"
+                        onClick={() => {
+                          const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
+                          window.open(googleCalendarUrl, '_blank');
+                        }}
+                      >
+                        Open in Google Calendar
+                      </Button>
+                      <Button
+                        onClick={() => setShowRescheduleModal(false)}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-400 mb-6">
+                      Drag the event in the calendar view to reschedule it, or click below to view the task details page for more options.
+                    </p>
+
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        className="border-purple-500/30"
+                        onClick={() => {
+                          window.location.href = '/';
+                        }}
+                      >
+                        Go to Task Details
+                      </Button>
+                      <Button
+                        onClick={() => setShowRescheduleModal(false)}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
           </div>
