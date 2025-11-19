@@ -588,8 +588,19 @@ interface ShopItem {
 ### Shop & Progress
 - `GET /api/shop/items` - Get all shop items
 - `POST /api/shop/purchase` - Purchase item with gold
+- `PATCH /api/shop/items/:id` - Update shop item price (custom items only)
 - `GET /api/progress` - Get user progress stats
 - `GET /api/stats` - Get daily/weekly statistics
+
+### ✨ Shop Item Price Editing (NEW)
+- **Inline Editing**: Click pencil icon next to item price to edit
+- **Save/Cancel Buttons**: Green checkmark (✓) to save, red X (✗) to cancel
+- **Custom Items Only**: Edit icon only visible for user-created items (not default items)
+- **Validation**: Price must be greater than 0
+- **Real-time Updates**: Optimistic UI with immediate visual feedback
+- **Toast Notifications**: Success/error messages for user actions
+- **Click Isolation**: Edit UI uses `stopPropagation` to prevent card selection
+- See [SHOP_CALENDAR_FEATURES_TEST_CASES.md](SHOP_CALENDAR_FEATURES_TEST_CASES.md) for 10 shop edit tests
 
 ### ✨ Custom Skills (NEW)
 - `POST /api/skills/custom` - Create custom skill
@@ -1939,12 +1950,40 @@ const savedView = localStorage.getItem('calendarView') || 'month';
 - Auto-focus on input when entering edit mode
 - Input pre-filled with current duration value
 
+### Calendar Event Color Picker
+
+**Apple Calendar-Style Color Selection**
+- **Visual Color Button**: Circular color indicator in top-right of event modal (32px)
+- **12 Color Palette**: Purple, Pink, Red, Orange, Yellow, Green, Teal, Cyan, Blue, Indigo, Violet, Fuchsia
+- **Dropdown Menu**: Click color button to reveal 4×3 grid of color options
+- **Current Color Highlight**: Active color shows white border in dropdown
+- **Instant Updates**: Color changes apply immediately with optimistic UI
+
+**ProductivityQuest Events Only**
+- **Color Picker Visible**: Only for tasks created in ProductivityQuest
+- **Google Calendar Events**: Use their calendar's color (read-only, no picker)
+- **Calendar Sync**: Color changes sync to `calendarColor` field in database
+
+**UI Design**
+- **Position**: Absolute top-right (top-4 right-4) in modal
+- **Backdrop Blur**: Dark background (bg-gray-800/95) with blur effect
+- **Border Styling**: Purple border on dropdown, white/20 opacity on button
+- **Hover Effects**: Scale animation (hover:scale-110) on color options
+- **Smooth Close**: Dropdown auto-closes when selecting color or clicking outside
+
+**Color Persistence**
+- Colors persist across calendar views (Day/3-Day/Week/Month)
+- Event border and background match selected color
+- Database stores color value for future sessions
+- Page refreshes maintain color selection
+
 ### Test Coverage
 - **CALENDAR_DRAG_RESIZE_TEST_CASES.md**: 10 core functionality tests + edge cases
 - **CALENDAR_VIEW_PERSISTENCE_TEST_CASES.md**: 10 persistence tests + edge cases
 - **TASK_DURATION_EDIT_TEST_CASES.md**: 20 comprehensive edit workflow tests
 - **CALENDAR_EVENT_MODAL_TEST_CASES.md**: 20 modal action tests (Reschedule/Delete) + 3 edge cases
 - **CALENDAR_UNDO_OVERLAP_TEST_CASES.md**: 10 undo tests + 10 overlapping events tests + 3 edge cases
+- **SHOP_CALENDAR_FEATURES_TEST_CASES.md**: 10 shop edit tests + 10 color picker tests + 3 edge cases
 
 ---
 
