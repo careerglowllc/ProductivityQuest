@@ -175,6 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         googleCalendarSyncEnabled: user.googleCalendarSyncEnabled || false,
         googleCalendarSyncDirection: user.googleCalendarSyncDirection || 'both',
         googleCalendarLastSync: user.googleCalendarLastSync,
+        timezone: user.timezone || 'America/New_York',
       });
     } catch (error) {
       console.error("Error fetching user settings:", error);
@@ -233,6 +234,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user settings:", error);
       res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // Timezone settings endpoint
+  app.get('/api/settings', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({
+        timezone: user.timezone || 'America/New_York',
+      });
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  app.post('/api/settings/timezone', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { timezone } = req.body;
+      
+      if (!timezone || typeof timezone !== 'string') {
+        return res.status(400).json({ error: "Invalid timezone" });
+      }
+      
+      const user = await storage.updateUserSettings(userId, { timezone });
+      
+      res.json({
+        message: "Timezone updated successfully",
+        timezone: user.timezone,
+      });
+    } catch (error) {
+      console.error("Error updating timezone:", error);
+      res.status(500).json({ error: "Failed to update timezone" });
     }
   });
 

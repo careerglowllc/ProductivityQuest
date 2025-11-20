@@ -19,6 +19,7 @@ export interface IStorage {
     googleCalendarTokenExpiry?: Date | null;
     googleCalendarSyncEnabled?: boolean;
     googleCalendarSyncDirection?: string;
+    timezone?: string;
   }): Promise<User>;
   
   // Task operations

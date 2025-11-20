@@ -17,6 +17,8 @@ import SettingsPage from "@/pages/settings";
 import NotionIntegration from "@/pages/notion-integration";
 import GoogleCalendarIntegration from "@/pages/google-calendar-integration";
 import CalendarPage from "@/pages/calendar";
+import CalendarSettingsPage from "@/pages/settings-calendar";
+import TimezoneSettingsPage from "@/pages/settings-timezone";
 import SettingsGuidesPage from "@/pages/settings-guides";
 import SkillClassificationGuidePage from "@/pages/settings-guides-skill-classification";
 import MeasureWhatMattersGuidePage from "@/pages/settings-guides-measure-what-matters";
@@ -84,6 +86,8 @@ function Router() {
             <Route path="/profile" component={Profile} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
+            <Route path="/settings/calendar" component={CalendarSettingsPage} />
+            <Route path="/settings/timezone" component={TimezoneSettingsPage} />
             <Route path="/settings/google-calendar" component={GoogleCalendarIntegration} />
             <Route path="/google-calendar-integration" component={GoogleCalendarIntegration} />
             <Route path="/settings/guides" component={SettingsGuidesPage} />

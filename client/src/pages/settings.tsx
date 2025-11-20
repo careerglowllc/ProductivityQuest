@@ -41,10 +41,10 @@ export default function SettingsPage() {
       color: "from-slate-500 to-slate-600",
     },
     {
-      title: "Google Calendar",
-      description: "Connect and sync with your Google Calendar",
+      title: "Calendar Settings",
+      description: "Configure calendar sync and timezone preferences",
       icon: Calendar,
-      path: "/settings/google-calendar",
+      path: "/settings/calendar",
       color: "from-blue-500 to-blue-600",
     },
     {
