@@ -1595,9 +1595,19 @@ export default function Calendar() {
                 {selectedEvent.description && (
                   <div className="mb-4 pb-4 border-b border-gray-700">
                     <p className="text-sm text-gray-400 mb-1">Description</p>
-                    <p className="text-gray-300 whitespace-pre-wrap">
-                      {selectedEvent.description}
-                    </p>
+                    <div className="text-gray-300 whitespace-pre-wrap max-h-96 overflow-y-auto">
+                      {selectedEvent.description.length > 1000 ? (
+                        <>
+                          {selectedEvent.description.substring(0, 1000)}
+                          <span className="text-gray-500">... (truncated)</span>
+                          <p className="text-xs text-blue-400 mt-2 italic">
+                            Click "View Details" below to see the full description
+                          </p>
+                        </>
+                      ) : (
+                        selectedEvent.description
+                      )}
+                    </div>
                   </div>
                 )}
 
