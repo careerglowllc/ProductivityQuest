@@ -30,6 +30,12 @@ export async function runStartupMigrations() {
       WHERE campaign IS NULL
     `;
     
+    // Migration: Add timezone field to users table if it doesn't exist
+    await sql`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York'
+    `;
+    
     console.log('✅ Startup migrations completed successfully');
   } catch (error) {
     console.error('❌ Startup migrations failed:', error);
