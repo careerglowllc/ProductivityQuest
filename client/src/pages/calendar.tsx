@@ -473,7 +473,28 @@ export default function Calendar() {
     if (!selectedEvent) return;
 
     try {
-      const taskId = selectedEvent.id.replace('google-', '');
+      // For Google Calendar events
+      if (selectedEvent.source === 'google') {
+        if (deleteFromGoogleToo) {
+          // Open Google Calendar to delete (already handled in the button onClick)
+          return;
+        } else {
+          // For app-only removal of Google events, explain that we can't hide them
+          toast({
+            title: "Cannot Hide Google Calendar Events",
+            description: "Google Calendar events sync automatically. To remove this event, delete it from Google Calendar or disable calendar sync in Settings.",
+            variant: "destructive",
+          });
+          
+          // Close modals
+          setSelectedEvent(null);
+          setShowDeleteMenu(false);
+          return;
+        }
+      }
+
+      // For ProductivityQuest tasks
+      const taskId = selectedEvent.id.replace('task-', '');
       
       // Delete from app and optionally from Google Calendar
       const response = await fetch(`/api/tasks/${taskId}`, {
