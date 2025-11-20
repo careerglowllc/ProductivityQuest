@@ -429,36 +429,26 @@ export default function Home() {
       
       toast({
         title: "Adding to Calendar...",
-        description: `Syncing ${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's' : ''} to Google Calendar`,
+        description: `Adding ${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's' : ''} to your calendar`,
       });
 
-      const response = await apiRequest("POST", "/api/calendar/sync", {
-        selectedTasks: selectedTaskIds
+      const response = await apiRequest("POST", "/api/tasks/add-to-calendar", {
+        taskIds: selectedTaskIds
       });
       const result = await response.json();
 
-      // Clear selection after sync
+      // Clear selection and refetch to show updated calendar times
       setSelectedTasks(new Set());
+      refetchTasks();
       
       toast({
-        title: "Calendar Sync Complete",
-        description: `${result.count} task${result.count > 1 ? 's' : ''} added to your Google Calendar${result.failed > 0 ? ` (${result.failed} failed)` : ''}`,
+        title: "Added to Calendar",
+        description: `${result.added} task${result.added !== 1 ? 's' : ''} added to calendar${result.skipped > 0 ? ` (${result.skipped} skipped - no due date or already completed)` : ''}`,
       });
     } catch (error: any) {
-      const errorData = error.response?.data || {};
-      
-      if (errorData.needsAuth) {
-        toast({
-          title: "Google Calendar Not Connected",
-          description: "Please connect your Google Calendar in Settings to sync tasks.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
       toast({
         title: "Error",
-        description: "Failed to sync tasks to calendar. Please try again.",
+        description: "Failed to add tasks to calendar. Please try again.",
         variant: "destructive",
       });
     }

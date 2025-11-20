@@ -630,6 +630,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add selected tasks to calendar (set scheduledTime based on dueDate)
+  app.post("/api/tasks/add-to-calendar", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { taskIds } = req.body;
+
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "Invalid task IDs" });
+      }
+
+      const tasks = await storage.getTasks(userId);
+      let addedCount = 0;
+      let skippedCount = 0;
+
+      for (const taskId of taskIds) {
+        const task = tasks.find(t => t.id === taskId);
+        
+        // Skip if task doesn't exist, is completed, or has no due date
+        if (!task || task.completed || !task.dueDate) {
+          skippedCount++;
+          continue;
+        }
+
+        // Set scheduledTime to the dueDate at 12 PM (noon) if not already set
+        const scheduledTime = task.scheduledTime || new Date(
+          new Date(task.dueDate).setHours(12, 0, 0, 0)
+        );
+
+        await storage.updateTask(taskId, { scheduledTime }, userId);
+        addedCount++;
+      }
+
+      res.json({ 
+        success: true, 
+        added: addedCount,
+        skipped: skippedCount,
+        total: taskIds.length
+      });
+    } catch (error) {
+      console.error("Add to calendar error:", error);
+      res.status(500).json({ error: "Failed to add tasks to calendar" });
+    }
+  });
+
   // Batch complete multiple tasks - much faster!
   app.post("/api/tasks/complete-batch", requireAuth, async (req: any, res) => {
     try {
