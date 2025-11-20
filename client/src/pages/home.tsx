@@ -1022,6 +1022,61 @@ export default function Home() {
     }
   };
 
+  // Get priority color styling for grid batches
+  const getPriorityStyles = (priority: string) => {
+    switch (priority) {
+      case "Pareto":
+        return {
+          borderColor: "border-red-500/50",
+          bgColor: "bg-red-500/5",
+          textColor: "text-red-400",
+          iconBg: "bg-red-500/20"
+        };
+      case "High":
+        return {
+          borderColor: "border-orange-500/50",
+          bgColor: "bg-orange-500/5",
+          textColor: "text-orange-400",
+          iconBg: "bg-orange-500/20"
+        };
+      case "Med-High":
+        return {
+          borderColor: "border-yellow-500/50",
+          bgColor: "bg-yellow-500/5",
+          textColor: "text-yellow-400",
+          iconBg: "bg-yellow-500/20"
+        };
+      case "Medium":
+        return {
+          borderColor: "border-lime-500/50",
+          bgColor: "bg-lime-500/5",
+          textColor: "text-lime-400",
+          iconBg: "bg-lime-500/20"
+        };
+      case "Med-Low":
+        return {
+          borderColor: "border-green-500/50",
+          bgColor: "bg-green-500/5",
+          textColor: "text-green-400",
+          iconBg: "bg-green-500/20"
+        };
+      case "Low":
+        return {
+          borderColor: "border-blue-500/50",
+          bgColor: "bg-blue-500/5",
+          textColor: "text-blue-400",
+          iconBg: "bg-blue-500/20"
+        };
+      default:
+        return {
+          borderColor: "border-gray-500/30",
+          bgColor: "bg-gray-500/5",
+          textColor: "text-gray-400",
+          iconBg: "bg-gray-500/20"
+        };
+    }
+  };
+
   const filteredTasks = getFilteredTasks();
   const sortedTasks = getSortedTasks(filteredTasks);
   const batchedTasks = getBatchedTasks(sortedTasks);
@@ -1563,32 +1618,48 @@ export default function Home() {
                 ))
               ) : (
                 // Grid View with Batches
-                batchedTasks.map((batch, batchIndex) => (
-                  <div key={batchIndex} className="space-y-3">
-                    <h3 className="text-lg font-serif font-bold text-yellow-100 px-2 flex items-center gap-2">
-                      {sortBy === "due-date" ? (
-                        <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                      ) : (
-                        <CalendarDays className="w-5 h-5 text-yellow-400" />
-                      )}
-                      {batch.title}
-                      <span className="text-sm font-normal text-yellow-200/70">
-                        ({batch.tasks.length})
-                      </span>
-                    </h3>
-                    <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>
-                      {batch.tasks.map((task: any) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          isCompact={viewType === "grid"}
-                          onSelect={handleTaskSelect}
-                          isSelected={selectedTasks.has(task.id)}
-                        />
-                      ))}
+                batchedTasks.map((batch, batchIndex) => {
+                  const styles = sortBy === "due-date" && 'priority' in batch 
+                    ? getPriorityStyles(batch.priority)
+                    : {
+                        borderColor: "border-yellow-600/30",
+                        bgColor: "bg-slate-800/40",
+                        textColor: "text-yellow-400",
+                        iconBg: "bg-yellow-500/20"
+                      };
+                  
+                  return (
+                    <div 
+                      key={batchIndex} 
+                      className={`space-y-3 p-4 rounded-lg border-2 ${styles.borderColor} ${styles.bgColor} backdrop-blur-sm`}
+                    >
+                      <h3 className={`text-lg font-serif font-bold px-2 flex items-center gap-2 ${styles.textColor}`}>
+                        <div className={`p-1.5 rounded-lg ${styles.iconBg}`}>
+                          {sortBy === "due-date" ? (
+                            <AlertTriangle className="w-5 h-5" />
+                          ) : (
+                            <CalendarDays className="w-5 h-5" />
+                          )}
+                        </div>
+                        {batch.title}
+                        <span className="text-sm font-normal text-gray-400">
+                          ({batch.tasks.length})
+                        </span>
+                      </h3>
+                      <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>
+                        {batch.tasks.map((task: any) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            isCompact={viewType === "grid"}
+                            onSelect={handleTaskSelect}
+                            isSelected={selectedTasks.has(task.id)}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
       </div>
