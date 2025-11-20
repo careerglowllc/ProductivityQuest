@@ -1933,9 +1933,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const user = await storage.getUserById(userId);
       
-      if (!user?.googleAccessToken || !user?.googleRefreshToken) {
+      // Check if Google Calendar is configured (not checking tokens here, let the service handle it)
+      if (!user) {
         return res.status(400).json({ 
-          error: "Google Calendar not connected",
+          error: "User not found",
           needsAuth: true 
         });
       }
@@ -1949,6 +1950,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         !task.completed
       );
 
+      if (tasksToSync.length === 0) {
+        return res.json({ 
+          success: true, 
+          count: 0,
+          failed: 0,
+          total: 0,
+          message: "No tasks with due dates to sync"
+        });
+      }
+
       const results = await googleCalendar.syncTasks(tasksToSync, user);
       
       res.json({ 
@@ -1959,6 +1970,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Calendar sync error:", error);
+      
+      // Check if it's an auth error
+      if (error.message?.includes('Google OAuth credentials not configured')) {
+        return res.status(400).json({ 
+          error: "Google Calendar not connected",
+          needsAuth: true 
+        });
+      }
       
       res.status(500).json({ 
         error: "Failed to sync to calendar",
