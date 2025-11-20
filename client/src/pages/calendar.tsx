@@ -1751,7 +1751,7 @@ export default function Calendar() {
                     
                     {/* Show different options based on event source */}
                     {selectedEvent.source === 'google' ? (
-                      // For Google Calendar events - only delete from Google
+                      // For Google Calendar events - show both options
                       <>
                         <Button
                           variant="outline"
@@ -1791,8 +1791,23 @@ export default function Calendar() {
                           </div>
                         </Button>
 
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-xs"
+                          onClick={() => handleDeleteEvent(false)}
+                        >
+                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
+                          <div className="text-left flex-1">
+                            <div className="text-xs font-medium">Remove from App Only</div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">
+                              Keeps in Google Calendar
+                            </div>
+                          </div>
+                        </Button>
+
                         <div className="text-[10px] text-gray-500 mt-1 p-1.5 bg-gray-800/30 rounded">
-                          Google Calendar event - delete via Google Calendar
+                          Google Calendar event - choose where to delete
                         </div>
                       </>
                     ) : (
