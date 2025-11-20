@@ -37,7 +37,17 @@ export default function Home() {
   const [completionSkillXPGains, setCompletionSkillXPGains] = useState<any[]>([]);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [leveledUpSkills, setLeveledUpSkills] = useState<any[]>([]);
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  
+  // Load saved filter preference from localStorage, default to 'all'
+  const [activeFilter, setActiveFilter] = useState<FilterType>(() => {
+    const savedFilter = localStorage.getItem('tasksFilter');
+    const validFilters: FilterType[] = ["all", "due-today", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-vi", "business-general", "business-sp", "business-vel", "business-cg"];
+    if (savedFilter && validFilters.includes(savedFilter as FilterType)) {
+      return savedFilter as FilterType;
+    }
+    return "all";
+  });
+  
   const [sortBy, setSortBy] = useState<SortType>("due-date");
   const [viewType, setViewType] = useState<ViewType>("list");
   const [showImportConfirm, setShowImportConfirm] = useState(false);
@@ -81,6 +91,11 @@ export default function Home() {
       setDetailTaskId(parseInt(taskIdParam));
     }
   }, [location]);
+
+  // Save filter preference whenever it changes
+  useEffect(() => {
+    localStorage.setItem('tasksFilter', activeFilter);
+  }, [activeFilter]);
 
   const { data: progress = { goldTotal: 0, tasksCompleted: 0 }, refetch: refetchProgress } = useQuery({
     queryKey: ["/api/progress"],
