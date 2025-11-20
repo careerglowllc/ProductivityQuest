@@ -169,8 +169,15 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                     ? new Date(properties.Due.date.start)
                     : null;
 
-                // Default duration to 30 minutes (can be customized later)
-                const duration = 30;
+                // Extract duration from "Min to Complete" property (Number type)
+                // Default to 30 minutes if not found or invalid
+                let duration = 30;
+                if (properties["Min to Complete"]?.number) {
+                    duration = properties["Min to Complete"].number;
+                } else if (properties["Min to complete"]?.number) {
+                    // Try alternate capitalization
+                    duration = properties["Min to complete"].number;
+                }
 
                 // Extract importance from "Importance" property (Select type)
                 // Options: Pareto, High, Med-High, Medium, Med-Low, Low
