@@ -612,10 +612,10 @@ export default function Skills() {
         const nodeX = (centerX / 100) * containerWidth;
         const nodeY = (centerY / 100) * containerHeight;
         
-        // Center the viewport horizontally on the node, and position node near the bottom
-        // We want about 80-100px of space below the start node
+        // Center the viewport horizontally on the node, and position node at the very bottom
+        // We want the start node to appear near the bottom with minimal space below it
         const scrollLeft = nodeX - (viewportWidth / 2);
-        const scrollTop = nodeY - viewportHeight + 120; // Keep 120px from bottom of viewport
+        const scrollTop = nodeY - viewportHeight + 80; // Only 80px from bottom of viewport
         
         // Smooth scroll to position
         scrollContainer.scrollTo({
