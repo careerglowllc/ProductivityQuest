@@ -634,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tasks/add-to-calendar", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const { taskIds } = req.body;
+      const { taskIds, force } = req.body;
 
       if (!Array.isArray(taskIds) || taskIds.length === 0) {
         return res.status(400).json({ error: "Invalid task IDs" });
@@ -643,13 +643,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tasks = await storage.getTasks(userId);
       let addedCount = 0;
       let skippedCount = 0;
+      let duplicateCount = 0;
+      const duplicateTasks: any[] = [];
 
+      // First pass: check for duplicates
       for (const taskId of taskIds) {
         const task = tasks.find(t => t.id === taskId);
         
         // Skip if task doesn't exist, is completed, or has no due date
         if (!task || task.completed || !task.dueDate) {
           skippedCount++;
+          continue;
+        }
+
+        // Check if task already has scheduledTime (duplicate)
+        if (task.scheduledTime && !force) {
+          duplicateCount++;
+          duplicateTasks.push({
+            id: task.id,
+            title: task.title,
+            scheduledTime: task.scheduledTime
+          });
+        }
+      }
+
+      // If duplicates found and not forced, return them for confirmation
+      if (duplicateCount > 0 && !force) {
+        return res.json({
+          success: false,
+          duplicatesFound: true,
+          duplicateCount,
+          duplicateTasks,
+          total: taskIds.length
+        });
+      }
+
+      // Second pass: add tasks to calendar
+      for (const taskId of taskIds) {
+        const task = tasks.find(t => t.id === taskId);
+        
+        // Skip if task doesn't exist, is completed, or has no due date
+        if (!task || task.completed || !task.dueDate) {
           continue;
         }
 

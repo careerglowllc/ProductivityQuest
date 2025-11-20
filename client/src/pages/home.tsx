@@ -71,6 +71,12 @@ export default function Home() {
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
   
+  // Calendar duplicate state
+  const [showCalendarDuplicateConfirm, setShowCalendarDuplicateConfirm] = useState(false);
+  const [calendarDuplicateCount, setCalendarDuplicateCount] = useState(0);
+  const [calendarDuplicateTasks, setCalendarDuplicateTasks] = useState<any[]>([]);
+  const [pendingCalendarTaskIds, setPendingCalendarTaskIds] = useState<number[]>([]);
+  
   // Categorization adjustment state
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [lastCategorizedTasks, setLastCategorizedTasks] = useState<any[]>([]);
@@ -421,21 +427,33 @@ export default function Home() {
     setSelectedTasks(new Set());
   };
 
-  const handleAddToCalendar = async () => {
+  const handleAddToCalendar = async (force = false) => {
     if (selectedTasks.size === 0) return;
 
     try {
       const selectedTaskIds = Array.from(selectedTasks);
       
-      toast({
-        title: "Adding to Calendar...",
-        description: `Adding ${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's' : ''} to your calendar`,
-      });
+      if (!force) {
+        toast({
+          title: "Checking Calendar...",
+          description: `Checking ${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's' : ''}`,
+        });
+      }
 
       const response = await apiRequest("POST", "/api/tasks/add-to-calendar", {
-        taskIds: selectedTaskIds
+        taskIds: selectedTaskIds,
+        force
       });
       const result = await response.json();
+
+      // Check if duplicates were found
+      if (result.duplicatesFound && !force) {
+        setCalendarDuplicateCount(result.duplicateCount);
+        setCalendarDuplicateTasks(result.duplicateTasks);
+        setPendingCalendarTaskIds(selectedTaskIds);
+        setShowCalendarDuplicateConfirm(true);
+        return;
+      }
 
       // Clear selection and refetch to show updated calendar times
       setSelectedTasks(new Set());
@@ -452,6 +470,11 @@ export default function Home() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleCalendarDuplicateConfirm = async () => {
+    setShowCalendarDuplicateConfirm(false);
+    await handleAddToCalendar(true); // Force add even with duplicates
   };
 
   const handleCategorizeSkill = async () => {
@@ -1559,7 +1582,7 @@ export default function Home() {
                         Complete Selected
                       </Button>
                       <Button 
-                        onClick={handleAddToCalendar}
+                        onClick={() => handleAddToCalendar()}
                         variant="outline"
                         className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 hover:text-cyan-200"
                       >
@@ -1826,6 +1849,64 @@ export default function Home() {
               className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
             >
               Include All ({importTaskCount})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Calendar Duplicate Detection Dialog */}
+      <Dialog open={showCalendarDuplicateConfirm} onOpenChange={setShowCalendarDuplicateConfirm}>
+        <DialogContent className="bg-slate-800 border-2 border-cyan-600/40">
+          <DialogHeader>
+            <DialogTitle className="text-cyan-100 font-serif">Tasks Already on Calendar</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-cyan-200/70 mb-4">
+              Found {calendarDuplicateCount} task(s) that are already scheduled on your calendar.
+            </p>
+            {calendarDuplicateTasks.length > 0 && (
+              <div className="bg-cyan-900/20 border border-cyan-600/30 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto">
+                <div className="text-xs text-cyan-200/80 space-y-1">
+                  {calendarDuplicateTasks.slice(0, 5).map((task: any) => (
+                    <div key={task.id} className="flex items-center gap-2">
+                      <Calendar className="w-3 h-3 text-cyan-400" />
+                      <span className="flex-1 truncate">{task.title}</span>
+                    </div>
+                  ))}
+                  {calendarDuplicateTasks.length > 5 && (
+                    <div className="text-cyan-400/60 italic">
+                      ...and {calendarDuplicateTasks.length - 5} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="bg-cyan-900/30 border border-cyan-600/50 rounded-lg p-4 backdrop-blur-sm">
+              <div className="flex items-center mb-2">
+                <AlertTriangle className="w-5 h-5 text-cyan-400 mr-2" />
+                <span className="text-cyan-200 font-medium">Do you want to add them anyway?</span>
+              </div>
+              <p className="text-cyan-200/80 text-sm mt-1">
+                This will update their scheduled times on the calendar.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowCalendarDuplicateConfirm(false);
+                setSelectedTasks(new Set()); // Clear selection
+              }} 
+              className="border-cyan-600/40 text-cyan-200 hover:bg-cyan-600/20 hover:text-cyan-100"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCalendarDuplicateConfirm} 
+              className="bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white border border-cyan-400/50"
+            >
+              Add Anyway
             </Button>
           </DialogFooter>
         </DialogContent>
