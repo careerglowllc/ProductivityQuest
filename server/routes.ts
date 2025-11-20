@@ -15,22 +15,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post('/api/auth/register', async (req, res) => {
     try {
+      console.log('📝 Registration attempt for:', req.body.username);
       const validatedData = insertUserSchema.parse(req.body);
       
       // Check if username already exists
+      console.log('👤 Checking if username exists...');
       const existingUser = await storage.getUserByUsername(validatedData.username);
       if (existingUser) {
+        console.log('❌ Username already taken');
         return res.status(400).json({ message: "Username already taken" });
       }
       
       // Check if email already exists  
+      console.log('📧 Checking if email exists...');
       const existingEmail = await storage.getUserByEmail(validatedData.email);
       if (existingEmail) {
+        console.log('❌ Email already registered');
         return res.status(400).json({ message: "Email already registered" });
       }
       
       // Create user
+      console.log('✨ Creating new user...');
       const user = await storage.createUser(validatedData);
+      console.log('✅ User created successfully:', user.id);
       
       // Create session
       if (req.session) {
@@ -39,23 +46,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Save session
         await new Promise((resolve, reject) => {
           req.session!.save((err) => {
-            if (err) reject(err);
-            else resolve(undefined);
+            if (err) {
+              console.error('❌ Session save error:', err);
+              reject(err);
+            } else {
+              console.log('✅ Session created for new user');
+              resolve(undefined);
+            }
           });
         });
       }
       
+      console.log('✅ Registration complete for:', user.username);
       res.json({ 
         id: user.id,
         username: user.username,
         email: user.email 
       });
     } catch (error: any) {
-      console.error("Registration error:", error);
+      console.error("❌ Registration error:", error);
+      console.error("Error stack:", error?.stack);
+      console.error("Error message:", error?.message);
       if (error.errors) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Registration failed" });
+      res.status(500).json({ message: "Registration failed", error: error?.message });
     }
   });
 
@@ -63,28 +78,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = req.body;
       
+      console.log('🔐 Login attempt for:', username);
+      
       if (!username || !password) {
         return res.status(400).json({ message: 'Username and password required' });
       }
       
       // Find user by username OR email
+      console.log('👤 Looking up user by username...');
       let user = await storage.getUserByUsername(username);
       
       // If not found by username, try email
       if (!user) {
+        console.log('👤 User not found by username, trying email...');
         user = await storage.getUserByEmail(username);
       }
       
-      if (!user || !user.passwordHash) {
+      if (!user) {
+        console.log('❌ User not found');
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      if (!user.passwordHash) {
+        console.log('❌ User found but no password hash');
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      console.log('✅ User found, verifying password...');
       // Verify password
       const isValid = await storage.verifyPassword(password, user.passwordHash);
       if (!isValid) {
+        console.log('❌ Password verification failed');
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      console.log('✅ Password verified, creating session...');
       // Create session
       if (req.session) {
         req.session.userId = user.id;
@@ -93,23 +121,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await new Promise<void>((resolve, reject) => {
           req.session!.save((err) => {
             if (err) {
-              console.error("Session save error:", err);
+              console.error("❌ Session save error:", err);
               reject(err);
             } else {
+              console.log('✅ Session saved successfully');
               resolve();
             }
           });
         });
       }
       
+      console.log('✅ Login successful for user:', user.username);
       res.json({ 
         id: user.id,
         username: user.username,
         email: user.email 
       });
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Login failed" });
+    } catch (error: any) {
+      console.error("❌ Login error:", error);
+      console.error("Error stack:", error?.stack);
+      console.error("Error message:", error?.message);
+      res.status(500).json({ message: "Login failed", error: error?.message });
     }
   });
 
@@ -137,10 +169,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
+      console.log('👤 Fetching user data for ID:', userId);
+      
       const user = await storage.getUserById(userId);
       if (!user) {
+        console.log('❌ User not found for ID:', userId);
         return res.status(404).json({ message: "User not found" });
       }
+      
+      console.log('✅ User data fetched for:', user.username);
       res.json({
         id: user.id,
         username: user.username,
@@ -148,9 +185,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: user.firstName,
         lastName: user.lastName,
       });
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+    } catch (error: any) {
+      console.error("❌ Error fetching user:", error);
+      console.error("Error stack:", error?.stack);
+      console.error("Error message:", error?.message);
+      res.status(500).json({ message: "Failed to fetch user", error: error?.message });
     }
   });
 
