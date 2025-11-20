@@ -38,13 +38,7 @@ export default function TimezoneSettingsPage() {
 
   const updateTimezoneMutation = useMutation({
     mutationFn: async (timezone: string) => {
-      return await apiRequest("/api/settings/timezone", {
-        method: "POST",
-        body: JSON.stringify({ timezone }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      return await apiRequest("POST", "/api/settings/timezone", { timezone });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
