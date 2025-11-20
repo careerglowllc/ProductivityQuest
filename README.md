@@ -421,11 +421,43 @@ ProductivityQuest/
 
 ### Database Migrations
 
-#### Manual Migration for Production (Neon Database)
+#### Automatic Startup Migrations (Recommended)
 
-When deploying schema changes to production, you may need to run manual SQL migrations in the Neon console:
+ProductivityQuest now uses **automatic startup migrations** for essential schema changes. These run every time the server starts, ensuring production databases stay in sync without manual intervention.
 
-**Recent Migrations:**
+**How It Works:**
+1. Server starts (`npm run dev` or `npm run start`)
+2. `runStartupMigrations()` executes from `server/migrations.ts`
+3. Essential columns are added with `IF NOT EXISTS` (idempotent)
+4. Server continues startup regardless of migration success/failure
+
+**Current Startup Migrations:**
+```typescript
+// Campaign field for tasks
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS campaign TEXT DEFAULT 'unassigned';
+
+// Timezone field for users (November 19, 2025)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York';
+```
+
+**Benefits:**
+- ✅ **Zero downtime deployments** - migrations run automatically
+- ✅ **Idempotent** - safe to run multiple times (IF NOT EXISTS)
+- ✅ **No manual intervention** - works on Render, Railway, Vercel, etc.
+- ✅ **Fail-safe** - server starts even if migration fails
+- ✅ **Logged** - clear emoji-prefixed logs for debugging
+
+**Migration Logs:**
+```
+🔄 Running startup migrations...
+✅ Startup migrations completed successfully
+```
+
+#### Manual Migration for Production (Legacy/Complex Changes)
+
+For complex schema changes not suitable for startup migrations, use the Neon console:
+
+**Recent Manual Migrations:**
 
 **scheduledTime Field (November 2025)**
 - **Purpose**: Add calendar scheduling support for drag-to-schedule feature
@@ -440,17 +472,29 @@ When deploying schema changes to production, you may need to run manual SQL migr
   4. Click "Run" to execute
   5. Verify column exists: `SELECT column_name FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'scheduledTime';`
 
-**Why Manual Migration?**
-- `npm run db:push` (Drizzle Kit) can hang on interactive prompts in CI/CD environments
-- Auto-migrations in start scripts cause deployment timeouts on platforms like Render
-- Manual migrations provide immediate control and visibility
-- `IF NOT EXISTS` clause makes migrations idempotent and safe to re-run
+**When to Use Manual Migrations:**
+- Complex data transformations
+- Renaming columns (requires data copying)
+- Adding constraints with validation
+- Multi-step migrations requiring rollback capability
+
+**When to Use Startup Migrations:**
+- Adding new columns with defaults
+- Essential columns for core functionality
+- Simple schema additions
+- Changes needed for authentication/core features
 
 **Best Practices:**
-- Always use `IF NOT EXISTS` or `IF NOT EXISTS` clauses
+- Always use `IF NOT EXISTS` clauses for idempotency
 - Test migrations on development database first
 - Keep migration SQL files in `/migrations/` directory for documentation
-- Verify migrations completed successfully before deploying code changes
+- Add essential migrations to `server/migrations.ts` startup migrations
+- Log migration execution with clear messages
+- Don't throw errors from startup migrations (graceful degradation)
+
+**See Also:**
+- `DATABASE_MIGRATION_TEST_CASES.md` - Comprehensive migration testing documentation
+- `server/migrations.ts` - Startup migration implementation
 
 ---
 - Shows search results count and active search terms

@@ -199,6 +199,29 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_Yo
 
 ## Testing
 See `TIMEZONE_SETTINGS_TEST_CASES.md` for comprehensive test cases.
+See `DATABASE_MIGRATION_TEST_CASES.md` for database migration testing.
+
+## Database Migration
+
+### Automatic Migration (Production)
+The timezone column is automatically added to the users table via startup migrations. This happens on every server startup, ensuring production databases stay synchronized.
+
+**Migration Code:**
+```typescript
+// server/migrations.ts
+await sql`
+  ALTER TABLE users 
+  ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York'
+`;
+```
+
+**Benefits:**
+- ✅ Runs automatically on deployment
+- ✅ Idempotent (safe to run multiple times)
+- ✅ Zero manual intervention required
+- ✅ Default value for existing users
+
+**See Also:** `TIMEZONE_MIGRATION_FIX.md` for detailed migration incident report and resolution.
 
 ## Troubleshooting
 
@@ -236,10 +259,22 @@ See `TIMEZONE_SETTINGS_TEST_CASES.md` for comprehensive test cases.
 - **Focus Indicators:** Clear focus states for keyboard navigation
 
 ## Version History
+- **v1.0.1** - November 19, 2025
+  - ✅ Production migration fix deployed
+  - ✅ Automatic startup migrations implemented
+  - ✅ Enhanced error logging for debugging
+  - ✅ Comprehensive test documentation added
+  
 - **v1.0.0** - Initial release with US and select Asia timezones
   - 7 US timezones
   - 2 Asia timezones
   - Basic timezone selection and persistence
+
+## Related Documentation
+- `TIMEZONE_MIGRATION_FIX.md` - Production fix incident report (November 19, 2025)
+- `DATABASE_MIGRATION_TEST_CASES.md` - Migration testing documentation
+- `TIMEZONE_SETTINGS_TEST_CASES.md` - User-facing feature tests
+- `README.md` - Database Migrations section
 
 ## Support
 For issues or questions about the timezone feature:
