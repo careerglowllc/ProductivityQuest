@@ -5,6 +5,11 @@ import { eq, and, or, isNull, inArray } from "drizzle-orm";
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(userData: { username: string; email: string; password: string }): Promise<User>;
+  verifyPassword(password: string, hash: string): Promise<boolean>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserSettings(userId: string, settings: { 
     notionApiKey?: string; 
