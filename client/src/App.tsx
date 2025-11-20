@@ -61,9 +61,10 @@ function Router() {
         {!isAuthenticated ? (
           <>
             <Route path="/" component={Landing} />
-            <Route path="/dashboard">
+            {/* Redirect all other routes to login for unauthenticated users */}
+            <Route path="/:rest*">
               {() => {
-                window.location.href = '/';
+                window.location.href = '/login';
                 return null;
               }}
             </Route>
@@ -95,9 +96,10 @@ function Router() {
             <Route path="/settings/guides/measure-what-matters" component={MeasureWhatMattersGuidePage} />
             <Route path="/recycling-bin" component={RecyclingBin} />
             <Route path="/getting-started" component={GettingStarted} />
+            {/* 404 for authenticated users only */}
+            <Route component={NotFound} />
           </>
         )}
-        <Route component={NotFound} />
       </Switch>
       {showTabBar && <TabBar />}
     </>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import { Trophy } from "lucide-react";
 
 export default function Login() {
@@ -23,16 +24,24 @@ export default function Login() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
+        credentials: 'include', // Important for session cookies
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        // Invalidate auth query to refetch user data
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        
         toast({
           title: "Welcome back!",
           description: "You've successfully logged in.",
         });
-        setLocation("/dashboard");
+        
+        // Small delay to ensure query refetch completes
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 100);
       } else {
         toast({
           title: "Login failed",
@@ -41,6 +50,7 @@ export default function Login() {
         });
       }
     } catch (error) {
+      console.error("Login error:", error);
       toast({
         title: "Error",
         description: "Failed to connect to server",
