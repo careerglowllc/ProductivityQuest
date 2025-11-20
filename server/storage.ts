@@ -44,6 +44,7 @@ export interface IStorage {
   getShopItemsForUser(userId: string): Promise<ShopItem[]>;
   getShopItem(id: number): Promise<ShopItem | undefined>;
   createShopItem(item: InsertShopItem): Promise<ShopItem>;
+  updateShopItemPrice(id: number, cost: number, userId: string): Promise<ShopItem | undefined>;
   deleteShopItem(id: number, userId: string): Promise<boolean>;
   
   // User progress operations
@@ -443,6 +444,20 @@ export class DatabaseStorage implements IStorage {
   async createShopItem(item: InsertShopItem): Promise<ShopItem> {
     const [newItem] = await db.insert(shopItems).values(item).returning();
     return newItem;
+  }
+
+  async updateShopItemPrice(id: number, cost: number, userId: string): Promise<ShopItem | undefined> {
+    // Only allow updating user-specific items
+    const [updatedItem] = await db.update(shopItems)
+      .set({ cost })
+      .where(
+        and(
+          eq(shopItems.id, id),
+          eq(shopItems.userId, userId)
+        )
+      )
+      .returning();
+    return updatedItem;
   }
 
   async deleteShopItem(id: number, userId: string): Promise<boolean> {

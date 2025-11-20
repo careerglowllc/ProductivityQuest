@@ -2427,6 +2427,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/shop/items/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const itemId = parseInt(req.params.id);
+      const { cost } = req.body;
+      
+      if (cost === undefined || cost === null) {
+        return res.status(400).json({ error: "Cost is required" });
+      }
+
+      const updatedItem = await storage.updateShopItemPrice(itemId, parseInt(cost), userId);
+      
+      if (!updatedItem) {
+        return res.status(404).json({ error: "Shop item not found or access denied" });
+      }
+      
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Update shop item price error:", error);
+      res.status(500).json({ error: "Failed to update shop item price" });
+    }
+  });
+
   app.delete("/api/shop/items/:id", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
