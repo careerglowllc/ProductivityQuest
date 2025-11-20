@@ -1584,10 +1584,6 @@ export default function Calendar() {
                 {/* Calendar Name */}
                 {selectedEvent.calendarName && (
                   <div className="flex items-start gap-3 mb-4">
-                    <div 
-                      className="w-5 h-5 rounded-full mt-0.5"
-                      style={{ backgroundColor: selectedEvent.calendarColor || '#9333ea' }}
-                    />
                     <div>
                       <p className="text-sm text-gray-400">Calendar</p>
                       <p className="text-white">{selectedEvent.calendarName}</p>
