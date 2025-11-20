@@ -48,7 +48,16 @@ export default function Home() {
     return "all";
   });
   
-  const [sortBy, setSortBy] = useState<SortType>("due-date");
+  // Load saved sort preference from localStorage, default to 'due-date'
+  const [sortBy, setSortBy] = useState<SortType>(() => {
+    const savedSort = localStorage.getItem('tasksSort');
+    const validSorts: SortType[] = ["due-date", "importance"];
+    if (savedSort && validSorts.includes(savedSort as SortType)) {
+      return savedSort as SortType;
+    }
+    return "due-date";
+  });
+  
   const [viewType, setViewType] = useState<ViewType>("list");
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [showExportConfirm, setShowExportConfirm] = useState(false);
@@ -96,6 +105,11 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('tasksFilter', activeFilter);
   }, [activeFilter]);
+  
+  // Save sort preference whenever it changes
+  useEffect(() => {
+    localStorage.setItem('tasksSort', sortBy);
+  }, [sortBy]);
 
   const { data: progress = { goldTotal: 0, tasksCompleted: 0 }, refetch: refetchProgress } = useQuery({
     queryKey: ["/api/progress"],
