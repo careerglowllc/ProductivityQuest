@@ -421,6 +421,49 @@ export default function Home() {
     setSelectedTasks(new Set());
   };
 
+  const handleAddToCalendar = async () => {
+    if (selectedTasks.size === 0) return;
+
+    try {
+      const selectedTaskIds = Array.from(selectedTasks);
+      
+      toast({
+        title: "Adding to Calendar...",
+        description: `Syncing ${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's' : ''} to Google Calendar`,
+      });
+
+      const response = await apiRequest("POST", "/api/calendar/sync", {
+        selectedTasks: selectedTaskIds
+      });
+      const result = await response.json();
+
+      // Clear selection after sync
+      setSelectedTasks(new Set());
+      
+      toast({
+        title: "Calendar Sync Complete",
+        description: `${result.count} task${result.count > 1 ? 's' : ''} added to your Google Calendar${result.failed > 0 ? ` (${result.failed} failed)` : ''}`,
+      });
+    } catch (error: any) {
+      const errorData = error.response?.data || {};
+      
+      if (errorData.needsAuth) {
+        toast({
+          title: "Google Calendar Not Connected",
+          description: "Please connect your Google Calendar in Settings to sync tasks.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Error",
+        description: "Failed to sync tasks to calendar. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleCategorizeSkill = async () => {
     if (selectedTasks.size === 0) return;
 
@@ -1524,6 +1567,14 @@ export default function Home() {
                       >
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Complete Selected
+                      </Button>
+                      <Button 
+                        onClick={handleAddToCalendar}
+                        variant="outline"
+                        className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 hover:text-cyan-200"
+                      >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Add to Calendar
                       </Button>
                       <Button 
                         onClick={handleDeleteSelected}
