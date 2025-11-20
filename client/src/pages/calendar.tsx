@@ -538,44 +538,57 @@ export default function Calendar() {
 
   // Handle color change
   const handleColorChange = async (color: string) => {
-    if (!selectedEvent || selectedEvent.source !== 'productivityquest') return;
+    if (!selectedEvent) return;
 
-    const taskId = selectedEvent.id.replace('task-', '');
+    // For ProductivityQuest tasks, update the task color in the database
+    if (selectedEvent.source === 'productivityquest') {
+      const taskId = selectedEvent.id.replace('task-', '');
 
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ calendarColor: color }),
-      });
+      try {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ calendarColor: color }),
+        });
 
-      if (response.ok) {
+        if (response.ok) {
+          toast({
+            title: "Color Updated",
+            description: "Event color changed successfully",
+          });
+
+          // Update local state
+          setSelectedEvent({ ...selectedEvent, calendarColor: color });
+
+          // Refresh calendar data
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
+          });
+          queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+
+          setShowColorPicker(false);
+        } else {
+          throw new Error('Failed to update color');
+        }
+      } catch (error) {
+        console.error('Failed to update color:', error);
         toast({
-          title: "Color Updated",
-          description: "Event color changed successfully",
+          title: "Error",
+          description: "Failed to update event color. Please try again.",
+          variant: "destructive",
         });
-
-        // Update local state
-        setSelectedEvent({ ...selectedEvent, calendarColor: color });
-
-        // Refresh calendar data
-        queryClient.invalidateQueries({ 
-          queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
-        });
-        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-
-        setShowColorPicker(false);
-      } else {
-        throw new Error('Failed to update color');
       }
-    } catch (error) {
-      console.error('Failed to update color:', error);
+    } else {
+      // For Google Calendar events, just update the local state (display only)
+      // The color change won't persist to Google Calendar, but will show in ProductivityQuest
       toast({
-        title: "Error",
-        description: "Failed to update event color. Please try again.",
-        variant: "destructive",
+        title: "Color Updated",
+        description: "Display color changed (local only, not synced to Google Calendar)",
       });
+
+      setSelectedEvent({ ...selectedEvent, calendarColor: color });
+      setShowColorPicker(false);
     }
   };
 
@@ -1501,40 +1514,38 @@ export default function Calendar() {
                 }}
               />
               
-              {/* Color Picker Button (Only for ProductivityQuest events) */}
-              {selectedEvent.source === 'productivityquest' && (
-                <div className="absolute top-4 right-4 z-10">
-                  <button
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="w-8 h-8 rounded-full border-2 border-white/20 hover:border-white/40 transition-colors shadow-lg"
-                    style={{ backgroundColor: selectedEvent.calendarColor || '#9333ea' }}
-                    title="Change color"
-                  />
-                  
-                  {/* Color Picker Dropdown */}
-                  {showColorPicker && (
-                    <div 
-                      className="absolute top-10 right-0 bg-gray-800/95 border border-purple-500/30 rounded-lg shadow-xl p-3 backdrop-blur-sm"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="grid grid-cols-4 gap-2 w-40">
-                        {calendarColors.map((color) => (
-                          <button
-                            key={color.value}
-                            onClick={() => handleColorChange(color.value)}
-                            className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
-                            style={{ 
-                              backgroundColor: color.value,
-                              borderColor: selectedEvent.calendarColor === color.value ? '#fff' : 'transparent'
-                            }}
-                            title={color.name}
-                          />
-                        ))}
-                      </div>
+              {/* Color Picker Button - Available for all events */}
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="w-8 h-8 rounded-full border-2 border-white/20 hover:border-white/40 transition-colors shadow-lg"
+                  style={{ backgroundColor: selectedEvent.calendarColor || '#9333ea' }}
+                  title="Change color"
+                />
+                
+                {/* Color Picker Dropdown */}
+                {showColorPicker && (
+                  <div 
+                    className="absolute top-10 right-0 bg-gray-800/95 border border-purple-500/30 rounded-lg shadow-xl p-3 backdrop-blur-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="grid grid-cols-4 gap-2 w-40">
+                      {calendarColors.map((color) => (
+                        <button
+                          key={color.value}
+                          onClick={() => handleColorChange(color.value)}
+                          className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
+                          style={{ 
+                            backgroundColor: color.value,
+                            borderColor: selectedEvent.calendarColor === color.value ? '#fff' : 'transparent'
+                          }}
+                          title={color.name}
+                        />
+                      ))}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
               
               <div className="p-6">
                 {/* Title */}
@@ -1654,47 +1665,6 @@ export default function Calendar() {
                         </span>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* Color Picker for ProductivityQuest tasks */}
-                {selectedEvent.source === 'productivityquest' && (
-                  <div className="mb-4">
-                    <label className="text-sm text-gray-400 block mb-2">
-                      Calendar Color
-                    </label>
-                    <div className="grid grid-cols-6 gap-2">
-                      {[
-                        '#9333ea', '#ef4444', '#f97316', '#eab308',
-                        '#22c55e', '#3b82f6', '#ec4899', '#8b5cf6',
-                        '#06b6d4', '#14b8a6', '#a855f7', '#6366f1',
-                      ].map(color => (
-                        <button
-                          key={color}
-                          className={`w-10 h-10 rounded border-2 transition-transform hover:scale-110 ${
-                            selectedEvent.calendarColor === color ? 'border-white scale-110' : 'border-transparent'
-                          }`}
-                          style={{ backgroundColor: color }}
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/tasks/${selectedEvent.id.replace('google-', '')}/color`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ color })
-                              });
-                              
-                              if (response.ok) {
-                                setSelectedEvent({ ...selectedEvent, calendarColor: color });
-                                window.location.reload();
-                              }
-                            } catch (error) {
-                              console.error('Failed to update color:', error);
-                            }
-                          }}
-                        />
-                      ))}
-                    </div>
                   </div>
                 )}
 
