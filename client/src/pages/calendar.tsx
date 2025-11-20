@@ -57,6 +57,7 @@ export default function Calendar() {
   const dayViewRef = useRef<HTMLDivElement>(null);
   const threeDayViewRef = useRef<HTMLDivElement>(null);
   const weekViewRef = useRef<HTMLDivElement>(null);
+  const autoScrollInterval = useRef<NodeJS.Timeout | null>(null);
   
   // Drag and resize state
   const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
@@ -105,6 +106,15 @@ export default function Calendar() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undoStack]); // Re-attach listener when undoStack changes
+
+  // Cleanup auto-scroll interval on unmount
+  useEffect(() => {
+    return () => {
+      if (autoScrollInterval.current) {
+        clearInterval(autoScrollInterval.current);
+      }
+    };
+  }, []);
 
   // Auto-scroll to current time in Day, 3-Day, and Week views
   useEffect(() => {
@@ -245,6 +255,40 @@ export default function Calendar() {
       setHasResized(true);
     }
 
+    // Auto-scroll logic when dragging near edges
+    const scrollContainer = view === 'day' ? dayViewRef.current : 
+                           view === '3day' ? threeDayViewRef.current :
+                           view === 'week' ? weekViewRef.current : null;
+
+    if (scrollContainer) {
+      const rect = scrollContainer.getBoundingClientRect();
+      const scrollThreshold = 50; // Pixels from edge to trigger scroll
+      const scrollSpeed = 10; // Pixels to scroll per frame
+      
+      // Clear any existing auto-scroll
+      if (autoScrollInterval.current) {
+        clearInterval(autoScrollInterval.current);
+        autoScrollInterval.current = null;
+      }
+
+      // Check if mouse is near top edge
+      if (e.clientY < rect.top + scrollThreshold) {
+        autoScrollInterval.current = setInterval(() => {
+          if (scrollContainer.scrollTop > 0) {
+            scrollContainer.scrollTop -= scrollSpeed;
+          }
+        }, 16); // ~60fps
+      }
+      // Check if mouse is near bottom edge
+      else if (e.clientY > rect.bottom - scrollThreshold) {
+        autoScrollInterval.current = setInterval(() => {
+          if (scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight) {
+            scrollContainer.scrollTop += scrollSpeed;
+          }
+        }, 16); // ~60fps
+      }
+    }
+
     const deltaY = e.clientY - dragStartY;
     // Each 60px (height of time slot) = 1 hour, snap to 5-minute intervals
     const minutesDelta = Math.round((deltaY / 60) * 60 / 5) * 5; // Round to nearest 5 minutes
@@ -286,6 +330,12 @@ export default function Calendar() {
   };
 
   const handleMouseUp = async () => {
+    // Clear auto-scroll interval
+    if (autoScrollInterval.current) {
+      clearInterval(autoScrollInterval.current);
+      autoScrollInterval.current = null;
+    }
+
     if ((draggingEvent || resizingEvent) && tempEventTime) {
       const eventToUpdate = draggingEvent || resizingEvent;
       
