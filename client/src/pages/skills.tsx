@@ -594,26 +594,28 @@ export default function Skills() {
         ? selectedSkill.constellationMilestones
         : skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
       
-      // Find the center of the constellation (roughly 50%, 50%)
-      const centerX = 50;
-      const centerY = 50;
+      // Find the starting node (usually the first milestone at the bottom)
+      const startNode = milestones.find(m => m.id === 'start') || milestones[0];
+      const centerX = startNode?.x || 50;
+      const centerY = startNode?.y || 90;
       
       // Small delay to ensure DOM is fully rendered
       setTimeout(() => {
-        // Calculate scroll position to center on map center
+        // Calculate scroll position to center on starter node at bottom-center of viewport
         // Mobile: 500px x 500px with 6px padding, Desktop: 1200px x 1000px with 20px padding
         const containerWidth = isMobile ? 500 : 1200;
         const containerHeight = isMobile ? 500 : 1000;
         const viewportWidth = scrollContainer.clientWidth;
         const viewportHeight = scrollContainer.clientHeight;
         
-        // Center position as percentage converted to pixels
+        // Node position as percentage converted to pixels
         const nodeX = (centerX / 100) * containerWidth;
         const nodeY = (centerY / 100) * containerHeight;
         
-        // Center the viewport on the constellation center
+        // Center the viewport horizontally on the node, but position it near bottom of viewport
+        // This keeps the starter node centered horizontally and near the bottom of the visible area
         const scrollLeft = nodeX - (viewportWidth / 2);
-        const scrollTop = nodeY - (viewportHeight / 2);
+        const scrollTop = nodeY - (viewportHeight * 0.75); // Position node at 75% down the viewport (bottom area)
         
         // Smooth scroll to position
         scrollContainer.scrollTo({
