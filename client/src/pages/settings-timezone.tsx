@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, ArrowLeft, Check } from "lucide-react";
@@ -35,6 +35,13 @@ export default function TimezoneSettingsPage() {
   // Get current timezone from settings or browser default
   const currentTimezone = settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [selectedTimezone, setSelectedTimezone] = useState(currentTimezone);
+
+  // Update selected timezone when settings load
+  useEffect(() => {
+    if (settings?.timezone) {
+      setSelectedTimezone(settings.timezone);
+    }
+  }, [settings?.timezone]);
 
   const updateTimezoneMutation = useMutation({
     mutationFn: async (timezone: string) => {
