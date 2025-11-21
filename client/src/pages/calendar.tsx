@@ -64,6 +64,7 @@ export default function Calendar() {
   const [resizingEvent, setResizingEvent] = useState<CalendarEvent | null>(null);
   const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom' | null>(null);
   const [dragStartY, setDragStartY] = useState<number>(0);
+  const [dragStartScrollTop, setDragStartScrollTop] = useState<number>(0);
   const [dragStartTime, setDragStartTime] = useState<Date | null>(null);
   const [tempEventTime, setTempEventTime] = useState<{ start: Date; end: Date } | null>(null);
   const [hasDragged, setHasDragged] = useState(false);
@@ -230,16 +231,23 @@ export default function Calendar() {
     e.stopPropagation();
     e.preventDefault();
 
+    // Get current scroll container
+    const scrollContainer = view === 'day' ? dayViewRef.current : 
+                           view === '3day' ? threeDayViewRef.current :
+                           view === 'week' ? weekViewRef.current : null;
+
     if (edge) {
       // Resizing
       setResizingEvent(event);
       setResizeEdge(edge);
       setDragStartY(e.clientY);
+      setDragStartScrollTop(scrollContainer?.scrollTop || 0);
       setDragStartTime(new Date(edge === 'top' ? event.start : event.end));
     } else {
       // Moving
       setDraggingEvent(event);
       setDragStartY(e.clientY);
+      setDragStartScrollTop(scrollContainer?.scrollTop || 0);
       setDragStartTime(new Date(event.start));
     }
   };
@@ -289,7 +297,11 @@ export default function Calendar() {
       }
     }
 
-    const deltaY = e.clientY - dragStartY;
+    // Calculate delta including scroll offset
+    const currentScrollTop = scrollContainer?.scrollTop || 0;
+    const scrollDelta = currentScrollTop - dragStartScrollTop;
+    const deltaY = (e.clientY - dragStartY) + scrollDelta;
+    
     // Each 60px (height of time slot) = 1 hour, snap to 5-minute intervals
     const minutesDelta = Math.round((deltaY / 60) * 60 / 5) * 5; // Round to nearest 5 minutes
 
