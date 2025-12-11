@@ -6,13 +6,14 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect } from "react";
 import React from "react";
-import type { UserProgress, UserSkill } from "@/../../shared/schema";
+import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
+import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 // Default skill icon mapping for backward compatibility
 const skillIcons: Record<string, any> = {
@@ -186,6 +187,133 @@ function TodayCalendarWidget() {
             })}
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Finance Widget Component
+function FinanceWidget() {
+  const INCOME_CATEGORIES = ["Income", "Retirement", "Investment"];
+  const EXPENSE_COLORS: Record<string, string> = {
+    "General": "#8B5CF6",
+    "Business": "#3B82F6",
+    "Entertainment": "#EC4899",
+    "Food": "#F59E0B",
+    "Housing": "#EF4444",
+    "Transportation": "#10B981",
+    "Phone": "#6366F1",
+    "Internet": "#14B8A6",
+    "Insurance": "#F97316",
+    "Credit Card": "#DC2626",
+    "Health (Non Insurance)": "#84CC16",
+    "Toiletries": "#A855F7",
+    "Charity": "#06B6D4",
+  };
+  const INCOME_COLOR = "#22C55E";
+
+  const { data: financialItems = [] } = useQuery<FinancialItem[]>({
+    queryKey: ["/api/finances"],
+  });
+
+  // Calculate totals
+  const totalIncome = financialItems
+    .filter(item => INCOME_CATEGORIES.includes(item.category))
+    .reduce((sum, item) => sum + item.monthlyCost, 0);
+
+  const totalExpenses = financialItems
+    .filter(item => !INCOME_CATEGORIES.includes(item.category))
+    .reduce((sum, item) => sum + item.monthlyCost, 0);
+
+  const netIncome = totalIncome - totalExpenses;
+  const savingsRate = totalIncome > 0 ? ((netIncome / totalIncome) * 100) : 0;
+
+  // Prepare pie chart data
+  const expensesByCategory = financialItems
+    .filter(item => !INCOME_CATEGORIES.includes(item.category))
+    .reduce((acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = 0;
+      }
+      acc[item.category] += item.monthlyCost;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const pieData = [
+    { name: "Income", value: totalIncome, color: INCOME_COLOR },
+    ...Object.entries(expensesByCategory).map(([category, value]) => ({
+      name: category,
+      value,
+      color: EXPENSE_COLORS[category as keyof typeof EXPENSE_COLORS] || "#94A3B8"
+    }))
+  ].filter(item => item.value > 0);
+
+  const formatCurrency = (cents: number) => {
+    return `$${(cents / 100).toFixed(0)}`;
+  };
+
+  return (
+    <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30 hover:border-green-500/50 transition-all h-full">
+      <CardHeader className="border-b border-green-600/20 pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-serif font-bold text-green-100">Financial Overview</CardTitle>
+          <Link href="/finances">
+            <Button variant="outline" size="sm" className="flex items-center gap-2 border-green-600/40 bg-slate-700/50 text-green-200 hover:bg-green-600/20 hover:text-green-100 hover:border-green-500/60">
+              View Details
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4 pb-4">
+        {pieData.length === 0 ? (
+          <div className="text-center py-12 text-green-200/60">
+            <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>No financial data yet</p>
+          </div>
+        ) : (
+          <div>
+            <ResponsiveContainer width="100%" height={250}>
+              <RechartsPieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    border: '1px solid rgb(34, 197, 94, 0.3)',
+                    borderRadius: '8px',
+                    color: '#f1f5f9'
+                  }}
+                />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-green-200/80">Net Income:</span>
+                <span className={`font-bold ${netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {formatCurrency(netIncome)}/mo
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-green-200/80">Savings Rate:</span>
+                <span className="font-bold text-green-300">{savingsRate.toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -789,9 +917,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Two-column layout for web, single column for mobile */}
-        <div className={`${!isMobile ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-6'} mb-8`}>
-          {/* Left Column - Spider Chart (Web) or full width (Mobile) */}
+        {/* Two-by-two grid layout for web (Skills, Schedule, Priorities, Finances), stacked for mobile */}
+        <div className={`${!isMobile ? 'grid grid-cols-2 gap-6' : 'space-y-6'} mb-8`}>
+          {/* Top Left - Skills Overview */}
           <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full">
             <CardHeader className="border-b border-yellow-600/20 pb-3">
               <div className="flex items-center justify-between">
@@ -808,7 +936,7 @@ export default function Dashboard() {
               <Dialog>
                 <DialogTrigger asChild>
                   <div className="cursor-pointer relative group w-full">
-                    <div className={`${!isMobile ? 'scale-[0.7]' : 'scale-[0.5]'} origin-center transform ${!isMobile ? '-my-12' : '-my-28'}`}>
+                    <div className={`${!isMobile ? 'scale-[0.6]' : 'scale-[0.5]'} origin-center transform ${!isMobile ? '-my-16' : '-my-28'}`}>
                       {skillsLoading ? (
                         <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
                           Loading skills...
@@ -846,13 +974,11 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Right Column - Mini Today Calendar + Top Priority Tasks */}
-          <div className="space-y-6">
-            {/* Mini Today Calendar Widget */}
-            <TodayCalendarWidget />
+          {/* Top Right - Today's Schedule */}
+          <TodayCalendarWidget />
 
-            {/* Top Priority Tasks */}
-            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
+          {/* Bottom Left - Top Priority Tasks */}
+          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full">
             <CardHeader className="border-b border-yellow-600/20">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
@@ -871,7 +997,7 @@ export default function Dashboard() {
                   <p className="text-yellow-200/70">No pending tasks! Great job! 🎉</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[280px] overflow-y-auto">
                   {topTasks.map((task: any, index: number) => (
                     <div
                       key={task.id}
@@ -921,7 +1047,9 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
-          </div>
+
+          {/* Bottom Right - Finance Widget */}
+          <FinanceWidget />
         </div>
       </div>
     </div>

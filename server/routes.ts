@@ -1518,6 +1518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             kanbanStage: notionTask.kanbanStage,
             recurType: notionTask.recurType,
             campaign: notionTask.campaign || "unassigned",
+            googleEventId: notionTask.googleEventId || null, // Import Google Calendar Event ID if present
             apple: notionTask.apple,
             smartPrep: notionTask.smartPrep,
             delegationTask: notionTask.delegationTask,
@@ -2392,12 +2393,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('❌ Error fetching Google Calendar events:', error.message);
         calendarError = error.message;
         
-        // If auth expired, clear the credentials
-        if (error.message === 'CALENDAR_AUTH_EXPIRED') {
-          await storage.updateUserSettings(userId, {
-            googleCalendarSyncEnabled: false
-          });
-        }
+        // Don't automatically disable sync on errors - let the user decide
+        // The OAuth refresh token will handle token expiration automatically
+        // Only log the error for debugging purposes
+        console.log('⚠️ [CALENDAR] Sync remains enabled - user can re-authorize if needed');
       }
 
       // Also fetch ProductivityQuest tasks for this month
@@ -3096,6 +3095,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('❌ [GET /api/stats] Error:', error.message);
       console.error('❌ [GET /api/stats] Stack:', error.stack);
       res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // Finances routes
+  app.get("/api/finances", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const items = await storage.getFinancialItems(userId);
+      res.json(items);
+    } catch (error: any) {
+      console.error("Error fetching financial items:", error);
+      res.status(500).json({ error: "Failed to fetch financial items" });
+    }
+  });
+
+  app.post("/api/finances", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { item, category, monthlyCost, recurType } = req.body;
+
+      if (!item || !category || monthlyCost === undefined || !recurType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const newItem = await storage.createFinancialItem({
+        userId,
+        item,
+        category,
+        monthlyCost,
+        recurType
+      });
+
+      res.json(newItem);
+    } catch (error: any) {
+      console.error("Error creating financial item:", error);
+      res.status(500).json({ error: "Failed to create financial item" });
+    }
+  });
+
+  app.delete("/api/finances/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const itemId = parseInt(req.params.id);
+
+      if (isNaN(itemId)) {
+        return res.status(400).json({ error: "Invalid item ID" });
+      }
+
+      await storage.deleteFinancialItem(userId, itemId);
+      res.json({ message: "Financial item deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting financial item:", error);
+      res.status(500).json({ error: "Failed to delete financial item" });
     }
   });
 

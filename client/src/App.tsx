@@ -22,10 +22,12 @@ import TimezoneSettingsPage from "@/pages/settings-timezone";
 import SettingsGuidesPage from "@/pages/settings-guides";
 import SkillClassificationGuidePage from "@/pages/settings-guides-skill-classification";
 import MeasureWhatMattersGuidePage from "@/pages/settings-guides-measure-what-matters";
+import SettingsFinancesPage from "@/pages/settings-finances";
 import GettingStarted from "@/pages/getting-started";
 import NPCsPage from "@/pages/npcs";
 import RecyclingBin from "@/pages/recycling-bin";
 import Profile from "@/pages/profile";
+import Finances from "@/pages/finances";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -84,8 +86,10 @@ function Router() {
             <Route path="/skills" component={Skills} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
+            <Route path="/finances" component={Finances} />
             <Route path="/profile" component={Profile} />
             <Route path="/settings" component={SettingsPage} />
+            <Route path="/settings/finances" component={SettingsFinancesPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
             <Route path="/settings/calendar" component={CalendarSettingsPage} />
             <Route path="/settings/timezone" component={TimezoneSettingsPage} />

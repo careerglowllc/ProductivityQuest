@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, isNull, inArray } from "drizzle-orm";
 
@@ -1044,6 +1044,23 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  // Financial items operations
+  async getFinancialItems(userId: string): Promise<FinancialItem[]> {
+    return db.select().from(financialItems).where(eq(financialItems.userId, userId));
+  }
+
+  async createFinancialItem(item: InsertFinancialItem): Promise<FinancialItem> {
+    const [newItem] = await db.insert(financialItems).values(item).returning();
+    return newItem;
+  }
+
+  async deleteFinancialItem(userId: string, itemId: number): Promise<boolean> {
+    await db.delete(financialItems).where(
+      and(eq(financialItems.id, itemId), eq(financialItems.userId, userId))
+    );
+    return true;
   }
 }
 

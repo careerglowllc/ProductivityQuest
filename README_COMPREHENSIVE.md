@@ -59,6 +59,7 @@ ProductivityQuest transforms mundane task management into an engaging game-like 
 - **Notion**: Bi-directional sync with existing databases (pagination for 100+ tasks)
 - **Google Calendar**: Per-user OAuth2 with token storage in database
 - **✨ NEW: Calendar View** - Month-based calendar with color-coded tasks
+- **✨ NEW: Finance Tracking** - Income/expense monitoring with pie charts and savings insights
 - Task import/export between platforms
 
 ✅ **AI Features**

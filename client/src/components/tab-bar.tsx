@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -165,6 +165,14 @@ export function TabBar() {
 
         {/* Gold and User Info - Right */}
         <div className="flex items-center gap-4">
+          {/* Finances Button */}
+          <Link href="/finances">
+            <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600/30 border-2 border-green-500/50 hover:bg-green-600/40 hover:border-green-400/60 transition-all">
+              <DollarSign className="h-5 w-5 text-green-300" />
+              <span className="text-sm font-semibold text-green-100">Finances</span>
+            </a>
+          </Link>
+
           {/* NPCs Button */}
           <Link href="/npcs">
             <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/30 border-2 border-blue-500/50 hover:bg-blue-600/40 hover:border-blue-400/60 transition-all">

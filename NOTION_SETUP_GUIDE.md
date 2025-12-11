@@ -18,6 +18,7 @@ The app now looks for a Notion database with these exact properties:
 - **SmartPrep** (Checkbox field) - For SmartPrep tasks
 - **Delegation Task** (Checkbox field) - For tasks that can be delegated
 - **Velin** (Checkbox field) - For Velin-related tasks
+- **GCal Event ID** (Text field) - *(Optional)* Google Calendar event ID for synced tasks
 
 ### How Gold is Calculated
 The app automatically calculates gold rewards based on:

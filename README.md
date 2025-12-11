@@ -34,6 +34,7 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Purchase rewards** from a customizable shop using earned gold
 - **Sync with Notion** for seamless task management across platforms
 - **✨ ENHANCED: Google Calendar Integration** - Full OAuth 2.0 with multi-calendar support, 4 view modes (Day/3-Day/Week/Month), calendar color preservation, and smart separation (Google events visible in calendar only, PQ tasks in both calendar and tasks list)
+- **✨ NEW: Finance Tracking** - Track income and expenses with visual pie charts, savings rate calculation, and budget insights
 - **✨ NEW: Calendar Drag & Resize** - Visually adjust task times and durations by dragging/resizing events directly in calendar view
 - **✨ NEW: Calendar View Persistence** - Your last selected view (Day/3-Day/Week/Month) is remembered across sessions
 - **✨ NEW: Task Duration Inline Editing** - Edit task duration directly in detail modal with save/cancel buttons
@@ -72,6 +73,7 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
 - **Notion bi-directional sync** (create, update, delete tasks)
 - **Google Calendar integration** for scheduling and OAuth-based event sync
+- **✨ NEW: Finance Tracking** - Monitor monthly income, expenses, and savings with category breakdown
 - **✨ NEW: Recurring Task System** - 11 recurrence patterns (daily, weekly, monthly, etc.) with auto-rescheduling
 - **✨ NEW: Calendar Page** - Interactive month view with task display and navigation
 - **Emoji-based shop system** with nature and celestial themes
@@ -2363,6 +2365,77 @@ npm run db:push      # Apply database migrations
   - Correct XP if you've been working offline
   - Match progression to external tracking systems
 - **Test Cases:** See `EDIT_SKILLS_TEST_CASES.md`
+
+### Finance Tracking (December 2025)
+**Monitor your income and expenses with visual insights**
+
+- **Pages:**
+  - **Web:** `/finances` - Full page with pie chart, summary cards, and item table
+  - **Mobile/iOS:** `/settings/finances` - Optimized mobile layout in settings
+  - **Dashboard Widget:** Bottom-right quadrant with mini pie chart and net income display
+- **Features:**
+  - **Income vs Expense Tracking:** Categorize items as income (Income, Retirement, Investment) or expenses (13 categories)
+  - **Visual Pie Chart:** Recharts-powered visualization showing category breakdown
+  - **Automatic Calculations:**
+    - Total monthly income
+    - Total monthly expenses  
+    - Net income (savings)
+    - Savings rate percentage
+  - **Smart Status Messages:**
+    - 🔴 Red warning: Expenses exceed income
+    - 🟠 Orange caution: Breaking even (0% savings)
+    - 🟡 Yellow: Saving but <51% (room for improvement)
+    - 🟢 Green: 51-60% savings rate (good job)
+    - 🟢 Dark green: >60% savings rate (excellent!)
+  - **CRUD Operations:**
+    - Add financial items with category, monthly cost, and recurrence type
+    - Delete items with immediate UI update
+    - User-scoped data (complete isolation between accounts)
+  - **Currency Handling:** Stores costs in cents (PostgreSQL INTEGER) for precision
+  - **Recurrence Types:** Monthly, Yearly (Amortized), Biweekly (Summed Monthly), 2x a Year
+  - **16 Categories:** General, Business, Entertainment, Food, Housing, Transportation, Phone, Internet, Insurance, Credit Card, Health, Toiletries, Charity, Income, Retirement, Investment
+- **Database Schema:**
+  ```sql
+  CREATE TABLE financial_items (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    item TEXT NOT NULL,
+    category TEXT NOT NULL,
+    monthly_cost INTEGER NOT NULL,  -- in cents
+    recur_type TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+  CREATE INDEX idx_financial_items_user_id ON financial_items(user_id);
+  CREATE INDEX idx_financial_items_category ON financial_items(category);
+  ```
+- **API Endpoints:**
+  - `GET /api/finances` - Fetch all items for authenticated user
+  - `POST /api/finances` - Create new financial item
+  - `DELETE /api/finances/:id` - Delete item (user-scoped)
+- **Security:**
+  - All endpoints require authentication (`requireAuth` middleware)
+  - userId automatically set from session (users cannot see other's data)
+  - DELETE operations validate userId ownership
+  - Drizzle ORM prevents SQL injection
+- **Dashboard Integration:**
+  - 2x2 grid layout: Skills (top-left), Schedule (top-right), Priorities (bottom-left), Finances (bottom-right)
+  - Mini pie chart with key metrics (Net Income, Savings Rate)
+  - "View Details" button links to full finances page
+  - Responsive: Grid on desktop, vertical stack on mobile
+- **Mobile Optimization:**
+  - Accessed via Settings menu (first item, green color)
+  - Summary cards in 2-column layout
+  - Scrollable item list with compact display
+  - Touch-optimized delete buttons
+  - Expandable "Add Item" form
+- **CSV Import Support:** Bulk import from CSV with dollar-to-cents conversion
+- **Test Cases:** See `FINANCE_FEATURE_TEST_CASES.md` (80+ comprehensive tests)
+- **Use Cases:**
+  - Personal budget tracking
+  - Savings rate optimization
+  - Expense category analysis
+  - Financial planning and goal setting
+  - Monthly income vs. spending visibility
 
 ## 📈 Future Enhancements
 

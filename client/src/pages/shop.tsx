@@ -481,7 +481,7 @@ export default function Shop() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {inventory.map((invItem: any) => (
+          {inventory.filter((invItem: any) => invItem.unused > 0).map((invItem: any) => (
             <Card 
               key={invItem.itemId}
               className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30 hover:border-green-500/50 transition-all"
@@ -520,7 +520,7 @@ export default function Shop() {
             </Card>
           ))}
           
-          {inventory.length === 0 && (
+          {inventory.filter((invItem: any) => invItem.unused > 0).length === 0 && (
             <div className="col-span-full">
               <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30">
                 <CardContent className="p-12 text-center">

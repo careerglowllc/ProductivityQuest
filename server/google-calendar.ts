@@ -300,12 +300,16 @@ export class GoogleCalendarService {
     } catch (error: any) {
       console.error('Error fetching Google Calendar events:', error);
       
-      // If token expired, we should handle refresh here
-      if (error.code === 401 || error.message?.includes('invalid_grant')) {
+      // Only throw auth expired for genuine auth issues, not network errors
+      // The OAuth2Client should automatically refresh tokens via the refresh token
+      if (error.code === 401 && error.message?.includes('invalid_grant')) {
+        console.error('⚠️ Refresh token invalid - user needs to re-authorize');
         throw new Error('CALENDAR_AUTH_EXPIRED');
       }
       
-      throw error;
+      // For other errors (network, rate limits, etc), log but don't fail completely
+      console.warn('⚠️ Non-fatal calendar error - returning empty events:', error.message);
+      return []; // Return empty array instead of throwing
     }
   }
 
@@ -345,11 +349,15 @@ export class GoogleCalendarService {
     } catch (error: any) {
       console.error('Error fetching calendar list:', error);
       
-      if (error.code === 401 || error.message?.includes('invalid_grant')) {
+      // Only throw auth expired for genuine invalid_grant errors
+      if (error.code === 401 && error.message?.includes('invalid_grant')) {
+        console.error('⚠️ Refresh token invalid - user needs to re-authorize');
         throw new Error('CALENDAR_AUTH_EXPIRED');
       }
       
-      throw error;
+      // For other errors, return empty list instead of throwing
+      console.warn('⚠️ Non-fatal calendar list error - returning empty list:', error.message);
+      return [];
     }
   }
 
@@ -404,16 +412,21 @@ export class GoogleCalendarService {
     } catch (error: any) {
       console.error('Error updating Google Calendar event:', error);
       
-      if (error.code === 401 || error.message?.includes('invalid_grant')) {
+      // Only throw auth expired for genuine invalid_grant errors
+      if (error.code === 401 && error.message?.includes('invalid_grant')) {
+        console.error('⚠️ Refresh token invalid - user needs to re-authorize');
         throw new Error('CALENDAR_AUTH_EXPIRED');
       }
       
       // If event not found, it may have been deleted from Google Calendar
       if (error.code === 404) {
+        console.warn('⚠️ Event not found in Google Calendar (may have been deleted)');
         return null;
       }
       
-      throw error;
+      // For other errors, log but don't fail completely
+      console.warn('⚠️ Non-fatal calendar update error:', error.message);
+      return null;
     }
   }
 

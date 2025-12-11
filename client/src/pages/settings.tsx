@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2 } from "lucide-react";
+import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, DollarSign } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function SettingsPage() {
@@ -26,6 +26,13 @@ export default function SettingsPage() {
   }
 
   const settingsSections = [
+    {
+      title: "Finances",
+      description: "Track your income and expenses with visual insights",
+      icon: DollarSign,
+      path: "/settings/finances",
+      color: "from-green-500 to-emerald-600",
+    },
     {
       title: "Notion Integration",
       description: "Configure your Notion database connection and sync tasks",

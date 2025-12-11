@@ -204,6 +204,9 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                 // Extract details from "Details" property (Text type)
                 const details = properties.Details?.rich_text?.[0]?.plain_text || "";
 
+                // Extract Google Calendar Event ID from "GCal Event ID" property (Text type)
+                const googleEventId = properties["GCal Event ID"]?.rich_text?.[0]?.plain_text || null;
+
                 return {
                     notionId: page.id,
                     title: properties.Task?.title?.[0]?.plain_text || "Untitled Task",
@@ -218,6 +221,7 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                     kanbanStage,
                     recurType,
                     campaign,
+                    googleEventId,
                     apple: false,
                     smartPrep: false,
                     delegationTask: false,
@@ -377,6 +381,19 @@ export async function addTaskToNotion(task: any, databaseId: string, userApiKey:
         if (task.velin !== undefined && task.velin !== null) {
             properties["Velin"] = {
                 checkbox: task.velin,
+            };
+        }
+
+        // Optional: GCal Event ID (Text) - Google Calendar Event ID
+        if (task.googleEventId) {
+            properties["GCal Event ID"] = {
+                rich_text: [
+                    {
+                        text: {
+                            content: task.googleEventId,
+                        },
+                    },
+                ],
             };
         }
 
