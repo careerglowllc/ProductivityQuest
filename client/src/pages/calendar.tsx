@@ -15,6 +15,8 @@ type UserSettings = {
   googleCalendarClientId?: string | null;
   googleCalendarClientSecret?: string | null;
   googleCalendarAccessToken?: string | null;
+  googleAccessToken?: string | null; // OAuth token
+  googleRefreshToken?: string | null; // OAuth refresh token
   googleCalendarLastSync?: Date | null;
 };
 
@@ -702,9 +704,7 @@ export default function Calendar() {
   });
 
   const googleConnected = settings?.googleCalendarSyncEnabled && 
-                          settings?.googleCalendarClientId && 
-                          settings?.googleCalendarClientSecret &&
-                          settings?.googleCalendarAccessToken; // Must have access token from OAuth
+                          (settings?.googleCalendarAccessToken || settings?.googleAccessToken); // Check both possible token fields
 
   const isTwoWaySync = settings?.googleCalendarSyncDirection === 'both';
 
