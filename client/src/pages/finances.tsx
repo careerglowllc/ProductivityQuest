@@ -270,7 +270,7 @@ export default function Finances() {
           <TabsContent value="chart" className="space-y-4">
             <Card className="bg-slate-800/60 border-purple-500/30">
               <CardHeader>
-                <CardTitle className="text-purple-300">Income vs Expenses Breakdown</CardTitle>
+                <CardTitle className="text-purple-300">Monthly Income vs Expenses Breakdown</CardTitle>
                 <CardDescription className="text-slate-400">
                   Visual representation of your monthly finances
                 </CardDescription>
@@ -283,7 +283,7 @@ export default function Finances() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(entry) => `${entry.name}: ${formatCurrency(entry.value)}`}
+                      label={false}
                       outerRadius={120}
                       fill="#8884d8"
                       dataKey="value"

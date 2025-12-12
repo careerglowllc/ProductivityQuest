@@ -196,21 +196,21 @@ function TodayCalendarWidget() {
 function FinanceWidget() {
   const INCOME_CATEGORIES = ["Income", "Retirement", "Investment"];
   const EXPENSE_COLORS: Record<string, string> = {
-    "General": "#8B5CF6",
-    "Business": "#3B82F6",
-    "Entertainment": "#EC4899",
-    "Food": "#F59E0B",
-    "Housing": "#EF4444",
-    "Transportation": "#10B981",
-    "Phone": "#6366F1",
-    "Internet": "#14B8A6",
-    "Insurance": "#F97316",
-    "Credit Card": "#DC2626",
-    "Health (Non Insurance)": "#84CC16",
-    "Toiletries": "#A855F7",
-    "Charity": "#06B6D4",
+    "General": "#A78BFA", // purple-400
+    "Business": "#60A5FA", // blue-400
+    "Entertainment": "#F472B6", // pink-400
+    "Food": "#FBBF24", // amber-400
+    "Housing": "#F87171", // red-400
+    "Transportation": "#34D399", // emerald-400
+    "Phone": "#818CF8", // indigo-400
+    "Internet": "#2DD4BF", // teal-400
+    "Insurance": "#FB923C", // orange-400
+    "Credit Card": "#EF4444", // red-500
+    "Health (Non Insurance)": "#A3E635", // lime-400
+    "Toiletries": "#C084FC", // purple-400
+    "Charity": "#22D3EE", // cyan-400
   };
-  const INCOME_COLOR = "#22C55E";
+  const INCOME_COLOR = "#10B981"; // emerald-500
 
   const { data: financialItems = [] } = useQuery<FinancialItem[]>({
     queryKey: ["/api/finances"],
@@ -253,12 +253,17 @@ function FinanceWidget() {
   };
 
   return (
-    <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30 hover:border-green-500/50 transition-all h-full">
-      <CardHeader className="border-b border-green-600/20 pb-3">
+    <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-emerald-500/30 hover:border-emerald-400/60 transition-all h-full shadow-lg shadow-emerald-500/10">
+      <CardHeader className="border-b border-emerald-500/20 pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-serif font-bold text-green-100">Financial Overview</CardTitle>
+          <div>
+            <CardTitle className="text-lg font-serif font-bold bg-gradient-to-r from-emerald-400 to-green-300 bg-clip-text text-transparent">
+              💰 Financial Overview
+            </CardTitle>
+            <p className="text-xs text-emerald-200/60 mt-1">Monthly Income & Expenses</p>
+          </div>
           <Link href="/finances">
-            <Button variant="outline" size="sm" className="flex items-center gap-2 border-green-600/40 bg-slate-700/50 text-green-200 hover:bg-green-600/20 hover:text-green-100 hover:border-green-500/60">
+            <Button variant="outline" size="sm" className="flex items-center gap-2 border-emerald-500/50 bg-emerald-600/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 hover:shadow-md hover:shadow-emerald-500/20 transition-all">
               View Details
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -267,49 +272,74 @@ function FinanceWidget() {
       </CardHeader>
       <CardContent className="pt-4 pb-4">
         {pieData.length === 0 ? (
-          <div className="text-center py-12 text-green-200/60">
-            <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <div className="text-center py-12 text-emerald-200/60">
+            <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-50 text-emerald-400/40" />
             <p>No financial data yet</p>
           </div>
         ) : (
           <div>
-            <ResponsiveContainer width="100%" height={250}>
-              <RechartsPieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{
-                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
-                    border: '1px solid rgb(34, 197, 94, 0.3)',
-                    borderRadius: '8px',
-                    color: '#f1f5f9'
-                  }}
-                />
-              </RechartsPieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-green-200/80">Net Income:</span>
-                <span className={`font-bold ${netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-green-500/5 rounded-lg blur-xl"></div>
+              <ResponsiveContainer width="100%" height={220}>
+                <RechartsPieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={false}
+                    outerRadius={70}
+                    stroke="rgba(15, 23, 42, 0.8)"
+                    strokeWidth={2}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.color}
+                        style={{
+                          filter: `drop-shadow(0 0 8px ${entry.color}40)`,
+                        }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value)}
+                    contentStyle={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      border: '2px solid rgba(16, 185, 129, 0.3)',
+                      borderRadius: '12px',
+                      color: '#f1f5f9',
+                      boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
+                      backdropFilter: 'blur(8px)'
+                    }}
+                    labelStyle={{
+                      color: '#6ee7b7',
+                      fontWeight: 'bold'
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{
+                      fontSize: '11px',
+                      paddingTop: '10px'
+                    }}
+                    iconType="circle"
+                    formatter={(value) => <span className="text-slate-300">{value}</span>}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg border border-emerald-500/20">
+                <span className="text-emerald-200/90 font-medium">Net Income:</span>
+                <span className={`font-bold text-lg ${netIncome >= 0 ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]'}`}>
                   {formatCurrency(netIncome)}/mo
                 </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-green-200/80">Savings Rate:</span>
-                <span className="font-bold text-green-300">{savingsRate.toFixed(1)}%</span>
+              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 rounded-lg border border-yellow-500/20">
+                <span className="text-yellow-200/90 font-medium">Savings Rate:</span>
+                <span className="font-bold text-lg text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]">{savingsRate.toFixed(1)}%</span>
               </div>
             </div>
           </div>

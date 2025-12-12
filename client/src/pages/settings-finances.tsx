@@ -209,7 +209,7 @@ export default function SettingsFinances() {
               <DollarSign className="h-6 w-6 text-green-400" />
               Finances
             </h1>
-            <p className="text-slate-400 text-sm">Track income & expenses</p>
+            <p className="text-slate-400 text-sm">Track monthly income & expenses</p>
           </div>
         </div>
 
@@ -217,7 +217,7 @@ export default function SettingsFinances() {
         <div className="grid grid-cols-2 gap-3 mb-6">
           <Card className="bg-slate-800/60 border-green-500/30">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-green-400">Income</CardTitle>
+              <CardTitle className="text-sm text-green-400">Monthly Income</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xl font-bold text-green-300">{formatCurrency(totalIncome)}</p>
@@ -227,7 +227,7 @@ export default function SettingsFinances() {
 
           <Card className="bg-slate-800/60 border-red-500/30">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-red-400">Expenses</CardTitle>
+              <CardTitle className="text-sm text-red-400">Monthly Expenses</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xl font-bold text-red-300">{formatCurrency(totalExpenses)}</p>
@@ -238,7 +238,7 @@ export default function SettingsFinances() {
 
         <Card className={`bg-slate-800/60 border-${netIncome >= 0 ? 'green' : 'red'}-500/30 mb-6`}>
           <CardHeader className="pb-2">
-            <CardTitle className={`text-sm ${netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>Net Income</CardTitle>
+            <CardTitle className={`text-sm ${netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>Monthly Net Income</CardTitle>
           </CardHeader>
           <CardContent>
             <p className={`text-2xl font-bold ${netIncome >= 0 ? 'text-green-300' : 'text-red-300'}`}>
@@ -268,7 +268,8 @@ export default function SettingsFinances() {
         {pieData.length > 0 && (
           <Card className="bg-slate-800/60 border-green-500/30 mb-6">
             <CardHeader>
-              <CardTitle className="text-green-400">Income vs Expenses</CardTitle>
+              <CardTitle className="text-green-400">Monthly Income vs Expenses</CardTitle>
+              <CardDescription className="text-slate-400 text-xs">Hover on chart for details</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -278,7 +279,7 @@ export default function SettingsFinances() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={false}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
@@ -295,6 +296,13 @@ export default function SettingsFinances() {
                       borderRadius: '8px',
                       color: '#f1f5f9'
                     }}
+                  />
+                  <Legend 
+                    wrapperStyle={{
+                      fontSize: '10px',
+                      paddingTop: '10px'
+                    }}
+                    iconType="circle"
                   />
                 </RechartsPieChart>
               </ResponsiveContainer>
