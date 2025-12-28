@@ -1582,14 +1582,6 @@ export default function Home() {
                         Complete Selected
                       </Button>
                       <Button 
-                        onClick={() => handleAddToCalendar()}
-                        variant="outline"
-                        className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 hover:text-cyan-200"
-                      >
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Add to Calendar
-                      </Button>
-                      <Button 
                         onClick={() => setShowCalendarSync(true)}
                         variant="outline"
                         className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200"
