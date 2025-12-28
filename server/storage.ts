@@ -1,6 +1,6 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, isNull, inArray } from "drizzle-orm";
+import { eq, and, or, isNull, inArray, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -10,7 +10,14 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(userData: { username: string; email: string; password: string }): Promise<User>;
   verifyPassword(password: string, hash: string): Promise<boolean>;
+  updateUserPassword(userId: string, newPassword: string): Promise<boolean>;
   upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Password reset operations
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
+  getPasswordResetToken(token: string): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined>;
+  markPasswordResetTokenUsed(token: string): Promise<void>;
+  
   updateUserSettings(userId: string, settings: { 
     notionApiKey?: string; 
     notionDatabaseId?: string; 
@@ -992,6 +999,36 @@ export class DatabaseStorage implements IStorage {
   async verifyPassword(password: string, passwordHash: string): Promise<boolean> {
     const bcrypt = await import('bcryptjs');
     return bcrypt.compare(password, passwordHash);
+  }
+
+  async updateUserPassword(userId: string, newPassword: string): Promise<boolean> {
+    const bcrypt = await import('bcryptjs');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+    return true;
+  }
+
+  // Password reset token operations
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+    await db.insert(passwordResetTokens).values({
+      userId,
+      token,
+      expiresAt,
+    });
+  }
+
+  async getPasswordResetToken(token: string): Promise<{ userId: string; expiresAt: Date; used: boolean } | undefined> {
+    const [result] = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.token, token));
+    if (!result) return undefined;
+    return {
+      userId: result.userId,
+      expiresAt: result.expiresAt,
+      used: result.used || false,
+    };
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<void> {
+    await db.update(passwordResetTokens).set({ used: true }).where(eq(passwordResetTokens.token, token));
   }
 
   // Campaign operations

@@ -165,6 +165,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Forgot password - request reset link
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+      
+      console.log('🔑 Password reset requested for:', email);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      
+      // Always return success to prevent email enumeration attacks
+      if (!user) {
+        console.log('⚠️ No user found for email:', email);
+        return res.json({ message: 'If an account exists with this email, you will receive a reset link.' });
+      }
+      
+      // Generate a secure random token
+      const crypto = await import('crypto');
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+      
+      // Store the token
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+      
+      console.log('✅ Password reset token created for user:', user.username);
+      console.log('🔗 Reset token:', token);
+      
+      // In a production app, you would send an email here
+      // For now, we'll just log the reset link
+      const resetLink = `${process.env.APP_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
+      console.log('📧 Reset link (would be emailed):', resetLink);
+      
+      // NOTE: In production, integrate with an email service like SendGrid, Mailgun, or AWS SES
+      // Example: await sendResetEmail(user.email, resetLink);
+      
+      res.json({ message: 'If an account exists with this email, you will receive a reset link.' });
+    } catch (error: any) {
+      console.error('❌ Forgot password error:', error);
+      res.status(500).json({ message: 'Failed to process request' });
+    }
+  });
+
+  // Reset password - verify token and update password
+  app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ message: 'Token and password are required' });
+      }
+      
+      if (password.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      }
+      
+      console.log('🔑 Password reset attempt with token');
+      
+      // Find and validate the token
+      const resetToken = await storage.getPasswordResetToken(token);
+      
+      if (!resetToken) {
+        console.log('❌ Invalid reset token');
+        return res.status(400).json({ message: 'Invalid or expired reset link' });
+      }
+      
+      if (resetToken.used) {
+        console.log('❌ Reset token already used');
+        return res.status(400).json({ message: 'This reset link has already been used' });
+      }
+      
+      if (new Date() > resetToken.expiresAt) {
+        console.log('❌ Reset token expired');
+        return res.status(400).json({ message: 'This reset link has expired' });
+      }
+      
+      // Update the password
+      await storage.updateUserPassword(resetToken.userId, password);
+      
+      // Mark the token as used
+      await storage.markPasswordResetTokenUsed(token);
+      
+      console.log('✅ Password reset successful for user:', resetToken.userId);
+      
+      res.json({ message: 'Password reset successful' });
+    } catch (error: any) {
+      console.error('❌ Reset password error:', error);
+      res.status(500).json({ message: 'Failed to reset password' });
+    }
+  });
+
   // Get current user
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {

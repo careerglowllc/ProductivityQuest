@@ -28,6 +28,8 @@ import NPCsPage from "@/pages/npcs";
 import RecyclingBin from "@/pages/recycling-bin";
 import Profile from "@/pages/profile";
 import Finances from "@/pages/finances";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -59,6 +61,8 @@ function Router() {
       <Switch>
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password" component={ResetPassword} />
         
         {!isAuthenticated ? (
           <>
