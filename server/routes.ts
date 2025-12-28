@@ -10,6 +10,7 @@ import { categorizeTaskWithAI, categorizeMultipleTasks } from "./openai-service"
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 import { OAuth2Client } from 'google-auth-library';
+import { Resend } from 'resend';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -194,15 +195,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createPasswordResetToken(user.id, token, expiresAt);
       
       console.log('✅ Password reset token created for user:', user.username);
-      console.log('🔗 Reset token:', token);
       
-      // In a production app, you would send an email here
-      // For now, we'll just log the reset link
       const resetLink = `${process.env.APP_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
-      console.log('📧 Reset link (would be emailed):', resetLink);
+      console.log('🔗 Reset link:', resetLink);
       
-      // NOTE: In production, integrate with an email service like SendGrid, Mailgun, or AWS SES
-      // Example: await sendResetEmail(user.email, resetLink);
+      // Send email using Resend
+      if (process.env.RESEND_API_KEY) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        
+        try {
+          await resend.emails.send({
+            from: 'ProductivityQuest <onboarding@resend.dev>',
+            to: email,
+            subject: 'Reset Your Password - ProductivityQuest',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #6366f1; margin-bottom: 24px;">Reset Your Password</h1>
+                <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                  Hi${user.username ? ` ${user.username}` : ''},
+                </p>
+                <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                  We received a request to reset your password for your ProductivityQuest account.
+                </p>
+                <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                  Click the button below to set a new password:
+                </p>
+                <div style="text-align: center; margin: 32px 0;">
+                  <a href="${resetLink}" 
+                     style="background-color: #6366f1; color: white; padding: 14px 28px; 
+                            text-decoration: none; border-radius: 8px; font-weight: 600;
+                            display: inline-block;">
+                    Reset Password
+                  </a>
+                </div>
+                <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+                  This link will expire in 1 hour. If you didn't request a password reset, 
+                  you can safely ignore this email.
+                </p>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+                <p style="color: #9ca3af; font-size: 12px;">
+                  ProductivityQuest - Level up your productivity
+                </p>
+              </div>
+            `,
+          });
+          console.log('📧 Password reset email sent successfully to:', email);
+        } catch (emailError) {
+          console.error('❌ Failed to send email:', emailError);
+          // Still return success - don't reveal email sending issues
+        }
+      } else {
+        console.log('⚠️ RESEND_API_KEY not configured, email not sent');
+        console.log('📧 Reset link (would be emailed):', resetLink);
+      }
       
       res.json({ message: 'If an account exists with this email, you will receive a reset link.' });
     } catch (error: any) {
