@@ -213,6 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         googleCalendarTokenExpiry: user.googleCalendarTokenExpiry,
         googleCalendarSyncEnabled: user.googleCalendarSyncEnabled || false,
         googleCalendarSyncDirection: user.googleCalendarSyncDirection || 'both',
+        googleCalendarInstantSync: user.googleCalendarInstantSync || false,
         googleCalendarLastSync: user.googleCalendarLastSync,
         timezone: user.timezone || 'America/New_York',
       });
@@ -231,7 +232,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         googleCalendarClientId,
         googleCalendarClientSecret,
         googleCalendarSyncEnabled,
-        googleCalendarSyncDirection
+        googleCalendarSyncDirection,
+        googleCalendarInstantSync
       } = req.body;
       
       // Validate and parse Notion configuration if provided
@@ -257,6 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (googleCalendarClientSecret !== undefined) updates.googleCalendarClientSecret = googleCalendarClientSecret;
       if (googleCalendarSyncEnabled !== undefined) updates.googleCalendarSyncEnabled = googleCalendarSyncEnabled;
       if (googleCalendarSyncDirection !== undefined) updates.googleCalendarSyncDirection = googleCalendarSyncDirection;
+      if (googleCalendarInstantSync !== undefined) updates.googleCalendarInstantSync = googleCalendarInstantSync;
       
       const user = await storage.updateUserSettings(userId, updates);
       
@@ -267,6 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasGoogleAuth: !!(user.googleAccessToken && user.googleRefreshToken),
         googleConnected: !!(user.googleAccessToken && user.googleRefreshToken),
         googleCalendarSyncEnabled: user.googleCalendarSyncEnabled,
+        googleCalendarInstantSync: user.googleCalendarInstantSync,
         googleCalendarClientId: user.googleCalendarClientId ? '***' : null,
         googleCalendarClientSecret: user.googleCalendarClientSecret ? '***' : null,
       });
@@ -488,6 +492,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`❌ [AUTO-CAT] Failed for task ${task.id}:`, error.message);
           console.error(`❌ [AUTO-CAT] Stack:`, error.stack);
           // Don't throw - categorization is optional, task is already created
+        }
+      })();
+      
+      // Instant Calendar Sync - add task to calendar if enabled and has due date
+      (async () => {
+        try {
+          const user = await storage.getUserById(userId);
+          if (user?.googleCalendarInstantSync && 
+              user?.googleCalendarAccessToken && 
+              task.dueDate) {
+            console.log(`📅 [INSTANT-SYNC] Adding task ${task.id} to calendar...`);
+            
+            // Set scheduledTime to dueDate at 12 PM if not set
+            const scheduledTime = task.scheduledTime || new Date(
+              new Date(task.dueDate).setHours(12, 0, 0, 0)
+            );
+            
+            // Get color based on importance
+            const getColorForImportance = (importance: string | null | undefined): string => {
+              switch (importance) {
+                case 'Pareto':
+                case 'High':
+                  return '#ef4444'; // Red
+                case 'Med-High':
+                  return '#f97316'; // Orange
+                case 'Medium':
+                  return '#eab308'; // Yellow
+                case 'Med-Low':
+                  return '#3b82f6'; // Blue
+                case 'Low':
+                  return '#22c55e'; // Green
+                default:
+                  return '#9333ea'; // Purple (default)
+              }
+            };
+            
+            const calendarColor = task.calendarColor || getColorForImportance(task.importance);
+            
+            // Update task with scheduledTime and calendarColor
+            await storage.updateTask(task.id, { scheduledTime, calendarColor }, userId);
+            console.log(`✅ [INSTANT-SYNC] Task ${task.id} added to calendar`);
+          }
+        } catch (error: any) {
+          console.error(`❌ [INSTANT-SYNC] Failed for task ${task.id}:`, error.message);
+          // Don't throw - sync is optional, task is already created
         }
       })();
       

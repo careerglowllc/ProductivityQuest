@@ -21,6 +21,7 @@ export default function GoogleCalendarIntegration() {
   const [currentStep, setCurrentStep] = useState(1);
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [syncDirection, setSyncDirection] = useState<'import' | 'export' | 'both'>('both');
+  const [instantSync, setInstantSync] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
 
   const { data: settings, isLoading } = useQuery<UserSettings>({
@@ -31,6 +32,7 @@ export default function GoogleCalendarIntegration() {
     if (settings) {
       setSyncEnabled(settings.googleCalendarSyncEnabled || false);
       setSyncDirection((settings.googleCalendarSyncDirection as any) || 'both');
+      setInstantSync(settings.googleCalendarInstantSync || false);
     }
   }, [settings]);
 
@@ -40,6 +42,7 @@ export default function GoogleCalendarIntegration() {
       googleCalendarClientSecret?: string;
       googleCalendarSyncEnabled?: boolean;
       googleCalendarSyncDirection?: string;
+      googleCalendarInstantSync?: boolean;
     }) => {
       const response = await fetch('/api/user/settings', {
         method: 'PUT',
@@ -160,6 +163,11 @@ export default function GoogleCalendarIntegration() {
   const handleSyncDirectionChange = (direction: 'import' | 'export' | 'both') => {
     setSyncDirection(direction);
     updateMutation.mutate({ googleCalendarSyncDirection: direction });
+  };
+
+  const handleInstantSyncToggle = (enabled: boolean) => {
+    setInstantSync(enabled);
+    updateMutation.mutate({ googleCalendarInstantSync: enabled });
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -360,6 +368,24 @@ export default function GoogleCalendarIntegration() {
                   </p>
                 </div>
               )}
+
+              {/* Instant Calendar Sync Toggle */}
+              <div className="flex items-center justify-between p-4 bg-slate-900/40 rounded-lg border border-emerald-500/20">
+                <div>
+                  <Label htmlFor="instant-sync" className="text-yellow-100 font-semibold">
+                    Instant Calendar Sync
+                  </Label>
+                  <p className="text-sm text-yellow-200/60 mt-1">
+                    Automatically add new quests to calendar when created
+                  </p>
+                </div>
+                <Switch
+                  id="instant-sync"
+                  checked={instantSync}
+                  onCheckedChange={handleInstantSyncToggle}
+                  disabled={!syncEnabled}
+                />
+              </div>
 
               {/* Manual Sync Button */}
               <Button

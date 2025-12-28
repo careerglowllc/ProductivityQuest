@@ -35,6 +35,7 @@ export const users = pgTable("users", {
   googleCalendarTokenExpiry: timestamp("google_calendar_token_expiry"),
   googleCalendarSyncEnabled: boolean("google_calendar_sync_enabled").default(false),
   googleCalendarSyncDirection: text("google_calendar_sync_direction").default("both"),
+  googleCalendarInstantSync: boolean("google_calendar_instant_sync").default(false),
   googleCalendarLastSync: timestamp("google_calendar_last_sync"),
   timezone: text("timezone").default("America/New_York"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -239,6 +240,7 @@ export type UserSettings = {
   googleCalendarTokenExpiry: Date | null;
   googleCalendarSyncEnabled: boolean;
   googleCalendarSyncDirection: string;
+  googleCalendarInstantSync: boolean;
   googleCalendarLastSync: Date | null;
 };
 
