@@ -15,8 +15,6 @@ type UserSettings = {
   googleCalendarClientId?: string | null;
   googleCalendarClientSecret?: string | null;
   googleCalendarAccessToken?: string | null;
-  googleAccessToken?: string | null; // OAuth token
-  googleRefreshToken?: string | null; // OAuth refresh token
   googleCalendarLastSync?: Date | null;
 };
 
@@ -693,6 +691,14 @@ export default function Calendar() {
       return { className: 'bg-gray-700/50 text-gray-400 line-through border-gray-600' };
     } else if (event.importance === 'Pareto' || event.importance === 'High') {
       return { className: 'bg-red-500/20 text-red-300 border-red-500/30' };
+    } else if (event.importance === 'Med-High') {
+      return { className: 'bg-orange-500/20 text-orange-300 border-orange-500/30' };
+    } else if (event.importance === 'Medium') {
+      return { className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' };
+    } else if (event.importance === 'Med-Low') {
+      return { className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' };
+    } else if (event.importance === 'Low') {
+      return { className: 'bg-green-500/20 text-green-300 border-green-500/30' };
     } else {
       return { className: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
     }
@@ -704,7 +710,9 @@ export default function Calendar() {
   });
 
   const googleConnected = settings?.googleCalendarSyncEnabled && 
-                          (settings?.googleCalendarAccessToken || settings?.googleAccessToken); // Check both possible token fields
+                          settings?.googleCalendarClientId && 
+                          settings?.googleCalendarClientSecret &&
+                          settings?.googleCalendarAccessToken; // Must have access token from OAuth
 
   const isTwoWaySync = settings?.googleCalendarSyncDirection === 'both';
 

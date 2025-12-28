@@ -28,8 +28,24 @@ const getRedirectUri = () => {
   }
 };
 
+// Get redirect URI for per-user Google Calendar OAuth (uses different callback path)
+const getGoogleCalendarRedirectUri = () => {
+  const port = process.env.PORT || 5001;
+  if (process.env.REPLIT_DOMAINS) {
+    return `https://${process.env.REPLIT_DOMAINS}/api/google-calendar/callback`;
+  } else if (process.env.NODE_ENV === 'production') {
+    return process.env.APP_URL 
+      ? `${process.env.APP_URL}/api/google-calendar/callback`
+      : `https://productivityquest.onrender.com/api/google-calendar/callback`;
+  } else {
+    // Local development - match the actual server port
+    return `http://localhost:${port}/api/google-calendar/callback`;
+  }
+};
+
 // Log initial configuration at startup
 console.log('🔗 Google OAuth Redirect URI:', getRedirectUri());
+console.log('🔗 Google Calendar Redirect URI:', getGoogleCalendarRedirectUri());
 console.log('🌐 REPLIT_DOMAINS:', process.env.REPLIT_DOMAINS);
 console.log('🏗️ NODE_ENV:', process.env.NODE_ENV);
 console.log('🔑 Google Client ID at startup:', process.env.GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
@@ -175,14 +191,55 @@ export class GoogleCalendarService {
     let success = 0;
     let failed = 0;
 
+    console.log('📅 [SYNC TASKS] Starting sync for', tasks.length, 'tasks');
+    console.log('📅 [SYNC TASKS] User credentials check:');
+    console.log('   - googleCalendarClientId:', !!user.googleCalendarClientId);
+    console.log('   - googleCalendarClientSecret:', !!user.googleCalendarClientSecret);
+    console.log('   - googleCalendarAccessToken:', !!user.googleCalendarAccessToken);
+    console.log('   - googleCalendarRefreshToken:', !!user.googleCalendarRefreshToken);
+    console.log('   - Legacy googleAccessToken:', !!user.googleAccessToken);
+    console.log('   - Legacy googleRefreshToken:', !!user.googleRefreshToken);
+
     try {
-      const auth = this.getAuthenticatedClient(user);
+      // Use per-user credentials if available (same pattern as getEvents)
+      let auth: OAuth2Client;
+      
+      if (user.googleCalendarClientId && user.googleCalendarClientSecret && 
+          user.googleCalendarAccessToken && user.googleCalendarRefreshToken) {
+        console.log('📅 [SYNC TASKS] Using per-user OAuth credentials');
+        console.log('📅 [SYNC TASKS] Redirect URI:', getGoogleCalendarRedirectUri());
+        // Use user's own OAuth credentials
+        auth = new OAuth2Client(
+          user.googleCalendarClientId,
+          user.googleCalendarClientSecret,
+          getGoogleCalendarRedirectUri()
+        );
+        
+        auth.setCredentials({
+          access_token: user.googleCalendarAccessToken,
+          refresh_token: user.googleCalendarRefreshToken,
+          expiry_date: user.googleCalendarTokenExpiry?.getTime(),
+        });
+      } else {
+        console.log('📅 [SYNC TASKS] Falling back to legacy credentials');
+        // Fallback to legacy credentials
+        auth = this.getAuthenticatedClient(user);
+      }
+
       const calendar = google.calendar({ version: 'v3', auth });
 
       for (const task of tasks) {
-        if (!task.dueDate) continue;
+        if (!task.dueDate) {
+          console.log(`📅 [SYNC TASKS] Skipping task ${task.id} "${task.title}" - no due date`);
+          continue;
+        }
 
         try {
+          console.log(`📅 [SYNC TASKS] Creating event for task ${task.id} "${task.title}"`);
+          console.log(`   - Due date: ${task.dueDate}`);
+          console.log(`   - Duration: ${task.duration} minutes`);
+          console.log(`   - Importance: ${task.importance}`);
+          
           const event = {
             summary: task.title,
             description: `${task.description}\n\nGold Reward: ${task.goldValue}\nImportance: ${task.importance || 'Not set'}`,
@@ -205,14 +262,19 @@ export class GoogleCalendarService {
             colorId: this.getColorForImportance(task.importance || undefined),
           };
 
-          await calendar.events.insert({
+          const response = await calendar.events.insert({
             calendarId: 'primary',
             requestBody: event,
           });
+          
+          console.log(`✅ [SYNC TASKS] Successfully created event for task ${task.id}, Google Event ID: ${response.data.id}`);
 
           success++;
-        } catch (error) {
-          console.error(`Failed to create calendar event for task ${task.id}:`, error);
+        } catch (error: any) {
+          console.error(`❌ [SYNC TASKS] Failed to create calendar event for task ${task.id}:`, error.message);
+          if (error.response?.data) {
+            console.error('   Error details:', JSON.stringify(error.response.data));
+          }
           failed++;
         }
       }
@@ -235,7 +297,7 @@ export class GoogleCalendarService {
         auth = new OAuth2Client(
           user.googleCalendarClientId,
           user.googleCalendarClientSecret,
-          'http://localhost:5000/api/google-calendar/callback'
+          getGoogleCalendarRedirectUri()
         );
         
         auth.setCredentials({
@@ -322,7 +384,7 @@ export class GoogleCalendarService {
         auth = new OAuth2Client(
           user.googleCalendarClientId,
           user.googleCalendarClientSecret,
-          'http://localhost:5000/api/google-calendar/callback'
+          getGoogleCalendarRedirectUri()
         );
         
         auth.setCredentials({
@@ -374,7 +436,7 @@ export class GoogleCalendarService {
         auth = new OAuth2Client(
           user.googleCalendarClientId,
           user.googleCalendarClientSecret,
-          'http://localhost:5000/api/google-calendar/callback'
+          getGoogleCalendarRedirectUri()
         );
         
         auth.setCredentials({
@@ -431,16 +493,18 @@ export class GoogleCalendarService {
   }
 
   private getColorForImportance(importance?: string): string {
+    // Google Calendar color IDs:
+    // 1 = Blue, 2 = Green, 3 = Purple, 4 = Red, 5 = Yellow, 6 = Orange, 7 = Turquoise, 8 = Gray, 9 = Bold Blue, 10 = Bold Green, 11 = Bold Red
     const colorMap: { [key: string]: string } = {
-      'Pareto': '11', // Red
-      'High': '6',    // Orange
-      'Med-High': '5', // Yellow
-      'Medium': '2',   // Green
+      'Pareto': '11', // Bold Red
+      'High': '11',   // Bold Red
+      'Med-High': '6', // Orange
+      'Medium': '5',   // Yellow
       'Med-Low': '1',  // Blue
-      'Low': '8',      // Gray
+      'Low': '2',      // Green
     };
     
-    return colorMap[importance || 'Medium'] || '2';
+    return colorMap[importance || 'Medium'] || '5'; // Default to yellow for Medium
   }
 }
 

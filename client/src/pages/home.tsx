@@ -1090,38 +1090,38 @@ export default function Home() {
         };
       case "High":
         return {
+          borderColor: "border-red-500/50",
+          bgColor: "bg-red-500/5",
+          textColor: "text-red-400",
+          iconBg: "bg-red-500/20"
+        };
+      case "Med-High":
+        return {
           borderColor: "border-orange-500/50",
           bgColor: "bg-orange-500/5",
           textColor: "text-orange-400",
           iconBg: "bg-orange-500/20"
         };
-      case "Med-High":
+      case "Medium":
         return {
           borderColor: "border-yellow-500/50",
           bgColor: "bg-yellow-500/5",
           textColor: "text-yellow-400",
           iconBg: "bg-yellow-500/20"
         };
-      case "Medium":
-        return {
-          borderColor: "border-lime-500/50",
-          bgColor: "bg-lime-500/5",
-          textColor: "text-lime-400",
-          iconBg: "bg-lime-500/20"
-        };
       case "Med-Low":
-        return {
-          borderColor: "border-green-500/50",
-          bgColor: "bg-green-500/5",
-          textColor: "text-green-400",
-          iconBg: "bg-green-500/20"
-        };
-      case "Low":
         return {
           borderColor: "border-blue-500/50",
           bgColor: "bg-blue-500/5",
           textColor: "text-blue-400",
           iconBg: "bg-blue-500/20"
+        };
+      case "Low":
+        return {
+          borderColor: "border-green-500/50",
+          bgColor: "bg-green-500/5",
+          textColor: "text-green-400",
+          iconBg: "bg-green-500/20"
         };
       default:
         return {
@@ -1588,6 +1588,14 @@ export default function Home() {
                       >
                         <Calendar className="w-4 h-4 mr-2" />
                         Add to Calendar
+                      </Button>
+                      <Button 
+                        onClick={() => setShowCalendarSync(true)}
+                        variant="outline"
+                        className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200"
+                      >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Sync to Google Cal
                       </Button>
                       <Button 
                         onClick={handleDeleteSelected}

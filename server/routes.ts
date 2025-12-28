@@ -2010,18 +2010,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calendar/sync", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
+      console.log('📅 [CALENDAR SYNC API] Starting sync for user:', userId);
+      
       const user = await storage.getUserById(userId);
       
       // Check if Google Calendar is configured (not checking tokens here, let the service handle it)
       if (!user) {
+        console.log('❌ [CALENDAR SYNC API] User not found');
         return res.status(400).json({ 
           error: "User not found",
           needsAuth: true 
         });
       }
 
+      console.log('📅 [CALENDAR SYNC API] User Google Calendar credentials:');
+      console.log('   - googleCalendarSyncEnabled:', user.googleCalendarSyncEnabled);
+      console.log('   - googleCalendarClientId:', !!user.googleCalendarClientId);
+      console.log('   - googleCalendarAccessToken:', !!user.googleCalendarAccessToken);
+      console.log('   - Legacy googleAccessToken:', !!user.googleAccessToken);
+
       const tasks = await storage.getTasks(userId);
       const { selectedTasks } = req.body;
+      
+      console.log('📅 [CALENDAR SYNC API] Selected tasks:', selectedTasks);
+      console.log('📅 [CALENDAR SYNC API] Total tasks in DB:', tasks.length);
       
       const tasksToSync = tasks.filter(task => 
         selectedTasks.includes(task.id) && 
@@ -2029,7 +2041,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         !task.completed
       );
 
+      console.log('📅 [CALENDAR SYNC API] Tasks to sync after filtering:', tasksToSync.length);
+      tasksToSync.forEach(t => {
+        console.log(`   - Task ${t.id}: "${t.title}" due: ${t.dueDate}`);
+      });
+
       if (tasksToSync.length === 0) {
+        console.log('📅 [CALENDAR SYNC API] No tasks to sync');
         return res.json({ 
           success: true, 
           count: 0,
@@ -2041,6 +2059,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const results = await googleCalendar.syncTasks(tasksToSync, user);
       
+      console.log('✅ [CALENDAR SYNC API] Sync complete:', results);
+      
       res.json({ 
         success: true, 
         count: results.success,
@@ -2048,7 +2068,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         total: tasksToSync.length
       });
     } catch (error: any) {
-      console.error("Calendar sync error:", error);
+      console.error("❌ [CALENDAR SYNC API] Error:", error.message);
+      console.error("❌ [CALENDAR SYNC API] Stack:", error.stack);
       
       // Check if it's an auth error
       if (error.message?.includes('Google OAuth credentials not configured')) {

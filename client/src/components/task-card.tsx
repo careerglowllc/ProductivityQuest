@@ -326,10 +326,10 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                   <Badge variant="outline" className={cn(
                     "text-xs border",
                     task.importance === "Pareto" && "bg-red-900/40 text-red-200 border-red-600/40",
-                    task.importance === "High" && "bg-orange-900/40 text-orange-200 border-orange-600/40",
-                    task.importance === "Med-High" && "bg-yellow-900/40 text-yellow-200 border-yellow-600/40",
-                    task.importance === "Medium" && "bg-blue-900/40 text-blue-200 border-blue-600/40",
-                    task.importance === "Med-Low" && "bg-slate-700/40 text-slate-200 border-slate-600/40",
+                    task.importance === "High" && "bg-red-900/40 text-red-200 border-red-600/40",
+                    task.importance === "Med-High" && "bg-orange-900/40 text-orange-200 border-orange-600/40",
+                    task.importance === "Medium" && "bg-yellow-900/40 text-yellow-200 border-yellow-600/40",
+                    task.importance === "Med-Low" && "bg-blue-900/40 text-blue-200 border-blue-600/40",
                     task.importance === "Low" && "bg-green-900/40 text-green-200 border-green-600/40"
                   )}>
                     {task.importance === "Pareto" && <Zap className="w-3 h-3 mr-1" />}
