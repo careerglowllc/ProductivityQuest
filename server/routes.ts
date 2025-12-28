@@ -2006,6 +2006,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Disconnect Google Calendar (per-user OAuth credentials)
+  app.post("/api/google-calendar/disconnect", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      console.log('🔌 [DISCONNECT] Disconnecting Google Calendar for user:', userId);
+      
+      await storage.updateGoogleCalendarSettings(userId, {
+        googleCalendarAccessToken: '',
+        googleCalendarRefreshToken: '',
+        googleCalendarTokenExpiry: undefined,
+        googleCalendarSyncEnabled: false,
+      });
+      
+      console.log('✅ [DISCONNECT] Google Calendar disconnected successfully');
+      res.json({ success: true, message: "Google Calendar disconnected successfully" });
+    } catch (error) {
+      console.error("❌ [DISCONNECT] Google Calendar disconnect error:", error);
+      res.status(500).json({ error: "Failed to disconnect Google Calendar" });
+    }
+  });
+
   // Calendar integration routes
   app.post("/api/calendar/sync", requireAuth, async (req: any, res) => {
     try {

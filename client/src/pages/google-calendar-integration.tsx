@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, ArrowLeft, Calendar, Key, ExternalLink, Copy, AlertCircle, Loader2, RefreshCw, Download } from "lucide-react";
+import { CheckCircle, ArrowLeft, Calendar, Key, ExternalLink, Copy, AlertCircle, Loader2, RefreshCw, Download, Trash2 } from "lucide-react";
 import type { UserSettings } from "@/../../shared/schema";
 
 export default function GoogleCalendarIntegration() {
@@ -96,6 +96,36 @@ export default function GoogleCalendarIntegration() {
     onError: (error: Error) => {
       toast({
         title: "Sync Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/google-calendar/disconnect', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to disconnect');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
+      toast({
+        title: "Disconnected",
+        description: "Google Calendar has been disconnected. You can reconnect anytime.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -313,6 +343,34 @@ export default function GoogleCalendarIntegration() {
                   </>
                 )}
               </Button>
+
+              {/* Disconnect Button */}
+              <div className="pt-4 border-t border-red-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-red-400">Disconnect Google Calendar</p>
+                    <p className="text-xs text-yellow-200/60">Remove connection and clear stored tokens</p>
+                  </div>
+                  <Button
+                    onClick={() => disconnectMutation.mutate()}
+                    disabled={disconnectMutation.isPending}
+                    variant="outline"
+                    className="border-red-500/40 text-red-400 hover:bg-red-900/20 hover:text-red-300"
+                  >
+                    {disconnectMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Disconnecting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Disconnect
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
