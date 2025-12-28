@@ -675,6 +675,25 @@ export default function Calendar() {
     }
   };
 
+  // Helper function to get hex color from importance
+  const getColorHexFromImportance = (importance: string | null | undefined): string => {
+    switch (importance) {
+      case 'Pareto':
+      case 'High':
+        return '#ef4444'; // Red
+      case 'Med-High':
+        return '#f97316'; // Orange
+      case 'Medium':
+        return '#eab308'; // Yellow
+      case 'Med-Low':
+        return '#3b82f6'; // Blue
+      case 'Low':
+        return '#22c55e'; // Green
+      default:
+        return '#9333ea'; // Purple (default)
+    }
+  };
+
   // Helper function to get event background style
   const getEventStyle = (event: CalendarEvent) => {
     // If event has a calendar color, use it
@@ -1601,7 +1620,7 @@ export default function Calendar() {
               <div 
                 className="h-2 rounded-t-lg"
                 style={{ 
-                  backgroundColor: selectedEvent.calendarColor || '#9333ea'
+                  backgroundColor: selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance)
                 }}
               />
               
@@ -1610,7 +1629,7 @@ export default function Calendar() {
                 <button
                   onClick={() => setShowColorPicker(!showColorPicker)}
                   className="w-8 h-8 rounded-full border-2 border-white/20 hover:border-white/40 transition-colors shadow-lg"
-                  style={{ backgroundColor: selectedEvent.calendarColor || '#9333ea' }}
+                  style={{ backgroundColor: selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance) }}
                   title="Change color"
                 />
                 
@@ -1621,18 +1640,21 @@ export default function Calendar() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="grid grid-cols-4 gap-2 w-40">
-                      {calendarColors.map((color) => (
-                        <button
-                          key={color.value}
-                          onClick={() => handleColorChange(color.value)}
-                          className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
-                          style={{ 
-                            backgroundColor: color.value,
-                            borderColor: selectedEvent.calendarColor === color.value ? '#fff' : 'transparent'
-                          }}
-                          title={color.name}
-                        />
-                      ))}
+                      {calendarColors.map((color) => {
+                        const currentColor = selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance);
+                        return (
+                          <button
+                            key={color.value}
+                            onClick={() => handleColorChange(color.value)}
+                            className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
+                            style={{ 
+                              backgroundColor: color.value,
+                              borderColor: currentColor === color.value ? '#fff' : 'transparent'
+                            }}
+                            title={color.name}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 )}

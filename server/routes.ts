@@ -678,6 +678,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Helper function to get color hex based on importance
+      const getColorForImportance = (importance: string | null | undefined): string => {
+        switch (importance) {
+          case 'Pareto':
+          case 'High':
+            return '#ef4444'; // Red
+          case 'Med-High':
+            return '#f97316'; // Orange
+          case 'Medium':
+            return '#eab308'; // Yellow
+          case 'Med-Low':
+            return '#3b82f6'; // Blue
+          case 'Low':
+            return '#22c55e'; // Green
+          default:
+            return '#9333ea'; // Purple (default)
+        }
+      };
+
       // Second pass: add tasks to calendar
       for (const taskId of taskIds) {
         const task = tasks.find(t => t.id === taskId);
@@ -692,7 +711,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           new Date(task.dueDate).setHours(12, 0, 0, 0)
         );
 
-        await storage.updateTask(taskId, { scheduledTime }, userId);
+        // Set calendarColor based on importance if not already set
+        const calendarColor = task.calendarColor || getColorForImportance(task.importance);
+
+        await storage.updateTask(taskId, { scheduledTime, calendarColor }, userId);
         addedCount++;
       }
 
