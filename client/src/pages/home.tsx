@@ -1587,7 +1587,7 @@ export default function Home() {
                         className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200"
                       >
                         <Calendar className="w-4 h-4 mr-2" />
-                        Sync to Google Cal
+                        Sync to Calendar
                       </Button>
                       <Button 
                         onClick={handleDeleteSelected}

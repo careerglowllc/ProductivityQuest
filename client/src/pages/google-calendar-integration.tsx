@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, ArrowLeft, Calendar, Key, ExternalLink, Copy, AlertCircle, Loader2, RefreshCw, Download, Trash2 } from "lucide-react";
+import { CheckCircle, ArrowLeft, Calendar, Key, ExternalLink, Copy, AlertCircle, Loader2, RefreshCw, Download, Trash2, Link as LinkIcon } from "lucide-react";
 import type { UserSettings } from "@/../../shared/schema";
 
 export default function GoogleCalendarIntegration() {
@@ -21,6 +21,7 @@ export default function GoogleCalendarIntegration() {
   const [currentStep, setCurrentStep] = useState(1);
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [syncDirection, setSyncDirection] = useState<'import' | 'export' | 'both'>('both');
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const { data: settings, isLoading } = useQuery<UserSettings>({
     queryKey: ["/api/user/settings"],
@@ -201,7 +202,7 @@ export default function GoogleCalendarIntegration() {
         </div>
 
         {/* Status Card */}
-        {isConfigured && (
+        {isConfigured ? (
           <Alert className="mb-6 border-green-600/40 bg-green-900/20">
             <CheckCircle className="h-5 w-5 text-green-500" />
             <AlertDescription className="text-green-100 flex items-center justify-between w-full">
@@ -224,6 +225,22 @@ export default function GoogleCalendarIntegration() {
                     Disconnect
                   </>
                 )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="mb-6 border-yellow-600/40 bg-yellow-900/20">
+            <AlertCircle className="h-5 w-5 text-yellow-500" />
+            <AlertDescription className="text-yellow-100 flex items-center justify-between w-full">
+              <span>Google Calendar is not connected</span>
+              <Button
+                onClick={() => setShowConnectModal(true)}
+                variant="outline"
+                size="sm"
+                className="ml-4 border-green-500/40 text-green-400 hover:bg-green-900/20 hover:text-green-300"
+              >
+                <LinkIcon className="mr-2 h-3 w-3" />
+                Connect
               </Button>
             </AlertDescription>
           </Alert>
@@ -599,6 +616,105 @@ export default function GoogleCalendarIntegration() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Connect Modal */}
+      {showConnectModal && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowConnectModal(false)}
+        >
+          <Card 
+            className="bg-slate-900/95 border-purple-500/30 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader>
+              <CardTitle className="text-yellow-100 flex items-center gap-2">
+                <Key className="h-5 w-5 text-purple-400" />
+                Connect Google Calendar
+              </CardTitle>
+              <CardDescription className="text-yellow-200/70">
+                Enter your Google Cloud OAuth credentials to connect
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!clientId || !clientSecret) {
+                  toast({
+                    title: "Missing Information",
+                    description: "Please provide both Client ID and Client Secret",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                updateMutation.mutate({ 
+                  googleCalendarClientId: clientId, 
+                  googleCalendarClientSecret: clientSecret,
+                  googleCalendarSyncEnabled: true
+                });
+                setShowConnectModal(false);
+              }} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="modal-clientId" className="text-yellow-100">Client ID</Label>
+                  <Input
+                    id="modal-clientId"
+                    type="text"
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com"
+                    className="bg-slate-800/60 border-purple-500/30 text-yellow-100 placeholder:text-yellow-200/40"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="modal-clientSecret" className="text-yellow-100">Client Secret</Label>
+                  <Input
+                    id="modal-clientSecret"
+                    type={showClientSecret ? "text" : "password"}
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                    placeholder="GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx"
+                    className="bg-slate-800/60 border-purple-500/30 text-yellow-100 placeholder:text-yellow-200/40"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowClientSecret(!showClientSecret)}
+                    className="text-xs text-purple-400 hover:text-purple-300"
+                  >
+                    {showClientSecret ? "Hide" : "Show"} secret
+                  </button>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowConnectModal(false)}
+                    className="flex-1 border-gray-500/40 text-gray-300 hover:bg-gray-800/50"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={updateMutation.isPending || !clientId || !clientSecret}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400"
+                  >
+                    {updateMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Connect
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
