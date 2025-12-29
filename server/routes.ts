@@ -205,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         try {
           await resend.emails.send({
-            from: 'ProductivityQuest <onboarding@resend.dev>',
+            from: 'ProductivityQuest <noreply@productivity-quest.com>',
             to: email,
             subject: 'Reset Your Password - ProductivityQuest',
             html: `
