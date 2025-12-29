@@ -345,6 +345,7 @@ export default function Home() {
     if (selectedTasks.size === 0) return;
 
     const selectedTaskIds = Array.from(selectedTasks);
+    // Look through ALL tasks (including completed) to find ones that match selection
     const tasksWithSchedule = selectedTaskIds.map(id => {
       return (tasks as any[]).find((t: any) => t.id === id);
     }).filter((t: any) => t && (t.scheduledTime || t.googleEventId));
@@ -382,6 +383,58 @@ export default function Home() {
       toast({
         title: "✓ Removed from Calendar",
         description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar. Quests are still available here.`,
+      });
+
+      // Refresh data
+      refetchTasks();
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove some tasks from calendar.",
+        variant: "destructive",
+      });
+      refetchTasks();
+    }
+  };
+
+  // Remove ALL scheduled tasks from calendar (including completed ones)
+  const handleRemoveAllFromCalendar = async () => {
+    // Find ALL tasks that are scheduled (completed or not)
+    const allScheduledTasks = (tasks as any[]).filter((t: any) => t.scheduledTime || t.googleEventId);
+
+    if (allScheduledTasks.length === 0) {
+      toast({
+        title: "No Scheduled Tasks",
+        description: "There are no tasks on the calendar.",
+      });
+      return;
+    }
+
+    // Clear selection
+    setSelectedTasks(new Set());
+
+    toast({
+      title: "Clearing Calendar...",
+      description: `Removing ${allScheduledTasks.length} task${allScheduledTasks.length > 1 ? 's' : ''} from calendar...`,
+    });
+
+    try {
+      let successCount = 0;
+      for (const task of allScheduledTasks) {
+        try {
+          await apiRequest("POST", `/api/tasks/${task.id}/unschedule`, {
+            removeFromGoogleCalendar: true
+          });
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to unschedule task ${task.id}:`, err);
+        }
+      }
+
+      toast({
+        title: "✓ Calendar Cleared",
+        description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar.`,
       });
 
       // Refresh data
@@ -1681,6 +1734,14 @@ export default function Home() {
                       >
                         <CalendarDays className="w-4 h-4 mr-2" />
                         Remove from Calendar
+                      </Button>
+                      <Button 
+                        onClick={handleRemoveAllFromCalendar}
+                        variant="outline"
+                        className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                      >
+                        <CalendarDays className="w-4 h-4 mr-2" />
+                        Clear ALL from Calendar
                       </Button>
                       <Button 
                         onClick={handleDeleteSelected}
