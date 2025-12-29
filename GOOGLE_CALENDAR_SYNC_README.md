@@ -13,14 +13,20 @@ Each user can connect their own Google Calendar using their own Google Cloud OAu
 - Enhanced privacy and security
 
 ### 2. **Two-Way Sync Options**
-- **Import Only**: Import events from Google Calendar as tasks
+- **Import Only**: Import event time changes from Google Calendar to update task times
 - **Export Only**: Export ProductivityQuest tasks to Google Calendar
 - **Two-Way Sync**: Sync in both directions automatically
 
-### 3. **Instant Calendar Sync**
+### 3. **Smart Time Handling**
+- Uses `scheduledTime` if set, otherwise falls back to `dueDate`
+- Updates existing calendar events instead of creating duplicates
+- Imports time changes from Google Calendar back to tasks
+- Duration is calculated and synced properly
+
+### 4. **Instant Calendar Sync**
 When enabled, new quests are automatically added to your Google Calendar immediately upon creation.
 
-### 4. **Priority-Based Color Coding**
+### 5. **Priority-Based Color Coding**
 Tasks synced to Google Calendar are color-coded based on their importance:
 - 🔴 **High** - Red (#DC2626)
 - 🟠 **Med-High** - Orange (#F97316)
@@ -83,16 +89,31 @@ Google OAuth → Callback with code → Exchange for tokens →
 Store tokens → Ready to sync
 ```
 
-### Sync Flow
+### Export Sync Flow (Tasks → Google Calendar)
 ```
 User clicks "Sync Now" or creates task with Instant Sync →
 Filter tasks with due dates → For each task:
   → Check if already synced (has googleEventId)
-  → If new: Create calendar event
-  → If existing: Update calendar event
+  → If new: Create calendar event with proper time
+  → If existing: Update calendar event time/title
   → Apply priority-based color
-  → Store event ID on task
+  → Store event ID back on task in database
 ```
+
+### Import Sync Flow (Google Calendar → Tasks)
+```
+User triggers import → Fetch events from Google Calendar →
+For each event with linked task:
+  → Check if event time changed
+  → Update task scheduledTime/dueDate
+  → Save changes to database
+```
+
+### Time Handling
+- **Event Start Time**: Uses `scheduledTime` if set, otherwise `dueDate`
+- **Event End Time**: Start time + task duration (default: 1 hour)
+- **Time Zone**: Uses user's local timezone
+- **Updates**: Changes in either system sync to the other
 
 ### Token Refresh
 - Access tokens expire after 1 hour
