@@ -822,15 +822,25 @@ export default function Home() {
   };
 
   const handleCalendarSync = async () => {
+    const selectedTaskIds = Array.from(selectedTasks);
+    const taskCount = selectedTaskIds.length;
+    
+    // Close modal immediately for better UX
+    setShowCalendarSync(false);
+    setSelectedTasks(new Set()); // Clear selection
+    
+    // Show "in progress" toast
+    toast({
+      title: "Syncing to Google Calendar",
+      description: `Adding ${taskCount} task${taskCount !== 1 ? 's' : ''} to your calendar. This may take a few seconds...`,
+    });
+    
+    // Run sync in background - user can navigate away
     try {
-      const selectedTaskIds = Array.from(selectedTasks);
       const response = await apiRequest("POST", "/api/calendar/sync", {
         selectedTasks: selectedTaskIds
       });
       const result = await response.json();
-      
-      setShowCalendarSync(false);
-      setSelectedTasks(new Set()); // Clear selection after sync
       
       // Build descriptive message based on sync direction
       let description = '';
@@ -848,7 +858,7 @@ export default function Home() {
       }
       
       toast({
-        title: "Calendar Sync Complete",
+        title: "✓ Calendar Sync Complete",
         description,
       });
       
@@ -858,7 +868,6 @@ export default function Home() {
       const errorData = error.response?.data || {};
       
       if (errorData.needsAuth) {
-        setShowCalendarSync(false);
         setCalendarNeedsAuth(true);
         setTimeout(() => setShowCalendarSync(true), 100); // Reopen with auth prompt
         return;
