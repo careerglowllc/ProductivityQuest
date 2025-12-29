@@ -3586,13 +3586,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { date, taskIds } = req.body;
 
       console.log('📊 [ML-SORT-API] Received request:', { date, taskIds });
+      console.log('📊 [ML-SORT-API] Raw date string received:', date);
 
       if (!date) {
         return res.status(400).json({ error: "Date is required" });
       }
 
       const targetDate = new Date(date);
-      console.log('📊 [ML-SORT-API] Target date:', targetDate.toDateString());
+      console.log('📊 [ML-SORT-API] Target date parsed:', targetDate.toISOString());
+      console.log('📊 [ML-SORT-API] Target date local:', targetDate.toString());
+      console.log('📊 [ML-SORT-API] Target UTC date: Y=${targetDate.getUTCFullYear()} M=${targetDate.getUTCMonth()} D=${targetDate.getUTCDate()}');
 
       // Get all tasks for this user
       const allTasks = await storage.getTasks(userId);
@@ -3608,7 +3611,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!task.scheduledTime) return false;
         
         const taskDate = new Date(task.scheduledTime);
-        const matches = taskDate.toDateString() === targetDate.toDateString();
+        
+        // Compare year, month, day in UTC to avoid timezone issues
+        const targetYear = targetDate.getUTCFullYear();
+        const targetMonth = targetDate.getUTCMonth();
+        const targetDay = targetDate.getUTCDate();
+        
+        const taskYear = taskDate.getUTCFullYear();
+        const taskMonth = taskDate.getUTCMonth();
+        const taskDay = taskDate.getUTCDate();
+        
+        const matches = taskYear === targetYear && taskMonth === targetMonth && taskDay === targetDay;
+        
         if (matches) {
           console.log(`📊 [ML-SORT-API] Found task for date: "${task.title}" (${task.importance}) at ${task.scheduledTime}`);
         }
@@ -3616,6 +3630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log('📊 [ML-SORT-API] Tasks to sort:', tasksToSort.length);
+      console.log('📊 [ML-SORT-API] Target date (UTC): ${targetDate.toISOString()}');
 
       // Convert to sorting format
       const tasksForSorting = tasksToSort.map(task => {
