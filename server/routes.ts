@@ -2252,7 +2252,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       console.log('🔌 [DISCONNECT] Disconnecting Google Calendar for user:', userId);
       
+      // Clear all Google Calendar settings including credentials
       await storage.updateGoogleCalendarSettings(userId, {
+        googleCalendarClientId: '',
+        googleCalendarClientSecret: '',
         googleCalendarAccessToken: '',
         googleCalendarRefreshToken: '',
         googleCalendarTokenExpiry: undefined,
