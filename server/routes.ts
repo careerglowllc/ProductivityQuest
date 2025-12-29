@@ -2769,17 +2769,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pqGoogleEventIds.add(task.googleEventId);
         }
       }
+      
+      // Also create a set of task IDs that are scheduled (to check description)
+      const scheduledTaskIds = new Set<number>();
+      for (const task of tasksInMonth) {
+        scheduledTaskIds.add(task.id);
+      }
 
       // Combine Google Calendar events and ProductivityQuest tasks
       const events: any[] = [];
 
       // Add Google Calendar events (excluding those created by ProductivityQuest)
       for (const gEvent of googleEvents) {
-        // Skip if this Google event was created by a ProductivityQuest task
+        // Skip if this Google event was created by a ProductivityQuest task (by googleEventId)
         if (pqGoogleEventIds.has(gEvent.id)) {
           console.log(`📅 [CALENDAR] Skipping duplicate Google event ${gEvent.id} - already shown as PQ task`);
           continue;
         }
+        
+        // Also skip if the description contains a ProductivityQuest Task ID that we have scheduled
+        // This handles the case where the googleEventId changed (event deleted and recreated)
+        const description = gEvent.description || '';
+        const taskIdMatch = description.match(/ProductivityQuest Task ID:\s*(\d+)/);
+        if (taskIdMatch) {
+          const taskId = parseInt(taskIdMatch[1], 10);
+          if (scheduledTaskIds.has(taskId)) {
+            console.log(`📅 [CALENDAR] Skipping duplicate Google event - contains PQ Task ID ${taskId} which is already scheduled`);
+            continue;
+          }
+        }
+        
         events.push({
           id: `google-${gEvent.id}`,
           title: gEvent.summary || 'Untitled Event',
