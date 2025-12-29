@@ -167,6 +167,34 @@ export const financialItems = pgTable("financial_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ML Task Sorting training feedback table
+export const mlSortingFeedback = pgTable("ml_sorting_feedback", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(), // The date the sorting was applied to
+  originalSchedule: jsonb("original_schedule").$type<Array<{ taskId: number; startTime: string; endTime: string }>>().notNull(), // Tasks before ML sorting
+  mlSortedSchedule: jsonb("ml_sorted_schedule").$type<Array<{ taskId: number; startTime: string; endTime: string }>>().notNull(), // What ML suggested
+  userCorrectedSchedule: jsonb("user_corrected_schedule").$type<Array<{ taskId: number; startTime: string; endTime: string }>>(), // What user corrected to (null if approved)
+  feedbackType: text("feedback_type").notNull(), // 'approved' or 'corrected'
+  feedbackReason: text("feedback_reason"), // User's explanation for correction
+  taskMetadata: jsonb("task_metadata").$type<Array<{ taskId: number; priority: string; duration: number; title: string }>>(), // Context about tasks for learning
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ML Sorting user preferences learned over time
+export const mlSortingPreferences = pgTable("ml_sorting_preferences", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  preferredStartHour: integer("preferred_start_hour").default(9), // When user typically starts their day
+  preferredEndHour: integer("preferred_end_hour").default(18), // When user typically ends their day
+  priorityWeights: jsonb("priority_weights").$type<{ high: number; medHigh: number; medium: number; medLow: number; low: number }>(), // Learned priority importance
+  breakDuration: integer("break_duration").default(15), // Preferred break between tasks in minutes
+  highPriorityTimePreference: text("high_priority_time_preference").default("morning"), // 'morning', 'afternoon', 'evening'
+  totalApproved: integer("total_approved").default(0),
+  totalCorrected: integer("total_corrected").default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,

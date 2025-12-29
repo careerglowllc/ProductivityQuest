@@ -3444,6 +3444,214 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // ML Task Sorting Endpoints
+  // ============================================
+
+  // Import ML sorting service
+  const { sortTasksML, learnFromFeedback, mergePreferences, DEFAULT_PREFERENCES } = await import("./ml-sorting");
+
+  // Get user's ML sorting preferences
+  app.get("/api/ml/preferences", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const preferences = await storage.getMlSortingPreferences(userId);
+      res.json(preferences || DEFAULT_PREFERENCES);
+    } catch (error: any) {
+      console.error("Error fetching ML preferences:", error);
+      res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  });
+
+  // Sort tasks for a specific date using ML
+  app.post("/api/ml/sort-tasks", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { date, taskIds } = req.body;
+
+      if (!date) {
+        return res.status(400).json({ error: "Date is required" });
+      }
+
+      const targetDate = new Date(date);
+
+      // Get all tasks for this user
+      const allTasks = await storage.getTasks(userId);
+      
+      // Filter to only tasks for this specific date (or specified task IDs)
+      let tasksToSort = allTasks.filter(task => {
+        if (taskIds && taskIds.length > 0) {
+          return taskIds.includes(task.id);
+        }
+        
+        // Filter tasks for the target date
+        const taskDate = task.scheduledTime ? new Date(task.scheduledTime) : task.dueDate ? new Date(task.dueDate) : null;
+        if (!taskDate) return false;
+        
+        return taskDate.toDateString() === targetDate.toDateString();
+      });
+
+      // Convert to sorting format
+      const tasksForSorting = tasksToSort.map(task => ({
+        id: task.id,
+        title: task.title,
+        duration: task.duration || 60,
+        importance: task.importance || 'Medium',
+        currentStartTime: task.scheduledTime?.toISOString(),
+        currentEndTime: task.scheduledTime ? new Date(new Date(task.scheduledTime).getTime() + (task.duration || 60) * 60000).toISOString() : undefined,
+      }));
+
+      // Get user preferences (or use defaults)
+      const storedPrefs = await storage.getMlSortingPreferences(userId);
+      const preferences = mergePreferences(storedPrefs, {});
+
+      // Get the original schedule before sorting
+      const originalSchedule = tasksForSorting.map(task => ({
+        taskId: task.id,
+        startTime: task.currentStartTime || new Date(targetDate.setHours(9, 0, 0, 0)).toISOString(),
+        endTime: task.currentEndTime || new Date(targetDate.setHours(10, 0, 0, 0)).toISOString(),
+      }));
+
+      // Run the ML sorting algorithm
+      const sortedSchedule = sortTasksML(tasksForSorting, targetDate, preferences);
+
+      // Return both the original and sorted schedules for comparison
+      res.json({
+        success: true,
+        originalSchedule,
+        sortedSchedule,
+        taskMetadata: tasksForSorting.map(t => ({
+          taskId: t.id,
+          title: t.title,
+          priority: t.importance,
+          duration: t.duration,
+        })),
+        preferences: {
+          startHour: preferences.preferredStartHour,
+          endHour: preferences.preferredEndHour,
+          breakDuration: preferences.breakDuration,
+          highPriorityTimePreference: preferences.highPriorityTimePreference,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error sorting tasks:", error);
+      res.status(500).json({ error: "Failed to sort tasks" });
+    }
+  });
+
+  // Apply the sorted schedule to actual tasks
+  app.post("/api/ml/apply-sort", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { sortedSchedule } = req.body;
+
+      if (!sortedSchedule || !Array.isArray(sortedSchedule)) {
+        return res.status(400).json({ error: "Sorted schedule is required" });
+      }
+
+      // Update each task with its new scheduled time
+      const updates = [];
+      for (const item of sortedSchedule) {
+        const task = await storage.getTask(item.taskId, userId);
+        if (task && task.userId === userId) {
+          const newScheduledTime = new Date(item.startTime);
+          await storage.updateTask(item.taskId, { scheduledTime: newScheduledTime }, userId);
+          updates.push({ taskId: item.taskId, newTime: item.startTime });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Updated ${updates.length} tasks`,
+        updates,
+      });
+    } catch (error: any) {
+      console.error("Error applying sort:", error);
+      res.status(500).json({ error: "Failed to apply sorted schedule" });
+    }
+  });
+
+  // Submit feedback on ML sorting (train the model)
+  app.post("/api/ml/feedback", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { 
+        date,
+        originalSchedule, 
+        mlSortedSchedule, 
+        userCorrectedSchedule, 
+        feedbackType, 
+        feedbackReason,
+        taskMetadata,
+      } = req.body;
+
+      if (!feedbackType || !['approved', 'corrected'].includes(feedbackType)) {
+        return res.status(400).json({ error: "Valid feedback type (approved/corrected) is required" });
+      }
+
+      if (feedbackType === 'corrected' && !userCorrectedSchedule) {
+        return res.status(400).json({ error: "User corrected schedule is required for corrections" });
+      }
+
+      // Get current preferences
+      const currentPrefs = await storage.getMlSortingPreferences(userId);
+      const preferences = mergePreferences(currentPrefs, {});
+
+      // Learn from the feedback
+      const updates = learnFromFeedback(
+        preferences,
+        feedbackType,
+        mlSortedSchedule,
+        userCorrectedSchedule,
+        taskMetadata,
+        feedbackReason
+      );
+
+      // Save updated preferences
+      await storage.upsertMlSortingPreferences(userId, {
+        ...preferences,
+        ...updates,
+      });
+
+      // Save the feedback for future analysis
+      await storage.saveMlSortingFeedback({
+        userId,
+        date: new Date(date),
+        originalSchedule,
+        mlSortedSchedule,
+        userCorrectedSchedule: feedbackType === 'corrected' ? userCorrectedSchedule : undefined,
+        feedbackType,
+        feedbackReason,
+        taskMetadata,
+      });
+
+      // If approved, apply the ML schedule; if corrected, apply the user's schedule
+      const scheduleToApply = feedbackType === 'approved' ? mlSortedSchedule : userCorrectedSchedule;
+      
+      for (const item of scheduleToApply) {
+        const task = await storage.getTask(item.taskId, userId);
+        if (task && task.userId === userId) {
+          await storage.updateTask(item.taskId, { scheduledTime: new Date(item.startTime) }, userId);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: feedbackType === 'approved' 
+          ? "Thank you! Your approval helps improve sorting accuracy." 
+          : "Thank you for the correction! This helps train better sorting.",
+        preferencesUpdated: Object.keys(updates).length > 0,
+        newPreferences: {
+          ...preferences,
+          ...updates,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error submitting feedback:", error);
+      res.status(500).json({ error: "Failed to submit feedback" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

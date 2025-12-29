@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, isNull, inArray, gt } from "drizzle-orm";
 
@@ -1098,6 +1098,47 @@ export class DatabaseStorage implements IStorage {
       and(eq(financialItems.id, itemId), eq(financialItems.userId, userId))
     );
     return true;
+  }
+
+  // ML Sorting operations
+  async getMlSortingPreferences(userId: string): Promise<any | null> {
+    const result = await db.select().from(mlSortingPreferences).where(eq(mlSortingPreferences.userId, userId)).limit(1);
+    return result[0] || null;
+  }
+
+  async upsertMlSortingPreferences(userId: string, preferences: Partial<{
+    preferredStartHour: number;
+    preferredEndHour: number;
+    priorityWeights: any;
+    breakDuration: number;
+    highPriorityTimePreference: string;
+    totalApproved: number;
+    totalCorrected: number;
+  }>): Promise<void> {
+    const existing = await this.getMlSortingPreferences(userId);
+    if (existing) {
+      await db.update(mlSortingPreferences)
+        .set({ ...preferences, updatedAt: new Date() })
+        .where(eq(mlSortingPreferences.userId, userId));
+    } else {
+      await db.insert(mlSortingPreferences).values({
+        userId,
+        ...preferences,
+      });
+    }
+  }
+
+  async saveMlSortingFeedback(feedback: {
+    userId: string;
+    date: Date;
+    originalSchedule: any[];
+    mlSortedSchedule: any[];
+    userCorrectedSchedule?: any[];
+    feedbackType: string;
+    feedbackReason?: string;
+    taskMetadata?: any[];
+  }): Promise<void> {
+    await db.insert(mlSortingFeedback).values(feedback);
   }
 }
 

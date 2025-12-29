@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2 } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,6 +7,8 @@ import { ToastAction } from "@/components/ui/toast";
 import { useState, useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
+import { MLSortFeedbackModal } from "@/components/ml-sort-feedback-modal";
+import { apiRequest } from "@/lib/queryClient";
 import React from "react";
 
 type UserSettings = {
@@ -88,6 +90,15 @@ export default function Calendar() {
       scheduledTime?: string;
     };
   } | null>(null);
+
+  // ML Sorting state
+  const [showMLFeedback, setShowMLFeedback] = useState(false);
+  const [mlSortData, setMLSortData] = useState<{
+    originalSchedule: any[];
+    sortedSchedule: any[];
+    taskMetadata: any[];
+  } | null>(null);
+  const [isSorting, setIsSorting] = useState(false);
 
   // Save view preference whenever it changes
   useEffect(() => {
@@ -220,6 +231,49 @@ export default function Calendar() {
         variant: "destructive",
       });
       console.error('Failed to undo task update:', error);
+    }
+  };
+
+  // ML Smart Sort handler
+  const handleMLSort = async () => {
+    if (view !== 'day') {
+      toast({
+        title: "Day View Required",
+        description: "ML sorting works best in Day view. Switch to Day view first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSorting(true);
+    try {
+      const response = await apiRequest('POST', '/api/ml/sort-tasks', {
+        date: currentDate.toISOString(),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.sortedSchedule?.length > 0) {
+        setMLSortData({
+          originalSchedule: data.originalSchedule,
+          sortedSchedule: data.sortedSchedule,
+          taskMetadata: data.taskMetadata,
+        });
+        setShowMLFeedback(true);
+      } else {
+        toast({
+          title: "No Tasks to Sort",
+          description: "No tasks found for this day. Add some tasks first!",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Sorting Failed",
+        description: error.message || "Failed to sort tasks",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSorting(false);
     }
   };
 
@@ -1117,6 +1171,19 @@ export default function Calendar() {
                   <Plus className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${isMobile ? '' : 'mr-2'}`} />
                   {!isMobile && 'New Event'}
                 </Button>
+                {/* ML Smart Sort Button - Only show in day view */}
+                {view === 'day' && (
+                  <Button 
+                    size={isMobile ? "sm" : "default"} 
+                    onClick={handleMLSort}
+                    disabled={isSorting}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white"
+                    title="AI-powered smart sorting for your day"
+                  >
+                    <Sparkles className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${isMobile ? '' : 'mr-2'} ${isSorting ? 'animate-spin' : ''}`} />
+                    {!isMobile && (isSorting ? 'Sorting...' : 'Sort')}
+                  </Button>
+                )}
               </div>
 
               <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
@@ -2044,6 +2111,21 @@ export default function Calendar() {
               </div>
             </Card>
           </div>
+        )}
+
+        {/* ML Sort Feedback Modal */}
+        {mlSortData && (
+          <MLSortFeedbackModal
+            isOpen={showMLFeedback}
+            onClose={() => {
+              setShowMLFeedback(false);
+              setMLSortData(null);
+            }}
+            date={currentDate}
+            originalSchedule={mlSortData.originalSchedule}
+            sortedSchedule={mlSortData.sortedSchedule}
+            taskMetadata={mlSortData.taskMetadata}
+          />
         )}
       </div>
     </div>
