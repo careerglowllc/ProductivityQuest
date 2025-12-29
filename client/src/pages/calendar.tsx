@@ -277,8 +277,11 @@ export default function Calendar() {
     setIsSorting(true);
     try {
       // Step 1: Get the sorted schedule from ML
+      // Send the local date components to avoid timezone conversion issues
+      // e.g., if user views Dec 28 at 9pm PST, toISOString() would give Dec 29 UTC
+      const localDateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
       const response = await apiRequest('POST', '/api/ml/sort-tasks', {
-        date: currentDate.toISOString(),
+        date: localDateString,
       });
 
       const data = await response.json();

@@ -3592,10 +3592,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Date is required" });
       }
 
-      const targetDate = new Date(date);
-      console.log('📊 [ML-SORT-API] Target date parsed:', targetDate.toISOString());
-      console.log('📊 [ML-SORT-API] Target date local:', targetDate.toString());
-      console.log('📊 [ML-SORT-API] Target UTC date: Y=${targetDate.getUTCFullYear()} M=${targetDate.getUTCMonth()} D=${targetDate.getUTCDate()}');
+      // Parse the date string - frontend sends "YYYY-MM-DD" format (local date)
+      // This represents the user's LOCAL date they want to sort
+      // We'll extract the components directly to avoid timezone issues
+      let targetYear: number, targetMonth: number, targetDay: number;
+      
+      if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // New format: "2025-12-28" - extract directly
+        const [yearStr, monthStr, dayStr] = date.split('-');
+        targetYear = parseInt(yearStr, 10);
+        targetMonth = parseInt(monthStr, 10) - 1; // Convert to 0-indexed
+        targetDay = parseInt(dayStr, 10);
+        console.log(`📊 [ML-SORT-API] Parsed local date components: Y=${targetYear} M=${targetMonth} D=${targetDay}`);
+      } else {
+        // Legacy format: ISO string - parse and use UTC (for backward compatibility)
+        const parsedDate = new Date(date);
+        targetYear = parsedDate.getUTCFullYear();
+        targetMonth = parsedDate.getUTCMonth();
+        targetDay = parsedDate.getUTCDate();
+        console.log(`📊 [ML-SORT-API] Parsed ISO date to UTC: Y=${targetYear} M=${targetMonth} D=${targetDay}`);
+      }
+
+      console.log(`📊 [ML-SORT-API] Looking for tasks on: ${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`);
+
+      // Create a target date object for use in sorting (midnight UTC on target day)
+      const targetDate = new Date(Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0));
 
       // Get all tasks for this user
       const allTasks = await storage.getTasks(userId);
@@ -3612,16 +3633,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const taskDate = new Date(task.scheduledTime);
         
-        // Compare year, month, day in UTC to avoid timezone issues
-        const targetYear = targetDate.getUTCFullYear();
-        const targetMonth = targetDate.getUTCMonth();
-        const targetDay = targetDate.getUTCDate();
+        // Compare year, month, day in UTC (tasks stored in UTC)
+        const tYear = taskDate.getUTCFullYear();
+        const tMonth = taskDate.getUTCMonth();
+        const tDay = taskDate.getUTCDate();
         
-        const taskYear = taskDate.getUTCFullYear();
-        const taskMonth = taskDate.getUTCMonth();
-        const taskDay = taskDate.getUTCDate();
-        
-        const matches = taskYear === targetYear && taskMonth === targetMonth && taskDay === targetDay;
+        const matches = tYear === targetYear && tMonth === targetMonth && tDay === targetDay;
         
         if (matches) {
           console.log(`📊 [ML-SORT-API] Found task for date: "${task.title}" (${task.importance}) at ${task.scheduledTime}`);
@@ -3630,7 +3647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log('📊 [ML-SORT-API] Tasks to sort:', tasksToSort.length);
-      console.log('📊 [ML-SORT-API] Target date (UTC): ${targetDate.toISOString()}');
+      console.log(`📊 [ML-SORT-API] Target date (UTC): ${targetDate.toISOString()}`);
 
       // Convert to sorting format
       const tasksForSorting = tasksToSort.map(task => {
