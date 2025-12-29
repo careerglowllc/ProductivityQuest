@@ -2749,11 +2749,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Also fetch ProductivityQuest tasks for this month
+      // Only show tasks that have been explicitly scheduled (have scheduledTime)
       const tasks = await storage.getTasks(userId);
       const tasksInMonth = tasks.filter(task => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        return dueDate >= startDate && dueDate <= endDate;
+        // Only show tasks that have a scheduledTime (explicitly added to calendar)
+        if (!task.scheduledTime) return false;
+        const scheduledDate = new Date(task.scheduledTime);
+        return scheduledDate >= startDate && scheduledDate <= endDate;
       });
 
       // Combine Google Calendar events and ProductivityQuest tasks
@@ -2780,21 +2782,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Add ProductivityQuest tasks
+      // Add ProductivityQuest tasks (only those with scheduledTime)
       for (const task of tasksInMonth) {
-        // Use scheduledTime if available, otherwise default to 12 PM (noon) on the due date
-        let startTime: Date;
-        
-        if (task.scheduledTime) {
-          // scheduledTime is a timestamp - use it directly
-          startTime = new Date(task.scheduledTime);
-        } else if (task.dueDate) {
-          // No scheduledTime - default to 12 PM (noon) on the due date
-          startTime = new Date(task.dueDate);
-          startTime.setHours(12, 0, 0, 0);
-        } else {
-          startTime = new Date();
-        }
+        // Use scheduledTime directly (we already filtered for it above)
+        const startTime = new Date(task.scheduledTime!);
         
         // Calculate end time based on task duration
         const endTime = new Date(startTime);
