@@ -340,6 +340,63 @@ export default function Home() {
     }
   };
 
+  // Remove selected tasks from calendar (keeps quests)
+  const handleRemoveFromCalendar = async () => {
+    if (selectedTasks.size === 0) return;
+
+    const selectedTaskIds = Array.from(selectedTasks);
+    const tasksWithSchedule = selectedTaskIds.map(id => {
+      return (tasks as any[]).find((t: any) => t.id === id);
+    }).filter((t: any) => t && (t.scheduledTime || t.googleEventId));
+
+    if (tasksWithSchedule.length === 0) {
+      toast({
+        title: "No Scheduled Tasks",
+        description: "None of the selected tasks are on the calendar.",
+      });
+      return;
+    }
+
+    // Clear selection immediately (optimistic)
+    setSelectedTasks(new Set());
+
+    toast({
+      title: "Removing from Calendar...",
+      description: `Unscheduling ${tasksWithSchedule.length} task${tasksWithSchedule.length > 1 ? 's' : ''}...`,
+    });
+
+    try {
+      // Unschedule each task
+      let successCount = 0;
+      for (const task of tasksWithSchedule) {
+        try {
+          await apiRequest("POST", `/api/tasks/${task.id}/unschedule`, {
+            removeFromGoogleCalendar: true
+          });
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to unschedule task ${task.id}:`, err);
+        }
+      }
+
+      toast({
+        title: "✓ Removed from Calendar",
+        description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar. Quests are still available here.`,
+      });
+
+      // Refresh data
+      refetchTasks();
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove some tasks from calendar.",
+        variant: "destructive",
+      });
+      refetchTasks();
+    }
+  };
+
   const handleAppendToNotion = async () => {
     if (selectedTasks.size === 0) return;
 
@@ -1607,6 +1664,14 @@ export default function Home() {
                       >
                         <Calendar className="w-4 h-4 mr-2" />
                         Sync to Calendar
+                      </Button>
+                      <Button 
+                        onClick={handleRemoveFromCalendar}
+                        variant="outline"
+                        className="border-slate-500/40 text-slate-300 hover:bg-slate-600/20 hover:text-slate-200"
+                      >
+                        <CalendarDays className="w-4 h-4 mr-2" />
+                        Remove from Calendar
                       </Button>
                       <Button 
                         onClick={handleDeleteSelected}
