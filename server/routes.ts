@@ -2367,6 +2367,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`   - Task ${t.id}: "${t.title}" due: ${t.dueDate}, scheduled: ${t.scheduledTime}`);
       });
 
+      // Helper function to get color hex based on importance
+      const getColorForImportance = (importance: string | null | undefined): string => {
+        switch (importance) {
+          case 'Pareto':
+          case 'High':
+            return '#ef4444'; // Red
+          case 'Med-High':
+            return '#f97316'; // Orange
+          case 'Medium':
+            return '#eab308'; // Yellow
+          case 'Med-Low':
+            return '#3b82f6'; // Blue
+          case 'Low':
+            return '#22c55e'; // Green
+          default:
+            return '#9333ea'; // Purple (default)
+        }
+      };
+
+      // First, set scheduledTime and calendarColor on all tasks being synced
+      // This ensures they appear correctly in the app calendar
+      for (const task of tasksToSync) {
+        const scheduledTime = task.scheduledTime || new Date(
+          new Date(task.dueDate!).setHours(12, 0, 0, 0)
+        );
+        const calendarColor = task.calendarColor || getColorForImportance(task.importance);
+        
+        await storage.updateTask(task.id, { scheduledTime, calendarColor }, userId);
+        // Update the task object in memory too for the Google sync
+        task.scheduledTime = scheduledTime;
+        task.calendarColor = calendarColor;
+      }
+
       let exportResults = { success: 0, failed: 0, eventIds: new Map<number, string>() };
       let importResults = { updated: 0, errors: 0 };
       
