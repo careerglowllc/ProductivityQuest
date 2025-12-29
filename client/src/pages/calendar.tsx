@@ -72,6 +72,17 @@ export default function Calendar() {
   const [hasDragged, setHasDragged] = useState(false);
   const [hasResized, setHasResized] = useState(false);
 
+  // Multi-select state for drag selection
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
+
   // Undo state - stores the last change for undo functionality
   const [undoStack, setUndoStack] = useState<{
     taskId: string;
@@ -105,13 +116,31 @@ export default function Calendar() {
     localStorage.setItem('calendarView', view);
   }, [view]);
 
-  // Keyboard shortcut for undo (Cmd+Z on Mac, Ctrl+Z on Windows)
+  // Keyboard shortcuts: Undo (Cmd+Z) and Delete selected events (Delete/Backspace)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       // Check for Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
+        return;
+      }
+      
+      // Delete/Backspace to delete selected events
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEventIds.size > 0) {
+        // Don't delete if user is typing in an input
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        await handleDeleteSelectedEvents();
+      }
+      
+      // Escape to clear selection
+      if (e.key === 'Escape') {
+        setSelectedEventIds(new Set());
+        setSelectedEvent(null);
+        setShowDeleteMenu(false);
       }
     };
 
@@ -672,6 +701,157 @@ export default function Calendar() {
     }
   };
 
+  // Handle delete of multiple selected events
+  const handleDeleteSelectedEvents = async () => {
+    if (selectedEventIds.size === 0) return;
+    
+    const eventsToDelete = Array.from(selectedEventIds);
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const eventId of eventsToDelete) {
+      // Only delete ProductivityQuest events (not Google Calendar events)
+      if (eventId.startsWith('google-')) {
+        failCount++;
+        continue;
+      }
+      
+      try {
+        const response = await fetch(`/api/tasks/${eventId}/unschedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ removeFromGoogleCalendar: true })
+        });
+        
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to delete event ${eventId}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Clear selection
+    setSelectedEventIds(new Set());
+    
+    // Refresh calendar data
+    queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    
+    // Show result toast
+    if (successCount > 0) {
+      toast({
+        title: `Removed ${successCount} Event${successCount > 1 ? 's' : ''}`,
+        description: failCount > 0 
+          ? `${failCount} event(s) could not be removed (Google Calendar events must be deleted from Google Calendar)`
+          : "Events removed from calendar. Quests still available in Quests page.",
+      });
+    } else if (failCount > 0) {
+      toast({
+        title: "Cannot Remove",
+        description: "Google Calendar events must be deleted from Google Calendar directly.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Multi-select: Start selection box when clicking empty space
+  const handleSelectionStart = (e: React.MouseEvent) => {
+    // Only start selection if clicking on empty space (not an event)
+    if ((e.target as HTMLElement).closest('[data-event-id]')) return;
+    // Don't start selection if we're already dragging an event
+    if (draggingEvent || resizingEvent) return;
+    
+    const container = calendarContainerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left + container.scrollLeft;
+    const y = e.clientY - rect.top + container.scrollTop;
+    
+    setIsSelecting(true);
+    setSelectionBox({ startX: x, startY: y, currentX: x, currentY: y });
+    
+    // Clear previous selection if not holding shift
+    if (!e.shiftKey) {
+      setSelectedEventIds(new Set());
+    }
+  };
+
+  // Multi-select: Update selection box as mouse moves
+  const handleSelectionMove = (e: React.MouseEvent) => {
+    if (!isSelecting || !selectionBox) return;
+    
+    const container = calendarContainerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left + container.scrollLeft;
+    const y = e.clientY - rect.top + container.scrollTop;
+    
+    setSelectionBox(prev => prev ? { ...prev, currentX: x, currentY: y } : null);
+  };
+
+  // Multi-select: Finish selection and determine which events are selected
+  const handleSelectionEnd = () => {
+    if (!isSelecting || !selectionBox) {
+      setIsSelecting(false);
+      setSelectionBox(null);
+      return;
+    }
+    
+    // Calculate selection rectangle (normalized for drag direction)
+    const minX = Math.min(selectionBox.startX, selectionBox.currentX);
+    const maxX = Math.max(selectionBox.startX, selectionBox.currentX);
+    const minY = Math.min(selectionBox.startY, selectionBox.currentY);
+    const maxY = Math.max(selectionBox.startY, selectionBox.currentY);
+    
+    // Only select if box is larger than 10px (prevents accidental selections)
+    if (maxX - minX > 10 && maxY - minY > 10) {
+      // Find all event elements and check if they intersect with selection box
+      const container = calendarContainerRef.current;
+      if (container) {
+        const eventElements = container.querySelectorAll('[data-event-id]');
+        const newSelected = new Set(selectedEventIds);
+        
+        eventElements.forEach(el => {
+          const eventRect = el.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          
+          // Get event position relative to container (accounting for scroll)
+          const eventLeft = eventRect.left - containerRect.left + container.scrollLeft;
+          const eventTop = eventRect.top - containerRect.top + container.scrollTop;
+          const eventRight = eventLeft + eventRect.width;
+          const eventBottom = eventTop + eventRect.height;
+          
+          // Check if event intersects with selection box
+          const intersects = !(
+            eventRight < minX ||
+            eventLeft > maxX ||
+            eventBottom < minY ||
+            eventTop > maxY
+          );
+          
+          if (intersects) {
+            const eventId = el.getAttribute('data-event-id');
+            if (eventId) {
+              newSelected.add(eventId);
+            }
+          }
+        });
+        
+        setSelectedEventIds(newSelected);
+      }
+    }
+    
+    setIsSelecting(false);
+    setSelectionBox(null);
+  };
+
   // Reschedule event handler
   const handleReschedule = () => {
     setShowRescheduleModal(true);
@@ -1208,6 +1388,32 @@ export default function Calendar() {
                 )}
               </div>
 
+              {/* Multi-select toolbar - shows when events are selected */}
+              {selectedEventIds.size > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 border border-purple-500/40 rounded-lg">
+                  <span className="text-sm text-purple-300">
+                    {selectedEventIds.size} selected
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleDeleteSelectedEvents}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Remove
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSelectedEventIds(new Set())}
+                    className="h-7 px-2 text-xs text-gray-400 hover:text-white"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              )}
+
               <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
                 {monthNames[month]} {year}
               </h2>
@@ -1339,7 +1545,24 @@ export default function Calendar() {
                       </div>
                     ))}
                   </div>
-                  <div className="bg-gray-900/20 relative" style={{ height: '1440px' }}> {/* 24 hours * 60px */}
+                  <div 
+                    ref={calendarContainerRef}
+                    className="bg-gray-900/20 relative select-none" 
+                    style={{ height: '1440px' }}
+                    onMouseDown={handleSelectionStart}
+                    onMouseMove={(e) => {
+                      handleMouseMove(e as any);
+                      handleSelectionMove(e);
+                    }}
+                    onMouseUp={() => {
+                      handleMouseUp();
+                      handleSelectionEnd();
+                    }}
+                    onMouseLeave={() => {
+                      handleMouseUp();
+                      handleSelectionEnd();
+                    }}
+                  > {/* 24 hours * 60px */}
                     {/* Hour grid lines */}
                     {timeSlots.map(({ hour }) => (
                       <div 
@@ -1348,6 +1571,19 @@ export default function Calendar() {
                         style={{ top: `${hour * 60}px` }}
                       />
                     ))}
+                    
+                    {/* Selection Box */}
+                    {isSelecting && selectionBox && (
+                      <div
+                        className="absolute bg-purple-500/20 border-2 border-purple-400 rounded pointer-events-none z-30"
+                        style={{
+                          left: Math.min(selectionBox.startX, selectionBox.currentX),
+                          top: Math.min(selectionBox.startY, selectionBox.currentY),
+                          width: Math.abs(selectionBox.currentX - selectionBox.startX),
+                          height: Math.abs(selectionBox.currentY - selectionBox.startY),
+                        }}
+                      />
+                    )}
                     
                     {/* Current Time Indicator */}
                     {(() => {
@@ -1383,6 +1619,7 @@ export default function Calendar() {
                         const isDragging = draggingEvent?.id === event.id;
                         const isResizing = resizingEvent?.id === event.id;
                         const isDraggable = event.source === 'productivityquest';
+                        const isSelected = selectedEventIds.has(event.id);
                         
                         // Calculate left and width based on column layout
                         const columnWidth = 100 / layout.totalColumns;
@@ -1392,23 +1629,49 @@ export default function Calendar() {
                         return (
                           <div
                             key={idx}
+                            data-event-id={event.id}
                             className={`absolute rounded border group overflow-hidden ${
                               isDraggable ? 'cursor-move' : 'cursor-pointer'
-                            } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
+                            } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
+                              isSelected ? 'ring-2 ring-purple-400 ring-offset-1 ring-offset-gray-900' : ''
+                            }`}
                             style={{ 
                               top: `${position.top}px`,
                               left: `calc(0.5rem + ${leftPercent}%)`,
                               width: `calc(${widthPercent}% - ${layout.totalColumns > 1 ? '0.25rem' : '1rem'})`,
                               height: `${position.height}px`,
                               backgroundColor: eventStyle.backgroundColor,
-                              borderColor: eventStyle.borderColor,
+                              borderColor: isSelected ? '#a855f7' : eventStyle.borderColor,
                               color: eventStyle.color,
-                              zIndex: 10,
+                              zIndex: isSelected ? 15 : 10,
                               padding: position.height < 25 ? '2px 4px' : position.height < 40 ? '4px 6px' : '8px'
                             }}
-                            onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                            onMouseDown={(e) => {
+                              // If clicking with Ctrl/Cmd, toggle selection instead of dragging
+                              if (e.metaKey || e.ctrlKey) {
+                                e.stopPropagation();
+                                setSelectedEventIds(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(event.id)) {
+                                    next.delete(event.id);
+                                  } else {
+                                    next.add(event.id);
+                                  }
+                                  return next;
+                                });
+                                return;
+                              }
+                              if (isDraggable) handleEventMouseDown(event, e);
+                            }}
                             onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
                           >
+                            {/* Selection indicator */}
+                            {isSelected && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold z-20">
+                                ✓
+                              </div>
+                            )}
+                            
                             {/* Top resize handle */}
                             {isDraggable && position.height > 20 && (
                               <div
