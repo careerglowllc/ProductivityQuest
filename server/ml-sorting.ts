@@ -4,13 +4,18 @@
  * This service provides intelligent task scheduling that learns from user feedback.
  * It uses priority-weighted scheduling combined with user-specific preferences
  * learned over time from approval/correction feedback.
+ * 
+ * Core Rules (always applied):
+ * 1. Higher priority tasks come first (Pareto > High > Med-High > Medium > Med-Low > Low)
+ * 2. Tasks cannot overlap - they must be scheduled sequentially
+ * 3. Tasks are scheduled within working hours with optional breaks
  */
 
 export interface TaskForSorting {
   id: number;
   title: string;
   duration: number; // in minutes
-  importance: string; // 'High', 'Med-High', 'Medium', 'Med-Low', 'Low'
+  importance: string; // 'Pareto', 'High', 'Med-High', 'Medium', 'Med-Low', 'Low'
   currentStartTime?: string;
   currentEndTime?: string;
 }
@@ -25,6 +30,7 @@ export interface UserPreferences {
   preferredStartHour: number;
   preferredEndHour: number;
   priorityWeights: {
+    pareto: number;
     high: number;
     medHigh: number;
     medium: number;
@@ -37,18 +43,19 @@ export interface UserPreferences {
   totalCorrected: number;
 }
 
-// Default preferences for new users
+// Default preferences for new users - these encode basic scheduling rules
 const DEFAULT_PREFERENCES: UserPreferences = {
   preferredStartHour: 9,
   preferredEndHour: 18,
   priorityWeights: {
+    pareto: 150,  // Pareto tasks are highest priority
     high: 100,
     medHigh: 75,
     medium: 50,
     medLow: 25,
     low: 10,
   },
-  breakDuration: 15,
+  breakDuration: 0, // No breaks by default - tightly pack tasks
   highPriorityTimePreference: 'morning',
   totalApproved: 0,
   totalCorrected: 0,
@@ -58,7 +65,9 @@ const DEFAULT_PREFERENCES: UserPreferences = {
  * Get priority weight for a task
  */
 function getPriorityWeight(importance: string, weights: UserPreferences['priorityWeights']): number {
-  switch (importance?.toLowerCase()) {
+  const normalized = importance?.toLowerCase()?.trim() || '';
+  switch (normalized) {
+    case 'pareto': return weights.pareto || 150;
     case 'high': return weights.high;
     case 'med-high': return weights.medHigh;
     case 'medium': return weights.medium;
@@ -101,11 +110,12 @@ function getTimePreferenceMultiplier(
 /**
  * Sort tasks using ML-learned preferences
  * 
- * Algorithm:
- * 1. Score each task based on priority weight × time preference
- * 2. Sort tasks by score (highest first)
- * 3. Schedule tasks in order, respecting breaks
- * 4. Ensure no overlaps
+ * Core Algorithm:
+ * 1. Score each task based on priority weight
+ * 2. Sort tasks by score (highest priority first - Pareto > High > Med-High > Medium > Med-Low > Low)
+ * 3. Find the earliest current start time among all tasks
+ * 4. Schedule tasks sequentially starting from that time, respecting breaks
+ * 5. Ensure NO overlaps - tasks are packed tightly
  */
 export function sortTasksML(
   tasks: TaskForSorting[],
@@ -114,9 +124,13 @@ export function sortTasksML(
 ): ScheduledTask[] {
   if (tasks.length === 0) return [];
 
-  // Calculate scores for each task
+  console.log('📊 [ML-SORT] Starting sort with', tasks.length, 'tasks');
+  console.log('📊 [ML-SORT] Preferences:', JSON.stringify(preferences, null, 2));
+
+  // Calculate scores for each task based on priority
   const scoredTasks = tasks.map(task => {
     const priorityWeight = getPriorityWeight(task.importance, preferences.priorityWeights);
+    console.log(`📊 [ML-SORT] Task "${task.title}" (${task.importance}) -> score ${priorityWeight}`);
     return {
       ...task,
       score: priorityWeight,
@@ -124,86 +138,61 @@ export function sortTasksML(
   });
 
   // Sort by score (highest priority first)
-  scoredTasks.sort((a, b) => b.score - a.score);
+  scoredTasks.sort((a, b) => {
+    // Primary: sort by priority score (descending)
+    if (b.score !== a.score) return b.score - a.score;
+    // Secondary: shorter tasks first (for ties)
+    return a.duration - b.duration;
+  });
 
-  // Schedule tasks starting from preferred start hour
-  const scheduledTasks: ScheduledTask[] = [];
-  let currentTime = new Date(date);
-  currentTime.setHours(preferences.preferredStartHour, 0, 0, 0);
+  console.log('📊 [ML-SORT] Sorted order:');
+  scoredTasks.forEach((t, i) => console.log(`   ${i + 1}. "${t.title}" (${t.importance}, score: ${t.score})`));
 
-  const endOfDay = new Date(date);
-  endOfDay.setHours(preferences.preferredEndHour, 0, 0, 0);
-
-  // Apply time preference - if high priority tasks should be in morning, afternoon, or evening
-  // Adjust the start time accordingly
-  if (preferences.highPriorityTimePreference === 'afternoon') {
-    // Start high priority tasks at 1 PM
-    const highPriorityTasks = scoredTasks.filter(t => 
-      ['high', 'med-high'].includes(t.importance?.toLowerCase() || '')
-    );
-    const lowPriorityTasks = scoredTasks.filter(t => 
-      !['high', 'med-high'].includes(t.importance?.toLowerCase() || '')
-    );
-    
-    // Schedule low priority in morning, high priority in afternoon
-    for (const task of lowPriorityTasks) {
-      if (currentTime.getHours() >= 13) break; // Stop at 1 PM for low priority
-      
-      const endTime = new Date(currentTime);
-      endTime.setMinutes(endTime.getMinutes() + task.duration);
-      
-      scheduledTasks.push({
-        taskId: task.id,
-        startTime: currentTime.toISOString(),
-        endTime: endTime.toISOString(),
-      });
-      
-      currentTime = new Date(endTime);
-      currentTime.setMinutes(currentTime.getMinutes() + preferences.breakDuration);
-    }
-    
-    // Set to 1 PM for high priority
-    currentTime.setHours(13, 0, 0, 0);
-    
-    for (const task of highPriorityTasks) {
-      if (currentTime >= endOfDay) break;
-      
-      const endTime = new Date(currentTime);
-      endTime.setMinutes(endTime.getMinutes() + task.duration);
-      
-      scheduledTasks.push({
-        taskId: task.id,
-        startTime: currentTime.toISOString(),
-        endTime: endTime.toISOString(),
-      });
-      
-      currentTime = new Date(endTime);
-      currentTime.setMinutes(currentTime.getMinutes() + preferences.breakDuration);
-    }
-  } else {
-    // Default: schedule in priority order (morning preference or no preference)
-    for (const task of scoredTasks) {
-      if (currentTime >= endOfDay) break;
-      
-      const endTime = new Date(currentTime);
-      endTime.setMinutes(endTime.getMinutes() + task.duration);
-      
-      // If this would extend past end of day, try to fit it
-      if (endTime > endOfDay) {
-        // See if we can start earlier (find a gap)
-        continue;
+  // Find the earliest current start time among all tasks
+  // This anchors our schedule to when tasks were originally placed
+  let anchorTime: Date | null = null;
+  for (const task of tasks) {
+    if (task.currentStartTime) {
+      const taskStart = new Date(task.currentStartTime);
+      if (!anchorTime || taskStart < anchorTime) {
+        anchorTime = taskStart;
       }
-      
-      scheduledTasks.push({
-        taskId: task.id,
-        startTime: currentTime.toISOString(),
-        endTime: endTime.toISOString(),
-      });
-      
-      currentTime = new Date(endTime);
+    }
+  }
+
+  // If no tasks have start times, use preferred start hour
+  if (!anchorTime) {
+    anchorTime = new Date(date);
+    anchorTime.setHours(preferences.preferredStartHour, 0, 0, 0);
+  }
+
+  console.log('📊 [ML-SORT] Anchor time:', anchorTime.toISOString());
+
+  // Schedule tasks in sorted order, ensuring NO overlaps
+  const scheduledTasks: ScheduledTask[] = [];
+  let currentTime = new Date(anchorTime);
+
+  for (const task of scoredTasks) {
+    const startTime = new Date(currentTime);
+    const endTime = new Date(startTime);
+    endTime.setMinutes(endTime.getMinutes() + task.duration);
+    
+    console.log(`📊 [ML-SORT] Scheduling "${task.title}": ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`);
+
+    scheduledTasks.push({
+      taskId: task.id,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+    });
+
+    // Move current time to after this task (plus optional break)
+    currentTime = new Date(endTime);
+    if (preferences.breakDuration > 0) {
       currentTime.setMinutes(currentTime.getMinutes() + preferences.breakDuration);
     }
   }
+
+  console.log('📊 [ML-SORT] Final schedule:', scheduledTasks.length, 'tasks scheduled');
 
   return scheduledTasks;
 }
