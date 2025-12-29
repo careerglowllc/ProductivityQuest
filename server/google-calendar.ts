@@ -187,9 +187,10 @@ export class GoogleCalendarService {
     return response.data;
   }
 
-  async syncTasks(tasks: Task[], user: User): Promise<{ success: number; failed: number }> {
+  async syncTasks(tasks: Task[], user: User, storage: any): Promise<{ success: number; failed: number; eventIds: Map<number, string> }> {
     let success = 0;
     let failed = 0;
+    const eventIds = new Map<number, string>(); // Map of task ID to Google Event ID
 
     console.log('📅 [SYNC TASKS] Starting sync for', tasks.length, 'tasks');
     console.log('📅 [SYNC TASKS] User credentials check:');
@@ -235,43 +236,88 @@ export class GoogleCalendarService {
         }
 
         try {
-          console.log(`📅 [SYNC TASKS] Creating event for task ${task.id} "${task.title}"`);
-          console.log(`   - Due date: ${task.dueDate}`);
+          // Use scheduledTime if available, otherwise use dueDate
+          const startTime = task.scheduledTime || task.dueDate;
+          const endTime = new Date(startTime.getTime() + task.duration * 60000);
+          
+          console.log(`📅 [SYNC TASKS] Processing task ${task.id} "${task.title}"`);
+          console.log(`   - Scheduled time: ${task.scheduledTime || 'not set, using dueDate'}`);
+          console.log(`   - Start time: ${startTime}`);
           console.log(`   - Duration: ${task.duration} minutes`);
           console.log(`   - Importance: ${task.importance}`);
+          console.log(`   - Existing Google Event ID: ${task.googleEventId || 'none'}`);
           
-          const event = {
+          const eventData = {
             summary: task.title,
-            description: `${task.description}\n\nGold Reward: ${task.goldValue}\nImportance: ${task.importance || 'Not set'}`,
+            description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
             start: {
-              dateTime: task.dueDate.toISOString(),
+              dateTime: startTime.toISOString(),
               timeZone: 'UTC',
             },
             end: {
-              dateTime: new Date(task.dueDate.getTime() + task.duration * 60000).toISOString(),
+              dateTime: endTime.toISOString(),
               timeZone: 'UTC',
             },
             reminders: {
               useDefault: false,
               overrides: [
                 { method: 'popup', minutes: 15 },
-                { method: 'email', minutes: 60 },
               ],
             },
             // Color based on importance
             colorId: this.getColorForImportance(task.importance || undefined),
           };
 
-          const response = await calendar.events.insert({
-            calendarId: 'primary',
-            requestBody: event,
-          });
+          let response;
           
-          console.log(`✅ [SYNC TASKS] Successfully created event for task ${task.id}, Google Event ID: ${response.data.id}`);
+          if (task.googleEventId) {
+            // Update existing event
+            console.log(`📅 [SYNC TASKS] Updating existing event ${task.googleEventId}`);
+            try {
+              response = await calendar.events.update({
+                calendarId: task.googleCalendarId || 'primary',
+                eventId: task.googleEventId,
+                requestBody: eventData,
+              });
+              console.log(`✅ [SYNC TASKS] Updated event for task ${task.id}`);
+            } catch (updateError: any) {
+              // If update fails (event deleted), create new one
+              if (updateError.code === 404) {
+                console.log(`⚠️ [SYNC TASKS] Event not found, creating new one`);
+                response = await calendar.events.insert({
+                  calendarId: 'primary',
+                  requestBody: eventData,
+                });
+              } else {
+                throw updateError;
+              }
+            }
+          } else {
+            // Create new event
+            console.log(`📅 [SYNC TASKS] Creating new event`);
+            response = await calendar.events.insert({
+              calendarId: 'primary',
+              requestBody: eventData,
+            });
+          }
+          
+          const googleEventId = response.data.id;
+          eventIds.set(task.id, googleEventId!);
+          
+          // Update task with Google Event ID if it's new or changed
+          if (googleEventId && googleEventId !== task.googleEventId && storage) {
+            await storage.updateTask(task.id, {
+              googleEventId: googleEventId,
+              googleCalendarId: 'primary',
+            }, user.id);
+            console.log(`📅 [SYNC TASKS] Saved Google Event ID ${googleEventId} to task ${task.id}`);
+          }
+          
+          console.log(`✅ [SYNC TASKS] Successfully synced task ${task.id}, Google Event ID: ${googleEventId}`);
 
           success++;
         } catch (error: any) {
-          console.error(`❌ [SYNC TASKS] Failed to create calendar event for task ${task.id}:`, error.message);
+          console.error(`❌ [SYNC TASKS] Failed to sync task ${task.id}:`, error.message);
           if (error.response?.data) {
             console.error('   Error details:', JSON.stringify(error.response.data));
           }
@@ -283,7 +329,80 @@ export class GoogleCalendarService {
       throw error;
     }
 
-    return { success, failed };
+    return { success, failed, eventIds };
+  }
+
+  // Import events from Google Calendar and update task times
+  async importEventsToTasks(user: User, storage: any): Promise<{ updated: number; errors: number }> {
+    let updated = 0;
+    let errors = 0;
+
+    try {
+      // Get all events for the next 30 days
+      const startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 30);
+
+      const events = await this.getEvents(user, startDate, endDate);
+      console.log(`📅 [IMPORT] Found ${events.length} Google Calendar events`);
+
+      // Get all tasks for this user
+      const tasks = await storage.getTasks(user.id);
+      
+      // Create a map of Google Event ID to task
+      const eventIdToTask = new Map<string, Task>();
+      tasks.forEach((task: Task) => {
+        if (task.googleEventId) {
+          eventIdToTask.set(task.googleEventId, task);
+        }
+      });
+
+      // Update tasks based on Google Calendar event times
+      for (const event of events) {
+        const task = eventIdToTask.get(event.id);
+        if (!task) continue; // Not a ProductivityQuest task
+
+        try {
+          const eventStart = event.start?.dateTime ? new Date(event.start.dateTime) : null;
+          const eventEnd = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+          
+          if (!eventStart) continue;
+
+          // Calculate duration from event
+          const durationMinutes = eventEnd 
+            ? Math.round((eventEnd.getTime() - eventStart.getTime()) / 60000)
+            : task.duration;
+
+          // Check if times have changed
+          const taskScheduledTime = task.scheduledTime ? new Date(task.scheduledTime).getTime() : null;
+          const eventStartTime = eventStart.getTime();
+          
+          if (taskScheduledTime !== eventStartTime || task.duration !== durationMinutes) {
+            console.log(`📅 [IMPORT] Updating task ${task.id} "${task.title}"`);
+            console.log(`   - Old scheduled time: ${task.scheduledTime}`);
+            console.log(`   - New scheduled time: ${eventStart}`);
+            console.log(`   - Old duration: ${task.duration}, New duration: ${durationMinutes}`);
+            
+            await storage.updateTask(task.id, {
+              scheduledTime: eventStart,
+              dueDate: eventStart, // Also update due date to match
+              duration: durationMinutes,
+            }, user.id);
+            
+            updated++;
+          }
+        } catch (error: any) {
+          console.error(`❌ [IMPORT] Failed to update task from event:`, error.message);
+          errors++;
+        }
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      throw error;
+    }
+
+    return { updated, errors };
   }
 
   async getEvents(user: User, startDate: Date, endDate: Date, calendarIds?: string[]): Promise<any[]> {

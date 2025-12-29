@@ -2292,6 +2292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('   - googleCalendarClientId:', !!user.googleCalendarClientId);
       console.log('   - googleCalendarAccessToken:', !!user.googleCalendarAccessToken);
       console.log('   - Legacy googleAccessToken:', !!user.googleAccessToken);
+      console.log('   - Sync Direction:', user.googleCalendarSyncDirection);
 
       const tasks = await storage.getTasks(userId);
       const { selectedTasks } = req.body;
@@ -2307,29 +2308,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('📅 [CALENDAR SYNC API] Tasks to sync after filtering:', tasksToSync.length);
       tasksToSync.forEach(t => {
-        console.log(`   - Task ${t.id}: "${t.title}" due: ${t.dueDate}`);
+        console.log(`   - Task ${t.id}: "${t.title}" due: ${t.dueDate}, scheduled: ${t.scheduledTime}`);
       });
 
-      if (tasksToSync.length === 0) {
-        console.log('📅 [CALENDAR SYNC API] No tasks to sync');
-        return res.json({ 
-          success: true, 
-          count: 0,
-          failed: 0,
-          total: 0,
-          message: "No tasks with due dates to sync"
-        });
+      let exportResults = { success: 0, failed: 0, eventIds: new Map<number, string>() };
+      let importResults = { updated: 0, errors: 0 };
+      
+      const syncDirection = user.googleCalendarSyncDirection || 'export';
+
+      // Export tasks to Google Calendar (if direction is 'export' or 'both')
+      if (syncDirection === 'export' || syncDirection === 'both') {
+        if (tasksToSync.length > 0) {
+          exportResults = await googleCalendar.syncTasks(tasksToSync, user, storage);
+          console.log('✅ [CALENDAR SYNC API] Export complete:', exportResults);
+        }
       }
 
-      const results = await googleCalendar.syncTasks(tasksToSync, user);
-      
-      console.log('✅ [CALENDAR SYNC API] Sync complete:', results);
+      // Import from Google Calendar (if direction is 'import' or 'both')
+      if (syncDirection === 'import' || syncDirection === 'both') {
+        importResults = await googleCalendar.importEventsToTasks(user, storage);
+        console.log('✅ [CALENDAR SYNC API] Import complete:', importResults);
+      }
       
       res.json({ 
         success: true, 
-        count: results.success,
-        failed: results.failed,
-        total: tasksToSync.length
+        exported: exportResults.success,
+        exportFailed: exportResults.failed,
+        imported: importResults.updated,
+        importErrors: importResults.errors,
+        total: tasksToSync.length,
+        syncDirection
       });
     } catch (error: any) {
       console.error("❌ [CALENDAR SYNC API] Error:", error.message);

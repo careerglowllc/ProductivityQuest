@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ type ViewType = "list" | "grid";
 
 export default function Home() {
   const [location] = useLocation();
+  const queryClient = useQueryClient();
   const [showItemShop, setShowItemShop] = useState(false);
   const [showCalendarSync, setShowCalendarSync] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -774,10 +775,28 @@ export default function Home() {
       setShowCalendarSync(false);
       setSelectedTasks(new Set()); // Clear selection after sync
       
+      // Build descriptive message based on sync direction
+      let description = '';
+      if (result.exported > 0) {
+        description += `${result.exported} tasks exported to Google Calendar`;
+      }
+      if (result.exportFailed > 0) {
+        description += description ? `, ${result.exportFailed} export failed` : `${result.exportFailed} exports failed`;
+      }
+      if (result.imported > 0) {
+        description += description ? `, ${result.imported} tasks updated from calendar` : `${result.imported} tasks updated from calendar`;
+      }
+      if (!description) {
+        description = 'Sync complete - no changes needed';
+      }
+      
       toast({
         title: "Calendar Sync Complete",
-        description: `${result.count} tasks synced to your Google Calendar${result.failed > 0 ? ` (${result.failed} failed)` : ''}`,
+        description,
       });
+      
+      // Refresh tasks to show updated times from import
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     } catch (error: any) {
       const errorData = error.response?.data || {};
       
