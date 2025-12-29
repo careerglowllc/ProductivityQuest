@@ -2529,7 +2529,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('📝 [AUTH URL] OAuth2Client created, generating auth URL...');
       const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
-        scope: ['https://www.googleapis.com/auth/calendar.events'],
+        scope: [
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/calendar.readonly'
+        ],
         prompt: 'consent',
         state: userId, // Pass userId in state to identify user in callback
       });
