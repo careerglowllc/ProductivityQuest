@@ -3585,14 +3585,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const { date, taskIds } = req.body;
 
+      console.log('📊 [ML-SORT-API] Received request:', { date, taskIds });
+
       if (!date) {
         return res.status(400).json({ error: "Date is required" });
       }
 
       const targetDate = new Date(date);
+      console.log('📊 [ML-SORT-API] Target date:', targetDate.toDateString());
 
       // Get all tasks for this user
       const allTasks = await storage.getTasks(userId);
+      console.log('📊 [ML-SORT-API] Total tasks for user:', allTasks.length);
       
       // Filter to only tasks for this specific date (or specified task IDs)
       let tasksToSort = allTasks.filter(task => {
@@ -3600,22 +3604,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return taskIds.includes(task.id);
         }
         
-        // Filter tasks for the target date
-        const taskDate = task.scheduledTime ? new Date(task.scheduledTime) : task.dueDate ? new Date(task.dueDate) : null;
-        if (!taskDate) return false;
+        // Filter tasks for the target date - must have scheduledTime
+        if (!task.scheduledTime) return false;
         
-        return taskDate.toDateString() === targetDate.toDateString();
+        const taskDate = new Date(task.scheduledTime);
+        const matches = taskDate.toDateString() === targetDate.toDateString();
+        if (matches) {
+          console.log(`📊 [ML-SORT-API] Found task for date: "${task.title}" (${task.importance}) at ${task.scheduledTime}`);
+        }
+        return matches;
       });
 
+      console.log('📊 [ML-SORT-API] Tasks to sort:', tasksToSort.length);
+
       // Convert to sorting format
-      const tasksForSorting = tasksToSort.map(task => ({
-        id: task.id,
-        title: task.title,
-        duration: task.duration || 60,
-        importance: task.importance || 'Medium',
-        currentStartTime: task.scheduledTime?.toISOString(),
-        currentEndTime: task.scheduledTime ? new Date(new Date(task.scheduledTime).getTime() + (task.duration || 60) * 60000).toISOString() : undefined,
-      }));
+      const tasksForSorting = tasksToSort.map(task => {
+        const startTime = task.scheduledTime ? new Date(task.scheduledTime) : null;
+        const endTime = startTime ? new Date(startTime.getTime() + (task.duration || 60) * 60000) : null;
+        
+        return {
+          id: task.id,
+          title: task.title,
+          duration: task.duration || 60,
+          importance: task.importance || 'Medium',
+          currentStartTime: startTime?.toISOString(),
+          currentEndTime: endTime?.toISOString(),
+        };
+      });
+
+      console.log('📊 [ML-SORT-API] Tasks for sorting:', JSON.stringify(tasksForSorting, null, 2));
 
       // Get user preferences (or use defaults)
       const storedPrefs = await storage.getMlSortingPreferences(userId);
@@ -3661,6 +3678,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const { sortedSchedule } = req.body;
 
+      console.log('📊 [ML-APPLY] Received sorted schedule:', JSON.stringify(sortedSchedule, null, 2));
+
       if (!sortedSchedule || !Array.isArray(sortedSchedule)) {
         return res.status(400).json({ error: "Sorted schedule is required" });
       }
@@ -3668,13 +3687,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update each task with its new scheduled time
       const updates = [];
       for (const item of sortedSchedule) {
+        console.log(`📊 [ML-APPLY] Updating task ${item.taskId} to start at ${item.startTime}`);
         const task = await storage.getTask(item.taskId, userId);
         if (task && task.userId === userId) {
           const newScheduledTime = new Date(item.startTime);
+          console.log(`📊 [ML-APPLY] Task ${item.taskId} "${task.title}" - old time: ${task.scheduledTime}, new time: ${newScheduledTime}`);
           await storage.updateTask(item.taskId, { scheduledTime: newScheduledTime }, userId);
           updates.push({ taskId: item.taskId, newTime: item.startTime });
+          console.log(`📊 [ML-APPLY] Task ${item.taskId} updated successfully`);
+        } else {
+          console.log(`📊 [ML-APPLY] Task ${item.taskId} not found or not owned by user`);
         }
       }
+
+      console.log(`📊 [ML-APPLY] Total updates: ${updates.length}`);
 
       res.json({
         success: true,
