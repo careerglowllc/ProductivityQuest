@@ -434,19 +434,28 @@ export class GoogleCalendarService {
 
       const calendar = google.calendar({ version: 'v3', auth });
       
-      // First fetch the calendar list to get color information
-      const calendarListResponse = await calendar.calendarList.list();
-      const calendarsMetadata = calendarListResponse.data.items || [];
+      // Try to fetch the calendar list to get color information
+      // This might fail if user hasn't granted calendar.readonly scope
+      let calendarsMetadata: any[] = [];
+      let calendarMetadataMap = new Map();
       
-      // Create a map of calendar ID to metadata
-      const calendarMetadataMap = new Map(
-        calendarsMetadata.map(cal => [cal.id!, cal])
-      );
+      try {
+        const calendarListResponse = await calendar.calendarList.list();
+        calendarsMetadata = calendarListResponse.data.items || [];
+        calendarMetadataMap = new Map(
+          calendarsMetadata.map(cal => [cal.id!, cal])
+        );
+      } catch (calListError: any) {
+        console.warn('⚠️ Could not fetch calendar list (may need calendar.readonly scope):', calListError.message);
+        // Continue without calendar metadata - just use primary calendar
+      }
       
-      // If no specific calendars requested, fetch from all calendars
+      // If no specific calendars requested, fetch from all calendars (or just primary if list failed)
       let calendarsToFetch = calendarIds;
       if (!calendarsToFetch || calendarsToFetch.length === 0) {
-        calendarsToFetch = calendarsMetadata.map(cal => cal.id!) || ['primary'];
+        calendarsToFetch = calendarsMetadata.length > 0 
+          ? calendarsMetadata.map(cal => cal.id!) 
+          : ['primary'];
       }
 
       // Fetch events from all calendars
@@ -469,7 +478,7 @@ export class GoogleCalendarService {
           // Add calendar info to each event
           events.forEach(event => {
             (event as any).calendarId = calId;
-            (event as any).calendarName = calMetadata?.summary || 'Unknown';
+            (event as any).calendarName = calMetadata?.summary || 'Primary';
             (event as any).calendarBackgroundColor = calMetadata?.backgroundColor;
             (event as any).calendarForegroundColor = calMetadata?.foregroundColor;
           });
