@@ -2761,11 +2761,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return scheduledDate >= startDate && scheduledDate <= endDate;
       });
 
+      // Create a set of Google Event IDs that belong to ProductivityQuest tasks
+      // This prevents showing duplicates - we show the PQ task, not the Google event
+      const pqGoogleEventIds = new Set<string>();
+      for (const task of tasksInMonth) {
+        if (task.googleEventId) {
+          pqGoogleEventIds.add(task.googleEventId);
+        }
+      }
+
       // Combine Google Calendar events and ProductivityQuest tasks
       const events: any[] = [];
 
-      // Add Google Calendar events
+      // Add Google Calendar events (excluding those created by ProductivityQuest)
       for (const gEvent of googleEvents) {
+        // Skip if this Google event was created by a ProductivityQuest task
+        if (pqGoogleEventIds.has(gEvent.id)) {
+          console.log(`📅 [CALENDAR] Skipping duplicate Google event ${gEvent.id} - already shown as PQ task`);
+          continue;
+        }
         events.push({
           id: `google-${gEvent.id}`,
           title: gEvent.summary || 'Untitled Event',

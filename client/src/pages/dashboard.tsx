@@ -742,89 +742,160 @@ export default function Dashboard() {
       </div>
 
       <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
-        {/* Quick Actions - At top on mobile, 1x4 horizontal */}
-        <div className={`${isMobile ? 'grid grid-cols-4 gap-2 mb-2' : 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-8'}`}>
+        {/* Quick Actions - All 8 buttons in a single row on desktop, 2 rows of 4 on mobile */}
+        {!isMobile && (
+        <div className="grid grid-cols-8 gap-2 mb-6">
           <Link href="/tasks">
-            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group ${isMobile ? 'h-full' : ''}`}>
-              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-                <CheckCircle className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-purple-400 group-hover:text-purple-300 transition-colors`} />
-                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Tasks</h3>
-                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Manage your quests</p>}
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group">
+              <CardContent className="p-3 text-center">
+                <CheckCircle className="w-6 h-6 mx-auto mb-1 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                <h3 className="text-xs font-medium text-yellow-100 font-serif">Tasks</h3>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/skills">
-            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-blue-500/30 hover:border-blue-400/60 group ${isMobile ? 'h-full' : ''}`}>
-              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-                <Sparkles className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-blue-400 group-hover:text-blue-300 transition-colors`} />
-                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Skills</h3>
-                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Level up abilities</p>}
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-blue-500/30 hover:border-blue-400/60 group">
+              <CardContent className="p-3 text-center">
+                <Sparkles className="w-6 h-6 mx-auto mb-1 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                <h3 className="text-xs font-medium text-yellow-100 font-serif">Skills</h3>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/shop">
-            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-green-500/30 hover:border-green-400/60 group ${isMobile ? 'h-full' : ''}`}>
-              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-                <ShoppingCart className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-green-400 group-hover:text-green-300 transition-colors`} />
-                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Item Shop</h3>
-                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Spend your gold</p>}
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-green-500/30 hover:border-green-400/60 group">
+              <CardContent className="p-3 text-center">
+                <ShoppingCart className="w-6 h-6 mx-auto mb-1 text-green-400 group-hover:text-green-300 transition-colors" />
+                <h3 className="text-xs font-medium text-yellow-100 font-serif">Shop</h3>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/recycling-bin">
-            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group ${isMobile ? 'h-full' : ''}`}>
-              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-                <Trash2 className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-orange-400 group-hover:text-orange-300 transition-colors`} />
-                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Recycling</h3>
-                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">View completed</p>}
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group">
+              <CardContent className="p-3 text-center">
+                <Trash2 className="w-6 h-6 mx-auto mb-1 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                <h3 className="text-xs font-medium text-yellow-100 font-serif">Recycle</h3>
               </CardContent>
             </Card>
           </Link>
-        </div>
 
-        {/* Second Row - NPCs, Calendar, Settings, Placeholder */}
-        <div className={`${isMobile ? 'grid grid-cols-4 gap-2 mb-4' : 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-8'}`}>
           <Link href="/npcs">
-            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-cyan-500/30 hover:border-cyan-400/60 group ${isMobile ? 'h-full' : ''}`}>
-              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-                <User className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-cyan-400 group-hover:text-cyan-300 transition-colors`} />
-                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>NPCs</h3>
-                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Your network</p>}
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-cyan-500/30 hover:border-cyan-400/60 group">
+              <CardContent className="p-3 text-center">
+                <User className="w-6 h-6 mx-auto mb-1 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
+                <h3 className="text-xs font-medium text-yellow-100 font-serif">NPCs</h3>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/calendar">
-            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-pink-500/30 hover:border-pink-400/60 group ${isMobile ? 'h-full' : ''}`}>
-              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-                <Calendar className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-pink-400 group-hover:text-pink-300 transition-colors`} />
-                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Calendar</h3>
-                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Schedule events</p>}
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-pink-500/30 hover:border-pink-400/60 group">
+              <CardContent className="p-3 text-center">
+                <Calendar className="w-6 h-6 mx-auto mb-1 text-pink-400 group-hover:text-pink-300 transition-colors" />
+                <h3 className="text-xs font-medium text-yellow-100 font-serif">Calendar</h3>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/settings">
-            <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/30 hover:border-yellow-400/60 group ${isMobile ? 'h-full' : ''}`}>
-              <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-                <Settings className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-yellow-400 group-hover:text-yellow-300 transition-colors`} />
-                <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Settings</h3>
-                {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Manage account</p>}
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/30 hover:border-yellow-400/60 group">
+              <CardContent className="p-3 text-center">
+                <Settings className="w-6 h-6 mx-auto mb-1 text-yellow-400 group-hover:text-yellow-300 transition-colors" />
+                <h3 className="text-xs font-medium text-yellow-100 font-serif">Settings</h3>
               </CardContent>
             </Card>
           </Link>
 
-          <Card className={`hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group ${isMobile ? 'h-full' : ''}`}>
-            <CardContent className={isMobile ? 'p-2 text-center flex flex-col items-center justify-center h-full' : 'p-6 text-center'}>
-              <Target className={`${isMobile ? 'w-6 h-6 mb-1' : 'w-12 h-12 mx-auto mb-3'} text-gray-400 group-hover:text-gray-300 transition-colors`} />
-              <h3 className={`${isMobile ? 'text-[10px] leading-tight' : 'font-semibold'} text-yellow-100 font-serif`}>Placeholder</h3>
-              {!isMobile && <p className="text-sm text-yellow-200/60 mt-1">Coming soon</p>}
+          <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group">
+            <CardContent className="p-3 text-center">
+              <Target className="w-6 h-6 mx-auto mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
+              <h3 className="text-xs font-medium text-yellow-100 font-serif">More</h3>
             </CardContent>
           </Card>
         </div>
+        )}
+
+        {/* Mobile: First row of 4 */}
+        {isMobile && (
+        <div className="grid grid-cols-4 gap-2 mb-2">
+          <Link href="/tasks">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <CheckCircle className="w-6 h-6 mb-1 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">Tasks</h3>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/skills">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-blue-500/30 hover:border-blue-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <Sparkles className="w-6 h-6 mb-1 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">Skills</h3>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/shop">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-green-500/30 hover:border-green-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <ShoppingCart className="w-6 h-6 mb-1 text-green-400 group-hover:text-green-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">Shop</h3>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/recycling-bin">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <Trash2 className="w-6 h-6 mb-1 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">Recycle</h3>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+        )}
+
+        {/* Mobile: Second row of 4 */}
+        {isMobile && (
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          <Link href="/npcs">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-cyan-500/30 hover:border-cyan-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <User className="w-6 h-6 mb-1 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">NPCs</h3>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/calendar">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-pink-500/30 hover:border-pink-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <Calendar className="w-6 h-6 mb-1 text-pink-400 group-hover:text-pink-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">Calendar</h3>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/settings">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/30 hover:border-yellow-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <Settings className="w-6 h-6 mb-1 text-yellow-400 group-hover:text-yellow-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">Settings</h3>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group h-full">
+            <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+              <Target className="w-6 h-6 mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
+              <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">More</h3>
+            </CardContent>
+          </Card>
+        </div>
+        )}
 
         {/* Active Questlines Section */}
         <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
