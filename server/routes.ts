@@ -256,6 +256,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validate reset token - check if token is valid before showing reset form
+  app.get('/api/auth/validate-reset-token', async (req, res) => {
+    try {
+      const { token } = req.query;
+      
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ valid: false, message: 'Token is required' });
+      }
+      
+      const resetToken = await storage.getPasswordResetToken(token);
+      
+      if (!resetToken) {
+        return res.json({ valid: false, message: 'Invalid or expired reset link' });
+      }
+      
+      if (resetToken.used) {
+        return res.json({ valid: false, message: 'This reset link has already been used' });
+      }
+      
+      if (new Date() > resetToken.expiresAt) {
+        return res.json({ valid: false, message: 'This reset link has expired' });
+      }
+      
+      res.json({ valid: true });
+    } catch (error: any) {
+      console.error('❌ Validate token error:', error);
+      res.status(500).json({ valid: false, message: 'Failed to validate token' });
+    }
+  });
+
   // Reset password - verify token and update password
   app.post('/api/auth/reset-password', async (req, res) => {
     try {
