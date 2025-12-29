@@ -179,6 +179,8 @@ export default function GoogleCalendarIntegration() {
   };
 
   const isConfigured = settings?.googleCalendarClientId && settings?.googleCalendarClientSecret;
+  const isAuthorized = settings?.googleCalendarAccessToken;
+  const isFullyConnected = isConfigured && isAuthorized;
 
   if (isLoading) {
     return (
@@ -210,11 +212,37 @@ export default function GoogleCalendarIntegration() {
         </div>
 
         {/* Status Card */}
-        {isConfigured ? (
+        {isFullyConnected ? (
           <Alert className="mb-6 border-green-600/40 bg-green-900/20">
             <CheckCircle className="h-5 w-5 text-green-500" />
             <AlertDescription className="text-green-100 flex items-center justify-between w-full">
-              <span>Google Calendar integration is active and configured</span>
+              <span>Google Calendar is fully connected and ready to sync</span>
+              <Button
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending}
+                variant="outline"
+                size="sm"
+                className="ml-4 border-red-500/40 text-red-400 hover:bg-red-900/20 hover:text-red-300"
+              >
+                {disconnectMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    Disconnecting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-3 w-3" />
+                    Disconnect
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : isConfigured ? (
+          <Alert className="mb-6 border-yellow-600/40 bg-yellow-900/20">
+            <AlertCircle className="h-5 w-5 text-yellow-500" />
+            <AlertDescription className="text-yellow-100 flex items-center justify-between w-full">
+              <span>Credentials saved - authorization required to complete setup</span>
               <Button
                 onClick={() => disconnectMutation.mutate()}
                 disabled={disconnectMutation.isPending}
