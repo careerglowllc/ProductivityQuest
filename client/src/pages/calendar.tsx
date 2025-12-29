@@ -584,14 +584,14 @@ export default function Calendar() {
     return { start: new Date(event.start), end: new Date(event.end) };
   };
 
-  // Delete event handler
-  const handleDeleteEvent = async (deleteFromGoogleToo: boolean) => {
+  // Remove event from calendar handler (does NOT delete the quest!)
+  const handleRemoveFromCalendar = async (removeFromGoogleToo: boolean) => {
     if (!selectedEvent) return;
 
     try {
-      // For Google Calendar events
+      // For Google Calendar events (not from ProductivityQuest)
       if (selectedEvent.source === 'google') {
-        if (deleteFromGoogleToo) {
+        if (removeFromGoogleToo) {
           // Open Google Calendar to delete (already handled in the button onClick)
           return;
         } else {
@@ -609,25 +609,25 @@ export default function Calendar() {
         }
       }
 
-      // For ProductivityQuest tasks
-      const taskId = selectedEvent.id.replace('task-', '');
+      // For ProductivityQuest tasks - UNSCHEDULE (not delete!)
+      // This removes from calendar but keeps the quest in Quests page
+      const taskId = selectedEvent.id;
       
-      // Delete from app and optionally from Google Calendar
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'DELETE',
+      const response = await fetch(`/api/tasks/${taskId}/unschedule`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ 
-          deleteFromGoogle: deleteFromGoogleToo 
+          removeFromGoogleCalendar: removeFromGoogleToo 
         })
       });
 
       if (response.ok) {
         toast({
-          title: "Event Deleted",
-          description: deleteFromGoogleToo 
-            ? "Event removed from app and Google Calendar" 
-            : "Event removed from app calendar only",
+          title: "Removed from Calendar",
+          description: removeFromGoogleToo 
+            ? "Event removed from calendar. Quest still available in Quests page." 
+            : "Event removed from app calendar. Quest still available in Quests page.",
         });
         
         // Refresh calendar data
@@ -638,13 +638,13 @@ export default function Calendar() {
         setSelectedEvent(null);
         setShowDeleteMenu(false);
       } else {
-        throw new Error('Failed to delete event');
+        throw new Error('Failed to remove from calendar');
       }
     } catch (error) {
-      console.error('Failed to delete event:', error);
+      console.error('Failed to remove from calendar:', error);
       toast({
         title: "Error",
-        description: "Failed to delete event. Please try again.",
+        description: "Failed to remove from calendar. Please try again.",
         variant: "destructive",
       });
     }
@@ -1975,7 +1975,7 @@ export default function Calendar() {
                           variant="outline"
                           size="sm"
                           className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-xs"
-                          onClick={() => handleDeleteEvent(false)}
+                          onClick={() => handleRemoveFromCalendar(false)}
                         >
                           <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                           <div className="text-left flex-1">
@@ -1991,7 +1991,7 @@ export default function Calendar() {
                         </div>
                       </>
                     ) : (
-                      // For ProductivityQuest events - show both options
+                      // For ProductivityQuest events - remove from calendar (not delete quest!)
                       <>
                         <Button
                           variant="outline"
@@ -2002,14 +2002,18 @@ export default function Calendar() {
                               : 'border-red-500/30 hover:bg-red-500/10'
                           }`}
                           disabled={!isTwoWaySync}
-                          onClick={() => handleDeleteEvent(true)}
+                          onClick={() => handleRemoveFromCalendar(true)}
                         >
                           <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                           <div className="text-left flex-1">
-                            <div className="text-xs font-medium">App & Google Calendar</div>
-                            {!isTwoWaySync && (
+                            <div className="text-xs font-medium">Remove from All Calendars</div>
+                            {!isTwoWaySync ? (
                               <div className="text-[10px] text-gray-500 mt-0.5">
                                 Enable Two-Way Sync to use this
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-gray-500 mt-0.5">
+                                Quest stays in Quests page
                               </div>
                             )}
                           </div>
@@ -2019,16 +2023,20 @@ export default function Calendar() {
                           variant="outline"
                           size="sm"
                           className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-xs"
-                          onClick={() => handleDeleteEvent(false)}
+                          onClick={() => handleRemoveFromCalendar(false)}
                         >
                           <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                           <div className="text-left flex-1">
-                            <div className="text-xs font-medium">App Only</div>
+                            <div className="text-xs font-medium">Remove from App Calendar</div>
                             <div className="text-[10px] text-gray-500 mt-0.5">
-                              Keeps in Google Calendar
+                              Quest stays in Quests page
                             </div>
                           </div>
                         </Button>
+
+                        <div className="text-[10px] text-green-400/80 mt-1 p-1.5 bg-green-900/20 rounded border border-green-500/20">
+                          ✓ This only removes from calendar - your quest is safe!
+                        </div>
                       </>
                     )}
                   </div>

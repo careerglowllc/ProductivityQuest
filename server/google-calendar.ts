@@ -611,6 +611,52 @@ export class GoogleCalendarService {
     }
   }
 
+  /**
+   * Delete an event from Google Calendar
+   */
+  async deleteEvent(user: User, eventId: string, calendarId: string = 'primary'): Promise<boolean> {
+    try {
+      let auth: OAuth2Client;
+      
+      if (user.googleCalendarClientId && user.googleCalendarClientSecret && 
+          user.googleCalendarAccessToken && user.googleCalendarRefreshToken) {
+        auth = new OAuth2Client(
+          user.googleCalendarClientId,
+          user.googleCalendarClientSecret,
+          getGoogleCalendarRedirectUri()
+        );
+        
+        auth.setCredentials({
+          access_token: user.googleCalendarAccessToken,
+          refresh_token: user.googleCalendarRefreshToken,
+          expiry_date: user.googleCalendarTokenExpiry?.getTime(),
+        });
+      } else {
+        auth = this.getAuthenticatedClient(user);
+      }
+
+      const calendar = google.calendar({ version: 'v3', auth });
+      
+      await calendar.events.delete({
+        calendarId: calendarId,
+        eventId: eventId,
+      });
+
+      console.log(`✅ Deleted Google Calendar event: ${eventId}`);
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting Google Calendar event:', error);
+      
+      // If event not found, consider it already deleted
+      if (error.code === 404) {
+        console.warn('⚠️ Event not found in Google Calendar (may have been already deleted)');
+        return true;
+      }
+      
+      throw error;
+    }
+  }
+
   private getColorForImportance(importance?: string): string {
     // Google Calendar color IDs:
     // 1 = Blue, 2 = Green, 3 = Purple, 4 = Red, 5 = Yellow, 6 = Orange, 7 = Turquoise, 8 = Gray, 9 = Bold Blue, 10 = Bold Green, 11 = Bold Red

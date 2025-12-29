@@ -1392,6 +1392,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Unschedule a task from calendar (removes from calendar but keeps the quest)
+  app.post("/api/tasks/:id/unschedule", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const id = parseInt(req.params.id);
+      const { removeFromGoogleCalendar } = req.body;
+
+      // Get the task first
+      const task = await storage.getTask(id, userId);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // If task has a Google Calendar event and user wants to remove it
+      if (removeFromGoogleCalendar && task.googleEventId) {
+        const user = await storage.getUserById(userId);
+        if (user?.googleCalendarAccessToken) {
+          try {
+            await googleCalendar.deleteEvent(user, task.googleEventId, task.googleCalendarId || 'primary');
+            console.log(`✅ Deleted Google Calendar event ${task.googleEventId}`);
+          } catch (error: any) {
+            console.error(`⚠️ Failed to delete Google Calendar event: ${error.message}`);
+            // Continue anyway - we still want to unschedule locally
+          }
+        }
+      }
+
+      // Clear the scheduled time and Google event ID (but keep the task!)
+      const updatedTask = await storage.updateTask(id, {
+        scheduledTime: null,
+        googleEventId: null,
+        googleCalendarId: null,
+      }, userId);
+
+      res.json({ 
+        success: true, 
+        message: "Task removed from calendar but still available in Quests",
+        task: updatedTask 
+      });
+    } catch (error) {
+      console.error("Task unschedule error:", error);
+      res.status(500).json({ error: "Failed to unschedule task" });
+    }
+  });
+
   app.delete("/api/tasks/:id", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
