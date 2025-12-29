@@ -56,7 +56,7 @@ export function MLSortFeedbackModal({
   alreadyApplied = true,
 }: MLSortFeedbackProps) {
   const { toast } = useToast();
-  const [mode, setMode] = useState<'feedback' | 'correction'>('feedback');
+  const [mode, setMode] = useState<'feedback' | 'correction' | 'verbal'>('feedback');
   const [correctedSchedule, setCorrectedSchedule] = useState<ScheduledTask[]>([]);
   const [feedbackReason, setFeedbackReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,6 +178,41 @@ export function MLSortFeedbackModal({
     }
   };
 
+  // Submit verbal feedback only (no reordering)
+  const handleSubmitVerbalFeedback = async () => {
+    if (!feedbackReason.trim()) {
+      toast({
+        title: "Please provide feedback",
+        description: "Tell us how you'd like sorting to work",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await apiRequest('POST', '/api/ml/feedback', {
+        date: date.toISOString(),
+        originalSchedule,
+        mlSortedSchedule: sortedSchedule,
+        feedbackType: 'verbal',
+        feedbackReason,
+        taskMetadata,
+      });
+
+      toast({
+        title: "Feedback received! 📝",
+        description: "AI will consider this for future sorting.",
+      });
+
+      onClose();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Reset on close
   const handleClose = () => {
     setMode('feedback');
@@ -213,25 +248,36 @@ export function MLSortFeedbackModal({
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Button
+                onClick={startCorrection}
+                variant="outline"
+                size="sm"
+                className="flex-1 h-10 border-red-500/30 hover:bg-red-500/10 text-red-300 text-xs"
+                disabled={isSubmitting}
+              >
+                <ThumbsDown className="w-4 h-4 mr-1" />
+                Reorder It
+              </Button>
+              <Button
+                onClick={handleApprove}
+                size="sm"
+                className="flex-1 h-10 bg-green-600 hover:bg-green-500 text-white text-xs"
+                disabled={isSubmitting}
+              >
+                <ThumbsUp className="w-4 h-4 mr-1" />
+                Perfect!
+              </Button>
+            </div>
             <Button
-              onClick={startCorrection}
+              onClick={() => setMode('verbal')}
               variant="outline"
               size="sm"
-              className="flex-1 h-10 border-red-500/30 hover:bg-red-500/10 text-red-300 text-xs"
+              className="w-full h-8 border-purple-500/30 hover:bg-purple-500/10 text-purple-300 text-xs"
               disabled={isSubmitting}
             >
-              <ThumbsDown className="w-4 h-4 mr-1" />
-              Needs Work
-            </Button>
-            <Button
-              onClick={handleApprove}
-              size="sm"
-              className="flex-1 h-10 bg-green-600 hover:bg-green-500 text-white text-xs"
-              disabled={isSubmitting}
-            >
-              <ThumbsUp className="w-4 h-4 mr-1" />
-              Perfect!
+              💬 Just Give Feedback
             </Button>
           </div>
 
@@ -240,6 +286,53 @@ export function MLSortFeedbackModal({
           </p>
         </div>
       </div>
+    );
+  }
+
+  // VERBAL FEEDBACK MODE - Just text input, no reordering
+  if (mode === 'verbal') {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="bg-gray-900 border-purple-500/30 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              💬 Share Your Feedback
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Tell us how you'd like tasks sorted. No need to reorder.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <Textarea
+              placeholder="e.g., I prefer hard tasks in the morning, or schedule meetings after lunch..."
+              value={feedbackReason}
+              onChange={(e) => setFeedbackReason(e.target.value)}
+              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 min-h-[100px] resize-none"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setMode('feedback')}
+              className="border-gray-600"
+              disabled={isSubmitting}
+            >
+              Back
+            </Button>
+            <Button
+              onClick={handleSubmitVerbalFeedback}
+              className="flex-1 bg-purple-600 hover:bg-purple-500"
+              disabled={isSubmitting || !feedbackReason.trim()}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Submit Feedback
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
