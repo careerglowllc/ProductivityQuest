@@ -277,11 +277,13 @@ export default function Calendar() {
     setIsSorting(true);
     try {
       // Step 1: Get the sorted schedule from ML
-      // Send the local date components to avoid timezone conversion issues
-      // e.g., if user views Dec 28 at 9pm PST, toISOString() would give Dec 29 UTC
+      // Send the local date components and timezone offset
+      // The offset helps the server find tasks that display on this local date
       const localDateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+      const timezoneOffset = new Date().getTimezoneOffset(); // minutes offset from UTC (e.g., PST = 480)
       const response = await apiRequest('POST', '/api/ml/sort-tasks', {
         date: localDateString,
+        timezoneOffset: timezoneOffset,
       });
 
       const data = await response.json();

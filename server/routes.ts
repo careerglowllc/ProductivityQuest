@@ -3583,9 +3583,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ml/sort-tasks", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const { date, taskIds } = req.body;
+      const { date, taskIds, timezoneOffset } = req.body;
 
-      console.log('📊 [ML-SORT-API] Received request:', { date, taskIds });
+      console.log('📊 [ML-SORT-API] Received request:', { date, taskIds, timezoneOffset });
       console.log('📊 [ML-SORT-API] Raw date string received:', date);
 
       if (!date) {
@@ -3593,9 +3593,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Parse the date string - frontend sends "YYYY-MM-DD" format (local date)
-      // This represents the user's LOCAL date they want to sort
-      // We'll extract the components directly to avoid timezone issues
+      // Also receives timezoneOffset in minutes (e.g., PST = 480, meaning UTC-8)
       let targetYear: number, targetMonth: number, targetDay: number;
+      const tzOffset = timezoneOffset || 0; // default to UTC if not provided
       
       if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
         // New format: "2025-12-28" - extract directly
@@ -3613,9 +3613,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`📊 [ML-SORT-API] Parsed ISO date to UTC: Y=${targetYear} M=${targetMonth} D=${targetDay}`);
       }
 
-      console.log(`📊 [ML-SORT-API] Looking for tasks on: ${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`);
+      console.log(`📊 [ML-SORT-API] Looking for tasks on LOCAL date: ${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`);
+      console.log(`📊 [ML-SORT-API] User timezone offset: ${tzOffset} minutes (UTC${tzOffset >= 0 ? '-' : '+'}${Math.abs(tzOffset / 60)})`);
 
-      // Create a target date object for use in sorting (midnight UTC on target day)
+      // Create a target date object for use in sorting (midnight LOCAL on target day)
+      // We'll use this as the anchor for scheduling
       const targetDate = new Date(Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0));
 
       // Get all tasks for this user
@@ -3623,6 +3625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('📊 [ML-SORT-API] Total tasks for user:', allTasks.length);
       
       // Filter to only tasks for this specific date (or specified task IDs)
+      // We need to match tasks that would DISPLAY on the user's local date
       let tasksToSort = allTasks.filter(task => {
         if (taskIds && taskIds.length > 0) {
           return taskIds.includes(task.id);
@@ -3633,15 +3636,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const taskDate = new Date(task.scheduledTime);
         
-        // Compare year, month, day in UTC (tasks stored in UTC)
-        const tYear = taskDate.getUTCFullYear();
-        const tMonth = taskDate.getUTCMonth();
-        const tDay = taskDate.getUTCDate();
+        // Convert to user's local date by applying their timezone offset
+        // The scheduledTime is in UTC, but we want to know what LOCAL date it displays as
+        const taskLocalTime = new Date(taskDate.getTime() - tzOffset * 60000);
+        const tYear = taskLocalTime.getUTCFullYear();
+        const tMonth = taskLocalTime.getUTCMonth();
+        const tDay = taskLocalTime.getUTCDate();
         
         const matches = tYear === targetYear && tMonth === targetMonth && tDay === targetDay;
         
         if (matches) {
-          console.log(`📊 [ML-SORT-API] Found task for date: "${task.title}" (${task.importance}) at ${task.scheduledTime}`);
+          console.log(`📊 [ML-SORT-API] Found task for date: "${task.title}" (${task.importance}) at ${task.scheduledTime} (local: ${taskLocalTime.toISOString()})`);
         }
         return matches;
       });
