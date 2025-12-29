@@ -186,46 +186,60 @@ export function MLSortFeedbackModal({
     onClose();
   };
 
-  // FEEDBACK MODE - Small prompt asking how AI did
+  // FEEDBACK MODE - Small prompt asking how AI did (bottom-right corner)
   if (mode === 'feedback') {
     return (
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="bg-gray-900 border-purple-500/30 max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-white text-center flex items-center justify-center gap-2">
-              <Check className="w-5 h-5 text-green-400" />
+      <div 
+        className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+      >
+        <div className="bg-gray-900 border border-purple-500/30 rounded-lg shadow-xl p-4 w-72">
+          {/* Close button */}
+          <button 
+            onClick={handleClose}
+            className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <div className="text-center mb-3">
+            <div className="text-white text-sm font-medium flex items-center justify-center gap-2">
+              <Check className="w-4 h-4 text-green-400" />
               Schedule Applied!
-            </DialogTitle>
-            <DialogDescription className="text-gray-400 text-center">
+            </div>
+            <div className="text-gray-400 text-xs mt-1">
               How did the AI sorting work for you?
-            </DialogDescription>
-          </DialogHeader>
+            </div>
+          </div>
 
-          <div className="flex gap-3 py-4">
+          <div className="flex gap-2">
             <Button
               onClick={startCorrection}
               variant="outline"
-              className="flex-1 h-16 border-red-500/30 hover:bg-red-500/10 text-red-300"
+              size="sm"
+              className="flex-1 h-10 border-red-500/30 hover:bg-red-500/10 text-red-300 text-xs"
               disabled={isSubmitting}
             >
-              <ThumbsDown className="w-6 h-6 mr-2" />
+              <ThumbsDown className="w-4 h-4 mr-1" />
               Needs Work
             </Button>
             <Button
               onClick={handleApprove}
-              className="flex-1 h-16 bg-green-600 hover:bg-green-500 text-white"
+              size="sm"
+              className="flex-1 h-10 bg-green-600 hover:bg-green-500 text-white text-xs"
               disabled={isSubmitting}
             >
-              <ThumbsUp className="w-6 h-6 mr-2" />
+              <ThumbsUp className="w-4 h-4 mr-1" />
               Perfect!
             </Button>
           </div>
 
-          <p className="text-xs text-gray-500 text-center">
+          <p className="text-[10px] text-gray-500 text-center mt-2">
             Your feedback trains the AI to sort better next time
           </p>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
     );
   }
 

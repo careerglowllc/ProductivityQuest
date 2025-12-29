@@ -292,9 +292,10 @@ export default function Calendar() {
         const applyData = await applyResponse.json();
 
         if (applyData.success) {
-          // Refresh calendar to show new order
-          queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
-          queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+          // Refresh calendar to show new order - use the correct query key with year/month
+          const calendarQueryKey = `/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`;
+          await queryClient.refetchQueries({ queryKey: [calendarQueryKey] });
+          await queryClient.refetchQueries({ queryKey: ['/api/tasks'] });
 
           toast({
             title: "✨ Day Sorted!",
