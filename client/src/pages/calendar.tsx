@@ -247,6 +247,7 @@ export default function Calendar() {
 
     setIsSorting(true);
     try {
+      // Step 1: Get the sorted schedule from ML
       const response = await apiRequest('POST', '/api/ml/sort-tasks', {
         date: currentDate.toISOString(),
       });
@@ -254,12 +255,33 @@ export default function Calendar() {
       const data = await response.json();
 
       if (data.success && data.sortedSchedule?.length > 0) {
-        setMLSortData({
-          originalSchedule: data.originalSchedule,
+        // Step 2: APPLY the sort immediately
+        const applyResponse = await apiRequest('POST', '/api/ml/apply-sort', {
           sortedSchedule: data.sortedSchedule,
-          taskMetadata: data.taskMetadata,
         });
-        setShowMLFeedback(true);
+
+        const applyData = await applyResponse.json();
+
+        if (applyData.success) {
+          // Refresh calendar to show new order
+          queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+
+          toast({
+            title: "✨ Day Sorted!",
+            description: `Rearranged ${data.sortedSchedule.length} tasks by priority`,
+          });
+
+          // Step 3: Show small feedback modal
+          setMLSortData({
+            originalSchedule: data.originalSchedule,
+            sortedSchedule: data.sortedSchedule,
+            taskMetadata: data.taskMetadata,
+          });
+          setShowMLFeedback(true);
+        } else {
+          throw new Error('Failed to apply sorted schedule');
+        }
       } else {
         toast({
           title: "No Tasks to Sort",
