@@ -669,7 +669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const user = await storage.getUserById(userId);
           if (user?.googleCalendarInstantSync && 
-              user?.googleCalendarAccessToken && 
+              (user?.googleCalendarAccessToken || user?.googleCalendarRefreshToken) && 
               task.dueDate) {
             console.log(`📅 [INSTANT-SYNC] Adding task ${task.id} to calendar...`);
             
@@ -699,9 +699,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const calendarColor = task.calendarColor || getColorForImportance(task.importance);
             
-            // Update task with scheduledTime and calendarColor
+            // Update task with scheduledTime and calendarColor first
             await storage.updateTask(task.id, { scheduledTime, calendarColor }, userId);
-            console.log(`✅ [INSTANT-SYNC] Task ${task.id} added to calendar`);
+            
+            // Now actually sync to Google Calendar
+            const updatedTask = await storage.getTask(task.id, userId);
+            if (updatedTask) {
+              const syncResults = await googleCalendar.syncTasks([updatedTask], user, storage);
+              if (syncResults.success > 0) {
+                console.log(`✅ [INSTANT-SYNC] Task ${task.id} synced to Google Calendar`);
+              } else {
+                console.warn(`⚠️ [INSTANT-SYNC] Task ${task.id} failed to sync to Google Calendar`);
+              }
+            }
           }
         } catch (error: any) {
           console.error(`❌ [INSTANT-SYNC] Failed for task ${task.id}:`, error.message);
@@ -739,12 +749,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Task not found" });
       }
       
-      // If task has Google Calendar event and time/duration changed, update it
+      // If task has Google Calendar event and time/duration/scheduledTime changed, update it
       if (task.googleEventId && task.googleCalendarId && 
-          (updateData.dueDate !== undefined || updateData.duration !== undefined)) {
+          (updateData.dueDate !== undefined || updateData.duration !== undefined || updateData.scheduledTime !== undefined)) {
         try {
           const user = await storage.getUser(userId);
-          if (user && user.googleCalendarAccessToken) {
+          if (user && (user.googleCalendarAccessToken || user.googleCalendarRefreshToken)) {
+            console.log(`📅 [PATCH TASK] Syncing task ${task.id} to Google Calendar`);
             await googleCalendar.updateEvent(task, user);
           }
         } catch (error) {

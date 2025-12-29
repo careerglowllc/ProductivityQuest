@@ -544,8 +544,14 @@ export class GoogleCalendarService {
 
   async updateEvent(task: Task, user: User): Promise<any> {
     try {
-      if (!task.googleEventId || !task.googleCalendarId || !task.dueDate) {
+      if (!task.googleEventId || !task.googleCalendarId) {
         return null; // Task is not synced to Google Calendar
+      }
+
+      // Use scheduledTime if available, otherwise fall back to dueDate
+      const startTime = task.scheduledTime || task.dueDate;
+      if (!startTime) {
+        return null; // No time to sync
       }
 
       let auth: OAuth2Client;
@@ -569,15 +575,22 @@ export class GoogleCalendarService {
 
       const calendar = google.calendar({ version: 'v3', auth });
       
+      const endTime = new Date(startTime.getTime() + task.duration * 60000);
+      
+      console.log(`📅 [UPDATE EVENT] Task ${task.id} "${task.title}"`);
+      console.log(`   - Start time: ${startTime.toISOString()}`);
+      console.log(`   - End time: ${endTime.toISOString()}`);
+      console.log(`   - Duration: ${task.duration} minutes`);
+      
       const event = {
         summary: task.title,
-        description: `${task.description}\n\nGold Reward: ${task.goldValue}\nImportance: ${task.importance || 'Not set'}`,
+        description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
         start: {
-          dateTime: task.dueDate.toISOString(),
+          dateTime: startTime.toISOString(),
           timeZone: 'UTC',
         },
         end: {
-          dateTime: new Date(task.dueDate.getTime() + task.duration * 60000).toISOString(),
+          dateTime: endTime.toISOString(),
           timeZone: 'UTC',
         },
         colorId: this.getColorForImportance(task.importance || undefined),
