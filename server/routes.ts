@@ -3692,7 +3692,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (task && task.userId === userId) {
           const newScheduledTime = new Date(item.startTime);
           console.log(`📊 [ML-APPLY] Task ${item.taskId} "${task.title}" - old time: ${task.scheduledTime}, new time: ${newScheduledTime}`);
-          await storage.updateTask(item.taskId, { scheduledTime: newScheduledTime }, userId);
+          const updatedTask = await storage.updateTask(item.taskId, { scheduledTime: newScheduledTime }, userId);
+          
+          // Verify the update
+          const verifyTask = await storage.getTask(item.taskId, userId);
+          console.log(`📊 [ML-APPLY] Task ${item.taskId} VERIFIED - scheduledTime is now: ${verifyTask?.scheduledTime}`);
+          
           updates.push({ taskId: item.taskId, newTime: item.startTime });
           console.log(`📊 [ML-APPLY] Task ${item.taskId} updated successfully`);
         } else {
