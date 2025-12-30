@@ -3683,8 +3683,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endTime: task.currentEndTime || new Date(targetDate.setHours(10, 0, 0, 0)).toISOString(),
       }));
 
-      // Run the ML sorting algorithm
-      const sortedSchedule = sortTasksML(tasksForSorting, targetDate, preferences);
+      // Run the ML sorting algorithm with timezone offset
+      const sortedSchedule = sortTasksML(tasksForSorting, targetDate, preferences, tzOffset);
 
       // Return both the original and sorted schedules for comparison
       res.json({

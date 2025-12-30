@@ -116,16 +116,20 @@ function getTimePreferenceMultiplier(
  * 3. Find the earliest current start time among all tasks
  * 4. Schedule tasks sequentially starting from that time, respecting breaks
  * 5. Ensure NO overlaps - tasks are packed tightly
+ * 
+ * @param timezoneOffset - User's timezone offset in minutes (e.g., PST = 480 for UTC-8)
  */
 export function sortTasksML(
   tasks: TaskForSorting[],
   date: Date,
-  preferences: UserPreferences = DEFAULT_PREFERENCES
+  preferences: UserPreferences = DEFAULT_PREFERENCES,
+  timezoneOffset: number = 0
 ): ScheduledTask[] {
   if (tasks.length === 0) return [];
 
   console.log('📊 [ML-SORT] Starting sort with', tasks.length, 'tasks');
   console.log('📊 [ML-SORT] Preferences:', JSON.stringify(preferences, null, 2));
+  console.log('📊 [ML-SORT] Timezone offset:', timezoneOffset, 'minutes (UTC' + (timezoneOffset >= 0 ? '-' : '+') + Math.abs(timezoneOffset / 60) + ')');
 
   // Calculate scores for each task based on priority
   const scoredTasks = tasks.map(task => {
@@ -160,24 +164,32 @@ export function sortTasksML(
     }
   }
 
-  // If no tasks have start times, use preferred start hour
+  // If no tasks have start times, create anchor at preferred start hour in USER'S timezone
+  // We need to calculate what UTC time corresponds to 8am in user's local time
   if (!anchorTime) {
     anchorTime = new Date(date);
-    anchorTime.setHours(preferences.preferredStartHour, 0, 0, 0);
+    // Set to preferred start hour in USER's local time
+    // If user is UTC-8 (PST, offset=480), and we want 8am local, that's 16:00 UTC (8 + 8)
+    const localStartHour = preferences.preferredStartHour;
+    const utcStartHour = localStartHour + (timezoneOffset / 60);
+    anchorTime.setUTCHours(utcStartHour, 0, 0, 0);
+    console.log(`📊 [ML-SORT] No existing times, setting anchor to ${localStartHour}:00 local (${utcStartHour}:00 UTC)`);
   }
 
-  // Enforce minimum start hour constraint (e.g., no tasks before 8am)
+  // Enforce minimum start hour constraint in USER'S timezone
+  // Convert anchor time to user's local hour to check
+  const anchorLocalHour = anchorTime.getUTCHours() - (timezoneOffset / 60);
   const minStartHour = preferences.preferredStartHour;
-  const anchorHour = anchorTime.getHours();
-  if (anchorHour < minStartHour) {
-    console.log(`📊 [ML-SORT] Anchor time ${anchorHour}:00 is before ${minStartHour}:00, adjusting to ${minStartHour}:00`);
-    anchorTime.setHours(minStartHour, 0, 0, 0);
+  if (anchorLocalHour < minStartHour) {
+    console.log(`📊 [ML-SORT] Anchor local time ${anchorLocalHour}:00 is before ${minStartHour}:00, adjusting`);
+    const utcStartHour = minStartHour + (timezoneOffset / 60);
+    anchorTime.setUTCHours(utcStartHour, 0, 0, 0);
   }
 
-  console.log('📊 [ML-SORT] Anchor time:', anchorTime.toISOString());
+  console.log('📊 [ML-SORT] Anchor time:', anchorTime.toISOString(), '(local hour:', anchorTime.getUTCHours() - (timezoneOffset / 60), ')');
 
   // Schedule tasks in sorted order, ensuring NO overlaps
-  // Also enforce end hour constraint (don't schedule past preferredEndHour)
+  // Also enforce end hour constraint (don't schedule past preferredEndHour in user's local time)
   const scheduledTasks: ScheduledTask[] = [];
   let currentTime = new Date(anchorTime);
   const maxEndHour = preferences.preferredEndHour;
@@ -187,18 +199,21 @@ export function sortTasksML(
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + task.duration);
     
-    // Check if this task would end after the max end hour
-    const endHour = endTime.getHours() + (endTime.getMinutes() / 60);
-    if (endHour > maxEndHour) {
-      console.log(`📊 [ML-SORT] Task "${task.title}" would end at ${endTime.toLocaleTimeString()} (past ${maxEndHour}:00), moving to next day's start`);
-      // Move to next day at preferred start hour
-      startTime.setDate(startTime.getDate() + 1);
-      startTime.setHours(preferences.preferredStartHour, 0, 0, 0);
+    // Check if this task would end after the max end hour in USER'S local time
+    const endLocalHour = endTime.getUTCHours() - (timezoneOffset / 60) + (endTime.getUTCMinutes() / 60);
+    if (endLocalHour > maxEndHour) {
+      console.log(`📊 [ML-SORT] Task "${task.title}" would end at local hour ${endLocalHour.toFixed(1)} (past ${maxEndHour}:00), moving to next day's start`);
+      // Move to next day at preferred start hour in user's local time
+      startTime.setUTCDate(startTime.getUTCDate() + 1);
+      const utcStartHour = preferences.preferredStartHour + (timezoneOffset / 60);
+      startTime.setUTCHours(utcStartHour, 0, 0, 0);
       endTime.setTime(startTime.getTime());
       endTime.setMinutes(endTime.getMinutes() + task.duration);
     }
     
-    console.log(`📊 [ML-SORT] Scheduling "${task.title}": ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`);
+    const startLocalHour = startTime.getUTCHours() - (timezoneOffset / 60);
+    const endLocalHour2 = endTime.getUTCHours() - (timezoneOffset / 60);
+    console.log(`📊 [ML-SORT] Scheduling "${task.title}": ${startLocalHour}:00 - ${endLocalHour2}:00 local (${startTime.toISOString()} - ${endTime.toISOString()})`);
 
     scheduledTasks.push({
       taskId: task.id,
