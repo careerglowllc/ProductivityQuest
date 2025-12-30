@@ -45,8 +45,8 @@ export interface UserPreferences {
 
 // Default preferences for new users - these encode basic scheduling rules
 const DEFAULT_PREFERENCES: UserPreferences = {
-  preferredStartHour: 9,
-  preferredEndHour: 18,
+  preferredStartHour: 8,   // Don't schedule tasks before 8am
+  preferredEndHour: 22,    // Don't schedule tasks after 10pm
   priorityWeights: {
     pareto: 150,  // Pareto tasks are highest priority
     high: 100,
@@ -166,16 +166,37 @@ export function sortTasksML(
     anchorTime.setHours(preferences.preferredStartHour, 0, 0, 0);
   }
 
+  // Enforce minimum start hour constraint (e.g., no tasks before 8am)
+  const minStartHour = preferences.preferredStartHour;
+  const anchorHour = anchorTime.getHours();
+  if (anchorHour < minStartHour) {
+    console.log(`📊 [ML-SORT] Anchor time ${anchorHour}:00 is before ${minStartHour}:00, adjusting to ${minStartHour}:00`);
+    anchorTime.setHours(minStartHour, 0, 0, 0);
+  }
+
   console.log('📊 [ML-SORT] Anchor time:', anchorTime.toISOString());
 
   // Schedule tasks in sorted order, ensuring NO overlaps
+  // Also enforce end hour constraint (don't schedule past preferredEndHour)
   const scheduledTasks: ScheduledTask[] = [];
   let currentTime = new Date(anchorTime);
+  const maxEndHour = preferences.preferredEndHour;
 
   for (const task of scoredTasks) {
     const startTime = new Date(currentTime);
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + task.duration);
+    
+    // Check if this task would end after the max end hour
+    const endHour = endTime.getHours() + (endTime.getMinutes() / 60);
+    if (endHour > maxEndHour) {
+      console.log(`📊 [ML-SORT] Task "${task.title}" would end at ${endTime.toLocaleTimeString()} (past ${maxEndHour}:00), moving to next day's start`);
+      // Move to next day at preferred start hour
+      startTime.setDate(startTime.getDate() + 1);
+      startTime.setHours(preferences.preferredStartHour, 0, 0, 0);
+      endTime.setTime(startTime.getTime());
+      endTime.setMinutes(endTime.getMinutes() + task.duration);
+    }
     
     console.log(`📊 [ML-SORT] Scheduling "${task.title}": ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`);
 

@@ -673,9 +673,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               task.dueDate) {
             console.log(`📅 [INSTANT-SYNC] Adding task ${task.id} to calendar...`);
             
-            // Set scheduledTime to dueDate at 12 PM if not set
+            // Set scheduledTime to dueDate at 9 AM if not set
             const scheduledTime = task.scheduledTime || new Date(
-              new Date(task.dueDate).setHours(12, 0, 0, 0)
+              new Date(task.dueDate).setHours(9, 0, 0, 0)
             );
             
             // Get color based on importance
@@ -935,9 +935,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        // Set scheduledTime to the dueDate at 12 PM (noon) if not already set
+        // Set scheduledTime to the dueDate at 9 AM if not already set
         const scheduledTime = task.scheduledTime || new Date(
-          new Date(task.dueDate).setHours(12, 0, 0, 0)
+          new Date(task.dueDate).setHours(9, 0, 0, 0)
         );
 
         // Set calendarColor based on importance if not already set
@@ -2389,8 +2389,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First, set scheduledTime and calendarColor on all tasks being synced
       // This ensures they appear correctly in the app calendar
       for (const task of tasksToSync) {
+        // Default to 9am if no scheduled time - more reasonable than midnight
         const scheduledTime = task.scheduledTime || new Date(
-          new Date(task.dueDate!).setHours(12, 0, 0, 0)
+          new Date(task.dueDate!).setHours(9, 0, 0, 0)
         );
         const calendarColor = task.calendarColor || getColorForImportance(task.importance);
         
