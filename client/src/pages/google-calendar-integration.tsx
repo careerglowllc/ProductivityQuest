@@ -114,6 +114,37 @@ export default function GoogleCalendarIntegration() {
     },
   });
 
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/google-calendar/clear-all', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to clear calendar events');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+      toast({
+        title: "Calendar Cleared!",
+        description: `Deleted ${data.deletedFromGoogle} events from Google Calendar, cleared ${data.clearedFromTasks} task references.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Clear Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const disconnectMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch('/api/google-calendar/disconnect', {
@@ -438,6 +469,30 @@ export default function GoogleCalendarIntegration() {
                   <>
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Sync Now
+                  </>
+                )}
+              </Button>
+
+              {/* Clear All Events Button */}
+              <Button
+                onClick={() => {
+                  if (window.confirm('This will delete ALL synced events from Google Calendar and clear all task references. Are you sure?')) {
+                    clearAllMutation.mutate();
+                  }
+                }}
+                disabled={clearAllMutation.isPending || !syncEnabled}
+                variant="outline"
+                className="w-full border-orange-500/40 text-orange-400 hover:bg-orange-900/20 hover:text-orange-300"
+              >
+                {clearAllMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Clearing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Clear All Synced Events
                   </>
                 )}
               </Button>

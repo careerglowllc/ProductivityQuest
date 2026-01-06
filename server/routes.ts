@@ -1419,14 +1419,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If task has a Google Calendar event and user wants to remove it
       if (removeFromGoogleCalendar && task.googleEventId) {
         const user = await storage.getUserById(userId);
-        if (user?.googleCalendarAccessToken) {
+        // Check for either per-user OAuth credentials OR legacy credentials
+        const hasGoogleAuth = (user?.googleCalendarAccessToken && user?.googleCalendarRefreshToken) || 
+                              (user?.googleAccessToken && user?.googleRefreshToken);
+        
+        if (hasGoogleAuth) {
           try {
-            await googleCalendar.deleteEvent(user, task.googleEventId, task.googleCalendarId || 'primary');
+            await googleCalendar.deleteEvent(user!, task.googleEventId, task.googleCalendarId || 'primary');
             console.log(`✅ Deleted Google Calendar event ${task.googleEventId}`);
           } catch (error: any) {
             console.error(`⚠️ Failed to delete Google Calendar event: ${error.message}`);
             // Continue anyway - we still want to unschedule locally
           }
+        } else {
+          console.log(`⚠️ No Google Calendar credentials found, skipping Google Calendar delete`);
         }
       }
 
@@ -2775,6 +2781,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error during manual Google Calendar sync:", error);
       res.status(500).json({ error: "Failed to sync with Google Calendar" });
+    }
+  });
+
+  // Clear all synced events from Google Calendar and reset task googleEventIds
+  app.post("/api/google-calendar/clear-all", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      console.log('🗑️ [CLEAR ALL] Starting bulk delete of Google Calendar events...');
+
+      // Get all tasks with Google Event IDs
+      const allTasks = await storage.getTasks(userId);
+      const tasksWithGoogleEvents = allTasks.filter((task: any) => task.googleEventId);
+
+      console.log(`🗑️ [CLEAR ALL] Found ${tasksWithGoogleEvents.length} tasks with Google Event IDs`);
+
+      let deletedCount = 0;
+      let failedCount = 0;
+      let clearedCount = 0;
+
+      // Check if user has Google Calendar credentials
+      const hasGoogleAuth = (user.googleCalendarAccessToken && user.googleCalendarRefreshToken) || 
+                            (user.googleAccessToken && user.googleRefreshToken);
+
+      if (hasGoogleAuth) {
+        // Delete events from Google Calendar
+        for (const task of tasksWithGoogleEvents) {
+          try {
+            await googleCalendar.deleteEvent(user, task.googleEventId!, task.googleCalendarId || 'primary');
+            deletedCount++;
+            console.log(`✅ [CLEAR ALL] Deleted event ${task.googleEventId} for task ${task.id}`);
+          } catch (error: any) {
+            console.error(`⚠️ [CLEAR ALL] Failed to delete event ${task.googleEventId}: ${error.message}`);
+            failedCount++;
+          }
+        }
+      } else {
+        console.log('⚠️ [CLEAR ALL] No Google Calendar credentials, skipping delete from Google');
+        failedCount = tasksWithGoogleEvents.length;
+      }
+
+      // Clear googleEventId and googleCalendarId from all tasks (regardless of delete success)
+      for (const task of tasksWithGoogleEvents) {
+        try {
+          await storage.updateTask(task.id, {
+            googleEventId: null,
+            googleCalendarId: null,
+          }, userId);
+          clearedCount++;
+        } catch (error: any) {
+          console.error(`⚠️ [CLEAR ALL] Failed to clear task ${task.id}: ${error.message}`);
+        }
+      }
+
+      console.log(`🗑️ [CLEAR ALL] Complete: ${deletedCount} deleted from Google, ${failedCount} failed, ${clearedCount} task references cleared`);
+
+      res.json({
+        success: true,
+        deletedFromGoogle: deletedCount,
+        failedToDelete: failedCount,
+        clearedFromTasks: clearedCount,
+        message: `Cleared ${clearedCount} task references. Deleted ${deletedCount} events from Google Calendar.`
+      });
+    } catch (error: any) {
+      console.error("Error clearing Google Calendar events:", error);
+      res.status(500).json({ error: error.message || "Failed to clear Google Calendar events" });
     }
   });
 
