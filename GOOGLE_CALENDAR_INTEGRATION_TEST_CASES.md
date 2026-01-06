@@ -1,8 +1,8 @@
 # Google Calendar Integration - Test Cases
 
 **Feature:** Google Calendar OAuth Integration & Task Sync  
-**Last Updated:** November 2024  
-**Total Test Cases:** 18  
+**Last Updated:** January 2026  
+**Total Test Cases:** 24  
 **Integration Type:** Per-user OAuth 2.0 with database credential storage
 
 ---
@@ -13,6 +13,7 @@
 3. [Calendar Display Tests (5)](#calendar-display-tests)
 4. [Task Sync Tests (4)](#task-sync-tests)
 5. [Error Handling Tests (4)](#error-handling-tests)
+6. [Clear All Events Tests (6)](#clear-all-events-tests)
 
 ---
 
@@ -430,6 +431,142 @@ Body: { syncEnabled: boolean, syncDirection: string }
 
 ---
 
+## Clear All Events Tests
+
+### TC-GC-CA01: Clear All Button Visible
+**Objective:** Verify Clear All Synced Events button appears on integration page  
+**Preconditions:**
+- User logged in
+- Google Calendar connected and sync enabled
+
+**Steps:**
+1. Navigate to `/google-calendar-integration`
+2. Scroll to Sync Controls section
+
+**Expected Result:**
+- ✅ Orange "Clear All Synced Events" button visible
+- ✅ Button appears below "Sync Now" button
+- ✅ Button disabled if sync not enabled
+- ✅ Trash icon displayed on button
+
+---
+
+### TC-GC-CA02: Confirmation Dialog
+**Objective:** Verify confirmation dialog appears before clearing  
+**Steps:**
+1. Click "Clear All Synced Events" button
+2. Observe dialog
+
+**Expected Result:**
+- ✅ Browser confirmation dialog appears
+- ✅ Message warns about permanent deletion
+- ✅ User must click OK to proceed
+- ✅ Cancel aborts the operation
+
+---
+
+### TC-GC-CA03: Successful Clear All
+**Objective:** Verify all synced events are deleted and references cleared  
+**Preconditions:**
+- 10+ tasks synced to Google Calendar (have googleEventId)
+
+**Steps:**
+1. Click "Clear All Synced Events"
+2. Confirm in dialog
+3. Wait for operation to complete
+
+**Expected Result:**
+- ✅ Loading spinner appears during operation
+- ✅ POST request to `/api/google-calendar/clear-all`
+- ✅ Response contains:
+```json
+{
+  "success": true,
+  "deletedFromGoogle": 10,
+  "failedToDelete": 0,
+  "clearedFromTasks": 10,
+  "message": "Cleared 10 task references. Deleted 10 events from Google Calendar."
+}
+```
+- ✅ Toast: "Calendar Cleared! Deleted X events from Google Calendar, cleared Y task references."
+- ✅ Tasks in database have `googleEventId = null`
+- ✅ Events no longer appear in Google Calendar
+- ✅ Tasks still exist in ProductivityQuest Quests page
+
+---
+
+### TC-GC-CA04: Clear All with Some Failures
+**Objective:** Verify partial success handling when some deletes fail  
+**Preconditions:**
+- Some events already deleted manually from Google Calendar
+
+**Steps:**
+1. Manually delete 2 events from Google Calendar
+2. Click "Clear All Synced Events" in app
+3. Confirm
+
+**Expected Result:**
+- ✅ Operation completes without error
+- ✅ Response shows mixed results:
+```json
+{
+  "deletedFromGoogle": 8,
+  "failedToDelete": 2,
+  "clearedFromTasks": 10
+}
+```
+- ✅ All task references cleared (even failed deletes)
+- ✅ Toast shows both counts
+- ✅ Tasks can be re-synced after clearing
+
+---
+
+### TC-GC-CA05: Clear All Without Google Auth
+**Objective:** Verify behavior when Google Calendar is disconnected  
+**Preconditions:**
+- User has tasks with `googleEventId` but no valid auth tokens
+
+**Steps:**
+1. Disconnect Google Calendar (or let tokens expire)
+2. Click "Clear All Synced Events"
+3. Confirm
+
+**Expected Result:**
+- ✅ Task references still cleared in database
+- ✅ Delete from Google Calendar skipped (no valid auth)
+- ✅ Response shows:
+```json
+{
+  "deletedFromGoogle": 0,
+  "failedToDelete": 10,
+  "clearedFromTasks": 10
+}
+```
+- ✅ No error thrown
+- ✅ Toast indicates references cleared
+
+---
+
+### TC-GC-CA06: Re-sync After Clear All
+**Objective:** Verify tasks can be synced again after clearing  
+**Preconditions:**
+- Clear All executed successfully
+- Tasks still exist in ProductivityQuest
+
+**Steps:**
+1. Execute Clear All
+2. Navigate to Calendar page
+3. Select tasks to sync
+4. Click "Sync Now"
+
+**Expected Result:**
+- ✅ New Google Calendar events created
+- ✅ Tasks receive new `googleEventId` values
+- ✅ Events appear in Google Calendar with correct times
+- ✅ No duplicate events (old ones were deleted)
+
+---
+
 ## Test Execution Checklist
 
 - [ ] OAuth setup flow completes successfully
@@ -445,6 +582,11 @@ Body: { syncEnabled: boolean, syncDirection: string }
 - [ ] Security: credentials encrypted
 - [ ] Performance: <2s page load
 - [ ] Mobile responsive (calendar grid adapts)
+- [ ] Clear All button visible when sync enabled
+- [ ] Clear All confirmation dialog works
+- [ ] Clear All deletes events from Google Calendar
+- [ ] Clear All clears task googleEventId references
+- [ ] Re-sync works after Clear All
 
 ---
 

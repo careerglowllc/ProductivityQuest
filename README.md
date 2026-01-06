@@ -618,8 +618,10 @@ interface ShopItem {
 - `POST /api/google-calendar/save-credentials` - Save OAuth Client ID and Secret
 - `GET /api/google-calendar/callback` - Handle OAuth callback from Google
 - `GET /api/google-calendar/events` - Get tasks/events for specified month (query: year, month)
-- `POST /api/google-calendar/sync-manual` - Trigger manual sync
+- `POST /api/google-calendar/sync` - Sync tasks to/from Google Calendar based on sync direction
+- `POST /api/google-calendar/sync-manual` - Trigger manual sync (updates timestamp only)
 - `POST /api/google-calendar/settings` - Update sync settings (enabled, direction)
+- `POST /api/google-calendar/clear-all` - Delete all synced events from Google Calendar and clear task references
 - `POST /api/google-calendar/disconnect` - Disconnect Google Calendar integration
 - `GET /api/google/auth` - Get OAuth authorization URL (legacy)
 - `GET /api/google/callback` - Handle OAuth callback (legacy)
@@ -1278,8 +1280,8 @@ POST /api/google-calendar/disconnect
 - User remains on setup page
 
 **Expired Refresh Token:**
-- Toast: "Google Calendar access expired. Please reconnect."
-- Redirect to setup page
+- Toast: "Your Google Calendar authorization has expired. Please disconnect and reconnect your Google account."
+- User should click Disconnect, then re-authorize
 
 **Network Timeout:**
 - Toast: "Sync failed. Please try again later."
@@ -1289,6 +1291,49 @@ POST /api/google-calendar/disconnect
 - Toast: "Google Calendar API is not enabled. Please enable it in Google Cloud Console."
 - Link to enable API in error message
 
+### ✨ Clear All Synced Events (NEW)
+
+**Purpose:** Reset the sync state by deleting all synced events from Google Calendar and clearing task references.
+
+**Use Cases:**
+- Clean up after bulk testing
+- Fix sync issues when events are out of sync
+- Start fresh with a clean calendar
+- Remove all ProductivityQuest events from Google Calendar
+
+**How It Works:**
+1. Click "Clear All Synced Events" button on Google Calendar Integration page
+2. Confirm the action in the dialog
+3. System deletes each event from Google Calendar using stored `googleEventId`
+4. System clears `googleEventId` and `googleCalendarId` from all tasks in database
+5. Tasks remain in ProductivityQuest but are no longer linked to Google Calendar
+
+**API Endpoint:**
+```typescript
+POST /api/google-calendar/clear-all
+
+Response:
+{
+  "success": true,
+  "deletedFromGoogle": 45,      // Events deleted from Google Calendar
+  "failedToDelete": 2,          // Failed deletions (e.g., already deleted)
+  "clearedFromTasks": 47,       // Task references cleared in database
+  "message": "Cleared 47 task references. Deleted 45 events from Google Calendar."
+}
+```
+
+**UI Elements:**
+- Orange "Clear All Synced Events" button below "Sync Now"
+- Confirmation dialog before executing
+- Loading spinner during operation
+- Toast notification with results
+
+**Important Notes:**
+- This operation cannot be undone
+- Events are permanently deleted from Google Calendar
+- Task data remains intact in ProductivityQuest
+- You can re-sync tasks after clearing
+
 ### Testing
 
 See [GOOGLE_CALENDAR_INTEGRATION_TEST_CASES.md](GOOGLE_CALENDAR_INTEGRATION_TEST_CASES.md) for:
@@ -1296,11 +1341,12 @@ See [GOOGLE_CALENDAR_INTEGRATION_TEST_CASES.md](GOOGLE_CALENDAR_INTEGRATION_TEST
 - 5 calendar display tests (month view, navigation, colors)
 - 4 task sync tests (import/export/both modes)
 - 4 error handling tests (invalid creds, timeouts, API disabled)
-- **Total:** 18 comprehensive test cases
+- 6 clear all events tests (bulk delete, error handling)
+- **Total:** 24 comprehensive test cases
 
 ---
 
-## �📋 Task Management Features (NEW)
+## 📋 Task Management Features (NEW)
 
 ### Select All / Deselect All
 
