@@ -2725,6 +2725,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("❌ [SYNC] Error during Google Calendar sync:", error);
       console.error("❌ [SYNC] Error stack:", error.stack);
+      
+      // Check for token expiration/revocation errors
+      const errorMessage = error.message || '';
+      const errorResponse = error.response?.data;
+      
+      if (errorMessage.includes('invalid_grant') || 
+          errorResponse?.error === 'invalid_grant' ||
+          errorMessage.includes('Token has been expired or revoked')) {
+        return res.status(401).json({ 
+          error: "Your Google Calendar authorization has expired. Please disconnect and reconnect your Google account.",
+          needsReauth: true
+        });
+      }
+      
       res.status(500).json({ 
         error: error.message || "Failed to sync with Google Calendar" 
       });
