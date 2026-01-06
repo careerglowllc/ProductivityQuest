@@ -2668,19 +2668,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Note: We no longer auto-import Google Calendar events as tasks
-      // Google Calendar events are displayed in the calendar view only
-      // ProductivityQuest tasks are the source of truth for the tasks list
-      
-      console.log('✅ [SYNC] Google Calendar is connected and ready');
-      console.log('📅 [SYNC] Calendar events will be displayed in calendar view only');
-      console.log('📝 [SYNC] Tasks list remains independent from Google Calendar events');
+      const syncDirection = user.googleCalendarSyncDirection || 'both';
+      console.log('📅 [SYNC] Sync direction:', syncDirection);
+
+      let exportResults = { success: 0, failed: 0, eventIds: new Map<number, string>() };
+      let importResults = { updated: 0, errors: 0 };
+
+      // Export tasks to Google Calendar (if direction is 'export' or 'both')
+      if (syncDirection === 'export' || syncDirection === 'both') {
+        console.log('📅 [SYNC] Exporting tasks to Google Calendar...');
+        
+        // Get all tasks with due dates that are not completed
+        const allTasks = await storage.getTasks(userId);
+        const tasksToExport = allTasks.filter((task: any) => 
+          task.dueDate && !task.completed
+        );
+        
+        console.log(`📅 [SYNC] Found ${tasksToExport.length} tasks to export`);
+        
+        if (tasksToExport.length > 0) {
+          // Ensure tasks have scheduledTime set for proper calendar display
+          for (const task of tasksToExport) {
+            if (!task.scheduledTime && task.dueDate) {
+              task.scheduledTime = new Date(
+                new Date(task.dueDate).setHours(9, 0, 0, 0)
+              );
+            }
+          }
+          
+          exportResults = await googleCalendar.syncTasks(tasksToExport, user, storage);
+          console.log('✅ [SYNC] Export complete:', exportResults.success, 'succeeded,', exportResults.failed, 'failed');
+        }
+      }
+
+      // Import from Google Calendar (if direction is 'import' or 'both')
+      if (syncDirection === 'import' || syncDirection === 'both') {
+        console.log('📅 [SYNC] Importing events from Google Calendar...');
+        importResults = await googleCalendar.importEventsToTasks(user, storage);
+        console.log('✅ [SYNC] Import complete:', importResults.updated, 'updated,', importResults.errors, 'errors');
+      }
+
+      // Update last sync timestamp
+      await storage.updateGoogleCalendarSettings(userId, {
+        googleCalendarLastSync: new Date()
+      });
 
       res.json({ 
         success: true,
-        imported: 0,
-        total: 0,
-        message: 'Google Calendar connected. Events visible in calendar view only.'
+        exported: exportResults.success,
+        exportFailed: exportResults.failed,
+        imported: importResults.updated,
+        importErrors: importResults.errors,
+        syncDirection,
+        message: `Sync complete! Exported ${exportResults.success} tasks, imported ${importResults.updated} events.`
       });
     } catch (error: any) {
       console.error("❌ [SYNC] Error during Google Calendar sync:", error);

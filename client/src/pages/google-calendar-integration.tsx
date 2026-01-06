@@ -92,9 +92,17 @@ export default function GoogleCalendarIntegration() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+      
+      // Build a descriptive message based on what was synced
+      const parts = [];
+      if (data.exported > 0) parts.push(`Exported ${data.exported} tasks to Google Calendar`);
+      if (data.exportFailed > 0) parts.push(`${data.exportFailed} exports failed`);
+      if (data.imported > 0) parts.push(`Imported ${data.imported} events`);
+      
       toast({
         title: "Sync Complete!",
-        description: `Synced ${data.imported || 0} events from Google Calendar`,
+        description: parts.length > 0 ? parts.join('. ') : 'Sync completed successfully',
       });
     },
     onError: (error: Error) => {
