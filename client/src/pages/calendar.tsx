@@ -1767,7 +1767,7 @@ export default function Calendar() {
                           const showTimeIndicator = isToday && hour === currentHour;
                           
                           return (
-                            <div key={idx} className={`bg-gray-900/20 ${isMobile ? 'p-0.5' : 'p-2'} min-h-[60px] relative overflow-hidden`}>
+                            <div key={idx} className={`bg-gray-900/20 ${isMobile ? 'p-0.5' : 'p-2'} min-h-[60px] relative overflow-hidden`} style={{ minWidth: 0 }}>
                               {/* Current Time Indicator */}
                               {showTimeIndicator && (
                                 <div 
@@ -1789,7 +1789,7 @@ export default function Calendar() {
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`${isMobile ? 'p-1 mb-0.5 text-[10px]' : 'p-1.5 mb-1 text-xs'} rounded border relative group overflow-hidden ${
+                                    className={`${isMobile ? 'p-1 mb-0.5 text-[10px]' : 'p-1.5 mb-1 text-xs'} rounded border relative group overflow-hidden w-full max-w-full ${
                                       isDraggable ? 'cursor-move' : 'cursor-pointer'
                                     } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                     style={eventStyle.backgroundColor ? { 
@@ -1883,7 +1883,7 @@ export default function Calendar() {
                           const showTimeIndicator = isToday && hour === currentHour;
                           
                           return (
-                            <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative overflow-hidden">
+                            <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative overflow-hidden" style={{ minWidth: 0 }}>
                               {/* Current Time Indicator */}
                               {showTimeIndicator && (
                                 <div 
@@ -1905,7 +1905,7 @@ export default function Calendar() {
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`p-1 mb-1 rounded text-xs border relative group overflow-hidden ${
+                                    className={`p-1 mb-1 rounded text-xs border relative group overflow-hidden w-full max-w-full ${
                                       isDraggable ? 'cursor-move' : 'cursor-pointer'
                                     } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
                                     style={eventStyle.backgroundColor ? { 
