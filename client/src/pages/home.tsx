@@ -83,6 +83,10 @@ export default function Home() {
   const [lastCategorizedTasks, setLastCategorizedTasks] = useState<any[]>([]);
   const [recategorizeQueue, setRecategorizeQueue] = useState<any[]>([]);
   
+  // Delete from Notion confirmation state
+  const [showDeleteNotionConfirm, setShowDeleteNotionConfirm] = useState(false);
+  const [deleteNotionTaskCount, setDeleteNotionTaskCount] = useState(0);
+  
   // Undo functionality state
   const [lastAction, setLastAction] = useState<{
     type: 'complete' | 'append-notion' | 'delete-notion' | 'import-notion' | 'export-notion' | null;
@@ -488,6 +492,19 @@ export default function Home() {
   const handleDeleteFromNotion = async () => {
     if (selectedTasks.size === 0) return;
 
+    // Count tasks that have Notion IDs (can be deleted from Notion)
+    const selectedTaskIds = Array.from(selectedTasks);
+    const tasksWithNotionId = (tasks as any[]).filter((task: any) => 
+      selectedTaskIds.includes(task.id) && task.notionId
+    );
+    
+    setDeleteNotionTaskCount(tasksWithNotionId.length);
+    setShowDeleteNotionConfirm(true);
+  };
+
+  const handleDeleteFromNotionConfirm = async () => {
+    setShowDeleteNotionConfirm(false);
+    
     try {
       const selectedTaskIds = Array.from(selectedTasks);
       const response = await apiRequest("POST", "/api/notion/delete", {
@@ -2092,6 +2109,44 @@ export default function Home() {
             </Button>
             <Button onClick={handleExportConfirm} className="bg-red-600 hover:bg-red-700">
               Export {exportTaskCount} Tasks
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete from Notion Confirmation Modal */}
+      <Dialog open={showDeleteNotionConfirm} onOpenChange={setShowDeleteNotionConfirm}>
+        <DialogContent className="bg-slate-800 border-2 border-red-600/40">
+          <DialogHeader>
+            <DialogTitle className="text-red-100 font-serif">Delete from Notion</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-red-200/70 mb-4">
+              This will delete {deleteNotionTaskCount} task{deleteNotionTaskCount !== 1 ? 's' : ''} from your Notion database.
+            </p>
+            <div className="bg-red-900/30 border border-red-600/50 rounded-lg p-4 backdrop-blur-sm">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-400 mr-2" />
+                <span className="text-red-200 font-medium">Warning:</span>
+              </div>
+              <p className="text-red-200/80 mt-1">
+                The selected tasks will be permanently removed from Notion. The tasks will remain in ProductivityQuest but will no longer be linked to Notion.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDeleteNotionConfirm(false)}
+              className="border-slate-600/40 text-slate-200 hover:bg-slate-600/20 hover:text-slate-100"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeleteFromNotionConfirm} 
+              className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border border-red-400/50"
+            >
+              Delete {deleteNotionTaskCount} Task{deleteNotionTaskCount !== 1 ? 's' : ''} from Notion
             </Button>
           </DialogFooter>
         </DialogContent>
