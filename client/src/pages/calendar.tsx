@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -2160,19 +2160,55 @@ export default function Calendar() {
                       Reschedule
                     </Button>
                     
-                    {/* Delete Button - For all events */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
-                      onClick={() => {
-                        setShowDeleteMenu(!showDeleteMenu);
-                        setShowColorPicker(false);
-                      }}
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Delete
-                    </Button>
+                    {/* Remove from Calendar Button - For ProductivityQuest events only */}
+                    {selectedEvent.source === 'productivityquest' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-orange-500/30 hover:bg-orange-500/10 text-orange-400 text-xs"
+                        onClick={() => handleRemoveFromCalendar(isTwoWaySync)}
+                      >
+                        <CalendarX2 className="w-3 h-3 mr-1" />
+                        Remove from Calendar
+                      </Button>
+                    )}
+                    
+                    {/* Delete Button - For ProductivityQuest events only (permanently deletes quest) */}
+                    {selectedEvent.source === 'productivityquest' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
+                        onClick={() => {
+                          setShowDeleteMenu(!showDeleteMenu);
+                          setShowColorPicker(false);
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Delete Quest
+                      </Button>
+                    )}
+                    
+                    {/* Delete Button - For Google Calendar events */}
+                    {selectedEvent.source === 'google' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
+                        onClick={() => {
+                          // Open in Google Calendar for deletion
+                          const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
+                          window.open(googleCalendarUrl, '_blank');
+                          toast({
+                            title: "Delete in Google Calendar",
+                            description: "Please delete this event in Google Calendar. It will sync automatically.",
+                          });
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Delete
+                      </Button>
+                    )}
 
                     {selectedEvent.source === 'google' && (
                       <Button
@@ -2282,51 +2318,58 @@ export default function Calendar() {
                         </div>
                       </>
                     ) : (
-                      // For ProductivityQuest events - remove from calendar (not delete quest!)
+                      // For ProductivityQuest events - Delete Quest permanently
                       <>
                         <Button
                           variant="outline"
                           size="sm"
-                          className={`w-full justify-start text-xs ${
-                            !isTwoWaySync 
-                              ? 'opacity-50 cursor-not-allowed border-gray-600' 
-                              : 'border-red-500/30 hover:bg-red-500/10'
-                          }`}
-                          disabled={!isTwoWaySync}
-                          onClick={() => handleRemoveFromCalendar(true)}
+                          className="w-full justify-start border-red-500/30 hover:bg-red-500/10 text-xs text-red-400"
+                          onClick={async () => {
+                            // Delete the task permanently
+                            const taskId = selectedEvent.id;
+                            try {
+                              const response = await fetch(`/api/tasks/${taskId}`, {
+                                method: 'DELETE',
+                                credentials: 'include',
+                              });
+                              
+                              if (response.ok) {
+                                toast({
+                                  title: "Quest Deleted",
+                                  description: "The quest has been permanently deleted.",
+                                  variant: "destructive",
+                                });
+                                
+                                // Refresh data
+                                queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+                                queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+                                
+                                // Close modals
+                                setSelectedEvent(null);
+                                setShowDeleteMenu(false);
+                              } else {
+                                throw new Error('Failed to delete quest');
+                              }
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Failed to delete quest. Please try again.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
                         >
                           <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                           <div className="text-left flex-1">
-                            <div className="text-xs font-medium">Remove from All Calendars</div>
-                            {!isTwoWaySync ? (
-                              <div className="text-[10px] text-gray-500 mt-0.5">
-                                Enable Two-Way Sync to use this
-                              </div>
-                            ) : (
-                              <div className="text-[10px] text-gray-500 mt-0.5">
-                                Quest stays in Quests page
-                              </div>
-                            )}
-                          </div>
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-xs"
-                          onClick={() => handleRemoveFromCalendar(false)}
-                        >
-                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
-                          <div className="text-left flex-1">
-                            <div className="text-xs font-medium">Remove from App Calendar</div>
+                            <div className="text-xs font-medium">Delete Quest Permanently</div>
                             <div className="text-[10px] text-gray-500 mt-0.5">
-                              Quest stays in Quests page
+                              Removes quest from everywhere
                             </div>
                           </div>
                         </Button>
 
-                        <div className="text-[10px] text-green-400/80 mt-1 p-1.5 bg-green-900/20 rounded border border-green-500/20">
-                          ✓ This only removes from calendar - your quest is safe!
+                        <div className="text-[10px] text-red-400/80 mt-1 p-1.5 bg-red-900/20 rounded border border-red-500/20">
+                          ⚠️ This will permanently delete the quest. Use "Remove from Calendar" to keep the quest.
                         </div>
                       </>
                     )}
