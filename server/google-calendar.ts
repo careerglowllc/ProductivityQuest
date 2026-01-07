@@ -167,11 +167,11 @@ export class GoogleCalendarService {
       description: `${task.description}\n\nGold Reward: ${task.goldValue}`,
       start: {
         dateTime: task.dueDate?.toISOString(),
-        timeZone: 'UTC',
+        timeZone: user.timezone || 'America/Los_Angeles',
       },
       end: {
         dateTime: new Date(task.dueDate!.getTime() + task.duration * 60000).toISOString(),
-        timeZone: 'UTC',
+        timeZone: user.timezone || 'America/Los_Angeles',
       },
       reminders: {
         useDefault: false,
@@ -255,11 +255,11 @@ export class GoogleCalendarService {
             description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
             start: {
               dateTime: startTime.toISOString(),
-              timeZone: 'UTC',
+              timeZone: user.timezone || 'America/Los_Angeles',
             },
             end: {
               dateTime: endTime.toISOString(),
-              timeZone: 'UTC',
+              timeZone: user.timezone || 'America/Los_Angeles',
             },
             reminders: {
               useDefault: false,
@@ -599,11 +599,11 @@ export class GoogleCalendarService {
         description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
         start: {
           dateTime: startTime.toISOString(),
-          timeZone: 'UTC',
+          timeZone: user.timezone || 'America/Los_Angeles',
         },
         end: {
           dateTime: endTime.toISOString(),
-          timeZone: 'UTC',
+          timeZone: user.timezone || 'America/Los_Angeles',
         },
         colorId: this.getColorForImportance(task.importance || undefined),
       };
