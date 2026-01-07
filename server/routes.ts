@@ -754,12 +754,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (updateData.dueDate !== undefined || updateData.duration !== undefined || updateData.scheduledTime !== undefined)) {
         try {
           const user = await storage.getUser(userId);
-          if (user && (user.googleCalendarAccessToken || user.googleCalendarRefreshToken)) {
+          // Check for per-user OAuth credentials OR legacy credentials
+          const hasGoogleAuth = (user?.googleCalendarAccessToken && user?.googleCalendarRefreshToken) ||
+                                (user?.googleAccessToken && user?.googleRefreshToken);
+          
+          if (user && hasGoogleAuth) {
             console.log(`📅 [PATCH TASK] Syncing task ${task.id} to Google Calendar`);
-            await googleCalendar.updateEvent(task, user);
+            console.log(`   - Task title: "${task.title}"`);
+            console.log(`   - Google Event ID: ${task.googleEventId}`);
+            console.log(`   - New scheduledTime: ${task.scheduledTime}`);
+            console.log(`   - New duration: ${task.duration}`);
+            const result = await googleCalendar.updateEvent(task, user);
+            if (result) {
+              console.log(`✅ [PATCH TASK] Successfully updated Google Calendar event`);
+            } else {
+              console.log(`⚠️ [PATCH TASK] Google Calendar update returned null (no changes or event not found)`);
+            }
+          } else {
+            console.log(`⚠️ [PATCH TASK] No Google Calendar credentials found for user`);
           }
-        } catch (error) {
-          console.error('Failed to update Google Calendar event:', error);
+        } catch (error: any) {
+          console.error('❌ [PATCH TASK] Failed to update Google Calendar event:', error.message);
           // Don't fail the request if Google Calendar sync fails
         }
       }
