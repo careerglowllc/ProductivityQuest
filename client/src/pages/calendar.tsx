@@ -1260,7 +1260,7 @@ export default function Calendar() {
     calendarDays.push(
       <div
         key={day}
-        className={`${isMobile ? 'min-h-12 p-0.5' : 'min-h-24 p-2'} border border-purple-500/20 bg-gray-900/40 hover:bg-gray-800/60 transition-colors cursor-pointer ${
+        className={`${isMobile ? 'min-h-12 p-0.5' : 'min-h-24 p-2'} border border-purple-500/20 bg-gray-900/40 hover:bg-gray-800/60 transition-colors cursor-pointer overflow-hidden ${
           isToday(day) ? 'ring-2 ring-yellow-400/50 bg-yellow-400/10' : ''
         }`}
       >
@@ -1767,7 +1767,7 @@ export default function Calendar() {
                           const showTimeIndicator = isToday && hour === currentHour;
                           
                           return (
-                            <div key={idx} className={`bg-gray-900/20 ${isMobile ? 'p-0.5' : 'p-2'} min-h-[60px] relative`}>
+                            <div key={idx} className={`bg-gray-900/20 ${isMobile ? 'p-0.5' : 'p-2'} min-h-[60px] relative overflow-hidden`}>
                               {/* Current Time Indicator */}
                               {showTimeIndicator && (
                                 <div 
@@ -1883,7 +1883,7 @@ export default function Calendar() {
                           const showTimeIndicator = isToday && hour === currentHour;
                           
                           return (
-                            <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative">
+                            <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative overflow-hidden">
                               {/* Current Time Indicator */}
                               {showTimeIndicator && (
                                 <div 
