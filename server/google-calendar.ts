@@ -162,15 +162,21 @@ export class GoogleCalendarService {
     const auth = this.getAuthenticatedClient(user);
     const calendar = google.calendar({ version: 'v3', auth });
 
+    // Format datetime without timezone suffix so Google interprets it in the specified timezone
+    const formatDateTimeLocal = (date: Date) => date.toISOString().replace('Z', '');
+    
+    const startTime = task.dueDate!;
+    const endTime = new Date(task.dueDate!.getTime() + task.duration * 60000);
+
     const event = {
       summary: task.title,
       description: `${task.description}\n\nGold Reward: ${task.goldValue}`,
       start: {
-        dateTime: task.dueDate?.toISOString(),
+        dateTime: formatDateTimeLocal(startTime),
         timeZone: user.timezone || 'America/Los_Angeles',
       },
       end: {
-        dateTime: new Date(task.dueDate!.getTime() + task.duration * 60000).toISOString(),
+        dateTime: formatDateTimeLocal(endTime),
         timeZone: user.timezone || 'America/Los_Angeles',
       },
       reminders: {
@@ -250,15 +256,20 @@ export class GoogleCalendarService {
           console.log(`   - Importance: ${task.importance}`);
           console.log(`   - Existing Google Event ID: ${task.googleEventId || 'none'}`);
           
+          // Format datetime without timezone suffix so Google interprets it in the specified timezone
+          const formatDateTimeLocal = (date: Date) => {
+            return date.toISOString().replace('Z', '');
+          };
+          
           const eventData = {
             summary: task.title,
             description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
             start: {
-              dateTime: startTime.toISOString(),
+              dateTime: formatDateTimeLocal(startTime),
               timeZone: user.timezone || 'America/Los_Angeles',
             },
             end: {
-              dateTime: endTime.toISOString(),
+              dateTime: formatDateTimeLocal(endTime),
               timeZone: user.timezone || 'America/Los_Angeles',
             },
             reminders: {
@@ -589,6 +600,9 @@ export class GoogleCalendarService {
       
       const endTime = new Date(startTime.getTime() + task.duration * 60000);
       
+      // Format datetime without timezone suffix so Google interprets it in the specified timezone
+      const formatDateTimeLocal = (date: Date) => date.toISOString().replace('Z', '');
+      
       console.log(`📅 [UPDATE EVENT] Task ${task.id} "${task.title}"`);
       console.log(`   - Start time: ${startTime.toISOString()}`);
       console.log(`   - End time: ${endTime.toISOString()}`);
@@ -598,11 +612,11 @@ export class GoogleCalendarService {
         summary: task.title,
         description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
         start: {
-          dateTime: startTime.toISOString(),
+          dateTime: formatDateTimeLocal(startTime),
           timeZone: user.timezone || 'America/Los_Angeles',
         },
         end: {
-          dateTime: endTime.toISOString(),
+          dateTime: formatDateTimeLocal(endTime),
           timeZone: user.timezone || 'America/Los_Angeles',
         },
         colorId: this.getColorForImportance(task.importance || undefined),
