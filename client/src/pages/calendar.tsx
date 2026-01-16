@@ -669,7 +669,33 @@ export default function Calendar() {
       // For ProductivityQuest tasks - UNSCHEDULE (not delete!)
       // This removes from calendar but keeps the quest in Quests page
       const taskId = selectedEvent.id;
+      const eventToRemove = selectedEvent;
       
+      // OPTIMISTIC UPDATE: Immediately remove from UI
+      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+      
+      // Remove from cache immediately
+      if (previousData) {
+        queryClient.setQueryData(queryKey, {
+          ...previousData,
+          events: previousData.events.filter(e => e.id !== eventToRemove.id)
+        });
+      }
+      
+      // Close modals immediately for snappy feel
+      setSelectedEvent(null);
+      setShowDeleteMenu(false);
+      
+      // Show immediate feedback
+      toast({
+        title: "Removed from Calendar",
+        description: removeFromGoogleToo 
+          ? "Event removed from calendar. Quest still available in Quests page." 
+          : "Event removed from app calendar. Quest still available in Quests page.",
+      });
+      
+      // Now do the backend call
       const response = await fetch(`/api/tasks/${taskId}/unschedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -679,24 +705,18 @@ export default function Calendar() {
         })
       });
 
-      if (response.ok) {
-        toast({
-          title: "Removed from Calendar",
-          description: removeFromGoogleToo 
-            ? "Event removed from calendar. Quest still available in Quests page." 
-            : "Event removed from app calendar. Quest still available in Quests page.",
-        });
-        
-        // Refresh calendar data
-        queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-        
-        // Close modals
-        setSelectedEvent(null);
-        setShowDeleteMenu(false);
-      } else {
+      if (!response.ok) {
+        // Revert optimistic update on failure
+        if (previousData) {
+          queryClient.setQueryData(queryKey, previousData);
+        }
         throw new Error('Failed to remove from calendar');
       }
+      
+      // Refresh to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      
     } catch (error) {
       console.error('Failed to remove from calendar:', error);
       toast({
@@ -704,6 +724,8 @@ export default function Calendar() {
         description: "Failed to remove from calendar. Please try again.",
         variant: "destructive",
       });
+      // Refresh to restore correct state
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
     }
   };
 
