@@ -1,4 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, index } from "drizzle-orm/pg-core";
+
+// Helper for timestamp with timezone
+const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { extractNotionDatabaseId } from "./notionUtils";
@@ -63,11 +66,11 @@ export const tasks = pgTable("tasks", {
   details: text("details"),
   duration: integer("duration").notNull(), // in minutes
   goldValue: integer("gold_value").notNull(),
-  dueDate: timestamp("due_date"),
-  scheduledTime: timestamp("scheduledTime"), // Timestamp when task is scheduled in calendar (if null, defaults to 9 AM on due date)
+  dueDate: timestamptz("due_date"),
+  scheduledTime: timestamptz("scheduledTime"), // Timestamp when task is scheduled in calendar (if null, defaults to 9 AM on due date)
   completed: boolean("completed").default(false),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamptz("completed_at"),
+  createdAt: timestamptz("created_at").defaultNow(),
   importance: text("importance"),
   kanbanStage: text("kanban_stage"),
   recurType: text("recur_type"),
@@ -78,7 +81,7 @@ export const tasks = pgTable("tasks", {
   delegationTask: boolean("delegation_task").default(false),
   velin: boolean("velin").default(false),
   recycled: boolean("recycled").default(false),
-  recycledAt: timestamp("recycled_at"),
+  recycledAt: timestamptz("recycled_at"),
   recycledReason: text("recycled_reason"), // "completed" or "deleted"
   skillTags: jsonb("skill_tags").$type<string[]>().default([]), // AI-generated skill tags
   calendarColor: text("calendar_color"), // Hex color from Google Calendar or custom
