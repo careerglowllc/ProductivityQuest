@@ -1832,6 +1832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             importance: notionTask.importance,
             kanbanStage: notionTask.kanbanStage,
             recurType: notionTask.recurType,
+            businessWorkFilter: notionTask.businessWorkFilter || null,
             campaign: notionTask.campaign || "unassigned",
             googleEventId: notionTask.googleEventId || null, // Import Google Calendar Event ID if present
             apple: notionTask.apple,

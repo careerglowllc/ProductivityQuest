@@ -218,6 +218,10 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                 // Options: unassigned, Main, Side
                 const campaign = properties.Campaign?.select?.name || "unassigned";
 
+                // Extract Business/Work Filter from "Business/Work Filter" property (Select type)
+                // Options: Apple, General, MW
+                const businessWorkFilter = properties["Business/Work Filter"]?.select?.name || null;
+
                 // Extract details from "Details" property (Text type)
                 const details = properties.Details?.rich_text?.[0]?.plain_text || "";
 
@@ -238,6 +242,7 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                     kanbanStage,
                     recurType,
                     campaign,
+                    businessWorkFilter,
                     googleEventId,
                     apple: false,
                     smartPrep: false,
