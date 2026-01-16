@@ -165,9 +165,26 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                 console.log(`📥 [NOTION getTasks] Processing page ${index + 1}/${allResults.length}`);
 
                 // Extract due date from "Due" property (Date type)
-                const dueDate = properties.Due?.date?.start
-                    ? new Date(properties.Due.date.start)
-                    : null;
+                // Notion returns dates in ISO format, possibly with timezone
+                const dueDateRaw = properties.Due?.date?.start;
+                console.log(`📥 [NOTION] Raw due date for task: ${dueDateRaw}`);
+                
+                let dueDate: Date | null = null;
+                if (dueDateRaw) {
+                    // If it's just a date (YYYY-MM-DD) without time, parse it as local date
+                    // to avoid timezone conversion issues
+                    if (dueDateRaw.length === 10) {
+                        // Date only format: "2026-01-16"
+                        // Parse as local date at noon to avoid day boundary issues
+                        const [year, month, day] = dueDateRaw.split('-').map(Number);
+                        dueDate = new Date(year, month - 1, day, 12, 0, 0);
+                        console.log(`📥 [NOTION] Parsed date-only as local noon: ${dueDate.toISOString()}`);
+                    } else {
+                        // Full datetime format with timezone: "2026-01-16T18:00:00.000-08:00"
+                        dueDate = new Date(dueDateRaw);
+                        console.log(`📥 [NOTION] Parsed datetime: ${dueDate.toISOString()}`);
+                    }
+                }
 
                 // Extract duration from "Min to Complete" property (Number type)
                 // Default to 30 minutes if not found or invalid

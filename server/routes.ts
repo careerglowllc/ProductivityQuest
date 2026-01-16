@@ -673,10 +673,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               task.dueDate) {
             console.log(`📅 [INSTANT-SYNC] Adding task ${task.id} to calendar...`);
             
-            // Set scheduledTime to dueDate at 9 AM if not set
-            const scheduledTime = task.scheduledTime || new Date(
-              new Date(task.dueDate).setHours(9, 0, 0, 0)
-            );
+            // Use dueDate directly as scheduledTime - it already has the correct time from Notion
+            // The dueDate from Notion is already in UTC representing the user's intended time
+            const scheduledTime = task.scheduledTime || task.dueDate;
             
             // Get color based on importance
             const getColorForImportance = (importance: string | null | undefined): string => {
@@ -950,10 +949,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        // Set scheduledTime to the dueDate at 9 AM if not already set
-        const scheduledTime = task.scheduledTime || new Date(
-          new Date(task.dueDate).setHours(9, 0, 0, 0)
-        );
+        // Use dueDate directly as scheduledTime - it already has the correct time from Notion
+        // The dueDate from Notion is already in UTC representing the user's intended time
+        const scheduledTime = task.scheduledTime || task.dueDate;
 
         // Set calendarColor based on importance if not already set
         const calendarColor = task.calendarColor || getColorForImportance(task.importance);
@@ -2410,10 +2408,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First, set scheduledTime and calendarColor on all tasks being synced
       // This ensures they appear correctly in the app calendar
       for (const task of tasksToSync) {
-        // Default to 9am if no scheduled time - more reasonable than midnight
-        const scheduledTime = task.scheduledTime || new Date(
-          new Date(task.dueDate!).setHours(9, 0, 0, 0)
-        );
+        // Use existing scheduledTime or fall back to the dueDate
+        // Don't use setHours(9,0,0,0) as that creates UTC time issues
+        const scheduledTime = task.scheduledTime || new Date(task.dueDate!);
         const calendarColor = task.calendarColor || getColorForImportance(task.importance);
         
         await storage.updateTask(task.id, { scheduledTime, calendarColor }, userId);
@@ -2711,9 +2708,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Ensure tasks have scheduledTime set for proper calendar display
           for (const task of tasksToExport) {
             if (!task.scheduledTime && task.dueDate) {
-              task.scheduledTime = new Date(
-                new Date(task.dueDate).setHours(9, 0, 0, 0)
-              );
+              // Use dueDate directly instead of setHours(9,0,0,0) to avoid UTC issues
+              task.scheduledTime = new Date(task.dueDate);
             }
           }
           
@@ -3002,6 +2998,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const task of tasksInMonth) {
         // Use scheduledTime directly (we already filtered for it above)
         const startTime = new Date(task.scheduledTime!);
+        
+        // Debug logging for timezone issues
+        if (task.title.includes('Cardio')) {
+          console.log('🔍 [DEBUG] Cardio task scheduledTime:', task.scheduledTime);
+          console.log('🔍 [DEBUG] Cardio startTime object:', startTime);
+          console.log('🔍 [DEBUG] Cardio startTime.toISOString():', startTime.toISOString());
+        }
         
         // Calculate end time based on task duration
         const endTime = new Date(startTime);
@@ -3825,8 +3828,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the original schedule before sorting
       const originalSchedule = tasksForSorting.map(task => ({
         taskId: task.id,
-        startTime: task.currentStartTime || new Date(targetDate.setHours(9, 0, 0, 0)).toISOString(),
-        endTime: task.currentEndTime || new Date(targetDate.setHours(10, 0, 0, 0)).toISOString(),
+        startTime: task.currentStartTime || new Date(targetDate).toISOString(),
+        endTime: task.currentEndTime || new Date(new Date(targetDate).getTime() + 60 * 60 * 1000).toISOString(),
       }));
 
       // Run the ML sorting algorithm with timezone offset
