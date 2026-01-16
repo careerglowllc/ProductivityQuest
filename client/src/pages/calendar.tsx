@@ -1964,14 +1964,14 @@ export default function Calendar() {
         {/* Event Detail Modal */}
         {selectedEvent && (
           <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-12 overflow-y-auto"
             onClick={() => {
               setSelectedEvent(null);
               setShowColorPicker(false);
             }}
           >
             <Card 
-              className="bg-gray-900/95 border-purple-500/30 max-w-lg w-full relative"
+              className="bg-gray-900/95 border-purple-500/30 max-w-lg w-full relative mb-8"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header with colored accent */}
