@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2 } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -1427,9 +1427,10 @@ export default function Calendar() {
                     variant="destructive"
                     onClick={handleDeleteSelectedEvents}
                     className="h-7 px-2 text-xs"
+                    title="Remove from calendar (quests will remain in Quests page)"
                   >
-                    <Trash2 className="w-3 h-3 mr-1" />
-                    Remove
+                    <CalendarMinus className="w-3 h-3 mr-1" />
+                    Remove from Calendar
                   </Button>
                   <Button
                     size="sm"
