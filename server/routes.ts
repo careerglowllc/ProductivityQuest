@@ -1423,11 +1423,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { removeFromGoogleCalendar } = req.body;
 
+      console.log(`📅 [UNSCHEDULE] Starting unschedule for task ${id}, removeFromGoogleCalendar: ${removeFromGoogleCalendar}`);
+
       // Get the task first
       const task = await storage.getTask(id, userId);
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
+
+      console.log(`📅 [UNSCHEDULE] Task found: "${task.title}", scheduledTime: ${task.scheduledTime}, googleEventId: ${task.googleEventId}`);
 
       // If task has a Google Calendar event and user wants to remove it
       if (removeFromGoogleCalendar && task.googleEventId) {
@@ -1450,11 +1454,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Clear the scheduled time and Google event ID (but keep the task!)
+      console.log(`📅 [UNSCHEDULE] Updating task ${id} with scheduledTime: null, googleEventId: null`);
       const updatedTask = await storage.updateTask(id, {
         scheduledTime: null,
         googleEventId: null,
         googleCalendarId: null,
       }, userId);
+
+      console.log(`📅 [UNSCHEDULE] Updated task result: scheduledTime: ${updatedTask?.scheduledTime}, googleEventId: ${updatedTask?.googleEventId}`);
 
       res.json({ 
         success: true, 
@@ -1793,27 +1800,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
       
-      // Get existing tasks if we need to skip duplicates
-      let existingNotionIds = new Set<string>();
-      if (!includeDuplicates) {
-        const existingTasks = await storage.getTasks(userId);
-        existingNotionIds = new Set(
-          existingTasks
-            .filter((task: any) => task.notionId)
-            .map((task: any) => task.notionId)
-        );
-      }
+      // ALWAYS get existing tasks to check for notionId matches for updating
+      const existingTasks = await storage.getTasks(userId);
+      // Map notionId -> task for quick lookup
+      const existingTasksByNotionId = new Map<string, any>(
+        existingTasks
+          .filter((task: any) => task.notionId)
+          .map((task: any) => [task.notionId, task])
+      );
       
       let importedCount = 0;
+      let updatedCount = 0;
       const importedTaskIds: number[] = []; // Track imported task IDs for undo
+      const updatedTaskIds: number[] = []; // Track updated task IDs
 
       for (const notionTask of notionTasks) {
         try {
-          // Skip if duplicate and user chose to skip duplicates
-          if (!includeDuplicates && existingNotionIds.has(notionTask.notionId)) {
-            continue;
-          }
-          
           // Skip completed tasks from Notion - they belong in recycling
           if (notionTask.isCompleted) {
             continue;
@@ -1841,17 +1843,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
             velin: notionTask.velin,
           };
 
-          const createdTask = await storage.createTask(taskData);
-          if (createdTask && createdTask.id) {
-            importedTaskIds.push(createdTask.id);
+          // Check if this task already exists in our database
+          const existingTask = existingTasksByNotionId.get(notionTask.notionId);
+          
+          if (existingTask) {
+            // UPDATE existing task with new data from Notion
+            // This ensures date changes, title changes, etc. are synced
+            const updateData = {
+              title: notionTask.title,
+              description: notionTask.description,
+              details: notionTask.details,
+              duration: notionTask.duration,
+              goldValue: notionTask.goldValue,
+              dueDate: notionTask.dueDate,
+              scheduledTime: notionTask.dueDate, // Update scheduledTime to match new due date
+              importance: notionTask.importance,
+              kanbanStage: notionTask.kanbanStage,
+              recurType: notionTask.recurType,
+              businessWorkFilter: notionTask.businessWorkFilter || null,
+              campaign: notionTask.campaign || "unassigned",
+              googleEventId: notionTask.googleEventId || existingTask.googleEventId, // Preserve existing if not in Notion
+              apple: notionTask.apple,
+              smartPrep: notionTask.smartPrep,
+              delegationTask: notionTask.delegationTask,
+              velin: notionTask.velin,
+            };
+            
+            await storage.updateTask(existingTask.id, updateData, userId);
+            updatedTaskIds.push(existingTask.id);
+            updatedCount++;
+            console.log(`📝 [NOTION-IMPORT] Updated existing task: "${notionTask.title}" (ID: ${existingTask.id}) with new due date: ${notionTask.dueDate}`);
+          } else {
+            // Skip creating new tasks if user chose to skip duplicates and we're doing a sync
+            // (Note: this path is for truly NEW tasks from Notion, not duplicates)
+            if (!includeDuplicates) {
+              // When not including duplicates, we still want to create tasks that don't exist yet
+              // The "includeDuplicates" flag is a bit of a misnomer - it really means "create new tasks"
+            }
+            
+            // Create new task
+            const createdTask = await storage.createTask(taskData);
+            if (createdTask && createdTask.id) {
+              importedTaskIds.push(createdTask.id);
+            }
+            importedCount++;
+            console.log(`✨ [NOTION-IMPORT] Created new task: "${notionTask.title}"`);
           }
-          importedCount++;
         } catch (error) {
           console.error("Error importing task:", error);
         }
       }
 
-      res.json({ success: true, count: importedCount, importedTaskIds });
+      res.json({ 
+        success: true, 
+        count: importedCount, 
+        updatedCount,
+        importedTaskIds,
+        updatedTaskIds
+      });
     } catch (error: any) {
       console.error("Notion import error:", error);
       
@@ -2931,12 +2980,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Also fetch ProductivityQuest tasks for this month
       // Only show tasks that have been explicitly scheduled (have scheduledTime)
       const tasks = await storage.getTasks(userId);
+      console.log(`📅 [CALENDAR-EVENTS] Total tasks fetched: ${tasks.length}`);
+      
+      const tasksWithScheduledTime = tasks.filter(task => task.scheduledTime);
+      console.log(`📅 [CALENDAR-EVENTS] Tasks with scheduledTime: ${tasksWithScheduledTime.length}`);
+      
       const tasksInMonth = tasks.filter(task => {
         // Only show tasks that have a scheduledTime (explicitly added to calendar)
         if (!task.scheduledTime) return false;
         const scheduledDate = new Date(task.scheduledTime);
         return scheduledDate >= startDate && scheduledDate <= endDate;
       });
+      
+      console.log(`📅 [CALENDAR-EVENTS] Tasks in month with scheduledTime: ${tasksInMonth.length}`);
 
       // Create a set of Google Event IDs that belong to ProductivityQuest tasks
       // This prevents showing duplicates - we show the PQ task, not the Google event
@@ -2952,6 +3008,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const task of tasksInMonth) {
         scheduledTaskIds.add(task.id);
       }
+      
+      // Create a set of ALL task IDs (scheduled or not) to filter out orphaned Google Calendar events
+      // These are events that were created by PQ but the task was unscheduled
+      const allTaskIds = new Set<number>();
+      for (const task of tasks) {
+        allTaskIds.add(task.id);
+      }
 
       // Combine Google Calendar events and ProductivityQuest tasks
       const events: any[] = [];
@@ -2964,15 +3027,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
-        // Also skip if the description contains a ProductivityQuest Task ID that we have scheduled
-        // This handles the case where the googleEventId changed (event deleted and recreated)
+        // Check if the description contains a ProductivityQuest Task ID
         const description = gEvent.description || '';
         const taskIdMatch = description.match(/ProductivityQuest Task ID:\s*(\d+)/);
         if (taskIdMatch) {
           const taskId = parseInt(taskIdMatch[1], 10);
-          if (scheduledTaskIds.has(taskId)) {
-            console.log(`📅 [CALENDAR] Skipping duplicate Google event - contains PQ Task ID ${taskId} which is already scheduled`);
-            continue;
+          
+          // If this task exists in our database (regardless of scheduled status),
+          // this is an orphaned Google Calendar event that should be deleted
+          if (allTaskIds.has(taskId)) {
+            // Check if the task is unscheduled (scheduledTime is null)
+            const task = tasks.find(t => t.id === taskId);
+            if (task && !task.scheduledTime) {
+              console.log(`📅 [CALENDAR] Found orphaned Google event for unscheduled PQ Task ID ${taskId} - "${gEvent.summary}" - deleting from Google Calendar`);
+              
+              // Delete the orphaned event from Google Calendar in the background
+              try {
+                await googleCalendar.deleteEvent(user!, gEvent.id, gEvent.calendarId || 'primary');
+                console.log(`✅ [CALENDAR] Deleted orphaned Google Calendar event ${gEvent.id}`);
+              } catch (deleteError: any) {
+                console.warn(`⚠️ [CALENDAR] Failed to delete orphaned event: ${deleteError.message}`);
+              }
+              
+              continue;
+            }
+            
+            // If task is scheduled, skip to avoid duplicate
+            if (scheduledTaskIds.has(taskId)) {
+              console.log(`📅 [CALENDAR] Skipping duplicate Google event - contains PQ Task ID ${taskId} which is already scheduled`);
+              continue;
+            }
           }
         }
         

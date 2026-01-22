@@ -245,11 +245,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTask(id: number, task: Partial<Task>, userId: string): Promise<Task | undefined> {
+    console.log(`🗄️ [storage.updateTask] Updating task ${id} with:`, JSON.stringify(task, null, 2));
     const [updatedTask] = await db
       .update(tasks)
       .set(task)
       .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
       .returning();
+    console.log(`🗄️ [storage.updateTask] Result - scheduledTime: ${updatedTask?.scheduledTime}, googleEventId: ${updatedTask?.googleEventId}`);
     return updatedTask;
   }
 

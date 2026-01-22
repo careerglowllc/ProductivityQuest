@@ -843,9 +843,21 @@ export default function Home() {
         });
       }
       
+      // Build description showing both imported and updated counts
+      let description = '';
+      if (result.count > 0 && result.updatedCount > 0) {
+        description = `Imported ${result.count} new tasks and updated ${result.updatedCount} existing tasks from Notion`;
+      } else if (result.count > 0) {
+        description = `Imported ${result.count} new tasks from Notion`;
+      } else if (result.updatedCount > 0) {
+        description = `Updated ${result.updatedCount} existing tasks from Notion`;
+      } else {
+        description = 'No changes detected from Notion';
+      }
+      
       toast({
         title: "Import Complete",
-        description: `Imported ${result.count} tasks from Notion`,
+        description,
       });
     } catch (error) {
       toast({
