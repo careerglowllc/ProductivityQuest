@@ -1,0 +1,22 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# iOS
+ios/App/Pods/
+ios/App/App.xcworkspace/
+ios/App/build/
+*.xcuserstate
+*.xcworkspace
+xcuserdata/
+
+# Capacitor
+.capacitor/

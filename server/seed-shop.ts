@@ -1,0 +1,258 @@
+import { db } from "./db";
+import { shopItems } from "@shared/schema";
+
+// Default global shop items that all users will see
+const defaultShopItems = [
+  {
+    userId: null,
+    name: "Health Potion",
+    description: "A refreshing potion to restore your vitality",
+    cost: 50,
+    icon: "🧪",
+    category: "consumables",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Enchanted Scroll",
+    description: "Ancient knowledge waiting to be discovered",
+    cost: 100,
+    icon: "📜",
+    category: "items",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Dragon's Gem",
+    description: "A rare and valuable treasure",
+    cost: 250,
+    icon: "💎",
+    category: "treasures",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Master's Trophy",
+    description: "Symbol of great achievement",
+    cost: 500,
+    icon: "🏆",
+    category: "rewards",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Royal Crown",
+    description: "Fit for a champion of productivity",
+    cost: 1000,
+    icon: "👑",
+    category: "treasures",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Magic Sword",
+    description: "A legendary weapon for legendary tasks",
+    cost: 750,
+    icon: "⚔️",
+    category: "equipment",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Crystal Ball",
+    description: "See your future success",
+    cost: 300,
+    icon: "🔮",
+    category: "items",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Golden Key",
+    description: "Unlock new possibilities",
+    cost: 150,
+    icon: "🔑",
+    category: "items",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Forest Guardian",
+    description: "Protection from ancient woods",
+    cost: 200,
+    icon: "🌲",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Blooming Flower",
+    description: "Beauty and growth in one",
+    cost: 120,
+    icon: "🌸",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Starlight Blessing",
+    description: "Guided by the stars above",
+    cost: 180,
+    icon: "⭐",
+    category: "celestial",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Mountain Peak",
+    description: "Reach new heights",
+    cost: 220,
+    icon: "🏔️",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Ocean Wave",
+    description: "Flow with natural rhythm",
+    cost: 160,
+    icon: "🌊",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Sunset Glory",
+    description: "End your day in beauty",
+    cost: 140,
+    icon: "🌅",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Ancient Tree",
+    description: "Wisdom of the ages",
+    cost: 210,
+    icon: "🌳",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Butterfly Spirit",
+    description: "Transform and evolve",
+    cost: 130,
+    icon: "🦋",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Moonlight Charm",
+    description: "Calm of the night",
+    cost: 150,
+    icon: "🌙",
+    category: "celestial",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Rainbow Bridge",
+    description: "Connect heaven and earth",
+    cost: 240,
+    icon: "🌈",
+    category: "celestial",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Herbal Remedy",
+    description: "Natural healing power",
+    cost: 145,
+    icon: "🌿",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Cherry Blossom",
+    description: "Spring's fleeting beauty",
+    cost: 190,
+    icon: "🌺",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Desert Cactus",
+    description: "Thrive in any condition",
+    cost: 155,
+    icon: "🌵",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Autumn Leaf",
+    description: "Embrace change gracefully",
+    cost: 110,
+    icon: "🍂",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Paradise Island",
+    description: "Your personal escape",
+    cost: 280,
+    icon: "🏝️",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Sunflower Joy",
+    description: "Always face the light",
+    cost: 125,
+    icon: "🌻",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Maple Leaf",
+    description: "Symbol of strength",
+    cost: 135,
+    icon: "🍁",
+    category: "nature",
+    isGlobal: true,
+  },
+  {
+    userId: null,
+    name: "Four Leaf Clover",
+    description: "Ultimate good fortune",
+    cost: 350,
+    icon: "🍀",
+    category: "nature",
+    isGlobal: true,
+  },
+];
+
+async function seedShopItems() {
+  try {
+    console.log("Seeding default shop items...");
+    
+    for (const item of defaultShopItems) {
+      await db.insert(shopItems).values(item as any).onConflictDoNothing();
+    }
+    
+    console.log("✅ Default shop items seeded successfully!");
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Error seeding shop items:", error);
+    process.exit(1);
+  }
+}
+
+seedShopItems();
