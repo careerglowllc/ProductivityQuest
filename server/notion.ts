@@ -165,7 +165,7 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                 console.log(`📥 [NOTION getTasks] Processing page ${index + 1}/${allResults.length}`);
 
                 // Extract due date from "Due" property (Date type)
-                // Notion returns dates in ISO format, possibly with timezone
+                // Notion returns dates in ISO format with timezone offset
                 const dueDateRaw = properties.Due?.date?.start;
                 console.log(`📥 [NOTION] Raw due date for task: ${dueDateRaw}`);
                 
@@ -180,22 +180,11 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                         dueDate = new Date(year, month - 1, day, 12, 0, 0);
                         console.log(`📥 [NOTION] Parsed date-only as local noon: ${dueDate.toISOString()}`);
                     } else {
-                        // Full datetime format with timezone: "2026-01-22T19:09:00.000-08:00"
-                        // We need to PRESERVE the local date/time the user set in Notion
-                        // Extract the date and time parts WITHOUT timezone conversion
-                        
-                        // Parse the ISO string to extract local date/time components
-                        const isoMatch = dueDateRaw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
-                        if (isoMatch) {
-                            const [, year, month, day, hour, minute, second] = isoMatch.map(Number);
-                            // Create date using LOCAL components (this preserves the user's intended time)
-                            dueDate = new Date(year, month - 1, day, hour, minute, second);
-                            console.log(`📥 [NOTION] Parsed datetime preserving local time: ${dueDate.toISOString()} (local: ${year}-${month}-${day} ${hour}:${minute})`);
-                        } else {
-                            // Fallback to standard parsing
-                            dueDate = new Date(dueDateRaw);
-                            console.log(`📥 [NOTION] Parsed datetime (fallback): ${dueDate.toISOString()}`);
-                        }
+                        // Full datetime format with timezone: "2026-01-22T04:38:00.000-08:00"
+                        // JavaScript's Date constructor correctly parses ISO 8601 with timezone
+                        // This will convert to UTC internally, which is what we want for storage
+                        dueDate = new Date(dueDateRaw);
+                        console.log(`📥 [NOTION] Parsed datetime: ${dueDate.toISOString()} (from: ${dueDateRaw})`);
                     }
                 }
 
