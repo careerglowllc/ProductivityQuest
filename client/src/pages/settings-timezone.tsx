@@ -70,6 +70,18 @@ export default function TimezoneSettingsPage() {
     }
   };
 
+  const handleAutoDetect = () => {
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setSelectedTimezone(browserTimezone);
+    // If the detected timezone is different from current, show save button
+    if (browserTimezone !== currentTimezone) {
+      toast({
+        title: "Timezone detected",
+        description: `Detected: ${browserTimezone}. Click Save to apply.`,
+      });
+    }
+  };
+
   const hasChanges = selectedTimezone !== currentTimezone;
 
   return (
@@ -129,7 +141,17 @@ export default function TimezoneSettingsPage() {
           {/* Timezone Selection */}
           <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
             <CardContent className="p-6">
-              <h3 className="text-lg font-serif font-bold text-yellow-100 mb-4">Select Timezone</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-serif font-bold text-yellow-100">Select Timezone</h3>
+                <Button
+                  onClick={handleAutoDetect}
+                  variant="outline"
+                  size="sm"
+                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20"
+                >
+                  🌐 Auto-Detect
+                </Button>
+              </div>
               
               <div className="space-y-2 max-h-[500px] overflow-y-auto">
                 {TIMEZONES.map((timezone) => (
@@ -196,6 +218,14 @@ export default function TimezoneSettingsPage() {
                 <li className="flex gap-2">
                   <span className="text-purple-400">•</span>
                   <span>Google Calendar events will sync with the correct timezone conversion</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-purple-400">•</span>
+                  <span><strong>Notion sync:</strong> Dates/times from Notion will be preserved as-is (the time you see in Notion is the time that appears here)</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-yellow-400">💡</span>
+                  <span>For best results, set this to match your Notion workspace timezone</span>
                 </li>
               </ul>
             </CardContent>
