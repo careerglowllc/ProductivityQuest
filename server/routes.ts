@@ -1849,14 +1849,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (existingTask) {
             // UPDATE existing task with new data from Notion
             // This ensures date changes, title changes, etc. are synced
-            const updateData = {
+            // IMPORTANT: Don't overwrite scheduledTime if it was intentionally cleared (null)
+            // Only update scheduledTime if:
+            // 1. The existing task already has a scheduledTime (user wants it scheduled), OR
+            // 2. The due date actually changed (need to sync the new date)
+            const dueDateChanged = existingTask.dueDate?.getTime() !== notionTask.dueDate?.getTime();
+            const shouldUpdateScheduledTime = existingTask.scheduledTime !== null && dueDateChanged;
+            
+            const updateData: any = {
               title: notionTask.title,
               description: notionTask.description,
               details: notionTask.details,
               duration: notionTask.duration,
               goldValue: notionTask.goldValue,
               dueDate: notionTask.dueDate,
-              scheduledTime: notionTask.dueDate, // Update scheduledTime to match new due date
               importance: notionTask.importance,
               kanbanStage: notionTask.kanbanStage,
               recurType: notionTask.recurType,
@@ -1868,6 +1874,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               delegationTask: notionTask.delegationTask,
               velin: notionTask.velin,
             };
+            
+            // Only update scheduledTime if it was already set and the due date changed
+            if (shouldUpdateScheduledTime) {
+              updateData.scheduledTime = notionTask.dueDate;
+              console.log(`📝 [NOTION-IMPORT] Updating scheduledTime for "${notionTask.title}" because due date changed`);
+            } else if (existingTask.scheduledTime === null) {
+              console.log(`📝 [NOTION-IMPORT] Preserving null scheduledTime for "${notionTask.title}" (was unscheduled)`);
+            }
             
             await storage.updateTask(existingTask.id, updateData, userId);
             updatedTaskIds.push(existingTask.id);
