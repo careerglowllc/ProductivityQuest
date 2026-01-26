@@ -483,6 +483,177 @@
 
 ---
 
+## 9. Timezone Handling Tests (v1.5)
+
+### TC-GC-100: Export Task with PST Timezone
+**Preconditions:**
+- User timezone set to `America/Los_Angeles` (PST)
+- Task created with `scheduledTime` of 9:00 AM PST (17:00 UTC)
+
+**Steps:**
+1. Create task scheduled for 9:00 AM today
+2. Sync task to Google Calendar
+3. Open Google Calendar and check event time
+
+**Expected Result:**
+- ✅ Event displays at 9:00 AM in Google Calendar
+- ✅ Time matches original task time exactly
+- ✅ No 8-hour shift occurs
+
+---
+
+### TC-GC-101: Export Task with EST Timezone  
+**Preconditions:**
+- User timezone set to `America/New_York` (EST)
+- Task created with `scheduledTime` of 9:00 AM EST (14:00 UTC)
+
+**Steps:**
+1. Create task scheduled for 9:00 AM today
+2. Sync task to Google Calendar
+3. Open Google Calendar (set to EST)
+
+**Expected Result:**
+- ✅ Event displays at 9:00 AM EST
+- ✅ Time matches original task time
+- ✅ Correct conversion from UTC storage
+
+---
+
+### TC-GC-102: Import from Notion Preserves Time
+**Preconditions:**
+- Notion task with due date `2026-01-26T09:00:00.000-08:00` (9 AM PST)
+
+**Steps:**
+1. Import task from Notion
+2. Check task's `dueDate` in ProductivityQuest
+3. Sync to Google Calendar
+4. Verify event time in Google Calendar
+
+**Expected Result:**
+- ✅ Task shows due at 9:00 AM in ProductivityQuest calendar
+- ✅ Google Calendar event shows 9:00 AM
+- ✅ No timezone shift during Notion → PQ → GCal flow
+
+---
+
+### TC-GC-103: Round-Trip Sync Stability
+**Preconditions:**
+- Task synced to Google Calendar
+- Two-way sync enabled
+
+**Steps:**
+1. Create task at 9:00 AM, sync to Google Calendar
+2. Wait 1 minute, trigger import from Google Calendar
+3. Check task time hasn't changed
+4. Repeat steps 2-3 three more times
+
+**Expected Result:**
+- ✅ Task time remains 9:00 AM after all syncs
+- ✅ No gradual time drift
+- ✅ Import doesn't trigger spurious updates (threshold: >5 min difference required)
+
+---
+
+### TC-GC-104: Move Event in Google Calendar
+**Preconditions:**
+- Task exists in ProductivityQuest at 9:00 AM
+- Event synced to Google Calendar
+- Two-way sync enabled
+
+**Steps:**
+1. Open Google Calendar
+2. Drag event from 9:00 AM to 2:00 PM
+3. Return to ProductivityQuest
+4. Trigger calendar sync (import)
+5. Check task's scheduled time
+
+**Expected Result:**
+- ✅ Task time updated to 2:00 PM
+- ✅ Task appears at 2:00 PM on ProductivityQuest calendar
+- ✅ Due date also updated to 2:00 PM
+
+---
+
+### TC-GC-105: Timezone Change Mid-Session
+**Steps:**
+1. Create task at 9:00 AM with timezone PST
+2. Sync to Google Calendar (shows 9 AM PST)
+3. Change user timezone to EST in settings
+4. Create new task at 9:00 AM
+5. Sync new task to Google Calendar
+
+**Expected Result:**
+- ✅ Original task still shows at 9:00 AM PST (in calendar)
+- ✅ New task shows at 9:00 AM EST (12:00 PM PST equivalent)
+- ✅ User's timezone preference respected for new tasks
+
+---
+
+### TC-GC-106: Date-Only Notion Task (No Time)
+**Preconditions:**
+- Notion task with date-only due: `2026-01-26` (no time component)
+
+**Steps:**
+1. Import task from Notion
+2. Check how time is assigned in ProductivityQuest
+3. Sync to Google Calendar
+
+**Expected Result:**
+- ✅ Task assigned default time of 12:00 PM (noon) local
+- ✅ Google Calendar event created at noon
+- ✅ No timezone-related errors
+
+---
+
+### TC-GC-107: DST Transition - Spring Forward
+**Preconditions:**
+- User in timezone with DST (e.g., PST/PDT)
+- Task scheduled for 2:30 AM on DST transition day
+
+**Steps:**
+1. Create task at 2:30 AM on March 9, 2026 (DST spring forward)
+2. Sync to Google Calendar
+3. Verify event exists and time is handled
+
+**Expected Result:**
+- ✅ Event created without errors
+- ✅ Time displayed correctly (may jump to 3:00 AM per DST rules)
+- ✅ No crash or data corruption
+
+---
+
+### TC-GC-108: Small Time Difference Ignored
+**Preconditions:**
+- Task at 9:00:00 AM synced to Google Calendar
+
+**Steps:**
+1. Manually edit Google Calendar event to 9:02:00 AM (2-minute difference)
+2. Trigger import from Google Calendar
+3. Check if task was updated
+
+**Expected Result:**
+- ✅ Task NOT updated (under 5-minute threshold)
+- ✅ Task remains at 9:00 AM
+- ✅ Prevents unnecessary updates from minor discrepancies
+
+---
+
+### TC-GC-109: Large Time Difference Updates Task
+**Preconditions:**
+- Task at 9:00 AM synced to Google Calendar
+
+**Steps:**
+1. Manually edit Google Calendar event to 9:10:00 AM (10-minute difference)
+2. Trigger import from Google Calendar
+3. Check if task was updated
+
+**Expected Result:**
+- ✅ Task UPDATED to 9:10 AM (over 5-minute threshold)
+- ✅ Change logged in console
+- ✅ Task appears at new time in calendar
+
+---
+
 ## Test Environment Checklist
 
 - [ ] Fresh user account created
@@ -492,6 +663,7 @@
 - [ ] Network connection stable
 - [ ] Console open for error monitoring
 - [ ] Database access for verification
+- [ ] User timezone verified in settings
 
 ---
 
@@ -502,4 +674,15 @@
 | TC-GC-001 | | | ⬜ Pass / ⬜ Fail | |
 | TC-GC-002 | | | ⬜ Pass / ⬜ Fail | |
 | TC-GC-003 | | | ⬜ Pass / ⬜ Fail | |
+| TC-GC-100 | | | ⬜ Pass / ⬜ Fail | Timezone - PST Export |
+| TC-GC-101 | | | ⬜ Pass / ⬜ Fail | Timezone - EST Export |
+| TC-GC-102 | | | ⬜ Pass / ⬜ Fail | Timezone - Notion Import |
+| TC-GC-103 | | | ⬜ Pass / ⬜ Fail | Timezone - Round-trip |
+| TC-GC-104 | | | ⬜ Pass / ⬜ Fail | Timezone - GCal Move |
+| TC-GC-105 | | | ⬜ Pass / ⬜ Fail | Timezone - User Change |
+| TC-GC-106 | | | ⬜ Pass / ⬜ Fail | Timezone - Date Only |
+| TC-GC-107 | | | ⬜ Pass / ⬜ Fail | Timezone - DST |
+| TC-GC-108 | | | ⬜ Pass / ⬜ Fail | Timezone - Small Diff |
+| TC-GC-109 | | | ⬜ Pass / ⬜ Fail | Timezone - Large Diff |
 | ... | | | | |
+

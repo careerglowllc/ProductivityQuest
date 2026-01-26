@@ -220,3 +220,84 @@ GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:5000/api/google-calendar/callback
 | 1.2 | Dec 2025 | Added Instant Calendar Sync feature |
 | 1.3 | Dec 2025 | Fixed OAuth scopes for write access |
 | 1.4 | Dec 2025 | Added priority-based color coding |
+| 1.5 | Jan 2026 | Fixed timezone handling in calendar sync - events now created with correct times |
+
+---
+
+## Timezone Handling (v1.5)
+
+### How Dates Flow Through the System
+
+```
+┌─────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐
+│     NOTION      │────▶│  PRODUCTIVITYQUEST   │────▶│   GOOGLE CALENDAR     │
+│                 │     │      DATABASE        │     │                       │
+│ "2026-01-26     │     │ Stored as UTC:       │     │ Event displayed in    │
+│  T09:00-08:00"  │     │ 2026-01-26T17:00:00Z │     │ user's local timezone │
+│ (9 AM PST)      │     │                      │     │ (9 AM PST)            │
+└─────────────────┘     └──────────────────────┘     └───────────────────────┘
+```
+
+### Export to Google Calendar (Tasks → Google Calendar)
+
+When creating/updating events in Google Calendar:
+
+1. **Task's `scheduledTime`** is stored in database as UTC timestamp
+2. **Export sends full ISO string** with UTC timezone: `2026-01-26T17:00:00.000Z`
+3. **Google Calendar API** receives the time with the `timeZone` parameter set to user's timezone
+4. **Google interprets correctly**: The UTC time is converted to display in user's local timezone
+
+**Code (server/google-calendar.ts):**
+```typescript
+const eventData = {
+  start: {
+    dateTime: startTime.toISOString(), // Full ISO string with 'Z' (UTC)
+    timeZone: user.timezone || 'America/Los_Angeles',
+  },
+  // ...
+};
+```
+
+### Import from Google Calendar (Google Calendar → Tasks)
+
+When reading events from Google Calendar:
+
+1. **Google returns datetime with timezone offset**: `2026-01-26T09:00:00-08:00`
+2. **JavaScript `new Date()` parses correctly**: Converts to UTC internally
+3. **Stored in database as UTC**: Ready for consistent handling
+4. **Only updates if time differs by >5 minutes**: Prevents spurious updates from timezone rounding
+
+### Important: User Timezone Setting
+
+The user's timezone is stored in the `users` table and used for:
+- Creating Google Calendar events with correct local time display
+- Parsing Notion dates that include timezone offsets
+
+**Default timezone**: `America/Los_Angeles` (Pacific Time)
+
+Users can update their timezone in Settings → Timezone.
+
+---
+
+## Bug Fixes History
+
+### v1.5 - Timezone Shift Bug (Jan 2026)
+
+**Problem:** Events were being created 8 hours off (for PST users)
+
+**Root Cause:** The `formatDateTimeLocal()` function was stripping the `Z` from UTC timestamps:
+```typescript
+// BROKEN - caused 8-hour shift
+date.toISOString().replace('Z', '')  // "2026-01-26T17:00:00.000"
+// Google interpreted this as 5PM in PST = 1AM UTC next day!
+```
+
+**Solution:** Send full ISO strings to Google Calendar API:
+```typescript
+// FIXED - preserves timezone info
+date.toISOString()  // "2026-01-26T17:00:00.000Z"
+// Google correctly interprets as UTC
+```
+
+**Additional Fix:** Increased import threshold to 5+ minutes to prevent cascading updates from minor timezone differences.
+

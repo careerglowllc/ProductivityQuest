@@ -45,6 +45,67 @@ When an existing task is updated, the following fields are synced from Notion:
 - `googleEventId` (preserved if not in Notion)
 - `apple`, `smartPrep`, `delegationTask`, `velin` flags
 
+---
+
+## Timezone Handling (v1.5 - Jan 2026)
+
+### How Notion Dates Are Parsed
+
+Notion returns dates in ISO 8601 format with timezone offset:
+```
+2026-01-26T09:00:00.000-08:00  (9 AM Pacific Time)
+```
+
+**Parsing Logic (server/notion.ts):**
+
+1. **Date with time** (has `T` in string):
+   ```typescript
+   // Full datetime - JavaScript parses ISO 8601 correctly
+   dueDate = new Date(dueDateRaw);  // Automatically converts to UTC
+   ```
+
+2. **Date only** (just `YYYY-MM-DD`):
+   ```typescript
+   // Date only - parse as local noon to avoid day boundary issues
+   const [year, month, day] = dueDateRaw.split('-').map(Number);
+   dueDate = new Date(year, month - 1, day, 12, 0, 0);
+   ```
+
+### Date Flow: Notion → ProductivityQuest → Google Calendar
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           NOTION DATABASE                                    │
+│  Task: "Morning Meeting"                                                    │
+│  Due: 2026-01-26T09:00:00.000-08:00 (displayed as Jan 26, 9:00 AM PST)     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼ Import
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        PRODUCTIVITYQUEST DATABASE                           │
+│  dueDate: 2026-01-26T17:00:00.000Z (stored as UTC)                        │
+│  scheduledTime: 2026-01-26T17:00:00.000Z                                   │
+│  (9 AM PST = 5 PM UTC)                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼ Sync to Calendar
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          GOOGLE CALENDAR                                    │
+│  Event: "Morning Meeting"                                                   │
+│  Start: 2026-01-26T17:00:00.000Z with timeZone: America/Los_Angeles       │
+│  (Displayed as 9:00 AM PST in Google Calendar)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Points
+
+1. **UTC Storage**: All dates stored in database as UTC timestamps
+2. **Timezone Parameter**: Google Calendar API receives UTC time + user's timezone
+3. **Correct Display**: Google Calendar converts UTC to local for display
+4. **No Manual Offset**: Never manually add/subtract timezone offsets
+
+---
+
 ## API Response Changes
 
 The import endpoint now returns additional information:
@@ -69,16 +130,37 @@ The toast notification now shows both counts:
 ## Files Modified
 
 - `server/routes.ts` - Updated `POST /api/notion/import` endpoint
+- `server/notion.ts` - Timezone-aware date parsing
+- `server/google-calendar.ts` - Fixed timezone handling for export/import
 - `client/src/pages/home.tsx` - Updated toast message to show updated count
 
 ## Testing
 
+### Basic Update Flow
 1. Create a task in Notion with a specific due date
 2. Import from Notion → Task appears in ProductivityQuest
 3. Change the due date in Notion
 4. Import from Notion again → Task should be **updated** (not duplicated)
 5. Verify the calendar shows the task on the NEW date, not the old date
 
+### Timezone Verification
+1. In Notion, create task with time: "Jan 26, 2026 at 9:00 AM" (your local time)
+2. Import to ProductivityQuest
+3. Check ProductivityQuest calendar - task should show at 9:00 AM
+4. Sync to Google Calendar
+5. Check Google Calendar - event should show at 9:00 AM
+6. **All three should show the same time!**
+
 ## Related Issues
 
-This fix also works in conjunction with the Calendar Orphan Cleanup feature to ensure that when tasks are rescheduled, the old Google Calendar events are properly cleaned up.
+This fix also works in conjunction with:
+- **Calendar Orphan Cleanup**: Ensures old Google Calendar events are cleaned up when tasks are rescheduled
+- **Google Calendar Timezone Fix (v1.5)**: Ensures correct time handling when syncing to Google Calendar
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | Jan 2026 | Initial fix - update existing tasks instead of duplicating |
+| 1.1 | Jan 2026 | Fixed timezone handling - dates now correctly preserved across Notion/PQ/GCal |
+
