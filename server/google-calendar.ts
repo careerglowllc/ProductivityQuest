@@ -162,9 +162,6 @@ export class GoogleCalendarService {
     const auth = this.getAuthenticatedClient(user);
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // Format datetime without timezone suffix so Google interprets it in the specified timezone
-    const formatDateTimeLocal = (date: Date) => date.toISOString().replace('Z', '');
-    
     const startTime = task.dueDate!;
     const endTime = new Date(task.dueDate!.getTime() + task.duration * 60000);
 
@@ -172,11 +169,11 @@ export class GoogleCalendarService {
       summary: task.title,
       description: `${task.description}\n\nGold Reward: ${task.goldValue}`,
       start: {
-        dateTime: formatDateTimeLocal(startTime),
+        dateTime: startTime.toISOString(),
         timeZone: user.timezone || 'America/Los_Angeles',
       },
       end: {
-        dateTime: formatDateTimeLocal(endTime),
+        dateTime: endTime.toISOString(),
         timeZone: user.timezone || 'America/Los_Angeles',
       },
       reminders: {
@@ -256,20 +253,26 @@ export class GoogleCalendarService {
           console.log(`   - Importance: ${task.importance}`);
           console.log(`   - Existing Google Event ID: ${task.googleEventId || 'none'}`);
           
-          // Format datetime without timezone suffix so Google interprets it in the specified timezone
-          const formatDateTimeLocal = (date: Date) => {
-            return date.toISOString().replace('Z', '');
+          // Format datetime for Google Calendar API
+          // Google Calendar accepts ISO 8601 datetime with timezone offset
+          // We'll use the full ISO string (UTC) and let Google handle it with the timeZone parameter
+          const formatDateTimeForGoogle = (date: Date) => {
+            // Return the ISO string - Google API will use the timeZone parameter to interpret it
+            return date.toISOString();
           };
+          
+          console.log(`   - Start time ISO: ${formatDateTimeForGoogle(startTime)}`);
+          console.log(`   - User timezone: ${user.timezone || 'America/Los_Angeles'}`);
           
           const eventData = {
             summary: task.title,
             description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
             start: {
-              dateTime: formatDateTimeLocal(startTime),
+              dateTime: formatDateTimeForGoogle(startTime),
               timeZone: user.timezone || 'America/Los_Angeles',
             },
             end: {
-              dateTime: formatDateTimeLocal(endTime),
+              dateTime: formatDateTimeForGoogle(endTime),
               timeZone: user.timezone || 'America/Los_Angeles',
             },
             reminders: {
@@ -373,30 +376,49 @@ export class GoogleCalendarService {
       });
 
       // Update tasks based on Google Calendar event times
+      // IMPORTANT: Only update if there's a significant time difference (> 5 minutes)
+      // This prevents minor floating-point/timezone issues from causing unwanted updates
+      // The assumption is that if a user manually moves an event in Google Calendar,
+      // the change will be more than a few minutes
       for (const event of events) {
         const task = eventIdToTask.get(event.id);
         if (!task) continue; // Not a ProductivityQuest task
 
         try {
-          const eventStart = event.start?.dateTime ? new Date(event.start.dateTime) : null;
-          const eventEnd = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+          // Google Calendar returns dateTime with timezone, e.g., "2026-01-26T09:00:00-08:00"
+          const eventStartRaw = event.start?.dateTime;
+          const eventEndRaw = event.end?.dateTime;
           
-          if (!eventStart) continue;
+          if (!eventStartRaw) continue;
+
+          const eventStart = new Date(eventStartRaw);
+          const eventEnd = eventEndRaw ? new Date(eventEndRaw) : null;
 
           // Calculate duration from event
           const durationMinutes = eventEnd 
             ? Math.round((eventEnd.getTime() - eventStart.getTime()) / 60000)
             : task.duration;
 
-          // Check if times have changed
+          // Check if times have changed (compare UTC timestamps)
           const taskScheduledTime = task.scheduledTime ? new Date(task.scheduledTime).getTime() : null;
           const eventStartTime = eventStart.getTime();
           
-          if (taskScheduledTime !== eventStartTime || task.duration !== durationMinutes) {
+          // Only update if the times differ by more than 5 minutes
+          // This prevents timezone/rounding issues from causing unwanted updates
+          const timeDiffMinutes = taskScheduledTime 
+            ? Math.abs(eventStartTime - taskScheduledTime) / 60000 
+            : Infinity;
+          
+          // Also check if duration changed significantly (> 1 minute)
+          const durationDiff = Math.abs((task.duration || 30) - durationMinutes);
+          
+          if (timeDiffMinutes > 5 || durationDiff > 1) {
             console.log(`📅 [IMPORT] Updating task ${task.id} "${task.title}"`);
-            console.log(`   - Old scheduled time: ${task.scheduledTime}`);
-            console.log(`   - New scheduled time: ${eventStart}`);
-            console.log(`   - Old duration: ${task.duration}, New duration: ${durationMinutes}`);
+            console.log(`   - Google Calendar event start (raw): ${eventStartRaw}`);
+            console.log(`   - Google Calendar event start (parsed): ${eventStart.toISOString()}`);
+            console.log(`   - Task scheduled time (current): ${task.scheduledTime ? new Date(task.scheduledTime).toISOString() : 'null'}`);
+            console.log(`   - Time difference: ${timeDiffMinutes.toFixed(1)} minutes`);
+            console.log(`   - Duration change: ${task.duration} -> ${durationMinutes} (diff: ${durationDiff})`);
             
             await storage.updateTask(task.id, {
               scheduledTime: eventStart,
