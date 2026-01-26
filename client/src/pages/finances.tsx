@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import type { FinancialItem } from "@shared/schema";
 
@@ -65,6 +65,8 @@ export default function Finances() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"chart" | "table">("chart");
+  const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [newItem, setNewItem] = useState({
     item: "",
     category: "",
@@ -192,6 +194,44 @@ export default function Finances() {
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
+
+  // Sorting function
+  const handleSort = (field: "item" | "category" | "monthlyCost" | "recurType") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Get sort icon for a column
+  const getSortIcon = (field: "item" | "category" | "monthlyCost" | "recurType") => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 ml-1" /> 
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  // Sort financial items
+  const sortedFinancialItems = [...financialItems].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    let comparison = 0;
+    if (sortField === "monthlyCost") {
+      comparison = a.monthlyCost - b.monthlyCost;
+    } else if (sortField === "item") {
+      comparison = a.item.localeCompare(b.item);
+    } else if (sortField === "category") {
+      comparison = a.category.localeCompare(b.category);
+    } else if (sortField === "recurType") {
+      comparison = a.recurType.localeCompare(b.recurType);
+    }
+    
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24`}>
@@ -380,15 +420,47 @@ export default function Finances() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-slate-700">
-                        <TableHead className="text-slate-300">Item</TableHead>
-                        <TableHead className="text-slate-300">Category</TableHead>
-                        <TableHead className="text-slate-300">Monthly Cost</TableHead>
-                        <TableHead className="text-slate-300">Recur Type</TableHead>
+                        <TableHead 
+                          className="text-slate-300 cursor-pointer hover:text-white transition-colors"
+                          onClick={() => handleSort("item")}
+                        >
+                          <div className="flex items-center">
+                            Item
+                            {getSortIcon("item")}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="text-slate-300 cursor-pointer hover:text-white transition-colors"
+                          onClick={() => handleSort("category")}
+                        >
+                          <div className="flex items-center">
+                            Category
+                            {getSortIcon("category")}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="text-slate-300 cursor-pointer hover:text-white transition-colors"
+                          onClick={() => handleSort("monthlyCost")}
+                        >
+                          <div className="flex items-center">
+                            Monthly Cost
+                            {getSortIcon("monthlyCost")}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="text-slate-300 cursor-pointer hover:text-white transition-colors"
+                          onClick={() => handleSort("recurType")}
+                        >
+                          <div className="flex items-center">
+                            Recur Type
+                            {getSortIcon("recurType")}
+                          </div>
+                        </TableHead>
                         <TableHead className="text-slate-300">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {financialItems.map((item) => (
+                      {sortedFinancialItems.map((item) => (
                         <TableRow key={item.id} className="border-slate-700">
                           <TableCell className="text-white">{item.item}</TableCell>
                           <TableCell>

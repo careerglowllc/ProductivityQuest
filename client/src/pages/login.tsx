@@ -33,15 +33,9 @@ export default function Login() {
         // Invalidate auth query to refetch user data
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully logged in.",
-        });
-        
-        // Small delay to ensure query refetch completes
-        setTimeout(() => {
-          window.location.href = "/dashboard";
-        }, 100);
+        // Redirect immediately - toast will show on dashboard
+        window.location.href = "/dashboard";
+        return; // Prevent further execution
       } else {
         toast({
           title: "Login failed",
