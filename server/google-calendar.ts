@@ -622,9 +622,6 @@ export class GoogleCalendarService {
       
       const endTime = new Date(startTime.getTime() + task.duration * 60000);
       
-      // Format datetime without timezone suffix so Google interprets it in the specified timezone
-      const formatDateTimeLocal = (date: Date) => date.toISOString().replace('Z', '');
-      
       console.log(`📅 [UPDATE EVENT] Task ${task.id} "${task.title}"`);
       console.log(`   - Start time: ${startTime.toISOString()}`);
       console.log(`   - End time: ${endTime.toISOString()}`);
@@ -634,11 +631,11 @@ export class GoogleCalendarService {
         summary: task.title,
         description: `${task.description || ''}\n\n🏆 Gold Reward: ${task.goldValue}\n⚡ Importance: ${task.importance || 'Not set'}\n📋 ProductivityQuest Task ID: ${task.id}`,
         start: {
-          dateTime: formatDateTimeLocal(startTime),
+          dateTime: startTime.toISOString(),
           timeZone: user.timezone || 'America/Los_Angeles',
         },
         end: {
-          dateTime: formatDateTimeLocal(endTime),
+          dateTime: endTime.toISOString(),
           timeZone: user.timezone || 'America/Los_Angeles',
         },
         colorId: this.getColorForImportance(task.importance || undefined),
