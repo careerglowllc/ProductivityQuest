@@ -40,7 +40,9 @@ const RECUR_TYPES = [
   "2x a Year"
 ];
 
-const INCOME_CATEGORIES = ["Income", "Retirement", "Investment"];
+// Only "Income" category is considered money coming in (green)
+// All other categories are expenses (reddish)
+const INCOME_CATEGORIES = ["Income"];
 
 const EXPENSE_COLORS = {
   "General": "#8B5CF6",

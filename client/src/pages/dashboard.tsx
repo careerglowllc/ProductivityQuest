@@ -194,7 +194,9 @@ function TodayCalendarWidget() {
 
 // Finance Widget Component
 function FinanceWidget() {
-  const INCOME_CATEGORIES = ["Income", "Retirement", "Investment"];
+  // Only "Income" category is considered money coming in (green)
+  // All other categories are expenses (reddish)
+  const INCOME_CATEGORIES = ["Income"];
   const EXPENSE_COLORS: Record<string, string> = {
     "General": "#A78BFA", // purple-400
     "Business": "#60A5FA", // blue-400
