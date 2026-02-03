@@ -743,10 +743,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updateData = insertTaskSchema.partial().parse(bodyData);
+      console.log(`📅 [PATCH TASK] Updating task ${id} with:`, JSON.stringify(updateData, (key, value) => {
+        // Handle Date objects for logging
+        if (value instanceof Date) return value.toISOString();
+        return value;
+      }));
+      
       const task = await storage.updateTask(id, updateData, userId);
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
+      
+      console.log(`📅 [PATCH TASK] Task ${id} updated. googleEventId: ${task.googleEventId}, googleCalendarId: ${task.googleCalendarId}`);
       
       // If task has Google Calendar event and time/duration/scheduledTime changed, update it
       if (task.googleEventId && task.googleCalendarId && 
@@ -761,21 +769,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`📅 [PATCH TASK] Syncing task ${task.id} to Google Calendar`);
             console.log(`   - Task title: "${task.title}"`);
             console.log(`   - Google Event ID: ${task.googleEventId}`);
-            console.log(`   - New scheduledTime: ${task.scheduledTime}`);
-            console.log(`   - New duration: ${task.duration}`);
+            console.log(`   - Google Calendar ID: ${task.googleCalendarId}`);
+            console.log(`   - scheduledTime: ${task.scheduledTime} (type: ${typeof task.scheduledTime})`);
+            console.log(`   - dueDate: ${task.dueDate} (type: ${typeof task.dueDate})`);
+            console.log(`   - duration: ${task.duration} minutes`);
             const result = await googleCalendar.updateEvent(task, user);
             if (result) {
               console.log(`✅ [PATCH TASK] Successfully updated Google Calendar event`);
+              console.log(`   - Google Event start: ${result.start?.dateTime}`);
+              console.log(`   - Google Event end: ${result.end?.dateTime}`);
             } else {
               console.log(`⚠️ [PATCH TASK] Google Calendar update returned null (no changes or event not found)`);
             }
           } else {
             console.log(`⚠️ [PATCH TASK] No Google Calendar credentials found for user`);
+            console.log(`   - googleCalendarAccessToken: ${!!user?.googleCalendarAccessToken}`);
+            console.log(`   - googleCalendarRefreshToken: ${!!user?.googleCalendarRefreshToken}`);
+            console.log(`   - googleAccessToken: ${!!user?.googleAccessToken}`);
+            console.log(`   - googleRefreshToken: ${!!user?.googleRefreshToken}`);
           }
         } catch (error: any) {
           console.error('❌ [PATCH TASK] Failed to update Google Calendar event:', error.message);
+          console.error('❌ [PATCH TASK] Full error:', error);
           // Don't fail the request if Google Calendar sync fails
         }
+      } else {
+        console.log(`📅 [PATCH TASK] No Google Calendar sync needed for task ${id}`);
+        console.log(`   - Has googleEventId: ${!!task.googleEventId}`);
+        console.log(`   - Has googleCalendarId: ${!!task.googleCalendarId}`);
+        console.log(`   - updateData.dueDate: ${updateData.dueDate}`);
+        console.log(`   - updateData.duration: ${updateData.duration}`);
+        console.log(`   - updateData.scheduledTime: ${updateData.scheduledTime}`);
       }
       
       res.json(task);
@@ -2760,23 +2784,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (syncDirection === 'export' || syncDirection === 'both') {
         console.log('📅 [SYNC] Exporting tasks to Google Calendar...');
         
-        // Get all tasks with due dates that are not completed
+        // Get all tasks that have been explicitly scheduled (have scheduledTime)
+        // Only tasks with scheduledTime should sync to Google Calendar
+        // Tasks without scheduledTime are not on the calendar yet
         const allTasks = await storage.getTasks(userId);
         const tasksToExport = allTasks.filter((task: any) => 
-          task.dueDate && !task.completed
+          task.scheduledTime && task.dueDate && !task.completed
         );
         
-        console.log(`📅 [SYNC] Found ${tasksToExport.length} tasks to export`);
+        console.log(`📅 [SYNC] Found ${tasksToExport.length} scheduled tasks to export (out of ${allTasks.length} total tasks)`);
         
         if (tasksToExport.length > 0) {
-          // Ensure tasks have scheduledTime set for proper calendar display
-          for (const task of tasksToExport) {
-            if (!task.scheduledTime && task.dueDate) {
-              // Use dueDate directly instead of setHours(9,0,0,0) to avoid UTC issues
-              task.scheduledTime = new Date(task.dueDate);
-            }
-          }
-          
           exportResults = await googleCalendar.syncTasks(tasksToExport, user, storage);
           console.log('✅ [SYNC] Export complete:', exportResults.success, 'succeeded,', exportResults.failed, 'failed');
         }

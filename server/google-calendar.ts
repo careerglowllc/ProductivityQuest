@@ -590,14 +590,24 @@ export class GoogleCalendarService {
   async updateEvent(task: Task, user: User): Promise<any> {
     try {
       if (!task.googleEventId || !task.googleCalendarId) {
+        console.log(`📅 [UPDATE EVENT] Skipping task ${task.id} - no googleEventId (${task.googleEventId}) or googleCalendarId (${task.googleCalendarId})`);
         return null; // Task is not synced to Google Calendar
       }
 
       // Use scheduledTime if available, otherwise fall back to dueDate
-      const startTime = task.scheduledTime || task.dueDate;
-      if (!startTime) {
+      const rawStartTime = task.scheduledTime || task.dueDate;
+      if (!rawStartTime) {
+        console.log(`📅 [UPDATE EVENT] Skipping task ${task.id} - no scheduledTime or dueDate`);
         return null; // No time to sync
       }
+      
+      // Ensure startTime is a proper Date object (handle string from DB)
+      const startTime = rawStartTime instanceof Date ? rawStartTime : new Date(rawStartTime);
+      
+      console.log(`📅 [UPDATE EVENT] Processing task ${task.id} "${task.title}"`);
+      console.log(`   - Raw scheduledTime: ${task.scheduledTime} (type: ${typeof task.scheduledTime})`);
+      console.log(`   - Raw dueDate: ${task.dueDate} (type: ${typeof task.dueDate})`);
+      console.log(`   - Parsed startTime: ${startTime.toISOString()}`);
 
       let auth: OAuth2Client;
       
