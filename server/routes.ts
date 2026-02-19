@@ -2471,7 +2471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('📅 [CALENDAR SYNC API] Tasks to sync after filtering:', tasksToSync.length);
       tasksToSync.forEach(t => {
-        console.log(`   - Task ${t.id}: "${t.title}" due: ${t.dueDate}, scheduled: ${t.scheduledTime}`);
+        console.log(`   - Task ${t.id}: "${t.title}" due: ${t.dueDate} (ISO: ${t.dueDate ? new Date(t.dueDate).toISOString() : 'null'}), scheduled: ${t.scheduledTime} (ISO: ${t.scheduledTime ? new Date(t.scheduledTime).toISOString() : 'null'}), completed: ${t.completed}`);
       });
 
       // Helper function to get color hex based on importance
@@ -3025,6 +3025,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       console.log(`📅 [CALENDAR-EVENTS] Tasks in month with scheduledTime: ${tasksInMonth.length}`);
+      tasksInMonth.forEach(t => {
+        const st = t.scheduledTime ? new Date(t.scheduledTime) : null;
+        console.log(`   📅 Task ${t.id}: "${t.title}" scheduledTime: ${st?.toISOString()} (local: ${st?.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}), dueDate: ${t.dueDate ? new Date(t.dueDate).toISOString() : 'null'}`);
+      });
 
       // Create a set of Google Event IDs that belong to ProductivityQuest tasks
       // This prevents showing duplicates - we show the PQ task, not the Google event
@@ -3833,6 +3837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Import ML sorting service
   const { sortTasksML, learnFromFeedback, mergePreferences, DEFAULT_PREFERENCES } = await import("./ml-sorting");
+  type BlockedTimeSlot = import("./ml-sorting").BlockedTimeSlot;
 
   // Get user's ML sorting preferences
   app.get("/api/ml/preferences", requireAuth, async (req: any, res) => {
@@ -3949,8 +3954,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endTime: task.currentEndTime || new Date(new Date(targetDate).getTime() + 60 * 60 * 1000).toISOString(),
       }));
 
-      // Run the ML sorting algorithm with timezone offset
-      const sortedSchedule = sortTasksML(tasksForSorting, targetDate, preferences, tzOffset);
+      // Fetch Google Calendar events for the target date to use as blocked time slots
+      // This prevents the sort from scheduling PQ tasks on top of existing calendar events
+      const blockedSlots: BlockedTimeSlot[] = [];
+      const taskIdsBeingSorted = new Set(tasksForSorting.map(t => t.id));
+      
+      try {
+        const user = await storage.getUserById(userId);
+        if (user?.googleCalendarSyncEnabled && user?.googleCalendarAccessToken) {
+          // Create start/end of the target day
+          const dayStart = new Date(Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0));
+          const dayEnd = new Date(Date.UTC(targetYear, targetMonth, targetDay, 23, 59, 59));
+          
+          const googleEvents = await googleCalendar.getEvents(user, dayStart, dayEnd);
+          console.log(`📊 [ML-SORT-API] Found ${googleEvents.length} Google Calendar events for the day`);
+          
+          for (const gEvent of googleEvents) {
+            const startStr = gEvent.start?.dateTime || gEvent.start?.date;
+            const endStr = gEvent.end?.dateTime || gEvent.end?.date;
+            if (!startStr || !endStr) continue;
+            
+            // Skip events that are actually PQ tasks we're sorting
+            // (identified by description containing ProductivityQuest Task ID)
+            const description = gEvent.description || '';
+            const taskIdMatch = description.match(/ProductivityQuest Task ID:\s*(\d+)/);
+            if (taskIdMatch) {
+              const linkedTaskId = parseInt(taskIdMatch[1], 10);
+              if (taskIdsBeingSorted.has(linkedTaskId)) {
+                console.log(`📊 [ML-SORT-API] Skipping blocked slot for PQ task being sorted: "${gEvent.summary}" (Task ${linkedTaskId})`);
+                continue;
+              }
+            }
+            
+            blockedSlots.push({
+              start: new Date(startStr),
+              end: new Date(endStr),
+              title: gEvent.summary || 'Google Event',
+            });
+          }
+          
+          console.log(`📊 [ML-SORT-API] ${blockedSlots.length} blocked time slots from Google Calendar`);
+        }
+      } catch (error: any) {
+        console.warn(`⚠️ [ML-SORT-API] Could not fetch Google Calendar events for blocked slots: ${error.message}`);
+        // Continue without blocked slots - sort will still work, just won't avoid Google events
+      }
+
+      // Run the ML sorting algorithm with timezone offset and blocked slots
+      const sortedSchedule = sortTasksML(tasksForSorting, targetDate, preferences, tzOffset, blockedSlots);
 
       // Return both the original and sorted schedules for comparison
       res.json({

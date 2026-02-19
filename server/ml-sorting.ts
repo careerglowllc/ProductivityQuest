@@ -26,6 +26,13 @@ export interface ScheduledTask {
   endTime: string;
 }
 
+// Time slot that is already occupied (e.g., by a Google Calendar event)
+export interface BlockedTimeSlot {
+  start: Date;
+  end: Date;
+  title?: string; // for logging
+}
+
 export interface UserPreferences {
   preferredStartHour: number;
   preferredEndHour: number;
@@ -118,12 +125,14 @@ function getTimePreferenceMultiplier(
  * 5. Ensure NO overlaps - tasks are packed tightly
  * 
  * @param timezoneOffset - User's timezone offset in minutes (e.g., PST = 480 for UTC-8)
+ * @param blockedSlots - Time slots already occupied by Google Calendar events (tasks schedule around these)
  */
 export function sortTasksML(
   tasks: TaskForSorting[],
   date: Date,
   preferences: UserPreferences = DEFAULT_PREFERENCES,
-  timezoneOffset: number = 0
+  timezoneOffset: number = 0,
+  blockedSlots: BlockedTimeSlot[] = []
 ): ScheduledTask[] {
   if (tasks.length === 0) return [];
 
@@ -188,16 +197,61 @@ export function sortTasksML(
 
   console.log('📊 [ML-SORT] Anchor time:', anchorTime.toISOString(), '(local hour:', anchorTime.getUTCHours() - (timezoneOffset / 60), ')');
 
-  // Schedule tasks in sorted order, ensuring NO overlaps
+  // Sort blocked slots by start time for efficient searching
+  const sortedBlockedSlots = [...blockedSlots].sort((a, b) => a.start.getTime() - b.start.getTime());
+  if (sortedBlockedSlots.length > 0) {
+    console.log(`📊 [ML-SORT] ${sortedBlockedSlots.length} blocked time slots (Google Calendar events):`);
+    sortedBlockedSlots.forEach(slot => {
+      const startLocal = new Date(slot.start.getTime() - timezoneOffset * 60000);
+      const endLocal = new Date(slot.end.getTime() - timezoneOffset * 60000);
+      console.log(`   🔒 "${slot.title || 'Event'}" ${startLocal.getUTCHours()}:${String(startLocal.getUTCMinutes()).padStart(2, '0')} - ${endLocal.getUTCHours()}:${String(endLocal.getUTCMinutes()).padStart(2, '0')} local`);
+    });
+  }
+
+  /**
+   * Check if a proposed time range conflicts with any blocked slot.
+   * Returns the end time of the conflicting slot (so we can skip past it), or null if no conflict.
+   */
+  function findConflictingSlot(proposedStart: Date, proposedEnd: Date): BlockedTimeSlot | null {
+    for (const slot of sortedBlockedSlots) {
+      // Two ranges overlap if start1 < end2 AND start2 < end1
+      if (proposedStart.getTime() < slot.end.getTime() && slot.start.getTime() < proposedEnd.getTime()) {
+        return slot;
+      }
+    }
+    return null;
+  }
+
+  // Schedule tasks in sorted order, ensuring NO overlaps with each other OR with blocked slots
   // Also enforce end hour constraint (don't schedule past preferredEndHour in user's local time)
   const scheduledTasks: ScheduledTask[] = [];
   let currentTime = new Date(anchorTime);
   const maxEndHour = preferences.preferredEndHour;
 
   for (const task of scoredTasks) {
-    const startTime = new Date(currentTime);
-    const endTime = new Date(startTime);
+    let startTime = new Date(currentTime);
+    let endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + task.duration);
+    
+    // Check for conflicts with blocked slots and skip past them
+    // Limit iterations to prevent infinite loops
+    let attempts = 0;
+    const maxAttempts = sortedBlockedSlots.length + 5;
+    while (attempts < maxAttempts) {
+      const conflict = findConflictingSlot(startTime, endTime);
+      if (!conflict) break;
+      
+      console.log(`📊 [ML-SORT] Task "${task.title}" conflicts with "${conflict.title || 'Event'}", moving past it`);
+      // Move start time to after the conflicting event
+      startTime = new Date(conflict.end);
+      // Add break after the blocked event too
+      if (preferences.breakDuration > 0) {
+        startTime.setMinutes(startTime.getMinutes() + preferences.breakDuration);
+      }
+      endTime = new Date(startTime);
+      endTime.setMinutes(endTime.getMinutes() + task.duration);
+      attempts++;
+    }
     
     // Check if this task would end after the max end hour in USER'S local time
     const endLocalHour = endTime.getUTCHours() - (timezoneOffset / 60) + (endTime.getUTCMinutes() / 60);
@@ -212,8 +266,10 @@ export function sortTasksML(
     }
     
     const startLocalHour = startTime.getUTCHours() - (timezoneOffset / 60);
+    const startLocalMin = startTime.getUTCMinutes();
     const endLocalHour2 = endTime.getUTCHours() - (timezoneOffset / 60);
-    console.log(`📊 [ML-SORT] Scheduling "${task.title}": ${startLocalHour}:00 - ${endLocalHour2}:00 local (${startTime.toISOString()} - ${endTime.toISOString()})`);
+    const endLocalMin = endTime.getUTCMinutes();
+    console.log(`📊 [ML-SORT] Scheduling "${task.title}": ${startLocalHour}:${String(startLocalMin).padStart(2, '0')} - ${endLocalHour2}:${String(endLocalMin).padStart(2, '0')} local (${startTime.toISOString()} - ${endTime.toISOString()})`);
 
     scheduledTasks.push({
       taskId: task.id,
