@@ -826,8 +826,12 @@ export default function Home() {
 
   const handleImportConfirm = async () => {
     try {
+      // When triggered from "Import ALL" modal (showImportConfirm), delete all existing tasks first
+      // When triggered from duplicate confirm modal, just do normal import/update
+      const isFullImport = showImportConfirm;
       const response = await apiRequest("POST", "/api/notion/import", {
         includeDuplicates,
+        deleteAll: isFullImport,
       });
       const result = await response.json();
       

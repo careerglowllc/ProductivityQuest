@@ -1050,6 +1050,14 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  async updateCampaign(userId: string, campaignId: number, updates: Partial<Campaign>): Promise<Campaign | undefined> {
+    const [updated] = await db.update(campaigns)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.userId, userId)))
+      .returning();
+    return updated;
+  }
+
   // Google Calendar operations
   async getTaskByGoogleEventId(userId: string, eventId: string): Promise<Task | undefined> {
     const result = await db.select().from(tasks).where(

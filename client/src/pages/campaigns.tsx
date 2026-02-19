@@ -1,61 +1,79 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Crown, Sparkles, Rocket, Gift, Plus, Target } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Crown, Sparkles, Rocket, Gift, Plus, Target, Pencil, Trash2, Check, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+
+const ICON_MAP: Record<string, any> = {
+  Sparkles,
+  Rocket,
+  Crown,
+  Gift,
+  Target,
+};
+
+type QuestStatus = 'completed' | 'in-progress' | 'locked';
+
+interface Quest {
+  id: number;
+  title: string;
+  status: QuestStatus;
+}
+
+interface Campaign {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  quests: Quest[];
+  rewards: string[];
+  progress: number;
+  isActive: boolean;
+}
 
 export default function CampaignsPage() {
   const isMobile = useIsMobile();
-  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [editQuests, setEditQuests] = useState<Quest[]>([]);
+  const [newQuestTitle, setNewQuestTitle] = useState("");
 
-  // Mock questlines data (in real app, this would come from API)
-  const questlines = [
-    {
-      id: 'maximize-looks',
-      title: 'Maximize Looks',
-      description: 'A comprehensive transformation journey covering fitness, grooming, style, and confidence',
-      icon: Sparkles,
-      progress: 35,
-      quests: [
-        { id: 1, title: 'Foundation Assessment Complete', status: 'completed' },
-        { id: 2, title: 'Skincare Routine Established', status: 'completed' },
-        { id: 3, title: 'Fitness Fundamentals', status: 'in-progress' },
-        { id: 4, title: 'Wardrobe Optimization', status: 'locked' },
-        { id: 5, title: 'Confidence & Presence', status: 'locked' },
-      ],
-      rewards: ['🏆 Achievement Badge', '💎 500 Bonus Gold', '⚡ Exclusive Title']
-    },
-    {
-      id: 'remote-business',
-      title: 'Build a Self-Sufficient Remote Business',
-      description: 'Launch and scale a profitable online business that generates passive income and location freedom',
-      icon: Rocket,
-      progress: 60,
-      quests: [
-        { id: 1, title: 'Market Research & Niche Selection', status: 'completed' },
-        { id: 2, title: 'MVP Development & Launch', status: 'completed' },
-        { id: 3, title: 'First 10 Paying Customers', status: 'completed' },
-        { id: 4, title: 'Scale to $10K MRR', status: 'in-progress' },
-        { id: 5, title: 'Automation & Systems', status: 'locked' },
-        { id: 6, title: 'Full Location Independence', status: 'locked' },
-      ],
-      rewards: ['🏆 Entrepreneur Badge', '💎 1000 Bonus Gold', '⚡ "Digital Nomad" Title']
-    },
-  ];
+  // Fetch campaigns from API
+  const { data: campaignsData = [], isLoading } = useQuery<Campaign[]>({
+    queryKey: ["/api/campaigns"],
+  });
 
-  const toggleCampaign = (questlineId: string) => {
-    if (selectedCampaigns.includes(questlineId)) {
+  // Update campaign mutation
+  const updateCampaign = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Campaign> }) => {
+      const response = await apiRequest("PATCH", `/api/campaigns/${id}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+    },
+  });
+
+  const toggleCampaign = async (campaign: Campaign) => {
+    const activeCampaigns = campaignsData.filter((c: Campaign) => c.isActive);
+    
+    if (campaign.isActive) {
       // Remove from campaigns
-      setSelectedCampaigns(selectedCampaigns.filter(id => id !== questlineId));
+      await updateCampaign.mutateAsync({ id: campaign.id, updates: { isActive: false } });
       toast({
         title: "Campaign Removed",
         description: "Questline removed from active campaigns.",
       });
     } else {
       // Add to campaigns (max 2)
-      if (selectedCampaigns.length >= 2) {
+      if (activeCampaigns.length >= 2) {
         toast({
           title: "Maximum Campaigns Reached",
           description: "You can only have 2 active campaigns. Remove one to add another.",
@@ -63,13 +81,63 @@ export default function CampaignsPage() {
         });
         return;
       }
-      setSelectedCampaigns([...selectedCampaigns, questlineId]);
+      await updateCampaign.mutateAsync({ id: campaign.id, updates: { isActive: true } });
       toast({
         title: "Campaign Added",
         description: "Questline marked as active campaign!",
       });
     }
   };
+
+  const openEditModal = (campaign: Campaign, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCampaign(campaign);
+    setEditQuests([...(campaign.quests || [])]);
+    setNewQuestTitle("");
+  };
+
+  const handleQuestStatusChange = (questId: number, newStatus: QuestStatus) => {
+    setEditQuests(prev => prev.map(q => q.id === questId ? { ...q, status: newStatus } : q));
+  };
+
+  const handleQuestTitleChange = (questId: number, newTitle: string) => {
+    setEditQuests(prev => prev.map(q => q.id === questId ? { ...q, title: newTitle } : q));
+  };
+
+  const handleAddQuest = () => {
+    if (!newQuestTitle.trim()) return;
+    const maxId = editQuests.reduce((max, q) => Math.max(max, q.id), 0);
+    setEditQuests([...editQuests, { id: maxId + 1, title: newQuestTitle.trim(), status: 'locked' }]);
+    setNewQuestTitle("");
+  };
+
+  const handleRemoveQuest = (questId: number) => {
+    setEditQuests(prev => prev.filter(q => q.id !== questId));
+  };
+
+  const handleSaveQuests = async () => {
+    if (!editingCampaign) return;
+    
+    // Recalculate progress based on quest statuses
+    const completed = editQuests.filter(q => q.status === 'completed').length;
+    const total = editQuests.length;
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    await updateCampaign.mutateAsync({
+      id: editingCampaign.id,
+      updates: { quests: editQuests, progress },
+    });
+    
+    setEditingCampaign(null);
+    toast({
+      title: "Questline Updated",
+      description: "Quest steps and statuses have been saved.",
+    });
+  };
+
+  const questlines = campaignsData;
+
+  const activeCampaignCount = questlines.filter((q: Campaign) => q.isActive).length;
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? 'pb-20' : 'pt-20'} px-4`}>
@@ -110,10 +178,15 @@ export default function CampaignsPage() {
               Click on a questline to mark it as an active campaign (max 2). Campaigns are highlighted in purple.
             </p>
 
+            {isLoading ? (
+              <div className="text-center py-8 text-blue-300/70">Loading questlines...</div>
+            ) : questlines.length === 0 ? (
+              <div className="text-center py-8 text-blue-300/70">No questlines yet. Create one to get started!</div>
+            ) : (
             <div className="space-y-4">
-              {questlines.map((questline) => {
-                const isCampaign = selectedCampaigns.includes(questline.id);
-                const Icon = questline.icon;
+              {questlines.map((questline: Campaign) => {
+                const isCampaign = questline.isActive;
+                const Icon = ICON_MAP[questline.icon] || Target;
                 
                 return (
                   <Card 
@@ -123,7 +196,7 @@ export default function CampaignsPage() {
                         ? 'bg-purple-900/30 border-2 border-purple-600/40 hover:border-purple-500/60' 
                         : 'bg-blue-900/30 border-2 border-blue-600/40 hover:border-blue-500/60'
                     } transition-all overflow-hidden cursor-pointer`}
-                    onClick={() => toggleCampaign(questline.id)}
+                    onClick={() => toggleCampaign(questline)}
                   >
                     <div className="relative">
                       {/* Campaign Badge */}
@@ -176,19 +249,34 @@ export default function CampaignsPage() {
                                   {questline.description}
                                 </p>
                               </div>
-                              <div className="text-right flex-shrink-0">
-                                <p className={`text-xs mb-1 ${
-                                  isCampaign ? 'text-purple-200/70' : 'text-blue-200/70'
-                                }`}>Progress</p>
-                                <p className={`text-2xl font-bold ${
-                                  isCampaign ? 'text-purple-100' : 'text-blue-100'
-                                }`}>{questline.progress}%</p>
+                              <div className="flex items-start gap-3 flex-shrink-0">
+                                {/* Edit Button */}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className={`${
+                                    isCampaign 
+                                      ? 'text-purple-300 hover:bg-purple-600/20 hover:text-purple-100' 
+                                      : 'text-blue-300 hover:bg-blue-600/20 hover:text-blue-100'
+                                  }`}
+                                  onClick={(e) => openEditModal(questline, e)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <div className="text-right">
+                                  <p className={`text-xs mb-1 ${
+                                    isCampaign ? 'text-purple-200/70' : 'text-blue-200/70'
+                                  }`}>Progress</p>
+                                  <p className={`text-2xl font-bold ${
+                                    isCampaign ? 'text-purple-100' : 'text-blue-100'
+                                  }`}>{questline.progress}%</p>
+                                </div>
                               </div>
                             </div>
 
                             {/* Quest Chain */}
                             <div className="mt-4 space-y-2">
-                              {questline.quests.map((quest) => (
+                              {(questline.quests || []).map((quest: Quest) => (
                                 <div key={quest.id} className="flex items-center gap-2">
                                   {quest.status === 'completed' && (
                                     <>
@@ -247,7 +335,7 @@ export default function CampaignsPage() {
                               <div className={`flex items-center gap-4 text-xs ${
                                 isCampaign ? 'text-purple-300/80' : 'text-blue-300/80'
                               }`}>
-                                {questline.rewards.map((reward, idx) => (
+                                {(questline.rewards || []).map((reward: string, idx: number) => (
                                   <span key={idx}>{reward}</span>
                                 ))}
                               </div>
@@ -260,15 +348,16 @@ export default function CampaignsPage() {
                 );
               })}
             </div>
+            )}
 
             {/* Info box */}
             <div className="mt-6 p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
               <p className="text-sm text-slate-300">
                 <strong className="text-purple-300">💡 Tip:</strong> Click on any questline to mark it as an active campaign. 
                 Active campaigns are highlighted in purple and will appear in your dashboard for quick tracking.
-                {selectedCampaigns.length > 0 && (
+                {activeCampaignCount > 0 && (
                   <span className="block mt-2 text-purple-300">
-                    Currently tracking {selectedCampaigns.length} of 2 campaigns.
+                    Currently tracking {activeCampaignCount} of 2 campaigns.
                   </span>
                 )}
               </p>
@@ -276,6 +365,79 @@ export default function CampaignsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Quest Modal */}
+      <Dialog open={!!editingCampaign} onOpenChange={(open) => !open && setEditingCampaign(null)}>
+        <DialogContent className="bg-slate-800 border-2 border-yellow-600/40 max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-yellow-100 font-serif">
+              Edit Quests — {editingCampaign?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {editQuests.map((quest, index) => (
+              <div key={quest.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
+                <span className="text-yellow-200/70 text-sm font-mono w-6 flex-shrink-0">{index + 1}.</span>
+                <Input
+                  value={quest.title}
+                  onChange={(e) => handleQuestTitleChange(quest.id, e.target.value)}
+                  className="flex-1 bg-slate-800/50 border-slate-600/50 text-yellow-100 text-sm"
+                />
+                <Select
+                  value={quest.status}
+                  onValueChange={(val) => handleQuestStatusChange(quest.id, val as QuestStatus)}
+                >
+                  <SelectTrigger className="w-[130px] bg-slate-800/50 border-slate-600/50 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-600">
+                    <SelectItem value="completed" className="text-green-300">✓ Completed</SelectItem>
+                    <SelectItem value="in-progress" className="text-yellow-300">! In Progress</SelectItem>
+                    <SelectItem value="locked" className="text-slate-400">🔒 Locked</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-red-400 hover:text-red-300 hover:bg-red-900/30 h-8 w-8 flex-shrink-0"
+                  onClick={() => handleRemoveQuest(quest.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+
+            {/* Add New Quest */}
+            <div className="flex items-center gap-2 pt-2">
+              <Input
+                placeholder="New quest step..."
+                value={newQuestTitle}
+                onChange={(e) => setNewQuestTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddQuest()}
+                className="flex-1 bg-slate-800/50 border-slate-600/50 text-yellow-100 text-sm"
+              />
+              <Button
+                size="sm"
+                onClick={handleAddQuest}
+                disabled={!newQuestTitle.trim()}
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCampaign(null)} className="border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveQuests} className="bg-gradient-to-r from-yellow-600 to-amber-500 hover:from-yellow-500 hover:to-amber-400 text-white border border-yellow-400/50">
+              <Check className="h-4 w-4 mr-1" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

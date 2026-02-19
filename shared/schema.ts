@@ -154,6 +154,10 @@ export const campaigns = pgTable("campaigns", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   icon: text("icon").notNull(), // Icon name from lucide-react
+  quests: jsonb("quests").$type<Array<{ id: number; title: string; status: 'completed' | 'in-progress' | 'locked' }>>().default([]),
+  rewards: jsonb("rewards").$type<string[]>().default([]),
+  progress: integer("progress").default(0),
+  isActive: boolean("is_active").default(false), // Whether this is an active campaign
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

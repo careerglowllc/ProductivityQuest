@@ -1815,7 +1815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/notion/import", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const { includeDuplicates = true } = req.body;
+      const { includeDuplicates = true, deleteAll = false } = req.body;
       const user = await storage.getUserById(userId);
       
       if (!user?.notionApiKey || !user?.notionDatabaseId) {
@@ -1823,6 +1823,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const notionTasks = await getTasks(user.notionDatabaseId, user.notionApiKey);
+      
+      // If deleteAll is true, permanently delete all existing tasks before importing
+      // This makes "Import ALL" actually replace all tasks as the UI promises
+      if (deleteAll) {
+        const allExistingTasks = await storage.getTasks(userId);
+        if (allExistingTasks.length > 0) {
+          const taskIds = allExistingTasks.map((t: any) => t.id);
+          const deletedCount = await storage.permanentlyDeleteTasks(taskIds, userId);
+          console.log(`🗑️ [NOTION-IMPORT] Permanently deleted ${deletedCount} existing tasks before full import`);
+        }
+      }
       
       // ALWAYS get existing tasks to check for notionId matches for updating
       const existingTasks = await storage.getTasks(userId);
@@ -3736,6 +3747,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting campaign:", error);
       res.status(500).json({ error: "Failed to delete campaign" });
+    }
+  });
+
+  app.patch("/api/campaigns/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const campaignId = parseInt(req.params.id);
+      const { quests, rewards, progress, isActive, title, description, icon } = req.body;
+
+      const updates: any = {};
+      if (quests !== undefined) updates.quests = quests;
+      if (rewards !== undefined) updates.rewards = rewards;
+      if (progress !== undefined) updates.progress = progress;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (title !== undefined) updates.title = title;
+      if (description !== undefined) updates.description = description;
+      if (icon !== undefined) updates.icon = icon;
+
+      const updated = await storage.updateCampaign(userId, campaignId, updates);
+      if (!updated) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating campaign:", error);
+      res.status(500).json({ error: "Failed to update campaign" });
     }
   });
 
