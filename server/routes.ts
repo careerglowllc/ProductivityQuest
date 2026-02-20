@@ -757,7 +757,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`📅 [PATCH TASK] Task ${id} updated. googleEventId: ${task.googleEventId}, googleCalendarId: ${task.googleCalendarId}`);
       
       // If task has Google Calendar event and time/duration/scheduledTime changed, update it
-      if (task.googleEventId && task.googleCalendarId && 
+      // Default googleCalendarId to 'primary' if missing
+      if (task.googleEventId && 
           (updateData.dueDate !== undefined || updateData.duration !== undefined || updateData.scheduledTime !== undefined)) {
         try {
           const user = await storage.getUser(userId);
@@ -4085,7 +4086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update each task with its new scheduled time
       const updates = [];
-      const googleCalendarUpdates = [];
+      const googleCalendarUpdates: Array<{ task: any; action: 'update' | 'create' }> = [];
       
       for (const item of sortedSchedule) {
         console.log(`📊 [ML-APPLY] Updating task ${item.taskId} to start at ${item.startTime}`);
@@ -4102,23 +4103,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updates.push({ taskId: item.taskId, newTime: item.startTime });
           console.log(`📊 [ML-APPLY] Task ${item.taskId} updated successfully`);
           
-          // Queue Google Calendar update if task has a linked event
-          if (task.googleEventId && hasGoogleAuth) {
-            googleCalendarUpdates.push({
-              task: { 
-                ...task, 
-                scheduledTime: newScheduledTime,
-                dueDate: newScheduledTime, // Also update dueDate for the sync
-              },
-            });
+          // Queue Google Calendar sync if user has GCal auth
+          if (hasGoogleAuth) {
+            const taskForSync = { 
+              ...task, 
+              scheduledTime: newScheduledTime,
+              dueDate: newScheduledTime,
+              googleCalendarId: task.googleCalendarId || 'primary',
+            };
+            
+            if (task.googleEventId) {
+              // Task already has a GCal event — update it
+              googleCalendarUpdates.push({ task: taskForSync, action: 'update' });
+            } else if (user?.googleCalendarSyncEnabled) {
+              // Task has no GCal event but sync is enabled — create one
+              googleCalendarUpdates.push({ task: taskForSync, action: 'create' });
+            }
           }
         } else {
           console.log(`📊 [ML-APPLY] Task ${item.taskId} not found or not owned by user`);
         }
       }
 
-      // Update Google Calendar events
+      // Update/create Google Calendar events
       let googleUpdatedCount = 0;
+      let googleCreatedCount = 0;
       let googleFailedCount = 0;
       
       if (googleCalendarUpdates.length > 0 && user) {
@@ -4126,25 +4135,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         for (const update of googleCalendarUpdates) {
           try {
-            await googleCalendar.updateEvent(update.task as any, user);
-            googleUpdatedCount++;
-            console.log(`📊 [ML-APPLY] ✅ Updated Google Calendar event ${update.task.googleEventId}`);
+            if (update.action === 'update') {
+              await googleCalendar.updateEvent(update.task as any, user);
+              googleUpdatedCount++;
+              console.log(`📊 [ML-APPLY] ✅ Updated Google Calendar event ${update.task.googleEventId}`);
+            } else if (update.action === 'create') {
+              // Create new event via syncTasks (handles event creation and saves eventId)
+              const result = await googleCalendar.syncTasks([update.task as any], user, storage);
+              if (result.success > 0) {
+                googleCreatedCount++;
+                console.log(`📊 [ML-APPLY] ✅ Created new Google Calendar event for task ${update.task.id}`);
+              } else {
+                googleFailedCount++;
+                console.log(`📊 [ML-APPLY] ❌ Failed to create Google Calendar event for task ${update.task.id}`);
+              }
+            }
           } catch (error: any) {
             googleFailedCount++;
-            console.error(`📊 [ML-APPLY] ❌ Failed to update Google Calendar event ${update.task.googleEventId}: ${error.message}`);
+            console.error(`📊 [ML-APPLY] ❌ Failed to sync Google Calendar for task ${update.task.id}: ${error.message}`);
           }
         }
         
-        console.log(`📊 [ML-APPLY] Google Calendar sync complete: ${googleUpdatedCount} updated, ${googleFailedCount} failed`);
+        console.log(`📊 [ML-APPLY] Google Calendar sync complete: ${googleUpdatedCount} updated, ${googleCreatedCount} created, ${googleFailedCount} failed`);
       }
 
       console.log(`📊 [ML-APPLY] Total updates: ${updates.length}`);
 
+      const totalGCalSynced = googleUpdatedCount + googleCreatedCount;
       res.json({
         success: true,
-        message: `Updated ${updates.length} tasks${googleUpdatedCount > 0 ? ` and synced ${googleUpdatedCount} to Google Calendar` : ''}`,
+        message: `Updated ${updates.length} tasks${totalGCalSynced > 0 ? ` and synced ${totalGCalSynced} to Google Calendar` : ''}`,
         updates,
         googleCalendarUpdates: googleUpdatedCount,
+        googleCalendarCreated: googleCreatedCount,
         googleCalendarFailed: googleFailedCount,
       });
     } catch (error: any) {

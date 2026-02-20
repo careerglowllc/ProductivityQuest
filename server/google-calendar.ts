@@ -589,10 +589,13 @@ export class GoogleCalendarService {
 
   async updateEvent(task: Task, user: User): Promise<any> {
     try {
-      if (!task.googleEventId || !task.googleCalendarId) {
-        console.log(`📅 [UPDATE EVENT] Skipping task ${task.id} - no googleEventId (${task.googleEventId}) or googleCalendarId (${task.googleCalendarId})`);
+      if (!task.googleEventId) {
+        console.log(`📅 [UPDATE EVENT] Skipping task ${task.id} - no googleEventId`);
         return null; // Task is not synced to Google Calendar
       }
+
+      // Default to 'primary' calendar if not specified
+      const calendarId = task.googleCalendarId || 'primary';
 
       // Use scheduledTime if available, otherwise fall back to dueDate
       const rawStartTime = task.scheduledTime || task.dueDate;
@@ -652,7 +655,7 @@ export class GoogleCalendarService {
       };
 
       const response = await calendar.events.update({
-        calendarId: task.googleCalendarId,
+        calendarId: calendarId,
         eventId: task.googleEventId,
         requestBody: event,
       });
