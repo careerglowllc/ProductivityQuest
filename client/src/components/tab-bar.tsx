@@ -34,9 +34,9 @@ export function TabBar() {
       icon: CheckSquare,
     },
     {
-      name: "Skills",
-      path: "/skills",
-      icon: Sparkles,
+      name: "Calendar",
+      path: "/calendar",
+      icon: Calendar,
     },
     {
       name: "Item Shop",
