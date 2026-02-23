@@ -733,6 +733,124 @@ export default function Dashboard() {
     }
   };
 
+  // Render the Active Questlines card (reusable between mobile and desktop layouts)
+  const renderQuestlines = (className?: string) => (
+    <Card className={`bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all ${className || 'mb-6'}`}>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-purple-400" />
+            <h3 className="text-sm font-serif font-bold text-purple-100">Active Questlines</h3>
+          </div>
+          <Link href="/campaigns">
+            <Button variant="outline" size="sm" className="h-7 px-3 text-xs border-purple-600/40 bg-slate-700/50 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100 hover:border-purple-500/60">
+              <Target className="w-3 h-3 mr-1" />
+              Manage
+            </Button>
+          </Link>
+        </div>
+
+        {selectedCampaigns.length === 0 ? (
+          <div className="text-center py-6">
+            <Target className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} text-purple-400/40 mx-auto mb-3`} />
+            <h4 className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-purple-200 mb-1`}>No Active Questlines</h4>
+            <p className="text-xs text-purple-300/70 mb-3 max-w-md mx-auto">
+              Select up to 2 questlines from the Questlines page to track your major life objectives.
+            </p>
+            <Link href="/campaigns">
+              <Button size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 h-8 text-xs">
+                <Plus className="w-3 h-3 mr-1" />
+                Select Questlines
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {selectedCampaigns.map((campaign) => (
+              <Card 
+                key={campaign.id}
+                className="bg-slate-800/60 border-purple-500/30 hover:border-purple-400/50 transition-all cursor-pointer"
+                onClick={() => toggleCampaign(campaign.id)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="text-xs font-serif font-semibold text-purple-100">
+                          {campaign.title}
+                        </h4>
+                        <span className="text-[10px] font-bold text-purple-200">{campaign.progress}%</span>
+                      </div>
+                      <Progress value={campaign.progress} className="h-1.5 bg-slate-700/50 mb-1">
+                        <div 
+                          className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" 
+                          style={{ width: `${campaign.progress}%` }} 
+                        />
+                      </Progress>
+                      {!expandedCampaigns[campaign.id] && (
+                        <p className="text-[9px] text-purple-300/70 line-clamp-1">{campaign.description}</p>
+                      )}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="ml-3 text-purple-300 hover:text-purple-100 h-6 w-6 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCampaign(campaign.id);
+                      }}
+                    >
+                      {expandedCampaigns[campaign.id] ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  {expandedCampaigns[campaign.id] && (
+                    <div className="mt-3 pt-3 border-t border-purple-500/20">
+                      <p className="text-[10px] text-purple-200/80 mb-3">{campaign.description}</p>
+                      <div className="space-y-1.5">
+                        {campaign.quests.map((quest) => (
+                          <div 
+                            key={quest.id}
+                            className="flex items-center gap-2 p-1.5 rounded bg-slate-900/40"
+                          >
+                            {quest.status === 'completed' && (
+                              <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                            )}
+                            {quest.status === 'in-progress' && (
+                              <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                                <div className="w-2.5 h-2.5 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
+                              </div>
+                            )}
+                            {quest.status === 'locked' && (
+                              <div className="w-4 h-4 flex-shrink-0 rounded-full bg-slate-600/50 flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              </div>
+                            )}
+                            <span className={`text-[10px] ${
+                              quest.status === 'completed' ? 'text-green-300' :
+                              quest.status === 'in-progress' ? 'text-yellow-200 font-medium' :
+                              'text-slate-400'
+                            }`}>
+                              Quest {quest.id}: {quest.title}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
       {/* Starfield Background Effect */}
@@ -745,80 +863,6 @@ export default function Dashboard() {
       </div>
 
       <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
-        {/* Quick Actions - All 8 buttons in a single row on desktop, 2 rows of 4 on mobile */}
-        {!isMobile && (
-        <div className="grid grid-cols-8 gap-2 mb-6">
-          <Link href="/tasks">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group">
-              <CardContent className="p-3 text-center">
-                <CheckCircle className="w-6 h-6 mx-auto mb-1 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                <h3 className="text-xs font-medium text-yellow-100 font-serif">Tasks</h3>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/skills">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-blue-500/30 hover:border-blue-400/60 group">
-              <CardContent className="p-3 text-center">
-                <Sparkles className="w-6 h-6 mx-auto mb-1 text-blue-400 group-hover:text-blue-300 transition-colors" />
-                <h3 className="text-xs font-medium text-yellow-100 font-serif">Skills</h3>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/shop">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-green-500/30 hover:border-green-400/60 group">
-              <CardContent className="p-3 text-center">
-                <ShoppingCart className="w-6 h-6 mx-auto mb-1 text-green-400 group-hover:text-green-300 transition-colors" />
-                <h3 className="text-xs font-medium text-yellow-100 font-serif">Shop</h3>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/recycling-bin">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group">
-              <CardContent className="p-3 text-center">
-                <Trash2 className="w-6 h-6 mx-auto mb-1 text-orange-400 group-hover:text-orange-300 transition-colors" />
-                <h3 className="text-xs font-medium text-yellow-100 font-serif">Recycle</h3>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/npcs">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-cyan-500/30 hover:border-cyan-400/60 group">
-              <CardContent className="p-3 text-center">
-                <User className="w-6 h-6 mx-auto mb-1 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
-                <h3 className="text-xs font-medium text-yellow-100 font-serif">NPCs</h3>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/calendar">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-pink-500/30 hover:border-pink-400/60 group">
-              <CardContent className="p-3 text-center">
-                <Calendar className="w-6 h-6 mx-auto mb-1 text-pink-400 group-hover:text-pink-300 transition-colors" />
-                <h3 className="text-xs font-medium text-yellow-100 font-serif">Calendar</h3>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/settings">
-            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/30 hover:border-yellow-400/60 group">
-              <CardContent className="p-3 text-center">
-                <Settings className="w-6 h-6 mx-auto mb-1 text-yellow-400 group-hover:text-yellow-300 transition-colors" />
-                <h3 className="text-xs font-medium text-yellow-100 font-serif">Settings</h3>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group">
-            <CardContent className="p-3 text-center">
-              <Target className="w-6 h-6 mx-auto mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
-              <h3 className="text-xs font-medium text-yellow-100 font-serif">More</h3>
-            </CardContent>
-          </Card>
-        </div>
-        )}
 
         {/* Mobile: First row of 4 */}
         {isMobile && (
@@ -900,126 +944,8 @@ export default function Dashboard() {
         </div>
         )}
 
-        {/* Active Questlines Section */}
-        <Card className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 backdrop-blur-md border-2 border-purple-600/40 hover:border-purple-500/60 transition-all mb-6">
-          <CardContent className={isMobile ? 'p-3' : 'p-3'}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Target className={`${isMobile ? 'h-4 w-4' : 'h-4 w-4'} text-purple-400`} />
-                <h3 className={`${isMobile ? 'text-sm' : 'text-sm'} font-serif font-bold text-purple-100`}>Active Questlines</h3>
-              </div>
-              <Link href="/campaigns">
-                <Button variant="outline" size="sm" className={`h-7 px-3 ${isMobile ? 'text-xs' : 'text-xs'} border-purple-600/40 bg-slate-700/50 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100 hover:border-purple-500/60`}>
-                  <Target className="w-3 h-3 mr-1" />
-                  Manage
-                </Button>
-              </Link>
-            </div>
-
-            {/* No Campaigns Selected State */}
-            {selectedCampaigns.length === 0 ? (
-              <div className="text-center py-6">
-                <Target className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} text-purple-400/40 mx-auto mb-3`} />
-                <h4 className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-purple-200 mb-1`}>No Active Questlines</h4>
-                <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-purple-300/70 mb-3 max-w-md mx-auto`}>
-                  Select up to 2 questlines from the Questlines page to track your major life objectives.
-                </p>
-                <Link href="/campaigns">
-                  <Button size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 h-8 text-xs">
-                    <Plus className="w-3 h-3 mr-1" />
-                    Select Questlines
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {selectedCampaigns.map((campaign) => (
-                  <Card 
-                    key={campaign.id}
-                    className="bg-slate-800/60 border-purple-500/30 hover:border-purple-400/50 transition-all cursor-pointer"
-                    onClick={() => toggleCampaign(campaign.id)}
-                  >
-                    <CardContent className="p-3">
-                      {/* Collapsed View */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="text-xs font-serif font-semibold text-purple-100">
-                              {campaign.title}
-                            </h4>
-                            <span className="text-[10px] font-bold text-purple-200">{campaign.progress}%</span>
-                          </div>
-                          <Progress value={campaign.progress} className="h-1.5 bg-slate-700/50 mb-1">
-                            <div 
-                              className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" 
-                              style={{ width: `${campaign.progress}%` }} 
-                            />
-                          </Progress>
-                          {!expandedCampaigns[campaign.id] && (
-                            <p className="text-[9px] text-purple-300/70 line-clamp-1">{campaign.description}</p>
-                          )}
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="ml-3 text-purple-300 hover:text-purple-100 h-6 w-6 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleCampaign(campaign.id);
-                          }}
-                        >
-                          {expandedCampaigns[campaign.id] ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-
-                      {/* Expanded View */}
-                      {expandedCampaigns[campaign.id] && (
-                        <div className="mt-3 pt-3 border-t border-purple-500/20">
-                          <p className="text-[10px] text-purple-200/80 mb-3">{campaign.description}</p>
-                          
-                          {/* Quest Steps */}
-                          <div className="space-y-1.5">
-                            {campaign.quests.map((quest) => (
-                              <div 
-                                key={quest.id}
-                                className="flex items-center gap-2 p-1.5 rounded bg-slate-900/40"
-                              >
-                                {quest.status === 'completed' && (
-                                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                                )}
-                                {quest.status === 'in-progress' && (
-                                  <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
-                                    <div className="w-2.5 h-2.5 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
-                                  </div>
-                                )}
-                                {quest.status === 'locked' && (
-                                  <div className="w-4 h-4 flex-shrink-0 rounded-full bg-slate-600/50 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                  </div>
-                                )}
-                                <span className={`text-[10px] ${
-                                  quest.status === 'completed' ? 'text-green-300' :
-                                  quest.status === 'in-progress' ? 'text-yellow-200 font-medium' :
-                                  'text-slate-400'
-                                }`}>
-                                  Quest {quest.id}: {quest.title}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Active Questlines (mobile only - desktop version is inside resizable layout below) */}
+        {isMobile && renderQuestlines()}
 
         {/* Two-by-two grid layout for web (Skills, Schedule, Priorities, Finances), stacked for mobile */}
         {isMobile ? (
@@ -1152,180 +1078,267 @@ export default function Dashboard() {
             <FinanceWidget />
           </div>
         ) : (
-          <div className="mb-8" style={{ height: 'calc(100vh - 340px)', minHeight: '500px' }}>
+          /* Desktop: Full-page resizable layout - top section (quick actions + questlines) resizable against bottom grid */
+          <div style={{ height: 'calc(100vh - 100px)' }}>
             <ResizablePanelGroup
               direction="vertical"
-              autoSaveId="dashboard-grid-vertical"
-              className="h-full rounded-lg"
+              autoSaveId="dashboard-outer-vertical"
+              className="h-full"
             >
-              {/* Top Row */}
-              <ResizablePanel defaultSize={50} minSize={25}>
-                <ResizablePanelGroup
-                  direction="horizontal"
-                  autoSaveId="dashboard-grid-top"
-                >
-                  {/* Top Left - Skills Overview */}
-                  <ResizablePanel defaultSize={50} minSize={20}>
-                    <div className="h-full p-1.5">
-                      <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col">
-                        <CardHeader className="border-b border-yellow-600/20 pb-3 flex-shrink-0">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
-                            <Link href="/skills">
-                              <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                                View Details
-                                <ArrowRight className="w-4 h-4" />
-                              </Button>
-                            </Link>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-4 pb-4 flex items-center justify-center flex-1 overflow-hidden">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <div className="cursor-pointer relative group w-full">
-                                <div className="scale-[0.6] origin-center transform -my-16">
-                                  {skillsLoading ? (
-                                    <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
-                                      Loading skills...
-                                    </div>
-                                  ) : (
-                                    <SpiderChart skills={safeSkills} />
-                                  )}
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                  <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
-                                    <Maximize2 className="w-4 h-4" />
-                                    <span className="text-sm">Click to enlarge</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl bg-slate-800 border-2 border-yellow-600/40 text-yellow-100">
-                              <DialogHeader>
-                                <DialogTitle className="text-yellow-100 font-serif">Skills Overview</DialogTitle>
-                              </DialogHeader>
-                              {skillsLoading ? (
-                                <div className="flex items-center justify-center h-[500px] text-yellow-200/60">
-                                  Loading skills...
-                                </div>
-                              ) : (
-                                <SpiderChart skills={safeSkills} />
-                              )}
-                              <div className="mt-4 text-center">
-                                <p className="text-sm text-yellow-200/80">
-                                  Complete quests to level up your skills and expand your constellation
-                                </p>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
+              {/* Top Panel: Quick Actions + Active Questlines */}
+              <ResizablePanel defaultSize={22} minSize={8} maxSize={50}>
+                <div className="h-full overflow-y-auto pb-1">
+                  {/* Quick Actions Row */}
+                  <div className="grid grid-cols-8 gap-2 mb-3">
+                    <Link href="/tasks">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <CheckCircle className="w-6 h-6 mx-auto mb-1 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">Tasks</h3>
                         </CardContent>
                       </Card>
-                    </div>
-                  </ResizablePanel>
-
-                  <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
-
-                  {/* Top Right - Today's Schedule */}
-                  <ResizablePanel defaultSize={50} minSize={20}>
-                    <div className="h-full p-1.5">
-                      <TodayCalendarWidget />
-                    </div>
-                  </ResizablePanel>
-                </ResizablePanelGroup>
+                    </Link>
+                    <Link href="/skills">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-blue-500/30 hover:border-blue-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <Sparkles className="w-6 h-6 mx-auto mb-1 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">Skills</h3>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link href="/shop">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-green-500/30 hover:border-green-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <ShoppingCart className="w-6 h-6 mx-auto mb-1 text-green-400 group-hover:text-green-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">Shop</h3>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link href="/recycling-bin">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <Trash2 className="w-6 h-6 mx-auto mb-1 text-orange-400 group-hover:text-orange-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">Recycle</h3>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link href="/npcs">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-cyan-500/30 hover:border-cyan-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <User className="w-6 h-6 mx-auto mb-1 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">NPCs</h3>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link href="/calendar">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-pink-500/30 hover:border-pink-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <Calendar className="w-6 h-6 mx-auto mb-1 text-pink-400 group-hover:text-pink-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">Calendar</h3>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link href="/settings">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/30 hover:border-yellow-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <Settings className="w-6 h-6 mx-auto mb-1 text-yellow-400 group-hover:text-yellow-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">Settings</h3>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group">
+                      <CardContent className="p-3 text-center">
+                        <Target className="w-6 h-6 mx-auto mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                        <h3 className="text-xs font-medium text-yellow-100 font-serif">More</h3>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  {/* Active Questlines */}
+                  {renderQuestlines('mb-1')}
+                </div>
               </ResizablePanel>
 
               <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
 
-              {/* Bottom Row */}
-              <ResizablePanel defaultSize={50} minSize={25}>
-                <ResizablePanelGroup
-                  direction="horizontal"
-                  autoSaveId="dashboard-grid-bottom"
-                >
-                  {/* Bottom Left - Top Priority Tasks */}
-                  <ResizablePanel defaultSize={50} minSize={20}>
-                    <div className="h-full p-1.5">
-                      <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col">
-                        <CardHeader className="border-b border-yellow-600/20 flex-shrink-0">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
-                            <Link href="/tasks">
-                              <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                                View All
-                                <ArrowRight className="w-4 h-4" />
-                              </Button>
-                            </Link>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-6 flex-1 overflow-hidden">
-                          {topTasks.length === 0 ? (
-                            <div className="text-center py-8">
-                              <CheckCircle className="w-12 h-12 text-yellow-400/50 mx-auto mb-3" />
-                              <p className="text-yellow-200/70">No pending tasks! Great job! 🎉</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-3 h-full overflow-y-auto">
-                              {topTasks.map((task: any, index: number) => (
-                                <div
-                                  key={task.id}
-                                  className="flex items-center justify-between p-4 border-2 border-slate-600/40 rounded-lg hover:bg-slate-700/40 hover:border-yellow-500/40 transition-all backdrop-blur-sm"
-                                >
-                                  <div className="flex items-center gap-4 flex-1">
-                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg">
-                                      {index + 1}
-                                    </div>
-                                    <div className="flex-1">
-                                      <h4 className="font-semibold text-yellow-100 mb-1">{task.title}</h4>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        {task.importance && (
-                                          <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>
-                                            {task.importance}
-                                          </Badge>
-                                        )}
-                                        {task.duration && (
-                                          <div className="flex items-center text-xs text-yellow-200/60">
-                                            <Clock className="w-3 h-3 mr-1" />
-                                            {task.duration} min
-                                          </div>
-                                        )}
-                                        {task.goldValue && (
-                                          <div className="flex items-center text-xs text-yellow-400 font-semibold">
-                                            <Coins className="w-3 h-3 mr-1" />
-                                            {task.goldValue}
-                                          </div>
-                                        )}
-                                        {task.dueDate && (
-                                          <div className="flex items-center text-xs text-yellow-200/60">
-                                            <Calendar className="w-3 h-3 mr-1" />
-                                            {new Date(task.dueDate).toLocaleDateString()}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <Link href={`/tasks?taskId=${task.id}`}>
-                                    <Button variant="outline" size="sm" className="border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                                      Details
+              {/* Bottom Panel: 2×2 Resizable Widget Grid */}
+              <ResizablePanel defaultSize={78} minSize={40}>
+                <div className="h-full pt-1">
+                  <ResizablePanelGroup
+                    direction="vertical"
+                    autoSaveId="dashboard-grid-vertical"
+                    className="h-full rounded-lg"
+                  >
+                    {/* Top Row */}
+                    <ResizablePanel defaultSize={50} minSize={25}>
+                      <ResizablePanelGroup
+                        direction="horizontal"
+                        autoSaveId="dashboard-grid-top"
+                      >
+                        {/* Top Left - Skills Overview */}
+                        <ResizablePanel defaultSize={50} minSize={20}>
+                          <div className="h-full p-1.5">
+                            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col">
+                              <CardHeader className="border-b border-yellow-600/20 pb-3 flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
+                                  <Link href="/skills">
+                                    <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                                      View Details
+                                      <ArrowRight className="w-4 h-4" />
                                     </Button>
                                   </Link>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </ResizablePanel>
+                              </CardHeader>
+                              <CardContent className="pt-4 pb-4 flex items-center justify-center flex-1 overflow-hidden">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <div className="cursor-pointer relative group w-full">
+                                      <div className="scale-[0.6] origin-center transform -my-16">
+                                        {skillsLoading ? (
+                                          <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
+                                            Loading skills...
+                                          </div>
+                                        ) : (
+                                          <SpiderChart skills={safeSkills} />
+                                        )}
+                                      </div>
+                                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                        <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
+                                          <Maximize2 className="w-4 h-4" />
+                                          <span className="text-sm">Click to enlarge</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl bg-slate-800 border-2 border-yellow-600/40 text-yellow-100">
+                                    <DialogHeader>
+                                      <DialogTitle className="text-yellow-100 font-serif">Skills Overview</DialogTitle>
+                                    </DialogHeader>
+                                    {skillsLoading ? (
+                                      <div className="flex items-center justify-center h-[500px] text-yellow-200/60">
+                                        Loading skills...
+                                      </div>
+                                    ) : (
+                                      <SpiderChart skills={safeSkills} />
+                                    )}
+                                    <div className="mt-4 text-center">
+                                      <p className="text-sm text-yellow-200/80">
+                                        Complete quests to level up your skills and expand your constellation
+                                      </p>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </ResizablePanel>
 
-                  <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
+                        <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
 
-                  {/* Bottom Right - Finance Widget */}
-                  <ResizablePanel defaultSize={50} minSize={20}>
-                    <div className="h-full p-1.5">
-                      <FinanceWidget />
-                    </div>
-                  </ResizablePanel>
-                </ResizablePanelGroup>
+                        {/* Top Right - Today's Schedule */}
+                        <ResizablePanel defaultSize={50} minSize={20}>
+                          <div className="h-full p-1.5">
+                            <TodayCalendarWidget />
+                          </div>
+                        </ResizablePanel>
+                      </ResizablePanelGroup>
+                    </ResizablePanel>
+
+                    <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
+
+                    {/* Bottom Row */}
+                    <ResizablePanel defaultSize={50} minSize={25}>
+                      <ResizablePanelGroup
+                        direction="horizontal"
+                        autoSaveId="dashboard-grid-bottom"
+                      >
+                        {/* Bottom Left - Top Priority Tasks */}
+                        <ResizablePanel defaultSize={50} minSize={20}>
+                          <div className="h-full p-1.5">
+                            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col">
+                              <CardHeader className="border-b border-yellow-600/20 flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
+                                  <Link href="/tasks">
+                                    <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                                      View All
+                                      <ArrowRight className="w-4 h-4" />
+                                    </Button>
+                                  </Link>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-6 flex-1 overflow-hidden">
+                                {topTasks.length === 0 ? (
+                                  <div className="text-center py-8">
+                                    <CheckCircle className="w-12 h-12 text-yellow-400/50 mx-auto mb-3" />
+                                    <p className="text-yellow-200/70">No pending tasks! Great job! 🎉</p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3 h-full overflow-y-auto">
+                                    {topTasks.map((task: any, index: number) => (
+                                      <div
+                                        key={task.id}
+                                        className="flex items-center justify-between p-4 border-2 border-slate-600/40 rounded-lg hover:bg-slate-700/40 hover:border-yellow-500/40 transition-all backdrop-blur-sm"
+                                      >
+                                        <div className="flex items-center gap-4 flex-1">
+                                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg">
+                                            {index + 1}
+                                          </div>
+                                          <div className="flex-1">
+                                            <h4 className="font-semibold text-yellow-100 mb-1">{task.title}</h4>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              {task.importance && (
+                                                <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>
+                                                  {task.importance}
+                                                </Badge>
+                                              )}
+                                              {task.duration && (
+                                                <div className="flex items-center text-xs text-yellow-200/60">
+                                                  <Clock className="w-3 h-3 mr-1" />
+                                                  {task.duration} min
+                                                </div>
+                                              )}
+                                              {task.goldValue && (
+                                                <div className="flex items-center text-xs text-yellow-400 font-semibold">
+                                                  <Coins className="w-3 h-3 mr-1" />
+                                                  {task.goldValue}
+                                                </div>
+                                              )}
+                                              {task.dueDate && (
+                                                <div className="flex items-center text-xs text-yellow-200/60">
+                                                  <Calendar className="w-3 h-3 mr-1" />
+                                                  {new Date(task.dueDate).toLocaleDateString()}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <Link href={`/tasks?taskId=${task.id}`}>
+                                          <Button variant="outline" size="sm" className="border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                                            Details
+                                          </Button>
+                                        </Link>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </ResizablePanel>
+
+                        <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
+
+                        {/* Bottom Right - Finance Widget */}
+                        <ResizablePanel defaultSize={50} minSize={20}>
+                          <div className="h-full p-1.5">
+                            <FinanceWidget />
+                          </div>
+                        </ResizablePanel>
+                      </ResizablePanelGroup>
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
+                </div>
               </ResizablePanel>
             </ResizablePanelGroup>
           </div>

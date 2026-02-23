@@ -84,6 +84,35 @@
     padding-top: env(safe-area-inset-top);
   }
 
+  /* Capacitor iOS - handle notch and safe areas */
+  .capacitor-ios body {
+    /* Ensure content respects safe areas */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    /* Prevent overscroll bounce */
+    overscroll-behavior: none;
+    /* Ensure full viewport coverage */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Disable text selection and callout on iOS for app-like feel */
+  .capacitor-ios * {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Re-enable text selection for inputs and textareas */
+  .capacitor-ios input,
+  .capacitor-ios textarea,
+  .capacitor-ios [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
   /* Slower pulse animation for milestone nodes */
   @keyframes pulse-slow {
     0%, 100% {
