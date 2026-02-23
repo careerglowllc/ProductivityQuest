@@ -756,6 +756,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📅 [PATCH TASK] Task ${id} updated. googleEventId: ${task.googleEventId}, googleCalendarId: ${task.googleCalendarId}`);
       
+      // Track Google Calendar sync result
+      let calendarSynced: boolean | null = null; // null = not attempted, true = success, false = failed
+      let calendarSyncError: string | null = null;
+      
       // If task has Google Calendar event and time/duration/scheduledTime changed, update it
       // Default googleCalendarId to 'primary' if missing
       if (task.googleEventId && 
@@ -779,8 +783,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`✅ [PATCH TASK] Successfully updated Google Calendar event`);
               console.log(`   - Google Event start: ${result.start?.dateTime}`);
               console.log(`   - Google Event end: ${result.end?.dateTime}`);
+              calendarSynced = true;
             } else {
               console.log(`⚠️ [PATCH TASK] Google Calendar update returned null (no changes or event not found)`);
+              calendarSynced = false;
+              calendarSyncError = 'Event not found in Google Calendar or no time data';
             }
           } else {
             console.log(`⚠️ [PATCH TASK] No Google Calendar credentials found for user`);
@@ -788,10 +795,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`   - googleCalendarRefreshToken: ${!!user?.googleCalendarRefreshToken}`);
             console.log(`   - googleAccessToken: ${!!user?.googleAccessToken}`);
             console.log(`   - googleRefreshToken: ${!!user?.googleRefreshToken}`);
+            calendarSynced = false;
+            calendarSyncError = 'Google Calendar not connected';
           }
         } catch (error: any) {
           console.error('❌ [PATCH TASK] Failed to update Google Calendar event:', error.message);
           console.error('❌ [PATCH TASK] Full error:', error);
+          calendarSynced = false;
+          calendarSyncError = error.message || 'Unknown error';
           // Don't fail the request if Google Calendar sync fails
         }
       } else {
@@ -803,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`   - updateData.scheduledTime: ${updateData.scheduledTime}`);
       }
       
-      res.json(task);
+      res.json({ ...task, calendarSynced, calendarSyncError });
     } catch (error: any) {
       console.error("Task update error:", error);
       res.status(400).json({ error: "Invalid task update data" });

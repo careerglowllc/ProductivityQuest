@@ -667,12 +667,16 @@ export class GoogleCalendarService {
 
       return response.data;
     } catch (error: any) {
-      console.error('Error updating Google Calendar event:', error);
+      console.error('Error updating Google Calendar event:', error.message);
       
-      // Only throw auth expired for genuine invalid_grant errors
-      if (error.code === 401 && error.message?.includes('invalid_grant')) {
-        console.error('⚠️ Refresh token invalid - user needs to re-authorize');
-        throw new Error('CALENDAR_AUTH_EXPIRED');
+      // Auth errors - throw so the caller can inform the user
+      if (error.code === 401) {
+        if (error.message?.includes('invalid_grant')) {
+          console.error('⚠️ Refresh token invalid - user needs to re-authorize');
+          throw new Error('Google Calendar authorization expired. Please re-connect your Google Calendar.');
+        }
+        console.error('⚠️ Access token expired or invalid');
+        throw new Error('Google Calendar access expired. Please re-sync.');
       }
       
       // If event not found, it may have been deleted from Google Calendar
@@ -681,9 +685,15 @@ export class GoogleCalendarService {
         return null;
       }
       
-      // For other errors, log but don't fail completely
-      console.warn('⚠️ Non-fatal calendar update error:', error.message);
-      return null;
+      // For rate limit or server errors, throw with descriptive message
+      if (error.code === 403) {
+        console.error('⚠️ Google Calendar API rate limit or permission error');
+        throw new Error('Google Calendar rate limit reached. Try again in a moment.');
+      }
+      
+      // For other errors, throw with the error message
+      console.warn('⚠️ Calendar update error:', error.message);
+      throw new Error(`Google Calendar sync failed: ${error.message || 'Unknown error'}`);
     }
   }
 

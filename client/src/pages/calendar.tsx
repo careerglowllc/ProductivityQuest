@@ -587,6 +587,21 @@ export default function Calendar() {
           });
 
           if (response.ok) {
+            const result = await response.json();
+            
+            // Check Google Calendar sync result
+            if (result.calendarSynced === true) {
+              console.log('✅ Google Calendar updated for task', taskId);
+            } else if (result.calendarSynced === false) {
+              console.warn('⚠️ Google Calendar sync failed:', result.calendarSyncError);
+              toast({
+                title: "⚠️ Google Calendar Not Updated",
+                description: result.calendarSyncError || "Failed to sync change to Google Calendar",
+                variant: "destructive",
+                duration: 4000,
+              });
+            }
+            
             // Refetch to ensure data consistency
             queryClient.invalidateQueries({ queryKey });
             queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
