@@ -1156,16 +1156,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let deletedCount = 0;
       const deletedTasks = [];
 
+      // Get user for Google Calendar cleanup
+      const user = await storage.getUserById(userId);
+      const hasGoogleAuth = user && (
+        (user.googleCalendarAccessToken && user.googleCalendarRefreshToken) || 
+        (user.googleAccessToken && user.googleRefreshToken)
+      );
+
       // Move all tasks to recycling bin
       for (const taskId of taskIds) {
         const task = await storage.getTask(taskId, userId);
         
         if (task && !task.completed) {
+          // Delete from Google Calendar if the task has a linked event
+          if (task.googleEventId && hasGoogleAuth) {
+            try {
+              await googleCalendar.deleteEvent(user!, task.googleEventId, task.googleCalendarId || 'primary');
+              console.log(`✅ Deleted Google Calendar event ${task.googleEventId} for task "${task.title}"`);
+            } catch (error: any) {
+              console.error(`⚠️ Failed to delete GCal event for task "${task.title}": ${error.message}`);
+              // Continue anyway - still move to recycling bin
+            }
+          }
+
           // Move to recycling bin without marking as complete (no gold/XP)
           const updatedTask = await storage.updateTask(taskId, {
             recycled: true,
             recycledAt: new Date(),
-            recycledReason: 'deleted'
+            recycledReason: 'deleted',
+            googleEventId: null,
+            googleCalendarId: null,
           }, userId);
           
           if (updatedTask) {
@@ -1514,10 +1534,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId;
       const id = parseInt(req.params.id);
+
+      // Delete from Google Calendar if the task has a linked event
+      const task = await storage.getTask(id, userId);
+      if (task?.googleEventId) {
+        const user = await storage.getUserById(userId);
+        const hasGoogleAuth = user && (
+          (user.googleCalendarAccessToken && user.googleCalendarRefreshToken) || 
+          (user.googleAccessToken && user.googleRefreshToken)
+        );
+        if (hasGoogleAuth) {
+          try {
+            await googleCalendar.deleteEvent(user!, task.googleEventId, task.googleCalendarId || 'primary');
+            console.log(`✅ Deleted Google Calendar event ${task.googleEventId} during task delete`);
+          } catch (error: any) {
+            console.error(`⚠️ Failed to delete GCal event during task delete: ${error.message}`);
+          }
+        }
+      }
+
       const success = await storage.deleteTask(id, userId);
       if (!success) {
         return res.status(404).json({ error: "Task not found" });
       }
+
+      // Also clear the googleEventId so it's not orphaned
+      if (task?.googleEventId) {
+        await storage.updateTask(id, { googleEventId: null, googleCalendarId: null }, userId);
+      }
+
       res.json({ success: true });
     } catch (error) {
       console.error("Task deletion error:", error);
@@ -1556,6 +1601,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId;
       const id = parseInt(req.params.id);
+
+      // Get the task first to check for Google Calendar event
+      const task = await storage.getTask(id, userId);
+      if (task?.googleEventId) {
+        const user = await storage.getUserById(userId);
+        const hasGoogleAuth = user && (
+          (user.googleCalendarAccessToken && user.googleCalendarRefreshToken) || 
+          (user.googleAccessToken && user.googleRefreshToken)
+        );
+        if (hasGoogleAuth) {
+          try {
+            await googleCalendar.deleteEvent(user!, task.googleEventId, task.googleCalendarId || 'primary');
+            console.log(`✅ Deleted Google Calendar event ${task.googleEventId} during permanent delete`);
+          } catch (error: any) {
+            console.error(`⚠️ Failed to delete GCal event during permanent delete: ${error.message}`);
+          }
+        }
+      }
+
       const success = await storage.permanentlyDeleteTask(id, userId);
       if (!success) {
         return res.status(404).json({ error: "Task not found in recycling bin" });
@@ -1611,6 +1675,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`🗑️ Starting permanent deletion of ${taskIds.length} tasks...`);
+
+      // Delete Google Calendar events for any tasks that have them
+      const user = await storage.getUserById(userId);
+      const hasGoogleAuth = user && (
+        (user.googleCalendarAccessToken && user.googleCalendarRefreshToken) || 
+        (user.googleAccessToken && user.googleRefreshToken)
+      );
+
+      if (hasGoogleAuth) {
+        for (const taskId of taskIds) {
+          try {
+            const task = await storage.getTask(taskId, userId);
+            if (task?.googleEventId) {
+              await googleCalendar.deleteEvent(user!, task.googleEventId, task.googleCalendarId || 'primary');
+              console.log(`✅ Deleted Google Calendar event ${task.googleEventId} for task "${task.title}"`);
+            }
+          } catch (error: any) {
+            console.error(`⚠️ Failed to delete GCal event for task ${taskId}: ${error.message}`);
+            // Continue - still permanently delete the task
+          }
+        }
+      }
 
       // Use optimized batch delete instead of loop
       const deletedCount = await storage.permanentlyDeleteTasks(taskIds, userId);
@@ -1841,6 +1927,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (deleteAll) {
         const allExistingTasks = await storage.getTasks(userId);
         if (allExistingTasks.length > 0) {
+          // Delete Google Calendar events for tasks that have them
+          const hasGoogleAuth = user && (
+            (user.googleCalendarAccessToken && user.googleCalendarRefreshToken) || 
+            (user.googleAccessToken && user.googleRefreshToken)
+          );
+          if (hasGoogleAuth) {
+            for (const t of allExistingTasks) {
+              if ((t as any).googleEventId) {
+                try {
+                  await googleCalendar.deleteEvent(user!, (t as any).googleEventId, (t as any).googleCalendarId || 'primary');
+                  console.log(`✅ [NOTION-IMPORT] Deleted GCal event ${(t as any).googleEventId}`);
+                } catch (error: any) {
+                  console.error(`⚠️ [NOTION-IMPORT] Failed to delete GCal event: ${error.message}`);
+                }
+              }
+            }
+          }
+
           const taskIds = allExistingTasks.map((t: any) => t.id);
           const deletedCount = await storage.permanentlyDeleteTasks(taskIds, userId);
           console.log(`🗑️ [NOTION-IMPORT] Permanently deleted ${deletedCount} existing tasks before full import`);
