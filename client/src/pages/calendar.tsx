@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,6 +35,7 @@ type CalendarEvent = {
   source?: string;
   calendarColor?: string;
   calendarName?: string;
+  recurType?: string;
 };
 
 export default function Calendar() {
@@ -654,6 +655,83 @@ export default function Calendar() {
       return tempEventTime;
     }
     return { start: new Date(event.start), end: new Date(event.end) };
+  };
+
+  // Complete a task from the calendar view
+  const handleCompleteTask = async () => {
+    if (!selectedEvent || selectedEvent.source !== 'productivityquest' || selectedEvent.completed) return;
+
+    const taskId = selectedEvent.id;
+    const eventTitle = selectedEvent.title;
+    const isRecurring = selectedEvent.recurType && selectedEvent.recurType !== 'one-time';
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/complete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to complete task');
+      }
+
+      const data = await response.json();
+      const goldEarned = data.task?.goldValue || selectedEvent.goldValue || 0;
+      const skillGains = data.skillXPGains || [];
+
+      // Update the event in cache to show completed state
+      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+
+      if (previousData) {
+        if (isRecurring) {
+          // For recurring tasks, remove from current calendar view (it's been rescheduled)
+          queryClient.setQueryData(queryKey, {
+            ...previousData,
+            events: previousData.events.filter(e => e.id !== taskId)
+          });
+        } else {
+          // For one-time tasks, mark as completed visually
+          queryClient.setQueryData(queryKey, {
+            ...previousData,
+            events: previousData.events.map(e =>
+              e.id === taskId ? { ...e, completed: true } : e
+            )
+          });
+        }
+      }
+
+      // Close modal
+      setSelectedEvent(null);
+      setShowDeleteMenu(false);
+
+      // Build skill XP description
+      const skillDesc = skillGains.length > 0
+        ? ` | ${skillGains.map((s: any) => `${s.skillName} +${s.xpGained} XP`).join(', ')}`
+        : '';
+
+      toast({
+        title: isRecurring
+          ? `🔄 Routine Quest Complete!`
+          : `⚔️ Quest Complete!`,
+        description: isRecurring
+          ? `"${eventTitle}" — Earned ${goldEarned} gold${skillDesc}. Rescheduled to next occurrence.`
+          : `"${eventTitle}" — Earned ${goldEarned} gold${skillDesc}. Moved to recycling bin.`,
+      });
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user/progress'] });
+    } catch (error) {
+      console.error('Failed to complete task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete quest. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Remove event from calendar handler (does NOT delete the quest!)
@@ -1325,7 +1403,10 @@ export default function Calendar() {
                   setSelectedEvent(event);
                 }}
               >
-                {event.title}
+                <span className="flex items-center gap-0.5">
+                  {event.completed && <CheckCircle2 className={`${isMobile ? 'w-2 h-2' : 'w-2.5 h-2.5'} text-green-400 flex-shrink-0`} />}
+                  <span className={event.completed ? 'line-through opacity-60' : ''}>{event.title}</span>
+                </span>
               </div>
             );
           })}
@@ -1727,8 +1808,9 @@ export default function Calendar() {
                               />
                             )}
                             
-                            <div className={`font-medium truncate ${position.height < 25 ? 'text-[9px]' : position.height < 40 ? 'text-[10px]' : 'text-xs'}`}>
-                              {event.title}
+                            <div className={`font-medium truncate ${position.height < 25 ? 'text-[9px]' : position.height < 40 ? 'text-[10px]' : 'text-xs'} flex items-center gap-1`}>
+                              {event.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
+                              <span className={event.completed ? 'line-through opacity-60' : ''}>{event.title}</span>
                             </div>
                             {position.height > 35 && (
                               <div className="text-[10px] opacity-70 truncate">
@@ -1849,7 +1931,10 @@ export default function Calendar() {
                                       />
                                     )}
                                     
-                                    <div className="font-medium truncate leading-tight">{event.title}</div>
+                                    <div className="font-medium truncate leading-tight flex items-center gap-1">
+                                      {event.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
+                                      <span className={event.completed ? 'line-through opacity-60' : ''}>{event.title}</span>
+                                    </div>
                                     {!isMobile && (
                                       <div className="text-[9px] opacity-70 truncate leading-tight">
                                         {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
@@ -1965,7 +2050,10 @@ export default function Calendar() {
                                       />
                                     )}
                                     
-                                    <div className="font-medium truncate text-[10px] leading-tight">{event.title}</div>
+                                    <div className="font-medium truncate text-[10px] leading-tight flex items-center gap-0.5">
+                                      {event.completed && <CheckCircle2 className="w-2.5 h-2.5 text-green-400 flex-shrink-0" />}
+                                      <span className={event.completed ? 'line-through opacity-60' : ''}>{event.title}</span>
+                                    </div>
                                     
                                     {/* Bottom resize handle */}
                                     {isDraggable && (
@@ -2190,6 +2278,19 @@ export default function Calendar() {
                 <div className="flex flex-col gap-2">
                   {/* First row - Main actions */}
                   <div className="flex gap-2 flex-wrap">
+                    {/* Complete Quest Button - For ProductivityQuest events that aren't already completed */}
+                    {selectedEvent.source === 'productivityquest' && !selectedEvent.completed && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-green-500/30 hover:bg-green-500/10 text-green-400 text-xs"
+                        onClick={handleCompleteTask}
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Complete Quest
+                      </Button>
+                    )}
+
                     {/* Reschedule Button - For all events */}
                     <Button
                       variant="outline"
