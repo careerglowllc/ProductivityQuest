@@ -140,50 +140,54 @@ export default function CampaignsPage() {
   const activeCampaignCount = questlines.filter((q: Campaign) => q.isActive).length;
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? 'pb-20' : 'pt-20'} px-4`}>
-      <div className="max-w-6xl mx-auto py-8">
+    <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? 'pb-20 px-2 pt-1' : 'pt-20 px-4'}`}>
+      <div className={`max-w-6xl mx-auto ${isMobile ? 'py-3' : 'py-8'}`}>
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Target className="h-8 w-8 text-purple-400" />
-            <h1 className="text-4xl font-serif font-bold text-purple-100">Active Questlines</h1>
+        <div className={isMobile ? 'mb-3' : 'mb-8'}>
+          <div className={`flex items-center ${isMobile ? 'gap-2 mb-1' : 'gap-3 mb-2'}`}>
+            <Target className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} text-purple-400`} />
+            <h1 className={`${isMobile ? 'text-xl' : 'text-4xl'} font-serif font-bold text-purple-100`}>Active Questlines</h1>
           </div>
-          <p className="text-purple-300/70 text-lg">
-            Select up to 2 questlines as active campaigns to track your major life objectives
-          </p>
+          {!isMobile && (
+            <p className="text-purple-300/70 text-lg">
+              Select up to 2 questlines as active campaigns to track your major life objectives
+            </p>
+          )}
         </div>
 
         {/* Active Questlines */}
-        <Card className="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-md border-2 border-blue-600/40 mb-6">
-          <CardHeader className="border-b border-blue-600/30">
+        <Card className={`bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-md border-2 border-blue-600/40 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+          <CardHeader className={`border-b border-blue-600/30 ${isMobile ? 'px-3 py-2' : ''}`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Target className="h-6 w-6 text-blue-400" />
-                <CardTitle className="text-2xl font-serif font-bold text-blue-100">
+              <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
+                <Target className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} text-blue-400`} />
+                <CardTitle className={`${isMobile ? 'text-base' : 'text-2xl'} font-serif font-bold text-blue-100`}>
                   Active Questlines
                 </CardTitle>
               </div>
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white"
+                className={`bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white ${isMobile ? 'h-7 text-xs px-2' : ''}`}
               >
-                <Plus className="h-4 w-4 mr-1" />
-                New Questline
+                <Plus className={`${isMobile ? 'h-3 w-3 mr-0.5' : 'h-4 w-4 mr-1'}`} />
+                {isMobile ? 'New' : 'New Questline'}
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <p className="text-blue-300/70 mb-6 text-sm">
-              Questlines are interconnected series of tasks that guide you towards specific transformations. 
-              Click on a questline to mark it as an active campaign (max 2). Campaigns are highlighted in purple.
-            </p>
+          <CardContent className={isMobile ? 'p-3' : 'p-6'}>
+            {!isMobile && (
+              <p className="text-blue-300/70 mb-6 text-sm">
+                Questlines are interconnected series of tasks that guide you towards specific transformations. 
+                Click on a questline to mark it as an active campaign (max 2). Campaigns are highlighted in purple.
+              </p>
+            )}
 
             {isLoading ? (
               <div className="text-center py-8 text-blue-300/70">Loading questlines...</div>
             ) : questlines.length === 0 ? (
               <div className="text-center py-8 text-blue-300/70">No questlines yet. Create one to get started!</div>
             ) : (
-            <div className="space-y-4">
+            <div className={isMobile ? 'space-y-2' : 'space-y-4'}>
               {questlines.map((questline: Campaign) => {
                 const isCampaign = questline.isActive;
                 const Icon = ICON_MAP[questline.icon] || Target;
@@ -201,10 +205,10 @@ export default function CampaignsPage() {
                     <div className="relative">
                       {/* Campaign Badge */}
                       {isCampaign && (
-                        <div className="absolute top-4 right-4 z-10">
-                          <div className="flex items-center gap-1 px-3 py-1 bg-purple-600/90 rounded-full border border-purple-400">
-                            <Crown className="h-3 w-3 text-purple-200" />
-                            <span className="text-xs font-bold text-purple-100">CAMPAIGN</span>
+                        <div className={`absolute ${isMobile ? 'top-2 right-2' : 'top-4 right-4'} z-10`}>
+                          <div className={`flex items-center gap-1 ${isMobile ? 'px-2 py-0.5' : 'px-3 py-1'} bg-purple-600/90 rounded-full border border-purple-400`}>
+                            <Crown className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-purple-200`} />
+                            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-bold text-purple-100`}>CAMPAIGN</span>
                           </div>
                         </div>
                       )}
@@ -221,53 +225,53 @@ export default function CampaignsPage() {
                         />
                       </div>
                       
-                      <CardContent className="pt-6 pb-4 px-6">
-                        <div className="flex items-start gap-4">
+                      <CardContent className={isMobile ? 'pt-3 pb-2 px-3' : 'pt-6 pb-4 px-6'}>
+                        <div className={`flex items-start ${isMobile ? 'gap-2.5' : 'gap-4'}`}>
                           {/* Icon */}
-                          <div className={`p-3 rounded-xl border-2 flex-shrink-0 ${
+                          <div className={`${isMobile ? 'p-2' : 'p-3'} rounded-xl border-2 flex-shrink-0 ${
                             isCampaign
                               ? 'bg-gradient-to-br from-purple-600/30 to-pink-600/30 border-purple-500/50'
                               : 'bg-gradient-to-br from-blue-600/30 to-cyan-600/30 border-blue-500/50'
                           }`}>
-                            <Icon className={`h-7 w-7 ${
+                            <Icon className={`${isMobile ? 'h-5 w-5' : 'h-7 w-7'} ${
                               isCampaign ? 'text-purple-300' : 'text-blue-300'
                             }`} />
                           </div>
                           
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-4 mb-2">
-                              <div>
-                                <h3 className={`text-xl font-serif font-bold mb-1 ${
+                            <div className={`flex items-start justify-between ${isMobile ? 'gap-2 mb-1' : 'gap-4 mb-2'}`}>
+                              <div className="min-w-0">
+                                <h3 className={`${isMobile ? 'text-sm' : 'text-xl'} font-serif font-bold ${isMobile ? 'mb-0.5' : 'mb-1'} ${
                                   isCampaign ? 'text-purple-100' : 'text-blue-100'
                                 }`}>
                                   {questline.title}
                                 </h3>
-                                <p className={`text-sm ${
+                                <p className={`${isMobile ? 'text-xs line-clamp-2' : 'text-sm'} ${
                                   isCampaign ? 'text-purple-300/70' : 'text-blue-300/70'
                                 }`}>
                                   {questline.description}
                                 </p>
                               </div>
-                              <div className="flex items-start gap-3 flex-shrink-0">
+                              <div className={`flex items-start ${isMobile ? 'gap-1.5' : 'gap-3'} flex-shrink-0`}>
                                 {/* Edit Button */}
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className={`${
+                                  className={`${isMobile ? 'h-6 w-6 p-0' : ''} ${
                                     isCampaign 
                                       ? 'text-purple-300 hover:bg-purple-600/20 hover:text-purple-100' 
                                       : 'text-blue-300 hover:bg-blue-600/20 hover:text-blue-100'
                                   }`}
                                   onClick={(e) => openEditModal(questline, e)}
                                 >
-                                  <Pencil className="h-4 w-4" />
+                                  <Pencil className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
                                 </Button>
                                 <div className="text-right">
-                                  <p className={`text-xs mb-1 ${
+                                  <p className={`text-xs ${isMobile ? 'hidden' : 'mb-1'} ${
                                     isCampaign ? 'text-purple-200/70' : 'text-blue-200/70'
                                   }`}>Progress</p>
-                                  <p className={`text-2xl font-bold ${
+                                  <p className={`${isMobile ? 'text-sm' : 'text-2xl'} font-bold ${
                                     isCampaign ? 'text-purple-100' : 'text-blue-100'
                                   }`}>{questline.progress}%</p>
                                 </div>
@@ -275,43 +279,43 @@ export default function CampaignsPage() {
                             </div>
 
                             {/* Quest Chain */}
-                            <div className="mt-4 space-y-2">
+                            <div className={`${isMobile ? 'mt-2 space-y-1' : 'mt-4 space-y-2'}`}>
                               {(questline.quests || []).map((quest: Quest) => (
-                                <div key={quest.id} className="flex items-center gap-2">
+                                <div key={quest.id} className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
                                   {quest.status === 'completed' && (
                                     <>
-                                      <div className="w-6 h-6 rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
-                                        <span className="text-green-300 text-xs">✓</span>
+                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0`}>
+                                        <span className={`text-green-300 ${isMobile ? 'text-[8px]' : 'text-xs'}`}>✓</span>
                                       </div>
-                                      <span className={`text-sm ${
+                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate ${
                                         isCampaign ? 'text-purple-200/90' : 'text-blue-200/90'
-                                      }`}>Quest {quest.id}: {quest.title}</span>
+                                      }`}>{isMobile ? quest.title : `Quest ${quest.id}: ${quest.title}`}</span>
                                     </>
                                   )}
                                   {quest.status === 'in-progress' && (
                                     <>
-                                      <div className="w-6 h-6 rounded-full bg-yellow-600/30 border-2 border-yellow-500 flex items-center justify-center flex-shrink-0 animate-pulse">
-                                        <span className="text-yellow-300 text-xs font-bold">!</span>
+                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full bg-yellow-600/30 border-2 border-yellow-500 flex items-center justify-center flex-shrink-0 animate-pulse`}>
+                                        <span className={`text-yellow-300 ${isMobile ? 'text-[8px]' : 'text-xs'} font-bold`}>!</span>
                                       </div>
-                                      <span className={`text-sm font-semibold ${
+                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold truncate ${
                                         isCampaign ? 'text-purple-100' : 'text-blue-100'
-                                      }`}>Quest {quest.id}: {quest.title} (In Progress)</span>
+                                      }`}>{isMobile ? quest.title : `Quest ${quest.id}: ${quest.title}`}{isMobile ? '' : ' (In Progress)'}</span>
                                     </>
                                   )}
                                   {quest.status === 'locked' && (
                                     <>
-                                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                                         isCampaign 
                                           ? 'bg-purple-900/50 border-purple-600/40' 
                                           : 'bg-blue-900/50 border-blue-600/40'
                                       }`}>
-                                        <span className={`text-xs ${
+                                        <span className={`${isMobile ? 'text-[8px]' : 'text-xs'} ${
                                           isCampaign ? 'text-purple-400/50' : 'text-blue-400/50'
                                         }`}>{quest.id}</span>
                                       </div>
-                                      <span className={`text-sm ${
+                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate ${
                                         isCampaign ? 'text-purple-300/50' : 'text-blue-300/50'
-                                      }`}>Quest {quest.id}: {quest.title} (Locked)</span>
+                                      }`}>{isMobile ? `${quest.title} 🔒` : `Quest ${quest.id}: ${quest.title} (Locked)`}</span>
                                     </>
                                   )}
                                 </div>
@@ -319,20 +323,20 @@ export default function CampaignsPage() {
                             </div>
 
                             {/* Rewards Preview */}
-                            <div className={`mt-4 p-3 rounded-lg border ${
+                            <div className={`${isMobile ? 'mt-2 p-2' : 'mt-4 p-3'} rounded-lg border ${
                               isCampaign 
                                 ? 'bg-purple-950/40 border-purple-600/30' 
                                 : 'bg-blue-950/40 border-blue-600/30'
                             }`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Gift className={`h-4 w-4 ${
+                              <div className={`flex items-center ${isMobile ? 'gap-1.5 mb-1' : 'gap-2 mb-2'}`}>
+                                <Gift className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} ${
                                   isCampaign ? 'text-purple-400' : 'text-blue-400'
                                 }`} />
-                                <span className={`text-xs font-semibold ${
+                                <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-semibold ${
                                   isCampaign ? 'text-purple-200' : 'text-blue-200'
-                                }`}>Questline Rewards</span>
+                                }`}>{isMobile ? 'Rewards' : 'Questline Rewards'}</span>
                               </div>
-                              <div className={`flex items-center gap-4 text-xs ${
+                              <div className={`flex items-center ${isMobile ? 'gap-2 flex-wrap' : 'gap-4'} ${isMobile ? 'text-[10px]' : 'text-xs'} ${
                                 isCampaign ? 'text-purple-300/80' : 'text-blue-300/80'
                               }`}>
                                 {(questline.rewards || []).map((reward: string, idx: number) => (
@@ -351,13 +355,13 @@ export default function CampaignsPage() {
             )}
 
             {/* Info box */}
-            <div className="mt-6 p-4 bg-slate-800/40 rounded-lg border border-slate-600/30">
-              <p className="text-sm text-slate-300">
-                <strong className="text-purple-300">💡 Tip:</strong> Click on any questline to mark it as an active campaign. 
-                Active campaigns are highlighted in purple and will appear in your dashboard for quick tracking.
+            <div className={`${isMobile ? 'mt-3 p-2' : 'mt-6 p-4'} bg-slate-800/40 rounded-lg border border-slate-600/30`}>
+              <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-slate-300`}>
+                <strong className="text-purple-300">💡 Tip:</strong> {isMobile ? 'Tap a questline to mark as campaign.' : 'Click on any questline to mark it as an active campaign.'} 
+                {!isMobile && 'Active campaigns are highlighted in purple and will appear in your dashboard for quick tracking.'}
                 {activeCampaignCount > 0 && (
-                  <span className="block mt-2 text-purple-300">
-                    Currently tracking {activeCampaignCount} of 2 campaigns.
+                  <span className={`block ${isMobile ? 'mt-1' : 'mt-2'} text-purple-300`}>
+                    Tracking {activeCampaignCount}/2 campaigns.
                   </span>
                 )}
               </p>
