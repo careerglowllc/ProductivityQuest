@@ -2519,7 +2519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         task.calendarColor = calendarColor;
       }
 
-      let exportResults = { success: 0, failed: 0, eventIds: new Map<number, string>() };
+      let exportResults = { success: 0, failed: 0, created: 0, updated: 0, eventIds: new Map<number, string>() };
       let importResults = { updated: 0, errors: 0 };
       
       const syncDirection = user.googleCalendarSyncDirection || 'export';
@@ -2542,6 +2542,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true, 
         exported: exportResults.success,
         exportFailed: exportResults.failed,
+        created: exportResults.created,
+        updated: exportResults.updated,
         imported: importResults.updated,
         importErrors: importResults.errors,
         total: tasksToSync.length,
@@ -2789,7 +2791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const syncDirection = user.googleCalendarSyncDirection || 'both';
       console.log('📅 [SYNC] Sync direction:', syncDirection);
 
-      let exportResults = { success: 0, failed: 0, eventIds: new Map<number, string>() };
+      let exportResults = { success: 0, failed: 0, created: 0, updated: 0, eventIds: new Map<number, string>() };
       let importResults = { updated: 0, errors: 0 };
 
       // Export tasks to Google Calendar (if direction is 'export' or 'both')
@@ -2828,10 +2830,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         exported: exportResults.success,
         exportFailed: exportResults.failed,
+        created: exportResults.created,
+        updated: exportResults.updated,
         imported: importResults.updated,
         importErrors: importResults.errors,
         syncDirection,
-        message: `Sync complete! Exported ${exportResults.success} tasks, imported ${importResults.updated} events.`
+        message: `Sync complete! Exported ${exportResults.success} tasks (${exportResults.created} new, ${exportResults.updated} updated), imported ${importResults.updated} events.`
       });
     } catch (error: any) {
       console.error("❌ [SYNC] Error during Google Calendar sync:", error);

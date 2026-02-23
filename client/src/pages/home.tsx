@@ -931,10 +931,21 @@ export default function Home() {
       // Build descriptive message based on sync direction
       let description = '';
       if (result.exported > 0) {
-        description += `${result.exported} tasks exported to Google Calendar`;
+        const parts = [];
+        if (result.created > 0) {
+          parts.push(`${result.created} new`);
+        }
+        if (result.updated > 0) {
+          parts.push(`${result.updated} already in calendar`);
+        }
+        if (parts.length > 0) {
+          description += `${result.exported} tasks synced (${parts.join(', ')})`;
+        } else {
+          description += `${result.exported} tasks exported to Google Calendar`;
+        }
       }
       if (result.exportFailed > 0) {
-        description += description ? `, ${result.exportFailed} export failed` : `${result.exportFailed} exports failed`;
+        description += description ? `, ${result.exportFailed} failed` : `${result.exportFailed} exports failed`;
       }
       if (result.imported > 0) {
         description += description ? `, ${result.imported} tasks updated from calendar` : `${result.imported} tasks updated from calendar`;

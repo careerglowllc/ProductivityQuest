@@ -193,9 +193,11 @@ export class GoogleCalendarService {
     return response.data;
   }
 
-  async syncTasks(tasks: Task[], user: User, storage: any): Promise<{ success: number; failed: number; eventIds: Map<number, string> }> {
+  async syncTasks(tasks: Task[], user: User, storage: any): Promise<{ success: number; failed: number; created: number; updated: number; eventIds: Map<number, string> }> {
     let success = 0;
     let failed = 0;
+    let created = 0;
+    let updated = 0;
     const eventIds = new Map<number, string>(); // Map of task ID to Google Event ID
 
     console.log('📅 [SYNC TASKS] Starting sync for', tasks.length, 'tasks');
@@ -296,7 +298,8 @@ export class GoogleCalendarService {
                 eventId: task.googleEventId,
                 requestBody: eventData,
               });
-              console.log(`✅ [SYNC TASKS] Updated event for task ${task.id}`);
+              updated++;
+              console.log(`✅ [SYNC TASKS] Updated existing event for task ${task.id}`);
             } catch (updateError: any) {
               // If update fails (event deleted), create new one
               if (updateError.code === 404) {
@@ -305,6 +308,7 @@ export class GoogleCalendarService {
                   calendarId: 'primary',
                   requestBody: eventData,
                 });
+                created++;
               } else {
                 throw updateError;
               }
@@ -316,6 +320,7 @@ export class GoogleCalendarService {
               calendarId: 'primary',
               requestBody: eventData,
             });
+            created++;
           }
           
           const googleEventId = response.data.id;
@@ -346,7 +351,7 @@ export class GoogleCalendarService {
       throw error;
     }
 
-    return { success, failed, eventIds };
+    return { success, failed, created, updated, eventIds };
   }
 
   // Import events from Google Calendar and update task times

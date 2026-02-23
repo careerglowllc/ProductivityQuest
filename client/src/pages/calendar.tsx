@@ -1659,7 +1659,7 @@ export default function Calendar() {
                           <div
                             key={idx}
                             data-event-id={event.id}
-                            className={`absolute rounded border group overflow-hidden ${
+                            className={`absolute rounded border group ${
                               isDraggable ? 'cursor-move' : 'cursor-pointer'
                             } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
                               isSelected ? 'ring-2 ring-purple-400 ring-offset-1 ring-offset-gray-900' : ''
@@ -1667,13 +1667,16 @@ export default function Calendar() {
                             style={{ 
                               top: `${position.top}px`,
                               left: `calc(0.5rem + ${leftPercent}%)`,
-                              width: `calc(${widthPercent}% - ${layout.totalColumns > 1 ? '0.25rem' : '1rem'})`,
+                              maxWidth: `calc(${widthPercent}% - ${layout.totalColumns > 1 ? '0.25rem' : '1rem'})`,
+                              width: 'fit-content',
+                              minWidth: position.height < 25 ? '60px' : '80px',
                               height: `${position.height}px`,
                               backgroundColor: eventStyle.backgroundColor,
                               borderColor: isSelected ? '#a855f7' : eventStyle.borderColor,
                               color: eventStyle.color,
                               zIndex: isSelected ? 15 : 10,
-                              padding: position.height < 25 ? '2px 4px' : position.height < 40 ? '4px 6px' : '8px'
+                              padding: position.height < 25 ? '2px 8px' : position.height < 40 ? '4px 10px' : '8px 14px',
+                              overflow: 'hidden',
                             }}
                             onMouseDown={(e) => {
                               // If clicking with Ctrl/Cmd, toggle selection instead of dragging
