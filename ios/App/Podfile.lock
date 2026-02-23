@@ -2,11 +2,11 @@ PODS:
   - Capacitor (7.4.4):
     - CapacitorCordova
   - CapacitorCordova (7.4.4)
-  - CapacitorKeyboard (8.0.0):
+  - CapacitorKeyboard (7.0.4):
     - Capacitor
-  - CapacitorSplashScreen (8.0.1):
+  - CapacitorSplashScreen (7.0.5):
     - Capacitor
-  - CapacitorStatusBar (8.0.1):
+  - CapacitorStatusBar (7.0.5):
     - Capacitor
 
 DEPENDENCIES:
@@ -31,9 +31,9 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Capacitor: 358dd1c3fdd71d969547b17e159fd8a7736cb45f
   CapacitorCordova: bf648a636f3c153f652d312ae145fb508b6ffced
-  CapacitorKeyboard: d7868c079a4d5277a3deca27a10a488fcbbb8b69
-  CapacitorSplashScreen: 4b46c72298db552b3c57ce021ef028b6dc7f1fa7
-  CapacitorStatusBar: 32206abd53b14f339763da26f71286deaa891e16
+  CapacitorKeyboard: 5660c760113bfa48962817a785879373cf5339c3
+  CapacitorSplashScreen: 409eeaaeac603d264f209c0fcb718aa22fe1f7bb
+  CapacitorStatusBar: 6de542f202c0dd3f9d0a73b240d4c9d3dddc49b4
 
 PODFILE CHECKSUM: 5ed705b5a2e4fb4f16cdb018a19e9e609b980495
 
