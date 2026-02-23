@@ -34,6 +34,10 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Purchase rewards** from a customizable shop using earned gold
 - **Sync with Notion** for seamless task management across platforms
 - **✨ ENHANCED: Google Calendar Integration** - Full OAuth 2.0 with multi-calendar support, 4 view modes (Day/3-Day/Week/Month), calendar color preservation, and smart separation (Google events visible in calendar only, PQ tasks in both calendar and tasks list)
+- **✨ ENHANCED: Google Calendar Deletion Sync** - Deleting or recycling tasks in the app automatically removes corresponding Google Calendar events (covers all deletion paths: batch delete, permanent delete, single delete, and Notion import replace-all)
+- **✨ ENHANCED: Calendar Sync Error Surfacing** - Dragging/resizing calendar events now shows a destructive toast if Google Calendar sync fails (e.g., expired tokens), instead of silently swallowing errors
+- **✨ ENHANCED: Calendar Sync Toast Breakdown** - Sync button shows detailed results: "X tasks synced (Y new, Z already in calendar)" instead of a generic count
+- **✨ NEW: Resizable Dashboard Grid** - Desktop dashboard 2×2 widget grid (Skills, Calendar, Tasks, Finance) has draggable borders for resizing, with sizes persisted to localStorage. Mobile stays stacked.
 - **✨ NEW: Finance Tracking** - Track income and expenses with visual pie charts, savings rate calculation, and budget insights
 - **✨ NEW: Calendar Drag & Resize** - Visually adjust task times and durations by dragging/resizing events directly in calendar view
 - **✨ NEW: Calendar View Persistence** - Your last selected view (Day/3-Day/Week/Month) is remembered across sessions
@@ -73,6 +77,8 @@ ProductivityQuest is a full-stack web application that gamifies productivity by 
 - **Smart filtering** (Apple, Business, Quick Tasks, Routines, etc.)
 - **Notion bi-directional sync** (create, update, delete tasks)
 - **Google Calendar integration** for scheduling and OAuth-based event sync
+- **✨ ENHANCED: Full GCal lifecycle management** - Create, update, AND delete GCal events when tasks change (no orphaned events)
+- **✨ NEW: Resizable Dashboard** - Drag borders to resize the 2×2 widget grid (desktop only, persisted to localStorage)
 - **✨ NEW: Finance Tracking** - Monitor monthly income, expenses, and savings with category breakdown
 - **✨ NEW: Recurring Task System** - 11 recurrence patterns (daily, weekly, monthly, etc.) with auto-rescheduling
 - **✨ NEW: Calendar Page** - Interactive month view with task display and navigation
@@ -2265,14 +2271,14 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 - **GOLD_CALCULATION_TEST_CASES.md** - 25 test cases for modular gold formula
 - **TASK_MANAGEMENT_TEST_CASES.md** - 35 test cases for bulk operations and recycling bin
 - **WHY_SKILLS_MODAL_TEST_CASES.md** - 33 test cases for macro goals modal
-- **✨ CONSTELLATION_TEST_CASES.md (NEW)** - 6 core tests for constellation view
-- **✨ MILESTONE_CUSTOMIZATION_TEST_CASES.md (NEW)** - 13 tests for customizable milestones
-- **✨ MILESTONE_NODES_TEST_CASES.md (NEW)** - 12 tests for expanded Mindset & Health milestone nodes
-- **✨ CAMPAIGNS_PAGE_TEST_CASES.md (NEW)** - 6 tests for unified campaigns display
-- **✨ GRID_COMPACT_TEST_CASES.md (NEW)** - 8 tests for 6-column grid layout
-- **✨ COMPASS_ICON_TEST_CASES.md (NEW)** - 5 tests for Compass icon addition
-- **✨ CALENDAR_EVENT_MODAL_TEST_CASES.md (NEW)** - 20 tests for Reschedule/Delete modal actions + 3 edge cases
-- **✨ CALENDAR_UNDO_OVERLAP_TEST_CASES.md (NEW)** - 10 undo tests + 10 overlap layout tests + 3 edge cases
+- **CONSTELLATION_TEST_CASES.md** - 6 core tests for constellation view
+- **MILESTONE_CUSTOMIZATION_TEST_CASES.md** - 13 tests for customizable milestones
+- **MILESTONE_NODES_TEST_CASES.md** - 12 tests for expanded Mindset & Health milestone nodes
+- **CAMPAIGNS_PAGE_TEST_CASES.md** - 6 tests for unified campaigns display
+- **GRID_COMPACT_TEST_CASES.md** - 8 tests for 6-column grid layout
+- **COMPASS_ICON_TEST_CASES.md** - 5 tests for Compass icon addition
+- **CALENDAR_EVENT_MODAL_TEST_CASES.md** - 20 tests for Reschedule/Delete modal actions + 3 edge cases
+- **CALENDAR_UNDO_OVERLAP_TEST_CASES.md** - 10 undo tests + 10 overlap layout tests + 3 edge cases
 - **TESTING.md** - Comprehensive testing documentation
 
 ### Debug Tools
@@ -2336,8 +2342,8 @@ NOTION_INTEGRATION_SECRET=secret_abc123...
 NOTION_PAGE_URL=https://www.notion.so/your-page-id
 
 # Google Calendar OAuth (optional)
-GOOGLE_CLIENT_ID=32247087981-xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
 
 # Database (optional - uses in-memory storage if not provided)
 DATABASE_URL=postgresql://user:pass@host:port/db
@@ -2543,3 +2549,128 @@ npm run db:push      # Apply database migrations
 - Optimize database queries for better performance
 
 This codebase prioritizes user experience with gamification while maintaining robust data integrity and seamless external integrations.
+
+---
+
+## ✅ Comprehensive Test Cases (v2.0)
+
+The following test cases validate all recent features and bug fixes. Each test includes preconditions, steps, and expected results.
+
+### TC-1: Google Calendar Event Deletion on Task Delete
+
+**Bug fixed:** Deleting tasks from the app left orphan events in Google Calendar.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 1.1 | Batch delete removes GCal events | 1. Schedule 3 tasks to GCal via sync. 2. Select all 3 on Quests page. 3. Click "Delete Selected." | All 3 events removed from GCal. Tasks moved to recycling bin with `googleEventId: null`. |
+| 1.2 | Single task delete removes GCal event | 1. Schedule a task to GCal. 2. Delete the single task via DELETE `/api/tasks/:id`. | GCal event deleted. Task recycled with cleared `googleEventId`. |
+| 1.3 | Permanent delete removes GCal event | 1. Move a scheduled task to recycling bin. 2. Permanently delete it from recycling bin. | GCal event deleted before DB row is removed. |
+| 1.4 | Batch permanent delete removes GCal events | 1. Move 5 scheduled tasks to recycling bin. 2. Select all, click "Delete Permanently." | All 5 GCal events deleted. All 5 DB rows removed. |
+| 1.5 | Notion "Import ALL" deletes GCal events | 1. Have 10 tasks synced to GCal. 2. Click "Import ALL from Notion" (deleteAll=true). | All 10 GCal events deleted before tasks are replaced with Notion imports. |
+| 1.6 | GCal delete failure is non-blocking | 1. Schedule a task. 2. Disconnect Google Calendar. 3. Delete the task. | Task still moves to recycling bin. Console logs warning. No crash. |
+| 1.7 | Task without GCal event deletes cleanly | 1. Create a task that was never synced to GCal (no googleEventId). 2. Delete it. | Task deleted normally. No GCal API call made. |
+| 1.8 | Already-deleted GCal event (404) handled | 1. Schedule a task. 2. Manually delete the event from Google Calendar. 3. Delete the task from the app. | GCal returns 404, treated as success. Task still deleted. |
+
+### TC-2: Google Calendar Sync Error Surfacing on Drag/Resize
+
+**Bug fixed:** Dragging/resizing calendar events silently swallowed GCal sync errors.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 2.1 | Successful drag syncs to GCal | 1. Drag a PQ task to a new time slot in calendar view. | Task time updates in DB. GCal event updated. Toast: "Task rescheduled." |
+| 2.2 | Successful resize syncs to GCal | 1. Resize a PQ task to change duration. | Duration updates in DB. GCal event updated. No error toast. |
+| 2.3 | Expired token shows error toast | 1. Let Google OAuth token expire. 2. Drag a task. | Task updates locally. Red destructive toast: "Calendar sync failed." GCal event NOT updated. |
+| 2.4 | 403 forbidden shows error toast | 1. Revoke app permissions in Google. 2. Resize a task. | Task updates locally. Destructive toast shown. Console logs `calendarSyncError`. |
+| 2.5 | PATCH response includes sync status | 1. Drag a task (with valid GCal auth). 2. Inspect PATCH response. | Response body contains `calendarSynced: true`. |
+| 2.6 | PATCH response includes error on failure | 1. Drag a task (with expired token). 2. Inspect PATCH response. | Response body contains `calendarSynced: false` and `calendarSyncError: "..."`. |
+
+### TC-3: Calendar Sync Toast Breakdown
+
+**Feature:** Sync button shows "X tasks synced (Y new, Z already in calendar)" instead of generic count.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 3.1 | All new tasks synced | 1. Create 5 tasks with scheduled times (none synced yet). 2. Click "Sync to Google Calendar." | Toast: "5 tasks synced (5 new, 0 already in calendar)." |
+| 3.2 | Mix of new and existing | 1. Sync 3 tasks. 2. Add 2 more. 3. Sync again. | Toast: "5 tasks synced (2 new, 3 already in calendar)." |
+| 3.3 | All already synced | 1. Sync 4 tasks. 2. Sync again without changes. | Toast: "4 tasks synced (0 new, 4 already in calendar)." |
+| 3.4 | Zero tasks to sync | 1. Have no scheduled tasks. 2. Click sync. | Toast indicates 0 tasks synced. |
+
+### TC-4: Day View Event Box Width
+
+**Fix:** Event boxes in day view no longer stretch to full row width.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 4.1 | Short title fits content | 1. Create task "Meet" scheduled for today. 2. Open Day view. | Event box width fits "Meet" text, not full column width. |
+| 4.2 | Long title respects max width | 1. Create task with very long title. 2. Open Day view. | Event box has max-width cap, text truncates with ellipsis. |
+| 4.3 | Min width prevents collapse | 1. Create task "X". 2. Open Day view. | Event box has minimum width floor, doesn't shrink too small. |
+| 4.4 | 3-Day/Week views unaffected | 1. Open 3-Day or Week view. | Event boxes use standard calc-based width (unchanged behavior). |
+
+### TC-5: Resizable Dashboard Grid (Desktop)
+
+**Feature:** Dashboard 2×2 widget grid has draggable borders for resizing.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 5.1 | Horizontal resize between top widgets | 1. Open dashboard on desktop. 2. Hover between Skills and Calendar widgets. 3. Drag left/right. | Cursor changes to resize. Skills panel grows, Calendar shrinks (or vice versa). |
+| 5.2 | Horizontal resize between bottom widgets | 1. Hover between Tasks and Finance widgets. 2. Drag left/right. | Tasks and Finance panels resize accordingly. |
+| 5.3 | Vertical resize between rows | 1. Hover between top row and bottom row. 2. Drag up/down. | Top row grows, bottom row shrinks (or vice versa). Content adapts. |
+| 5.4 | Sizes persist across reload | 1. Resize panels to custom sizes. 2. Reload the page. | Panels restore to the custom sizes (localStorage `dashboard-grid-*`). |
+| 5.5 | Min size prevents collapse | 1. Try to drag a panel border all the way to the edge. | Panel stops at minimum size (20-25%), cannot collapse to zero. |
+| 5.6 | Skills spider chart adapts | 1. Make Skills panel larger. | Spider chart scales within the panel. Click-to-enlarge overlay still works. |
+| 5.7 | Calendar widget scrolls | 1. Make Calendar panel smaller. 2. Have many events today. | Events list becomes scrollable within the smaller panel. |
+| 5.8 | Finance pie chart adapts | 1. Resize Finance panel larger/smaller. | Pie chart uses percentage-based sizing, adapts to container. Net income section stays visible. |
+| 5.9 | Tasks list scrolls | 1. Make Tasks panel smaller. 2. Have many priority tasks. | Task list becomes scrollable within the smaller panel. |
+| 5.10 | Mobile stays stacked | 1. Open dashboard on mobile or narrow viewport. | Widgets stack vertically (space-y-6). No resize handles visible. |
+| 5.11 | Handle hover styling | 1. Hover over any resize handle border. | Handle turns gold (`bg-yellow-500/40`). Active drag shows brighter gold. |
+
+### TC-6: GCal Sync After ML Sort
+
+**Bug fixed:** ML sort updated task times in DB but didn't propagate changes to Google Calendar.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 6.1 | ML sort updates GCal events | 1. Have 5 tasks synced to GCal. 2. Run ML Sort on calendar page. | All 5 GCal events update to new times. Console logs "Updated Google Calendar event." |
+| 6.2 | ML sort avoids GCal event overlap | 1. Have Google Calendar events at 10am and 2pm. 2. Run ML sort. | ML-sorted tasks are placed around GCal events, not overlapping them. |
+| 6.3 | ML sort with no GCal auth | 1. Disconnect Google Calendar. 2. Run ML sort. | Tasks rearrange locally. No GCal API errors. |
+
+### TC-7: Notion Import Fixes
+
+**Bug fixed:** "Import ALL from Notion" left stale tasks; orphaned calendar events.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 7.1 | Import ALL replaces all tasks | 1. Have 10 tasks in app. 2. Click "Import ALL from Notion." | All 10 old tasks permanently deleted. New tasks from Notion imported fresh. |
+| 7.2 | Import ALL cleans up GCal | 1. Have 5 tasks synced to GCal. 2. Import ALL from Notion. | All 5 GCal events deleted before new import. |
+| 7.3 | Import updates existing by notionId | 1. Import from Notion. 2. Update task titles in Notion. 3. Import again (non-deleteAll). | Existing tasks updated by matching `notionId`. No duplicates created. |
+| 7.4 | Completed Notion tasks skipped | 1. Mark some tasks as complete in Notion. 2. Import. | Completed tasks are not imported into the app. |
+
+### TC-8: Campaign Quest Editing
+
+**Feature:** Edit quests within campaign detail view.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 8.1 | Edit quest from campaign page | 1. Open a campaign. 2. Click edit on a quest. 3. Change title and save. | Quest title updates. Campaign view refreshes. |
+| 8.2 | Edit quest importance | 1. Edit a quest, change importance from Medium to High. 2. Save. | Gold value recalculates. Importance badge updates. |
+| 8.3 | Cancel edit preserves original | 1. Start editing a quest. 2. Make changes. 3. Cancel. | Original values preserved. No API call made. |
+
+### TC-9: Finance Widget Adaptivity
+
+**Feature:** Finance pie chart and data adapt within resizable dashboard panel.
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 9.1 | Pie chart uses percentage sizing | 1. View Finance widget at default size. 2. Resize panel larger. | Pie chart grows proportionally. `outerRadius="70%"` scales with container. |
+| 9.2 | Net income section stays visible | 1. Resize Finance panel to minimum size. | Net income and savings rate section has `flex-shrink-0`, stays visible. |
+| 9.3 | Category legend readable | 1. Have 5+ expense categories. 2. View at various panel sizes. | Legend items wrap or scroll appropriately. |
+
+### TC-10: End-to-End Integration Tests
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 10.1 | Full task lifecycle with GCal | 1. Create task. 2. Schedule on calendar. 3. Sync to GCal. 4. Drag to new time. 5. Complete task. 6. Verify in recycling bin. | Each step succeeds. GCal event created, updated on drag, task appears in recycling bin after completion. |
+| 10.2 | Full delete lifecycle with GCal | 1. Create task. 2. Sync to GCal. 3. Delete task (move to recycling). 4. Verify GCal event removed. 5. Permanently delete from recycling. | GCal event removed at step 3. Task permanently gone after step 5. |
+| 10.3 | Dashboard reflects all changes | 1. Complete tasks. 2. Check dashboard Skills widget. 3. Check Tasks widget. 4. Check Finance widget. | All widgets update in real-time. Resizable panels maintain sizes. |
+| 10.4 | Mobile vs Desktop layout | 1. Open on desktop — verify resizable grid. 2. Open on mobile — verify stacked layout. | Desktop: 3 drag handles, resizable. Mobile: stacked, no handles. |
+| 10.5 | Sync toast after ML sort + sync | 1. Run ML sort. 2. Click "Sync to Google Calendar." | Toast shows breakdown: "X tasks synced (Y new, Z already in calendar)." GCal events at new sorted times. |
