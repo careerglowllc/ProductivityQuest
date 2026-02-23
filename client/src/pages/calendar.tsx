@@ -73,6 +73,11 @@ export default function Calendar() {
   const [hasDragged, setHasDragged] = useState(false);
   const [hasResized, setHasResized] = useState(false);
 
+  // Mobile long-press-to-drag state
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isTouchDragging, setIsTouchDragging] = useState(false);
+
   // Multi-select state for drag selection
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
@@ -656,6 +661,142 @@ export default function Calendar() {
       setHasDragged(false);
       setHasResized(false);
     }, 100);
+  };
+
+  // ========== Mobile Touch Drag (Long-Press-to-Drag) ==========
+  const LONG_PRESS_DURATION = 350; // ms to hold before drag activates
+  const TOUCH_MOVE_THRESHOLD = 10; // px movement cancels long press
+
+  const handleEventTouchStart = (event: CalendarEvent, e: React.TouchEvent, edge?: 'top' | 'bottom') => {
+    if (event.source !== 'productivityquest') return;
+    
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    
+    // Clear any existing timer
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    
+    // Start long press timer
+    longPressTimer.current = setTimeout(() => {
+      // Long press activated — enter drag mode
+      e.preventDefault();
+      setIsTouchDragging(true);
+      
+      // Haptic feedback if available
+      if (navigator.vibrate) navigator.vibrate(50);
+      
+      const scrollContainer = view === 'day' ? dayViewRef.current : 
+                             view === '3day' ? threeDayViewRef.current :
+                             view === 'week' ? weekViewRef.current : null;
+
+      if (edge) {
+        setResizingEvent(event);
+        setResizeEdge(edge);
+        setDragStartY(touch.clientY);
+        setDragStartScrollTop(scrollContainer?.scrollTop || 0);
+        setDragStartTime(new Date(edge === 'top' ? event.start : event.end));
+      } else {
+        setDraggingEvent(event);
+        setDragStartY(touch.clientY);
+        setDragStartScrollTop(scrollContainer?.scrollTop || 0);
+        setDragStartTime(new Date(event.start));
+      }
+    }, LONG_PRESS_DURATION);
+  };
+
+  const handleEventTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    
+    // If we're in drag mode, process the move
+    if (isTouchDragging && (draggingEvent || resizingEvent)) {
+      e.preventDefault(); // Prevent scrolling while dragging
+      e.stopPropagation();
+      
+      if (draggingEvent && !hasDragged) setHasDragged(true);
+      if (resizingEvent && !hasResized) setHasResized(true);
+
+      const scrollContainer = view === 'day' ? dayViewRef.current : 
+                             view === '3day' ? threeDayViewRef.current :
+                             view === 'week' ? weekViewRef.current : null;
+
+      // Auto-scroll near edges
+      if (scrollContainer) {
+        const rect = scrollContainer.getBoundingClientRect();
+        const scrollThreshold = 50;
+        const scrollSpeed = 8;
+        
+        if (autoScrollInterval.current) {
+          clearInterval(autoScrollInterval.current);
+          autoScrollInterval.current = null;
+        }
+
+        if (touch.clientY < rect.top + scrollThreshold) {
+          autoScrollInterval.current = setInterval(() => {
+            if (scrollContainer.scrollTop > 0) scrollContainer.scrollTop -= scrollSpeed;
+          }, 16);
+        } else if (touch.clientY > rect.bottom - scrollThreshold) {
+          autoScrollInterval.current = setInterval(() => {
+            if (scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight) {
+              scrollContainer.scrollTop += scrollSpeed;
+            }
+          }, 16);
+        }
+      }
+
+      // Calculate time delta
+      const currentScrollTop = scrollContainer?.scrollTop || 0;
+      const scrollDelta = currentScrollTop - dragStartScrollTop;
+      const deltaY = (touch.clientY - dragStartY) + scrollDelta;
+      const minutesDelta = Math.round((deltaY / 60) * 60 / 5) * 5;
+
+      if (draggingEvent && dragStartTime) {
+        const newStart = new Date(dragStartTime);
+        newStart.setMinutes(newStart.getMinutes() + minutesDelta);
+        const eventDuration = new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime();
+        const newEnd = new Date(newStart.getTime() + eventDuration);
+        setTempEventTime({ start: newStart, end: newEnd });
+      } else if (resizingEvent && dragStartTime && resizeEdge) {
+        const currentStart = new Date(resizingEvent.start);
+        const currentEnd = new Date(resizingEvent.end);
+        if (resizeEdge === 'top') {
+          const newStart = new Date(dragStartTime);
+          newStart.setMinutes(newStart.getMinutes() + minutesDelta);
+          const minEnd = new Date(newStart.getTime() + 5 * 60000);
+          if (currentEnd > minEnd) setTempEventTime({ start: newStart, end: currentEnd });
+        } else {
+          const newEnd = new Date(dragStartTime);
+          newEnd.setMinutes(newEnd.getMinutes() + minutesDelta);
+          const minEnd = new Date(currentStart.getTime() + 5 * 60000);
+          if (newEnd >= minEnd) setTempEventTime({ start: currentStart, end: newEnd });
+        }
+      }
+      return;
+    }
+
+    // Not yet in drag mode — check if finger moved too much (cancel long press)
+    const dx = touch.clientX - touchStartPos.current.x;
+    const dy = touch.clientY - touchStartPos.current.y;
+    if (Math.abs(dx) > TOUCH_MOVE_THRESHOLD || Math.abs(dy) > TOUCH_MOVE_THRESHOLD) {
+      // Finger moved — this is a scroll, cancel long press
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    }
+  };
+
+  const handleEventTouchEnd = () => {
+    // Clear long press timer
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    
+    if (isTouchDragging) {
+      // Delegate to handleMouseUp which handles the save logic
+      handleMouseUp();
+      setIsTouchDragging(false);
+    }
   };
 
   const getEventDisplayTime = (event: CalendarEvent) => {
@@ -1677,10 +1818,12 @@ export default function Calendar() {
           {view === 'day' && (
             <div 
               ref={dayViewRef} 
-              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'}`}
+              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'} ${isTouchDragging ? 'touch-none' : ''}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchMove={handleEventTouchMove}
+              onTouchEnd={handleEventTouchEnd}
             >
               <div className={isMobile ? 'min-w-full' : 'min-w-[600px]'}>
                 {/* Day Header */}
@@ -1830,7 +1973,8 @@ export default function Calendar() {
                               }
                               if (isDraggable) handleEventMouseDown(event, e);
                             }}
-                            onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
+                            onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
+                            onClick={() => !hasDragged && !hasResized && !isTouchDragging && setSelectedEvent(event)}
                           >
                             {/* Selection indicator */}
                             {isSelected && (
@@ -1842,8 +1986,9 @@ export default function Calendar() {
                             {/* Top resize handle */}
                             {isDraggable && position.height > 20 && (
                               <div
-                                className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-t"
+                                className={`absolute top-0 left-0 right-0 ${isMobile ? 'h-3' : 'h-2'} cursor-ns-resize ${isMobile ? 'opacity-40' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-t`}
                                 onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                                onTouchStart={(e) => handleEventTouchStart(event, e, 'top')}
                               />
                             )}
                             
@@ -1871,8 +2016,9 @@ export default function Calendar() {
                             {/* Bottom resize handle */}
                             {isDraggable && position.height > 20 && (
                               <div
-                                className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-b"
+                                className={`absolute bottom-0 left-0 right-0 ${isMobile ? 'h-3' : 'h-2'} cursor-ns-resize ${isMobile ? 'opacity-40' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-b`}
                                 onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                                onTouchStart={(e) => handleEventTouchStart(event, e, 'bottom')}
                               />
                             )}
                           </div>
@@ -1889,10 +2035,12 @@ export default function Calendar() {
           {view === '3day' && (
             <div 
               ref={threeDayViewRef} 
-              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'}`}
+              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'} ${isTouchDragging ? 'touch-none' : ''}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchMove={handleEventTouchMove}
+              onTouchEnd={handleEventTouchEnd}
             >
               <div className="w-full">
                 {/* Day Headers */}
@@ -1960,13 +2108,15 @@ export default function Calendar() {
                                       color: eventStyle.color
                                     } : undefined}
                                     onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                                    onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
                                     onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
                                   >
                                     {/* Top resize handle */}
-                                    {isDraggable && !isMobile && (
+                                    {isDraggable && (
                                       <div
-                                        className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        className={`absolute top-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-t`}
                                         onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                                        onTouchStart={(e) => handleEventTouchStart(event, e, 'top')}
                                       />
                                     )}
                                     
@@ -1981,10 +2131,11 @@ export default function Calendar() {
                                     )}
                                     
                                     {/* Bottom resize handle */}
-                                    {isDraggable && !isMobile && (
+                                    {isDraggable && (
                                       <div
-                                        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        className={`absolute bottom-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-b`}
                                         onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                                        onTouchStart={(e) => handleEventTouchStart(event, e, 'bottom')}
                                       />
                                     )}
                                   </div>
@@ -2005,10 +2156,12 @@ export default function Calendar() {
           {view === 'week' && (
             <div 
               ref={weekViewRef} 
-              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'}`}
+              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'} ${isTouchDragging ? 'touch-none' : ''}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchMove={handleEventTouchMove}
+              onTouchEnd={handleEventTouchEnd}
             >
               <div className={isMobile ? 'min-w-full overflow-x-auto' : 'min-w-[1200px]'}>
                 {/* Day Headers */}
@@ -2079,13 +2232,15 @@ export default function Calendar() {
                                       color: eventStyle.color
                                     } : undefined}
                                     onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                                    onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
                                     onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
                                   >
                                     {/* Top resize handle */}
                                     {isDraggable && (
                                       <div
-                                        className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        className={`absolute top-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-t`}
                                         onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                                        onTouchStart={(e) => handleEventTouchStart(event, e, 'top')}
                                       />
                                     )}
                                     
@@ -2097,8 +2252,9 @@ export default function Calendar() {
                                     {/* Bottom resize handle */}
                                     {isDraggable && (
                                       <div
-                                        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-white/30"
+                                        className={`absolute bottom-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-b`}
                                         onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                                        onTouchStart={(e) => handleEventTouchStart(event, e, 'bottom')}
                                       />
                                     )}
                                   </div>
