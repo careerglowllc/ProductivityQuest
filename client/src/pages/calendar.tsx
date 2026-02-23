@@ -1491,34 +1491,35 @@ export default function Calendar() {
         {/* Calendar Card */}
         <Card className={`${isMobile ? 'p-2 h-full flex flex-col' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
           {/* View Selector and Month Navigation */}
-          <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'} ${isMobile ? 'mb-2' : 'mb-6'} flex-shrink-0`}>
-            <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center gap-4'}`}>
-              {/* Settings and New Event buttons */}
-              <div className="flex gap-2">
-                <Link href="/settings/google-calendar">
-                  <Button variant="outline" size={isMobile ? "sm" : "default"} className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10">
-                    <Settings className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${isMobile ? '' : 'mr-2'}`} />
-                    {!isMobile && 'Settings'}
+          <div className={`flex ${isMobile ? 'flex-col gap-1.5' : 'items-center justify-between'} ${isMobile ? 'mb-1' : 'mb-6'} flex-shrink-0`}>
+            <div className={`flex ${isMobile ? 'flex-col gap-1.5' : 'items-center gap-4'}`}>
+              {/* Desktop: Settings and New Event buttons */}
+              {!isMobile && (
+                <div className="flex gap-2">
+                  <Link href="/settings/google-calendar">
+                    <Button variant="outline" size="default" className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Button>
+                  </Link>
+                  <Button size="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Event
                   </Button>
-                </Link>
-                <Button size={isMobile ? "sm" : "default"} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
-                  <Plus className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${isMobile ? '' : 'mr-2'}`} />
-                  {!isMobile && 'New Event'}
-                </Button>
-                {/* ML Smart Sort Button - Only show in day view */}
-                {view === 'day' && (
-                  <Button 
-                    size={isMobile ? "sm" : "default"} 
-                    onClick={handleMLSort}
-                    disabled={isSorting}
-                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white"
-                    title="AI-powered smart sorting for your day"
-                  >
-                    <Sparkles className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${isMobile ? '' : 'mr-2'} ${isSorting ? 'animate-spin' : ''}`} />
-                    {!isMobile && (isSorting ? 'Sorting...' : 'Sort')}
-                  </Button>
-                )}
-              </div>
+                  {view === 'day' && (
+                    <Button 
+                      size="default" 
+                      onClick={handleMLSort}
+                      disabled={isSorting}
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white"
+                      title="AI-powered smart sorting for your day"
+                    >
+                      <Sparkles className={`w-4 h-4 mr-2 ${isSorting ? 'animate-spin' : ''}`} />
+                      {isSorting ? 'Sorting...' : 'Sort'}
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Multi-select toolbar - shows when events are selected */}
               {selectedEventIds.size > 0 && (
@@ -1547,15 +1548,45 @@ export default function Calendar() {
                 </div>
               )}
 
-              <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-white`}>
-                {monthNames[month]} {year}
-              </h2>
+              {/* Mobile: Title + action buttons on same row */}
+              {isMobile ? (
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-bold text-white">
+                    {monthNames[month]} {year}
+                  </h2>
+                  <div className="flex gap-1.5">
+                    <Link href="/settings/google-calendar">
+                      <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-purple-500/30 text-purple-300 hover:bg-purple-500/10">
+                        <Settings className="w-3.5 h-3.5" />
+                      </Button>
+                    </Link>
+                    <Button size="sm" className="h-7 w-7 p-0 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                    {view === 'day' && (
+                      <Button 
+                        size="sm"
+                        onClick={handleMLSort}
+                        disabled={isSorting}
+                        className="h-7 w-7 p-0 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white"
+                        title="AI-powered smart sorting for your day"
+                      >
+                        <Sparkles className={`w-3.5 h-3.5 ${isSorting ? 'animate-spin' : ''}`} />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <h2 className="text-2xl font-bold text-white">
+                  {monthNames[month]} {year}
+                </h2>
+              )}
               
               {/* View Selector */}
-              <div className={`flex gap-1 bg-gray-800/60 p-1 rounded-lg border border-purple-500/20 ${isMobile ? 'w-full' : ''}`}>
+              <div className={`flex gap-0.5 bg-gray-800/60 ${isMobile ? 'p-0.5' : 'p-1'} rounded-lg border border-purple-500/20 ${isMobile ? 'w-full' : ''}`}>
                 <button
                   onClick={() => setView('day')}
-                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === 'day' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -1565,7 +1596,7 @@ export default function Calendar() {
                 </button>
                 <button
                   onClick={() => setView('3day')}
-                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === '3day' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -1575,7 +1606,7 @@ export default function Calendar() {
                 </button>
                 <button
                   onClick={() => setView('week')}
-                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === 'week' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -1585,7 +1616,7 @@ export default function Calendar() {
                 </button>
                 <button
                   onClick={() => setView('month')}
-                  className={`${isMobile ? 'flex-1 px-2 py-1.5 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
+                  className={`${isMobile ? 'flex-1 px-2 py-1 text-xs' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
                     view === 'month' 
                       ? 'bg-purple-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -1596,25 +1627,25 @@ export default function Calendar() {
               </div>
             </div>
             
-            <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
+            <div className={`flex gap-1.5 ${isMobile ? 'w-full' : 'gap-2'}`}>
               <Button
                 onClick={previousMonth}
                 variant="outline"
-                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-8' : ''}`}
+                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-7' : ''}`}
               >
                 {isMobile ? '←' : '← Previous'}
               </Button>
               <Button
                 onClick={() => setCurrentDate(new Date())}
                 variant="outline"
-                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-8' : ''}`}
+                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-7' : ''}`}
               >
                 Today
               </Button>
               <Button
                 onClick={nextMonth}
                 variant="outline"
-                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-8' : ''}`}
+                className={`border-purple-500/30 text-purple-300 hover:bg-purple-500/10 ${isMobile ? 'flex-1 text-xs h-7' : ''}`}
               >
                 {isMobile ? '→' : 'Next →'}
               </Button>
