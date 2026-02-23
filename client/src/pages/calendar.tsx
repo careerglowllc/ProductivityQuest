@@ -1422,7 +1422,7 @@ export default function Calendar() {
 
   if (!googleConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-24 pb-8 px-8">
+      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'pt-1 pb-20 px-2' : 'pt-24 pb-8 px-8'}`}>
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -1478,13 +1478,13 @@ export default function Calendar() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-24 pb-8 px-8">
-      <div className={`${isMobile ? 'max-w-full' : 'max-w-7xl'} mx-auto`}>
+    <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'pt-1 pb-20 px-1' : 'pt-24 pb-8 px-8'}`}>
+      <div className={`${isMobile ? 'max-w-full' : 'max-w-7xl'} mx-auto ${isMobile ? 'h-[calc(100vh-84px)]' : ''}`}>
         {/* Calendar Card */}
-        <Card className={`${isMobile ? 'p-3' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
+        <Card className={`${isMobile ? 'p-2 h-full flex flex-col' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
           {/* View Selector and Month Navigation */}
-          <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'} mb-6`}>
-            <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center gap-4'}`}>
+          <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'} ${isMobile ? 'mb-2' : 'mb-6'} flex-shrink-0`}>
+            <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center gap-4'}`}>
               {/* Settings and New Event buttons */}
               <div className="flex gap-2">
                 <Link href="/settings/google-calendar">
@@ -1539,7 +1539,7 @@ export default function Calendar() {
                 </div>
               )}
 
-              <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
+              <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-white`}>
                 {monthNames[month]} {year}
               </h2>
               
@@ -1629,7 +1629,7 @@ export default function Calendar() {
 
           {/* Calendar Grid - Month View */}
           {view === 'month' && (
-            <div className="grid grid-cols-7 gap-px bg-purple-500/20">
+            <div className={`grid grid-cols-7 gap-px bg-purple-500/20 ${isMobile ? 'flex-1 min-h-0 overflow-auto' : ''}`}>
               {calendarDays}
             </div>
           )}
@@ -1638,7 +1638,7 @@ export default function Calendar() {
           {view === 'day' && (
             <div 
               ref={dayViewRef} 
-              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-240px)]' : 'max-h-[calc(100vh-280px)]'}`}
+              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
@@ -1850,7 +1850,7 @@ export default function Calendar() {
           {view === '3day' && (
             <div 
               ref={threeDayViewRef} 
-              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'max-h-[calc(100vh-240px)]' : 'max-h-[calc(100vh-280px)]'}`}
+              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
@@ -1966,7 +1966,7 @@ export default function Calendar() {
           {view === 'week' && (
             <div 
               ref={weekViewRef} 
-              className={`overflow-auto ${isMobile ? 'max-h-[calc(100vh-240px)]' : 'max-h-[calc(100vh-280px)]'}`}
+              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'}`}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
