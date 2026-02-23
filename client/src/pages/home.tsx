@@ -1368,81 +1368,151 @@ export default function Home() {
 
       <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
         {/* Your Quests Header */}
-        <div className={`flex flex-col ${isMobile ? 'gap-3 mb-4' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
+        <div className={`flex flex-col ${isMobile ? 'gap-2 mb-2' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
-            <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-serif font-bold text-yellow-100`}>
+            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-serif font-bold text-yellow-100`}>
               Your Quests 
-              <span className={`ml-2 ${isMobile ? 'text-base' : 'text-lg'} font-normal text-yellow-300/80`}>({filterCounts.all})</span>
+              <span className={`ml-2 ${isMobile ? 'text-sm' : 'text-lg'} font-normal text-yellow-300/80`}>({filterCounts.all})</span>
             </h2>
-            <p className={`text-yellow-200/70 ${isMobile ? 'text-xs' : ''}`}>Complete tasks to earn gold and unlock rewards</p>
+            {!isMobile && <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>}
           </div>
-          <div className={`flex flex-wrap ${isMobile ? 'gap-2' : 'gap-3'}`}>
-            {/* Add Quest Button */}
-            <Button 
-              onClick={() => setShowAddTask(true)}
-              className={`flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 ${isMobile ? 'text-xs h-8 px-3' : ''}`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "14" : "16"} height={isMobile ? "14" : "16"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              <span>Add Quest</span>
-            </Button>
-            
-            {/* Categorize All Button */}
-            <Button 
-              onClick={handleCategorizeAll}
-              variant="outline"
-              className="flex items-center space-x-2 bg-purple-900/30 border-purple-500/40 text-purple-200 hover:bg-purple-600/30 hover:text-purple-100 hover:border-purple-500/60"
-            >
-              <Tag className="w-4 h-4" />
-              <span>Categorize All</span>
-            </Button>
-            
-            {/* Undo Button - Always visible when there's a last action */}
-            {lastAction.type && (
+          {isMobile ? (
+            /* Mobile: Compact icon grid */
+            <div className="grid grid-cols-6 gap-1.5 w-full">
               <Button 
-                onClick={handleUndo} 
-                variant="outline"
-                className="flex items-center space-x-2 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 hover:text-orange-100 hover:border-orange-500/60"
+                onClick={() => setShowAddTask(true)}
+                size="sm"
+                className="flex flex-col items-center justify-center h-12 px-1 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-[10px] gap-0.5"
+                title="Add Quest"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                  <path d="M3 7v6h6"/>
-                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                <span>Undo {
-                  lastAction.type === 'complete' ? 'Complete' : 
-                  lastAction.type === 'append-notion' ? 'Append' : 
-                  lastAction.type === 'delete-notion' ? 'Delete' :
-                  lastAction.type === 'import-notion' ? 'Import' :
-                  lastAction.type === 'export-notion' ? 'Export' : ''
-                }</span>
+                <span>Add</span>
               </Button>
-            )}
-            <Button onClick={handleImportPrepare} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">
-              <Download className="w-4 h-4" />
-              <span>Import ALL from Notion</span>
-            </Button>
-            <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-              <Upload className="w-4 h-4" />
-              <span>Export ALL to Notion</span>
-            </Button>
-            <Button onClick={handleExportCSV} variant="outline" className="flex items-center space-x-2 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 hover:text-emerald-100 hover:border-emerald-500/60">
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>Export as CSV</span>
-            </Button>
-          </div>
+              <Button 
+                onClick={handleCategorizeAll}
+                size="sm"
+                variant="outline"
+                className="flex flex-col items-center justify-center h-12 px-1 bg-purple-900/30 border-purple-500/40 text-purple-200 hover:bg-purple-600/30 text-[10px] gap-0.5"
+                title="Categorize All"
+              >
+                <Tag className="w-4 h-4" />
+                <span>Sort</span>
+              </Button>
+              {lastAction.type ? (
+                <Button 
+                  onClick={handleUndo}
+                  size="sm"
+                  variant="outline"
+                  className="flex flex-col items-center justify-center h-12 px-1 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 text-[10px] gap-0.5"
+                  title="Undo"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7v6h6"/>
+                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                  </svg>
+                  <span>Undo</span>
+                </Button>
+              ) : (
+                <div />
+              )}
+              <Button 
+                onClick={handleImportPrepare}
+                size="sm"
+                className="flex flex-col items-center justify-center h-12 px-1 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50 text-[10px] gap-0.5"
+                title="Import from Notion"
+              >
+                <Download className="w-4 h-4" />
+                <span>Import</span>
+              </Button>
+              <Button 
+                onClick={handleExportPrepare}
+                size="sm"
+                variant="outline"
+                className="flex flex-col items-center justify-center h-12 px-1 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 text-[10px] gap-0.5"
+                title="Export to Notion"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Export</span>
+              </Button>
+              <Button 
+                onClick={handleExportCSV}
+                size="sm"
+                variant="outline"
+                className="flex flex-col items-center justify-center h-12 px-1 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 text-[10px] gap-0.5"
+                title="Export as CSV"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>CSV</span>
+              </Button>
+            </div>
+          ) : (
+            /* Desktop: Original button layout */
+            <div className="flex flex-wrap gap-3">
+              <Button 
+                onClick={() => setShowAddTask(true)}
+                className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Add Quest</span>
+              </Button>
+              <Button 
+                onClick={handleCategorizeAll}
+                variant="outline"
+                className="flex items-center space-x-2 bg-purple-900/30 border-purple-500/40 text-purple-200 hover:bg-purple-600/30 hover:text-purple-100 hover:border-purple-500/60"
+              >
+                <Tag className="w-4 h-4" />
+                <span>Categorize All</span>
+              </Button>
+              {lastAction.type && (
+                <Button 
+                  onClick={handleUndo} 
+                  variant="outline"
+                  className="flex items-center space-x-2 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 hover:text-orange-100 hover:border-orange-500/60"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <path d="M3 7v6h6"/>
+                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                  </svg>
+                  <span>Undo {
+                    lastAction.type === 'complete' ? 'Complete' : 
+                    lastAction.type === 'append-notion' ? 'Append' : 
+                    lastAction.type === 'delete-notion' ? 'Delete' :
+                    lastAction.type === 'import-notion' ? 'Import' :
+                    lastAction.type === 'export-notion' ? 'Export' : ''
+                  }</span>
+                </Button>
+              )}
+              <Button onClick={handleImportPrepare} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">
+                <Download className="w-4 h-4" />
+                <span>Import ALL from Notion</span>
+              </Button>
+              <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                <Upload className="w-4 h-4" />
+                <span>Export ALL to Notion</span>
+              </Button>
+              <Button onClick={handleExportCSV} variant="outline" className="flex items-center space-x-2 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 hover:text-emerald-100 hover:border-emerald-500/60">
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Export as CSV</span>
+              </Button>
+            </div>
+          )}
         </div>
 
             {/* Search Bar */}
-            <Card className="p-4 mb-4 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
+            <Card className={`${isMobile ? 'p-2 mb-2' : 'p-4 mb-4'} bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30`}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-yellow-400/60 w-4 h-4" />
                 <Input
-                  placeholder="Search tasks by title, description, category, or importance..."
+                  placeholder={isMobile ? "Search tasks..." : "Search tasks by title, description, category, or importance..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50"
+                  className={`pl-10 pr-4 ${isMobile ? 'py-1 text-sm h-8' : 'py-2'} w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50`}
                 />
                 {searchQuery && (
                   <Button
@@ -1486,67 +1556,67 @@ export default function Home() {
             )}
 
             {/* Task Filters */}
-            <Card className="p-4 mb-6 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
-              <div className="flex flex-wrap items-center gap-2 justify-between">
-                <div className="flex flex-wrap gap-2">
+            <Card className={`${isMobile ? 'p-2 mb-3' : 'p-4 mb-6'} bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30`}>
+              <div className={`flex flex-wrap items-center ${isMobile ? 'gap-1' : 'gap-2'} justify-between`}>
+                <div className={`flex flex-wrap ${isMobile ? 'gap-1' : 'gap-2'}`}>
                   <Badge 
                     variant={activeFilter === "all" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
                       activeFilter === "all" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
                     }`}
                     onClick={() => setActiveFilter("all")}
                   >
-                    All Tasks ({filterCounts.all})
+                    {isMobile ? `All (${filterCounts.all})` : `All Tasks (${filterCounts.all})`}
                   </Badge>
                   <Badge 
                     variant={activeFilter === "due-today" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
                       activeFilter === "due-today" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
                     }`}
                     onClick={() => setActiveFilter("due-today")}
                   >
-                    Due Today ({filterCounts.dueToday})
+                    {isMobile ? `Today (${filterCounts.dueToday})` : `Due Today (${filterCounts.dueToday})`}
                   </Badge>
                   <Badge 
                     variant={activeFilter === "high-reward" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
                       activeFilter === "high-reward" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
                     }`}
                     onClick={() => setActiveFilter("high-reward")}
                   >
-                    High Reward ({filterCounts.highReward})
+                    {isMobile ? `Reward (${filterCounts.highReward})` : `High Reward (${filterCounts.highReward})`}
                   </Badge>
                   <Badge 
                     variant={activeFilter === "quick-tasks" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
                       activeFilter === "quick-tasks" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
                     }`}
                     onClick={() => setActiveFilter("quick-tasks")}
                   >
-                    Quick Tasks ({filterCounts.quickTasks})
+                    {isMobile ? `Quick (${filterCounts.quickTasks})` : `Quick Tasks (${filterCounts.quickTasks})`}
                   </Badge>
                   <Badge 
                     variant={activeFilter === "high-priority" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
                       activeFilter === "high-priority" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
                     }`}
                     onClick={() => setActiveFilter("high-priority")}
                   >
-                    High Priority ({filterCounts.highPriority})
+                    {isMobile ? `Priority (${filterCounts.highPriority})` : `High Priority (${filterCounts.highPriority})`}
                   </Badge>
                   <Badge 
                     variant={activeFilter === "routines" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
                       activeFilter === "routines" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
@@ -1563,7 +1633,7 @@ export default function Home() {
                         variant={
                           activeFilter.startsWith("business-") ? "default" : "outline"
                         }
-                        className={`cursor-pointer ${
+                        className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
                           activeFilter.startsWith("business-")
                             ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                             : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
@@ -1611,7 +1681,7 @@ export default function Home() {
                   </DropdownMenu>
                 </div>
                 
-                <div className="flex gap-2 items-center">
+                <div className={`flex ${isMobile ? 'gap-1' : 'gap-2'} items-center`}>
                   {/* Select All / Deselect All Buttons */}
                   {sortedTasks.length > 0 && (
                     <>
@@ -1620,20 +1690,20 @@ export default function Home() {
                           variant="outline" 
                           size="sm" 
                           onClick={() => handleSelectAll(sortedTasks)}
-                          className="flex items-center gap-2 bg-slate-800/80 border-blue-500/40 text-blue-300 hover:bg-blue-600/20 hover:text-blue-100"
+                          className={`flex items-center ${isMobile ? 'gap-1 h-7 px-2 text-[10px]' : 'gap-2'} bg-slate-800/80 border-blue-500/40 text-blue-300 hover:bg-blue-600/20 hover:text-blue-100`}
                         >
-                          <CheckSquare className="w-4 h-4" />
-                          Select All ({sortedTasks.length})
+                          <CheckSquare className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                          {isMobile ? `All` : `Select All (${sortedTasks.length})`}
                         </Button>
                       ) : selectedTasks.size > 0 ? (
                         <Button 
                           variant="outline" 
                           size="sm" 
                           onClick={handleDeselectAll}
-                          className="flex items-center gap-2 bg-slate-800/80 border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-100"
+                          className={`flex items-center ${isMobile ? 'gap-1 h-7 px-2 text-[10px]' : 'gap-2'} bg-slate-800/80 border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-100`}
                         >
-                          <XSquare className="w-4 h-4" />
-                          Deselect All
+                          <XSquare className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                          {isMobile ? 'None' : 'Deselect All'}
                         </Button>
                       ) : null}
                     </>
@@ -1643,26 +1713,26 @@ export default function Home() {
                     variant="outline"
                     size="sm"
                     onClick={() => setViewType(viewType === "list" ? "grid" : "list")}
-                    className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100"
+                    className={`flex items-center ${isMobile ? 'gap-1 h-7 px-2 text-[10px]' : 'gap-2'} bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100`}
                   >
                     {viewType === "list" ? (
                       <>
-                        <LayoutGrid className="w-4 h-4" />
-                        Grid
+                        <LayoutGrid className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                        {!isMobile && 'Grid'}
                       </>
                     ) : (
                       <>
-                        <List className="w-4 h-4" />
-                        List
+                        <List className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                        {!isMobile && 'List'}
                       </>
                     )}
                   </Button>
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100">
-                        <ArrowUpDown className="w-4 h-4" />
-                        Sort
+                      <Button variant="outline" size="sm" className={`flex items-center ${isMobile ? 'gap-1 h-7 px-2 text-[10px]' : 'gap-2'} bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100`}>
+                        <ArrowUpDown className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
+                        {!isMobile && 'Sort'}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
