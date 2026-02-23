@@ -160,27 +160,35 @@ export default function Calendar() {
 
   // Auto-scroll to current time in Day, 3-Day, and Week views
   useEffect(() => {
-    const currentHour = new Date().getHours();
-    // Scroll to current hour (each time slot is approximately 60px height)
-    const scrollPosition = currentHour * 76; // 60px height + 16px padding
-    
-    if (view === 'day' && dayViewRef.current) {
-      dayViewRef.current.scrollTo({
-        top: scrollPosition - 100, // Offset to show some context above
-        behavior: 'smooth'
-      });
-    } else if (view === '3day' && threeDayViewRef.current) {
-      threeDayViewRef.current.scrollTo({
-        top: scrollPosition - 100,
-        behavior: 'smooth'
-      });
-    } else if (view === 'week' && weekViewRef.current) {
-      weekViewRef.current.scrollTo({
-        top: scrollPosition - 100,
-        behavior: 'smooth'
-      });
-    }
-  }, [view]);
+    const scrollToCurrentTime = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      // Match the current time indicator position: hour * 60 + minute offset
+      const scrollPosition = currentHour * 60 + (currentMinute / 60) * 60;
+      
+      if (view === 'day' && dayViewRef.current) {
+        dayViewRef.current.scrollTo({
+          top: scrollPosition - 100, // Offset to show some context above
+          behavior: 'smooth'
+        });
+      } else if (view === '3day' && threeDayViewRef.current) {
+        threeDayViewRef.current.scrollTo({
+          top: scrollPosition - 100,
+          behavior: 'smooth'
+        });
+      } else if (view === 'week' && weekViewRef.current) {
+        weekViewRef.current.scrollTo({
+          top: scrollPosition - 100,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // Small delay to ensure the ref is mounted after conditional rendering
+    const timer = setTimeout(scrollToCurrentTime, 100);
+    return () => clearTimeout(timer);
+  }, [view, currentDate]);
 
   // Undo function - reverts the last drag/resize change
   const handleUndo = async () => {
