@@ -96,7 +96,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} ${isMobile ? 'pb-20' : 'pb-24'} relative overflow-hidden`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -106,19 +106,19 @@ export default function SettingsPage() {
         <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        <div className="max-w-3xl mx-auto">
+      <div className={`container mx-auto ${isMobile ? 'px-2 py-3' : 'px-4 py-8'} relative z-10`}>
+        <div className={`${isMobile ? 'max-w-full' : 'max-w-3xl'} mx-auto`}>
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <Settings className="h-8 w-8 text-yellow-400" />
-              <h1 className="text-3xl font-serif font-bold text-yellow-100">Settings</h1>
+          <div className={isMobile ? 'mb-3' : 'mb-8'}>
+            <div className={`flex items-center ${isMobile ? 'gap-2 mb-0.5' : 'gap-3 mb-2'}`}>
+              <Settings className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} text-yellow-400`} />
+              <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-serif font-bold text-yellow-100`}>Settings</h1>
             </div>
-            <p className="text-yellow-200/70">Manage your integrations and preferences</p>
+            <p className={`text-yellow-200/70 ${isMobile ? 'text-xs' : ''}`}>Manage your integrations and preferences</p>
           </div>
 
           {/* Settings Menu */}
-          <div className="space-y-4">
+          <div className={isMobile ? 'space-y-1.5' : 'space-y-4'}>
             {settingsSections.map((section) => {
               const Icon = section.icon;
               const isDisabled = section.disabled;
@@ -126,37 +126,37 @@ export default function SettingsPage() {
               return (
                 <Link key={section.path} href={isDisabled ? "#" : section.path}>
                   <Card 
-                    className={`bg-slate-800/60 backdrop-blur-md border-2 transition-all ${
+                    className={`bg-slate-800/60 backdrop-blur-md border transition-all ${
                       isDisabled 
                         ? 'border-slate-700/40 opacity-60 cursor-not-allowed'
                         : 'border-yellow-600/30 hover:border-yellow-500/50 cursor-pointer hover:shadow-lg hover:shadow-yellow-600/10'
                     }`}
                   >
-                    <CardContent className="p-6">
+                    <CardContent className={isMobile ? 'p-2.5' : 'p-6'}>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2.5">
                           {/* Icon */}
-                          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${section.color} flex items-center justify-center shadow-lg`}>
-                            <Icon className="w-6 h-6 text-white" />
+                          <div className={`${isMobile ? 'w-8 h-8 rounded-md' : 'w-12 h-12 rounded-lg'} bg-gradient-to-br ${section.color} flex items-center justify-center shadow-lg flex-shrink-0`}>
+                            <Icon className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} text-white`} />
                           </div>
                           
                           {/* Content */}
-                          <div>
-                            <h3 className="text-lg font-serif font-bold text-yellow-100 mb-1 flex items-center gap-2">
+                          <div className="min-w-0">
+                            <h3 className={`${isMobile ? 'text-sm' : 'text-lg'} font-serif font-bold text-yellow-100 flex items-center gap-1.5`}>
                               {section.title}
                               {isDisabled && (
-                                <span className="text-xs bg-slate-700 text-yellow-200/60 px-2 py-0.5 rounded">
-                                  Coming Soon
+                                <span className={`${isMobile ? 'text-[9px] px-1 py-px' : 'text-xs px-2 py-0.5'} bg-slate-700 text-yellow-200/60 rounded`}>
+                                  Soon
                                 </span>
                               )}
                             </h3>
-                            <p className="text-sm text-yellow-200/70">{section.description}</p>
+                            <p className={`${isMobile ? 'text-[11px] leading-tight' : 'text-sm'} text-yellow-200/70 truncate`}>{section.description}</p>
                           </div>
                         </div>
                         
                         {/* Arrow */}
                         {!isDisabled && (
-                          <ChevronRight className="w-6 h-6 text-yellow-400" />
+                          <ChevronRight className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} text-yellow-400 flex-shrink-0`} />
                         )}
                       </div>
                     </CardContent>

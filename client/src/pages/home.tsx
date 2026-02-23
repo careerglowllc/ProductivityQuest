@@ -1760,90 +1760,192 @@ export default function Home() {
 
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
-              <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-4">
-                <Card className="max-w-7xl mx-auto p-4 bg-blue-900/95 backdrop-blur-md border-2 border-blue-500/60 shadow-2xl">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-blue-200 font-medium">
-                        {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
-                      </span>
+              <div className={`fixed ${isMobile ? 'bottom-16' : 'bottom-20'} left-0 right-0 z-40 ${isMobile ? 'px-1 pb-1' : 'px-4 pb-4'}`}>
+                <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-1.5' : 'p-4'} bg-blue-900/95 backdrop-blur-md border-2 border-blue-500/60 shadow-2xl`}>
+                  {isMobile ? (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] text-blue-200 font-medium">
+                          {selectedTasks.size} selected
+                        </span>
+                        <Button
+                          onClick={() => setSelectedTasks(new Set())}
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 px-1.5 text-[10px] text-blue-300 hover:text-white"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                      <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide">
+                        <Button 
+                          onClick={handleCompleteSelected}
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap bg-blue-600 hover:bg-blue-500 text-white flex-shrink-0"
+                        >
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Complete
+                        </Button>
+                        <Button 
+                          onClick={() => setShowCalendarSync(true)}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 flex-shrink-0"
+                        >
+                          <Calendar className="w-3 h-3 mr-1" />
+                          Sync
+                        </Button>
+                        <Button 
+                          onClick={handleRemoveFromCalendar}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-slate-500/40 text-slate-300 hover:bg-slate-600/20 flex-shrink-0"
+                        >
+                          <CalendarDays className="w-3 h-3 mr-1" />
+                          Unsync
+                        </Button>
+                        <Button 
+                          onClick={handleRemoveAllFromCalendar}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-red-500/40 text-red-300 hover:bg-red-600/20 flex-shrink-0"
+                        >
+                          <CalendarDays className="w-3 h-3 mr-1" />
+                          Clear Cal
+                        </Button>
+                        <Button 
+                          onClick={handleDeleteSelected}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-orange-500/40 text-orange-300 hover:bg-orange-600/20 flex-shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </Button>
+                        <Button 
+                          onClick={handleAppendToNotion}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-green-500/40 text-green-300 hover:bg-green-600/20 flex-shrink-0"
+                        >
+                          <Upload className="w-3 h-3 mr-1" />
+                          Notion
+                        </Button>
+                        <Button 
+                          onClick={handleDeleteFromNotion}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-red-500/40 text-red-300 hover:bg-red-600/20 flex-shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Del Notion
+                        </Button>
+                        <Button 
+                          onClick={handleCategorizeSkill}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-purple-500/40 text-purple-300 hover:bg-purple-600/20 flex-shrink-0"
+                          disabled={selectedTasks.size === 0}
+                        >
+                          <Tag className="w-3 h-3 mr-1" />
+                          Skill
+                        </Button>
+                        <Button 
+                          onClick={handleRecategorizeSelected}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[10px] whitespace-nowrap border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20 flex-shrink-0"
+                          disabled={selectedTasks.size === 0}
+                        >
+                          <Tag className="w-3 h-3 mr-1" />
+                          Recat
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button 
-                        onClick={handleCompleteSelected}
-                        className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Complete Selected
-                      </Button>
-                      <Button 
-                        onClick={() => setShowCalendarSync(true)}
-                        variant="outline"
-                        className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200"
-                      >
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Sync to Calendar
-                      </Button>
-                      <Button 
-                        onClick={handleRemoveFromCalendar}
-                        variant="outline"
-                        className="border-slate-500/40 text-slate-300 hover:bg-slate-600/20 hover:text-slate-200"
-                      >
-                        <CalendarDays className="w-4 h-4 mr-2" />
-                        Remove from Calendar
-                      </Button>
-                      <Button 
-                        onClick={handleRemoveAllFromCalendar}
-                        variant="outline"
-                        className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
-                      >
-                        <CalendarDays className="w-4 h-4 mr-2" />
-                        Clear ALL from Calendar
-                      </Button>
-                      <Button 
-                        onClick={handleDeleteSelected}
-                        variant="outline"
-                        className="border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Selected
-                      </Button>
-                      <Button 
-                        onClick={handleAppendToNotion}
-                        variant="outline"
-                        className="border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200"
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Append to Notion
-                      </Button>
-                      <Button 
-                        onClick={handleDeleteFromNotion}
-                        variant="outline"
-                        className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete from Notion
-                      </Button>
-                      <Button 
-                        onClick={handleCategorizeSkill}
-                        variant="outline"
-                        className="border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200"
-                        disabled={selectedTasks.size === 0}
-                      >
-                        <Tag className="w-4 h-4 mr-2" />
-                        Categorize Skill
-                      </Button>
-                      <Button 
-                        onClick={handleRecategorizeSelected}
-                        variant="outline"
-                        className="border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20 hover:text-yellow-200"
-                        disabled={selectedTasks.size === 0}
-                      >
-                        <Tag className="w-4 h-4 mr-2" />
-                        Recategorize
-                      </Button>
+                  ) : (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-200 font-medium">
+                          {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
+                        </span>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button 
+                          onClick={handleCompleteSelected}
+                          className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Complete Selected
+                        </Button>
+                        <Button 
+                          onClick={() => setShowCalendarSync(true)}
+                          variant="outline"
+                          className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200"
+                        >
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Sync to Calendar
+                        </Button>
+                        <Button 
+                          onClick={handleRemoveFromCalendar}
+                          variant="outline"
+                          className="border-slate-500/40 text-slate-300 hover:bg-slate-600/20 hover:text-slate-200"
+                        >
+                          <CalendarDays className="w-4 h-4 mr-2" />
+                          Remove from Calendar
+                        </Button>
+                        <Button 
+                          onClick={handleRemoveAllFromCalendar}
+                          variant="outline"
+                          className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                        >
+                          <CalendarDays className="w-4 h-4 mr-2" />
+                          Clear ALL from Calendar
+                        </Button>
+                        <Button 
+                          onClick={handleDeleteSelected}
+                          variant="outline"
+                          className="border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Selected
+                        </Button>
+                        <Button 
+                          onClick={handleAppendToNotion}
+                          variant="outline"
+                          className="border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200"
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          Append to Notion
+                        </Button>
+                        <Button 
+                          onClick={handleDeleteFromNotion}
+                          variant="outline"
+                          className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete from Notion
+                        </Button>
+                        <Button 
+                          onClick={handleCategorizeSkill}
+                          variant="outline"
+                          className="border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200"
+                          disabled={selectedTasks.size === 0}
+                        >
+                          <Tag className="w-4 h-4 mr-2" />
+                          Categorize Skill
+                        </Button>
+                        <Button 
+                          onClick={handleRecategorizeSelected}
+                          variant="outline"
+                          className="border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20 hover:text-yellow-200"
+                          disabled={selectedTasks.size === 0}
+                        >
+                          <Tag className="w-4 h-4 mr-2" />
+                          Recategorize
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </Card>
               </div>
             )}
