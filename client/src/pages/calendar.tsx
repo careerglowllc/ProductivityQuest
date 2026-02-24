@@ -2112,95 +2112,122 @@ export default function Calendar() {
                   })}
                 </div>
 
-                {/* Time Slots */}
+                {/* Time Slots with absolute positioned events */}
                 <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
-                  {timeSlots.map(({ hour, label }) => {
-                    const now = new Date();
-                    const currentHour = now.getHours();
-                    const currentMinute = now.getMinutes();
-                    const timeIndicatorPosition = (currentMinute / 60) * 100;
-                    
-                    return (
-                      <React.Fragment key={hour}>
-                        <div className={`bg-gray-900/20 ${isMobile ? 'p-0.5 text-[8px] pr-0.5' : 'p-2 text-xs pr-2'} text-gray-500 text-right`}>
-                          {isMobile ? label.replace(':00 ', '').replace('AM', 'a').replace('PM', 'p') : label}
-                        </div>
-                        {get3DayDates().map((date, idx) => {
-                          const hourEvents = getEventsForHour(date, hour);
-                          const isToday = date.toDateString() === now.toDateString();
-                          const showTimeIndicator = isToday && hour === currentHour;
-                          
-                          return (
-                            <div key={idx} className={`bg-gray-900/20 ${isMobile ? 'p-0.5' : 'p-2'} min-h-[60px] relative overflow-hidden`} style={{ minWidth: 0 }}>
-                              {/* Current Time Indicator */}
-                              {showTimeIndicator && (
-                                <div 
-                                  className="absolute left-0 right-0 flex items-center z-20"
-                                  style={{ top: `${timeIndicatorPosition}%` }}
-                                >
-                                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
-                                  <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
-                                </div>
-                              )}
-                              
-                              {hourEvents.map((event, eventIdx) => {
-                                const eventStyle = getEventStyle(event);
-                                const displayTime = getEventDisplayTime(event);
-                                const isDragging = draggingEvent?.id === event.id;
-                                const isResizing = resizingEvent?.id === event.id;
-                                const isDraggable = event.source === 'productivityquest';
-                                
-                                return (
-                                  <div
-                                    key={eventIdx}
-                                    className={`${isMobile ? 'p-1 mb-0.5 text-[10px]' : 'p-1.5 mb-1 text-xs'} rounded border relative group overflow-hidden w-full max-w-full ${
-                                      isDraggable ? 'cursor-move' : 'cursor-pointer'
-                                    } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
-                                    style={eventStyle.backgroundColor ? { 
-                                      backgroundColor: eventStyle.backgroundColor,
-                                      borderColor: eventStyle.borderColor,
-                                      color: eventStyle.color
-                                    } : undefined}
-                                    onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
-                                    onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
-                                    onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
-                                  >
-                                    {/* Top resize handle */}
-                                    {isDraggable && (
-                                      <div
-                                        className={`absolute top-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-t`}
-                                        onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
-                                        onTouchStart={(e) => handleEventTouchStart(event, e, 'top')}
-                                      />
-                                    )}
-                                    
-                                    <div className="font-medium truncate leading-tight flex items-center gap-1">
-                                      {event.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
-                                      <span className={event.completed ? 'line-through opacity-60' : ''}>{event.title}</span>
-                                    </div>
-                                    {!isMobile && (
-                                      <div className="text-[9px] opacity-70 truncate leading-tight">
-                                        {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                      </div>
-                                    )}
-                                    
-                                    {/* Bottom resize handle */}
-                                    {isDraggable && (
-                                      <div
-                                        className={`absolute bottom-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-b`}
-                                        onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
-                                        onTouchStart={(e) => handleEventTouchStart(event, e, 'bottom')}
-                                      />
-                                    )}
-                                  </div>
-                                );
-                              })}
+                  {/* Time labels column */}
+                  {timeSlots.map(({ hour, label }) => (
+                    <React.Fragment key={hour}>
+                      <div className={`bg-gray-900/20 ${isMobile ? 'p-0.5 text-[8px] pr-0.5' : 'p-2 text-xs pr-2'} text-gray-500 text-right`} style={{ gridColumn: '1', gridRow: `${hour + 1}` }}>
+                        {isMobile ? label.replace(':00 ', '').replace('AM', 'a').replace('PM', 'p') : label}
+                      </div>
+                      {get3DayDates().map((_, idx) => (
+                        <div key={idx} className="bg-gray-900/20 min-h-[60px]" style={{ gridColumn: `${idx + 2}`, gridRow: `${hour + 1}` }} />
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </div>
+
+                {/* Overlay: Absolute-positioned events per day column */}
+                <div className="relative" style={{ marginTop: `${-24 * 60}px`, height: `${24 * 60}px` }}>
+                  <div className="absolute inset-0 grid gap-px" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
+                    {/* Empty time label spacer */}
+                    <div />
+                    {get3DayDates().map((date, idx) => {
+                      const now = new Date();
+                      const isToday = date.toDateString() === now.toDateString();
+                      const currentHour = now.getHours();
+                      const currentMinute = now.getMinutes();
+                      const timeIndicatorTop = currentHour * 60 + currentMinute;
+                      
+                      const dayEvents = getEventsForDate(date);
+                      const eventLayout = getEventLayout(dayEvents);
+
+                      return (
+                        <div key={idx} className="relative" style={{ height: `${24 * 60}px` }}>
+                          {/* Current Time Indicator */}
+                          {isToday && (
+                            <div 
+                              className="absolute left-0 right-0 flex items-center z-20"
+                              style={{ top: `${timeIndicatorTop}px` }}
+                            >
+                              <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
+                              <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
                             </div>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
+                          )}
+
+                          {/* Events with absolute positioning */}
+                          {dayEvents.map((event, eventIdx) => {
+                            const eventStyle = getEventStyle(event);
+                            const displayTime = getEventDisplayTime(event);
+                            const position = getEventPosition(event);
+                            const layout = eventLayout.get(event.id) || { column: 0, totalColumns: 1 };
+                            const isDragging = draggingEvent?.id === event.id;
+                            const isResizing = resizingEvent?.id === event.id;
+                            const isDraggable = event.source === 'productivityquest';
+
+                            const columnWidth = 100 / layout.totalColumns;
+                            const leftPercent = layout.column * columnWidth;
+                            const gapPx = 1;
+
+                            return (
+                              <div
+                                key={eventIdx}
+                                className={`absolute rounded border group overflow-hidden ${
+                                  isDraggable ? 'cursor-move' : 'cursor-pointer'
+                                } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
+                                style={{
+                                  top: `${position.top}px`,
+                                  height: `${position.height}px`,
+                                  left: layout.totalColumns > 1 
+                                    ? `calc(${leftPercent}% + ${layout.column > 0 ? gapPx : 0}px)` 
+                                    : '0px',
+                                  width: layout.totalColumns > 1 
+                                    ? `calc(${columnWidth}% - ${gapPx}px)` 
+                                    : '100%',
+                                  backgroundColor: eventStyle.backgroundColor,
+                                  borderColor: eventStyle.borderColor,
+                                  color: eventStyle.color,
+                                  zIndex: 10,
+                                  padding: isMobile ? '2px 4px' : position.height < 25 ? '2px 6px' : '4px 8px',
+                                }}
+                                onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
+                                onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
+                                onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
+                              >
+                                {/* Top resize handle */}
+                                {isDraggable && (
+                                  <div
+                                    className={`absolute top-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-t`}
+                                    onMouseDown={(e) => handleEventMouseDown(event, e, 'top')}
+                                    onTouchStart={(e) => handleEventTouchStart(event, e, 'top')}
+                                  />
+                                )}
+                                
+                                <div className={`font-medium truncate leading-tight flex items-center gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                                  {event.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
+                                  <span className={event.completed ? 'line-through opacity-60' : ''}>{event.title}</span>
+                                </div>
+                                {!isMobile && position.height > 25 && (
+                                  <div className="text-[9px] opacity-70 truncate leading-tight">
+                                    {displayTime.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                  </div>
+                                )}
+                                
+                                {/* Bottom resize handle */}
+                                {isDraggable && (
+                                  <div
+                                    className={`absolute bottom-0 left-0 right-0 ${isMobile ? 'h-4' : 'h-1'} cursor-ns-resize ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-white/30 rounded-b`}
+                                    onMouseDown={(e) => handleEventMouseDown(event, e, 'bottom')}
+                                    onTouchStart={(e) => handleEventTouchStart(event, e, 'bottom')}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
