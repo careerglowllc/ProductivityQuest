@@ -195,6 +195,21 @@ function TodayCalendarWidget() {
 
 // Finance Widget Component
 function FinanceWidget() {
+  // Track container height to adapt layout
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(400);
+  
+  useEffect(() => {
+    if (!contentRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContentHeight(entry.contentRect.height);
+      }
+    });
+    observer.observe(contentRef.current);
+    return () => observer.disconnect();
+  }, []);
+  
   // Only "Income" category is considered money coming in (green)
   // All other categories are expenses (reddish)
   const INCOME_CATEGORIES = ["Income"];
@@ -273,7 +288,7 @@ function FinanceWidget() {
           </Link>
         </div>
       </CardHeader>
-      <CardContent className="pt-4 pb-4 flex-1 overflow-hidden">
+      <CardContent className="pt-2 pb-2 flex-1 overflow-hidden min-h-0" ref={contentRef}>
         {pieData.length === 0 ? (
           <div className="text-center py-12 text-emerald-200/60">
             <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-50 text-emerald-400/40" />
@@ -322,29 +337,33 @@ function FinanceWidget() {
                       fontWeight: 'bold'
                     }}
                   />
-                  <Legend 
-                    wrapperStyle={{
-                      fontSize: '11px',
-                      paddingTop: '10px'
-                    }}
-                    iconType="circle"
-                    formatter={(value) => <span className="text-slate-300">{value}</span>}
-                  />
+                  {contentHeight > 280 && (
+                    <Legend 
+                      wrapperStyle={{
+                        fontSize: '11px',
+                        paddingTop: '10px'
+                      }}
+                      iconType="circle"
+                      formatter={(value) => <span className="text-slate-300">{value}</span>}
+                    />
+                  )}
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 space-y-3 flex-shrink-0">
-              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg border border-emerald-500/20">
-                <span className="text-emerald-200/90 font-medium">Net Income:</span>
-                <span className={`font-bold text-lg ${netIncome >= 0 ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]'}`}>
-                  {formatCurrency(netIncome)}/mo
-                </span>
+            {contentHeight > 200 && (
+              <div className={`${contentHeight > 280 ? 'mt-4 space-y-3' : 'mt-2 space-y-1'} flex-shrink-0`}>
+                <div className={`flex justify-between items-center ${contentHeight > 280 ? 'p-3' : 'p-1.5 text-sm'} bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg border border-emerald-500/20`}>
+                  <span className="text-emerald-200/90 font-medium">Net Income:</span>
+                  <span className={`font-bold ${contentHeight > 280 ? 'text-lg' : 'text-sm'} ${netIncome >= 0 ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]'}`}>
+                    {formatCurrency(netIncome)}/mo
+                  </span>
+                </div>
+                <div className={`flex justify-between items-center ${contentHeight > 280 ? 'p-3' : 'p-1.5 text-sm'} bg-gradient-to-r from-yellow-500/10 to-amber-500/10 rounded-lg border border-yellow-500/20`}>
+                  <span className="text-yellow-200/90 font-medium">Savings Rate:</span>
+                  <span className={`font-bold ${contentHeight > 280 ? 'text-lg' : 'text-sm'} text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]`}>{savingsRate.toFixed(1)}%</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 rounded-lg border border-yellow-500/20">
-                <span className="text-yellow-200/90 font-medium">Savings Rate:</span>
-                <span className="font-bold text-lg text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]">{savingsRate.toFixed(1)}%</span>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -412,8 +431,8 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
   const polygonPointsString = skillPoints.map(p => `${p.x},${p.y}`).join(' ');
 
   return (
-    <div className="flex items-center justify-center overflow-hidden">
-      <svg width={size} height={size} className="overflow-hidden">
+    <div className="flex items-center justify-center w-full h-full">
+      <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
         {/* Background circles */}
         {gridLevels.map((level, i) => (
           <circle
@@ -963,13 +982,13 @@ export default function Dashboard() {
                   </Link>
                 </div>
               </CardHeader>
-              <CardContent className="pt-4 pb-4 flex items-center justify-center">
+              <CardContent className="pt-2 pb-2 flex items-center justify-center">
                 <Dialog>
                   <DialogTrigger asChild>
                     <div className="cursor-pointer relative group w-full">
-                      <div className="scale-[0.5] origin-center transform -my-28">
+                      <div className="w-full max-w-[300px] mx-auto aspect-square">
                         {skillsLoading ? (
-                          <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
+                          <div className="flex items-center justify-center h-full text-yellow-200/60">
                             Loading skills...
                           </div>
                         ) : (
@@ -1189,13 +1208,13 @@ export default function Dashboard() {
                                   </Link>
                                 </div>
                               </CardHeader>
-                              <CardContent className="pt-4 pb-4 flex items-center justify-center flex-1 overflow-hidden">
+                              <CardContent className="pt-2 pb-2 flex items-center justify-center flex-1 overflow-hidden min-h-0">
                                 <Dialog>
                                   <DialogTrigger asChild>
-                                    <div className="cursor-pointer relative group w-full">
-                                      <div className="scale-[0.6] origin-center transform -my-16">
+                                    <div className="cursor-pointer relative group w-full h-full flex items-center justify-center">
+                                      <div className="w-full h-full max-w-[400px] max-h-[400px]">
                                         {skillsLoading ? (
-                                          <div className="flex items-center justify-center h-[400px] text-yellow-200/60">
+                                          <div className="flex items-center justify-center h-full text-yellow-200/60">
                                             Loading skills...
                                           </div>
                                         ) : (

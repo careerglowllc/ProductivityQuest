@@ -16,7 +16,7 @@
  * Base gold value - starting point for all calculations
  * Modify this to adjust overall gold rewards
  */
-export const GOLD_BASE = 10;
+export const GOLD_BASE = 20;
 
 /**
  * Time divisor - controls how much duration affects gold

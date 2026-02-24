@@ -3,7 +3,7 @@
  * Must match server/goldCalculation.ts logic exactly
  */
 
-export const GOLD_BASE = 10;
+export const GOLD_BASE = 20;
 export const TIME_DIVISOR = 20;
 
 export const PRIORITY_BONUSES: Record<string, number> = {

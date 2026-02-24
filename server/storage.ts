@@ -1151,7 +1151,7 @@ export class DatabaseStorage implements IStorage {
     await db.insert(mlSortingFeedback).values(feedback);
   }
 
-  async getMlSortingFeedback(userId: string, limit: number = 20): Promise<any[]> {
+  async getMlSortingFeedback(userId: string, limit: number = 40): Promise<any[]> {
     const result = await db.select()
       .from(mlSortingFeedback)
       .where(eq(mlSortingFeedback.userId, userId))

@@ -4160,7 +4160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Run the AI-powered sorting algorithm with user feedback history
-      const feedbackHistory = await storage.getMlSortingFeedback(userId, 20);
+      const feedbackHistory = await storage.getMlSortingFeedback(userId, 40);
       const sortedSchedule = await sortTasksAI(
         tasksForSorting,
         targetDate,
