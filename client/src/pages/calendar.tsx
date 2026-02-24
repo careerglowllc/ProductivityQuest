@@ -1967,7 +1967,7 @@ export default function Calendar() {
                         // Calculate left and width based on column layout
                         const columnWidth = 100 / layout.totalColumns;
                         const leftPercent = layout.column * columnWidth;
-                        const widthPercent = columnWidth;
+                        const gapPx = 2; // 2px gap between overlapping events
                         
                         return (
                           <div
@@ -1980,10 +1980,12 @@ export default function Calendar() {
                             }`}
                             style={{ 
                               top: `${position.top}px`,
-                              left: `calc(0.5rem + ${leftPercent}%)`,
-                              maxWidth: `calc(${widthPercent}% - ${layout.totalColumns > 1 ? '0.25rem' : '1rem'})`,
-                              width: 'fit-content',
-                              minWidth: position.height < 25 ? '60px' : '80px',
+                              left: layout.totalColumns > 1 
+                                ? `calc(${leftPercent}% + ${layout.column > 0 ? gapPx : 0}px)` 
+                                : `0.5rem`,
+                              width: layout.totalColumns > 1 
+                                ? `calc(${columnWidth}% - ${gapPx}px)` 
+                                : 'calc(100% - 1rem)',
                               height: `${position.height}px`,
                               backgroundColor: eventStyle.backgroundColor,
                               borderColor: isSelected ? '#a855f7' : eventStyle.borderColor,
