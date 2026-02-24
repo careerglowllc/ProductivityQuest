@@ -57,8 +57,20 @@
     @apply border-border;
   }
 
+  html {
+    background-color: #0f172a;
+    overscroll-behavior: none;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased;
+    background-color: #0f172a;
+    color: hsl(0, 0%, 98%);
+    overscroll-behavior: none;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
 }
 
@@ -88,14 +100,8 @@
   .capacitor-ios body {
     /* Ensure content respects safe areas */
     padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-    /* Prevent overscroll bounce */
-    overscroll-behavior: none;
-    /* Ensure full viewport coverage */
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
   }
 
   /* Disable text selection and callout on iOS for app-like feel */
