@@ -1,6 +1,6 @@
 import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, isNull, inArray, gt } from "drizzle-orm";
+import { eq, and, or, isNull, inArray, gt, desc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -1149,6 +1149,15 @@ export class DatabaseStorage implements IStorage {
     taskMetadata?: any[];
   }): Promise<void> {
     await db.insert(mlSortingFeedback).values(feedback);
+  }
+
+  async getMlSortingFeedback(userId: string, limit: number = 20): Promise<any[]> {
+    const result = await db.select()
+      .from(mlSortingFeedback)
+      .where(eq(mlSortingFeedback.userId, userId))
+      .orderBy(desc(mlSortingFeedback.createdAt))
+      .limit(limit);
+    return result;
   }
 }
 

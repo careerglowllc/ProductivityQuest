@@ -3993,9 +3993,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ML Task Sorting Endpoints
   // ============================================
 
-  // Import ML sorting service
+  // Import ML sorting service + AI-powered sorting
   const { sortTasksML, learnFromFeedback, mergePreferences, DEFAULT_PREFERENCES } = await import("./ml-sorting");
   type BlockedTimeSlot = import("./ml-sorting").BlockedTimeSlot;
+  const { sortTasksAI } = await import("./ai-sort-service");
 
   // Get user's ML sorting preferences
   app.get("/api/ml/preferences", requireAuth, async (req: any, res) => {
@@ -4158,8 +4159,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue without blocked slots - sort will still work, just won't avoid Google events
       }
 
-      // Run the ML sorting algorithm with timezone offset and blocked slots
-      const sortedSchedule = sortTasksML(tasksForSorting, targetDate, preferences, tzOffset, blockedSlots);
+      // Run the AI-powered sorting algorithm with user feedback history
+      const feedbackHistory = await storage.getMlSortingFeedback(userId, 20);
+      const sortedSchedule = await sortTasksAI(
+        tasksForSorting,
+        targetDate,
+        new Date(), // current time
+        tzOffset,
+        blockedSlots,
+        feedbackHistory.map(f => ({
+          feedbackType: f.feedbackType,
+          feedbackReason: f.feedbackReason || undefined,
+          taskMetadata: f.taskMetadata as any,
+          createdAt: f.createdAt ? new Date(f.createdAt) : undefined,
+        })),
+        {
+          preferredStartHour: preferences.preferredStartHour,
+          preferredEndHour: preferences.preferredEndHour,
+          breakDuration: preferences.breakDuration,
+        }
+      );
 
       // Return both the original and sorted schedules for comparison
       res.json({
@@ -4310,19 +4329,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         taskMetadata,
       } = req.body;
 
-      if (!feedbackType || !['approved', 'corrected'].includes(feedbackType)) {
-        return res.status(400).json({ error: "Valid feedback type (approved/corrected) is required" });
+      if (!feedbackType || !['approved', 'corrected', 'verbal'].includes(feedbackType)) {
+        return res.status(400).json({ error: "Valid feedback type (approved/corrected/verbal) is required" });
       }
 
       if (feedbackType === 'corrected' && !userCorrectedSchedule) {
         return res.status(400).json({ error: "User corrected schedule is required for corrections" });
       }
 
-      // Get current preferences
+      // Save the feedback for future analysis / AI context
+      await storage.saveMlSortingFeedback({
+        userId,
+        date: new Date(date),
+        originalSchedule: originalSchedule || [],
+        mlSortedSchedule: mlSortedSchedule || [],
+        userCorrectedSchedule: feedbackType === 'corrected' ? userCorrectedSchedule : undefined,
+        feedbackType,
+        feedbackReason,
+        taskMetadata,
+      });
+
+      // For verbal feedback, just save it — no schedule to apply
+      if (feedbackType === 'verbal') {
+        res.json({
+          success: true,
+          message: "Feedback saved! AI will use this for future sorting.",
+        });
+        return;
+      }
+
+      // For approved/corrected: Get current preferences and learn
       const currentPrefs = await storage.getMlSortingPreferences(userId);
       const preferences = mergePreferences(currentPrefs, {});
 
-      // Learn from the feedback
       const updates = learnFromFeedback(
         preferences,
         feedbackType,
@@ -4332,22 +4371,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         feedbackReason
       );
 
-      // Save updated preferences
       await storage.upsertMlSortingPreferences(userId, {
         ...preferences,
         ...updates,
-      });
-
-      // Save the feedback for future analysis
-      await storage.saveMlSortingFeedback({
-        userId,
-        date: new Date(date),
-        originalSchedule,
-        mlSortedSchedule,
-        userCorrectedSchedule: feedbackType === 'corrected' ? userCorrectedSchedule : undefined,
-        feedbackType,
-        feedbackReason,
-        taskMetadata,
       });
 
       // If approved, apply the ML schedule; if corrected, apply the user's schedule
