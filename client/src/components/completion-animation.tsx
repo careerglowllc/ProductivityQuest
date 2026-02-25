@@ -87,23 +87,33 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
             {task.title}
           </p>
           
-          {/* Gold Earned */}
-          <div className="inline-block bg-slate-700/50 border-2 border-yellow-500/40 rounded-lg px-6 py-3 mb-4">
-            <p className="text-yellow-200/70 text-sm mb-1">Reward Earned</p>
-            <div className="flex items-center justify-center space-x-2">
-              <Coins className="w-6 h-6 text-yellow-400" />
-              <span className="text-2xl font-bold text-yellow-400">+{task.goldValue}</span>
-              <span className="text-yellow-200/80 text-lg">Gold</span>
+          {/* Gold Earned - Horizontal Bar Chart */}
+          <div className="bg-slate-700/50 border-2 border-yellow-500/40 rounded-lg px-5 py-4 mb-4 w-full">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-2">
+                <Coins className="w-5 h-5 text-yellow-400" />
+                <span className="text-yellow-200/70 text-sm font-medium">Gold Earned</span>
+              </div>
+              <span className="text-lg font-bold text-yellow-400">+{task.goldValue}</span>
+            </div>
+            <div className="w-full h-4 bg-slate-600/60 rounded-full overflow-hidden border border-yellow-600/30">
+              <div 
+                className="h-full bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(234,179,8,0.4)]"
+                style={{ width: `${Math.min((task.goldValue / 100) * 100, 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-[10px] text-yellow-200/40">0</span>
+              <span className="text-[10px] text-yellow-200/40">100 gold</span>
             </div>
           </div>
 
-          {/* Skill XP Gains */}
+          {/* Skill XP Gains - Horizontal Bar Charts */}
           {skillXPGains && skillXPGains.length > 0 ? (
-            <div className="space-y-3 mb-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
-              <p className="text-yellow-200/70 text-sm">Skills Leveled</p>
-              <div className="flex flex-wrap gap-3 justify-center">
+            <div className="bg-slate-700/50 border-2 border-purple-500/40 rounded-lg px-5 py-4 mb-4 w-full animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+              <p className="text-purple-200/70 text-sm font-medium mb-3">Skill XP Earned</p>
+              <div className="space-y-3">
                 {skillXPGains.map((gain, index) => {
-                  // Use icon from gain data (backend provides it), or find the skill to get its icon
                   let iconName = gain.skillIcon;
                   if (!iconName) {
                     const skill = skills.find(s => s.skillName === gain.skillName);
@@ -112,66 +122,31 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
                   const Icon = getSkillIcon(iconName);
                   const progressPercent = (gain.newXP / gain.maxXP) * 100;
                   
-                  console.log('🎨 Rendering skill gain:', {
-                    skillName: gain.skillName,
-                    skillIcon: gain.skillIcon,
-                    foundIconName: iconName,
-                    Icon: Icon.name
-                  });
-                  
                   return (
                     <div 
-                      key={gain.skillName} 
-                      className="bg-slate-700/50 border-2 border-purple-500/40 rounded-lg p-3 min-w-[120px] animate-in fade-in-0 zoom-in-95 duration-300"
+                      key={gain.skillName}
+                      className="animate-in fade-in-0 slide-in-from-left-4 duration-300"
                       style={{ animationDelay: `${index * 100}ms` }}
                     >
-                      {/* Skill Icon with fill animation */}
-                      <div className="relative w-16 h-16 mx-auto mb-2">
-                        <div className="absolute inset-0 bg-gradient-to-b from-purple-400/10 to-purple-600/10 rounded-2xl"></div>
-                        <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-purple-600/40 bg-slate-700/30">
-                          {/* Gray background */}
-                          <div className="absolute inset-0 bg-gradient-to-b from-slate-600/40 to-slate-700/60"></div>
-                          
-                          {/* Purple fill from bottom based on XP */}
-                          <div 
-                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-600 to-purple-400 transition-all duration-1000 ease-out"
-                            style={{ 
-                              height: `${Math.min(progressPercent, 100)}%`,
-                              boxShadow: '0 0 20px rgba(168, 85, 247, 0.4)'
-                            }}
-                          ></div>
-                          
-                          {/* Icon */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Icon 
-                              className="h-8 w-8 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" 
-                              strokeWidth={2.5}
-                              fill="currentColor"
-                            />
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-purple-600/40 rounded-md flex items-center justify-center">
+                            <Icon className="h-3.5 w-3.5 text-purple-200" strokeWidth={2.5} />
                           </div>
+                          <span className="text-xs font-semibold text-purple-200">{gain.skillName}</span>
+                          <span className="text-[10px] text-purple-400/60">Lvl {gain.newLevel}</span>
                         </div>
+                        <span className="text-sm font-bold text-purple-400">+{gain.xpGained} XP</span>
                       </div>
-                      
-                      {/* Skill Name */}
-                      <p className="text-xs font-semibold text-purple-200 text-center mb-1">
-                        {gain.skillName}
-                      </p>
-                      
-                      {/* XP Gained */}
-                      <div className="text-center">
-                        <span className="text-lg font-bold text-purple-400">+{gain.xpGained}</span>
-                        <span className="text-xs text-purple-300/70 ml-1">XP</span>
+                      <div className="w-full h-3 bg-slate-600/60 rounded-full overflow-hidden border border-purple-600/30">
+                        <div 
+                          className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                          style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                        />
                       </div>
-                      
-                      {/* XP Progress */}
-                      <p className="text-xs text-purple-300/60 text-center">
-                        {gain.newXP}/{gain.maxXP} XP
-                      </p>
-                      
-                      {/* Level badge */}
-                      <p className="text-xs text-purple-300/60 text-center">
-                        Lvl {gain.newLevel}
-                      </p>
+                      <div className="flex justify-between mt-0.5">
+                        <span className="text-[10px] text-purple-300/40">{gain.newXP}/{gain.maxXP} XP</span>
+                      </div>
                     </div>
                   );
                 })}

@@ -867,6 +867,22 @@ export default function Calendar() {
         description: isRecurring
           ? `"${eventTitle}" — Earned ${goldEarned} gold${skillDesc}. Rescheduled to next occurrence.`
           : `"${eventTitle}" — Earned ${goldEarned} gold${skillDesc}. Moved to recycling bin.`,
+        duration: 15000,
+        action: (
+          <ToastAction altText="Undo completion" onClick={async () => {
+            try {
+              await apiRequest("POST", "/api/tasks/undo-complete", { taskIds: [taskId] });
+              queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/user/progress'] });
+              toast({ title: "Undo Successful", description: `1 task restored. ${goldEarned} gold refunded.` });
+            } catch {
+              toast({ title: "Error", description: "Failed to undo completion", variant: "destructive" });
+            }
+          }}>
+            Undo
+          </ToastAction>
+        ),
       });
 
       // Refresh data

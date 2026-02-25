@@ -18,6 +18,7 @@ import { LevelUpModal } from "@/components/level-up-modal";
 import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
 import { AddTaskModal } from "@/components/add-task-modal";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
@@ -245,10 +246,23 @@ export default function Home() {
     setCompletionSkillXPGains(optimisticSkillXPGains); // Show calculated XP immediately!
     setShowCompletion(true);
 
-    // Show toast immediately
+    // Track for undo immediately so toast Undo button works
+    setLastAction({
+      type: 'complete',
+      taskIds: selectedTaskIds,
+      goldEarned: totalGoldEarned
+    });
+
+    // Show toast immediately with undo action
     toast({
       title: `${tasksToComplete.length} Quest${tasksToComplete.length > 1 ? 's' : ''} Complete!`,
       description: `Earning ${totalGoldEarned} gold. Task${tasksToComplete.length > 1 ? 's' : ''} moved to recycling bin.`,
+      duration: 15000,
+      action: (
+        <ToastAction altText="Undo completion" onClick={() => handleUndo()}>
+          Undo
+        </ToastAction>
+      ),
     });
 
     try {
@@ -273,13 +287,6 @@ export default function Home() {
         // Backend returned actual XP with level-ups calculated
         setCompletionSkillXPGains(data.skillXPGains);
       }
-      
-      // Track for undo
-      setLastAction({
-        type: 'complete',
-        taskIds: selectedTaskIds,
-        goldEarned: totalGoldEarned
-      });
       
       // Refresh data after backend completes
       refetchTasks();
