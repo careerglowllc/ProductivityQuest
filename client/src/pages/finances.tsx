@@ -67,8 +67,22 @@ export default function Finances() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"chart" | "table">("chart");
-  const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Restore saved sort preferences from localStorage
+  const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(() => {
+    try {
+      const saved = localStorage.getItem("finance-sort-field");
+      if (saved === "item" || saved === "category" || saved === "monthlyCost" || saved === "recurType") return saved;
+    } catch {}
+    return null;
+  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+    try {
+      const saved = localStorage.getItem("finance-sort-direction");
+      if (saved === "asc" || saved === "desc") return saved;
+    } catch {}
+    return "asc";
+  });
   const [newItem, setNewItem] = useState({
     item: "",
     category: "",
@@ -197,14 +211,18 @@ export default function Finances() {
     return `$${(cents / 100).toFixed(2)}`;
   };
 
-  // Sorting function
+  // Sorting function (persists to localStorage)
   const handleSort = (field: "item" | "category" | "monthlyCost" | "recurType") => {
+    let newDirection: "asc" | "desc" = "asc";
     if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
+      newDirection = sortDirection === "asc" ? "desc" : "asc";
     }
+    setSortField(field);
+    setSortDirection(newDirection);
+    try {
+      localStorage.setItem("finance-sort-field", field);
+      localStorage.setItem("finance-sort-direction", newDirection);
+    } catch {}
   };
 
   // Get sort icon for a column

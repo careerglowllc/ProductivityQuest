@@ -382,35 +382,17 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
   const highestSkillLevel = Math.max(...skills.map(s => s.level), 0);
   const chartMax = Math.min(highestSkillLevel + 10, 99);
   
-  const size = 400; // Reduced from 500 for more compact display
+  const size = 400;
   const center = size / 2;
-  const radius = size / 2 - 90; // Increased padding from 80 to 90 for better fit
+  const radius = size / 2 - 90;
   const numSkills = skills.length;
 
   // Helper function to get skill icon
   const getSkillIconComponent = (skill: UserSkill) => {
-    // If skill has a custom icon, use it
     if (skill.skillIcon) {
       return getSkillIcon(skill.skillIcon);
     }
-    // Otherwise fall back to hardcoded mapping for default skills
     return skillIcons[skill.skillName] || Target;
-  };
-
-  // Helper to generate consistent colors for custom skills
-  const getSkillColor = (skill: UserSkill) => {
-    if (!skill.isCustom) {
-      return { fill: 'rgb(234, 179, 8)', stroke: 'rgb(234, 179, 8)', textColor: 'text-yellow-400' };
-    }
-    
-    // Generate color from skill name hash for consistency
-    const hash = skill.skillName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const hue = hash % 360;
-    return {
-      fill: `hsl(${hue}, 70%, 60%)`,
-      stroke: `hsl(${hue}, 70%, 50%)`,
-      textColor: 'text-purple-400'
-    };
   };
 
   // Calculate polygon points for skill levels
@@ -423,17 +405,86 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
     };
   };
 
-  // Create background grid circles
+  // Create subtle grid levels
   const gridLevels = [chartMax * 0.25, chartMax * 0.5, chartMax * 0.75, chartMax];
   
   // Create polygon points for skill levels
   const skillPoints = skills.map((skill, i) => getPoint(i, skill.level));
   const polygonPointsString = skillPoints.map(p => `${p.x},${p.y}`).join(' ');
 
+  // Generate random background stars
+  const bgStars = React.useMemo(() => {
+    const stars: { x: number; y: number; r: number; opacity: number; delay: number }[] = [];
+    const rng = (seed: number) => {
+      let s = seed;
+      return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    };
+    const rand = rng(42);
+    for (let i = 0; i < 60; i++) {
+      stars.push({
+        x: rand() * size,
+        y: rand() * size,
+        r: rand() * 1.2 + 0.3,
+        opacity: rand() * 0.5 + 0.15,
+        delay: rand() * 4,
+      });
+    }
+    return stars;
+  }, []);
+
   return (
     <div className="flex items-center justify-center w-full h-full">
       <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-        {/* Background circles */}
+        <defs>
+          {/* Glow filter for constellation lines */}
+          <filter id="starGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          {/* Stronger glow for nodes */}
+          <filter id="nodeGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          {/* Center star glow */}
+          <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(250, 204, 21, 0.3)" />
+            <stop offset="50%" stopColor="rgba(250, 204, 21, 0.08)" />
+            <stop offset="100%" stopColor="rgba(250, 204, 21, 0)" />
+          </radialGradient>
+        </defs>
+
+        {/* Scattered background stars */}
+        {bgStars.map((star, i) => (
+          <circle
+            key={`bg-${i}`}
+            cx={star.x}
+            cy={star.y}
+            r={star.r}
+            fill="white"
+            opacity={star.opacity}
+          >
+            <animate
+              attributeName="opacity"
+              values={`${star.opacity};${star.opacity * 0.3};${star.opacity}`}
+              dur={`${3 + star.delay}s`}
+              repeatCount="indefinite"
+              begin={`${star.delay}s`}
+            />
+          </circle>
+        ))}
+
+        {/* Subtle center glow */}
+        <circle cx={center} cy={center} r={radius * 0.6} fill="url(#centerGlow)" />
+
+        {/* Very subtle radial grid circles - dotted, faint */}
         {gridLevels.map((level, i) => (
           <circle
             key={i}
@@ -441,13 +492,14 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
             cy={center}
             r={(level / chartMax) * radius}
             fill="none"
-            stroke="#475569"
-            strokeWidth="1"
-            opacity={0.3}
+            stroke="#94a3b8"
+            strokeWidth="0.5"
+            strokeDasharray="2 6"
+            opacity={0.12}
           />
         ))}
 
-        {/* Axis lines from center to each skill */}
+        {/* Very subtle axis lines - thin, faint */}
         {skills.map((skill, i) => {
           const endPoint = getPoint(i, chartMax);
           return (
@@ -457,105 +509,133 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
               y1={center}
               x2={endPoint.x}
               y2={endPoint.y}
-              stroke="#64748b"
-              strokeWidth="1"
-              opacity={0.4}
+              stroke="#94a3b8"
+              strokeWidth="0.5"
+              strokeDasharray="1 8"
+              opacity={0.1}
             />
           );
         })}
 
-        {/* Skill level polygon - filled area */}
-        {skillPoints.length > 0 && (
-          <>
-            <polygon
-              points={polygonPointsString}
-              fill="rgba(234, 179, 8, 0.3)"
-              className="transition-all duration-500"
-              style={{ filter: 'drop-shadow(0 0 15px rgba(234, 179, 8, 0.4))' }}
-            />
-            {/* Polygon outline */}
-            <polygon
-              points={polygonPointsString}
-              fill="none"
-              stroke="rgb(234, 179, 8)"
-              strokeWidth="3"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              className="transition-all duration-500"
-            />
-          </>
+        {/* Constellation lines - thin, glowing connections between adjacent skill points */}
+        {skillPoints.length > 1 && (
+          <polygon
+            points={polygonPointsString}
+            fill="none"
+            stroke="rgba(250, 204, 21, 0.5)"
+            strokeWidth="1"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            filter="url(#starGlow)"
+            className="transition-all duration-500"
+          />
         )}
 
-        {/* Skill level points */}
+        {/* Thin lines from center to each node - constellation spoke lines */}
         {skillPoints.map((point, i) => (
-          <circle
-            key={i}
-            cx={point.x}
-            cy={point.y}
-            r="6"
-            fill="rgb(250, 204, 21)"
-            stroke="rgb(234, 179, 8)"
-            strokeWidth="2"
-            className="transition-all duration-300"
-            style={{ filter: 'drop-shadow(0 0 6px rgba(234, 179, 8, 1))' }}
+          <line
+            key={`spoke-${i}`}
+            x1={center}
+            y1={center}
+            x2={point.x}
+            y2={point.y}
+            stroke="rgba(250, 204, 21, 0.2)"
+            strokeWidth="0.5"
+            className="transition-all duration-500"
           />
         ))}
 
-        {/* Skill labels with icons - positioned inside bounds */}
+        {/* Very subtle filled area */}
+        {skillPoints.length > 0 && (
+          <polygon
+            points={polygonPointsString}
+            fill="rgba(250, 204, 21, 0.06)"
+            className="transition-all duration-500"
+          />
+        )}
+
+        {/* Star nodes at each skill point */}
+        {skillPoints.map((point, i) => (
+          <g key={`node-${i}`}>
+            {/* Outer glow halo */}
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r="5"
+              fill="rgba(250, 204, 21, 0.15)"
+              filter="url(#nodeGlow)"
+            />
+            {/* Core star point */}
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r="3"
+              fill="rgb(250, 204, 21)"
+              className="transition-all duration-300"
+              style={{ filter: 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.9))' }}
+            />
+            {/* Bright center */}
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r="1.2"
+              fill="white"
+              opacity="0.9"
+            />
+          </g>
+        ))}
+
+        {/* Skill icon labels - positioned at edges */}
         {skills.map((skill, i) => {
-          const labelPoint = getPoint(i, chartMax + 2); // Reduced offset to keep labels closer
+          const labelPoint = getPoint(i, chartMax + 3);
           const angle = (Math.PI * 2 * i) / numSkills - Math.PI / 2;
           
-          // Adjust text anchor based on position
           let textAnchor = 'middle';
           if (Math.abs(Math.cos(angle)) > 0.5) {
             textAnchor = Math.cos(angle) > 0 ? 'start' : 'end';
           }
 
           const SkillIcon = getSkillIconComponent(skill);
-          const colors = getSkillColor(skill);
+
+          // Icon circle with gold ring
+          const iconSize = 36;
 
           return (
             <g key={i}>
-              {/* Icon above skill name */}
+              {/* Icon container - circular with border */}
               <foreignObject
-                x={labelPoint.x - 15}
-                y={labelPoint.y - 32}
-                width="30"
-                height="30"
+                x={labelPoint.x - iconSize / 2}
+                y={labelPoint.y - iconSize / 2 - 8}
+                width={iconSize}
+                height={iconSize}
               >
-                <div className="flex items-center justify-center">
-                  <SkillIcon className={`w-6 h-6 ${colors.textColor}`} strokeWidth={2.5} />
+                <div className="flex items-center justify-center w-full h-full">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500/90 to-yellow-600/90 border border-yellow-400/80 flex items-center justify-center shadow-lg shadow-yellow-500/20">
+                    <SkillIcon className="w-4 h-4 text-slate-900" strokeWidth={2.5} />
+                  </div>
                 </div>
               </foreignObject>
-              
-              {/* Skill name */}
-              <text
-                x={labelPoint.x}
-                y={labelPoint.y}
-                textAnchor={textAnchor}
-                className="text-xs font-semibold fill-yellow-200"
-                dy="0.3em"
+
+              {/* Level badge - small, above/beside the icon */}
+              <foreignObject
+                x={labelPoint.x + iconSize / 2 - 18}
+                y={labelPoint.y - iconSize / 2 - 14}
+                width={22}
+                height={16}
               >
-                {skill.skillName}
-              </text>
-              
-              {/* Level */}
-              <text
-                x={labelPoint.x}
-                y={labelPoint.y + 13}
-                textAnchor={textAnchor}
-                className="text-[10px] fill-yellow-400 font-bold"
-                dy="0.3em"
-              >
-                Lv {skill.level}
-              </text>
+                <div className="flex items-center justify-center">
+                  <span className="text-[8px] font-bold text-yellow-300/90 bg-slate-900/70 rounded-full px-1 border border-yellow-500/30">
+                    {skill.level}
+                  </span>
+                </div>
+              </foreignObject>
             </g>
           );
         })}
 
-        {/* Center point */}
-        <circle cx={center} cy={center} r="4" fill="rgb(234, 179, 8)" />
+        {/* Center star */}
+        <circle cx={center} cy={center} r="3" fill="rgb(250, 204, 21)" filter="url(#nodeGlow)" />
+        <circle cx={center} cy={center} r="1.5" fill="white" opacity="0.8" />
       </svg>
     </div>
   );
