@@ -161,6 +161,27 @@ export function TabBar() {
               </Link>
             );
           })}
+
+          {/* Skills - desktop only (not in mobile tabs) */}
+          {(() => {
+            const isSkillsActive = location === "/skills";
+            return (
+              <Link href="/skills">
+                <a
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
+                    isSkillsActive
+                      ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
+                      : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
+                  }`}
+                >
+                  <Sparkles className={`h-5 w-5 ${isSkillsActive ? "stroke-[2.5]" : ""}`} />
+                  <span className={`text-sm ${isSkillsActive ? "font-semibold" : "font-medium"}`}>
+                    Skills
+                  </span>
+                </a>
+              </Link>
+            );
+          })()}
         </div>
 
         {/* Gold and User Info - Right */}
