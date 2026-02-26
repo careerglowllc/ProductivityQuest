@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,6 +102,12 @@ export default function Home() {
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+
+  // Calendar operation queue - ensures clear/sync/remove operations run sequentially
+  const calendarQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const enqueueCalendarOp = useCallback((op: () => Promise<void>) => {
+    calendarQueueRef.current = calendarQueueRef.current.then(op, op);
+  }, []);
 
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
     queryKey: ["/api/tasks"],
@@ -355,7 +361,7 @@ export default function Home() {
   };
 
   // Remove selected tasks from calendar (keeps quests)
-  const handleRemoveFromCalendar = async () => {
+  const handleRemoveFromCalendar = () => {
     if (selectedTasks.size === 0) return;
 
     const selectedTaskIds = Array.from(selectedTasks);
@@ -380,40 +386,40 @@ export default function Home() {
       description: `Unscheduling ${tasksWithSchedule.length} task${tasksWithSchedule.length > 1 ? 's' : ''}...`,
     });
 
-    try {
-      // Unschedule each task
-      let successCount = 0;
-      for (const task of tasksWithSchedule) {
-        try {
-          await apiRequest("POST", `/api/tasks/${task.id}/unschedule`, {
-            removeFromGoogleCalendar: true
-          });
-          successCount++;
-        } catch (err) {
-          console.error(`Failed to unschedule task ${task.id}:`, err);
+    enqueueCalendarOp(async () => {
+      try {
+        let successCount = 0;
+        for (const task of tasksWithSchedule) {
+          try {
+            await apiRequest("POST", `/api/tasks/${task.id}/unschedule`, {
+              removeFromGoogleCalendar: true
+            });
+            successCount++;
+          } catch (err) {
+            console.error(`Failed to unschedule task ${task.id}:`, err);
+          }
         }
+
+        toast({
+          title: "✓ Removed from Calendar",
+          description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar. Quests are still available here.`,
+        });
+
+        await refetchTasks();
+        queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to remove some tasks from calendar.",
+          variant: "destructive",
+        });
+        refetchTasks();
       }
-
-      toast({
-        title: "✓ Removed from Calendar",
-        description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar. Quests are still available here.`,
-      });
-
-      // Refresh data
-      refetchTasks();
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to remove some tasks from calendar.",
-        variant: "destructive",
-      });
-      refetchTasks();
-    }
+    });
   };
 
   // Remove ALL scheduled tasks from calendar (including completed ones)
-  const handleRemoveAllFromCalendar = async () => {
+  const handleRemoveAllFromCalendar = () => {
     // Find ALL tasks that are scheduled (completed or not)
     const allScheduledTasks = (tasks as any[]).filter((t: any) => t.scheduledTime || t.googleEventId);
 
@@ -433,35 +439,36 @@ export default function Home() {
       description: `Removing ${allScheduledTasks.length} task${allScheduledTasks.length > 1 ? 's' : ''} from calendar...`,
     });
 
-    try {
-      let successCount = 0;
-      for (const task of allScheduledTasks) {
-        try {
-          await apiRequest("POST", `/api/tasks/${task.id}/unschedule`, {
-            removeFromGoogleCalendar: true
-          });
-          successCount++;
-        } catch (err) {
-          console.error(`Failed to unschedule task ${task.id}:`, err);
+    enqueueCalendarOp(async () => {
+      try {
+        let successCount = 0;
+        for (const task of allScheduledTasks) {
+          try {
+            await apiRequest("POST", `/api/tasks/${task.id}/unschedule`, {
+              removeFromGoogleCalendar: true
+            });
+            successCount++;
+          } catch (err) {
+            console.error(`Failed to unschedule task ${task.id}:`, err);
+          }
         }
+
+        toast({
+          title: "✓ Calendar Cleared",
+          description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar.`,
+        });
+
+        await refetchTasks();
+        queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to remove some tasks from calendar.",
+          variant: "destructive",
+        });
+        refetchTasks();
       }
-
-      toast({
-        title: "✓ Calendar Cleared",
-        description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar.`,
-      });
-
-      // Refresh data
-      refetchTasks();
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to remove some tasks from calendar.",
-        variant: "destructive",
-      });
-      refetchTasks();
-    }
+    });
   };
 
   const handleAppendToNotion = async () => {
@@ -804,26 +811,46 @@ export default function Home() {
     setShowReschedulePopover(false);
 
     const selectedTaskIds = Array.from(selectedTasks);
-    let updatedCount = 0;
+    const taskCount = selectedTaskIds.length;
+    const dateLabel = newDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
+    // Optimistic: update cache immediately so tasks move/disappear from current view
+    const previousTasks = queryClient.getQueryData<any[]>(["/api/tasks"]);
+    queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
+      if (!old) return old;
+      return old.map((t: any) =>
+        selectedTaskIds.includes(t.id)
+          ? { ...t, dueDate: newDate.toISOString() }
+          : t
+      );
+    });
+
+    // Clear selection and show toast immediately
+    setSelectedTasks(new Set());
+    toast({
+      title: "📅 Tasks Rescheduled",
+      description: `Moved ${taskCount} task${taskCount !== 1 ? 's' : ''} to ${dateLabel}.`,
+    });
+
+    // Fire backend updates in background
     try {
-      for (const taskId of selectedTaskIds) {
-        await apiRequest("PATCH", `/api/tasks/${taskId}`, {
-          dueDate: newDate.toISOString(),
-        });
-        updatedCount++;
-      }
-
-      await refetchTasks();
-
-      toast({
-        title: "📅 Tasks Rescheduled",
-        description: `Moved ${updatedCount} task${updatedCount !== 1 ? 's' : ''} to ${newDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`,
-      });
+      await Promise.all(
+        selectedTaskIds.map((taskId) =>
+          apiRequest("PATCH", `/api/tasks/${taskId}`, {
+            dueDate: newDate.toISOString(),
+          })
+        )
+      );
+      // Silently refetch to ensure full sync
+      refetchTasks();
     } catch (error) {
+      // Rollback optimistic update on failure
+      if (previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], previousTasks);
+      }
       toast({
         title: "Error",
-        description: `Rescheduled ${updatedCount} tasks but some failed. Please try again.`,
+        description: "Some tasks failed to reschedule. Please try again.",
         variant: "destructive",
       });
     }
@@ -967,7 +994,7 @@ export default function Home() {
     }
   };
 
-  const handleCalendarSync = async () => {
+  const handleCalendarSync = () => {
     const selectedTaskIds = Array.from(selectedTasks);
     const taskCount = selectedTaskIds.length;
     
@@ -981,69 +1008,70 @@ export default function Home() {
       description: `Adding ${taskCount} task${taskCount !== 1 ? 's' : ''} to your calendar. This may take a few seconds...`,
     });
     
-    // Run sync in background - user can navigate away
-    try {
-      const response = await apiRequest("POST", "/api/calendar/sync", {
-        selectedTasks: selectedTaskIds
-      });
-      const result = await response.json();
-      
-      // Build descriptive message based on sync direction
-      let description = '';
-      if (result.exported > 0) {
-        const parts = [];
-        if (result.created > 0) {
-          parts.push(`${result.created} new`);
-        }
-        if (result.updated > 0) {
-          parts.push(`${result.updated} already in calendar`);
-        }
-        if (parts.length > 0) {
-          description += `${result.exported} tasks synced (${parts.join(', ')})`;
-        } else {
-          description += `${result.exported} tasks exported to Google Calendar`;
-        }
-      }
-      if (result.exportFailed > 0) {
-        description += description ? `, ${result.exportFailed} failed` : `${result.exportFailed} exports failed`;
-      }
-      if (result.imported > 0) {
-        description += description ? `, ${result.imported} tasks updated from calendar` : `${result.imported} tasks updated from calendar`;
-      }
-      if (!description) {
-        description = 'Sync complete - no changes needed';
-      }
-      
-      toast({
-        title: "✓ Calendar Sync Complete",
-        description,
-      });
-      
-      // Refresh tasks to show updated times from import
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-    } catch (error: any) {
-      const errorData = error.response?.data || {};
-      
-      if (errorData.needsAuth) {
-        setCalendarNeedsAuth(true);
-        setTimeout(() => setShowCalendarSync(true), 100); // Reopen with auth prompt
-        return;
-      }
-      
-      if (errorData.tokenRefreshed) {
-        toast({
-          title: "Token Refreshed",
-          description: "Please try syncing again.",
+    enqueueCalendarOp(async () => {
+      try {
+        const response = await apiRequest("POST", "/api/calendar/sync", {
+          selectedTasks: selectedTaskIds
         });
-        return;
+        const result = await response.json();
+        
+        // Build descriptive message based on sync direction
+        let description = '';
+        if (result.exported > 0) {
+          const parts = [];
+          if (result.created > 0) {
+            parts.push(`${result.created} new`);
+          }
+          if (result.updated > 0) {
+            parts.push(`${result.updated} already in calendar`);
+          }
+          if (parts.length > 0) {
+            description += `${result.exported} tasks synced (${parts.join(', ')})`;
+          } else {
+            description += `${result.exported} tasks exported to Google Calendar`;
+          }
+        }
+        if (result.exportFailed > 0) {
+          description += description ? `, ${result.exportFailed} failed` : `${result.exportFailed} exports failed`;
+        }
+        if (result.imported > 0) {
+          description += description ? `, ${result.imported} tasks updated from calendar` : `${result.imported} tasks updated from calendar`;
+        }
+        if (!description) {
+          description = 'Sync complete - no changes needed';
+        }
+        
+        toast({
+          title: "✓ Calendar Sync Complete",
+          description,
+        });
+        
+        // Refresh tasks to show updated times from import
+        await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      } catch (error: any) {
+        const errorData = error.response?.data || {};
+        
+        if (errorData.needsAuth) {
+          setCalendarNeedsAuth(true);
+          setTimeout(() => setShowCalendarSync(true), 100); // Reopen with auth prompt
+          return;
+        }
+        
+        if (errorData.tokenRefreshed) {
+          toast({
+            title: "Token Refreshed",
+            description: "Please try syncing again.",
+          });
+          return;
+        }
+        
+        toast({
+          title: "Sync Error",
+          description: errorData.error || "Failed to sync with Google Calendar. Please check your settings.",
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Sync Error",
-        description: errorData.error || "Failed to sync with Google Calendar. Please check your settings.",
-        variant: "destructive",
-      });
-    }
+    });
   };
 
   const pendingTasks = tasks.filter((task: any) => !task.completed && task.dueDate);
