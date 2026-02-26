@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -2418,41 +2418,19 @@ export default function Calendar() {
                 }}
               />
               
-              {/* Color Picker Button - Available for all events */}
-              <div className="absolute top-4 right-4 z-10">
-                <button
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="w-8 h-8 rounded-full border-2 border-white/20 hover:border-white/40 transition-colors shadow-lg"
-                  style={{ backgroundColor: selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance) }}
-                  title="Change color"
-                />
-                
-                {/* Color Picker Dropdown */}
-                {showColorPicker && (
-                  <div 
-                    className="absolute top-10 right-0 bg-gray-800/95 border border-purple-500/30 rounded-lg shadow-xl p-3 backdrop-blur-sm"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="grid grid-cols-4 gap-2 w-40">
-                      {calendarColors.map((color) => {
-                        const currentColor = selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance);
-                        return (
-                          <button
-                            key={color.value}
-                            onClick={() => handleColorChange(color.value)}
-                            className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
-                            style={{ 
-                              backgroundColor: color.value,
-                              borderColor: currentColor === color.value ? '#fff' : 'transparent'
-                            }}
-                            title={color.name}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Close X Button - Top Right */}
+              <button
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setShowDeleteMenu(false);
+                  setShowRescheduleModal(false);
+                  setShowColorPicker(false);
+                }}
+                className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-gray-600/50 flex items-center justify-center transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4 text-gray-300" />
+              </button>
               
               <div className="p-6">
                 {/* Title */}
@@ -2686,17 +2664,41 @@ export default function Calendar() {
                       </Button>
                     )}
                     
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setSelectedEvent(null);
-                        setShowDeleteMenu(false);
-                        setShowRescheduleModal(false);
-                      }}
-                      className="bg-purple-600 hover:bg-purple-700 text-xs ml-auto"
-                    >
-                      Close
-                    </Button>
+                    {/* Color Picker Button - Bottom Right */}
+                    <div className="relative ml-auto">
+                      <button
+                        onClick={() => setShowColorPicker(!showColorPicker)}
+                        className="w-8 h-8 rounded-full border-2 border-white/20 hover:border-white/40 transition-colors shadow-lg"
+                        style={{ backgroundColor: selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance) }}
+                        title="Change color"
+                      />
+                      
+                      {/* Color Picker Dropdown */}
+                      {showColorPicker && (
+                        <div 
+                          className="absolute bottom-10 right-0 bg-gray-800/95 border border-purple-500/30 rounded-lg shadow-xl p-3 backdrop-blur-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="grid grid-cols-4 gap-2 w-40">
+                            {calendarColors.map((color) => {
+                              const currentColor = selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance);
+                              return (
+                                <button
+                                  key={color.value}
+                                  onClick={() => handleColorChange(color.value)}
+                                  className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
+                                  style={{ 
+                                    backgroundColor: color.value,
+                                    borderColor: currentColor === color.value ? '#fff' : 'transparent'
+                                  }}
+                                  title={color.name}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
