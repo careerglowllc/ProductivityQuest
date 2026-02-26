@@ -85,6 +85,7 @@ export const tasks = pgTable("tasks", {
   recycledReason: text("recycled_reason"), // "completed" or "deleted"
   skillTags: jsonb("skill_tags").$type<string[]>().default([]), // AI-generated skill tags
   calendarColor: text("calendar_color"), // Hex color from Google Calendar or custom
+  emoji: text("emoji").default("📝"), // User-chosen emoji for visual identification
 });
 
 export const shopItems = pgTable("shop_items", {

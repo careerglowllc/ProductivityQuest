@@ -2,8 +2,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EmojiPicker } from "./emoji-picker";
 import { 
   Calendar, 
   Clock, 
@@ -25,7 +28,7 @@ import {
 import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskDetailModalProps {
@@ -39,8 +42,19 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
+  const [descriptionValue, setDescriptionValue] = useState(task?.description || "");
+  const [detailsValue, setDetailsValue] = useState(task?.details || "");
+  const descriptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const detailsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Sync local state when task prop changes (e.g. switching between tasks)
+  useEffect(() => {
+    setDescriptionValue(task?.description || "");
+    setDetailsValue(task?.details || "");
+    setDurationInput(task?.duration?.toString() || "30");
+  }, [task?.id, task?.description, task?.details, task?.duration]);
 
   const updateDueDateMutation = useMutation({
     mutationFn: async (newDate: Date) => {
@@ -126,6 +140,89 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     setIsEditingDuration(false);
   };
 
+  const updateDescriptionMutation = useMutation({
+    mutationFn: async (newDescription: string) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ description: newDescription }),
+      });
+      if (!response.ok) throw new Error('Failed to update description');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+  });
+
+  const updateDetailsMutation = useMutation({
+    mutationFn: async (newDetails: string) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ details: newDetails }),
+      });
+      if (!response.ok) throw new Error('Failed to update details');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+  });
+
+  const handleDescriptionChange = (value: string) => {
+    setDescriptionValue(value);
+    if (descriptionTimeoutRef.current) clearTimeout(descriptionTimeoutRef.current);
+    descriptionTimeoutRef.current = setTimeout(() => {
+      updateDescriptionMutation.mutate(value);
+    }, 800);
+  };
+
+  const handleDetailsChange = (value: string) => {
+    setDetailsValue(value);
+    if (detailsTimeoutRef.current) clearTimeout(detailsTimeoutRef.current);
+    detailsTimeoutRef.current = setTimeout(() => {
+      updateDetailsMutation.mutate(value);
+    }, 800);
+  };
+
+  const updateFieldMutation = useMutation({
+    mutationFn: async ({ field, value }: { field: string; value: string }) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!response.ok) throw new Error(`Failed to update ${field}`);
+      return response.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      const fieldLabels: Record<string, string> = {
+        importance: '⚡ Importance',
+        kanbanStage: '📊 Kanban Stage',
+        recurType: '🔄 Recurrence',
+        businessWorkFilter: '💼 Work Filter',
+        campaign: '👑 Questline',
+        emoji: '😀 Emoji',
+      };
+      toast({
+        title: `${fieldLabels[variables.field] || variables.field} Updated`,
+        description: variables.field === 'emoji' ? `Changed to ${variables.value}` : `Changed to "${variables.value}"`,
+      });
+    },
+    onError: (_err, variables) => {
+      toast({
+        title: "Error",
+        description: `Failed to update ${variables.field}`,
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!task) return null;
 
   const getImportanceBadgeColor = (importance: string | null) => {
@@ -162,37 +259,52 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none p-4' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30`}>
         <DialogHeader>
-          <DialogTitle className={`${isMobile ? 'text-xl pr-10' : 'text-2xl pr-8'} font-serif text-yellow-100`}>
-            {task.title}
+          <DialogTitle className={`${isMobile ? 'text-xl pr-10' : 'text-2xl pr-8'} font-serif text-yellow-100 flex items-start gap-2`}>
+            <EmojiPicker
+              value={task.emoji || "📝"}
+              onChange={(emoji) => updateFieldMutation.mutate({ field: 'emoji', value: emoji })}
+              size="lg"
+            />
+            <span className="pt-1">{task.title}</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className={`${isMobile ? 'space-y-4 mt-2' : 'space-y-6 mt-4'}`}>
-          {/* Description - only show if not empty */}
-          {task.description && task.description.trim() && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-yellow-400">
-                <FileText className="w-4 h-4" />
-                <h3 className="font-semibold">Description</h3>
-              </div>
-              <p className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20 whitespace-pre-wrap">
-                {task.description}
-              </p>
+          {/* Description - always show, editable */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-yellow-400">
+              <FileText className="w-4 h-4" />
+              <h3 className="font-semibold">Description</h3>
+              {updateDescriptionMutation.isPending && (
+                <span className="text-xs text-yellow-400/50">Saving...</span>
+              )}
             </div>
-          )}
+            <Textarea
+              value={descriptionValue}
+              onChange={(e) => handleDescriptionChange(e.target.value)}
+              placeholder="Add a description..."
+              className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none min-h-[80px] focus:border-yellow-500/50 focus:ring-yellow-500/20"
+              rows={3}
+            />
+          </div>
 
-          {/* Details - show if exists and not empty */}
-          {task.details && task.details.trim() && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-yellow-400">
-                <BarChart3 className="w-4 h-4" />
-                <h3 className="font-semibold">Details</h3>
-              </div>
-              <p className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20 whitespace-pre-wrap">
-                {task.details}
-              </p>
+          {/* Details - always show, editable */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-yellow-400">
+              <BarChart3 className="w-4 h-4" />
+              <h3 className="font-semibold">Details</h3>
+              {updateDetailsMutation.isPending && (
+                <span className="text-xs text-yellow-400/50">Saving...</span>
+              )}
             </div>
-          )}
+            <Textarea
+              value={detailsValue}
+              onChange={(e) => handleDetailsChange(e.target.value)}
+              placeholder="Add details..."
+              className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none min-h-[80px] focus:border-yellow-500/50 focus:ring-yellow-500/20"
+              rows={3}
+            />
+          </div>
 
           {/* Key Information Grid */}
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-2 gap-4'}`}>
@@ -302,65 +414,121 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 <AlertTriangle className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Importance</span>
               </div>
-              {task.importance && (
-                <Badge className={getImportanceBadgeColor(task.importance)}>
-                  {task.importance}
-                </Badge>
-              )}
+              <Select
+                value={task.importance || "Medium"}
+                onValueChange={(value) => updateFieldMutation.mutate({ field: 'importance', value })}
+              >
+                <SelectTrigger className="bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-yellow-600/40">
+                  <SelectItem value="Pareto">🔥 Pareto (Critical)</SelectItem>
+                  <SelectItem value="High">🚨 High</SelectItem>
+                  <SelectItem value="Med-High">⚠️ Med-High</SelectItem>
+                  <SelectItem value="Medium">📋 Medium</SelectItem>
+                  <SelectItem value="Med-Low">📝 Med-Low</SelectItem>
+                  <SelectItem value="Low">📄 Low</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Additional Properties */}
           <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
             {/* Questline */}
-            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
+            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
                 <Crown className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Questline</span>
               </div>
-              <Badge className={getCampaignBadgeColor(task.campaign || 'unassigned')}>
-                {task.campaign || 'unassigned'}
-              </Badge>
+              <Select
+                value={task.campaign || "unassigned"}
+                onValueChange={(value) => updateFieldMutation.mutate({ field: 'campaign', value })}
+              >
+                <SelectTrigger className="w-[140px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-yellow-600/40">
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  <SelectItem value="Main">👑 Main</SelectItem>
+                  <SelectItem value="Side">⚔️ Side</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Business/Work Filter */}
-            {task.businessWorkFilter && (
-              <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
-                <div className="flex items-center gap-2 text-yellow-400">
-                  <Briefcase className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Business/Work Filter</span>
-                </div>
-                <Badge className={getBusinessFilterBadgeColor(task.businessWorkFilter)}>
-                  {task.businessWorkFilter}
-                </Badge>
+            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
+              <div className="flex items-center gap-2 text-yellow-400">
+                <Briefcase className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Business/Work Filter</span>
               </div>
-            )}
+              <Select
+                value={task.businessWorkFilter || "General"}
+                onValueChange={(value) => updateFieldMutation.mutate({ field: 'businessWorkFilter', value })}
+              >
+                <SelectTrigger className="w-[140px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-yellow-600/40">
+                  <SelectItem value="General">💼 General</SelectItem>
+                  <SelectItem value="Apple">🍎 Apple</SelectItem>
+                  <SelectItem value="MW">🏢 MW</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Kanban Stage */}
-            {task.kanbanStage && (
-              <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
-                <div className="flex items-center gap-2 text-yellow-400">
-                  <BarChart3 className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Kanban Stage</span>
-                </div>
-                <Badge className="bg-indigo-600 text-white border-indigo-500">
-                  {task.kanbanStage}
-                </Badge>
+            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
+              <div className="flex items-center gap-2 text-yellow-400">
+                <BarChart3 className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Kanban Stage</span>
               </div>
-            )}
+              <Select
+                value={task.kanbanStage || "Not Started"}
+                onValueChange={(value) => updateFieldMutation.mutate({ field: 'kanbanStage', value })}
+              >
+                <SelectTrigger className="w-[140px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-yellow-600/40">
+                  <SelectItem value="Not Started">📋 Not Started</SelectItem>
+                  <SelectItem value="In Progress">🔄 In Progress</SelectItem>
+                  <SelectItem value="Incubate">💡 Incubate</SelectItem>
+                  <SelectItem value="Review">👀 Review</SelectItem>
+                  <SelectItem value="Done">✅ Done</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Recurrence Type */}
-            {task.recurType && (
-              <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-yellow-600/20`}>
-                <div className="flex items-center gap-2 text-yellow-400">
-                  <Repeat className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                  <span className="text-sm font-semibold">Recurrence</span>
-                </div>
-                <Badge className="bg-purple-600 text-white border-purple-500">
-                  {task.recurType}
-                </Badge>
+            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
+              <div className="flex items-center gap-2 text-yellow-400">
+                <Repeat className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Recurrence</span>
               </div>
-            )}
+              <Select
+                value={task.recurType || "one-time"}
+                onValueChange={(value) => updateFieldMutation.mutate({ field: 'recurType', value })}
+              >
+                <SelectTrigger className="w-[160px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-yellow-600/40">
+                  <SelectItem value="one-time">⏳ One-time</SelectItem>
+                  <SelectItem value="daily">📅 Daily</SelectItem>
+                  <SelectItem value="every other day">📆 Every Other Day</SelectItem>
+                  <SelectItem value="2x week">2️⃣ 2x Week</SelectItem>
+                  <SelectItem value="3x week">3️⃣ 3x Week</SelectItem>
+                  <SelectItem value="weekly">📅 Weekly</SelectItem>
+                  <SelectItem value="2x month">📅 2x Month</SelectItem>
+                  <SelectItem value="monthly">📅 Monthly</SelectItem>
+                  <SelectItem value="every 2 months">📅 Every 2 Months</SelectItem>
+                  <SelectItem value="quarterly">📅 Quarterly</SelectItem>
+                  <SelectItem value="every 6 months">📅 Every 6 Months</SelectItem>
+                  <SelectItem value="yearly">📅 Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Special Flags */}

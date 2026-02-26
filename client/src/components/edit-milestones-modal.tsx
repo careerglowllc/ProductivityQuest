@@ -45,9 +45,11 @@ export function EditMilestonesModal({
 
   const handleAddMilestone = () => {
     const newId = `milestone-${Date.now()}`;
+    const newLevel = milestones.length + 1;
     const newMilestone: Milestone = {
       id: newId,
       title: "New Milestone",
+      level: newLevel,
       x: 50,
       y: 50,
     };

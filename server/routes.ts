@@ -3844,11 +3844,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate milestone structure
-      for (const milestone of milestones) {
-        if (!milestone.id || !milestone.title || typeof milestone.level !== 'number' ||
+      for (let i = 0; i < milestones.length; i++) {
+        const milestone = milestones[i];
+        // Default level to index + 1 if not provided
+        if (typeof milestone.level !== 'number') {
+          milestone.level = i + 1;
+        }
+        if (!milestone.id || !milestone.title ||
             typeof milestone.x !== 'number' || typeof milestone.y !== 'number') {
           return res.status(400).json({ 
-            error: "Each milestone must have id, title, level, x, and y properties" 
+            error: "Each milestone must have id, title, x, and y properties" 
           });
         }
       }

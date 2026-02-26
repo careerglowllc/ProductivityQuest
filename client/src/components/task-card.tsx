@@ -4,8 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TaskDetailModal } from "./task-detail-modal";
+import { EmojiPicker } from "./emoji-picker";
 import { getSkillIcon } from "@/lib/skillIcons";
 import type { UserSkill } from "@/../../shared/schema";
 
@@ -55,6 +56,7 @@ interface TaskCardProps {
     delegationTask?: boolean;
     velin?: boolean;
     skillTags?: string[];
+    emoji?: string;
   };
   onSelect: (taskId: number, selected: boolean) => void;
   isSelected: boolean;
@@ -63,7 +65,24 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onSelect, isSelected, isCompact = false }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const queryClient = useQueryClient();
   
+  const updateEmojiMutation = useMutation({
+    mutationFn: async (emoji: string) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ emoji }),
+      });
+      if (!response.ok) throw new Error('Failed to update emoji');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+  });
+
   // Fetch user skills for dynamic rendering
   const { data: allSkills = [] } = useQuery<UserSkill[]>({
     queryKey: ["/api/skills"],
@@ -135,13 +154,25 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
         >
           <CardContent className="p-3 flex flex-col gap-2">
             <div className="flex flex-col gap-2">
-              {/* Title */}
-              <h3 className={cn(
-                "text-sm font-semibold text-yellow-100 line-clamp-2 leading-tight",
-                task.completed && "line-through text-yellow-400/60"
-              )}>
-                {task.title}
-              </h3>
+              {/* Title with emoji */}
+              <div className="flex items-start gap-1.5">
+                <span
+                  className="text-base flex-shrink-0 cursor-pointer hover:scale-110 transition-transform"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <EmojiPicker
+                    value={task.emoji || "📝"}
+                    onChange={(emoji) => updateEmojiMutation.mutate(emoji)}
+                    size="sm"
+                  />
+                </span>
+                <h3 className={cn(
+                  "text-sm font-semibold text-yellow-100 line-clamp-2 leading-tight pt-1",
+                  task.completed && "line-through text-yellow-400/60"
+                )}>
+                  {task.title}
+                </h3>
+              </div>
               
               {/* Gold and Priority */}
               <div className="flex items-center justify-between gap-2">
@@ -254,12 +285,26 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
         <CardContent className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h3 className={cn(
-                "text-lg font-semibold text-yellow-100 mb-1",
-                task.completed && "line-through text-yellow-400/60"
-              )}>
-                {task.title}
-              </h3>
+              <div className="flex items-start gap-2 mb-1">
+                <span
+                  className="flex-shrink-0 cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <EmojiPicker
+                    value={task.emoji || "📝"}
+                    onChange={(emoji) => updateEmojiMutation.mutate(emoji)}
+                    size="md"
+                  />
+                </span>
+                <div className="flex-1 min-w-0 pt-1">
+                  <h3 className={cn(
+                    "text-lg font-semibold text-yellow-100",
+                    task.completed && "line-through text-yellow-400/60"
+                  )}>
+                    {task.title}
+                  </h3>
+                </div>
+              </div>
               <p className="text-yellow-200/70 text-sm mb-2">
                 {task.description}
               </p>

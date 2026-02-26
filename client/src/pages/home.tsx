@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
@@ -72,6 +74,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarNeedsAuth, setCalendarNeedsAuth] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
+  const [showReschedulePopover, setShowReschedulePopover] = useState(false);
   
   // Calendar duplicate state
   const [showCalendarDuplicateConfirm, setShowCalendarDuplicateConfirm] = useState(false);
@@ -791,6 +794,36 @@ export default function Home() {
       toast({
         title: "Error",
         description: "Failed to move overdue tasks to today.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRescheduleSelected = async (newDate: Date) => {
+    if (selectedTasks.size === 0) return;
+    setShowReschedulePopover(false);
+
+    const selectedTaskIds = Array.from(selectedTasks);
+    let updatedCount = 0;
+
+    try {
+      for (const taskId of selectedTaskIds) {
+        await apiRequest("PATCH", `/api/tasks/${taskId}`, {
+          dueDate: newDate.toISOString(),
+        });
+        updatedCount++;
+      }
+
+      await refetchTasks();
+
+      toast({
+        title: "📅 Tasks Rescheduled",
+        description: `Moved ${updatedCount} task${updatedCount !== 1 ? 's' : ''} to ${newDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Rescheduled ${updatedCount} tasks but some failed. Please try again.`,
         variant: "destructive",
       });
     }
@@ -1614,15 +1647,6 @@ export default function Home() {
                   >
                     {isMobile ? `Today (${filterCounts.dueToday})` : `Due Today (${filterCounts.dueToday})`}
                   </Badge>
-                  {filterCounts.overdue > 0 && (
-                    <Badge 
-                      variant="outline"
-                      className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-100`}
-                      onClick={handleMoveOverdueToToday}
-                    >
-                      {isMobile ? `⏩ Catch Up (${filterCounts.overdue})` : `⏩ Move Overdue to Today (${filterCounts.overdue})`}
-                    </Badge>
-                  )}
                   <Badge 
                     variant={activeFilter === "high-reward" ? "default" : "outline"}
                     className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
@@ -1902,6 +1926,32 @@ export default function Home() {
                           <Tag className="w-3 h-3 mr-1" />
                           Recat
                         </Button>
+                        <Popover open={showReschedulePopover} onOpenChange={setShowReschedulePopover}>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-[10px] whitespace-nowrap border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 flex-shrink-0"
+                              disabled={selectedTasks.size === 0}
+                            >
+                              <CalendarDays className="w-3 h-3 mr-1" />
+                              Resched
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 bg-slate-900 border-yellow-600/30" align="end" side="top">
+                            <CalendarPicker
+                              mode="single"
+                              selected={undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  handleRescheduleSelected(date);
+                                }
+                              }}
+                              initialFocus
+                              className="rounded-md border-0"
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                   ) : (
@@ -1985,6 +2035,41 @@ export default function Home() {
                           <Tag className="w-4 h-4 mr-2" />
                           Recategorize
                         </Button>
+                        <Popover open={showReschedulePopover} onOpenChange={setShowReschedulePopover}>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline"
+                              className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 hover:text-cyan-200"
+                              disabled={selectedTasks.size === 0}
+                            >
+                              <CalendarDays className="w-4 h-4 mr-2" />
+                              Reschedule
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 bg-slate-900 border-yellow-600/30" align="end" side="top">
+                            <CalendarPicker
+                              mode="single"
+                              selected={undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  handleRescheduleSelected(date);
+                                }
+                              }}
+                              initialFocus
+                              className="rounded-md border-0"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        {filterCounts.overdue > 0 && (
+                          <Button 
+                            onClick={handleMoveOverdueToToday}
+                            variant="outline"
+                            className="border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200"
+                          >
+                            <Calendar className="w-4 h-4 mr-2" />
+                            Move Overdue to Today ({filterCounts.overdue})
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}

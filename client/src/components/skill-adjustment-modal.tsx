@@ -142,7 +142,7 @@ export function SkillAdjustmentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700">
         <DialogHeader>
           <DialogTitle className="text-2xl text-yellow-100 flex items-center justify-between">
             <span>Adjust Skill Tags</span>
@@ -168,13 +168,13 @@ export function SkillAdjustmentModal({
             )}
           </div>
 
-          {/* Task Info */}
+          {/* Task Info - condensed with fixed height */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-white mb-1">
               {currentTask.title}
             </h3>
             {currentTask.details && (
-              <p className="text-sm text-slate-400">{currentTask.details}</p>
+              <p className="text-sm text-slate-400 max-h-[60px] overflow-hidden line-clamp-3">{currentTask.details}</p>
             )}
           </div>
 
@@ -197,7 +197,7 @@ export function SkillAdjustmentModal({
                     })}
                   </div>
                   {currentTask.aiSuggestion.reasoning && (
-                    <p className="text-xs text-slate-400 italic">
+                    <p className="text-xs text-slate-400 italic max-h-[40px] overflow-hidden line-clamp-2">
                       "{currentTask.aiSuggestion.reasoning}"
                     </p>
                   )}
