@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TaskDetailModal } from "./task-detail-modal";
+import { SkillAdjustmentModal } from "./skill-adjustment-modal";
 import { EmojiPicker } from "./emoji-picker";
 import { getSkillIcon } from "@/lib/skillIcons";
 import type { UserSkill } from "@/../../shared/schema";
@@ -65,6 +66,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onSelect, isSelected, isCompact = false }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showSkillModal, setShowSkillModal] = useState(false);
   const queryClient = useQueryClient();
   
   const updateEmojiMutation = useMutation({
@@ -162,7 +164,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                 >
                   <EmojiPicker
                     value={task.emoji || "📝"}
-                    onChange={(emoji) => updateEmojiMutation.mutate(emoji)}
+                    onChange={(emoji: string) => updateEmojiMutation.mutate(emoji)}
                     size="sm"
                   />
                 </span>
@@ -224,7 +226,11 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                       <Badge 
                         key={skillName} 
                         variant="outline" 
-                        className={cn("text-[10px] border px-1 py-0", getSkillColor(skillName))}
+                        className={cn("text-[10px] border px-1 py-0 cursor-pointer hover:brightness-125 transition-all", getSkillColor(skillName))}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSkillModal(true);
+                        }}
                       >
                         <SkillIcon className="w-2.5 h-2.5 mr-0.5" />
                         {skillName.length > 8 ? skillName.substring(0, 8) + '...' : skillName}
@@ -238,7 +244,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
               )}
               
               {/* View Full button */}
-              <div className="flex justify-end mt-1">
+              <div className="flex justify-center mt-1">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -260,6 +266,16 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
           task={task}
           open={showDetailModal}
           onOpenChange={setShowDetailModal}
+        />
+
+        <SkillAdjustmentModal
+          open={showSkillModal}
+          onOpenChange={setShowSkillModal}
+          tasks={[task]}
+          onComplete={() => {
+            setShowSkillModal(false);
+            queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+          }}
         />
       </>
     );
@@ -292,7 +308,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                 >
                   <EmojiPicker
                     value={task.emoji || "📝"}
-                    onChange={(emoji) => updateEmojiMutation.mutate(emoji)}
+                    onChange={(emoji: string) => updateEmojiMutation.mutate(emoji)}
                     size="md"
                   />
                 </span>
@@ -370,7 +386,11 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                     <Badge 
                       key={skillName} 
                       variant="outline" 
-                      className={cn("text-xs border", getSkillColor(skillName))}
+                      className={cn("text-xs border cursor-pointer hover:brightness-125 transition-all", getSkillColor(skillName))}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSkillModal(true);
+                      }}
                     >
                       <SkillIcon className="w-3 h-3 mr-1" />
                       {skillName}
@@ -445,6 +465,16 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
         task={task}
         open={showDetailModal}
         onOpenChange={setShowDetailModal}
+      />
+
+      <SkillAdjustmentModal
+        open={showSkillModal}
+        onOpenChange={setShowSkillModal}
+        tasks={[task]}
+        onComplete={() => {
+          setShowSkillModal(false);
+          queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        }}
       />
     </>
   );

@@ -261,6 +261,7 @@ export function SkillAdjustmentModal({
               variant="outline"
               onClick={handlePrevious}
               disabled={currentIndex === 0}
+              className="border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white disabled:opacity-40"
             >
               Previous
             </Button>
@@ -268,18 +269,23 @@ export function SkillAdjustmentModal({
               variant="outline"
               onClick={handleNext}
               disabled={currentIndex === tasks.length - 1}
+              className="border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white disabled:opacity-40"
             >
               Next
             </Button>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCancel}>
+            <Button 
+              variant="outline" 
+              onClick={handleCancel}
+              className="border-yellow-600/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100"
+            >
               Cancel
             </Button>
             <Button 
               onClick={handleConfirm}
               disabled={isSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
             >
               {isSubmitting ? "Saving..." : `Confirm ${Object.keys(selectedSkills).length > 0 ? '& Train AI' : ''}`}
             </Button>
