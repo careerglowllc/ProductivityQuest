@@ -8,7 +8,8 @@ import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSche
 import { z } from "zod";
 import { categorizeTaskWithAI, categorizeMultipleTasks } from "./openai-service";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt, isNull } from "drizzle-orm";
+import { tasks as tasksTable } from "@shared/schema";
 import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 
@@ -985,9 +986,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        // Use dueDate directly as scheduledTime - it already has the correct time from Notion
-        // The dueDate from Notion is already in UTC representing the user's intended time
-        const scheduledTime = task.scheduledTime || task.dueDate;
+        // If scheduledTime exists but dueDate has changed to a different day,
+        // move scheduledTime to the new dueDate (preserving time-of-day)
+        let scheduledTime: Date;
+        if (task.scheduledTime) {
+          const scheduled = new Date(task.scheduledTime);
+          const due = new Date(task.dueDate);
+          // Compare dates (year/month/day) to detect if dueDate moved
+          if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
+              scheduled.getUTCMonth() !== due.getUTCMonth() ||
+              scheduled.getUTCDate() !== due.getUTCDate()) {
+            // Preserve the time-of-day from the old scheduledTime, but shift to new dueDate's day
+            const newScheduled = new Date(due);
+            newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
+            scheduledTime = newScheduled;
+          } else {
+            scheduledTime = scheduled;
+          }
+        } else {
+          scheduledTime = new Date(task.dueDate);
+        }
 
         // Set calendarColor based on importance if not already set
         const calendarColor = task.calendarColor || getColorForImportance(task.importance);
@@ -1204,6 +1222,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Batch deletion error:", error);
       res.status(500).json({ error: "Failed to delete tasks" });
+    }
+  });
+
+  // Move all overdue tasks to today
+  app.post("/api/tasks/move-overdue-to-today", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      
+      // Get start of today in UTC
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Update all incomplete, non-recycled tasks with due dates before today
+      const updatedTasks = await db
+        .update(tasksTable)
+        .set({ dueDate: today })
+        .where(
+          and(
+            eq(tasksTable.userId, userId),
+            eq(tasksTable.completed, false),
+            eq(tasksTable.recycled, false),
+            lt(tasksTable.dueDate, today)
+          )
+        )
+        .returning();
+      
+      console.log(`📅 Moved ${updatedTasks.length} overdue tasks to today for user ${userId}`);
+      
+      res.json({
+        updatedCount: updatedTasks.length,
+        tasks: updatedTasks
+      });
+    } catch (error) {
+      console.error("Move overdue to today error:", error);
+      res.status(500).json({ error: "Failed to move overdue tasks to today" });
     }
   });
 
@@ -2623,9 +2676,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First, set scheduledTime and calendarColor on all tasks being synced
       // This ensures they appear correctly in the app calendar
       for (const task of tasksToSync) {
-        // Use existing scheduledTime or fall back to the dueDate
-        // Don't use setHours(9,0,0,0) as that creates UTC time issues
-        const scheduledTime = task.scheduledTime || new Date(task.dueDate!);
+        // If scheduledTime exists but dueDate has changed to a different day,
+        // move scheduledTime to the new dueDate (preserving time-of-day)
+        let scheduledTime: Date;
+        if (task.scheduledTime) {
+          const scheduled = new Date(task.scheduledTime);
+          const due = new Date(task.dueDate!);
+          // Compare dates (year/month/day) to detect if dueDate moved
+          if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
+              scheduled.getUTCMonth() !== due.getUTCMonth() ||
+              scheduled.getUTCDate() !== due.getUTCDate()) {
+            // Preserve the time-of-day from the old scheduledTime, but shift to new dueDate's day
+            const newScheduled = new Date(due);
+            newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
+            scheduledTime = newScheduled;
+            console.log(`📅 [CALENDAR SYNC] Task ${task.id} dueDate moved: scheduledTime ${scheduled.toISOString()} → ${newScheduled.toISOString()}`);
+          } else {
+            scheduledTime = scheduled;
+          }
+        } else {
+          scheduledTime = new Date(task.dueDate!);
+        }
         const calendarColor = task.calendarColor || getColorForImportance(task.importance);
         
         await storage.updateTask(task.id, { scheduledTime, calendarColor }, userId);

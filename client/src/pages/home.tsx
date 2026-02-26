@@ -776,6 +776,26 @@ export default function Home() {
     }
   };
 
+  const handleMoveOverdueToToday = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/tasks/move-overdue-to-today");
+      const data = await response.json();
+      
+      await refetchTasks();
+      
+      toast({
+        title: "Overdue Tasks Updated",
+        description: `Moved ${data.updatedCount} overdue task${data.updatedCount !== 1 ? 's' : ''} to today.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to move overdue tasks to today.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleImportPrepare = async () => {
     try {
       // Refetch tasks to get the latest count before showing the modal
@@ -1009,6 +1029,12 @@ export default function Home() {
         const taskDate = new Date(task.dueDate);
         taskDate.setHours(0, 0, 0, 0);
         return taskDate.getTime() <= today.getTime();
+      }).length,
+      overdue: activeTasks.filter((task: any) => {
+        if (!task.dueDate) return false;
+        const taskDate = new Date(task.dueDate);
+        taskDate.setHours(0, 0, 0, 0);
+        return taskDate.getTime() < today.getTime();
       }).length,
       highReward: activeTasks.filter((task: any) => task.goldValue >= 50).length,
       quickTasks: activeTasks.filter((task: any) => task.duration <= 30).length,
@@ -1588,6 +1614,15 @@ export default function Home() {
                   >
                     {isMobile ? `Today (${filterCounts.dueToday})` : `Due Today (${filterCounts.dueToday})`}
                   </Badge>
+                  {filterCounts.overdue > 0 && (
+                    <Badge 
+                      variant="outline"
+                      className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-100`}
+                      onClick={handleMoveOverdueToToday}
+                    >
+                      {isMobile ? `⏩ Catch Up (${filterCounts.overdue})` : `⏩ Move Overdue to Today (${filterCounts.overdue})`}
+                    </Badge>
+                  )}
                   <Badge 
                     variant={activeFilter === "high-reward" ? "default" : "outline"}
                     className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
@@ -2159,7 +2194,7 @@ export default function Home() {
               }} 
               className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-500 hover:to-slate-400 text-white border border-slate-400/50"
             >
-              Skip Duplicates ({importTaskCount - duplicateCount})
+              Skip Duplicates ({duplicateCount})
             </Button>
             <Button 
               onClick={() => {

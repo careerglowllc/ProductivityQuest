@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network } from "lucide-react";
+import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -121,40 +121,19 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
       <>
         <Card 
           className={cn(
-            "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative h-full",
+            "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative h-full cursor-pointer",
             isSelected 
               ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
               : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
             task.completed && "opacity-60"
           )}
+          onClick={() => {
+            if (!task.completed) {
+              onSelect(task.id, !isSelected);
+            }
+          }}
         >
-          <CardContent className="p-3 flex gap-2">
-            {/* Checkbox for selection */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!task.completed) {
-                  onSelect(task.id, !isSelected);
-                }
-              }}
-              className={cn(
-                "flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all mt-0.5",
-                isSelected 
-                  ? "bg-yellow-500 border-yellow-500" 
-                  : "border-yellow-600/40 hover:border-yellow-500",
-                task.completed && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              {isSelected && (
-                <CheckCircle className="w-full h-full text-slate-900" />
-              )}
-            </button>
-            
-            {/* Main content area - clickable to open details */}
-            <div 
-              className="flex-1 cursor-pointer"
-              onClick={() => setShowDetailModal(true)}
-            >
+          <CardContent className="p-3 flex flex-col gap-2">
             <div className="flex flex-col gap-2">
               {/* Title */}
               <h3 className={cn(
@@ -227,8 +206,21 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                 </div>
               )}
               
-              {/* Details button - removed since whole card is clickable now */}
-            </div>
+              {/* View Full button */}
+              <div className="flex justify-end mt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[10px] text-yellow-300/70 hover:text-yellow-100 hover:bg-slate-700/60"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDetailModal(true);
+                  }}
+                >
+                  <Eye className="w-3 h-3 mr-1" />
+                  View Full
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -247,40 +239,19 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
     <>
       <Card 
         className={cn(
-          "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative",
+          "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative cursor-pointer",
           isSelected 
             ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
             : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
           task.completed && "opacity-60"
         )}
+        onClick={() => {
+          if (!task.completed) {
+            onSelect(task.id, !isSelected);
+          }
+        }}
       >
-        <CardContent className="p-6 flex gap-4">
-          {/* Checkbox for selection */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!task.completed) {
-                onSelect(task.id, !isSelected);
-              }
-            }}
-            className={cn(
-              "flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all mt-1",
-              isSelected 
-                ? "bg-yellow-500 border-yellow-500" 
-                : "border-yellow-600/40 hover:border-yellow-500",
-              task.completed && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            {isSelected && (
-              <CheckCircle className="w-full h-full text-slate-900" />
-            )}
-          </button>
-          
-          {/* Main content area - clickable to open details */}
-          <div 
-            className="flex-1 cursor-pointer"
-            onClick={() => setShowDetailModal(true)}
-          >
+        <CardContent className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h3 className={cn(
@@ -394,19 +365,33 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
               </div>
             </div>
             
-            <Badge 
-              variant={task.completed ? "secondary" : "default"}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 flex-shrink-0",
-                task.completed 
-                  ? "bg-green-900/40 text-green-200 border border-green-600/40"
-                  : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
-              )}
-            >
-              <Coins className="w-4 h-4 flex-shrink-0" />
-              <span className="font-semibold whitespace-nowrap">{task.goldValue}</span>
-            </Badge>
-          </div>
+            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+              <Badge 
+                variant={task.completed ? "secondary" : "default"}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1",
+                  task.completed 
+                    ? "bg-green-900/40 text-green-200 border border-green-600/40"
+                    : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
+                )}
+              >
+                <Coins className="w-4 h-4 flex-shrink-0" />
+                <span className="font-semibold whitespace-nowrap">{task.goldValue}</span>
+              </Badge>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2.5 text-xs text-yellow-300/70 hover:text-yellow-100 hover:bg-slate-700/60"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDetailModal(true);
+                }}
+              >
+                <Eye className="w-3.5 h-3.5 mr-1" />
+                View Full
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
