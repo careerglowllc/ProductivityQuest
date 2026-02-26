@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Crown, Sparkles, Rocket, Gift, Plus, Target, Pencil, Trash2, Check, X } from "lucide-react";
+import { Crown, Sparkles, Rocket, Gift, Plus, Target, Pencil, Trash2, Check, X, CheckCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -281,41 +281,33 @@ export default function CampaignsPage() {
                             {/* Quest Chain */}
                             <div className={`${isMobile ? 'mt-2 space-y-1' : 'mt-4 space-y-2'}`}>
                               {(questline.quests || []).map((quest: Quest) => (
-                                <div key={quest.id} className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
+                                <div key={quest.id} className={`flex items-center ${isMobile ? 'gap-1.5 p-1' : 'gap-2.5 p-1.5'} rounded bg-slate-900/40`}>
                                   {quest.status === 'completed' && (
                                     <>
-                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full bg-green-600/30 border-2 border-green-500 flex items-center justify-center flex-shrink-0`}>
-                                        <span className={`text-green-300 ${isMobile ? 'text-[8px]' : 'text-xs'}`}>✓</span>
-                                      </div>
-                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate ${
-                                        isCampaign ? 'text-purple-200/90' : 'text-blue-200/90'
-                                      }`}>{isMobile ? quest.title : `Quest ${quest.id}: ${quest.title}`}</span>
+                                      <CheckCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-green-400 flex-shrink-0`} />
+                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate text-green-300`}>
+                                        {isMobile ? quest.title : `Quest ${quest.id}: ${quest.title}`}
+                                      </span>
                                     </>
                                   )}
                                   {quest.status === 'in-progress' && (
                                     <>
-                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full bg-yellow-600/30 border-2 border-yellow-500 flex items-center justify-center flex-shrink-0 animate-pulse`}>
-                                        <span className={`text-yellow-300 ${isMobile ? 'text-[8px]' : 'text-xs'} font-bold`}>!</span>
+                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0 flex items-center justify-center`}>
+                                        <div className={`${isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'} rounded-full border-2 border-yellow-400 border-t-transparent animate-spin`} />
                                       </div>
-                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold truncate ${
-                                        isCampaign ? 'text-purple-100' : 'text-blue-100'
-                                      }`}>{isMobile ? quest.title : `Quest ${quest.id}: ${quest.title}`}{isMobile ? '' : ' (In Progress)'}</span>
+                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold truncate text-yellow-200`}>
+                                        {isMobile ? quest.title : `Quest ${quest.id}: ${quest.title} (In Progress)`}
+                                      </span>
                                     </>
                                   )}
                                   {quest.status === 'locked' && (
                                     <>
-                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                                        isCampaign 
-                                          ? 'bg-purple-900/50 border-purple-600/40' 
-                                          : 'bg-blue-900/50 border-blue-600/40'
-                                      }`}>
-                                        <span className={`${isMobile ? 'text-[8px]' : 'text-xs'} ${
-                                          isCampaign ? 'text-purple-400/50' : 'text-blue-400/50'
-                                        }`}>{quest.id}</span>
+                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0 rounded-full bg-slate-600/50 flex items-center justify-center`}>
+                                        <div className={`${isMobile ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full bg-slate-400`} />
                                       </div>
-                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate ${
-                                        isCampaign ? 'text-purple-300/50' : 'text-blue-300/50'
-                                      }`}>{isMobile ? `${quest.title} 🔒` : `Quest ${quest.id}: ${quest.title} (Locked)`}</span>
+                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate text-slate-400`}>
+                                        {isMobile ? `${quest.title} 🔒` : `Quest ${quest.id}: ${quest.title} (Locked)`}
+                                      </span>
                                     </>
                                   )}
                                 </div>

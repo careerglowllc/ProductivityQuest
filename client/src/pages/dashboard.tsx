@@ -568,41 +568,18 @@ export default function Dashboard() {
   // State for expanded campaigns
   const [expandedCampaigns, setExpandedCampaigns] = useState<{ [key: string]: boolean }>({});
   
-  // Mock selected campaigns data (replace with API call in production)
-  const selectedCampaigns = [
-    {
-      id: 'maximize-looks',
-      title: 'Maximize Looks',
-      description: 'A comprehensive transformation journey covering fitness, grooming, style, and confidence',
-      progress: 35,
-      quests: [
-        { id: 1, title: 'Foundation Assessment Complete', status: 'completed' },
-        { id: 2, title: 'Skincare Routine Established', status: 'completed' },
-        { id: 3, title: 'Fitness Fundamentals', status: 'in-progress' },
-        { id: 4, title: 'Wardrobe Optimization', status: 'locked' },
-        { id: 5, title: 'Confidence & Presence', status: 'locked' },
-      ],
-    },
-    {
-      id: 'remote-business',
-      title: 'Build a Self-Sufficient Remote Business',
-      description: 'Launch and scale a profitable online business that generates passive income and location freedom',
-      progress: 60,
-      quests: [
-        { id: 1, title: 'Market Research & Niche Selection', status: 'completed' },
-        { id: 2, title: 'MVP Development & Launch', status: 'completed' },
-        { id: 3, title: 'First 10 Paying Customers', status: 'completed' },
-        { id: 4, title: 'Scale to $10K MRR', status: 'in-progress' },
-        { id: 5, title: 'Automation & Systems', status: 'locked' },
-        { id: 6, title: 'Full Location Independence', status: 'locked' },
-      ],
-    },
-  ];
+  // Fetch campaigns from API (same source as campaigns page)
+  const { data: campaignsData = [] } = useQuery<any[]>({
+    queryKey: ["/api/campaigns"],
+  });
   
-  const toggleCampaign = (campaignId: string) => {
+  // Filter to only active campaigns (matches campaigns page logic)
+  const selectedCampaigns = campaignsData.filter((c: any) => c.isActive);
+  
+  const toggleCampaign = (campaignId: string | number) => {
     setExpandedCampaigns(prev => ({
       ...prev,
-      [campaignId]: !prev[campaignId]
+      [String(campaignId)]: !prev[String(campaignId)]
     }));
   };
 
@@ -831,7 +808,7 @@ export default function Dashboard() {
                     <div className="mt-3 pt-3 border-t border-purple-500/20">
                       <p className="text-[10px] text-purple-200/80 mb-3">{campaign.description}</p>
                       <div className="space-y-1.5">
-                        {campaign.quests.map((quest) => (
+                        {(campaign.quests || []).map((quest: any) => (
                           <div 
                             key={quest.id}
                             className="flex items-center gap-2 p-1.5 rounded bg-slate-900/40"
