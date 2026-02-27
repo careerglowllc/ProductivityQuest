@@ -838,15 +838,16 @@ export default function Home() {
 
   const handleMoveOverdueToToday = async () => {
     const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    // Use start of today in LOCAL timezone for accurate comparison
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Find all overdue, incomplete, non-recycled tasks
+    // Find all overdue, incomplete, non-recycled tasks (due date strictly before today's start)
     const overdueTasks = allTasks.filter((t: any) => {
       if (t.completed || t.recycled || !t.dueDate) return false;
       const due = new Date(t.dueDate);
-      due.setHours(0, 0, 0, 0);
-      return due < today;
+      // Compare full timestamps - task is overdue if its due date is before today's midnight
+      return due.getTime() < todayStart.getTime();
     });
 
     if (overdueTasks.length === 0) {
@@ -857,12 +858,12 @@ export default function Home() {
     // Save previous dates for undo
     const previousDates = overdueTasks.map((t: any) => ({ id: t.id, dueDate: t.dueDate }));
 
-    // Optimistic cache update
+    // Optimistic cache update — set overdue tasks to today's date
     queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
       if (!old) return old;
       const overdueIds = new Set(overdueTasks.map((t: any) => t.id));
       return old.map((t: any) =>
-        overdueIds.has(t.id) ? { ...t, dueDate: today.toISOString() } : t
+        overdueIds.has(t.id) ? { ...t, dueDate: todayStart.toISOString() } : t
       );
     });
 
@@ -881,9 +882,13 @@ export default function Home() {
       ),
     });
 
-    // Fire backend call in background
+    // Fire backend call with the specific task IDs to avoid timezone mismatches
     try {
-      await apiRequest("POST", "/api/tasks/move-overdue-to-today");
+      await Promise.all(
+        overdueTasks.map((t: any) =>
+          apiRequest("PATCH", `/api/tasks/${t.id}`, { dueDate: todayStart.toISOString() })
+        )
+      );
       refetchTasks();
     } catch (error) {
       // Revert optimistic update
@@ -1260,22 +1265,23 @@ export default function Home() {
   const getFilterCounts = () => {
     const activeTasks = tasks.filter((task: any) => !task.completed);
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     
     return {
       all: activeTasks.length,
       dueToday: activeTasks.filter((task: any) => {
         if (!task.dueDate) return false;
         const taskDate = new Date(task.dueDate);
-        taskDate.setHours(0, 0, 0, 0);
-        return taskDate.getTime() <= today.getTime();
+        // Due today or overdue (before end of today)
+        return taskDate.getTime() < tomorrowStart.getTime();
       }).length,
       overdue: activeTasks.filter((task: any) => {
         if (!task.dueDate) return false;
         const taskDate = new Date(task.dueDate);
-        taskDate.setHours(0, 0, 0, 0);
-        return taskDate.getTime() < today.getTime();
+        // Strictly before today's start — truly past due
+        return taskDate.getTime() < todayStart.getTime();
       }).length,
       highReward: activeTasks.filter((task: any) => task.goldValue >= 50).length,
       quickTasks: activeTasks.filter((task: any) => task.duration <= 30).length,
@@ -1321,16 +1327,16 @@ export default function Home() {
     
     // Apply category filter
     switch (activeFilter) {
-      case "due-today":
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+      case "due-today": {
+        const nowDT = new Date();
+        const tomorrowDT = new Date(nowDT.getFullYear(), nowDT.getMonth(), nowDT.getDate() + 1);
         
         return activeTasks.filter((task: any) => {
           if (!task.dueDate) return false;
           const taskDate = new Date(task.dueDate);
-          taskDate.setHours(0, 0, 0, 0);
-          return taskDate.getTime() <= today.getTime(); // Include today and all overdue tasks
+          return taskDate.getTime() < tomorrowDT.getTime(); // Include today and all overdue tasks
         });
+      }
       
       case "high-reward":
         // Filter tasks with high gold value (50+) and sort by gold value descending
