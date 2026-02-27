@@ -2307,7 +2307,7 @@ export default function Home() {
               }} 
               className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-500 hover:to-slate-400 text-white border border-slate-400/50"
             >
-              Skip Duplicates ({duplicateCount})
+              Skip {duplicateCount} Duplicates (add {importTaskCount - duplicateCount})
             </Button>
             <Button 
               onClick={() => {
