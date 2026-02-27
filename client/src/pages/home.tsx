@@ -98,6 +98,15 @@ export default function Home() {
     goldEarned?: number;
     exportDetails?: { exported: number[]; linked: number[] }; // For export undo
   }>({ type: null, taskIds: [] });
+
+  // Date-based undo state (for reschedule, push days, move overdue)
+  const [lastDateAction, setLastDateAction] = useState<{
+    label: string;
+    previousDates: { id: number; dueDate: string | null }[];
+  } | null>(null);
+  // Keep a ref so toast onClick callbacks always see the latest value
+  const lastDateActionRef = useRef(lastDateAction);
+  lastDateActionRef.current = lastDateAction;
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -746,6 +755,47 @@ export default function Home() {
     }
   };
 
+  // Undo date-based changes (reschedule, push days, move overdue)
+  const undoDateChanges = async () => {
+    const action = lastDateActionRef.current;
+    if (!action) return;
+
+    const { previousDates, label } = action;
+
+    // Optimistic: restore previous dates in cache immediately
+    queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
+      if (!old) return old;
+      const dateMap = new Map(previousDates.map(d => [d.id, d.dueDate]));
+      return old.map((t: any) =>
+        dateMap.has(t.id) ? { ...t, dueDate: dateMap.get(t.id) } : t
+      );
+    });
+
+    setLastDateAction(null);
+
+    toast({
+      title: "↩️ Undo Successful",
+      description: `Reverted ${label}.`,
+    });
+
+    // Fire backend patches to restore original dates
+    try {
+      await Promise.all(
+        previousDates.map(({ id, dueDate }) =>
+          apiRequest("PATCH", `/api/tasks/${id}`, { dueDate })
+        )
+      );
+      refetchTasks();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Some tasks failed to revert. Please refresh.",
+        variant: "destructive",
+      });
+      refetchTasks();
+    }
+  };
+
   const handleCategorizeAll = async () => {
     try {
       // Get all tasks without skillTags
@@ -787,17 +837,63 @@ export default function Home() {
   };
 
   const handleMoveOverdueToToday = async () => {
+    const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find all overdue, incomplete, non-recycled tasks
+    const overdueTasks = allTasks.filter((t: any) => {
+      if (t.completed || t.recycled || !t.dueDate) return false;
+      const due = new Date(t.dueDate);
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    });
+
+    if (overdueTasks.length === 0) {
+      toast({ title: "No Overdue Tasks", description: "There are no overdue tasks to move." });
+      return;
+    }
+
+    // Save previous dates for undo
+    const previousDates = overdueTasks.map((t: any) => ({ id: t.id, dueDate: t.dueDate }));
+
+    // Optimistic cache update
+    queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
+      if (!old) return old;
+      const overdueIds = new Set(overdueTasks.map((t: any) => t.id));
+      return old.map((t: any) =>
+        overdueIds.has(t.id) ? { ...t, dueDate: today.toISOString() } : t
+      );
+    });
+
+    // Store undo data
+    const undoLabel = `move of ${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''} to today`;
+    setLastDateAction({ label: undoLabel, previousDates });
+
+    toast({
+      title: "📅 Overdue Tasks Updated",
+      description: `Moved ${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''} to today.`,
+      duration: 15000,
+      action: (
+        <ToastAction altText="Undo move overdue" onClick={() => undoDateChanges()}>
+          Undo
+        </ToastAction>
+      ),
+    });
+
+    // Fire backend call in background
     try {
-      const response = await apiRequest("POST", "/api/tasks/move-overdue-to-today");
-      const data = await response.json();
-      
-      await refetchTasks();
-      
-      toast({
-        title: "Overdue Tasks Updated",
-        description: `Moved ${data.updatedCount} overdue task${data.updatedCount !== 1 ? 's' : ''} to today.`,
-      });
+      await apiRequest("POST", "/api/tasks/move-overdue-to-today");
+      refetchTasks();
     } catch (error) {
+      // Revert optimistic update
+      queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
+        if (!old) return old;
+        const dateMap = new Map(previousDates.map(d => [d.id, d.dueDate]));
+        return old.map((t: any) =>
+          dateMap.has(t.id) ? { ...t, dueDate: dateMap.get(t.id) } : t
+        );
+      });
       toast({
         title: "Error",
         description: "Failed to move overdue tasks to today.",
@@ -814,8 +910,15 @@ export default function Home() {
     const taskCount = selectedTaskIds.length;
     const dateLabel = newDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
+    // Save previous dates for undo
+    const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
+    const previousDates = selectedTaskIds.map(id => {
+      const task = allTasks.find((t: any) => t.id === id);
+      return { id, dueDate: task?.dueDate || null };
+    });
+
     // Optimistic: update cache immediately so tasks move/disappear from current view
-    const previousTasks = queryClient.getQueryData<any[]>(["/api/tasks"]);
+    const previousTasksSnapshot = queryClient.getQueryData<any[]>(["/api/tasks"]);
     queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
       if (!old) return old;
       return old.map((t: any) =>
@@ -825,11 +928,21 @@ export default function Home() {
       );
     });
 
+    // Store undo data
+    const undoLabel = `reschedule of ${taskCount} task${taskCount !== 1 ? 's' : ''}`;
+    setLastDateAction({ label: undoLabel, previousDates });
+
     // Clear selection and show toast immediately
     setSelectedTasks(new Set());
     toast({
       title: "📅 Tasks Rescheduled",
       description: `Moved ${taskCount} task${taskCount !== 1 ? 's' : ''} to ${dateLabel}.`,
+      duration: 15000,
+      action: (
+        <ToastAction altText="Undo reschedule" onClick={() => undoDateChanges()}>
+          Undo
+        </ToastAction>
+      ),
     });
 
     // Fire backend updates in background
@@ -845,8 +958,8 @@ export default function Home() {
       refetchTasks();
     } catch (error) {
       // Rollback optimistic update on failure
-      if (previousTasks) {
-        queryClient.setQueryData(["/api/tasks"], previousTasks);
+      if (previousTasksSnapshot) {
+        queryClient.setQueryData(["/api/tasks"], previousTasksSnapshot);
       }
       toast({
         title: "Error",
@@ -863,11 +976,13 @@ export default function Home() {
     const selectedTaskIds = Array.from(selectedTasks);
     const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
 
-    // Build a map of taskId → new due date (current dueDate + N days)
+    // Save previous dates for undo & build updates
+    const previousDates: { id: number; dueDate: string | null }[] = [];
     const updates: { id: number; newDate: string }[] = [];
     for (const taskId of selectedTaskIds) {
       const task = allTasks.find((t: any) => t.id === taskId);
       if (!task) continue;
+      previousDates.push({ id: taskId, dueDate: task.dueDate || null });
       const currentDue = task.dueDate ? new Date(task.dueDate) : new Date();
       currentDue.setDate(currentDue.getDate() + days);
       updates.push({ id: taskId, newDate: currentDue.toISOString() });
@@ -876,7 +991,7 @@ export default function Home() {
     if (updates.length === 0) return;
 
     // Optimistic cache update
-    const previousTasks = queryClient.getQueryData<any[]>(["/api/tasks"]);
+    const previousTasksSnapshot = queryClient.getQueryData<any[]>(["/api/tasks"]);
     queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
       if (!old) return old;
       const updateMap = new Map(updates.map(u => [u.id, u.newDate]));
@@ -885,11 +1000,21 @@ export default function Home() {
       );
     });
 
-    setSelectedTasks(new Set());
+    // Store undo data
     const dayLabel = days === 7 ? '1 week' : days === 14 ? '2 weeks' : days === 30 ? '1 month' : `${days} day${days !== 1 ? 's' : ''}`;
+    const undoLabel = `push of ${updates.length} task${updates.length !== 1 ? 's' : ''} by ${dayLabel}`;
+    setLastDateAction({ label: undoLabel, previousDates });
+
+    setSelectedTasks(new Set());
     toast({
       title: `📅 Pushed ${updates.length} task${updates.length !== 1 ? 's' : ''} by ${dayLabel}`,
       description: `Due dates moved forward from each task's current date.`,
+      duration: 15000,
+      action: (
+        <ToastAction altText="Undo push" onClick={() => undoDateChanges()}>
+          Undo
+        </ToastAction>
+      ),
     });
 
     try {
@@ -900,8 +1025,8 @@ export default function Home() {
       );
       refetchTasks();
     } catch (error) {
-      if (previousTasks) {
-        queryClient.setQueryData(["/api/tasks"], previousTasks);
+      if (previousTasksSnapshot) {
+        queryClient.setQueryData(["/api/tasks"], previousTasksSnapshot);
       }
       toast({
         title: "Error",
