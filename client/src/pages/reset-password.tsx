@@ -145,13 +145,13 @@ export default function ResetPassword() {
   // Invalid or expired token
   if (!isValidToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 p-4 relative overflow-hidden">
+      <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 p-4 pt-[env(safe-area-inset-top,1rem)] pb-[env(safe-area-inset-bottom,1rem)] relative overflow-y-auto">
         <div className="absolute inset-0 opacity-30 pointer-events-none">
           <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
           <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
         </div>
 
-        <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10">
+        <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10 my-auto sm:my-0 mt-8 sm:mt-0 mb-[calc(env(safe-area-inset-bottom,0px)+2rem)]">
           <CardHeader className="text-center border-b border-yellow-600/20 pb-6">
             <div className="flex items-center justify-center mb-4">
               <Trophy className="text-yellow-400 w-12 h-12 mr-3" />
@@ -200,13 +200,13 @@ export default function ResetPassword() {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 p-4 relative overflow-hidden">
+      <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 p-4 pt-[env(safe-area-inset-top,1rem)] pb-[env(safe-area-inset-bottom,1rem)] relative overflow-y-auto">
         <div className="absolute inset-0 opacity-30 pointer-events-none">
           <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
           <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
         </div>
 
-        <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10">
+        <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10 my-auto sm:my-0 mt-8 sm:mt-0 mb-[calc(env(safe-area-inset-bottom,0px)+2rem)]">
           <CardHeader className="text-center border-b border-yellow-600/20 pb-6">
             <div className="flex items-center justify-center mb-4">
               <Trophy className="text-yellow-400 w-12 h-12 mr-3" />
@@ -240,7 +240,7 @@ export default function ResetPassword() {
 
   // Reset password form
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 p-4 relative overflow-hidden">
+    <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 p-4 pt-[env(safe-area-inset-top,1rem)] pb-[env(safe-area-inset-bottom,1rem)] relative overflow-y-auto">
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
         <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -248,7 +248,7 @@ export default function ResetPassword() {
         <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
       </div>
 
-      <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10">
+      <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10 my-auto sm:my-0 mt-8 sm:mt-0 mb-[calc(env(safe-area-inset-bottom,0px)+2rem)]">
         <CardHeader className="text-center border-b border-yellow-600/20 pb-6">
           <div className="flex items-center justify-center mb-4">
             <Trophy className="text-yellow-400 w-12 h-12 mr-3" />
