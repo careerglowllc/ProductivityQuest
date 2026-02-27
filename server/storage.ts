@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type CalendarEvent, type InsertCalendarEvent } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, isNull, inArray, gt, desc } from "drizzle-orm";
 
@@ -73,6 +73,13 @@ export interface IStorage {
   getPurchases(userId: string): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
   usePurchase(id: number, userId: string): Promise<Purchase | undefined>;
+  
+  // Standalone calendar event operations
+  getCalendarEvents(userId: string): Promise<CalendarEvent[]>;
+  getCalendarEvent(id: number, userId: string): Promise<CalendarEvent | undefined>;
+  createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  updateCalendarEvent(id: number, updates: Partial<CalendarEvent>, userId: string): Promise<CalendarEvent | undefined>;
+  deleteCalendarEvent(id: number, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1158,6 +1165,36 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(mlSortingFeedback.createdAt))
       .limit(limit);
     return result;
+  }
+
+  // Standalone calendar event operations
+  async getCalendarEvents(userId: string): Promise<CalendarEvent[]> {
+    return await db.select().from(calendarEvents).where(eq(calendarEvents.userId, userId));
+  }
+
+  async getCalendarEvent(id: number, userId: string): Promise<CalendarEvent | undefined> {
+    const [event] = await db.select().from(calendarEvents)
+      .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)));
+    return event;
+  }
+
+  async createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    const [newEvent] = await db.insert(calendarEvents).values(event).returning();
+    return newEvent;
+  }
+
+  async updateCalendarEvent(id: number, updates: Partial<CalendarEvent>, userId: string): Promise<CalendarEvent | undefined> {
+    const [updated] = await db.update(calendarEvents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteCalendarEvent(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(calendarEvents)
+      .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

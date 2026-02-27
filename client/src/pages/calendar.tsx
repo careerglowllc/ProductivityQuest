@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2, ChevronLeft, ChevronRight, X, Info } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ToastAction } from "@/components/ui/toast";
 import { useState, useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -116,6 +118,16 @@ export default function Calendar() {
     taskMetadata: any[];
   } | null>(null);
   const [isSorting, setIsSorting] = useState(false);
+
+  // New Event modal state
+  const [showNewEventModal, setShowNewEventModal] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState("");
+  const [newEventDate, setNewEventDate] = useState("");
+  const [newEventStartTime, setNewEventStartTime] = useState("09:00");
+  const [newEventDuration, setNewEventDuration] = useState("60");
+  const [newEventDescription, setNewEventDescription] = useState("");
+  const [newEventColor, setNewEventColor] = useState("#8b5cf6");
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
 
   // Save view preference whenever it changes
   useEffect(() => {
@@ -277,6 +289,188 @@ export default function Calendar() {
     }
   };
 
+  // Open new event modal with sensible defaults
+  const openNewEventModal = () => {
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // Round to next hour
+    const nextHour = now.getHours() + 1;
+    const timeStr = `${String(Math.min(nextHour, 23)).padStart(2, '0')}:00`;
+    setNewEventTitle("");
+    setNewEventDate(dateStr);
+    setNewEventStartTime(timeStr);
+    setNewEventDuration("60");
+    setNewEventDescription("");
+    setNewEventColor("#8b5cf6");
+    setShowNewEventModal(true);
+  };
+
+  // Create a standalone calendar event
+  // Remove the temp "New Event" block from cache (used on cancel or after real save)
+  const removeTempEvent = () => {
+    const qk = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+    const data = queryClient.getQueryData<{ events: CalendarEvent[] }>(qk);
+    if (data) {
+      queryClient.setQueryData(qk, {
+        ...data,
+        events: data.events.filter(e => e.id !== 'standalone-temp'),
+      });
+    }
+  };
+
+  const handleCreateNewEvent = async () => {
+    if (!newEventTitle.trim()) {
+      toast({ title: "Title Required", description: "Please enter an event name.", variant: "destructive" });
+      return;
+    }
+    if (!newEventDate) {
+      toast({ title: "Date Required", description: "Please select a date.", variant: "destructive" });
+      return;
+    }
+
+    setIsCreatingEvent(true);
+    try {
+      const [yr, mo, dy] = newEventDate.split('-').map(Number);
+      const [hrs, mins] = newEventStartTime.split(':').map(Number);
+      const startDateTime = new Date(yr, mo - 1, dy, hrs, mins);
+
+      await apiRequest("POST", "/api/standalone-events", {
+        title: newEventTitle.trim(),
+        description: newEventDescription.trim(),
+        date: startDateTime.toISOString(),
+        startTime: startDateTime.toISOString(),
+        duration: parseInt(newEventDuration) || 60,
+        color: newEventColor,
+      });
+
+      // Remove temp event, then refresh to get the real one from server
+      removeTempEvent();
+      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+
+      toast({ title: "Event Created", description: `"${newEventTitle.trim()}" has been added to your calendar.` });
+      setShowNewEventModal(false);
+    } catch (error) {
+      console.error("Failed to create event:", error);
+      removeTempEvent();
+      toast({ title: "Error", description: "Failed to create event. Please try again.", variant: "destructive" });
+    } finally {
+      setIsCreatingEvent(false);
+    }
+  };
+
+  // Cancel / close the new event modal — also cleans up temp event
+  const handleCloseNewEventModal = () => {
+    removeTempEvent();
+    setShowNewEventModal(false);
+  };
+
+  // Live-update the temp event preview as the user edits the modal form
+  useEffect(() => {
+    if (!showNewEventModal) return;
+    const qk = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+    const data = queryClient.getQueryData<{ events: CalendarEvent[] }>(qk);
+    if (!data) return;
+
+    const hasTempEvent = data.events.some(e => e.id === 'standalone-temp');
+    if (!hasTempEvent) return;
+
+    // Parse the current form values
+    const [yr, mo, dy] = (newEventDate || '2026-01-01').split('-').map(Number);
+    const [hrs, mins] = (newEventStartTime || '09:00').split(':').map(Number);
+    const dur = parseInt(newEventDuration) || 30;
+    const start = new Date(yr, mo - 1, dy, hrs, mins);
+    const end = new Date(start.getTime() + dur * 60000);
+
+    queryClient.setQueryData(qk, {
+      ...data,
+      events: data.events.map(e =>
+        e.id === 'standalone-temp'
+          ? { ...e, title: newEventTitle || 'New Event', start: start.toISOString(), end: end.toISOString(), duration: dur, calendarColor: newEventColor }
+          : e
+      ),
+    });
+  }, [showNewEventModal, newEventTitle, newEventDate, newEventStartTime, newEventDuration, newEventColor]);
+
+  // Delete a standalone calendar event
+  const handleDeleteStandaloneEvent = async (eventId: string) => {
+    const numericId = eventId.replace('standalone-', '');
+    try {
+      await apiRequest("DELETE", `/api/standalone-events/${numericId}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+      setSelectedEvent(null);
+      toast({ title: "Event Deleted", description: "The event has been removed from your calendar." });
+    } catch (error) {
+      console.error("Failed to delete standalone event:", error);
+      toast({ title: "Error", description: "Failed to delete event.", variant: "destructive" });
+    }
+  };
+
+  // Double-click on empty calendar space to create a new event (iCal-style)
+  const handleCalendarDoubleClick = (e: React.MouseEvent, dateOverride?: Date) => {
+    // Don't trigger if clicking on an existing event
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-event-id]')) return;
+
+    // Get the time slot container
+    const container = e.currentTarget as HTMLElement;
+    const rect = container.getBoundingClientRect();
+    const scrollTop = container.closest('[class*="overflow"]')?.scrollTop || 0;
+    const clickY = e.clientY - rect.top + scrollTop;
+
+    // Convert Y position to time (1px = 1 minute in 1440px containers)
+    const totalMinutes = Math.max(0, Math.min(1439, Math.floor(clickY)));
+    // Snap to nearest 15-minute increment
+    const snappedMinutes = Math.round(totalMinutes / 15) * 15;
+    const hours = Math.floor(snappedMinutes / 60);
+    const minutes = snappedMinutes % 60;
+
+    // Determine the date for this event
+    const eventDate = dateOverride || new Date(currentDate);
+
+    const dateStr = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+    // Pre-fill and open the modal
+    setNewEventTitle("New Event");
+    setNewEventDate(dateStr);
+    setNewEventStartTime(timeStr);
+    setNewEventDuration("30");
+    setNewEventDescription("");
+    setNewEventColor("#8b5cf6");
+    setShowNewEventModal(true);
+
+    // Auto-create the event immediately (like iCal) — it appears on calendar right away
+    const startDateTime = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), hours, minutes);
+    const endDateTime = new Date(startDateTime.getTime() + 30 * 60000);
+
+    // Optimistically add a temp event to the cache
+    const queryKey = [`/api/google-calendar/events?year=${year}&month=${month}`];
+    const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+    if (previousData) {
+      queryClient.setQueryData(queryKey, {
+        ...previousData,
+        events: [
+          ...previousData.events,
+          {
+            id: `standalone-temp`,
+            title: "New Event",
+            start: startDateTime.toISOString(),
+            end: endDateTime.toISOString(),
+            description: '',
+            completed: false,
+            importance: 'Medium',
+            goldValue: 0,
+            campaign: '',
+            skillTags: [],
+            duration: 30,
+            source: 'standalone',
+            calendarColor: '#8b5cf6',
+          }
+        ]
+      });
+    }
+  };
+
   // ML Smart Sort handler
   const handleMLSort = async () => {
     if (view !== 'day') {
@@ -350,8 +544,8 @@ export default function Calendar() {
 
   // Drag and drop handlers
   const handleEventMouseDown = (event: CalendarEvent, e: React.MouseEvent, edge?: 'top' | 'bottom') => {
-    // Only allow dragging/resizing ProductivityQuest tasks, not external Google Calendar events
-    if (event.source !== 'productivityquest') return;
+    // Only allow dragging/resizing ProductivityQuest tasks and standalone events
+    if (event.source !== 'productivityquest' && event.source !== 'standalone') return;
 
     e.stopPropagation();
     e.preventDefault();
@@ -646,6 +840,58 @@ export default function Calendar() {
         
         return; // Exit early since we handled everything
       }
+
+      // Handle standalone event drag/resize
+      if (eventToUpdate && eventToUpdate.source === 'standalone') {
+        const numericId = eventToUpdate.id.replace('standalone-', '');
+        const durationMs = tempEventTime.end.getTime() - tempEventTime.start.getTime();
+        const durationMinutes = Math.round(durationMs / 60000);
+        const newStart = tempEventTime.start;
+
+        // Optimistic update
+        const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+        const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+
+        if (previousData?.events) {
+          queryClient.setQueryData(queryKey, {
+            ...previousData,
+            events: previousData.events.map(event =>
+              event.id === eventToUpdate.id
+                ? { ...event, start: newStart.toISOString(), end: tempEventTime.end.toISOString(), duration: durationMinutes }
+                : event
+            )
+          });
+        }
+
+        // Reset drag state
+        setDraggingEvent(null);
+        setResizingEvent(null);
+        setResizeEdge(null);
+        setDragStartY(0);
+        setDragStartTime(null);
+        setTempEventTime(null);
+        setTimeout(() => { setHasDragged(false); setHasResized(false); }, 100);
+
+        toast({
+          title: draggingEvent ? "Event Moved" : "Duration Updated",
+          description: `Updated to ${newStart.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} (${durationMinutes} min)`,
+          duration: 3000,
+        });
+
+        try {
+          await apiRequest("PATCH", `/api/standalone-events/${numericId}`, {
+            startTime: newStart.toISOString(),
+            duration: durationMinutes,
+          });
+          queryClient.invalidateQueries({ queryKey });
+        } catch (error) {
+          if (previousData) queryClient.setQueryData(queryKey, previousData);
+          toast({ title: "Update Failed", description: "Failed to save changes.", variant: "destructive" });
+          console.error('Failed to update standalone event:', error);
+        }
+
+        return;
+      }
     }
 
     // Reset drag state for non-ProductivityQuest events or if no temp time
@@ -668,7 +914,7 @@ export default function Calendar() {
   const TOUCH_MOVE_THRESHOLD = 10; // px movement cancels long press
 
   const handleEventTouchStart = (event: CalendarEvent, e: React.TouchEvent, edge?: 'top' | 'bottom') => {
-    if (event.source !== 'productivityquest') return;
+    if (event.source !== 'productivityquest' && event.source !== 'standalone') return;
     
     const touch = e.touches[0];
     touchStartPos.current = { x: touch.clientX, y: touch.clientY };
@@ -1659,7 +1905,7 @@ export default function Calendar() {
                       Settings
                     </Button>
                   </Link>
-                  <Button size="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
+                  <Button onClick={openNewEventModal} size="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
                     <Plus className="w-4 h-4 mr-2" />
                     New Event
                   </Button>
@@ -1740,7 +1986,7 @@ export default function Calendar() {
                         <Settings className="w-3.5 h-3.5" />
                       </Button>
                     </Link>
-                    <Button size="sm" className="h-7 w-7 p-0 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
+                    <Button onClick={openNewEventModal} size="sm" className="h-7 w-7 p-0 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
                     {view === 'day' && (
@@ -1908,6 +2154,7 @@ export default function Calendar() {
                     ref={calendarContainerRef}
                     className="bg-gray-900/20 relative select-none" 
                     style={{ height: '1440px' }}
+                    onDoubleClick={(e) => handleCalendarDoubleClick(e)}
                     onMouseDown={handleSelectionStart}
                     onMouseMove={(e) => {
                       handleMouseMove(e as any);
@@ -1977,7 +2224,7 @@ export default function Calendar() {
                         const layout = eventLayout.get(event.id) || { column: 0, totalColumns: 1 };
                         const isDragging = draggingEvent?.id === event.id;
                         const isResizing = resizingEvent?.id === event.id;
-                        const isDraggable = event.source === 'productivityquest';
+                        const isDraggable = event.source === 'productivityquest' || event.source === 'standalone';
                         const isSelected = selectedEventIds.has(event.id);
                         
                         // Calculate left and width based on column layout
@@ -2159,7 +2406,7 @@ export default function Calendar() {
                       const eventLayout = getEventLayout(dayEvents);
 
                       return (
-                        <div key={idx} className="relative" style={{ height: `${24 * 60}px` }}>
+                        <div key={idx} className="relative" style={{ height: `${24 * 60}px` }} onDoubleClick={(e) => handleCalendarDoubleClick(e, date)}>
                           {/* Current Time Indicator */}
                           {isToday && (
                             <div 
@@ -2179,7 +2426,7 @@ export default function Calendar() {
                             const layout = eventLayout.get(event.id) || { column: 0, totalColumns: 1 };
                             const isDragging = draggingEvent?.id === event.id;
                             const isResizing = resizingEvent?.id === event.id;
-                            const isDraggable = event.source === 'productivityquest';
+                            const isDraggable = event.source === 'productivityquest' || event.source === 'standalone';
 
                             const columnWidth = 100 / layout.totalColumns;
                             const leftPercent = layout.column * columnWidth;
@@ -2188,6 +2435,7 @@ export default function Calendar() {
                             return (
                               <div
                                 key={eventIdx}
+                                data-event-id={event.id}
                                 className={`absolute rounded border group overflow-hidden ${
                                   isDraggable ? 'cursor-move' : 'cursor-pointer'
                                 } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
@@ -2311,7 +2559,22 @@ export default function Calendar() {
                           const showTimeIndicator = isToday && hour === currentHour;
                           
                           return (
-                            <div key={idx} className="bg-gray-900/20 p-1 min-h-[50px] relative overflow-hidden" style={{ minWidth: 0 }}>
+                            <div 
+                              key={idx} 
+                              className="bg-gray-900/20 p-1 min-h-[50px] relative overflow-hidden" 
+                              style={{ minWidth: 0 }}
+                              onDoubleClick={() => {
+                                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                                const timeStr = `${String(hour).padStart(2, '0')}:00`;
+                                setNewEventTitle("New Event");
+                                setNewEventDate(dateStr);
+                                setNewEventStartTime(timeStr);
+                                setNewEventDuration("30");
+                                setNewEventDescription("");
+                                setNewEventColor("#8b5cf6");
+                                setShowNewEventModal(true);
+                              }}
+                            >
                               {/* Current Time Indicator */}
                               {showTimeIndicator && (
                                 <div 
@@ -2328,7 +2591,7 @@ export default function Calendar() {
                                 const displayTime = getEventDisplayTime(event);
                                 const isDragging = draggingEvent?.id === event.id;
                                 const isResizing = resizingEvent?.id === event.id;
-                                const isDraggable = event.source === 'productivityquest';
+                                const isDraggable = event.source === 'productivityquest' || event.source === 'standalone';
                                 
                                 return (
                                   <div
@@ -2559,6 +2822,18 @@ export default function Calendar() {
                   </div>
                 )}
 
+                {/* Standalone event info */}
+                {selectedEvent.source === 'standalone' && (
+                  <div className="mb-4 pb-4 border-b border-gray-700">
+                    <div className="flex items-start gap-2 p-2.5 bg-purple-900/20 rounded-lg border border-purple-500/15">
+                      <Info className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-purple-300/70">
+                        Calendar-only event — not linked to any quest. Drag to reschedule.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-2">
                   {/* First row - Main actions */}
@@ -2576,16 +2851,18 @@ export default function Calendar() {
                       </Button>
                     )}
 
-                    {/* Reschedule Button - For all events */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-blue-500/30 hover:bg-blue-500/10 text-xs"
-                      onClick={handleReschedule}
-                    >
-                      <Clock className="w-3 h-3 mr-1" />
-                      Reschedule
-                    </Button>
+                    {/* Reschedule Button - For PQ and Google events */}
+                    {selectedEvent.source !== 'standalone' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-blue-500/30 hover:bg-blue-500/10 text-xs"
+                        onClick={handleReschedule}
+                      >
+                        <Clock className="w-3 h-3 mr-1" />
+                        Reschedule
+                      </Button>
+                    )}
                     
                     {/* Remove from Calendar Button - For ProductivityQuest events only */}
                     {selectedEvent.source === 'productivityquest' && (
@@ -2661,6 +2938,19 @@ export default function Calendar() {
                         }}
                       >
                         View Details
+                      </Button>
+                    )}
+
+                    {/* Delete Button - For standalone events */}
+                    {selectedEvent.source === 'standalone' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
+                        onClick={() => handleDeleteStandaloneEvent(selectedEvent.id)}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Delete Event
                       </Button>
                     )}
                     
@@ -2901,6 +3191,155 @@ export default function Calendar() {
                     </div>
                   </>
                 )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* New Event Modal */}
+        {showNewEventModal && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-12 overflow-y-auto"
+            onClick={handleCloseNewEventModal}
+          >
+            <Card 
+              className="bg-gray-900/95 border-purple-500/30 max-w-md w-full relative mb-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Purple accent bar */}
+              <div className="h-2 rounded-t-lg bg-gradient-to-r from-purple-600 to-pink-600" />
+              
+              {/* Close button */}
+              <button
+                onClick={handleCloseNewEventModal}
+                className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-gray-600/50 flex items-center justify-center transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4 text-gray-300" />
+              </button>
+
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-purple-400" />
+                  New Calendar Event
+                </h3>
+                
+                {/* Disclaimer */}
+                <div className="flex items-start gap-2 mb-5 p-2.5 bg-purple-900/30 rounded-lg border border-purple-500/20">
+                  <Info className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-purple-300/80">
+                    This creates a calendar-only event for scheduling purposes. It won't appear as a quest and won't earn gold or XP.
+                  </p>
+                </div>
+
+                {/* Event Name */}
+                <div className="space-y-1.5 mb-4">
+                  <Label htmlFor="event-title" className="text-sm text-gray-300">Event Name</Label>
+                  <Input 
+                    id="event-title"
+                    value={newEventTitle}
+                    onChange={(e) => setNewEventTitle(e.target.value)}
+                    placeholder="e.g., Doctor's Appointment, Team Lunch..."
+                    className="bg-gray-800/60 border-gray-600/50 text-white placeholder:text-gray-500 focus:border-purple-500"
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNewEvent(); }}
+                  />
+                </div>
+
+                {/* Date */}
+                <div className="space-y-1.5 mb-4">
+                  <Label htmlFor="event-date" className="text-sm text-gray-300">Date</Label>
+                  <Input 
+                    id="event-date"
+                    type="date"
+                    value={newEventDate}
+                    onChange={(e) => setNewEventDate(e.target.value)}
+                    className="bg-gray-800/60 border-gray-600/50 text-white focus:border-purple-500 [color-scheme:dark]"
+                  />
+                </div>
+
+                {/* Start Time + Duration Row */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="event-start-time" className="text-sm text-gray-300">Start Time</Label>
+                    <Input 
+                      id="event-start-time"
+                      type="time"
+                      value={newEventStartTime}
+                      onChange={(e) => setNewEventStartTime(e.target.value)}
+                      className="bg-gray-800/60 border-gray-600/50 text-white focus:border-purple-500 [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="event-duration" className="text-sm text-gray-300">Duration</Label>
+                    <select
+                      id="event-duration"
+                      value={newEventDuration}
+                      onChange={(e) => setNewEventDuration(e.target.value)}
+                      className="w-full h-10 px-3 rounded-md bg-gray-800/60 border border-gray-600/50 text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">1 hour</option>
+                      <option value="90">1.5 hours</option>
+                      <option value="120">2 hours</option>
+                      <option value="180">3 hours</option>
+                      <option value="240">4 hours</option>
+                      <option value="480">8 hours</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Description (optional) */}
+                <div className="space-y-1.5 mb-4">
+                  <Label htmlFor="event-description" className="text-sm text-gray-300">
+                    Description <span className="text-gray-500">(optional)</span>
+                  </Label>
+                  <textarea
+                    id="event-description"
+                    value={newEventDescription}
+                    onChange={(e) => setNewEventDescription(e.target.value)}
+                    placeholder="Add notes or details..."
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-md bg-gray-800/60 border border-gray-600/50 text-white text-sm placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
+                  />
+                </div>
+
+                {/* Color Picker */}
+                <div className="space-y-1.5 mb-5">
+                  <Label className="text-sm text-gray-300">Color</Label>
+                  <div className="flex gap-2">
+                    {['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#6366f1', '#14b8a6'].map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setNewEventColor(color)}
+                        className={`w-7 h-7 rounded-full border-2 transition-all ${
+                          newEventColor === color ? 'border-white scale-110' : 'border-transparent hover:border-gray-400'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    className="border-gray-600/50 text-gray-300 hover:bg-gray-800"
+                    onClick={handleCloseNewEventModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCreateNewEvent}
+                    disabled={isCreatingEvent || !newEventTitle.trim()}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500"
+                  >
+                    {isCreatingEvent ? 'Creating...' : 'Create Event'}
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>

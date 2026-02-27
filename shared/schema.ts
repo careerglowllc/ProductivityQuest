@@ -203,6 +203,26 @@ export const mlSortingPreferences = pgTable("ml_sorting_preferences", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Standalone calendar events (not tied to any task/quest)
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  date: timestamptz("date").notNull(), // The date of the event
+  startTime: timestamptz("start_time").notNull(), // Full start datetime
+  duration: integer("duration").notNull().default(60), // Duration in minutes
+  color: text("color").default("#8b5cf6"), // Custom color (default purple)
+  createdAt: timestamptz("created_at").defaultNow(),
+  updatedAt: timestamptz("updated_at").defaultNow(),
+});
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
@@ -313,3 +333,5 @@ export type SkillCategorizationTraining = typeof skillCategorizationTraining.$in
 export type InsertSkillCategorizationTraining = z.infer<typeof insertSkillCategorizationTrainingSchema>;
 export type Campaign = typeof campaigns.$inferSelect;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;

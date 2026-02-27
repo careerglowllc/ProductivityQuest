@@ -3351,6 +3351,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Add standalone calendar events (not tied to any task/quest)
+      const standaloneEvents = await storage.getCalendarEvents(userId);
+      const standaloneInMonth = standaloneEvents.filter(ev => {
+        const evStart = new Date(ev.startTime);
+        return evStart >= startDate && evStart <= endDate;
+      });
+
+      for (const ev of standaloneInMonth) {
+        const evStart = new Date(ev.startTime);
+        const evEnd = new Date(evStart);
+        evEnd.setMinutes(evEnd.getMinutes() + (ev.duration || 60));
+
+        events.push({
+          id: `standalone-${ev.id}`,
+          title: ev.title,
+          start: evStart.toISOString(),
+          end: evEnd.toISOString(),
+          description: ev.description || '',
+          completed: false,
+          importance: 'Medium',
+          goldValue: 0,
+          campaign: '',
+          skillTags: [],
+          duration: ev.duration,
+          source: 'standalone',
+          calendarColor: ev.color || '#8b5cf6',
+          recurType: undefined
+        });
+      }
+
       res.json({
         success: true,
         events,
@@ -3366,6 +3396,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching Google Calendar events:", error);
       res.status(500).json({ error: "Failed to fetch calendar events", events: [] });
+    }
+  });
+
+  // Standalone calendar events (not tied to any task/quest)
+  app.post("/api/standalone-events", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { title, description, date, startTime, duration, color } = req.body;
+
+      if (!title || !startTime) {
+        return res.status(400).json({ error: "Title and start time are required" });
+      }
+
+      const event = await storage.createCalendarEvent({
+        userId,
+        title,
+        description: description || "",
+        date: new Date(date || startTime),
+        startTime: new Date(startTime),
+        duration: parseInt(duration) || 60,
+        color: color || "#8b5cf6",
+      });
+
+      res.json(event);
+    } catch (error) {
+      console.error("Error creating standalone event:", error);
+      res.status(500).json({ error: "Failed to create event" });
+    }
+  });
+
+  app.patch("/api/standalone-events/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const id = parseInt(req.params.id);
+      const updates: any = {};
+
+      if (req.body.title !== undefined) updates.title = req.body.title;
+      if (req.body.description !== undefined) updates.description = req.body.description;
+      if (req.body.startTime !== undefined) {
+        updates.startTime = new Date(req.body.startTime);
+        updates.date = new Date(req.body.startTime);
+      }
+      if (req.body.duration !== undefined) updates.duration = parseInt(req.body.duration);
+      if (req.body.color !== undefined) updates.color = req.body.color;
+
+      const event = await storage.updateCalendarEvent(id, updates, userId);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      res.json(event);
+    } catch (error) {
+      console.error("Error updating standalone event:", error);
+      res.status(500).json({ error: "Failed to update event" });
+    }
+  });
+
+  app.delete("/api/standalone-events/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteCalendarEvent(id, userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting standalone event:", error);
+      res.status(500).json({ error: "Failed to delete event" });
     }
   });
 
