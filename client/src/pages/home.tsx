@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -851,6 +851,60 @@ export default function Home() {
       toast({
         title: "Error",
         description: "Some tasks failed to reschedule. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Push selected tasks' due dates forward by N days from each task's current due date
+  const handlePushDays = async (days: number) => {
+    if (selectedTasks.size === 0) return;
+
+    const selectedTaskIds = Array.from(selectedTasks);
+    const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
+
+    // Build a map of taskId → new due date (current dueDate + N days)
+    const updates: { id: number; newDate: string }[] = [];
+    for (const taskId of selectedTaskIds) {
+      const task = allTasks.find((t: any) => t.id === taskId);
+      if (!task) continue;
+      const currentDue = task.dueDate ? new Date(task.dueDate) : new Date();
+      currentDue.setDate(currentDue.getDate() + days);
+      updates.push({ id: taskId, newDate: currentDue.toISOString() });
+    }
+
+    if (updates.length === 0) return;
+
+    // Optimistic cache update
+    const previousTasks = queryClient.getQueryData<any[]>(["/api/tasks"]);
+    queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
+      if (!old) return old;
+      const updateMap = new Map(updates.map(u => [u.id, u.newDate]));
+      return old.map((t: any) =>
+        updateMap.has(t.id) ? { ...t, dueDate: updateMap.get(t.id) } : t
+      );
+    });
+
+    setSelectedTasks(new Set());
+    toast({
+      title: `📅 Pushed ${updates.length} task${updates.length !== 1 ? 's' : ''} by ${days} day${days !== 1 ? 's' : ''}`,
+      description: `Due dates moved forward from each task's current date.`,
+    });
+
+    try {
+      await Promise.all(
+        updates.map(({ id, newDate }) =>
+          apiRequest("PATCH", `/api/tasks/${id}`, { dueDate: newDate })
+        )
+      );
+      refetchTasks();
+    } catch (error) {
+      if (previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], previousTasks);
+      }
+      toast({
+        title: "Error",
+        description: "Some tasks failed to update. Please try again.",
         variant: "destructive",
       });
     }
@@ -1980,6 +2034,39 @@ export default function Home() {
                             />
                           </PopoverContent>
                         </Popover>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-[10px] whitespace-nowrap border-amber-500/40 text-amber-300 hover:bg-amber-600/20 flex-shrink-0"
+                              disabled={selectedTasks.size === 0}
+                            >
+                              <ArrowRight className="w-3 h-3 mr-1" />
+                              Push
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-slate-800 border-yellow-600/30" side="top" align="end">
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(1)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
+                            >
+                              Push 1 Day
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(3)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
+                            >
+                              Push 3 Days
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(5)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
+                            >
+                              Push 5 Days
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ) : (
@@ -2088,6 +2175,38 @@ export default function Home() {
                             />
                           </PopoverContent>
                         </Popover>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="outline"
+                              className="border-amber-500/40 text-amber-300 hover:bg-amber-600/20 hover:text-amber-200"
+                              disabled={selectedTasks.size === 0}
+                            >
+                              <ArrowRight className="w-4 h-4 mr-2" />
+                              Push Days
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-slate-800 border-yellow-600/30" side="top" align="end">
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(1)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
+                            >
+                              Push 1 Day
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(3)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
+                            >
+                              Push 3 Days
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(5)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
+                            >
+                              Push 5 Days
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {filterCounts.overdue > 0 && (
                           <Button 
                             onClick={handleMoveOverdueToToday}
