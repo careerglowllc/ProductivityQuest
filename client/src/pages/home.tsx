@@ -886,8 +886,9 @@ export default function Home() {
     });
 
     setSelectedTasks(new Set());
+    const dayLabel = days === 7 ? '1 week' : days === 14 ? '2 weeks' : days === 30 ? '1 month' : `${days} day${days !== 1 ? 's' : ''}`;
     toast({
-      title: `📅 Pushed ${updates.length} task${updates.length !== 1 ? 's' : ''} by ${days} day${days !== 1 ? 's' : ''}`,
+      title: `📅 Pushed ${updates.length} task${updates.length !== 1 ? 's' : ''} by ${dayLabel}`,
       description: `Due dates moved forward from each task's current date.`,
     });
 
@@ -2065,6 +2066,24 @@ export default function Home() {
                             >
                               Push 5 Days
                             </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(7)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
+                            >
+                              Push 1 Week
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(14)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
+                            >
+                              Push 2 Weeks
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(30)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
+                            >
+                              Push 1 Month
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -2204,6 +2223,24 @@ export default function Home() {
                               className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
                             >
                               Push 5 Days
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(7)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
+                            >
+                              Push 1 Week
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(14)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
+                            >
+                              Push 2 Weeks
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handlePushDays(30)}
+                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
+                            >
+                              Push 1 Month
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
