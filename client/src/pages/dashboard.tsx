@@ -653,8 +653,8 @@ export default function Dashboard() {
     queryKey: ["/api/campaigns"],
   });
   
-  // Filter to only active campaigns (matches campaigns page logic)
-  const selectedCampaigns = campaignsData.filter((c: any) => c.isActive);
+  // Show all questlines on dashboard (same data as campaigns page)
+  const selectedCampaigns = campaignsData;
   
   const toggleCampaign = (campaignId: string | number) => {
     setExpandedCampaigns(prev => ({
@@ -829,14 +829,14 @@ export default function Dashboard() {
         {selectedCampaigns.length === 0 ? (
           <div className="text-center py-6">
             <Target className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} text-purple-400/40 mx-auto mb-3`} />
-            <h4 className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-purple-200 mb-1`}>No Active Questlines</h4>
+            <h4 className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-purple-200 mb-1`}>No Questlines Yet</h4>
             <p className="text-xs text-purple-300/70 mb-3 max-w-md mx-auto">
-              Select up to 2 questlines from the Questlines page to track your major life objectives.
+              Create questlines to track your major life objectives and long-term goals.
             </p>
             <Link href="/campaigns">
               <Button size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 h-8 text-xs">
                 <Plus className="w-3 h-3 mr-1" />
-                Select Questlines
+                Create Questline
               </Button>
             </Link>
           </div>
