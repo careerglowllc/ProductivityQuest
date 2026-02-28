@@ -257,9 +257,9 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none p-4' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30`}>
+      <DialogContent className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))]' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30`}>
         <DialogHeader>
-          <DialogTitle className={`${isMobile ? 'text-xl pr-10' : 'text-2xl pr-8'} font-serif text-yellow-100 flex items-start gap-2`}>
+          <DialogTitle className={`${isMobile ? 'text-lg pr-12' : 'text-2xl pr-8'} font-serif text-yellow-100 flex items-start gap-2`}>
             <EmojiPicker
               value={task.emoji || "📝"}
               onChange={(emoji) => updateFieldMutation.mutate({ field: 'emoji', value: emoji })}
@@ -269,12 +269,12 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
           </DialogTitle>
         </DialogHeader>
 
-        <div className={`${isMobile ? 'space-y-4 mt-2' : 'space-y-6 mt-4'}`}>
+        <div className={`${isMobile ? 'space-y-3 mt-1' : 'space-y-6 mt-4'}`}>
           {/* Description - always show, editable */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2 text-yellow-400">
-              <FileText className="w-4 h-4" />
-              <h3 className="font-semibold">Description</h3>
+              <FileText className={`${isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+              <h3 className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>Description</h3>
               {updateDescriptionMutation.isPending && (
                 <span className="text-xs text-yellow-400/50">Saving...</span>
               )}
@@ -283,16 +283,16 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               value={descriptionValue}
               onChange={(e) => handleDescriptionChange(e.target.value)}
               placeholder="Add a description..."
-              className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none min-h-[80px] focus:border-yellow-500/50 focus:ring-yellow-500/20"
-              rows={3}
+              className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none focus:border-yellow-500/50 focus:ring-yellow-500/20 ${isMobile ? 'p-2.5 min-h-[60px] text-sm' : 'p-3 min-h-[80px]'}`}
+              rows={isMobile ? 2 : 3}
             />
           </div>
 
           {/* Details - always show, editable */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2 text-yellow-400">
-              <BarChart3 className="w-4 h-4" />
-              <h3 className="font-semibold">Details</h3>
+              <BarChart3 className={`${isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+              <h3 className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>Details</h3>
               {updateDetailsMutation.isPending && (
                 <span className="text-xs text-yellow-400/50">Saving...</span>
               )}
@@ -301,13 +301,13 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               value={detailsValue}
               onChange={(e) => handleDetailsChange(e.target.value)}
               placeholder="Add details..."
-              className="text-yellow-200/80 bg-slate-800/50 rounded-lg p-3 border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none min-h-[80px] focus:border-yellow-500/50 focus:ring-yellow-500/20"
-              rows={3}
+              className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none focus:border-yellow-500/50 focus:ring-yellow-500/20 ${isMobile ? 'p-2.5 min-h-[60px] text-sm' : 'p-3 min-h-[80px]'}`}
+              rows={isMobile ? 2 : 3}
             />
           </div>
 
           {/* Key Information Grid */}
-          <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-2 gap-4'}`}>
+          <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-4'}`}>
             {/* Due Date */}
             <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
@@ -434,9 +434,9 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
           </div>
 
           {/* Additional Properties */}
-          <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
+          <div className={isMobile ? 'grid grid-cols-2 gap-2' : 'space-y-3'}>
             {/* Questline */}
-            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
+            <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
                 <Crown className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Questline</span>
@@ -445,7 +445,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 value={task.campaign || "unassigned"}
                 onValueChange={(value) => updateFieldMutation.mutate({ field: 'campaign', value })}
               >
-                <SelectTrigger className="w-[140px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
@@ -457,16 +457,16 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
             </div>
 
             {/* Business/Work Filter */}
-            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
+            <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
                 <Briefcase className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Business/Work Filter</span>
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>{isMobile ? 'Work Filter' : 'Business/Work Filter'}</span>
               </div>
               <Select
                 value={task.businessWorkFilter || "General"}
                 onValueChange={(value) => updateFieldMutation.mutate({ field: 'businessWorkFilter', value })}
               >
-                <SelectTrigger className="w-[140px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
@@ -478,7 +478,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
             </div>
 
             {/* Kanban Stage */}
-            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
+            <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
                 <BarChart3 className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Kanban Stage</span>
@@ -487,7 +487,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 value={task.kanbanStage || "Not Started"}
                 onValueChange={(value) => updateFieldMutation.mutate({ field: 'kanbanStage', value })}
               >
-                <SelectTrigger className="w-[140px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
@@ -501,7 +501,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
             </div>
 
             {/* Recurrence Type */}
-            <div className={`flex items-center justify-between bg-slate-800/50 rounded-lg ${isMobile ? 'p-2 px-3' : 'p-3'} border border-yellow-600/20`}>
+            <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
                 <Repeat className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Recurrence</span>
@@ -510,7 +510,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 value={task.recurType || "one-time"}
                 onValueChange={(value) => updateFieldMutation.mutate({ field: 'recurType', value })}
               >
-                <SelectTrigger className="w-[160px] bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs">
+                <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[160px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
