@@ -91,6 +91,9 @@ export default function Calendar() {
   } | null>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
 
+  // Swipe navigation state (mobile only)
+  const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
   // Undo state - stores the last change for undo functionality
   const [undoStack, setUndoStack] = useState<{
     taskId: string;
@@ -1581,6 +1584,41 @@ export default function Calendar() {
     }
   };
 
+  // Swipe navigation handlers for mobile
+  const handleSwipeStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    // Don't capture if user is dragging an event
+    if (isTouchDragging || draggingEvent || resizingEvent) return;
+    const touch = e.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+  };
+
+  const handleSwipeEnd = (e: React.TouchEvent) => {
+    if (!isMobile || !swipeStartRef.current) return;
+    if (isTouchDragging || draggingEvent || resizingEvent) {
+      swipeStartRef.current = null;
+      return;
+    }
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - swipeStartRef.current.x;
+    const deltaY = touch.clientY - swipeStartRef.current.y;
+    const elapsed = Date.now() - swipeStartRef.current.time;
+    swipeStartRef.current = null;
+
+    // Only count as swipe if horizontal distance > 60px, more horizontal than vertical, and fast enough (<400ms)
+    const absDx = Math.abs(deltaX);
+    const absDy = Math.abs(deltaY);
+    if (absDx > 60 && absDx > absDy * 1.5 && elapsed < 400) {
+      if (deltaX < 0) {
+        // Swiped left → go forward
+        nextMonth();
+      } else {
+        // Swiped right → go backward
+        previousMonth();
+      }
+    }
+  };
+
   const today = new Date();
   const isToday = (day: number) => {
     return day === today.getDate() && 
@@ -1892,7 +1930,11 @@ export default function Calendar() {
     <div className={`bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-24 pb-8 px-8'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
       <div className={`${isMobile ? 'max-w-full h-full' : 'max-w-7xl'} mx-auto`}>
         {/* Calendar Card */}
-        <Card className={`${isMobile ? 'p-0 h-full flex flex-col rounded-none border-0' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
+        <Card
+          className={`${isMobile ? 'p-0 h-full flex flex-col rounded-none border-0' : 'p-6'} bg-gray-900/60 border-purple-500/20`}
+          onTouchStart={handleSwipeStart}
+          onTouchEnd={handleSwipeEnd}
+        >
           {/* View Selector and Month Navigation */}
           <div className={`flex ${isMobile ? 'flex-col gap-1 px-1.5 pt-1.5 pb-1' : 'items-center justify-between'} ${isMobile ? '' : 'mb-6'} flex-shrink-0`}>
             <div className={`flex ${isMobile ? 'flex-col gap-1' : 'items-center gap-4'}`}>

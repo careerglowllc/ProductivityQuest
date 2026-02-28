@@ -364,17 +364,92 @@ export default function Shop() {
         )}
 
         {/* Shop Items */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {shopItems.map((item: any) => (
+        <div className={`${isMobile ? 'flex flex-col gap-3' : 'grid gap-4 md:grid-cols-2 lg:grid-cols-3'}`}>
+          {shopItems.map((item: any) => {
+            const isSelected = selectedItemId === item.id;
+            return (
             <Card 
               key={item.id} 
               className={`bg-slate-800/40 backdrop-blur-md border-2 transition-all cursor-pointer ${
-                selectedItemId === item.id 
+                isSelected 
                   ? 'border-yellow-500/60 shadow-lg shadow-yellow-600/20' 
                   : 'border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10'
               }`}
-              onClick={() => setSelectedItemId(item.id)}
+              onClick={() => setSelectedItemId(isSelected ? null : item.id)}
             >
+              {isMobile ? (
+                /* Mobile: Compact horizontal card layout */
+                <div className="p-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl flex-shrink-0">{item.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold text-yellow-100 truncate">{item.name}</h3>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {editingItemId === item.id ? (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                type="number"
+                                value={editPrice}
+                                onChange={(e) => setEditPrice(e.target.value)}
+                                className="w-16 h-6 text-xs text-yellow-400 bg-slate-900/60 border-yellow-500/30"
+                                min="1"
+                                autoFocus
+                              />
+                              <Button size="sm" onClick={() => handleSavePrice(item.id)} className="h-6 px-1.5 bg-green-600 hover:bg-green-500 text-[10px]">✓</Button>
+                              <Button size="sm" onClick={handleCancelEdit} variant="outline" className="h-6 px-1.5 text-[10px]">✗</Button>
+                            </div>
+                          ) : (
+                            <>
+                              <Coins className="h-3.5 w-3.5 text-yellow-400" />
+                              <span className="text-sm font-bold text-yellow-400">{item.cost}</span>
+                              {!item.isGlobal && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleStartEdit(item.id, item.cost); }}
+                                  className="p-0.5 hover:bg-yellow-500/20 rounded transition-colors ml-0.5"
+                                >
+                                  <Pencil className="h-3 w-3 text-yellow-400/60" />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {item.description && (
+                        <p className="text-yellow-200/60 text-xs mt-0.5 truncate">{item.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  {/* Inline action buttons when selected on mobile */}
+                  {isSelected && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-yellow-500/20">
+                      <Button
+                        onClick={(e) => { e.stopPropagation(); handleBuyItem(); }}
+                        disabled={purchaseMutation.isPending || (progress as any).goldTotal < item.cost}
+                        size="sm"
+                        className="flex-1 h-8 text-xs bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                        Buy ({item.cost}g)
+                      </Button>
+                      {!item.isGlobal && (
+                        <Button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteItem(); }}
+                          disabled={deleteMutation.isPending}
+                          size="sm"
+                          variant="destructive"
+                          className="h-8 px-3 text-xs bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Desktop: Original card layout */
+                <>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -440,12 +515,15 @@ export default function Shop() {
               <CardContent>
                 <p className="text-yellow-200/70 text-sm">{item.description}</p>
               </CardContent>
+                </>
+              )}
             </Card>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Selected Item Actions */}
-        {selectedItemId && selectedItem && (
+        {/* Selected Item Actions - Desktop only */}
+        {!isMobile && selectedItemId && selectedItem && (
           <Card className="mt-6 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -514,23 +592,23 @@ export default function Shop() {
       </div>
 
       {/* Inventory Section */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h2 className="text-3xl font-serif font-bold text-green-100 mb-2">Your Inventory</h2>
-          <p className="text-green-200/70">Items you've purchased and can use</p>
+      <div className={`max-w-6xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 py-8'}`}>
+        <div className={`${isMobile ? 'mb-3' : 'mb-6'}`}>
+          <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-serif font-bold text-green-100 mb-1`}>Your Inventory</h2>
+          <p className={`text-green-200/70 ${isMobile ? 'text-xs' : ''}`}>Items you've purchased and can use</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'}`}>
           {inventory.filter((invItem: any) => invItem.unused > 0).map((invItem: any) => (
             <Card 
               key={invItem.itemId}
-              className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30 hover:border-green-500/50 transition-all"
+              className={`bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30 hover:border-green-500/50 transition-all`}
             >
-              <CardContent className="p-4">
+              <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
                 <div className="text-center">
-                  <div className="text-5xl mb-3">{invItem.item?.icon || "🎁"}</div>
-                  <h3 className="font-serif font-bold text-green-100 mb-2">{invItem.item?.name || "Unknown Item"}</h3>
-                  <Badge className="bg-green-600/40 text-green-100 border-green-500/50 mb-3">
+                  <div className={`${isMobile ? 'text-3xl mb-2' : 'text-5xl mb-3'}`}>{invItem.item?.icon || "🎁"}</div>
+                  <h3 className={`font-serif font-bold text-green-100 ${isMobile ? 'text-sm mb-1' : 'mb-2'}`}>{invItem.item?.name || "Unknown Item"}</h3>
+                  <Badge className={`bg-green-600/40 text-green-100 border-green-500/50 ${isMobile ? 'text-[10px] mb-2' : 'mb-3'}`}>
                     {invItem.unused} Available
                   </Badge>
                   {invItem.used > 0 && (
@@ -563,10 +641,10 @@ export default function Shop() {
           {inventory.filter((invItem: any) => invItem.unused > 0).length === 0 && (
             <div className="col-span-full">
               <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30">
-                <CardContent className="p-12 text-center">
-                  <Star className="h-16 w-16 mx-auto mb-4 text-green-400/50" />
-                  <p className="text-green-100 font-medium text-lg mb-2">No items in inventory</p>
-                  <p className="text-green-200/70">Purchase items from the shop to add them to your inventory!</p>
+                <CardContent className={`${isMobile ? 'p-6' : 'p-12'} text-center`}>
+                  <Star className={`${isMobile ? 'h-10 w-10' : 'h-16 w-16'} mx-auto mb-3 text-green-400/50`} />
+                  <p className={`text-green-100 font-medium ${isMobile ? 'text-sm' : 'text-lg'} mb-1`}>No items in inventory</p>
+                  <p className={`text-green-200/70 ${isMobile ? 'text-xs' : ''}`}>Purchase items from the shop to add them to your inventory!</p>
                 </CardContent>
               </Card>
             </div>
@@ -576,7 +654,7 @@ export default function Shop() {
 
       {/* Add Item Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="bg-slate-800 border-2 border-yellow-600/40 max-w-2xl">
+        <DialogContent className={`bg-slate-800 border-2 border-yellow-600/40 ${isMobile ? 'max-w-[95vw] max-h-[85vh] overflow-y-auto' : 'max-w-2xl'}`}>
           <DialogHeader>
             <DialogTitle className="text-yellow-100 font-serif text-2xl">Add New Shop Item</DialogTitle>
           </DialogHeader>
