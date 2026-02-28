@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter, MoreHorizontal } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -89,6 +89,12 @@ export default function Home() {
   
   // Mobile file menu state
   const [showFileMenu, setShowFileMenu] = useState(false);
+  
+  // Mobile selection bar sub-menu states
+  const [showCalendarMenu, setShowCalendarMenu] = useState(false);
+  const [showOrganizeMenu, setShowOrganizeMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showPushSubmenu, setShowPushSubmenu] = useState(false);
   
   // Delete from Notion confirmation state
   const [showDeleteNotionConfirm, setShowDeleteNotionConfirm] = useState(false);
@@ -2128,166 +2134,131 @@ export default function Home() {
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-4 gap-1">
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {/* 1) Complete — direct action */}
                         <Button 
                           onClick={handleCompleteSelected}
                           size="sm"
-                          className="h-8 px-1 text-[10px] bg-blue-600 hover:bg-blue-500 text-white"
+                          className="h-9 px-1 text-[10px] bg-blue-600 hover:bg-blue-500 text-white flex flex-col items-center justify-center gap-0.5 leading-none"
                         >
-                          <CheckCircle className="w-3 h-3 mr-0.5" />
+                          <CheckCircle className="w-3.5 h-3.5" />
                           Complete
                         </Button>
-                        <Button 
-                          onClick={() => setShowCalendarSync(true)}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20"
-                        >
-                          <Calendar className="w-3 h-3 mr-0.5" />
-                          Sync
-                        </Button>
-                        <Button 
-                          onClick={handleRemoveFromCalendar}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-slate-500/40 text-slate-300 hover:bg-slate-600/20"
-                        >
-                          <CalendarDays className="w-3 h-3 mr-0.5" />
-                          Unsync
-                        </Button>
-                        <Button 
-                          onClick={handleRemoveAllFromCalendar}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-red-500/40 text-red-300 hover:bg-red-600/20"
-                        >
-                          <CalendarDays className="w-3 h-3 mr-0.5" />
-                          Clear Cal
-                        </Button>
-                        <Button 
-                          onClick={handleDeleteSelected}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-orange-500/40 text-orange-300 hover:bg-orange-600/20"
-                        >
-                          <Trash2 className="w-3 h-3 mr-0.5" />
-                          Delete
-                        </Button>
-                        <Button 
-                          onClick={handleAppendToNotion}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-green-500/40 text-green-300 hover:bg-green-600/20"
-                        >
-                          <Upload className="w-3 h-3 mr-0.5" />
-                          Notion
-                        </Button>
-                        <Button 
-                          onClick={handleDeleteFromNotion}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-red-500/40 text-red-300 hover:bg-red-600/20"
-                        >
-                          <Trash2 className="w-3 h-3 mr-0.5" />
-                          Del Notion
-                        </Button>
-                        <Button 
-                          onClick={handleCategorizeSkill}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-purple-500/40 text-purple-300 hover:bg-purple-600/20"
-                          disabled={selectedTasks.size === 0}
-                        >
-                          <Tag className="w-3 h-3 mr-0.5" />
-                          Skill
-                        </Button>
-                        <Button 
-                          onClick={handleRecategorizeSelected}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-1 text-[10px] border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20"
-                          disabled={selectedTasks.size === 0}
-                        >
-                          <Tag className="w-3 h-3 mr-0.5" />
-                          Recat
-                        </Button>
-                        <Popover open={showReschedulePopover} onOpenChange={setShowReschedulePopover}>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline"
-                              size="sm"
-                              className="h-8 px-1 text-[10px] border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20"
-                              disabled={selectedTasks.size === 0}
-                            >
-                              <CalendarDays className="w-3 h-3 mr-0.5" />
-                              Resched
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 bg-slate-900 border-yellow-600/30" align="end" side="top">
-                            <CalendarPicker
-                              mode="single"
-                              selected={undefined}
-                              onSelect={(date) => {
-                                if (date) {
-                                  handleRescheduleSelected(date);
-                                }
-                              }}
-                              initialFocus
-                              className="rounded-md border-0"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="outline"
-                              size="sm"
-                              className="h-8 px-1 text-[10px] border-amber-500/40 text-amber-300 hover:bg-amber-600/20"
-                              disabled={selectedTasks.size === 0}
-                            >
-                              <ArrowRight className="w-3 h-3 mr-0.5" />
-                              Push
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="bg-slate-800 border-yellow-600/30" side="top" align="end">
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(1)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
-                            >
-                              Push 1 Day
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(3)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
-                            >
-                              Push 3 Days
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(5)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
-                            >
-                              Push 5 Days
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(7)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
-                            >
-                              Push 1 Week
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(14)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
-                            >
-                              Push 2 Weeks
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(30)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer text-xs"
-                            >
-                              Push 1 Month
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+
+                        {/* 2) Calendar — dropdown: Sync, Unsync, Clear All, Reschedule, Push */}
+                        <div className="relative">
+                          <Button 
+                            onClick={() => { setShowCalendarMenu(!showCalendarMenu); setShowOrganizeMenu(false); setShowMoreMenu(false); }}
+                            variant="outline"
+                            size="sm"
+                            className="h-9 w-full px-1 text-[10px] border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            Calendar
+                          </Button>
+                          {showCalendarMenu && (
+                            <>
+                              <div className="fixed inset-0 z-[60]" onClick={() => { setShowCalendarMenu(false); setShowPushSubmenu(false); }} />
+                              <div className="absolute bottom-full left-0 mb-1 z-[61] min-w-[160px] rounded-md border border-emerald-500/30 bg-slate-800 p-1 shadow-lg">
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-emerald-200 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowCalendarMenu(false); setShowCalendarSync(true); }}>
+                                  <Calendar className="w-3.5 h-3.5" /> Sync to Calendar
+                                </button>
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-slate-300 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowCalendarMenu(false); handleRemoveFromCalendar(); }}>
+                                  <CalendarDays className="w-3.5 h-3.5" /> Remove from Calendar
+                                </button>
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-red-300 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowCalendarMenu(false); handleRemoveAllFromCalendar(); }}>
+                                  <CalendarDays className="w-3.5 h-3.5" /> Clear ALL from Calendar
+                                </button>
+                                <div className="h-px bg-slate-700 my-0.5" />
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-cyan-300 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowCalendarMenu(false); setShowReschedulePopover(true); }}>
+                                  <CalendarDays className="w-3.5 h-3.5" /> Reschedule
+                                </button>
+                                <div className="relative">
+                                  <button className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-2 text-xs text-amber-300 hover:bg-slate-700 active:bg-slate-600"
+                                    onClick={() => setShowPushSubmenu(!showPushSubmenu)}>
+                                    <span className="flex items-center gap-2"><ArrowRight className="w-3.5 h-3.5" /> Push Days</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                  {showPushSubmenu && (
+                                    <div className="absolute bottom-0 left-full ml-1 z-[62] min-w-[120px] rounded-md border border-amber-500/30 bg-slate-800 p-1 shadow-lg">
+                                      {[{d:1,l:"1 Day"},{d:3,l:"3 Days"},{d:5,l:"5 Days"},{d:7,l:"1 Week"},{d:14,l:"2 Weeks"},{d:30,l:"1 Month"}].map(({d,l}) => (
+                                        <button key={d} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
+                                          onClick={() => { setShowCalendarMenu(false); setShowPushSubmenu(false); handlePushDays(d); }}>
+                                          {l}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* 3) Organize — dropdown: Categorize Skill, Recategorize */}
+                        <div className="relative">
+                          <Button 
+                            onClick={() => { setShowOrganizeMenu(!showOrganizeMenu); setShowCalendarMenu(false); setShowMoreMenu(false); }}
+                            variant="outline"
+                            size="sm"
+                            className="h-9 w-full px-1 text-[10px] border-purple-500/40 text-purple-300 hover:bg-purple-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
+                          >
+                            <Tag className="w-3.5 h-3.5" />
+                            Organize
+                          </Button>
+                          {showOrganizeMenu && (
+                            <>
+                              <div className="fixed inset-0 z-[60]" onClick={() => setShowOrganizeMenu(false)} />
+                              <div className="absolute bottom-full right-0 mb-1 z-[61] min-w-[160px] rounded-md border border-purple-500/30 bg-slate-800 p-1 shadow-lg">
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-purple-200 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowOrganizeMenu(false); handleCategorizeSkill(); }}>
+                                  <Tag className="w-3.5 h-3.5" /> Categorize Skill
+                                </button>
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-yellow-300 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowOrganizeMenu(false); handleRecategorizeSelected(); }}>
+                                  <Tag className="w-3.5 h-3.5" /> Recategorize
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* 4) More — dropdown: Delete, Append Notion, Delete Notion */}
+                        <div className="relative">
+                          <Button 
+                            onClick={() => { setShowMoreMenu(!showMoreMenu); setShowCalendarMenu(false); setShowOrganizeMenu(false); }}
+                            variant="outline"
+                            size="sm"
+                            className="h-9 w-full px-1 text-[10px] border-orange-500/40 text-orange-300 hover:bg-orange-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                            More
+                          </Button>
+                          {showMoreMenu && (
+                            <>
+                              <div className="fixed inset-0 z-[60]" onClick={() => setShowMoreMenu(false)} />
+                              <div className="absolute bottom-full right-0 mb-1 z-[61] min-w-[160px] rounded-md border border-orange-500/30 bg-slate-800 p-1 shadow-lg">
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-orange-300 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowMoreMenu(false); handleDeleteSelected(); }}>
+                                  <Trash2 className="w-3.5 h-3.5" /> Delete Selected
+                                </button>
+                                <div className="h-px bg-slate-700 my-0.5" />
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-green-300 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowMoreMenu(false); handleAppendToNotion(); }}>
+                                  <Upload className="w-3.5 h-3.5" /> Append to Notion
+                                </button>
+                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-red-300 hover:bg-slate-700 active:bg-slate-600"
+                                  onClick={() => { setShowMoreMenu(false); handleDeleteFromNotion(); }}>
+                                  <Trash2 className="w-3.5 h-3.5" /> Delete from Notion
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -2461,6 +2432,38 @@ export default function Home() {
                   )}
                 </Card>
               </div>
+            )}
+
+            {/* Mobile Reschedule Calendar Overlay */}
+            {isMobile && showReschedulePopover && (
+              <>
+                <div className="fixed inset-0 z-[70] bg-black/50" onClick={() => setShowReschedulePopover(false)} />
+                <div className="fixed inset-0 z-[71] flex items-center justify-center p-4">
+                  <div className="bg-slate-900 border border-yellow-600/30 rounded-xl shadow-2xl overflow-hidden">
+                    <CalendarPicker
+                      mode="single"
+                      selected={undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          handleRescheduleSelected(date);
+                        }
+                      }}
+                      initialFocus
+                      className="rounded-md border-0"
+                    />
+                    <div className="p-2 border-t border-slate-700">
+                      <Button 
+                        onClick={() => setShowReschedulePopover(false)}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-slate-400 hover:text-white text-xs"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
 
             {/* Task List */}
