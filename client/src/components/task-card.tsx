@@ -85,13 +85,16 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
         clearTimeout(tapTimeoutRef.current);
         tapTimeoutRef.current = null;
       }
+      // Undo the selection that happened on the first tap
+      onSelect(task.id, false);
       lastTapTimeRef.current = 0;
       setShowDetailModal(true);
     } else {
-      // First tap → delay selection to allow for second tap
+      // First tap → select immediately for instant feedback
       lastTapTimeRef.current = now;
+      onSelect(task.id, !isSelected);
+      // Keep a timeout just to reset the double-tap window
       tapTimeoutRef.current = setTimeout(() => {
-        onSelect(task.id, !isSelected);
         tapTimeoutRef.current = null;
       }, 350);
     }
