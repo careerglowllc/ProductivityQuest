@@ -44,9 +44,9 @@ export function TabBar() {
       icon: ShoppingCart,
     },
     {
-      name: "Profile",
+      name: "Settings",
       path: "/profile",
-      icon: User,
+      icon: Settings,
     },
   ];
 
@@ -203,21 +203,23 @@ export function TabBar() {
           </Link>
 
           {/* Gold Display */}
-          <div className="flex items-center gap-2 bg-yellow-600/30 px-4 py-2 rounded-full border-2 border-yellow-500/50">
-            <Coins className="h-5 w-5 text-yellow-400" />
-            <span className="font-bold text-yellow-100">{(progress as any)?.goldTotal || 0}</span>
-            <span className="text-yellow-200/80 text-sm">Gold</span>
+          <div className="flex items-center gap-1.5 bg-yellow-600/30 px-3 py-1.5 rounded-full border border-yellow-500/50">
+            <Coins className="h-4 w-4 text-yellow-400" />
+            <span className="font-bold text-yellow-100 text-sm">{(progress as any)?.goldTotal || 0}</span>
           </div>
 
           {/* User Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 bg-slate-800/60 hover:bg-slate-700/60 px-4 py-2 rounded-full border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
-                  <User className="h-5 w-5 text-white" />
+              <button className="flex items-center gap-2 bg-slate-800/60 hover:bg-slate-700/60 px-3 py-1.5 rounded-full border border-yellow-600/30 hover:border-yellow-500/50 transition-all">
+                <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-yellow-100 text-sm font-medium max-w-[150px] truncate">
-                  {(user as any)?.email || (user as any)?.username || 'User'}
+                <span className="text-yellow-100 text-sm font-medium">
+                  {(() => {
+                    const email = (user as any)?.email || (user as any)?.username || 'User';
+                    return email.length > 5 ? email.slice(0, 5) + '...' : email;
+                  })()}
                 </span>
               </button>
             </DropdownMenuTrigger>

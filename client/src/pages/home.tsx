@@ -1604,21 +1604,23 @@ export default function Home() {
             
             {/* Show gold and user only on mobile (web has it in top nav) */}
             {isMobile && (
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-yellow-500/50">
-                  <Coins className="text-yellow-400 w-5 h-5" />
-                  <span className="font-semibold text-yellow-100">{progress.goldTotal}</span>
-                  <span className="text-sm text-yellow-200/80">Gold</span>
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1.5 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-3 py-1.5 rounded-full border border-yellow-500/50">
+                  <Coins className="text-yellow-400 w-4 h-4" />
+                  <span className="font-semibold text-yellow-100 text-sm">{progress.goldTotal}</span>
                 </div>
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-2 hover:bg-slate-700/50 text-yellow-100">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
-                        <User className="w-4 h-4 text-white" />
+                    <Button variant="ghost" className="flex items-center space-x-1.5 hover:bg-slate-700/50 text-yellow-100 px-2 py-1 h-auto">
+                      <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
+                        <User className="w-3.5 h-3.5 text-white" />
                       </div>
-                      <span className="text-sm font-medium">
-                        {user?.firstName || user?.email || "User"}
+                      <span className="text-xs font-medium">
+                        {(() => {
+                          const email = (user as any)?.firstName || (user as any)?.email || "User";
+                          return email.length > 5 ? email.slice(0, 5) + '...' : email;
+                        })()}
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
