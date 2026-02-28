@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -1658,76 +1658,71 @@ export default function Home() {
             {!isMobile && <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>}
           </div>
           {isMobile ? (
-            /* Mobile: Compact icon grid */
-            <div className="grid grid-cols-6 gap-1.5 w-full">
+            /* Mobile: Compact button row — Add, File (dropdown), Undo */
+            <div className="flex gap-1.5">
               <Button 
                 onClick={() => setShowAddTask(true)}
                 size="sm"
-                className="flex flex-col items-center justify-center h-12 px-1 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-[10px] gap-0.5"
+                className="flex items-center gap-1 h-9 px-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-xs"
                 title="Add Quest"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                <span>Add</span>
+                Add
               </Button>
-              <Button 
-                onClick={handleCategorizeAll}
-                size="sm"
-                variant="outline"
-                className="flex flex-col items-center justify-center h-12 px-1 bg-purple-900/30 border-purple-500/40 text-purple-200 hover:bg-purple-600/30 text-[10px] gap-0.5"
-                title="Categorize All"
-              >
-                <Tag className="w-4 h-4" />
-                <span>Sort</span>
-              </Button>
-              {lastAction.type ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-1 h-9 px-3 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 text-xs"
+                    title="File Options"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    File
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="bg-slate-800 border-yellow-600/30">
+                  <DropdownMenuItem 
+                    onClick={handleImportPrepare}
+                    className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Import from Notion</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleExportPrepare}
+                    className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Export to Notion</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleExportCSV}
+                    className="flex items-center gap-2 text-emerald-200 hover:bg-slate-700 focus:bg-slate-700"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Export as CSV</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {lastAction.type && (
                 <Button 
                   onClick={handleUndo}
                   size="sm"
                   variant="outline"
-                  className="flex flex-col items-center justify-center h-12 px-1 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 text-[10px] gap-0.5"
+                  className="flex items-center gap-1 h-9 px-3 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 text-xs"
                   title="Undo"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 7v6h6"/>
                     <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
                   </svg>
-                  <span>Undo</span>
+                  Undo
                 </Button>
-              ) : (
-                <div />
               )}
-              <Button 
-                onClick={handleImportPrepare}
-                size="sm"
-                className="flex flex-col items-center justify-center h-12 px-1 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50 text-[10px] gap-0.5"
-                title="Import from Notion"
-              >
-                <Download className="w-4 h-4" />
-                <span>Import</span>
-              </Button>
-              <Button 
-                onClick={handleExportPrepare}
-                size="sm"
-                variant="outline"
-                className="flex flex-col items-center justify-center h-12 px-1 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 text-[10px] gap-0.5"
-                title="Export to Notion"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Export</span>
-              </Button>
-              <Button 
-                onClick={handleExportCSV}
-                size="sm"
-                variant="outline"
-                className="flex flex-col items-center justify-center h-12 px-1 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 text-[10px] gap-0.5"
-                title="Export as CSV"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>CSV</span>
-              </Button>
             </div>
           ) : (
             /* Desktop: Original button layout */
@@ -2009,32 +2004,34 @@ export default function Home() {
                     )}
                   </Button>
                   
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className={`flex items-center ${isMobile ? 'gap-1 h-7 px-2 text-[10px]' : 'gap-2'} bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100`}>
-                        <ArrowUpDown className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
-                        {!isMobile && 'Sort'}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
-                      <DropdownMenuItem 
-                        onClick={() => setSortBy("due-date")}
-                        className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
-                      >
-                        <CalendarDays className="w-4 h-4" />
-                        <span>Due Date</span>
-                        {sortBy === "due-date" && <span className="ml-auto text-yellow-400">✓</span>}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => setSortBy("importance")}
-                        className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
-                      >
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>Importance</span>
-                        {sortBy === "importance" && <span className="ml-auto text-yellow-400">✓</span>}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {!isMobile && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100">
+                          <ArrowUpDown className="w-4 h-4" />
+                          Sort
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
+                        <DropdownMenuItem 
+                          onClick={() => setSortBy("due-date")}
+                          className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                        >
+                          <CalendarDays className="w-4 h-4" />
+                          <span>Due Date</span>
+                          {sortBy === "due-date" && <span className="ml-auto text-yellow-400">✓</span>}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setSortBy("importance")}
+                          className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          <span>Importance</span>
+                          {sortBy === "importance" && <span className="ml-auto text-yellow-400">✓</span>}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
             </Card>

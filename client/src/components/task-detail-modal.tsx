@@ -15,7 +15,6 @@ import {
   Briefcase, 
   Tag,
   CheckCircle2,
-  FileText,
   BarChart3,
   Repeat,
   Heart,
@@ -42,19 +41,16 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
-  const [descriptionValue, setDescriptionValue] = useState(task?.description || "");
   const [detailsValue, setDetailsValue] = useState(task?.details || "");
-  const descriptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const detailsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   // Sync local state when task prop changes (e.g. switching between tasks)
   useEffect(() => {
-    setDescriptionValue(task?.description || "");
     setDetailsValue(task?.details || "");
     setDurationInput(task?.duration?.toString() || "30");
-  }, [task?.id, task?.description, task?.details, task?.duration]);
+  }, [task?.id, task?.details, task?.duration]);
 
   const updateDueDateMutation = useMutation({
     mutationFn: async (newDate: Date) => {
@@ -140,22 +136,6 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     setIsEditingDuration(false);
   };
 
-  const updateDescriptionMutation = useMutation({
-    mutationFn: async (newDescription: string) => {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ description: newDescription }),
-      });
-      if (!response.ok) throw new Error('Failed to update description');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-    },
-  });
-
   const updateDetailsMutation = useMutation({
     mutationFn: async (newDetails: string) => {
       const response = await fetch(`/api/tasks/${task.id}`, {
@@ -171,14 +151,6 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
     },
   });
-
-  const handleDescriptionChange = (value: string) => {
-    setDescriptionValue(value);
-    if (descriptionTimeoutRef.current) clearTimeout(descriptionTimeoutRef.current);
-    descriptionTimeoutRef.current = setTimeout(() => {
-      updateDescriptionMutation.mutate(value);
-    }, 800);
-  };
 
   const handleDetailsChange = (value: string) => {
     setDetailsValue(value);
@@ -257,7 +229,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))]' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30`}>
+      <DialogContent className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))]' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30 data-[state=open]:animate-in data-[state=open]:zoom-in-75 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:zoom-out-75 data-[state=closed]:duration-200`}>
         <DialogHeader>
           <DialogTitle className={`${isMobile ? 'text-lg pr-12' : 'text-2xl pr-8'} font-serif text-yellow-100 flex items-start gap-2`}>
             <EmojiPicker
@@ -270,24 +242,6 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         </DialogHeader>
 
         <div className={`${isMobile ? 'space-y-3 mt-1' : 'space-y-6 mt-4'}`}>
-          {/* Description - always show, editable */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-yellow-400">
-              <FileText className={`${isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
-              <h3 className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>Description</h3>
-              {updateDescriptionMutation.isPending && (
-                <span className="text-xs text-yellow-400/50">Saving...</span>
-              )}
-            </div>
-            <Textarea
-              value={descriptionValue}
-              onChange={(e) => handleDescriptionChange(e.target.value)}
-              placeholder="Add a description..."
-              className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none focus:border-yellow-500/50 focus:ring-yellow-500/20 ${isMobile ? 'p-2.5 min-h-[60px] text-sm' : 'p-3 min-h-[80px]'}`}
-              rows={isMobile ? 2 : 3}
-            />
-          </div>
-
           {/* Details - always show, editable */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 text-yellow-400">
