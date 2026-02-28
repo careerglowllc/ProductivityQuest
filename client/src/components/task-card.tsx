@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TaskDetailModal } from "./task-detail-modal";
 import { SkillAdjustmentModal } from "./skill-adjustment-modal";
@@ -68,6 +68,34 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const queryClient = useQueryClient();
+  
+  // Double-tap / double-click detection
+  const lastTapTimeRef = useRef<number>(0);
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCardClick = useCallback(() => {
+    if (task.completed) return;
+    
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapTimeRef.current;
+    
+    if (timeSinceLastTap < 350 && timeSinceLastTap > 0) {
+      // Double-tap/double-click → open detail modal
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+        tapTimeoutRef.current = null;
+      }
+      lastTapTimeRef.current = 0;
+      setShowDetailModal(true);
+    } else {
+      // First tap → delay selection to allow for second tap
+      lastTapTimeRef.current = now;
+      tapTimeoutRef.current = setTimeout(() => {
+        onSelect(task.id, !isSelected);
+        tapTimeoutRef.current = null;
+      }, 350);
+    }
+  }, [task.id, task.completed, isSelected, onSelect]);
   
   const updateEmojiMutation = useMutation({
     mutationFn: async (emoji: string) => {
@@ -146,11 +174,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
               : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
             task.completed && "opacity-60"
           )}
-          onClick={() => {
-            if (!task.completed) {
-              onSelect(task.id, !isSelected);
-            }
-          }}
+          onClick={handleCardClick}
         >
           <CardContent className="p-3 flex flex-col gap-2">
             <div className="flex flex-col gap-2">
@@ -290,11 +314,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
             : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
           task.completed && "opacity-60"
         )}
-        onClick={() => {
-          if (!task.completed) {
-            onSelect(task.id, !isSelected);
-          }
-        }}
+        onClick={handleCardClick}
       >
         <CardContent className="p-6">
           <div className="flex items-start justify-between gap-4">
