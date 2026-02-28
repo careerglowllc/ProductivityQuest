@@ -5,6 +5,7 @@ import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple,
 import { cn } from "@/lib/utils";
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { TaskDetailModal } from "./task-detail-modal";
 import { SkillAdjustmentModal } from "./skill-adjustment-modal";
 import { EmojiPicker } from "./emoji-picker";
@@ -68,6 +69,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   
   // Double-tap / double-click detection
   const lastTapTimeRef = useRef<number>(0);
@@ -163,6 +165,19 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
     // Use UTC components to avoid timezone shifting (dueDate is stored as midnight UTC)
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${monthNames[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+  };
+
+  // Importance-based border color for mobile cards
+  const getImportanceBorder = (importance?: string) => {
+    switch (importance) {
+      case "Pareto": return "border-red-500/70 shadow-red-900/20";
+      case "High": return "border-red-500/50 shadow-red-900/15";
+      case "Med-High": return "border-orange-500/50 shadow-orange-900/15";
+      case "Medium": return "border-yellow-500/50 shadow-yellow-900/15";
+      case "Med-Low": return "border-blue-400/40";
+      case "Low": return "border-green-400/40";
+      default: return "border-yellow-600/20";
+    }
   };
 
   // Compact grid view version
@@ -307,6 +322,154 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
   }
 
   // Full list view version
+  // Mobile: compact single-row layout with importance-colored border, icon-only skills
+  // Desktop: full expanded layout (unchanged)
+  if (isMobile) {
+    return (
+      <>
+        <Card 
+          className={cn(
+            "bg-slate-800/40 backdrop-blur-md border transition-all relative cursor-pointer shadow-sm",
+            isSelected 
+              ? "border-yellow-400 shadow-md shadow-yellow-600/20 bg-slate-700/50" 
+              : getImportanceBorder(task.importance),
+            !isSelected && "hover:brightness-110",
+            task.completed && "opacity-50"
+          )}
+          onClick={handleCardClick}
+        >
+          <CardContent className="px-3 py-2.5">
+            <div className="flex items-center gap-2.5">
+              {/* Emoji */}
+              <span
+                className="text-lg flex-shrink-0 cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <EmojiPicker
+                  value={task.emoji || "📝"}
+                  onChange={(emoji: string) => updateEmojiMutation.mutate(emoji)}
+                  size="sm"
+                />
+              </span>
+              
+              {/* Main content */}
+              <div className="flex-1 min-w-0">
+                {/* Title row */}
+                <h3 className={cn(
+                  "text-sm font-semibold text-yellow-100 leading-tight line-clamp-1",
+                  task.completed && "line-through text-yellow-400/60"
+                )}>
+                  {task.title}
+                </h3>
+                
+                {/* Meta row: duration · date · recurrence · skill icons */}
+                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-yellow-300/50">
+                  <span className="flex items-center gap-0.5">
+                    <Clock className="w-3 h-3" />
+                    {formatDuration(task.duration)}
+                  </span>
+                  {task.dueDate && (
+                    <>
+                      <span className="text-yellow-600/30">·</span>
+                      <span className="flex items-center gap-0.5">
+                        <Calendar className="w-3 h-3" />
+                        {(() => { const d = new Date(task.dueDate); const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${m[d.getUTCMonth()]} ${d.getUTCDate()}`; })()}
+                      </span>
+                    </>
+                  )}
+                  {task.recurType && task.recurType !== "one-time" && (
+                    <>
+                      <span className="text-yellow-600/30">·</span>
+                      <Repeat className="w-3 h-3 text-purple-400/60" />
+                    </>
+                  )}
+                  {/* Skill icons (icon-only, no text) */}
+                  {task.skillTags && task.skillTags.length > 0 && (
+                    <>
+                      <span className="text-yellow-600/30">·</span>
+                      <div 
+                        className="flex items-center gap-0.5 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSkillModal(true);
+                        }}
+                      >
+                        {task.skillTags.slice(0, 3).map((skillName) => {
+                          const SkillIcon = getSkillIconComponent(skillName);
+                          const skill = getSkillByName(skillName);
+                          // Use skill icon/emoji if custom, otherwise component icon
+                          if (skill?.skillIcon && typeof skill.skillIcon === 'string' && !skill.skillIcon.startsWith('Lucide')) {
+                            return (
+                              <span key={skillName} className="text-[11px]" title={skillName}>
+                                {skill.skillIcon}
+                              </span>
+                            );
+                          }
+                          return (
+                            <SkillIcon 
+                              key={skillName} 
+                              className={cn("w-3 h-3", 
+                                skillName === "Craftsman" && "text-amber-300/70",
+                                skillName === "Artist" && "text-purple-300/70",
+                                skillName === "Mindset" && "text-emerald-300/70",
+                                skillName === "Merchant" && "text-green-300/70",
+                                skillName === "Physical" && "text-red-300/70",
+                                skillName === "Scholar" && "text-blue-300/70",
+                                skillName === "Health" && "text-pink-300/70",
+                                skillName === "Connector" && "text-cyan-300/70",
+                                skillName === "Charisma" && "text-indigo-300/70",
+                                !skillColors[skillName] && "text-purple-300/70"
+                              )} 
+                              title={skillName} 
+                            />
+                          );
+                        })}
+                        {task.skillTags.length > 3 && (
+                          <span className="text-[9px] text-yellow-400/40">+{task.skillTags.length - 3}</span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {/* Gold badge — right side */}
+              <Badge 
+                variant={task.completed ? "secondary" : "default"}
+                className={cn(
+                  "flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] flex-shrink-0",
+                  task.completed 
+                    ? "bg-green-900/40 text-green-200 border border-green-600/40"
+                    : "bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 text-yellow-100 border border-yellow-600/40"
+                )}
+              >
+                <Coins className="w-3 h-3" />
+                <span className="font-semibold">{task.goldValue}</span>
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <TaskDetailModal 
+          task={task}
+          open={showDetailModal}
+          onOpenChange={setShowDetailModal}
+        />
+
+        <SkillAdjustmentModal
+          open={showSkillModal}
+          onOpenChange={setShowSkillModal}
+          tasks={[task]}
+          onComplete={() => {
+            setShowSkillModal(false);
+            queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+          }}
+        />
+      </>
+    );
+  }
+
+  // Desktop: Full list view version (unchanged)
   return (
     <>
       <Card 

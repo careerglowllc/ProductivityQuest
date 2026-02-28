@@ -2393,7 +2393,7 @@ export default function Home() {
             )}
 
             {/* Task List */}
-            <div className="space-y-4">
+            <div className={isMobile ? "space-y-1.5" : "space-y-4"}>
               {tasksLoading ? (
                 <div className="text-center py-8 text-yellow-200/70">Loading tasks...</div>
               ) : tasks.length === 0 ? (
