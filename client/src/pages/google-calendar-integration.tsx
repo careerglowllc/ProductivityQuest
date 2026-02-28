@@ -241,11 +241,11 @@ export default function GoogleCalendarIntegration() {
         </Link>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-serif font-bold text-yellow-100 mb-2 flex items-center gap-3">
-            <Calendar className="h-10 w-10 text-purple-400" />
-            Google Calendar Integration
+          <h1 className="text-2xl sm:text-4xl font-serif font-bold text-yellow-100 mb-2 flex items-center gap-2 sm:gap-3">
+            <Calendar className="h-7 w-7 sm:h-10 sm:w-10 text-purple-400 flex-shrink-0" />
+            <span>Google Calendar Integration</span>
           </h1>
-          <p className="text-yellow-200/70">
+          <p className="text-sm sm:text-base text-yellow-200/70">
             Sync your tasks with Google Calendar to keep everything in one place
           </p>
         </div>
@@ -254,15 +254,16 @@ export default function GoogleCalendarIntegration() {
         {isFullyConnected ? (
           <Alert className="mb-6 border-green-600/40 bg-green-900/20">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            <AlertDescription className="text-green-100 flex items-center justify-between w-full">
-              <span>Google Calendar is fully connected and ready to sync</span>
-              <Button
-                onClick={() => disconnectMutation.mutate()}
-                disabled={disconnectMutation.isPending}
-                variant="outline"
-                size="sm"
-                className="ml-4 border-red-500/40 text-red-400 hover:bg-red-900/20 hover:text-red-300"
-              >
+            <AlertDescription className="text-green-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+                <span>Google Calendar is fully connected and ready to sync</span>
+                <Button
+                  onClick={() => disconnectMutation.mutate()}
+                  disabled={disconnectMutation.isPending}
+                  variant="outline"
+                  size="sm"
+                  className="border-red-500/40 text-red-400 hover:bg-red-900/20 hover:text-red-300 flex-shrink-0 w-fit"
+                >
                 {disconnectMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-3 w-3 animate-spin" />
@@ -275,19 +276,21 @@ export default function GoogleCalendarIntegration() {
                   </>
                 )}
               </Button>
+              </div>
             </AlertDescription>
           </Alert>
         ) : isConfigured ? (
           <Alert className="mb-6 border-yellow-600/40 bg-yellow-900/20">
             <AlertCircle className="h-5 w-5 text-yellow-500" />
-            <AlertDescription className="text-yellow-100 flex items-center justify-between w-full">
-              <span>Credentials saved - authorization required to complete setup</span>
+            <AlertDescription className="text-yellow-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+              <span>Credentials saved — authorization required to complete setup</span>
               <Button
                 onClick={() => disconnectMutation.mutate()}
                 disabled={disconnectMutation.isPending}
                 variant="outline"
                 size="sm"
-                className="ml-4 border-red-500/40 text-red-400 hover:bg-red-900/20 hover:text-red-300"
+                className="border-red-500/40 text-red-400 hover:bg-red-900/20 hover:text-red-300 flex-shrink-0 w-fit"
               >
                 {disconnectMutation.isPending ? (
                   <>
@@ -301,22 +304,25 @@ export default function GoogleCalendarIntegration() {
                   </>
                 )}
               </Button>
+              </div>
             </AlertDescription>
           </Alert>
         ) : (
           <Alert className="mb-6 border-yellow-600/40 bg-yellow-900/20">
             <AlertCircle className="h-5 w-5 text-yellow-500" />
-            <AlertDescription className="text-yellow-100 flex items-center justify-between w-full">
+            <AlertDescription className="text-yellow-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
               <span>Google Calendar is not connected</span>
               <Button
                 onClick={() => setShowConnectModal(true)}
                 variant="outline"
                 size="sm"
-                className="ml-4 border-green-500/40 text-green-400 hover:bg-green-900/20 hover:text-green-300"
+                className="border-green-500/40 text-green-400 hover:bg-green-900/20 hover:text-green-300 flex-shrink-0 w-fit"
               >
                 <LinkIcon className="mr-2 h-3 w-3" />
                 Connect
               </Button>
+              </div>
             </AlertDescription>
           </Alert>
         )}
@@ -396,36 +402,36 @@ export default function GoogleCalendarIntegration() {
               {syncEnabled && (
                 <div className="space-y-3">
                   <Label className="text-yellow-100 font-semibold">Sync Direction</Label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <Button
                       variant={syncDirection === 'import' ? 'default' : 'outline'}
                       onClick={() => handleSyncDirectionChange('import')}
-                      className={syncDirection === 'import' 
+                      className={`text-xs sm:text-sm px-2 sm:px-4 ${syncDirection === 'import' 
                         ? 'bg-purple-600 hover:bg-purple-700' 
-                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}
+                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}`}
                     >
-                      <Download className="mr-2 h-4 w-4" />
-                      Import Only
+                      <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="truncate">Import</span>
                     </Button>
                     <Button
                       variant={syncDirection === 'export' ? 'default' : 'outline'}
                       onClick={() => handleSyncDirectionChange('export')}
-                      className={syncDirection === 'export' 
+                      className={`text-xs sm:text-sm px-2 sm:px-4 ${syncDirection === 'export' 
                         ? 'bg-purple-600 hover:bg-purple-700' 
-                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}
+                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}`}
                     >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Export Only
+                      <RefreshCw className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="truncate">Export</span>
                     </Button>
                     <Button
                       variant={syncDirection === 'both' ? 'default' : 'outline'}
                       onClick={() => handleSyncDirectionChange('both')}
-                      className={syncDirection === 'both' 
+                      className={`text-xs sm:text-sm px-2 sm:px-4 ${syncDirection === 'both' 
                         ? 'bg-purple-600 hover:bg-purple-700' 
-                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}
+                        : 'border-purple-500/40 text-yellow-200 hover:bg-purple-900/20'}`}
                     >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Two-Way Sync
+                      <RefreshCw className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="truncate">Two-Way</span>
                     </Button>
                   </div>
                   <p className="text-xs text-yellow-200/60">
