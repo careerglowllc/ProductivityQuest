@@ -93,6 +93,9 @@ export default function Calendar() {
 
   // Swipe navigation state (mobile only)
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const [swipeOffsetX, setSwipeOffsetX] = useState(0);
+  const [swipeAnimating, setSwipeAnimating] = useState(false);
+  const swipeLockedRef = useRef<'horizontal' | 'vertical' | null>(null);
 
   // Undo state - stores the last change for undo functionality
   const [undoStack, setUndoStack] = useState<{
@@ -1584,38 +1587,80 @@ export default function Calendar() {
     }
   };
 
-  // Swipe navigation handlers for mobile
+  // Swipe navigation handlers for mobile — smooth continuous drag
   const handleSwipeStart = (e: React.TouchEvent) => {
-    if (!isMobile) return;
-    // Don't capture if user is dragging an event
+    if (!isMobile || swipeAnimating) return;
     if (isTouchDragging || draggingEvent || resizingEvent) return;
     const touch = e.touches[0];
     swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    swipeLockedRef.current = null;
+  };
+
+  const handleSwipeMove = (e: React.TouchEvent) => {
+    if (!isMobile || !swipeStartRef.current || swipeAnimating) return;
+    if (isTouchDragging || draggingEvent || resizingEvent) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - swipeStartRef.current.x;
+    const deltaY = touch.clientY - swipeStartRef.current.y;
+
+    // Lock direction after 10px of movement
+    if (!swipeLockedRef.current) {
+      if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+        swipeLockedRef.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+      }
+      return;
+    }
+
+    // If locked vertical, don't interfere with scroll
+    if (swipeLockedRef.current === 'vertical') return;
+
+    // Horizontal drag — apply offset with slight resistance
+    setSwipeOffsetX(deltaX * 0.85);
   };
 
   const handleSwipeEnd = (e: React.TouchEvent) => {
-    if (!isMobile || !swipeStartRef.current) return;
+    if (!isMobile || !swipeStartRef.current || swipeAnimating) return;
     if (isTouchDragging || draggingEvent || resizingEvent) {
       swipeStartRef.current = null;
+      swipeLockedRef.current = null;
       return;
     }
+
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - swipeStartRef.current.x;
-    const deltaY = touch.clientY - swipeStartRef.current.y;
     const elapsed = Date.now() - swipeStartRef.current.time;
     swipeStartRef.current = null;
+    swipeLockedRef.current = null;
 
-    // Only count as swipe if horizontal distance > 60px, more horizontal than vertical, and fast enough (<400ms)
     const absDx = Math.abs(deltaX);
-    const absDy = Math.abs(deltaY);
-    if (absDx > 60 && absDx > absDy * 1.5 && elapsed < 400) {
-      if (deltaX < 0) {
-        // Swiped left → go forward
-        nextMonth();
-      } else {
-        // Swiped right → go backward
-        previousMonth();
-      }
+    const velocity = absDx / Math.max(elapsed, 1);
+    // Trigger navigation if dragged far enough (>25% screen) or fast enough (velocity > 0.5px/ms)
+    const screenW = window.innerWidth;
+    const threshold = screenW * 0.25;
+
+    if (absDx > threshold || (absDx > 40 && velocity > 0.5)) {
+      // Animate off-screen, then change date
+      const direction = deltaX < 0 ? -1 : 1;
+      setSwipeAnimating(true);
+      setSwipeOffsetX(direction * screenW);
+      setTimeout(() => {
+        if (direction < 0) nextMonth(); else previousMonth();
+        // Reset: briefly show incoming slide from opposite side
+        setSwipeOffsetX(-direction * screenW * 0.3);
+        requestAnimationFrame(() => {
+          // Small delay to ensure the DOM updates with new date content
+          setTimeout(() => {
+            setSwipeAnimating(true);
+            setSwipeOffsetX(0);
+            setTimeout(() => setSwipeAnimating(false), 250);
+          }, 20);
+        });
+      }, 200);
+    } else {
+      // Snap back
+      setSwipeAnimating(true);
+      setSwipeOffsetX(0);
+      setTimeout(() => setSwipeAnimating(false), 250);
     }
   };
 
@@ -1931,8 +1976,9 @@ export default function Calendar() {
       <div className={`${isMobile ? 'max-w-full h-full' : 'max-w-7xl'} mx-auto`}>
         {/* Calendar Card */}
         <Card
-          className={`${isMobile ? 'p-0 h-full flex flex-col rounded-none border-0' : 'p-6'} bg-gray-900/60 border-purple-500/20`}
+          className={`${isMobile ? 'p-0 h-full flex flex-col rounded-none border-0 overflow-hidden' : 'p-6'} bg-gray-900/60 border-purple-500/20`}
           onTouchStart={handleSwipeStart}
+          onTouchMove={handleSwipeMove}
           onTouchEnd={handleSwipeEnd}
         >
           {/* View Selector and Month Navigation */}
@@ -2121,6 +2167,16 @@ export default function Calendar() {
               </div>
             )}
           </div>
+
+          {/* Swipeable content wrapper */}
+          <div 
+            style={isMobile ? { 
+              transform: `translateX(${swipeOffsetX}px)`, 
+              transition: swipeAnimating ? 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease' : 'none',
+              opacity: swipeOffsetX === 0 ? 1 : Math.max(0.4, 1 - Math.abs(swipeOffsetX) / 600),
+            } : undefined}
+            className={isMobile ? 'flex-1 flex flex-col min-h-0' : 'contents'}
+          >
 
           {/* Day Headers - Only show for month view */}
           {view === 'month' && (
@@ -2685,6 +2741,7 @@ export default function Calendar() {
               </div>
             </div>
           )}
+          </div>{/* End swipeable content wrapper */}
         </Card>
 
         {/* Status Bar - desktop only */}
