@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -2052,9 +2052,9 @@ export default function Home() {
                           onClick={() => setSelectedTasks(new Set())}
                           variant="ghost"
                           size="sm"
-                          className="h-6 px-2 text-[11px] text-blue-300 hover:text-white"
+                          className="h-6 w-6 p-0 text-blue-300 hover:text-white"
                         >
-                          Clear
+                          <X className="w-4 h-4" />
                         </Button>
                       </div>
                       <div className="grid grid-cols-4 gap-1">
