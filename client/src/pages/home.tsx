@@ -2040,7 +2040,7 @@ export default function Home() {
 
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
-              <div className={`fixed ${isMobile ? 'bottom-16' : 'bottom-20'} left-0 right-0 z-40 ${isMobile ? 'px-2 pb-1' : 'px-4 pb-4'}`}>
+              <div className={`fixed ${isMobile ? 'bottom-[calc(4rem+env(safe-area-inset-bottom))]' : 'bottom-20'} left-0 right-0 z-40 ${isMobile ? 'px-2 pb-1' : 'px-4 pb-4'}`}>
                 <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-2' : 'p-4'} bg-blue-900/95 backdrop-blur-md border-2 border-blue-500/60 shadow-2xl`}>
                   {isMobile ? (
                     <div className="flex flex-col gap-1.5">
