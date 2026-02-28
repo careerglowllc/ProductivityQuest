@@ -1889,12 +1889,12 @@ export default function Calendar() {
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'pt-0 pb-16 px-0' : 'pt-24 pb-8 px-8'}`}>
-      <div className={`${isMobile ? 'max-w-full' : 'max-w-7xl'} mx-auto ${isMobile ? 'h-[calc(100vh-64px)]' : ''}`}>
+    <div className={`bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'h-screen overflow-hidden pt-0 pb-0 px-0' : 'min-h-screen pt-24 pb-8 px-8'}`}>
+      <div className={`${isMobile ? 'max-w-full h-[calc(100vh-64px)]' : 'max-w-7xl'} mx-auto`}>
         {/* Calendar Card */}
-        <Card className={`${isMobile ? 'p-1.5 h-full flex flex-col rounded-none border-0' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
+        <Card className={`${isMobile ? 'p-0 h-full flex flex-col rounded-none border-0' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
           {/* View Selector and Month Navigation */}
-          <div className={`flex ${isMobile ? 'flex-col gap-1' : 'items-center justify-between'} ${isMobile ? 'mb-1' : 'mb-6'} flex-shrink-0`}>
+          <div className={`flex ${isMobile ? 'flex-col gap-1 px-1.5 pt-1.5 pb-1' : 'items-center justify-between'} ${isMobile ? '' : 'mb-6'} flex-shrink-0`}>
             <div className={`flex ${isMobile ? 'flex-col gap-1' : 'items-center gap-4'}`}>
               {/* Desktop: Settings and New Event buttons */}
               {!isMobile && (
@@ -2082,7 +2082,7 @@ export default function Calendar() {
 
           {/* Day Headers - Only show for month view */}
           {view === 'month' && (
-            <div className="grid grid-cols-7 gap-px mb-px">
+            <div className="grid grid-cols-7 gap-px mb-px flex-shrink-0">
               {dayNames.map(day => (
                 <div
                   key={day}
