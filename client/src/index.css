@@ -64,12 +64,26 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Ensure no black gap at bottom of viewport on iOS */
+  html::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-bottom, 34px);
+    background-color: #0f172a;
+    z-index: 48;
+    pointer-events: none;
+  }
+
   body {
     @apply font-sans antialiased;
     background-color: #0f172a;
     color: hsl(0, 0%, 98%);
     overscroll-behavior: none;
     min-height: 100vh;
+    min-height: 100dvh;
     min-height: -webkit-fill-available;
   }
 }
