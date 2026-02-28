@@ -9,7 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { TaskDetailModal } from "./task-detail-modal";
 import { SkillAdjustmentModal } from "./skill-adjustment-modal";
 import { EmojiPicker } from "./emoji-picker";
-import { getSkillIcon } from "@/lib/skillIcons";
+import { getSkillIcon, SKILL_ICON_MAP } from "@/lib/skillIcons";
 import type { UserSkill } from "@/../../shared/schema";
 
 // Fallback skill icon mapping for default skills
@@ -177,6 +177,19 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
       case "Med-Low": return "border-blue-400/40";
       case "Low": return "border-green-400/40";
       default: return "border-yellow-600/20";
+    }
+  };
+
+  // Importance dot color for mobile meta row
+  const getImportanceDotColor = (importance?: string) => {
+    switch (importance) {
+      case "Pareto": return "bg-red-500";
+      case "High": return "bg-red-400";
+      case "Med-High": return "bg-orange-400";
+      case "Medium": return "bg-yellow-400";
+      case "Med-Low": return "bg-blue-400";
+      case "Low": return "bg-green-400";
+      default: return "bg-slate-500";
     }
   };
 
@@ -362,8 +375,10 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                   {task.title}
                 </h3>
                 
-                {/* Meta row: duration · date · recurrence · skill icons */}
+                {/* Meta row: importance dot · duration · date · recurrence · skill icons */}
                 <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-yellow-300/50">
+                  {/* Importance dot */}
+                  <span className={cn("w-2 h-2 rounded-full flex-shrink-0", getImportanceDotColor(task.importance))} />
                   <span className="flex items-center gap-0.5">
                     <Clock className="w-3 h-3" />
                     {formatDuration(task.duration)}
@@ -397,8 +412,8 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                         {task.skillTags.slice(0, 3).map((skillName) => {
                           const SkillIcon = getSkillIconComponent(skillName);
                           const skill = getSkillByName(skillName);
-                          // Use skill icon/emoji if custom, otherwise component icon
-                          if (skill?.skillIcon && typeof skill.skillIcon === 'string' && !skill.skillIcon.startsWith('Lucide')) {
+                          // Use skill emoji if it's a true emoji (not a Lucide icon name)
+                          if (skill?.skillIcon && typeof skill.skillIcon === 'string' && !(skill.skillIcon in SKILL_ICON_MAP)) {
                             return (
                               <span key={skillName} className="text-[11px]" title={skillName}>
                                 {skill.skillIcon}
