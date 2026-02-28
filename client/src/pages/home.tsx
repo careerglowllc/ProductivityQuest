@@ -87,6 +87,9 @@ export default function Home() {
   const [lastCategorizedTasks, setLastCategorizedTasks] = useState<any[]>([]);
   const [recategorizeQueue, setRecategorizeQueue] = useState<any[]>([]);
   
+  // Mobile file menu state
+  const [showFileMenu, setShowFileMenu] = useState(false);
+  
   // Delete from Notion confirmation state
   const [showDeleteNotionConfirm, setShowDeleteNotionConfirm] = useState(false);
   const [deleteNotionTaskCount, setDeleteNotionTaskCount] = useState(0);
@@ -1674,42 +1677,48 @@ export default function Home() {
                 </svg>
                 Add
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center gap-1 h-9 px-3 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 text-xs"
-                    title="File Options"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    File
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="bg-slate-800 border-yellow-600/30">
-                  <DropdownMenuItem 
-                    onClick={handleImportPrepare}
-                    className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Import from Notion</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={handleExportPrepare}
-                    className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
-                  >
-                    <Upload className="w-4 h-4" />
-                    <span>Export to Notion</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={handleExportCSV}
-                    className="flex items-center gap-2 text-emerald-200 hover:bg-slate-700 focus:bg-slate-700"
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>Export as CSV</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="relative">
+                <Button 
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-1 h-9 px-3 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 text-xs"
+                  title="File Options"
+                  onClick={() => setShowFileMenu(!showFileMenu)}
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  File
+                </Button>
+                {showFileMenu && (
+                  <>
+                    {/* Backdrop to close menu */}
+                    <div className="fixed inset-0 z-[60]" onClick={() => setShowFileMenu(false)} />
+                    {/* Menu */}
+                    <div className="absolute top-full left-0 mt-1 z-[61] min-w-[180px] rounded-md border border-yellow-600/30 bg-slate-800 p-1 shadow-lg">
+                      <button
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
+                        onClick={() => { setShowFileMenu(false); handleImportPrepare(); }}
+                      >
+                        <Download className="w-4 h-4" />
+                        Import from Notion
+                      </button>
+                      <button
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
+                        onClick={() => { setShowFileMenu(false); handleExportPrepare(); }}
+                      >
+                        <Upload className="w-4 h-4" />
+                        Export to Notion
+                      </button>
+                      <button
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-emerald-200 hover:bg-slate-700 active:bg-slate-600"
+                        onClick={() => { setShowFileMenu(false); handleExportCSV(); }}
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Export as CSV
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               {lastAction.type && (
                 <Button 
                   onClick={handleUndo}
