@@ -1889,8 +1889,8 @@ export default function Calendar() {
   }
 
   return (
-    <div className={`bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'h-[100dvh] overflow-hidden pt-0 pb-0 px-0' : 'min-h-screen pt-24 pb-8 px-8'}`}>
-      <div className={`${isMobile ? 'max-w-full h-[calc(100dvh-64px)]' : 'max-w-7xl'} mx-auto`}>
+    <div className={`bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-24 pb-8 px-8'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
+      <div className={`${isMobile ? 'max-w-full h-full' : 'max-w-7xl'} mx-auto`}>
         {/* Calendar Card */}
         <Card className={`${isMobile ? 'p-0 h-full flex flex-col rounded-none border-0' : 'p-6'} bg-gray-900/60 border-purple-500/20`}>
           {/* View Selector and Month Navigation */}
