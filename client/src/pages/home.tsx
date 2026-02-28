@@ -1577,7 +1577,7 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} relative overflow-hidden`}>
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} relative`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -1590,7 +1590,7 @@ export default function Home() {
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-md shadow-lg border-b border-yellow-600/30 sticky top-0 z-50 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className={`flex justify-between items-center ${isMobile ? 'py-2' : 'py-4'}`}>
             <div className="flex items-center space-x-4">
               {!isMobile && (
                 <Link href="/dashboard">
@@ -1649,9 +1649,9 @@ export default function Home() {
         </div>
       </header>
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 pt-3 pb-[calc(5rem+env(safe-area-inset-bottom))]' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
         {/* Your Quests Header */}
-        <div className={`flex flex-col ${isMobile ? 'gap-2 mb-2' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
+        <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
             <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-serif font-bold text-yellow-100`}>
               Your Quests 
