@@ -992,10 +992,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (task.scheduledTime) {
           const scheduled = new Date(task.scheduledTime);
           const due = new Date(task.dueDate);
-          // Compare dates (year/month/day) to detect if dueDate moved
-          if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
+          
+          // Fix previously bad scheduledTime values that were set to midnight UTC
+          const isAtMidnightUTC = scheduled.getUTCHours() === 0 && scheduled.getUTCMinutes() === 0 && scheduled.getUTCSeconds() === 0;
+          if (isAtMidnightUTC) {
+            // This was likely set from a raw dueDate — fix it to 9 AM local (17:00 UTC)
+            scheduledTime = new Date(Date.UTC(scheduled.getUTCFullYear(), scheduled.getUTCMonth(), scheduled.getUTCDate(), 17, 0, 0));
+          } else if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
               scheduled.getUTCMonth() !== due.getUTCMonth() ||
               scheduled.getUTCDate() !== due.getUTCDate()) {
+            // Compare dates (year/month/day) to detect if dueDate moved
             // Preserve the time-of-day from the old scheduledTime, but shift to new dueDate's day
             const newScheduled = new Date(due);
             newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
@@ -1004,7 +1010,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             scheduledTime = scheduled;
           }
         } else {
-          scheduledTime = new Date(task.dueDate);
+          // dueDate is stored as midnight UTC (e.g. 2026-02-27T00:00:00Z)
+          // Extract the UTC date components and create a 9 AM time on that date
+          // This prevents timezone issues where midnight UTC shows as previous day in US timezones
+          const due = new Date(task.dueDate);
+          scheduledTime = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate(), 17, 0, 0));
+          // 17:00 UTC = 9:00 AM PST / 10:00 AM PDT — a sensible default calendar time
         }
 
         // Set calendarColor based on importance if not already set
@@ -2682,10 +2693,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (task.scheduledTime) {
           const scheduled = new Date(task.scheduledTime);
           const due = new Date(task.dueDate!);
-          // Compare dates (year/month/day) to detect if dueDate moved
-          if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
+          
+          // Fix previously bad scheduledTime values that were set to midnight UTC
+          // (which shows as previous day in US timezones, e.g. midnight UTC = 4pm PST previous day)
+          const isAtMidnightUTC = scheduled.getUTCHours() === 0 && scheduled.getUTCMinutes() === 0 && scheduled.getUTCSeconds() === 0;
+          if (isAtMidnightUTC) {
+            // This was likely set from a raw dueDate — fix it to 9 AM local (17:00 UTC)
+            scheduledTime = new Date(Date.UTC(scheduled.getUTCFullYear(), scheduled.getUTCMonth(), scheduled.getUTCDate(), 17, 0, 0));
+            console.log(`📅 [CALENDAR SYNC] Task ${task.id} fixing midnight UTC scheduledTime: ${scheduled.toISOString()} → ${scheduledTime.toISOString()}`);
+          } else if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
               scheduled.getUTCMonth() !== due.getUTCMonth() ||
               scheduled.getUTCDate() !== due.getUTCDate()) {
+            // Compare dates (year/month/day) to detect if dueDate moved
             // Preserve the time-of-day from the old scheduledTime, but shift to new dueDate's day
             const newScheduled = new Date(due);
             newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
@@ -2695,7 +2714,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             scheduledTime = scheduled;
           }
         } else {
-          scheduledTime = new Date(task.dueDate!);
+          // dueDate is stored as midnight UTC (e.g. 2026-02-27T00:00:00Z)
+          // Extract the UTC date components and create a 9 AM time on that date
+          // This prevents timezone issues where midnight UTC shows as previous day in US timezones
+          const due = new Date(task.dueDate!);
+          scheduledTime = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate(), 17, 0, 0));
+          // 17:00 UTC = 9:00 AM PST / 10:00 AM PDT — a sensible default calendar time
+          console.log(`📅 [CALENDAR SYNC] Task ${task.id} no scheduledTime, defaulting to 9 AM from dueDate: ${due.toISOString()} → ${scheduledTime.toISOString()}`);
         }
         const calendarColor = task.calendarColor || getColorForImportance(task.importance);
         
@@ -3320,13 +3345,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add ProductivityQuest tasks (only those with scheduledTime)
       for (const task of tasksInMonth) {
         // Use scheduledTime directly (we already filtered for it above)
-        const startTime = new Date(task.scheduledTime!);
+        let startTime = new Date(task.scheduledTime!);
         
-        // Debug logging for timezone issues
-        if (task.title.includes('Cardio')) {
-          console.log('🔍 [DEBUG] Cardio task scheduledTime:', task.scheduledTime);
-          console.log('🔍 [DEBUG] Cardio startTime object:', startTime);
-          console.log('🔍 [DEBUG] Cardio startTime.toISOString():', startTime.toISOString());
+        // Safety net: if scheduledTime is at midnight UTC, it was likely set from a raw dueDate
+        // and will display on the wrong day in US timezones. Fix it to 9 AM local (17:00 UTC).
+        if (startTime.getUTCHours() === 0 && startTime.getUTCMinutes() === 0 && startTime.getUTCSeconds() === 0) {
+          startTime = new Date(Date.UTC(startTime.getUTCFullYear(), startTime.getUTCMonth(), startTime.getUTCDate(), 17, 0, 0));
+          console.log(`� [CALENDAR-EVENTS] Fixed midnight UTC scheduledTime for task ${task.id} "${task.title}" → ${startTime.toISOString()}`);
         }
         
         // Calculate end time based on task duration

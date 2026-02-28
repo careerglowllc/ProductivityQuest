@@ -129,11 +129,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "No due date";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
+    // Use UTC components to avoid timezone shifting (dueDate is stored as midnight UTC)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
   };
 
   // Compact grid view version
@@ -211,7 +209,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                 {task.dueDate && (
                   <div className="flex items-center space-x-1 truncate">
                     <Calendar className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    <span className="truncate">{(() => { const d = new Date(task.dueDate); const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${m[d.getUTCMonth()]} ${d.getUTCDate()}`; })()}</span>
                   </div>
                 )}
               </div>

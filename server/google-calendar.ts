@@ -245,7 +245,14 @@ export class GoogleCalendarService {
 
         try {
           // Use scheduledTime if available, otherwise use dueDate
-          const startTime = task.scheduledTime || task.dueDate;
+          let startTime = task.scheduledTime || task.dueDate;
+          
+          // Fix midnight UTC times — these were likely set from raw dueDate and show on wrong day
+          if (startTime.getUTCHours() === 0 && startTime.getUTCMinutes() === 0 && startTime.getUTCSeconds() === 0) {
+            startTime = new Date(Date.UTC(startTime.getUTCFullYear(), startTime.getUTCMonth(), startTime.getUTCDate(), 17, 0, 0));
+            console.log(`📅 [SYNC TASKS] Fixed midnight UTC startTime for task ${task.id} → ${startTime.toISOString()}`);
+          }
+          
           const endTime = new Date(startTime.getTime() + task.duration * 60000);
           
           console.log(`📅 [SYNC TASKS] Processing task ${task.id} "${task.title}"`);
