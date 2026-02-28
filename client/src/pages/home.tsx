@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -1834,10 +1834,10 @@ export default function Home() {
             {/* Task Filters */}
             <Card className={`${isMobile ? 'p-2 mb-3' : 'p-4 mb-6'} bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30`}>
               <div className={`flex flex-wrap items-center ${isMobile ? 'gap-1' : 'gap-2'} justify-between`}>
-                <div className={`flex flex-wrap ${isMobile ? 'gap-1' : 'gap-2'}`}>
+                <div className={`flex flex-wrap ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
                   <Badge 
                     variant={activeFilter === "all" ? "default" : "outline"}
-                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-2 py-1' : ''} ${
                       activeFilter === "all" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
@@ -1848,7 +1848,7 @@ export default function Home() {
                   </Badge>
                   <Badge 
                     variant={activeFilter === "due-today" ? "default" : "outline"}
-                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-2 py-1' : ''} ${
                       activeFilter === "due-today" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
@@ -1857,31 +1857,35 @@ export default function Home() {
                   >
                     {isMobile ? `Today (${filterCounts.dueToday})` : `Due Today (${filterCounts.dueToday})`}
                   </Badge>
-                  <Badge 
-                    variant={activeFilter === "high-reward" ? "default" : "outline"}
-                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
-                      activeFilter === "high-reward" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("high-reward")}
-                  >
-                    {isMobile ? `Reward (${filterCounts.highReward})` : `High Reward (${filterCounts.highReward})`}
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "quick-tasks" ? "default" : "outline"}
-                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
-                      activeFilter === "quick-tasks" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("quick-tasks")}
-                  >
-                    {isMobile ? `Quick (${filterCounts.quickTasks})` : `Quick Tasks (${filterCounts.quickTasks})`}
-                  </Badge>
+                  {!isMobile && (
+                    <>
+                      <Badge 
+                        variant={activeFilter === "high-reward" ? "default" : "outline"}
+                        className={`cursor-pointer ${
+                          activeFilter === "high-reward" 
+                            ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                            : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                        }`}
+                        onClick={() => setActiveFilter("high-reward")}
+                      >
+                        High Reward ({filterCounts.highReward})
+                      </Badge>
+                      <Badge 
+                        variant={activeFilter === "quick-tasks" ? "default" : "outline"}
+                        className={`cursor-pointer ${
+                          activeFilter === "quick-tasks" 
+                            ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                            : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                        }`}
+                        onClick={() => setActiveFilter("quick-tasks")}
+                      >
+                        Quick Tasks ({filterCounts.quickTasks})
+                      </Badge>
+                    </>
+                  )}
                   <Badge 
                     variant={activeFilter === "high-priority" ? "default" : "outline"}
-                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
+                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-2 py-1' : ''} ${
                       activeFilter === "high-priority" 
                         ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                         : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
@@ -1890,18 +1894,76 @@ export default function Home() {
                   >
                     {isMobile ? `Priority (${filterCounts.highPriority})` : `High Priority (${filterCounts.highPriority})`}
                   </Badge>
-                  <Badge 
-                    variant={activeFilter === "routines" ? "default" : "outline"}
-                    className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
-                      activeFilter === "routines" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("routines")}
-                  >
-                    Routines ({filterCounts.routines})
-                  </Badge>
+                  {!isMobile && (
+                    <Badge 
+                      variant={activeFilter === "routines" ? "default" : "outline"}
+                      className={`cursor-pointer ${
+                        activeFilter === "routines" 
+                          ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                          : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                      }`}
+                      onClick={() => setActiveFilter("routines")}
+                    >
+                      Routines ({filterCounts.routines})
+                    </Badge>
+                  )}
                   
+                  {/* Mobile: Filter dropdown for Reward, Quick, Routines */}
+                  {isMobile && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Badge 
+                          variant={
+                            (activeFilter === "high-reward" || activeFilter === "quick-tasks" || activeFilter === "routines") ? "default" : "outline"
+                          }
+                          className={`cursor-pointer text-[10px] px-2 py-1 inline-flex items-center gap-1 ${
+                            (activeFilter === "high-reward" || activeFilter === "quick-tasks" || activeFilter === "routines")
+                              ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                              : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                          }`}
+                        >
+                          <Filter className="w-3 h-3" />
+                          {activeFilter === "high-reward" ? `Reward (${filterCounts.highReward})`
+                            : activeFilter === "quick-tasks" ? `Quick (${filterCounts.quickTasks})`
+                            : activeFilter === "routines" ? `Routines (${filterCounts.routines})`
+                            : "More"}
+                        </Badge>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                        <DropdownMenuItem 
+                          onClick={() => setActiveFilter("high-reward")}
+                          className={`cursor-pointer ${
+                            activeFilter === "high-reward" 
+                              ? "bg-yellow-600/20 text-yellow-200" 
+                              : "text-slate-300 hover:bg-slate-700/80"
+                          }`}
+                        >
+                          💰 Reward ({filterCounts.highReward})
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setActiveFilter("quick-tasks")}
+                          className={`cursor-pointer ${
+                            activeFilter === "quick-tasks" 
+                              ? "bg-yellow-600/20 text-yellow-200" 
+                              : "text-slate-300 hover:bg-slate-700/80"
+                          }`}
+                        >
+                          ⚡ Quick ({filterCounts.quickTasks})
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setActiveFilter("routines")}
+                          className={`cursor-pointer ${
+                            activeFilter === "routines" 
+                              ? "bg-yellow-600/20 text-yellow-200" 
+                              : "text-slate-300 hover:bg-slate-700/80"
+                          }`}
+                        >
+                          🔄 Routines ({filterCounts.routines})
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+
                   {/* Business/Work Filter Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -1909,7 +1971,7 @@ export default function Home() {
                         variant={
                           activeFilter.startsWith("business-") ? "default" : "outline"
                         }
-                        className={`cursor-pointer ${isMobile ? 'text-[10px] px-1.5 py-0.5' : ''} ${
+                        className={`cursor-pointer ${isMobile ? 'text-[10px] px-2 py-1' : ''} ${
                           activeFilter.startsWith("business-")
                             ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
                             : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
