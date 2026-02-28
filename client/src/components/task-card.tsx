@@ -448,19 +448,11 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                 </div>
               </div>
               
-              {/* Gold badge — right side */}
-              <Badge 
-                variant={task.completed ? "secondary" : "default"}
-                className={cn(
-                  "flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] flex-shrink-0",
-                  task.completed 
-                    ? "bg-green-900/40 text-green-200 border border-green-600/40"
-                    : "bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 text-yellow-100 border border-yellow-600/40"
-                )}
-              >
-                <Coins className="w-3 h-3" />
-                <span className="font-semibold">{task.goldValue}</span>
-              </Badge>
+              {/* Gold — minimalist coin + number */}
+              <span className="flex items-center gap-0.5 text-[11px] text-yellow-300/70 flex-shrink-0">
+                <span className="text-sm">🪙</span>
+                <span className="font-medium">{task.goldValue}</span>
+              </span>
             </div>
           </CardContent>
         </Card>
