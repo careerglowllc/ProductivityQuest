@@ -279,9 +279,9 @@ export default function Shop() {
   const selectedItem = shopItems.find((item: any) => item.id === selectedItemId);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative`}>
       {/* Starfield Background Effect */}
-      <div className="absolute inset-0 opacity-30">
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
         <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
         <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
@@ -289,8 +289,45 @@ export default function Shop() {
         <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl relative">
-        {/* Header */}
+      {/* Sticky Header + Gold Balance on Mobile */}
+      {isMobile && (
+        <div className="sticky top-0 z-30 bg-gradient-to-b from-slate-900 via-slate-900/98 to-slate-900/95 backdrop-blur-md border-b border-yellow-600/20 px-4 pt-4 pb-3">
+          {/* Header */}
+          <div className="text-center mb-3">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <ShoppingCart className="h-6 w-6 text-yellow-400" />
+              <h1 className="text-2xl font-serif font-bold text-yellow-100">Item Shop</h1>
+              <ShoppingCart className="h-6 w-6 text-yellow-400" />
+            </div>
+            <p className="text-yellow-200/70 text-sm italic">Spend your hard-earned gold!</p>
+          </div>
+
+          {/* Gold Balance - Compact */}
+          <div className="flex items-center justify-between bg-slate-800/60 backdrop-blur-md border border-yellow-500/40 rounded-lg px-4 py-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-yellow-600/20 p-2 rounded-full border border-yellow-500/40">
+                <Coins className="h-5 w-5 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-xs text-yellow-200/80 font-medium">Your Balance</p>
+                <p className="text-xl font-bold text-yellow-100">{progress.goldTotal} Gold</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowAddModal(true)}
+              size="sm"
+              className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white border border-yellow-400/50 text-xs"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add Item
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className={`container mx-auto px-4 max-w-4xl relative ${isMobile ? 'pt-4 pb-8' : 'py-8'}`}>
+        {/* Header - Desktop only */}
+        {!isMobile && (
         <div className="mb-8 text-center border-b border-yellow-600/30 pb-6">
           <div className="flex items-center justify-center gap-3 mb-2">
             <ShoppingCart className="h-8 w-8 text-yellow-400" />
@@ -306,8 +343,10 @@ export default function Shop() {
             Add New Item
           </Button>
         </div>
+        )}
 
-        {/* Gold Balance */}
+        {/* Gold Balance - Desktop only */}
+        {!isMobile && (
         <Card className="mb-8 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/50">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
@@ -322,6 +361,7 @@ export default function Shop() {
             <ShoppingCart className="h-12 w-12 text-yellow-400/20" />
           </CardContent>
         </Card>
+        )}
 
         {/* Shop Items */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
