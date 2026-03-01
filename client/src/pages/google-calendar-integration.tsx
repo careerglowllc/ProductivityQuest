@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { invalidateCalendarEvents } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +93,7 @@ export default function GoogleCalendarIntegration() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+      invalidateCalendarEvents(queryClient);
       
       // Build a descriptive message based on what was synced
       const parts = [];
@@ -130,7 +131,7 @@ export default function GoogleCalendarIntegration() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+      invalidateCalendarEvents(queryClient);
       toast({
         title: "Calendar Cleared!",
         description: `Deleted ${data.deletedFromGoogle} events from Google Calendar, cleared ${data.clearedFromTasks} task references.`,

@@ -41,6 +41,20 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+/**
+ * Invalidate all cached calendar event queries.
+ * The calendar events query key includes query params (e.g. ?year=2025&month=1)
+ * as part of the key string, so a simple queryKey prefix match won't work.
+ * This helper uses a predicate to match any query containing the events path.
+ */
+export function invalidateCalendarEvents(qc: QueryClient) {
+  qc.invalidateQueries({
+    predicate: (query) =>
+      typeof query.queryKey[0] === "string" &&
+      query.queryKey[0].includes("/api/google-calendar/events"),
+  });
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

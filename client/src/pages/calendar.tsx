@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { MLSortFeedbackModal } from "@/components/ml-sort-feedback-modal";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import React from "react";
 
 type UserSettings = {
@@ -351,7 +351,7 @@ export default function Calendar() {
 
       // Remove temp event, then refresh to get the real one from server
       removeTempEvent();
-      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+      invalidateCalendarEvents(queryClient);
 
       toast({ title: "Event Created", description: `"${newEventTitle.trim()}" has been added to your calendar.` });
       setShowNewEventModal(false);
@@ -402,7 +402,7 @@ export default function Calendar() {
     const numericId = eventId.replace('standalone-', '');
     try {
       await apiRequest("DELETE", `/api/standalone-events/${numericId}`);
-      queryClient.invalidateQueries({ queryKey: ["/api/google-calendar/events"] });
+      invalidateCalendarEvents(queryClient);
       setSelectedEvent(null);
       toast({ title: "Event Deleted", description: "The event has been removed from your calendar." });
     } catch (error) {
@@ -1124,7 +1124,7 @@ export default function Calendar() {
           <ToastAction altText="Undo completion" onClick={async () => {
             try {
               await apiRequest("POST", "/api/tasks/undo-complete", { taskIds: [taskId] });
-              queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+              invalidateCalendarEvents(queryClient);
               queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
               queryClient.invalidateQueries({ queryKey: ['/api/user/progress'] });
               toast({ title: "Undo Successful", description: `1 task restored. ${goldEarned} gold refunded.` });
@@ -1138,7 +1138,7 @@ export default function Calendar() {
       });
 
       // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      invalidateCalendarEvents(queryClient);
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user/progress'] });
     } catch (error) {
@@ -1224,7 +1224,7 @@ export default function Calendar() {
       }
       
       // Refresh to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      invalidateCalendarEvents(queryClient);
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       
     } catch (error) {
@@ -1235,7 +1235,7 @@ export default function Calendar() {
         variant: "destructive",
       });
       // Refresh to restore correct state
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      invalidateCalendarEvents(queryClient);
     }
   };
 
@@ -1277,7 +1277,7 @@ export default function Calendar() {
     setSelectedEventIds(new Set());
     
     // Refresh calendar data
-    queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+    invalidateCalendarEvents(queryClient);
     queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
     
     // Show result toast
@@ -3181,7 +3181,7 @@ export default function Calendar() {
                                 });
                                 
                                 // Refresh data
-                                queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+                                invalidateCalendarEvents(queryClient);
                                 queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
                                 
                                 // Close modals

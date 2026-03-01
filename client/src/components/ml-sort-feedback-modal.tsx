@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ThumbsUp, ThumbsDown, GripVertical, Send, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, invalidateCalendarEvents } from "@/lib/queryClient";
 
 interface ScheduledTask {
   taskId: number;
@@ -130,7 +130,7 @@ export function MLSortFeedbackModal({
         description: "AI will remember your preference.",
       });
 
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      invalidateCalendarEvents(queryClient);
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       onClose();
     } catch (error: any) {
@@ -168,7 +168,7 @@ export function MLSortFeedbackModal({
         description: "Your schedule has been updated.",
       });
 
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+      invalidateCalendarEvents(queryClient);
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       onClose();
     } catch (error: any) {

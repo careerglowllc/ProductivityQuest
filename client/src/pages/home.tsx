@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 
 type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw";
 type BusinessFilterType = "Apple" | "General" | "MW";
@@ -424,7 +424,7 @@ export default function Home() {
         });
 
         await refetchTasks();
-        queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+        invalidateCalendarEvents(queryClient);
       } catch (error) {
         toast({
           title: "Error",
@@ -477,7 +477,7 @@ export default function Home() {
         });
 
         await refetchTasks();
-        queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/events'] });
+        invalidateCalendarEvents(queryClient);
       } catch (error) {
         toast({
           title: "Error",
@@ -1243,6 +1243,8 @@ export default function Home() {
         
         // Refresh tasks to show updated times from import
         await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        // Also refresh calendar events so the calendar page shows the newly synced tasks
+        invalidateCalendarEvents(queryClient);
       } catch (error: any) {
         const errorData = error.response?.data || {};
         
@@ -1669,12 +1671,31 @@ export default function Home() {
             {!isMobile && <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>}
           </div>
           {isMobile ? (
-            /* Mobile: Compact button row — Add, File (dropdown), Undo */
-            <div className="flex gap-1.5">
+            /* Mobile: Search bar + Add/File buttons in one row */
+            <div className="flex items-center gap-1.5">
+              {/* Search — fills remaining space */}
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-yellow-400/60 w-3.5 h-3.5" />
+                <Input
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-7 py-1 text-sm h-9 w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50 rounded-md"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-yellow-400/60 hover:text-yellow-300"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {/* Buttons — right side */}
               <Button 
                 onClick={() => setShowAddTask(true)}
                 size="sm"
-                className="flex items-center gap-1 h-9 px-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-xs"
+                className="flex items-center gap-1 h-9 px-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-xs shrink-0"
                 title="Add Quest"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1683,7 +1704,7 @@ export default function Home() {
                 </svg>
                 Add
               </Button>
-              <div className="relative">
+              <div className="relative shrink-0">
                 <Button 
                   size="sm"
                   variant="outline"
@@ -1699,7 +1720,7 @@ export default function Home() {
                     {/* Backdrop to close menu */}
                     <div className="fixed inset-0 z-[60]" onClick={() => setShowFileMenu(false)} />
                     {/* Menu */}
-                    <div className="absolute top-full left-0 mt-1 z-[61] min-w-[180px] rounded-md border border-yellow-600/30 bg-slate-800 p-1 shadow-lg">
+                    <div className="absolute top-full right-0 mt-1 z-[61] min-w-[180px] rounded-md border border-yellow-600/30 bg-slate-800 p-1 shadow-lg">
                       <button
                         className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
                         onClick={() => { setShowFileMenu(false); handleImportPrepare(); }}
@@ -1730,7 +1751,7 @@ export default function Home() {
                   onClick={handleUndo}
                   size="sm"
                   variant="outline"
-                  className="flex items-center gap-1 h-9 px-3 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 text-xs"
+                  className="flex items-center gap-1 h-9 px-3 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 text-xs shrink-0"
                   title="Undo"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1797,15 +1818,16 @@ export default function Home() {
           )}
         </div>
 
-            {/* Search Bar */}
-            <Card className={`${isMobile ? 'p-2 mb-2' : 'p-4 mb-4'} bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30`}>
+            {/* Search Bar — desktop only (mobile search is in header row) */}
+            {!isMobile && (
+            <Card className="p-4 mb-4 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-yellow-400/60 w-4 h-4" />
                 <Input
-                  placeholder={isMobile ? "Search tasks..." : "Search tasks by title, description, category, or importance..."}
+                  placeholder="Search tasks by title, description, category, or importance..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`pl-10 pr-4 ${isMobile ? 'py-1 text-sm h-8' : 'py-2'} w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50`}
+                  className="pl-10 pr-4 py-2 w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50"
                 />
                 {searchQuery && (
                   <Button
@@ -1819,6 +1841,7 @@ export default function Home() {
                 )}
               </div>
             </Card>
+            )}
 
             {/* Results Counter */}
             {(searchQuery || activeFilter !== "all") && (

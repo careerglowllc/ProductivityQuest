@@ -6,7 +6,7 @@ import { Clock, ArrowLeft, Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, invalidateCalendarEvents } from "@/lib/queryClient";
 
 // Timezone options
 const TIMEZONES = [
@@ -49,7 +49,7 @@ export default function TimezoneSettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+      invalidateCalendarEvents(queryClient);
       toast({
         title: "Timezone updated",
         description: "Your timezone preference has been saved.",
