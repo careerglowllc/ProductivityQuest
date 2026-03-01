@@ -1587,17 +1587,22 @@ export default function Calendar() {
     }
   };
 
-  // Swipe navigation handlers for mobile — smooth continuous drag
+  // Swipe navigation handlers for mobile — true seamless paging (Apple Calendar style)
+  // During drag: content follows finger 1:1.
+  // On release past threshold: date changes instantly, offset resets to 0 — no transition.
+  // On release below threshold: snap back with a short transition.
   const handleSwipeStart = (e: React.TouchEvent) => {
     if (!isMobile || swipeAnimating) return;
     if (isTouchDragging || draggingEvent || resizingEvent) return;
     const touch = e.touches[0];
     swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
     swipeLockedRef.current = null;
+    // Kill any ongoing snap-back transition immediately
+    setSwipeAnimating(false);
   };
 
   const handleSwipeMove = (e: React.TouchEvent) => {
-    if (!isMobile || !swipeStartRef.current || swipeAnimating) return;
+    if (!isMobile || !swipeStartRef.current) return;
     if (isTouchDragging || draggingEvent || resizingEvent) return;
     const touch = e.touches[0];
     const deltaX = touch.clientX - swipeStartRef.current.x;
@@ -1614,13 +1619,20 @@ export default function Calendar() {
     // If locked vertical, don't interfere with scroll
     if (swipeLockedRef.current === 'vertical') return;
 
-    // Horizontal drag — apply offset with slight resistance
-    setSwipeOffsetX(deltaX * 0.85);
+    // 1:1 finger tracking — no resistance
+    setSwipeOffsetX(deltaX);
   };
 
   const handleSwipeEnd = (e: React.TouchEvent) => {
-    if (!isMobile || !swipeStartRef.current || swipeAnimating) return;
+    if (!isMobile || !swipeStartRef.current) return;
     if (isTouchDragging || draggingEvent || resizingEvent) {
+      swipeStartRef.current = null;
+      swipeLockedRef.current = null;
+      return;
+    }
+
+    // If direction was vertical (scroll), just clean up
+    if (swipeLockedRef.current === 'vertical') {
       swipeStartRef.current = null;
       swipeLockedRef.current = null;
       return;
@@ -1634,33 +1646,20 @@ export default function Calendar() {
 
     const absDx = Math.abs(deltaX);
     const velocity = absDx / Math.max(elapsed, 1);
-    // Trigger navigation if dragged far enough (>25% screen) or fast enough (velocity > 0.5px/ms)
     const screenW = window.innerWidth;
     const threshold = screenW * 0.25;
 
     if (absDx > threshold || (absDx > 40 && velocity > 0.5)) {
-      // Animate off-screen, then change date
-      const direction = deltaX < 0 ? -1 : 1;
-      setSwipeAnimating(true);
-      setSwipeOffsetX(direction * screenW);
-      setTimeout(() => {
-        if (direction < 0) nextMonth(); else previousMonth();
-        // Reset: briefly show incoming slide from opposite side
-        setSwipeOffsetX(-direction * screenW * 0.3);
-        requestAnimationFrame(() => {
-          // Small delay to ensure the DOM updates with new date content
-          setTimeout(() => {
-            setSwipeAnimating(true);
-            setSwipeOffsetX(0);
-            setTimeout(() => setSwipeAnimating(false), 250);
-          }, 20);
-        });
-      }, 200);
+      // Navigated: change date instantly, reset offset to 0 with NO transition
+      // React re-renders new content in place — seamless page change
+      if (deltaX > 0) previousMonth(); else nextMonth();
+      setSwipeOffsetX(0);
+      setSwipeAnimating(false);
     } else {
-      // Snap back
+      // Below threshold: snap back with a short transition
       setSwipeAnimating(true);
       setSwipeOffsetX(0);
-      setTimeout(() => setSwipeAnimating(false), 250);
+      setTimeout(() => setSwipeAnimating(false), 200);
     }
   };
 
@@ -2172,8 +2171,7 @@ export default function Calendar() {
           <div 
             style={isMobile ? { 
               transform: `translateX(${swipeOffsetX}px)`, 
-              transition: swipeAnimating ? 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease' : 'none',
-              opacity: swipeOffsetX === 0 ? 1 : Math.max(0.4, 1 - Math.abs(swipeOffsetX) / 600),
+              transition: swipeAnimating ? 'transform 0.2s ease-out' : 'none',
             } : undefined}
             className={isMobile ? 'flex-1 flex flex-col min-h-0' : 'contents'}
           >
