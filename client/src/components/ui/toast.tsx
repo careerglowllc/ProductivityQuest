@@ -23,7 +23,7 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-3 overflow-hidden rounded-xl border p-4 pr-7 shadow-lg transition-all data-[swipe=cancel]:translate-y-0 data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-full data-[state=open]:slide-in-from-top-full data-[state=open]:duration-300 data-[state=closed]:duration-200 backdrop-blur-sm",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-3 overflow-hidden rounded-xl border p-4 pr-7 shadow-lg backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-full data-[state=open]:slide-in-from-top-full data-[state=open]:duration-300 data-[state=closed]:duration-200",
   {
     variants: {
       variant: {
@@ -42,11 +42,59 @@ const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
     VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+>(({ className, variant, onOpenChange, ...props }, ref) => {
+  const touchRef = React.useRef<{ startY: number; currentY: number } | null>(null);
+  const [offsetY, setOffsetY] = React.useState(0);
+  const [dismissing, setDismissing] = React.useState(false);
+  const [isTouching, setIsTouching] = React.useState(false);
+
+  const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+    touchRef.current = { startY: e.touches[0].clientY, currentY: e.touches[0].clientY };
+    setIsTouching(true);
+  }, []);
+
+  const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
+    if (!touchRef.current) return;
+    const deltaY = e.touches[0].clientY - touchRef.current.startY;
+    touchRef.current.currentY = e.touches[0].clientY;
+    // Only allow upward swipe (negative delta) — clamp downward to slight rubber band
+    if (deltaY < 0) {
+      setOffsetY(deltaY);
+    } else {
+      setOffsetY(Math.pow(deltaY, 0.6)); // slight rubber band downward
+    }
+  }, []);
+
+  const handleTouchEnd = React.useCallback(() => {
+    if (!touchRef.current) return;
+    const deltaY = touchRef.current.currentY - touchRef.current.startY;
+    touchRef.current = null;
+    setIsTouching(false);
+    // If swiped up more than 40px, dismiss
+    if (deltaY < -40) {
+      setDismissing(true);
+      setOffsetY(-200);
+      setTimeout(() => {
+        onOpenChange?.(false);
+      }, 200);
+    } else {
+      setOffsetY(0);
+    }
+  }, [onOpenChange]);
+
   return (
     <ToastPrimitives.Root
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
+      onOpenChange={onOpenChange}
+      style={{
+        transform: offsetY !== 0 ? `translateY(${offsetY}px)` : undefined,
+        transition: isTouching ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out',
+        opacity: dismissing ? 0 : 1,
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       {...props}
     />
   )

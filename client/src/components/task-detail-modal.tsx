@@ -27,7 +27,7 @@ import {
 import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskDetailModalProps {
@@ -228,41 +228,58 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   };
 
   // Swipe-down-to-close for mobile
+  // Uses native addEventListener with { passive: false } so e.preventDefault() works on iOS
   const swipeRef = useRef<{ startY: number; startScrollTop: number; dragging: boolean }>({ startY: 0, startScrollTop: 0, dragging: false });
   const [dragOffset, setDragOffset] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef(0); // mirror for use inside native event handlers
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!isMobile) return;
-    const scrollEl = contentRef.current;
-    const scrollTop = scrollEl?.scrollTop ?? 0;
-    swipeRef.current = { startY: e.touches[0].clientY, startScrollTop: scrollTop, dragging: false };
-  }, [isMobile]);
+  // Keep ref in sync with state
+  useEffect(() => { dragOffsetRef.current = dragOffset; }, [dragOffset]);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isMobile) return;
-    const deltaY = e.touches[0].clientY - swipeRef.current.startY;
-    // Only start dragging if we were at the top of scroll and pulling down
-    if (swipeRef.current.startScrollTop <= 0 && deltaY > 0) {
-      swipeRef.current.dragging = true;
-      // Apply rubber-band effect (diminishing returns)
-      setDragOffset(Math.pow(deltaY, 0.75));
-      e.preventDefault();
-    }
-  }, [isMobile]);
+  // Attach touch listeners with { passive: false } so we can preventDefault on iOS
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const el = contentRef.current;
+    if (!el) return;
 
-  const handleTouchEnd = useCallback(() => {
-    if (!isMobile || !swipeRef.current.dragging) {
+    const onTouchStart = (e: TouchEvent) => {
+      const scrollTop = el.scrollTop ?? 0;
+      swipeRef.current = { startY: e.touches[0].clientY, startScrollTop: scrollTop, dragging: false };
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const deltaY = e.touches[0].clientY - swipeRef.current.startY;
+      // Only start dragging if we were scrolled to top and pulling down
+      if (swipeRef.current.startScrollTop <= 0 && deltaY > 0) {
+        swipeRef.current.dragging = true;
+        setDragOffset(Math.pow(deltaY, 0.75));
+        e.preventDefault(); // This works because { passive: false }
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!swipeRef.current.dragging) {
+        setDragOffset(0);
+        return;
+      }
+      if (dragOffsetRef.current > 120) {
+        onOpenChange(false);
+      }
       setDragOffset(0);
-      return;
-    }
-    if (dragOffset > 120) {
-      // Close the modal
-      onOpenChange(false);
-    }
-    setDragOffset(0);
-    swipeRef.current.dragging = false;
-  }, [isMobile, dragOffset, onOpenChange]);
+      swipeRef.current.dragging = false;
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isMobile, open, onOpenChange]);
 
   // Reset drag when modal closes
   useEffect(() => {
@@ -273,9 +290,6 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         ref={contentRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         style={isMobile && dragOffset > 0 ? { transform: `translateY(${dragOffset}px)`, transition: 'none', opacity: Math.max(0.3, 1 - dragOffset / 400) } : isMobile ? { transform: 'translateY(0)', transition: 'transform 0.3s ease-out, opacity 0.3s ease-out' } : undefined}
         className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))]' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30 data-[state=open]:animate-in data-[state=open]:zoom-in-75 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:zoom-out-75 data-[state=closed]:duration-200`}>
         {/* iOS-style pull-down handle for mobile */}
