@@ -445,14 +445,18 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                       </div>
                     </>
                   )}
+                  {/* Gold — inline in meta row */}
+                  {task.goldValue > 0 && (
+                    <>
+                      <span className="text-yellow-600/30">·</span>
+                      <span className="flex items-center gap-0.5 text-yellow-300/60">
+                        <span className="text-[10px]">🪙</span>
+                        <span>{task.goldValue}</span>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
-              
-              {/* Gold — minimalist coin + number */}
-              <span className="flex items-center gap-0.5 text-[11px] text-yellow-300/70 flex-shrink-0">
-                <span className="text-sm">🪙</span>
-                <span className="font-medium">{task.goldValue}</span>
-              </span>
             </div>
           </CardContent>
         </Card>
