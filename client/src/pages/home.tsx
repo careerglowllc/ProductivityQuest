@@ -1605,7 +1605,7 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed top-0 left-0 right-0 bottom-0 overflow-hidden flex flex-col' : 'min-h-screen pt-16'} relative`}>
+    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16'} relative`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -1633,11 +1633,8 @@ export default function Home() {
       </header>
       )}
 
-      {/* Mobile: minimal spacer — just clears the status bar/notch */}
-      {isMobile && <div className="flex-shrink-0 h-[env(safe-area-inset-top,44px)]" style={{ height: 'env(safe-area-inset-top, 44px)' }} />}
-
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 flex flex-col flex-1 min-h-0 overflow-hidden' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
-        {/* Fixed header area on mobile — does not scroll */}
+      <div className={`${isMobile ? 'h-full flex flex-col overflow-hidden px-3' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+        {/* Pinned header area on mobile — does not scroll */}
         <div className={isMobile ? 'flex-shrink-0 pb-1' : ''}>
         {/* Your Quests Header */}
         <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
@@ -2239,7 +2236,7 @@ export default function Home() {
               </div>
               )}
             </Card>
-            </div>{/* End sticky header area */}
+            </div>{/* End pinned header area */}
 
             {/* Scrollable task area on mobile */}
             <div className={isMobile ? 'flex-1 min-h-0 overflow-y-auto overscroll-none pb-2' : ''} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
@@ -2715,10 +2712,7 @@ export default function Home() {
               )}
             </div>
             </div>{/* End scrollable task area */}
-      </div>
-
-      {/* Mobile: safe-area + tab bar spacer at bottom */}
-      {isMobile && <div className="flex-shrink-0" style={{ height: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }} />}
+      </div>{/* End inner container */}
 
       {/* Modals */}
       <ItemShopModal
