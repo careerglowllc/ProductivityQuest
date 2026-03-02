@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter, MoreHorizontal } from "lucide-react";
+import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter, MoreHorizontal, CalendarClock } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -2157,6 +2157,7 @@ export default function Home() {
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
+                      {/* Row 1: Complete, Calendar, Organize, More */}
                       <div className="grid grid-cols-4 gap-1.5">
                         {/* 1) Complete — direct action */}
                         <Button 
@@ -2168,10 +2169,10 @@ export default function Home() {
                           Complete
                         </Button>
 
-                        {/* 2) Calendar — dropdown: Sync, Unsync, Clear All, Reschedule, Push */}
+                        {/* 2) Calendar — dropdown: Sync, Unsync, Clear All */}
                         <div className="relative">
                           <Button 
-                            onClick={() => { setShowCalendarMenu(!showCalendarMenu); setShowOrganizeMenu(false); setShowMoreMenu(false); }}
+                            onClick={() => { setShowCalendarMenu(!showCalendarMenu); setShowOrganizeMenu(false); setShowMoreMenu(false); setShowPushSubmenu(false); }}
                             variant="outline"
                             size="sm"
                             className="h-9 w-full px-1 text-[10px] border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
@@ -2181,7 +2182,7 @@ export default function Home() {
                           </Button>
                           {showCalendarMenu && (
                             <>
-                              <div className="fixed inset-0 z-[60]" onClick={() => { setShowCalendarMenu(false); setShowPushSubmenu(false); }} />
+                              <div className="fixed inset-0 z-[60]" onClick={() => { setShowCalendarMenu(false); }} />
                               <div className="absolute bottom-full left-0 mb-1 z-[61] min-w-[160px] rounded-md border border-emerald-500/30 bg-slate-800 p-1 shadow-lg">
                                 <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-emerald-200 hover:bg-slate-700 active:bg-slate-600"
                                   onClick={() => { setShowCalendarMenu(false); setShowCalendarSync(true); }}>
@@ -2195,28 +2196,6 @@ export default function Home() {
                                   onClick={() => { setShowCalendarMenu(false); handleRemoveAllFromCalendar(); }}>
                                   <CalendarDays className="w-3.5 h-3.5" /> Clear ALL from Calendar
                                 </button>
-                                <div className="h-px bg-slate-700 my-0.5" />
-                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-cyan-300 hover:bg-slate-700 active:bg-slate-600"
-                                  onClick={() => { setShowCalendarMenu(false); setShowReschedulePopover(true); }}>
-                                  <CalendarDays className="w-3.5 h-3.5" /> Reschedule
-                                </button>
-                                <div className="relative">
-                                  <button className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-2 text-xs text-amber-300 hover:bg-slate-700 active:bg-slate-600"
-                                    onClick={() => setShowPushSubmenu(!showPushSubmenu)}>
-                                    <span className="flex items-center gap-2"><ArrowRight className="w-3.5 h-3.5" /> Push Days</span>
-                                    <ArrowRight className="w-3 h-3" />
-                                  </button>
-                                  {showPushSubmenu && (
-                                    <div className="absolute bottom-0 left-full ml-1 z-[62] min-w-[120px] rounded-md border border-amber-500/30 bg-slate-800 p-1 shadow-lg">
-                                      {[{d:1,l:"1 Day"},{d:3,l:"3 Days"},{d:5,l:"5 Days"},{d:7,l:"1 Week"},{d:14,l:"2 Weeks"},{d:30,l:"1 Month"}].map(({d,l}) => (
-                                        <button key={d} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
-                                          onClick={() => { setShowCalendarMenu(false); setShowPushSubmenu(false); handlePushDays(d); }}>
-                                          {l}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
                               </div>
                             </>
                           )}
@@ -2225,7 +2204,7 @@ export default function Home() {
                         {/* 3) Organize — dropdown: Categorize Skill, Recategorize */}
                         <div className="relative">
                           <Button 
-                            onClick={() => { setShowOrganizeMenu(!showOrganizeMenu); setShowCalendarMenu(false); setShowMoreMenu(false); }}
+                            onClick={() => { setShowOrganizeMenu(!showOrganizeMenu); setShowCalendarMenu(false); setShowMoreMenu(false); setShowPushSubmenu(false); }}
                             variant="outline"
                             size="sm"
                             className="h-9 w-full px-1 text-[10px] border-purple-500/40 text-purple-300 hover:bg-purple-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
@@ -2253,7 +2232,7 @@ export default function Home() {
                         {/* 4) More — dropdown: Delete, Append Notion, Delete Notion */}
                         <div className="relative">
                           <Button 
-                            onClick={() => { setShowMoreMenu(!showMoreMenu); setShowCalendarMenu(false); setShowOrganizeMenu(false); }}
+                            onClick={() => { setShowMoreMenu(!showMoreMenu); setShowCalendarMenu(false); setShowOrganizeMenu(false); setShowPushSubmenu(false); }}
                             variant="outline"
                             size="sm"
                             className="h-9 w-full px-1 text-[10px] border-orange-500/40 text-orange-300 hover:bg-orange-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
@@ -2282,6 +2261,57 @@ export default function Home() {
                             </>
                           )}
                         </div>
+                      </div>
+
+                      {/* Row 2: Push, Overdue→Today, Reschedule */}
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {/* Push — dropdown with day options */}
+                        <div className="relative">
+                          <Button 
+                            onClick={() => { setShowPushSubmenu(!showPushSubmenu); setShowCalendarMenu(false); setShowOrganizeMenu(false); setShowMoreMenu(false); }}
+                            variant="outline"
+                            size="sm"
+                            className="h-9 w-full px-1 text-[10px] border-amber-500/40 text-amber-300 hover:bg-amber-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5" />
+                            Push
+                          </Button>
+                          {showPushSubmenu && (
+                            <>
+                              <div className="fixed inset-0 z-[60]" onClick={() => setShowPushSubmenu(false)} />
+                              <div className="absolute bottom-full left-0 mb-1 z-[61] min-w-[120px] rounded-md border border-amber-500/30 bg-slate-800 p-1 shadow-lg">
+                                {[{d:1,l:"1 Day"},{d:3,l:"3 Days"},{d:5,l:"5 Days"},{d:7,l:"1 Week"},{d:14,l:"2 Weeks"},{d:30,l:"1 Month"}].map(({d,l}) => (
+                                  <button key={d} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
+                                    onClick={() => { setShowPushSubmenu(false); handlePushDays(d); }}>
+                                    {l}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Overdue → Today */}
+                        <Button 
+                          onClick={handleMoveOverdueToToday}
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-1 text-[10px] border-orange-500/40 text-orange-300 hover:bg-orange-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
+                        >
+                          <CalendarClock className="w-3.5 h-3.5" />
+                          Overdue→Today
+                        </Button>
+
+                        {/* Reschedule — opens calendar overlay */}
+                        <Button 
+                          onClick={() => { setShowReschedulePopover(true); setShowCalendarMenu(false); setShowOrganizeMenu(false); setShowMoreMenu(false); setShowPushSubmenu(false); }}
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-1 text-[10px] border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 flex flex-col items-center justify-center gap-0.5 leading-none"
+                        >
+                          <CalendarDays className="w-3.5 h-3.5" />
+                          Reschedule
+                        </Button>
                       </div>
                     </div>
                   ) : (
