@@ -1633,12 +1633,12 @@ export default function Home() {
       </header>
       )}
 
-      {/* Mobile: safe-area spacer at top to push content below notch */}
-      {isMobile && <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />}
+      {/* Mobile: minimal spacer — just clears the status bar/notch */}
+      {isMobile && <div className="flex-shrink-0 h-[env(safe-area-inset-top,44px)]" style={{ height: 'env(safe-area-inset-top, 44px)' }} />}
 
       <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 flex flex-col flex-1 min-h-0 overflow-hidden' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
         {/* Fixed header area on mobile — does not scroll */}
-        <div className={isMobile ? 'flex-shrink-0 pt-1 pb-1' : ''}>
+        <div className={isMobile ? 'flex-shrink-0 pb-1' : ''}>
         {/* Your Quests Header */}
         <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
