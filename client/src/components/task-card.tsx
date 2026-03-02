@@ -174,9 +174,22 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
       case "High": return "border-red-500/50 shadow-red-900/15";
       case "Med-High": return "border-orange-500/50 shadow-orange-900/15";
       case "Medium": return "border-yellow-500/50 shadow-yellow-900/15";
-      case "Med-Low": return "border-blue-400/40";
-      case "Low": return "border-green-400/40";
+      case "Med-Low": return "border-blue-400/50 shadow-blue-900/15";
+      case "Low": return "border-green-400/50 shadow-green-900/15";
       default: return "border-yellow-600/20";
+    }
+  };
+
+  // Brighter importance border when card is selected
+  const getImportanceBorderSelected = (importance?: string) => {
+    switch (importance) {
+      case "Pareto": return "border-red-400 shadow-md shadow-red-800/30";
+      case "High": return "border-red-400 shadow-md shadow-red-800/25";
+      case "Med-High": return "border-orange-400 shadow-md shadow-orange-800/25";
+      case "Medium": return "border-yellow-400 shadow-md shadow-yellow-800/25";
+      case "Med-Low": return "border-blue-400 shadow-md shadow-blue-800/25";
+      case "Low": return "border-green-400 shadow-md shadow-green-800/25";
+      default: return "border-yellow-400 shadow-md shadow-yellow-600/20";
     }
   };
 
@@ -201,8 +214,8 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
           className={cn(
             "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative h-full cursor-pointer",
             isSelected 
-              ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
-              : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
+              ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
+              : cn(getImportanceBorder(task.importance), "hover:brightness-110"),
             task.completed && "opacity-60"
           )}
           onClick={handleCardClick}
@@ -344,7 +357,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
           className={cn(
             "bg-slate-800/40 backdrop-blur-md border transition-all relative cursor-pointer shadow-sm",
             isSelected 
-              ? "border-yellow-400 shadow-md shadow-yellow-600/20 bg-slate-700/50" 
+              ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
               : getImportanceBorder(task.importance),
             !isSelected && "hover:brightness-110",
             task.completed && "opacity-50"
@@ -487,8 +500,8 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
         className={cn(
           "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative cursor-pointer",
           isSelected 
-            ? "border-yellow-500/80 shadow-lg shadow-yellow-600/20 bg-slate-700/50" 
-            : "border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10",
+            ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
+            : cn(getImportanceBorder(task.importance), "hover:brightness-110"),
           task.completed && "opacity-60"
         )}
         onClick={handleCardClick}
