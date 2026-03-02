@@ -450,7 +450,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                     <>
                       <span className="text-yellow-600/30">·</span>
                       <span className="flex items-center gap-0.5 text-yellow-300/60">
-                        <span className="text-[10px]">🪙</span>
+                        <Coins className="w-3 h-3" />
                         <span>{task.goldValue}</span>
                       </span>
                     </>
