@@ -126,13 +126,19 @@ export default function Home() {
     if (!isMobile) return;
     const html = document.documentElement;
     const body = document.body;
-    const prevHtmlOverflow = html.style.overflow;
-    const prevBodyOverflow = body.style.overflow;
     html.style.overflow = 'hidden';
+    html.style.height = '100%';
     body.style.overflow = 'hidden';
+    body.style.height = '100%';
+    body.style.position = 'fixed';
+    body.style.width = '100%';
     return () => {
-      html.style.overflow = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
+      html.style.overflow = '';
+      html.style.height = '';
+      body.style.overflow = '';
+      body.style.height = '';
+      body.style.position = '';
+      body.style.width = '';
     };
   }, [isMobile]);
 
@@ -1618,7 +1624,7 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed inset-0 flex flex-col overflow-hidden' : 'min-h-screen pt-16'} relative`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
+    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'h-[100dvh] flex flex-col overflow-hidden' : 'min-h-screen pt-16'} relative`} style={isMobile ? { paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -1646,9 +1652,9 @@ export default function Home() {
       </header>
       )}
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 h-full overflow-y-auto overscroll-none' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
-        {/* Sticky header area on mobile */}
-        <div className={isMobile ? 'sticky top-0 z-30 pt-1.5 pb-1 -mx-3 px-3' : ''} style={isMobile ? { background: 'linear-gradient(to bottom, #0f172a 0%, #0f172a 85%, rgba(15,23,42,0) 100%)' } : undefined}>
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 flex flex-col flex-1 min-h-0' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+        {/* Fixed header area on mobile — does not scroll */}
+        <div className={isMobile ? 'flex-shrink-0 pt-1.5 pb-1' : ''}>
         {/* Your Quests Header */}
         <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
@@ -2251,8 +2257,8 @@ export default function Home() {
             </Card>
             </div>{/* End sticky header area */}
 
-            {/* Task area (scrolls naturally within the parent on mobile) */}
-            <div className={isMobile ? 'pb-2' : ''}>
+            {/* Scrollable task area on mobile */}
+            <div className={isMobile ? 'flex-1 min-h-0 overflow-y-auto overscroll-none pb-2' : ''} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
 
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
