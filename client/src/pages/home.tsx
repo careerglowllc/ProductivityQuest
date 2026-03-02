@@ -1605,8 +1605,9 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16'} relative`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
-      {/* Starfield Background Effect */}
+    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16 relative'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
+      {/* Starfield Background Effect - hidden on mobile for layout reliability */}
+      {!isMobile && (
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
         <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -1614,6 +1615,7 @@ export default function Home() {
         <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
         <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
+      )}
 
       {/* Header - desktop only, mobile has bottom nav */}
       {!isMobile && (
@@ -1633,9 +1635,11 @@ export default function Home() {
       </header>
       )}
 
-      <div className={`${isMobile ? 'h-full flex flex-col overflow-hidden px-3' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+      <div className={`${isMobile ? 'max-w-full h-full' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative'}`}>
+      {/* On mobile: inner flex container matching calendar Card pattern */}
+      <div className={`${isMobile ? 'h-full flex flex-col overflow-hidden px-3' : ''}`}>
         {/* Pinned header area on mobile — does not scroll */}
-        <div className={isMobile ? 'flex-shrink-0 pb-1' : ''}>
+        <div className={isMobile ? 'flex-shrink-0 overflow-hidden pb-1' : ''}>
         {/* Your Quests Header */}
         <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
@@ -2712,7 +2716,8 @@ export default function Home() {
               )}
             </div>
             </div>{/* End scrollable task area */}
-      </div>{/* End inner container */}
+      </div>{/* End flex col container */}
+      </div>{/* End h-full wrapper */}
 
       {/* Modals */}
       <ItemShopModal
