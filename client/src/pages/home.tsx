@@ -2506,8 +2506,8 @@ export default function Home() {
             {isMobile && showReschedulePopover && (
               <>
                 <div className="fixed inset-0 z-[70] bg-black/50" onClick={() => setShowReschedulePopover(false)} />
-                <div className="fixed inset-0 z-[71] flex items-center justify-center p-4">
-                  <div className="bg-slate-900 border border-yellow-600/30 rounded-xl shadow-2xl overflow-hidden">
+                <div className="fixed inset-0 z-[71] flex items-center justify-center p-4" onClick={() => setShowReschedulePopover(false)}>
+                  <div className="bg-slate-900 border border-yellow-600/30 rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
                     <CalendarPicker
                       mode="single"
                       selected={undefined}
