@@ -27,7 +27,7 @@ import {
 import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskDetailModalProps {
@@ -227,22 +227,129 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     }
   };
 
-  // Swipe-down-to-close for mobile
-  // Uses a callback ref on an inner wrapper so we avoid portal timing issues with DialogContent
-  const swipeRef = useRef<{ startY: number; startScrollTop: number; dragging: boolean; scrollEl: HTMLElement | null }>({ startY: 0, startScrollTop: 0, dragging: false, scrollEl: null });
+  // ── iOS-style swipe-down-to-close ──
+  // Matches native iOS sheet dismiss: works from anywhere when scrolled to top,
+  // velocity-based closing, scale+opacity animation, low threshold for quick flicks.
+  const swipeRef = useRef<{
+    startY: number;
+    startTime: number;
+    startScrollTop: number;
+    dragging: boolean;
+    scrollEl: HTMLElement | null;
+    lastY: number;
+    lastTime: number;
+    velocityY: number;
+  }>({
+    startY: 0, startTime: 0, startScrollTop: 0, dragging: false,
+    scrollEl: null, lastY: 0, lastTime: 0, velocityY: 0,
+  });
   const [dragOffset, setDragOffset] = useState(0);
-  const dragOffsetRef = useRef(0); // mirror for use inside native event handlers
+  const dragOffsetRef = useRef(0);
   const touchElRef = useRef<HTMLDivElement | null>(null);
   const listenersAttachedRef = useRef(false);
   const onOpenChangeRef = useRef(onOpenChange);
   onOpenChangeRef.current = onOpenChange;
 
-  // Keep ref in sync with state
   useEffect(() => { dragOffsetRef.current = dragOffset; }, [dragOffset]);
 
-  // Callback ref for the inner swipe wrapper — attaches native touch listeners the moment the DOM node mounts
-  const swipeCallbackRef = (node: HTMLDivElement | null) => {
-    // Clean up old listeners if the node changes
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    const el = touchElRef.current;
+    if (!el) return;
+    // Walk up to find the scrollable container
+    let scrollEl: HTMLElement | null = el.parentElement;
+    while (scrollEl && scrollEl.scrollHeight <= scrollEl.clientHeight + 1) {
+      scrollEl = scrollEl.parentElement;
+    }
+    if (!scrollEl) scrollEl = el.parentElement;
+    const scrollTop = scrollEl?.scrollTop ?? 0;
+    const now = Date.now();
+    swipeRef.current = {
+      startY: e.touches[0].clientY,
+      startTime: now,
+      startScrollTop: scrollTop,
+      dragging: false,
+      scrollEl,
+      lastY: e.touches[0].clientY,
+      lastTime: now,
+      velocityY: 0,
+    };
+  }, []);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    const s = swipeRef.current;
+    const touchY = e.touches[0].clientY;
+    const deltaY = touchY - s.startY;
+    const currentScrollTop = s.scrollEl?.scrollTop ?? 0;
+    const now = Date.now();
+
+    // Track velocity (smoothed over last frame)
+    const dt = now - s.lastTime;
+    if (dt > 0) {
+      const instantVelocity = (touchY - s.lastY) / dt; // px/ms, positive = downward
+      s.velocityY = 0.7 * instantVelocity + 0.3 * s.velocityY; // smoothed
+    }
+    s.lastY = touchY;
+    s.lastTime = now;
+
+    // Start dragging: content at/near top AND pulling down
+    if (!s.dragging && s.startScrollTop <= 5 && currentScrollTop <= 5 && deltaY > 3) {
+      s.dragging = true;
+    }
+
+    if (s.dragging && deltaY > 0) {
+      // Slight rubber-band resistance — feels natural but follows finger closely
+      const offset = deltaY * 0.85;
+      dragOffsetRef.current = offset;
+      setDragOffset(offset);
+      e.preventDefault();
+    } else if (s.dragging && deltaY <= 0) {
+      // User swiped back up past origin — snap to 0
+      dragOffsetRef.current = 0;
+      setDragOffset(0);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const s = swipeRef.current;
+    if (!s.dragging) {
+      setDragOffset(0);
+      dragOffsetRef.current = 0;
+      return;
+    }
+
+    const offset = dragOffsetRef.current;
+    const velocity = s.velocityY; // px/ms, positive = downward
+
+    // iOS-style dismiss logic:
+    // 1. Quick flick (velocity > 0.3 px/ms) closes regardless of distance
+    // 2. Dragged past 25% of screen height closes
+    // 3. Dragged past 80px with mild downward velocity closes
+    const screenH = window.innerHeight;
+    const shouldClose =
+      velocity > 0.3 ||                           // fast flick
+      offset > screenH * 0.25 ||                   // dragged far enough
+      (offset > 80 && velocity > 0.05);            // moderate drag + mild velocity
+
+    if (shouldClose) {
+      // Animate out: scale down + slide down + fade
+      dragOffsetRef.current = screenH;
+      setDragOffset(screenH);
+      // Let the CSS transition play, then close
+      setTimeout(() => {
+        onOpenChangeRef.current(false);
+        setDragOffset(0);
+        dragOffsetRef.current = 0;
+      }, 250);
+    } else {
+      // Snap back
+      setDragOffset(0);
+      dragOffsetRef.current = 0;
+    }
+    s.dragging = false;
+  }, []);
+
+  // Callback ref — attaches native touch listeners when the DOM node mounts
+  const swipeCallbackRef = useCallback((node: HTMLDivElement | null) => {
     if (touchElRef.current && listenersAttachedRef.current) {
       touchElRef.current.removeEventListener('touchstart', handleTouchStart as any);
       touchElRef.current.removeEventListener('touchmove', handleTouchMove as any);
@@ -256,58 +363,9 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
       node.addEventListener('touchend', handleTouchEnd as any, { passive: true });
       listenersAttachedRef.current = true;
     }
-  };
+  }, [isMobile, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
-  function handleTouchStart(e: TouchEvent) {
-    // The scrollable element is the DialogContent parent (which has overflow-y-auto)
-    const el = touchElRef.current;
-    if (!el) return;
-    // Walk up to find the scrollable container (DialogContent with overflow-y-auto)
-    let scrollEl: HTMLElement | null = el.parentElement;
-    while (scrollEl && scrollEl.scrollHeight <= scrollEl.clientHeight) {
-      scrollEl = scrollEl.parentElement;
-    }
-    // Fallback to parent
-    if (!scrollEl) scrollEl = el.parentElement;
-    const scrollTop = scrollEl?.scrollTop ?? 0;
-    swipeRef.current = { startY: e.touches[0].clientY, startScrollTop: scrollTop, dragging: false, scrollEl };
-  }
-
-  function handleTouchMove(e: TouchEvent) {
-    const deltaY = e.touches[0].clientY - swipeRef.current.startY;
-    // Get live scrollTop (iOS rubber-band can make it negative or fractional)
-    const currentScrollTop = swipeRef.current.scrollEl?.scrollTop ?? 0;
-    // Allow drag if content is at or near top and user is pulling down
-    if (swipeRef.current.startScrollTop <= 2 && currentScrollTop <= 2 && deltaY > 5) {
-      swipeRef.current.dragging = true;
-      const offset = Math.pow(deltaY, 0.75);
-      dragOffsetRef.current = offset;
-      setDragOffset(offset);
-      e.preventDefault(); // works because { passive: false }
-    } else if (swipeRef.current.dragging && deltaY > 0) {
-      // Continue drag once started
-      const offset = Math.pow(deltaY, 0.75);
-      dragOffsetRef.current = offset;
-      setDragOffset(offset);
-      e.preventDefault();
-    }
-  }
-
-  function handleTouchEnd() {
-    if (!swipeRef.current.dragging) {
-      setDragOffset(0);
-      dragOffsetRef.current = 0;
-      return;
-    }
-    if (dragOffsetRef.current > 120) {
-      onOpenChangeRef.current(false);
-    }
-    setDragOffset(0);
-    dragOffsetRef.current = 0;
-    swipeRef.current.dragging = false;
-  }
-
-  // Cleanup listeners when modal closes or unmounts
+  // Cleanup on modal close / unmount
   useEffect(() => {
     if (!open) {
       setDragOffset(0);
@@ -321,19 +379,50 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         listenersAttachedRef.current = false;
       }
     };
-  }, [open]);
+  }, [open, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  // Compute iOS-style transform: translateY + scale down + rounded corners + opacity
+  const getMobileStyle = (): React.CSSProperties | undefined => {
+    if (!isMobile) return undefined;
+    const screenH = window.innerHeight;
+    if (dragOffset > 0) {
+      // During drag: scale shrinks from 1 → 0.88 as offset → screenH*0.4
+      const progress = Math.min(dragOffset / (screenH * 0.4), 1);
+      const scale = 1 - progress * 0.12; // 1 → 0.88
+      const opacity = 1 - progress * 0.5; // 1 → 0.5
+      const radius = progress * 20; // 0 → 20px
+      // Check if this is the close animation (offset >= screenH means we're animating out)
+      const isClosing = dragOffset >= screenH;
+      return {
+        transform: `translateY(${dragOffset}px) scale(${isClosing ? 0.85 : scale})`,
+        transformOrigin: 'top center',
+        borderRadius: `${isClosing ? 20 : radius}px`,
+        opacity: isClosing ? 0 : opacity,
+        transition: isClosing ? 'transform 0.25s ease-out, opacity 0.25s ease-out, border-radius 0.25s ease-out' : 'none',
+        willChange: 'transform, opacity',
+      };
+    }
+    // Resting state — smooth snap-back
+    return {
+      transform: 'translateY(0) scale(1)',
+      transformOrigin: 'top center',
+      borderRadius: '0px',
+      opacity: 1,
+      transition: 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.3s ease-out, border-radius 0.3s ease-out',
+    };
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        style={isMobile && dragOffset > 0 ? { transform: `translateY(${dragOffset}px)`, transition: 'none', opacity: Math.max(0.3, 1 - dragOffset / 400) } : isMobile ? { transform: 'translateY(0)', transition: 'transform 0.3s ease-out, opacity 0.3s ease-out' } : undefined}
+        style={getMobileStyle()}
         className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))] !animate-none' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30 ${isMobile ? '' : 'data-[state=open]:animate-in data-[state=open]:zoom-in-75 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:zoom-out-75 data-[state=closed]:duration-200'}`}>
         {/* Inner touch wrapper for swipe-down-to-close on mobile */}
         <div ref={isMobile ? swipeCallbackRef : undefined} className="min-h-full">
         {/* iOS-style pull-down handle for mobile */}
         {isMobile && (
-          <div className="flex justify-center pt-1 pb-2 -mt-1">
-            <div className="w-10 h-1 rounded-full bg-yellow-200/30" />
+          <div className="flex justify-center pt-2 pb-3 -mt-1">
+            <div className="w-12 h-1.5 rounded-full bg-yellow-200/40" />
           </div>
         )}
         <DialogHeader>
