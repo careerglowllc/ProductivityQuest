@@ -928,9 +928,14 @@ export default function Calendar() {
     }, 100);
   };
 
-  // ========== Mobile Touch Drag (Long-Press-to-Drag) ==========
-  const LONG_PRESS_DURATION = 400; // ms to hold before drag activates (slightly longer for precision)
-  const TOUCH_MOVE_THRESHOLD = 15; // px movement cancels long press (increased for iOS precision)
+  // ========== Mobile Touch Drag (Long-Press-to-Drag, Apple iCal style) ==========
+  // - Instant drag = scroll (normal)
+  // - Tap+hold ~600ms = visual lift + drag mode
+  // - Double tap = open event detail modal
+  // - Single tap = nothing (on mobile)
+  const LONG_PRESS_DURATION = 600; // ms to hold before drag activates (Apple iCal ~0.5-0.7s)
+  const LONG_PRESS_VISUAL_DELAY = 200; // ms before showing "pending" visual hint
+  const TOUCH_MOVE_THRESHOLD = 12; // px movement cancels long press
 
   // Track whether finger moved at all during a touch sequence (to suppress click)
   const touchMovedRef = useRef(false);
@@ -938,6 +943,11 @@ export default function Calendar() {
   const [longPressPendingEventId, setLongPressPendingEventId] = useState<string | null>(null);
   // Store the current touch position so drag starts from where finger IS, not where it was
   const currentTouchRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Timer for early visual feedback (before drag activates)
+  const longPressVisualTimer = useRef<NodeJS.Timeout | null>(null);
+  // Double-tap detection
+  const lastTapRef = useRef<{ eventId: string; time: number } | null>(null);
+  const DOUBLE_TAP_THRESHOLD = 350; // ms between taps to count as double-tap
   // Ref to hold latest drag state for native touch handler (avoids stale closures)
   const dragStateRef = useRef({
     isTouchDragging: false,
@@ -965,13 +975,17 @@ export default function Calendar() {
     currentTouchRef.current = { x: touch.clientX, y: touch.clientY };
     touchMovedRef.current = false;
     
-    // Clear any existing timer
+    // Clear any existing timers
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    if (longPressVisualTimer.current) clearTimeout(longPressVisualTimer.current);
     
-    // Show pending visual feedback
-    setLongPressPendingEventId(event.id);
+    // Show pending visual feedback AFTER a short delay (not immediately)
+    // This avoids flashing the ring on every casual touch
+    longPressVisualTimer.current = setTimeout(() => {
+      setLongPressPendingEventId(event.id);
+    }, LONG_PRESS_VISUAL_DELAY);
     
-    // Start long press timer
+    // Start long press timer — activates drag after ~600ms hold
     longPressTimer.current = setTimeout(() => {
       // Long press activated — enter drag mode
       setIsTouchDragging(true);
@@ -1000,6 +1014,22 @@ export default function Calendar() {
         setDragStartTime(new Date(event.start));
       }
     }, LONG_PRESS_DURATION);
+  };
+
+  // Double-tap handler for mobile — opens event detail modal
+  const handleEventDoubleTap = (event: CalendarEvent) => {
+    if (!isMobile) return;
+    const now = Date.now();
+    const last = lastTapRef.current;
+    
+    if (last && last.eventId === event.id && (now - last.time) < DOUBLE_TAP_THRESHOLD) {
+      // Double tap detected — open modal
+      lastTapRef.current = null;
+      setSelectedEvent(event);
+    } else {
+      // First tap — record it
+      lastTapRef.current = { eventId: event.id, time: now };
+    }
   };
 
   // Native touchmove handler for drag (attached via useEffect with { passive: false })
@@ -1081,12 +1111,16 @@ export default function Calendar() {
     const dy = touch.clientY - touchStartPos.current.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance > TOUCH_MOVE_THRESHOLD) {
-      // Finger moved — this is a scroll, cancel long press
+      // Finger moved — this is a scroll, cancel long press + visual hint
       touchMovedRef.current = true;
       setLongPressPendingEventId(null);
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
+      }
+      if (longPressVisualTimer.current) {
+        clearTimeout(longPressVisualTimer.current);
+        longPressVisualTimer.current = null;
       }
     }
   }, []); // Empty deps — uses refs for all state, so handler is stable
@@ -1096,10 +1130,14 @@ export default function Calendar() {
   handleMouseUpRef.current = handleMouseUp;
 
   const handleEventTouchEnd = useCallback(() => {
-    // Clear long press timer
+    // Clear long press timer + visual timer
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
+    }
+    if (longPressVisualTimer.current) {
+      clearTimeout(longPressVisualTimer.current);
+      longPressVisualTimer.current = null;
     }
     setLongPressPendingEventId(null);
     
@@ -2554,11 +2592,11 @@ export default function Calendar() {
                           <div
                             key={idx}
                             data-event-id={event.id}
-                            className={`absolute rounded border group ${
+                            className={`absolute rounded border group transition-all duration-150 ${
                               isDraggable ? 'cursor-move' : 'cursor-pointer'
-                            } ${isDragging || isResizing ? 'opacity-70 scale-[1.02] shadow-lg shadow-purple-500/30 z-30' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
+                            } ${isDragging || isResizing ? 'opacity-80 scale-105 shadow-xl shadow-purple-500/40 z-30 ring-2 ring-purple-400/60' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
                               isSelected ? 'ring-2 ring-purple-400 ring-offset-1 ring-offset-gray-900' : ''
-                            } ${longPressPendingEventId === event.id ? 'ring-2 ring-yellow-400/50' : ''}`}
+                            } ${longPressPendingEventId === event.id ? 'scale-[1.01] ring-2 ring-yellow-400/60 shadow-md shadow-yellow-500/20' : ''}`}
                             style={{ 
                               top: `${position.top}px`,
                               left: layout.totalColumns > 1 
@@ -2593,7 +2631,14 @@ export default function Calendar() {
                               if (isDraggable) handleEventMouseDown(event, e);
                             }}
                             onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
-                            onClick={() => !hasDragged && !hasResized && !isTouchDragging && !touchMovedRef.current && setSelectedEvent(event)}
+                            onClick={() => {
+                              if (hasDragged || hasResized || isTouchDragging || touchMovedRef.current) return;
+                              if (isMobile) {
+                                handleEventDoubleTap(event);
+                              } else {
+                                setSelectedEvent(event);
+                              }
+                            }}
                           >
                             {/* Selection indicator */}
                             {isSelected && (
@@ -2752,10 +2797,10 @@ export default function Calendar() {
                               <div
                                 key={eventIdx}
                                 data-event-id={event.id}
-                                className={`absolute rounded border group overflow-hidden ${
+                                className={`absolute rounded border group overflow-hidden transition-all duration-150 ${
                                   isDraggable ? 'cursor-move' : 'cursor-pointer'
-                                } ${isDragging || isResizing ? 'opacity-70 scale-[1.02] shadow-lg shadow-purple-500/30 z-30' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
-                                  longPressPendingEventId === event.id ? 'ring-2 ring-yellow-400/50' : ''
+                                } ${isDragging || isResizing ? 'opacity-80 scale-105 shadow-xl shadow-purple-500/40 z-30 ring-2 ring-purple-400/60' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
+                                  longPressPendingEventId === event.id ? 'scale-[1.01] ring-2 ring-yellow-400/60 shadow-md shadow-yellow-500/20' : ''
                                 }`}
                                 style={{
                                   top: `${position.top}px`,
@@ -2774,7 +2819,14 @@ export default function Calendar() {
                                 }}
                                 onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
                                 onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
-                                onClick={() => !hasDragged && !hasResized && !isTouchDragging && !touchMovedRef.current && setSelectedEvent(event)}
+                                onClick={() => {
+                                  if (hasDragged || hasResized || isTouchDragging || touchMovedRef.current) return;
+                                  if (isMobile) {
+                                    handleEventDoubleTap(event);
+                                  } else {
+                                    setSelectedEvent(event);
+                                  }
+                                }}
                               >
                                 {/* Top resize handle */}
                                 {isDraggable && (
@@ -2912,10 +2964,10 @@ export default function Calendar() {
                                 return (
                                   <div
                                     key={eventIdx}
-                                    className={`p-1 mb-1 rounded text-xs border relative group overflow-hidden w-full max-w-full ${
+                                    className={`p-1 mb-1 rounded text-xs border relative group overflow-hidden w-full max-w-full transition-all duration-150 ${
                                       isDraggable ? 'cursor-move' : 'cursor-pointer'
-                                    } ${isDragging || isResizing ? 'opacity-70 scale-[1.02] shadow-lg shadow-purple-500/30 z-30' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
-                                      longPressPendingEventId === event.id ? 'ring-2 ring-yellow-400/50' : ''
+                                    } ${isDragging || isResizing ? 'opacity-80 scale-105 shadow-xl shadow-purple-500/40 z-30 ring-2 ring-purple-400/60' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
+                                      longPressPendingEventId === event.id ? 'scale-[1.01] ring-2 ring-yellow-400/60 shadow-md shadow-yellow-500/20' : ''
                                     }`}
                                     style={eventStyle.backgroundColor ? { 
                                       backgroundColor: eventStyle.backgroundColor,
@@ -2924,7 +2976,14 @@ export default function Calendar() {
                                     } : undefined}
                                     onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
                                     onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
-                                    onClick={() => !hasDragged && !hasResized && !isTouchDragging && !touchMovedRef.current && setSelectedEvent(event)}
+                                    onClick={() => {
+                                      if (hasDragged || hasResized || isTouchDragging || touchMovedRef.current) return;
+                                      if (isMobile) {
+                                        handleEventDoubleTap(event);
+                                      } else {
+                                        setSelectedEvent(event);
+                                      }
+                                    }}
                                   >
                                     {/* Top resize handle */}
                                     {isDraggable && (
