@@ -87,6 +87,17 @@ const Toast = React.forwardRef<
     }
   }, []);
 
+  // Block Radix's internal pointer capture which interferes with touch-based swipe
+  const handlePointerDown = React.useCallback((e: PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      // Release any pointer capture Radix may set, so touch events flow normally
+      const target = e.currentTarget as HTMLElement;
+      requestAnimationFrame(() => {
+        try { target.releasePointerCapture(e.pointerId); } catch (_) {}
+      });
+    }
+  }, []);
+
   // Native touch listeners via callback ref (iOS Capacitor needs { passive: false })
   const callbackRef = React.useCallback((node: HTMLLIElement | null) => {
     // Clean up old
@@ -94,6 +105,7 @@ const Toast = React.forwardRef<
       elRef.current.removeEventListener('touchstart', handleTouchStart);
       elRef.current.removeEventListener('touchmove', handleTouchMove);
       elRef.current.removeEventListener('touchend', handleTouchEnd);
+      elRef.current.removeEventListener('pointerdown', handlePointerDown as EventListener);
       listenersRef.current = false;
     }
     elRef.current = node;
@@ -101,6 +113,8 @@ const Toast = React.forwardRef<
       node.addEventListener('touchstart', handleTouchStart, { passive: true });
       node.addEventListener('touchmove', handleTouchMove, { passive: false });
       node.addEventListener('touchend', handleTouchEnd, { passive: true });
+      // Prevent Radix's internal setPointerCapture which steals touch events
+      node.addEventListener('pointerdown', handlePointerDown as EventListener, { capture: true });
       listenersRef.current = true;
     }
   }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
