@@ -121,6 +121,21 @@ export default function Home() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
+  // Lock body/html scroll on mobile to prevent iOS WKWebView from scrolling the entire page
+  useEffect(() => {
+    if (!isMobile) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [isMobile]);
+
   // Calendar operation queue - ensures clear/sync/remove operations run sequentially
   const calendarQueueRef = useRef<Promise<void>>(Promise.resolve());
   const enqueueCalendarOp = useCallback((op: () => Promise<void>) => {
@@ -1603,7 +1618,7 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed inset-0 flex flex-col' : 'min-h-screen pt-16'} relative`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
+    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed inset-0 flex flex-col overflow-hidden' : 'min-h-screen pt-16'} relative`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -1631,9 +1646,9 @@ export default function Home() {
       </header>
       )}
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 flex flex-col h-full overflow-hidden' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 h-full overflow-y-auto overscroll-none' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
         {/* Sticky header area on mobile */}
-        <div className={isMobile ? 'flex-shrink-0 pt-1.5' : ''}>
+        <div className={isMobile ? 'sticky top-0 z-30 pt-1.5 pb-1 -mx-3 px-3' : ''} style={isMobile ? { background: 'linear-gradient(to bottom, #0f172a 0%, #0f172a 85%, rgba(15,23,42,0) 100%)' } : undefined}>
         {/* Your Quests Header */}
         <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
@@ -2236,8 +2251,8 @@ export default function Home() {
             </Card>
             </div>{/* End sticky header area */}
 
-            {/* Scrollable task area on mobile */}
-            <div className={isMobile ? 'flex-1 overflow-y-auto min-h-0 pb-2' : ''}>
+            {/* Task area (scrolls naturally within the parent on mobile) */}
+            <div className={isMobile ? 'pb-2' : ''}>
 
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
