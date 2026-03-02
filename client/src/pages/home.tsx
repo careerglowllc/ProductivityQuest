@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Coins, Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Settings, LogOut, User, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter, MoreHorizontal, CalendarClock } from "lucide-react";
+import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter, MoreHorizontal, CalendarClock } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -1613,69 +1613,25 @@ export default function Home() {
         <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
-      {/* Header */}
+      {/* Header - desktop only, mobile has bottom nav */}
+      {!isMobile && (
       <header className="bg-slate-900/80 backdrop-blur-md shadow-lg border-b border-yellow-600/30 sticky top-0 z-50 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`flex justify-between items-center ${isMobile ? 'py-2' : 'py-4'}`}>
+          <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              {!isMobile && (
                 <Link href="/dashboard">
                   <a className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
                     <Trophy className="text-yellow-400 w-8 h-8" />
                     <h1 className="text-2xl font-serif font-bold text-yellow-100">QuestList</h1>
                   </a>
                 </Link>
-              )}
             </div>
-            
-            {/* Show gold and user only on mobile (web has it in top nav) */}
-            {isMobile && (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1.5 bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 backdrop-blur-sm px-3 py-1.5 rounded-full border border-yellow-500/50">
-                  <Coins className="text-yellow-400 w-4 h-4" />
-                  <span className="font-semibold text-yellow-100 text-sm">{progress.goldTotal}</span>
-                </div>
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-1.5 hover:bg-slate-700/50 text-yellow-100 px-2 py-1 h-auto">
-                      <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-yellow-400/50">
-                        <User className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-xs font-medium">
-                        {(() => {
-                          const email = (user as any)?.firstName || (user as any)?.email || "User";
-                          return email.length > 5 ? email.slice(0, 5) + '...' : email;
-                        })()}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30 text-yellow-100">
-                    <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
-                      <Link href="/settings" className="flex items-center">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="hover:bg-slate-700 focus:bg-slate-700">
-                      <Link href="/recycling-bin" className="flex items-center">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Recycling Bin
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} className="hover:bg-slate-700 focus:bg-slate-700">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
           </div>
         </div>
       </header>
+      )}
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 pt-3 pb-[calc(5rem+env(safe-area-inset-bottom))]' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-[calc(5rem+env(safe-area-inset-bottom))]' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
         {/* Your Quests Header */}
         <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
