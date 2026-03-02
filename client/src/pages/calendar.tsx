@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2, ChevronLeft, ChevronRight, X, Info } from "lucide-react";
+import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2, ChevronLeft, ChevronRight, X, Info, CalendarCheck } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -1532,6 +1532,26 @@ export default function Calendar() {
   // Fetch calendar events for current month
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  
+  // Check if currently viewing today (used for Jump to Today button visibility)
+  const nowDate = new Date();
+  const isViewingToday = (() => {
+    if (view === 'month') {
+      return year === nowDate.getFullYear() && month === nowDate.getMonth();
+    }
+    if (view === 'day') {
+      return currentDate.getFullYear() === nowDate.getFullYear() && currentDate.getMonth() === nowDate.getMonth() && currentDate.getDate() === nowDate.getDate();
+    }
+    // For 3day/week, check if today falls within the visible range
+    const rangeStart = new Date(currentDate);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeDays = view === '3day' ? 3 : 7;
+    const rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeEnd.getDate() + rangeDays - 1);
+    rangeEnd.setHours(23, 59, 59, 999);
+    const todayMidnight = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+    return todayMidnight >= rangeStart && todayMidnight <= rangeEnd;
+  })();
 
   const { data: calendarData } = useQuery<{ events: CalendarEvent[] }>({
     queryKey: [`/api/google-calendar/events?year=${year}&month=${month}`],
@@ -2068,6 +2088,16 @@ export default function Calendar() {
                     </Button>
                   </div>
                   <div className="flex gap-1">
+                    {!isViewingToday && (
+                      <Button 
+                        onClick={() => setCurrentDate(new Date())} 
+                        size="sm" 
+                        className="h-7 w-7 p-0 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white"
+                        title="Jump to today"
+                      >
+                        <CalendarCheck className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     <Link href="/settings/google-calendar">
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10">
                         <Settings className="w-3.5 h-3.5" />
