@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 import { CheckCircle2, XCircle, Brain, Wrench, Palette, Briefcase, Sword, Book, Activity, Network, Users } from "lucide-react";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -38,9 +39,136 @@ export function SkillAdjustmentModal({
   onComplete,
 }: SkillAdjustmentModalProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedSkills, setSelectedSkills] = useState<Record<number, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ── Swipe-down-to-close (mobile) ──
+  const swipeRef = useRef<{
+    startY: number;
+    lastY: number;
+    lastTime: number;
+    velocity: number;
+    dragging: boolean;
+  } | null>(null);
+  const [swipeOffsetY, setSwipeOffsetY] = useState(0);
+  const [swipeDismissing, setSwipeDismissing] = useState(false);
+  const [swipeTouching, setSwipeTouching] = useState(false);
+  const touchElRef = useRef<HTMLDivElement | null>(null);
+  const listenersAttachedRef = useRef(false);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+
+  const findScrollableParent = (el: HTMLElement | null): HTMLElement | null => {
+    let node = el;
+    while (node) {
+      if (node.scrollHeight > node.clientHeight + 2) {
+        const style = window.getComputedStyle(node);
+        const overflow = style.overflowY;
+        if (overflow === 'auto' || overflow === 'scroll') return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  const handleSwipeTouchStart = useCallback((e: TouchEvent) => {
+    const scrollable = findScrollableParent(e.target as HTMLElement);
+    if (scrollable && scrollable.scrollTop > 5) return; // content is scrolled down — don't intercept
+    swipeRef.current = {
+      startY: e.touches[0].clientY,
+      lastY: e.touches[0].clientY,
+      lastTime: Date.now(),
+      velocity: 0,
+      dragging: false,
+    };
+    setSwipeTouching(true);
+  }, []);
+
+  const handleSwipeTouchMove = useCallback((e: TouchEvent) => {
+    const s = swipeRef.current;
+    if (!s) return;
+    const touchY = e.touches[0].clientY;
+    const deltaY = touchY - s.startY;
+
+    // Start tracking after 3px movement
+    if (!s.dragging && deltaY > 3) {
+      s.dragging = true;
+    }
+    if (!s.dragging) return;
+
+    e.preventDefault(); // prevent scroll while swiping modal
+
+    // Velocity tracking
+    const now = Date.now();
+    const dt = now - s.lastTime;
+    if (dt > 0) {
+      const instantV = (touchY - s.lastY) / dt;
+      s.velocity = s.velocity * 0.7 + instantV * 0.3;
+    }
+    s.lastY = touchY;
+    s.lastTime = now;
+
+    // Drag resistance: 0.85x
+    const offset = Math.max(0, deltaY * 0.85);
+    setSwipeOffsetY(offset);
+  }, []);
+
+  const handleSwipeTouchEnd = useCallback(() => {
+    const s = swipeRef.current;
+    if (!s) return;
+    setSwipeTouching(false);
+
+    if (!s.dragging) {
+      swipeRef.current = null;
+      return;
+    }
+
+    const offset = swipeOffsetY;
+    const velocity = s.velocity; // px/ms, positive = downward
+    const screenH = window.innerHeight;
+    swipeRef.current = null;
+
+    // Close thresholds: velocity flick OR distance
+    const shouldClose =
+      velocity > 0.3 || // fast flick
+      offset > screenH * 0.25 || // dragged >25% of screen
+      (offset > 80 && velocity > 0.05); // moderate drag + mild velocity
+
+    if (shouldClose) {
+      setSwipeDismissing(true);
+      setSwipeOffsetY(screenH);
+      setTimeout(() => {
+        onOpenChangeRef.current(false);
+        // Reset after close animation
+        setTimeout(() => {
+          setSwipeOffsetY(0);
+          setSwipeDismissing(false);
+        }, 100);
+      }, 250);
+    } else {
+      // Snap back
+      setSwipeOffsetY(0);
+    }
+  }, [swipeOffsetY]);
+
+  // Callback ref for native touch listeners (iOS Capacitor needs { passive: false })
+  const swipeCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    if (touchElRef.current && listenersAttachedRef.current) {
+      touchElRef.current.removeEventListener('touchstart', handleSwipeTouchStart);
+      touchElRef.current.removeEventListener('touchmove', handleSwipeTouchMove);
+      touchElRef.current.removeEventListener('touchend', handleSwipeTouchEnd);
+      listenersAttachedRef.current = false;
+    }
+    touchElRef.current = node;
+    if (node) {
+      node.addEventListener('touchstart', handleSwipeTouchStart, { passive: true });
+      node.addEventListener('touchmove', handleSwipeTouchMove, { passive: false });
+      node.addEventListener('touchend', handleSwipeTouchEnd, { passive: true });
+      listenersAttachedRef.current = true;
+    }
+  }, [handleSwipeTouchStart, handleSwipeTouchMove, handleSwipeTouchEnd]);
 
   // Fetch all user skills dynamically
   const { data: allSkills = [], isLoading: skillsLoading } = useQuery<UserSkill[]>({
@@ -140,9 +268,38 @@ export function SkillAdjustmentModal({
   const aiSuggested = currentTask.aiSuggestion?.skills || currentTask.skillTags || [];
   const hasChanges = JSON.stringify(currentSelectedSkills.sort()) !== JSON.stringify(aiSuggested.sort());
 
+  // Reset swipe state when dialog closes
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (!newOpen) {
+      setSwipeOffsetY(0);
+      setSwipeDismissing(false);
+      setSwipeTouching(false);
+      swipeRef.current = null;
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange]);
+
+  const swipeStyle: React.CSSProperties = isMobile && (swipeOffsetY > 0 || swipeDismissing)
+    ? {
+        transform: `translateY(${swipeOffsetY}px)`,
+        opacity: swipeDismissing ? 0 : Math.max(0.3, 1 - swipeOffsetY / (window.innerHeight * 0.6)),
+        transition: swipeTouching ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.3s ease',
+      }
+    : {};
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700"
+        style={swipeStyle}
+      >
+        {/* Mobile grab handle */}
+        {isMobile && (
+          <div ref={swipeCallbackRef} className="flex justify-center pt-1 pb-2 -mt-2 cursor-grab">
+            <div className="w-10 h-1 rounded-full bg-slate-500/60" />
+          </div>
+        )}
+
         <DialogHeader>
           <DialogTitle className="text-2xl text-yellow-100 flex items-center justify-between">
             <span>Adjust Skill Tags</span>

@@ -47,18 +47,23 @@ const Toast = React.forwardRef<
   const [offsetY, setOffsetY] = React.useState(0);
   const [dismissing, setDismissing] = React.useState(false);
   const [isTouching, setIsTouching] = React.useState(false);
+  const elRef = React.useRef<HTMLLIElement | null>(null);
+  const listenersRef = React.useRef(false);
+  const onOpenChangeRef = React.useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
 
-  const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+  const handleTouchStart = React.useCallback((e: TouchEvent) => {
     touchRef.current = { startY: e.touches[0].clientY, currentY: e.touches[0].clientY };
     setIsTouching(true);
   }, []);
 
-  const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
+  const handleTouchMove = React.useCallback((e: TouchEvent) => {
     if (!touchRef.current) return;
     const deltaY = e.touches[0].clientY - touchRef.current.startY;
     touchRef.current.currentY = e.touches[0].clientY;
     // Only allow upward swipe (negative delta) — clamp downward to slight rubber band
     if (deltaY < 0) {
+      e.preventDefault(); // prevent page scroll while swiping toast
       setOffsetY(deltaY);
     } else {
       setOffsetY(Math.pow(deltaY, 0.6)); // slight rubber band downward
@@ -75,26 +80,49 @@ const Toast = React.forwardRef<
       setDismissing(true);
       setOffsetY(-200);
       setTimeout(() => {
-        onOpenChange?.(false);
+        onOpenChangeRef.current?.(false);
       }, 200);
     } else {
       setOffsetY(0);
     }
-  }, [onOpenChange]);
+  }, []);
+
+  // Native touch listeners via callback ref (iOS Capacitor needs { passive: false })
+  const callbackRef = React.useCallback((node: HTMLLIElement | null) => {
+    // Clean up old
+    if (elRef.current && listenersRef.current) {
+      elRef.current.removeEventListener('touchstart', handleTouchStart);
+      elRef.current.removeEventListener('touchmove', handleTouchMove);
+      elRef.current.removeEventListener('touchend', handleTouchEnd);
+      listenersRef.current = false;
+    }
+    elRef.current = node;
+    if (node) {
+      node.addEventListener('touchstart', handleTouchStart, { passive: true });
+      node.addEventListener('touchmove', handleTouchMove, { passive: false });
+      node.addEventListener('touchend', handleTouchEnd, { passive: true });
+      listenersRef.current = true;
+    }
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  // Merge refs
+  const mergedRef = React.useCallback((node: HTMLLIElement | null) => {
+    callbackRef(node);
+    if (typeof ref === 'function') ref(node);
+    else if (ref) (ref as React.MutableRefObject<HTMLLIElement | null>).current = node;
+  }, [ref, callbackRef]);
 
   return (
     <ToastPrimitives.Root
-      ref={ref}
+      ref={mergedRef}
       className={cn(toastVariants({ variant }), className)}
       onOpenChange={onOpenChange}
       style={{
         transform: offsetY !== 0 ? `translateY(${offsetY}px)` : undefined,
         transition: isTouching ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out',
         opacity: dismissing ? 0 : 1,
+        touchAction: 'none', // prevent browser handling of touch gestures
       }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       {...props}
     />
   )
