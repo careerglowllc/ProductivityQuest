@@ -848,15 +848,19 @@ export default function Home() {
   const handleMoveOverdueToToday = async () => {
     const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
     const now = new Date();
-    // Use start of today in UTC to match how dates are stored
-    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    // Use LOCAL date to determine "today" — respects the user's phone timezone
+    const localYear = now.getFullYear();
+    const localMonth = now.getMonth();
+    const localDay = now.getDate();
+    // Store as midnight UTC of the local date (e.g. user's Mar 1 → 2025-03-01T00:00:00.000Z)
+    const todayStartUTC = new Date(Date.UTC(localYear, localMonth, localDay));
 
-    // Find all overdue, incomplete, non-recycled tasks (due date strictly before today's start UTC)
+    // Find all overdue, incomplete, non-recycled tasks (due date strictly before today's local date in UTC)
     const overdueTasks = allTasks.filter((t: any) => {
       if (t.completed || t.recycled || !t.dueDate) return false;
       const due = new Date(t.dueDate);
-      // Compare full timestamps - task is overdue if its due date is before today's UTC midnight
-      return due.getTime() < todayStart.getTime();
+      // Compare full timestamps - task is overdue if its due date is before today's local-date midnight UTC
+      return due.getTime() < todayStartUTC.getTime();
     });
 
     if (overdueTasks.length === 0) {
@@ -872,7 +876,7 @@ export default function Home() {
       if (!old) return old;
       const overdueIds = new Set(overdueTasks.map((t: any) => t.id));
       return old.map((t: any) =>
-        overdueIds.has(t.id) ? { ...t, dueDate: todayStart.toISOString() } : t
+        overdueIds.has(t.id) ? { ...t, dueDate: todayStartUTC.toISOString() } : t
       );
     });
 
@@ -895,7 +899,7 @@ export default function Home() {
     try {
       await Promise.all(
         overdueTasks.map((t: any) =>
-          apiRequest("PATCH", `/api/tasks/${t.id}`, { dueDate: todayStart.toISOString() })
+          apiRequest("PATCH", `/api/tasks/${t.id}`, { dueDate: todayStartUTC.toISOString() })
         )
       );
       refetchTasks();
@@ -923,6 +927,9 @@ export default function Home() {
     const selectedTaskIds = Array.from(selectedTasks);
     const taskCount = selectedTaskIds.length;
     const dateLabel = newDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    // Convert local date to midnight UTC of that date for consistent storage
+    const storedDate = new Date(Date.UTC(newDate.getFullYear(), newDate.getMonth(), newDate.getDate()));
+    const storedDateISO = storedDate.toISOString();
 
     // Save previous dates for undo
     const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
@@ -937,7 +944,7 @@ export default function Home() {
       if (!old) return old;
       return old.map((t: any) =>
         selectedTaskIds.includes(t.id)
-          ? { ...t, dueDate: newDate.toISOString() }
+          ? { ...t, dueDate: storedDateISO }
           : t
       );
     });
@@ -964,7 +971,7 @@ export default function Home() {
       await Promise.all(
         selectedTaskIds.map((taskId) =>
           apiRequest("PATCH", `/api/tasks/${taskId}`, {
-            dueDate: newDate.toISOString(),
+            dueDate: storedDateISO,
           })
         )
       );
@@ -997,8 +1004,14 @@ export default function Home() {
       const task = allTasks.find((t: any) => t.id === taskId);
       if (!task) continue;
       previousDates.push({ id: taskId, dueDate: task.dueDate || null });
-      const currentDue = task.dueDate ? new Date(task.dueDate) : new Date();
-      // Use UTC to avoid timezone shifting the date
+      let currentDue: Date;
+      if (task.dueDate) {
+        currentDue = new Date(task.dueDate);
+      } else {
+        // No due date: use today's local date as midnight UTC
+        const n = new Date();
+        currentDue = new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()));
+      }
       currentDue.setUTCDate(currentDue.getUTCDate() + days);
       updates.push({ id: taskId, newDate: currentDue.toISOString() });
     }
@@ -1278,15 +1291,16 @@ export default function Home() {
     const activeTasks = tasks.filter((task: any) => !task.completed);
     
     const now = new Date();
-    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const tomorrowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    // Use LOCAL date to determine "today" — respects the user's phone timezone
+    const todayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const tomorrowStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1));
     
     return {
       all: activeTasks.length,
       dueToday: activeTasks.filter((task: any) => {
         if (!task.dueDate) return false;
         const taskDate = new Date(task.dueDate);
-        // Due today or overdue (before end of today in UTC)
+        // Due today or overdue (before end of today in local time)
         return taskDate.getTime() < tomorrowStart.getTime();
       }).length,
       overdue: activeTasks.filter((task: any) => {
@@ -1341,12 +1355,13 @@ export default function Home() {
     switch (activeFilter) {
       case "due-today": {
         const nowDT = new Date();
-        const tomorrowDT = new Date(Date.UTC(nowDT.getUTCFullYear(), nowDT.getUTCMonth(), nowDT.getUTCDate() + 1));
+        // Use LOCAL date — respects the user's phone timezone
+        const tomorrowDT = new Date(Date.UTC(nowDT.getFullYear(), nowDT.getMonth(), nowDT.getDate() + 1));
         
         return activeTasks.filter((task: any) => {
           if (!task.dueDate) return false;
           const taskDate = new Date(task.dueDate);
-          return taskDate.getTime() < tomorrowDT.getTime(); // Include today and all overdue (UTC)
+          return taskDate.getTime() < tomorrowDT.getTime(); // Include today and all overdue (local time)
         });
       }
       
@@ -1472,13 +1487,13 @@ export default function Home() {
       
       return batches;
     } else {
-      // When sorted by importance, batch by due date (using UTC to match stored dates)
+      // When sorted by importance, batch by due date (using LOCAL date to match user's timezone)
       const now = new Date();
-      const tomorrowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)); // start of tomorrow UTC
-      const endOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      endOfWeek.setUTCDate(endOfWeek.getUTCDate() + (7 - endOfWeek.getUTCDay()));
-      const endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
-      const endOfYear = new Date(Date.UTC(now.getUTCFullYear(), 11, 31, 23, 59, 59, 999));
+      const tomorrowUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1)); // start of tomorrow in local date
+      const endOfWeek = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+      endOfWeek.setUTCDate(endOfWeek.getUTCDate() + (7 - now.getDay())); // use local day-of-week
+      const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999));
+      const endOfYear = new Date(Date.UTC(now.getFullYear(), 11, 31, 23, 59, 59, 999));
       
       const batches: { title: string; tasks: any[]; period: string }[] = [];
       const groups = {
