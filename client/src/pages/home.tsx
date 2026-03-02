@@ -2243,7 +2243,7 @@ export default function Home() {
             </div>{/* End pinned header area */}
 
             {/* Scrollable task area on mobile */}
-            <div className={isMobile ? 'flex-1 min-h-0 overflow-y-auto overscroll-none pb-2' : ''} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
+            <div className={isMobile ? 'flex-1 min-h-0 overflow-y-auto overscroll-none pb-44' : ''} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
 
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
