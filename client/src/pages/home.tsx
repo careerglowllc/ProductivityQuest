@@ -121,26 +121,7 @@ export default function Home() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  // Lock body/html scroll on mobile to prevent iOS WKWebView from scrolling the entire page
-  useEffect(() => {
-    if (!isMobile) return;
-    const html = document.documentElement;
-    const body = document.body;
-    html.style.overflow = 'hidden';
-    html.style.height = '100%';
-    body.style.overflow = 'hidden';
-    body.style.height = '100%';
-    body.style.position = 'fixed';
-    body.style.width = '100%';
-    return () => {
-      html.style.overflow = '';
-      html.style.height = '';
-      body.style.overflow = '';
-      body.style.height = '';
-      body.style.position = '';
-      body.style.width = '';
-    };
-  }, [isMobile]);
+  // No body scroll lock needed — we use position:fixed on the container itself
 
   // Calendar operation queue - ensures clear/sync/remove operations run sequentially
   const calendarQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -1624,7 +1605,7 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'h-[100dvh] flex flex-col overflow-hidden' : 'min-h-screen pt-16'} relative`} style={isMobile ? { paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
+    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed top-0 left-0 right-0 bottom-0 overflow-hidden flex flex-col' : 'min-h-screen pt-16'} relative`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -1652,9 +1633,12 @@ export default function Home() {
       </header>
       )}
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 flex flex-col flex-1 min-h-0' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
+      {/* Mobile: safe-area spacer at top to push content below notch */}
+      {isMobile && <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />}
+
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-3 flex flex-col flex-1 min-h-0 overflow-hidden' : 'px-4 sm:px-6 lg:px-8 py-8'} relative`}>
         {/* Fixed header area on mobile — does not scroll */}
-        <div className={isMobile ? 'flex-shrink-0 pt-1.5 pb-1' : ''}>
+        <div className={isMobile ? 'flex-shrink-0 pt-1 pb-1' : ''}>
         {/* Your Quests Header */}
         <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
           <div>
@@ -2732,6 +2716,9 @@ export default function Home() {
             </div>
             </div>{/* End scrollable task area */}
       </div>
+
+      {/* Mobile: safe-area + tab bar spacer at bottom */}
+      {isMobile && <div className="flex-shrink-0" style={{ height: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }} />}
 
       {/* Modals */}
       <ItemShopModal
