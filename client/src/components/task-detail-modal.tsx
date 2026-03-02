@@ -228,70 +228,108 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   };
 
   // Swipe-down-to-close for mobile
-  // Uses native addEventListener with { passive: false } so e.preventDefault() works on iOS
-  const swipeRef = useRef<{ startY: number; startScrollTop: number; dragging: boolean }>({ startY: 0, startScrollTop: 0, dragging: false });
+  // Uses a callback ref on an inner wrapper so we avoid portal timing issues with DialogContent
+  const swipeRef = useRef<{ startY: number; startScrollTop: number; dragging: boolean; scrollEl: HTMLElement | null }>({ startY: 0, startScrollTop: 0, dragging: false, scrollEl: null });
   const [dragOffset, setDragOffset] = useState(0);
-  const contentRef = useRef<HTMLDivElement>(null);
   const dragOffsetRef = useRef(0); // mirror for use inside native event handlers
+  const touchElRef = useRef<HTMLDivElement | null>(null);
+  const listenersAttachedRef = useRef(false);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
 
   // Keep ref in sync with state
   useEffect(() => { dragOffsetRef.current = dragOffset; }, [dragOffset]);
 
-  // Attach touch listeners with { passive: false } so we can preventDefault on iOS
-  useEffect(() => {
-    if (!isMobile || !open) return;
-    const el = contentRef.current;
+  // Callback ref for the inner swipe wrapper — attaches native touch listeners the moment the DOM node mounts
+  const swipeCallbackRef = (node: HTMLDivElement | null) => {
+    // Clean up old listeners if the node changes
+    if (touchElRef.current && listenersAttachedRef.current) {
+      touchElRef.current.removeEventListener('touchstart', handleTouchStart as any);
+      touchElRef.current.removeEventListener('touchmove', handleTouchMove as any);
+      touchElRef.current.removeEventListener('touchend', handleTouchEnd as any);
+      listenersAttachedRef.current = false;
+    }
+    touchElRef.current = node;
+    if (node && isMobile) {
+      node.addEventListener('touchstart', handleTouchStart as any, { passive: true });
+      node.addEventListener('touchmove', handleTouchMove as any, { passive: false });
+      node.addEventListener('touchend', handleTouchEnd as any, { passive: true });
+      listenersAttachedRef.current = true;
+    }
+  };
+
+  function handleTouchStart(e: TouchEvent) {
+    // The scrollable element is the DialogContent parent (which has overflow-y-auto)
+    const el = touchElRef.current;
     if (!el) return;
+    // Walk up to find the scrollable container (DialogContent with overflow-y-auto)
+    let scrollEl: HTMLElement | null = el.parentElement;
+    while (scrollEl && scrollEl.scrollHeight <= scrollEl.clientHeight) {
+      scrollEl = scrollEl.parentElement;
+    }
+    // Fallback to parent
+    if (!scrollEl) scrollEl = el.parentElement;
+    const scrollTop = scrollEl?.scrollTop ?? 0;
+    swipeRef.current = { startY: e.touches[0].clientY, startScrollTop: scrollTop, dragging: false, scrollEl };
+  }
 
-    const onTouchStart = (e: TouchEvent) => {
-      const scrollTop = el.scrollTop ?? 0;
-      swipeRef.current = { startY: e.touches[0].clientY, startScrollTop: scrollTop, dragging: false };
-    };
+  function handleTouchMove(e: TouchEvent) {
+    const deltaY = e.touches[0].clientY - swipeRef.current.startY;
+    // Get live scrollTop (iOS rubber-band can make it negative or fractional)
+    const currentScrollTop = swipeRef.current.scrollEl?.scrollTop ?? 0;
+    // Allow drag if content is at or near top and user is pulling down
+    if (swipeRef.current.startScrollTop <= 2 && currentScrollTop <= 2 && deltaY > 5) {
+      swipeRef.current.dragging = true;
+      const offset = Math.pow(deltaY, 0.75);
+      dragOffsetRef.current = offset;
+      setDragOffset(offset);
+      e.preventDefault(); // works because { passive: false }
+    } else if (swipeRef.current.dragging && deltaY > 0) {
+      // Continue drag once started
+      const offset = Math.pow(deltaY, 0.75);
+      dragOffsetRef.current = offset;
+      setDragOffset(offset);
+      e.preventDefault();
+    }
+  }
 
-    const onTouchMove = (e: TouchEvent) => {
-      const deltaY = e.touches[0].clientY - swipeRef.current.startY;
-      // Only start dragging if we were scrolled to top and pulling down
-      if (swipeRef.current.startScrollTop <= 0 && deltaY > 0) {
-        swipeRef.current.dragging = true;
-        setDragOffset(Math.pow(deltaY, 0.75));
-        e.preventDefault(); // This works because { passive: false }
-      }
-    };
-
-    const onTouchEnd = () => {
-      if (!swipeRef.current.dragging) {
-        setDragOffset(0);
-        return;
-      }
-      if (dragOffsetRef.current > 120) {
-        onOpenChange(false);
-      }
+  function handleTouchEnd() {
+    if (!swipeRef.current.dragging) {
       setDragOffset(0);
-      swipeRef.current.dragging = false;
-    };
+      dragOffsetRef.current = 0;
+      return;
+    }
+    if (dragOffsetRef.current > 120) {
+      onOpenChangeRef.current(false);
+    }
+    setDragOffset(0);
+    dragOffsetRef.current = 0;
+    swipeRef.current.dragging = false;
+  }
 
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-    };
-  }, [isMobile, open, onOpenChange]);
-
-  // Reset drag when modal closes
+  // Cleanup listeners when modal closes or unmounts
   useEffect(() => {
-    if (!open) setDragOffset(0);
+    if (!open) {
+      setDragOffset(0);
+      dragOffsetRef.current = 0;
+    }
+    return () => {
+      if (touchElRef.current && listenersAttachedRef.current) {
+        touchElRef.current.removeEventListener('touchstart', handleTouchStart as any);
+        touchElRef.current.removeEventListener('touchmove', handleTouchMove as any);
+        touchElRef.current.removeEventListener('touchend', handleTouchEnd as any);
+        listenersAttachedRef.current = false;
+      }
+    };
   }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        ref={contentRef}
         style={isMobile && dragOffset > 0 ? { transform: `translateY(${dragOffset}px)`, transition: 'none', opacity: Math.max(0.3, 1 - dragOffset / 400) } : isMobile ? { transform: 'translateY(0)', transition: 'transform 0.3s ease-out, opacity 0.3s ease-out' } : undefined}
-        className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))]' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30 data-[state=open]:animate-in data-[state=open]:zoom-in-75 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:zoom-out-75 data-[state=closed]:duration-200`}>
+        className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))] !animate-none' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30 ${isMobile ? '' : 'data-[state=open]:animate-in data-[state=open]:zoom-in-75 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:zoom-out-75 data-[state=closed]:duration-200'}`}>
+        {/* Inner touch wrapper for swipe-down-to-close on mobile */}
+        <div ref={isMobile ? swipeCallbackRef : undefined} className="min-h-full">
         {/* iOS-style pull-down handle for mobile */}
         {isMobile && (
           <div className="flex justify-center pt-1 pb-2 -mt-1">
@@ -597,6 +635,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               </p>
             </div>
           )}
+        </div>
         </div>
       </DialogContent>
     </Dialog>
