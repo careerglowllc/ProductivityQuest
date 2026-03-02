@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ToastAction } from "@/components/ui/toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { MLSortFeedbackModal } from "@/components/ml-sort-feedback-modal";
@@ -96,6 +96,19 @@ export default function Calendar() {
   const [swipeOffsetX, setSwipeOffsetX] = useState(0);
   const [swipeAnimating, setSwipeAnimating] = useState(false);
   const swipeLockedRef = useRef<'horizontal' | 'vertical' | null>(null);
+
+  // ── Modal swipe-down-to-close state (mobile) ──
+  const modalSwipeRef = useRef<{
+    startY: number;
+    lastY: number;
+    lastTime: number;
+    velocity: number;
+    dragging: boolean;
+  } | null>(null);
+  const [modalSwipeOffsetY, setModalSwipeOffsetY] = useState(0);
+  const [modalSwipeDismissing, setModalSwipeDismissing] = useState(false);
+  const modalTouchElRef = useRef<HTMLDivElement | null>(null);
+  const modalListenersAttachedRef = useRef(false);
 
   // Undo state - stores the last change for undo functionality
   const [undoStack, setUndoStack] = useState<{
@@ -916,23 +929,53 @@ export default function Calendar() {
   };
 
   // ========== Mobile Touch Drag (Long-Press-to-Drag) ==========
-  const LONG_PRESS_DURATION = 350; // ms to hold before drag activates
-  const TOUCH_MOVE_THRESHOLD = 10; // px movement cancels long press
+  const LONG_PRESS_DURATION = 400; // ms to hold before drag activates (slightly longer for precision)
+  const TOUCH_MOVE_THRESHOLD = 15; // px movement cancels long press (increased for iOS precision)
+
+  // Track whether finger moved at all during a touch sequence (to suppress click)
+  const touchMovedRef = useRef(false);
+  // Track the pending long-press event for visual feedback
+  const [longPressPendingEventId, setLongPressPendingEventId] = useState<string | null>(null);
+  // Store the current touch position so drag starts from where finger IS, not where it was
+  const currentTouchRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Ref to hold latest drag state for native touch handler (avoids stale closures)
+  const dragStateRef = useRef({
+    isTouchDragging: false,
+    draggingEvent: null as CalendarEvent | null,
+    resizingEvent: null as CalendarEvent | null,
+    hasDragged: false,
+    hasResized: false,
+    dragStartY: 0,
+    dragStartScrollTop: 0,
+    dragStartTime: null as Date | null,
+    resizeEdge: null as 'top' | 'bottom' | null,
+    view: 'month' as 'day' | '3day' | 'week' | 'month',
+  });
+  // Keep ref in sync with state
+  dragStateRef.current = {
+    isTouchDragging, draggingEvent, resizingEvent, hasDragged, hasResized,
+    dragStartY, dragStartScrollTop, dragStartTime, resizeEdge, view,
+  };
 
   const handleEventTouchStart = (event: CalendarEvent, e: React.TouchEvent, edge?: 'top' | 'bottom') => {
     if (event.source !== 'productivityquest' && event.source !== 'standalone') return;
     
     const touch = e.touches[0];
     touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    currentTouchRef.current = { x: touch.clientX, y: touch.clientY };
+    touchMovedRef.current = false;
     
     // Clear any existing timer
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
+    // Show pending visual feedback
+    setLongPressPendingEventId(event.id);
+    
     // Start long press timer
     longPressTimer.current = setTimeout(() => {
       // Long press activated — enter drag mode
-      e.preventDefault();
       setIsTouchDragging(true);
+      setLongPressPendingEventId(null);
       
       // Haptic feedback if available
       if (navigator.vibrate) navigator.vibrate(50);
@@ -941,35 +984,43 @@ export default function Calendar() {
                              view === '3day' ? threeDayViewRef.current :
                              view === 'week' ? weekViewRef.current : null;
 
+      // Use the CURRENT finger position (not original start) so event doesn't jump
+      const currentTouch = currentTouchRef.current;
+
       if (edge) {
         setResizingEvent(event);
         setResizeEdge(edge);
-        setDragStartY(touch.clientY);
+        setDragStartY(currentTouch.y);
         setDragStartScrollTop(scrollContainer?.scrollTop || 0);
         setDragStartTime(new Date(edge === 'top' ? event.start : event.end));
       } else {
         setDraggingEvent(event);
-        setDragStartY(touch.clientY);
+        setDragStartY(currentTouch.y);
         setDragStartScrollTop(scrollContainer?.scrollTop || 0);
         setDragStartTime(new Date(event.start));
       }
     }, LONG_PRESS_DURATION);
   };
 
-  const handleEventTouchMove = (e: React.TouchEvent) => {
+  // Native touchmove handler for drag (attached via useEffect with { passive: false })
+  // Uses dragStateRef to avoid stale closures — handler stays stable across renders
+  const handleNativeTouchMove = useCallback((e: TouchEvent) => {
     const touch = e.touches[0];
+    currentTouchRef.current = { x: touch.clientX, y: touch.clientY };
+    
+    const ds = dragStateRef.current;
     
     // If we're in drag mode, process the move
-    if (isTouchDragging && (draggingEvent || resizingEvent)) {
-      e.preventDefault(); // Prevent scrolling while dragging
+    if (ds.isTouchDragging && (ds.draggingEvent || ds.resizingEvent)) {
+      e.preventDefault(); // This actually works with { passive: false }
       e.stopPropagation();
       
-      if (draggingEvent && !hasDragged) setHasDragged(true);
-      if (resizingEvent && !hasResized) setHasResized(true);
+      if (ds.draggingEvent && !ds.hasDragged) setHasDragged(true);
+      if (ds.resizingEvent && !ds.hasResized) setHasResized(true);
 
-      const scrollContainer = view === 'day' ? dayViewRef.current : 
-                             view === '3day' ? threeDayViewRef.current :
-                             view === 'week' ? weekViewRef.current : null;
+      const scrollContainer = ds.view === 'day' ? dayViewRef.current : 
+                             ds.view === '3day' ? threeDayViewRef.current :
+                             ds.view === 'week' ? weekViewRef.current : null;
 
       // Auto-scroll near edges
       if (scrollContainer) {
@@ -997,26 +1048,26 @@ export default function Calendar() {
 
       // Calculate time delta
       const currentScrollTop = scrollContainer?.scrollTop || 0;
-      const scrollDelta = currentScrollTop - dragStartScrollTop;
-      const deltaY = (touch.clientY - dragStartY) + scrollDelta;
+      const scrollDelta = currentScrollTop - ds.dragStartScrollTop;
+      const deltaY = (touch.clientY - ds.dragStartY) + scrollDelta;
       const minutesDelta = Math.round((deltaY / 60) * 60 / 5) * 5;
 
-      if (draggingEvent && dragStartTime) {
-        const newStart = new Date(dragStartTime);
+      if (ds.draggingEvent && ds.dragStartTime) {
+        const newStart = new Date(ds.dragStartTime);
         newStart.setMinutes(newStart.getMinutes() + minutesDelta);
-        const eventDuration = new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime();
+        const eventDuration = new Date(ds.draggingEvent.end).getTime() - new Date(ds.draggingEvent.start).getTime();
         const newEnd = new Date(newStart.getTime() + eventDuration);
         setTempEventTime({ start: newStart, end: newEnd });
-      } else if (resizingEvent && dragStartTime && resizeEdge) {
-        const currentStart = new Date(resizingEvent.start);
-        const currentEnd = new Date(resizingEvent.end);
-        if (resizeEdge === 'top') {
-          const newStart = new Date(dragStartTime);
+      } else if (ds.resizingEvent && ds.dragStartTime && ds.resizeEdge) {
+        const currentStart = new Date(ds.resizingEvent.start);
+        const currentEnd = new Date(ds.resizingEvent.end);
+        if (ds.resizeEdge === 'top') {
+          const newStart = new Date(ds.dragStartTime);
           newStart.setMinutes(newStart.getMinutes() + minutesDelta);
           const minEnd = new Date(newStart.getTime() + 5 * 60000);
           if (currentEnd > minEnd) setTempEventTime({ start: newStart, end: currentEnd });
         } else {
-          const newEnd = new Date(dragStartTime);
+          const newEnd = new Date(ds.dragStartTime);
           newEnd.setMinutes(newEnd.getMinutes() + minutesDelta);
           const minEnd = new Date(currentStart.getTime() + 5 * 60000);
           if (newEnd >= minEnd) setTempEventTime({ start: currentStart, end: newEnd });
@@ -1028,28 +1079,56 @@ export default function Calendar() {
     // Not yet in drag mode — check if finger moved too much (cancel long press)
     const dx = touch.clientX - touchStartPos.current.x;
     const dy = touch.clientY - touchStartPos.current.y;
-    if (Math.abs(dx) > TOUCH_MOVE_THRESHOLD || Math.abs(dy) > TOUCH_MOVE_THRESHOLD) {
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > TOUCH_MOVE_THRESHOLD) {
       // Finger moved — this is a scroll, cancel long press
+      touchMovedRef.current = true;
+      setLongPressPendingEventId(null);
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
     }
-  };
+  }, []); // Empty deps — uses refs for all state, so handler is stable
 
-  const handleEventTouchEnd = () => {
+  // Ref to hold latest handleMouseUp so touch handler can always access fresh version
+  const handleMouseUpRef = useRef(handleMouseUp);
+  handleMouseUpRef.current = handleMouseUp;
+
+  const handleEventTouchEnd = useCallback(() => {
     // Clear long press timer
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+    setLongPressPendingEventId(null);
     
-    if (isTouchDragging) {
+    if (dragStateRef.current.isTouchDragging) {
       // Delegate to handleMouseUp which handles the save logic
-      handleMouseUp();
+      handleMouseUpRef.current();
       setIsTouchDragging(false);
     }
-  };
+    // Reset touchMoved after a brief delay so click handler can read it first
+    setTimeout(() => { touchMovedRef.current = false; }, 50);
+  }, []); // Empty deps — uses refs for all state
+
+  // Attach native touchmove listeners with { passive: false } to scroll containers
+  // React synthetic events are passive by default on iOS, so preventDefault() is ignored
+  useEffect(() => {
+    const containers = [dayViewRef.current, threeDayViewRef.current, weekViewRef.current].filter(Boolean) as HTMLDivElement[];
+    
+    containers.forEach(container => {
+      container.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+      container.addEventListener('touchend', handleEventTouchEnd, { passive: true });
+    });
+    
+    return () => {
+      containers.forEach(container => {
+        container.removeEventListener('touchmove', handleNativeTouchMove);
+        container.removeEventListener('touchend', handleEventTouchEnd);
+      });
+    };
+  }, [handleNativeTouchMove, handleEventTouchEnd, view]); // Re-attach when view changes (different container renders)
 
   const getEventDisplayTime = (event: CalendarEvent) => {
     if ((draggingEvent?.id === event.id || resizingEvent?.id === event.id) && tempEventTime) {
@@ -1606,6 +1685,121 @@ export default function Calendar() {
       setCurrentDate(newDate);
     }
   };
+
+  // ========== Modal Swipe-Down-to-Close (mobile) ==========
+  const findScrollableParent = (el: HTMLElement | null): HTMLElement | null => {
+    let node = el;
+    while (node) {
+      if (node.scrollHeight > node.clientHeight + 2) {
+        const style = window.getComputedStyle(node);
+        const overflow = style.overflowY;
+        if (overflow === 'auto' || overflow === 'scroll') return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  const closeCurrentModal = useCallback(() => {
+    if (selectedEvent) {
+      setSelectedEvent(null);
+      setShowDeleteMenu(false);
+      setShowRescheduleModal(false);
+      setShowColorPicker(false);
+    } else if (showRescheduleModal) {
+      setShowRescheduleModal(false);
+    } else if (showNewEventModal) {
+      handleCloseNewEventModal();
+    }
+  }, [selectedEvent, showRescheduleModal, showNewEventModal]);
+
+  const handleModalSwipeTouchStart = useCallback((e: TouchEvent) => {
+    const scrollable = findScrollableParent(e.target as HTMLElement);
+    if (scrollable && scrollable.scrollTop > 5) return;
+    modalSwipeRef.current = {
+      startY: e.touches[0].clientY,
+      lastY: e.touches[0].clientY,
+      lastTime: Date.now(),
+      velocity: 0,
+      dragging: false,
+    };
+  }, []);
+
+  const handleModalSwipeTouchMove = useCallback((e: TouchEvent) => {
+    const s = modalSwipeRef.current;
+    if (!s) return;
+    const touchY = e.touches[0].clientY;
+    const deltaY = touchY - s.startY;
+
+    if (!s.dragging && deltaY > 3) {
+      s.dragging = true;
+    }
+    if (!s.dragging) return;
+
+    e.preventDefault();
+
+    const now = Date.now();
+    const dt = now - s.lastTime;
+    if (dt > 0) {
+      const instantV = (touchY - s.lastY) / dt;
+      s.velocity = s.velocity * 0.7 + instantV * 0.3;
+    }
+    s.lastY = touchY;
+    s.lastTime = now;
+
+    const offset = Math.max(0, deltaY * 0.85);
+    setModalSwipeOffsetY(offset);
+  }, []);
+
+  const handleModalSwipeTouchEnd = useCallback(() => {
+    const s = modalSwipeRef.current;
+    if (!s) { return; }
+
+    if (!s.dragging) {
+      modalSwipeRef.current = null;
+      return;
+    }
+
+    const offset = modalSwipeOffsetY;
+    const velocity = s.velocity;
+    const screenH = window.innerHeight;
+    modalSwipeRef.current = null;
+
+    const shouldClose =
+      velocity > 0.3 ||
+      offset > screenH * 0.25 ||
+      (offset > 80 && velocity > 0.05);
+
+    if (shouldClose) {
+      setModalSwipeDismissing(true);
+      setModalSwipeOffsetY(screenH);
+      setTimeout(() => {
+        closeCurrentModal();
+        setTimeout(() => {
+          setModalSwipeOffsetY(0);
+          setModalSwipeDismissing(false);
+        }, 100);
+      }, 250);
+    } else {
+      setModalSwipeOffsetY(0);
+    }
+  }, [modalSwipeOffsetY, closeCurrentModal]);
+
+  const modalSwipeCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    if (modalTouchElRef.current && modalListenersAttachedRef.current) {
+      modalTouchElRef.current.removeEventListener('touchstart', handleModalSwipeTouchStart);
+      modalTouchElRef.current.removeEventListener('touchmove', handleModalSwipeTouchMove);
+      modalTouchElRef.current.removeEventListener('touchend', handleModalSwipeTouchEnd);
+      modalListenersAttachedRef.current = false;
+    }
+    modalTouchElRef.current = node;
+    if (node) {
+      node.addEventListener('touchstart', handleModalSwipeTouchStart, { passive: true });
+      node.addEventListener('touchmove', handleModalSwipeTouchMove, { passive: false });
+      node.addEventListener('touchend', handleModalSwipeTouchEnd, { passive: true });
+      modalListenersAttachedRef.current = true;
+    }
+  }, [handleModalSwipeTouchStart, handleModalSwipeTouchMove, handleModalSwipeTouchEnd]);
 
   // Swipe navigation handlers for mobile — true seamless paging (Apple Calendar style)
   // During drag: content follows finger 1:1.
@@ -2235,8 +2429,6 @@ export default function Calendar() {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onTouchMove={handleEventTouchMove}
-              onTouchEnd={handleEventTouchEnd}
             >
               <div className={isMobile ? 'min-w-full' : 'min-w-[600px]'}>
                 {/* Day Header */}
@@ -2364,9 +2556,9 @@ export default function Calendar() {
                             data-event-id={event.id}
                             className={`absolute rounded border group ${
                               isDraggable ? 'cursor-move' : 'cursor-pointer'
-                            } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
+                            } ${isDragging || isResizing ? 'opacity-70 scale-[1.02] shadow-lg shadow-purple-500/30 z-30' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
                               isSelected ? 'ring-2 ring-purple-400 ring-offset-1 ring-offset-gray-900' : ''
-                            }`}
+                            } ${longPressPendingEventId === event.id ? 'ring-2 ring-yellow-400/50' : ''}`}
                             style={{ 
                               top: `${position.top}px`,
                               left: layout.totalColumns > 1 
@@ -2401,7 +2593,7 @@ export default function Calendar() {
                               if (isDraggable) handleEventMouseDown(event, e);
                             }}
                             onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
-                            onClick={() => !hasDragged && !hasResized && !isTouchDragging && setSelectedEvent(event)}
+                            onClick={() => !hasDragged && !hasResized && !isTouchDragging && !touchMovedRef.current && setSelectedEvent(event)}
                           >
                             {/* Selection indicator */}
                             {isSelected && (
@@ -2466,8 +2658,6 @@ export default function Calendar() {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onTouchMove={handleEventTouchMove}
-              onTouchEnd={handleEventTouchEnd}
             >
               <div className="w-full">
                 {/* Day Headers */}
@@ -2564,7 +2754,9 @@ export default function Calendar() {
                                 data-event-id={event.id}
                                 className={`absolute rounded border group overflow-hidden ${
                                   isDraggable ? 'cursor-move' : 'cursor-pointer'
-                                } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
+                                } ${isDragging || isResizing ? 'opacity-70 scale-[1.02] shadow-lg shadow-purple-500/30 z-30' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
+                                  longPressPendingEventId === event.id ? 'ring-2 ring-yellow-400/50' : ''
+                                }`}
                                 style={{
                                   top: `${position.top}px`,
                                   height: `${position.height}px`,
@@ -2582,7 +2774,7 @@ export default function Calendar() {
                                 }}
                                 onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
                                 onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
-                                onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
+                                onClick={() => !hasDragged && !hasResized && !isTouchDragging && !touchMovedRef.current && setSelectedEvent(event)}
                               >
                                 {/* Top resize handle */}
                                 {isDraggable && (
@@ -2631,8 +2823,6 @@ export default function Calendar() {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onTouchMove={handleEventTouchMove}
-              onTouchEnd={handleEventTouchEnd}
             >
               <div className={isMobile ? 'min-w-full overflow-x-auto' : 'min-w-[1200px]'}>
                 {/* Day Headers */}
@@ -2724,7 +2914,9 @@ export default function Calendar() {
                                     key={eventIdx}
                                     className={`p-1 mb-1 rounded text-xs border relative group overflow-hidden w-full max-w-full ${
                                       isDraggable ? 'cursor-move' : 'cursor-pointer'
-                                    } ${isDragging || isResizing ? 'opacity-50' : 'hover:opacity-80'} ${eventStyle.className || ''}`}
+                                    } ${isDragging || isResizing ? 'opacity-70 scale-[1.02] shadow-lg shadow-purple-500/30 z-30' : 'hover:opacity-80'} ${eventStyle.className || ''} ${
+                                      longPressPendingEventId === event.id ? 'ring-2 ring-yellow-400/50' : ''
+                                    }`}
                                     style={eventStyle.backgroundColor ? { 
                                       backgroundColor: eventStyle.backgroundColor,
                                       borderColor: eventStyle.borderColor,
@@ -2732,7 +2924,7 @@ export default function Calendar() {
                                     } : undefined}
                                     onMouseDown={(e) => isDraggable ? handleEventMouseDown(event, e) : undefined}
                                     onTouchStart={(e) => isDraggable && handleEventTouchStart(event, e)}
-                                    onClick={() => !hasDragged && !hasResized && setSelectedEvent(event)}
+                                    onClick={() => !hasDragged && !hasResized && !isTouchDragging && !touchMovedRef.current && setSelectedEvent(event)}
                                   >
                                     {/* Top resize handle */}
                                     {isDraggable && (
@@ -2795,11 +2987,26 @@ export default function Calendar() {
               setSelectedEvent(null);
               setShowColorPicker(false);
             }}
+            style={{
+              opacity: modalSwipeDismissing ? 0 : modalSwipeOffsetY > 0 ? Math.max(0, 1 - modalSwipeOffsetY / 400) : 1,
+              transition: modalSwipeDismissing ? 'opacity 0.25s ease-out' : undefined,
+            }}
           >
             <Card 
+              ref={isMobile ? modalSwipeCallbackRef : undefined}
               className="bg-gray-900/95 border-purple-500/30 max-w-lg w-full relative mb-8"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                transform: modalSwipeOffsetY > 0 ? `translateY(${modalSwipeOffsetY}px)` : undefined,
+                transition: !modalSwipeDismissing && modalSwipeOffsetY === 0 ? 'transform 0.2s ease-out' : modalSwipeDismissing ? 'transform 0.25s ease-out' : undefined,
+              }}
             >
+              {/* Mobile grab bar */}
+              {isMobile && (
+                <div className="flex justify-center pt-2 pb-0">
+                  <div className="w-10 h-1 rounded-full bg-gray-500/40" />
+                </div>
+              )}
               {/* Header with colored accent */}
               <div 
                 className="h-2 rounded-t-lg"
@@ -3253,11 +3460,26 @@ export default function Calendar() {
           <div 
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
             onClick={() => setShowRescheduleModal(false)}
+            style={{
+              opacity: modalSwipeDismissing ? 0 : modalSwipeOffsetY > 0 ? Math.max(0, 1 - modalSwipeOffsetY / 400) : 1,
+              transition: modalSwipeDismissing ? 'opacity 0.25s ease-out' : undefined,
+            }}
           >
             <Card 
+              ref={isMobile ? modalSwipeCallbackRef : undefined}
               className="bg-gray-900/95 border-purple-500/30 max-w-md w-full"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                transform: modalSwipeOffsetY > 0 ? `translateY(${modalSwipeOffsetY}px)` : undefined,
+                transition: !modalSwipeDismissing && modalSwipeOffsetY === 0 ? 'transform 0.2s ease-out' : modalSwipeDismissing ? 'transform 0.25s ease-out' : undefined,
+              }}
             >
+              {/* Mobile grab bar */}
+              {isMobile && (
+                <div className="flex justify-center pt-3 pb-0">
+                  <div className="w-10 h-1 rounded-full bg-gray-500/40" />
+                </div>
+              )}
               <div className="p-6">
                 <h3 className="text-xl font-bold text-white mb-4">
                   <Clock className="w-5 h-5 inline mr-2" />
@@ -3328,11 +3550,26 @@ export default function Calendar() {
           <div 
             className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-12 overflow-y-auto"
             onClick={handleCloseNewEventModal}
+            style={{
+              opacity: modalSwipeDismissing ? 0 : modalSwipeOffsetY > 0 ? Math.max(0, 1 - modalSwipeOffsetY / 400) : 1,
+              transition: modalSwipeDismissing ? 'opacity 0.25s ease-out' : undefined,
+            }}
           >
             <Card 
+              ref={isMobile ? modalSwipeCallbackRef : undefined}
               className="bg-gray-900/95 border-purple-500/30 max-w-md w-full relative mb-8"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                transform: modalSwipeOffsetY > 0 ? `translateY(${modalSwipeOffsetY}px)` : undefined,
+                transition: !modalSwipeDismissing && modalSwipeOffsetY === 0 ? 'transform 0.2s ease-out' : modalSwipeDismissing ? 'transform 0.25s ease-out' : undefined,
+              }}
             >
+              {/* Mobile grab bar */}
+              {isMobile && (
+                <div className="flex justify-center pt-2 pb-0">
+                  <div className="w-10 h-1 rounded-full bg-gray-500/40" />
+                </div>
+              )}
               {/* Purple accent bar */}
               <div className="h-2 rounded-t-lg bg-gradient-to-r from-purple-600 to-pink-600" />
               
