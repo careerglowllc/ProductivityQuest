@@ -88,13 +88,11 @@ const Toast = React.forwardRef<
   }, []);
 
   // Block Radix's internal pointer capture which interferes with touch-based swipe
-  const handlePointerDown = React.useCallback((e: PointerEvent) => {
+  // We use gotpointercapture to release AFTER Radix captures, ensuring touch events flow normally
+  const handleGotPointerCapture = React.useCallback((e: PointerEvent) => {
     if (e.pointerType === 'touch') {
-      // Release any pointer capture Radix may set, so touch events flow normally
       const target = e.currentTarget as HTMLElement;
-      requestAnimationFrame(() => {
-        try { target.releasePointerCapture(e.pointerId); } catch (_) {}
-      });
+      try { target.releasePointerCapture(e.pointerId); } catch (_) {}
     }
   }, []);
 
@@ -105,7 +103,7 @@ const Toast = React.forwardRef<
       elRef.current.removeEventListener('touchstart', handleTouchStart);
       elRef.current.removeEventListener('touchmove', handleTouchMove);
       elRef.current.removeEventListener('touchend', handleTouchEnd);
-      elRef.current.removeEventListener('pointerdown', handlePointerDown as EventListener);
+      elRef.current.removeEventListener('gotpointercapture', handleGotPointerCapture as EventListener);
       listenersRef.current = false;
     }
     elRef.current = node;
@@ -113,11 +111,11 @@ const Toast = React.forwardRef<
       node.addEventListener('touchstart', handleTouchStart, { passive: true });
       node.addEventListener('touchmove', handleTouchMove, { passive: false });
       node.addEventListener('touchend', handleTouchEnd, { passive: true });
-      // Prevent Radix's internal setPointerCapture which steals touch events
-      node.addEventListener('pointerdown', handlePointerDown as EventListener, { capture: true });
+      // Release pointer capture immediately when Radix sets it, so touch events keep flowing
+      node.addEventListener('gotpointercapture', handleGotPointerCapture as EventListener);
       listenersRef.current = true;
     }
-  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleGotPointerCapture]);
 
   // Merge refs
   const mergedRef = React.useCallback((node: HTMLLIElement | null) => {

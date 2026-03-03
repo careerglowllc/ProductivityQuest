@@ -2061,7 +2061,7 @@ export default function Home() {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  {/* Row 1 right side: All/None + Grid toggle */}
+                  {/* Row 1 right side: All/None + Sort + Grid toggle */}
                   <div className="ml-auto flex items-center gap-1">
                     {sortedTasks.length > 0 && (
                       <>
@@ -2088,6 +2088,19 @@ export default function Home() {
                         ) : null}
                       </>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSortBy(sortBy === "due-date" ? "importance" : "due-date")}
+                      className="flex items-center gap-1 h-[22px] px-2 text-[10px] bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100"
+                      title={`Sort by ${sortBy === "due-date" ? "Importance" : "Due Date"}`}
+                    >
+                      {sortBy === "due-date" ? (
+                        <CalendarDays className="w-3 h-3" />
+                      ) : (
+                        <AlertTriangle className="w-3 h-3" />
+                      )}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

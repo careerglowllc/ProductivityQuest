@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,13 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
 
   // Stages state
   const [stages, setStages] = useState<Stage[]>([createEmptyStage()]);
+
+  // Scroll focused input into view above keyboard on iOS
+  const scrollInputIntoView = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300); // delay for keyboard animation
+  }, []);
 
   const createQuestlineMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -160,8 +167,8 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 text-yellow-100">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 text-yellow-100 overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl font-serif text-purple-200 flex items-center gap-2">
             <span>⚔️</span> Create New Questline
           </DialogTitle>
@@ -170,7 +177,8 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
           </p>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="space-y-6 py-4 pb-[40vh]">
           {/* Icon + Title row */}
           <div className="flex gap-3 items-start">
             {/* Icon picker */}
@@ -214,6 +222,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                 id="ql-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                onFocus={scrollInputIntoView}
                 placeholder="e.g. Launch the New Product..."
                 className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40"
                 maxLength={200}
@@ -230,6 +239,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
               id="ql-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              onFocus={scrollInputIntoView}
               placeholder="What is this questline about? (optional)"
               className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 min-h-[60px]"
               maxLength={500}
@@ -327,6 +337,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                         <Input
                           value={stage.title}
                           onChange={(e) => updateStage(stage.id, { title: e.target.value })}
+                          onFocus={scrollInputIntoView}
                           placeholder={`Stage ${index + 1} title...`}
                           className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
                           maxLength={200}
@@ -339,6 +350,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                         <Input
                           value={stage.description}
                           onChange={(e) => updateStage(stage.id, { description: e.target.value })}
+                          onFocus={scrollInputIntoView}
                           placeholder="Brief description..."
                           className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
                           maxLength={500}
@@ -353,6 +365,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                             type="number"
                             value={stage.duration}
                             onChange={(e) => updateStage(stage.id, { duration: e.target.value })}
+                            onFocus={scrollInputIntoView}
                             min="1"
                             className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm"
                           />
@@ -429,8 +442,9 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
             </p>
           </div>
         </div>
+        </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 shrink-0 pt-3 border-t border-purple-500/20">
           <Button
             variant="outline"
             onClick={() => {
