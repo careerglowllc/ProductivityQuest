@@ -308,7 +308,10 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
       e.preventDefault();
       e.stopPropagation();
 
-      if (!s.hasMoved) s.hasMoved = true;
+      if (!s.hasMoved) {
+        s.hasMoved = true;
+        console.log('[CalTouch] touchmove: first move in DRAGGING phase');
+      }
 
       // Auto-scroll near edges
       updateAutoScroll(touch.clientY);
@@ -328,6 +331,7 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance > MOVE_CANCEL_PX) {
+        console.log('[CalTouch] touchmove: finger moved', distance.toFixed(1), 'px → canceling long press');
         // Finger moved too much — cancel long-press
         s.touchMovedAtAll = true;
         clearTimers();
@@ -335,7 +339,6 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
         setDragState(prev => ({ ...prev, pendingEventId: null }));
 
         // Programmatically scroll since touch-action:none blocks native scroll
-        // on event blocks. Without this, users can't scroll by swiping on events.
         e.preventDefault();
         const container = getScrollContainer();
         if (container) {
@@ -343,16 +346,13 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
           container.scrollTop -= deltaY;
         }
       } else {
-        // Finger still within threshold — MUST preventDefault to stop iOS from
-        // starting a native scroll gesture. Without this, iOS WKWebView commits
-        // to scrolling before LONG_PRESS_MS fires, killing the long-press.
+        // Finger still within threshold — prevent default to block iOS scroll
         e.preventDefault();
       }
       return;
     }
 
     // Continue programmatic scroll after long-press was canceled
-    // (user is still swiping with finger down after we went back to IDLE)
     if (s.phase === 'IDLE' && s.touchMovedAtAll) {
       e.preventDefault();
       const container = getScrollContainer();
@@ -367,10 +367,12 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
 
   const handleTouchEnd = useCallback(() => {
     const s = S.current;
+    console.log('[CalTouch] handleTouchEnd, phase=', s.phase, 'hasMoved=', s.hasMoved);
 
     if (s.phase === 'DRAGGING' && s.event) {
       // Drop the event
       const tempTime = calcTempTime(s.currentY);
+      console.log('[CalTouch] Dropping event, tempTime=', tempTime, 'hasMoved=', s.hasMoved);
       if (tempTime && s.hasMoved) {
         const wasResize = s.edge !== null;
         onEventDropRef.current(s.event, tempTime.start, tempTime.end, wasResize);
@@ -407,6 +409,7 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
 
   useEffect(() => {
     const container = getScrollContainer();
+    console.log('[CalTouch] useEffect: attaching listeners, view=', viewRef.current, 'container=', container ? 'FOUND' : 'NULL');
     if (!container) return;
 
     container.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -420,6 +423,7 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
     }
 
     return () => {
+      console.log('[CalTouch] useEffect: REMOVING listeners');
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('touchcancel', handleTouchCancel);
@@ -437,6 +441,7 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
   // ── React event: touchstart on an event block ───────────────────────
 
   const handleEventTouchStart = useCallback((event: CalendarEvent, e: React.TouchEvent, edge?: 'top' | 'bottom') => {
+    console.log('[CalTouch] handleEventTouchStart called, isMobile=', isMobile, 'source=', event.source, 'title=', event.title);
     if (!isMobile) return;
     if (event.source !== 'productivityquest' && event.source !== 'standalone') return;
 
@@ -460,19 +465,24 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
     s.touchMovedAtAll = false;
     s.originalStart = new Date(event.start);
     s.originalEnd = new Date(event.end);
+    console.log('[CalTouch] Phase → WAITING, setting timers...');
 
     // After VISUAL_HINT_MS: show the yellow "pending" ring
     s.visualHintTimer = setTimeout(() => {
+      console.log('[CalTouch] visualHintTimer fired, phase=', s.phase);
       if (s.phase === 'WAITING') {
         s.phase = 'PENDING';
         setDragState(prev => ({ ...prev, pendingEventId: event.id }));
+        console.log('[CalTouch] Phase → PENDING');
       }
     }, VISUAL_HINT_MS);
 
     // After LONG_PRESS_MS: activate drag mode
     s.longPressTimer = setTimeout(() => {
+      console.log('[CalTouch] longPressTimer fired, phase=', s.phase);
       if (s.phase === 'WAITING' || s.phase === 'PENDING') {
         s.phase = 'DRAGGING';
+        console.log('[CalTouch] Phase → DRAGGING ✅');
 
         // Record scroll position and finger position at drag activation
         const container = getScrollContainer();
