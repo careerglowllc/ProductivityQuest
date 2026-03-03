@@ -678,6 +678,169 @@ export default function Calendar() {
     }
   };
 
+  // ── Save logic for moving/resizing an event (shared by desktop mouse + mobile touch) ──
+
+  const saveEventMove = async (eventToUpdate: CalendarEvent, newStart: Date, newEnd: Date, wasDrag: boolean) => {
+    const durationMs = newEnd.getTime() - newStart.getTime();
+    const durationMinutes = Math.round(durationMs / 60000);
+
+    if (eventToUpdate.source === 'productivityquest') {
+      const taskId = eventToUpdate.id.replace('task-', '');
+      const originalStart = new Date(eventToUpdate.start);
+
+      const isSameDay =
+        originalStart.getFullYear() === newStart.getFullYear() &&
+        originalStart.getMonth() === newStart.getMonth() &&
+        originalStart.getDate() === newStart.getDate();
+
+      let updatePayload: any;
+
+      if (isSameDay && wasDrag) {
+        updatePayload = {
+          scheduledTime: newStart.toISOString(),
+          duration: durationMinutes,
+        };
+      } else {
+        updatePayload = {
+          dueDate: newStart.toISOString(),
+          scheduledTime: newStart.toISOString(),
+          duration: durationMinutes,
+        };
+      }
+
+      // OPTIMISTIC UPDATE
+      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+
+      const originalEvent = previousData?.events.find(e => e.id === eventToUpdate.id);
+      if (originalEvent) {
+        setUndoStack({
+          taskId,
+          previousState: {
+            start: originalEvent.start,
+            end: originalEvent.end,
+            duration: originalEvent.duration || 30,
+            dueDate: originalEvent.start,
+            scheduledTime: originalEvent.start,
+          },
+          currentState: {
+            start: newStart.toISOString(),
+            end: newEnd.toISOString(),
+            duration: durationMinutes,
+            dueDate: updatePayload.dueDate,
+            scheduledTime: updatePayload.scheduledTime,
+          }
+        });
+      }
+
+      toast({
+        title: wasDrag ? "Event Rescheduled" : "Duration Updated",
+        description: `Updated to ${newStart.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })} (${durationMinutes} min)`,
+        action: (
+          <ToastAction
+            altText="Undo change"
+            onClick={handleUndo}
+            className="border-yellow-500/30 hover:bg-yellow-600/20 hover:border-yellow-400/50"
+          >
+            <Undo2 className="w-3 h-3 mr-1" />
+            Undo
+          </ToastAction>
+        ),
+        duration: 5000,
+      });
+
+      if (previousData?.events) {
+        queryClient.setQueryData(queryKey, {
+          events: previousData.events.map(event =>
+            event.id === eventToUpdate.id
+              ? { ...event, start: newStart.toISOString(), end: newEnd.toISOString(), duration: durationMinutes }
+              : event
+          )
+        });
+      }
+
+      try {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(updatePayload),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.calendarSynced === true) {
+            console.log('✅ Google Calendar updated for task', taskId);
+          } else if (result.calendarSynced === false) {
+            console.warn('⚠️ Google Calendar sync failed:', result.calendarSyncError);
+            toast({
+              title: "⚠️ Google Calendar Not Updated",
+              description: result.calendarSyncError || "Failed to sync change to Google Calendar",
+              variant: "destructive",
+              duration: 4000,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey });
+          queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+        } else {
+          if (previousData) queryClient.setQueryData(queryKey, previousData);
+          toast({ title: "Update Failed", description: "Failed to save changes. Reverting...", variant: "destructive" });
+          console.error('Failed to update task:', await response.text());
+        }
+      } catch (error) {
+        if (previousData) queryClient.setQueryData(queryKey, previousData);
+        toast({ title: "Update Failed", description: "Failed to save changes. Reverting...", variant: "destructive" });
+        console.error('Failed to update task:', error);
+      }
+      return;
+    }
+
+    if (eventToUpdate.source === 'standalone') {
+      const numericId = eventToUpdate.id.replace('standalone-', '');
+      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
+      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
+
+      if (previousData?.events) {
+        queryClient.setQueryData(queryKey, {
+          ...previousData,
+          events: previousData.events.map(event =>
+            event.id === eventToUpdate.id
+              ? { ...event, start: newStart.toISOString(), end: newEnd.toISOString(), duration: durationMinutes }
+              : event
+          )
+        });
+      }
+
+      toast({
+        title: wasDrag ? "Event Moved" : "Duration Updated",
+        description: `Updated to ${newStart.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} (${durationMinutes} min)`,
+        duration: 3000,
+      });
+
+      try {
+        await apiRequest("PATCH", `/api/standalone-events/${numericId}`, {
+          startTime: newStart.toISOString(),
+          duration: durationMinutes,
+        });
+        queryClient.invalidateQueries({ queryKey });
+      } catch (error) {
+        if (previousData) queryClient.setQueryData(queryKey, previousData);
+        toast({ title: "Update Failed", description: "Failed to save changes.", variant: "destructive" });
+        console.error('Failed to update standalone event:', error);
+      }
+      return;
+    }
+  };
+
+  const saveEventMoveRef = useRef(saveEventMove);
+  saveEventMoveRef.current = saveEventMove;
+
   const handleMouseUp = async () => {
     // Clear auto-scroll interval
     if (autoScrollInterval.current) {
@@ -687,253 +850,36 @@ export default function Calendar() {
 
     if ((draggingEvent || resizingEvent) && tempEventTime) {
       const eventToUpdate = draggingEvent || resizingEvent;
-      
-      if (eventToUpdate && eventToUpdate.source === 'productivityquest') {
-        // Extract task ID from event ID (format: task-{id})
-        const taskId = eventToUpdate.id.replace('task-', '');
-        
-        // Calculate duration in minutes
-        const durationMs = tempEventTime.end.getTime() - tempEventTime.start.getTime();
-        const durationMinutes = Math.round(durationMs / 60000);
+      const wasDrag = !!draggingEvent;
 
-        // Get the original event start time
-        const originalStart = new Date(eventToUpdate.start);
-        const newStart = tempEventTime.start;
-        
-        // Check if we're moving within the same day (same date, different time)
-        const isSameDay = 
-          originalStart.getFullYear() === newStart.getFullYear() &&
-          originalStart.getMonth() === newStart.getMonth() &&
-          originalStart.getDate() === newStart.getDate();
-        
-        let updatePayload: any;
-        
-        if (isSameDay && draggingEvent) {
-          // Moving within the same day - only update scheduledTime (keep dueDate)
-          updatePayload = {
-            scheduledTime: newStart.toISOString(),
-            duration: durationMinutes,
-          };
-        } else {
-          // Moving across days or resizing - update both dueDate and scheduledTime
-          updatePayload = {
-            dueDate: newStart.toISOString(),
-            scheduledTime: newStart.toISOString(),
-            duration: durationMinutes,
-          };
-        }
+      // Reset drag state immediately for instant UI feedback
+      setDraggingEvent(null);
+      setResizingEvent(null);
+      setResizeEdge(null);
+      setDragStartY(0);
+      setDragStartTime(null);
+      setTempEventTime(null);
+      setTimeout(() => { setHasDragged(false); setHasResized(false); }, 100);
 
-        // OPTIMISTIC UPDATE: Update cache immediately
-        const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-        const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-        
-        // Store undo state BEFORE making changes
-        const originalEvent = previousData?.events.find(e => e.id === eventToUpdate.id);
-        if (originalEvent) {
-          setUndoStack({
-            taskId,
-            previousState: {
-              start: originalEvent.start,
-              end: originalEvent.end,
-              duration: originalEvent.duration || 30,
-              dueDate: originalEvent.start, // Store original dueDate
-              scheduledTime: originalEvent.start,
-            },
-            currentState: {
-              start: newStart.toISOString(),
-              end: tempEventTime.end.toISOString(),
-              duration: durationMinutes,
-              dueDate: updatePayload.dueDate,
-              scheduledTime: updatePayload.scheduledTime,
-            }
-          });
-        }
-        
-        // Show instant toast notification with Undo button
-        toast({
-          title: draggingEvent ? "Event Rescheduled" : "Duration Updated",
-          description: `Updated to ${newStart.toLocaleString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true 
-          })} (${durationMinutes} min)`,
-          action: (
-            <ToastAction 
-              altText="Undo change" 
-              onClick={handleUndo}
-              className="border-yellow-500/30 hover:bg-yellow-600/20 hover:border-yellow-400/50"
-            >
-              <Undo2 className="w-3 h-3 mr-1" />
-              Undo
-            </ToastAction>
-          ),
-          duration: 5000, // Keep toast visible for 5 seconds
-        });
-
-        // Optimistically update the UI
-        if (previousData?.events) {
-          const optimisticData = {
-            events: previousData.events.map(event => 
-              event.id === eventToUpdate.id
-                ? {
-                    ...event,
-                    start: newStart.toISOString(),
-                    end: tempEventTime.end.toISOString(),
-                    duration: durationMinutes
-                  }
-                : event
-            )
-          };
-          queryClient.setQueryData(queryKey, optimisticData);
-        }
-
-        // Reset drag state immediately for instant UI feedback
-        setDraggingEvent(null);
-        setResizingEvent(null);
-        setResizeEdge(null);
-        setDragStartY(0);
-        setDragStartTime(null);
-        setTempEventTime(null);
-        
-        // Use setTimeout to reset dragging flags after event handlers complete
-        setTimeout(() => {
-          setHasDragged(false);
-          setHasResized(false);
-        }, 100);
-
-        // Then update backend in the background
-        try {
-          const response = await fetch(`/api/tasks/${taskId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(updatePayload),
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            
-            // Check Google Calendar sync result
-            if (result.calendarSynced === true) {
-              console.log('✅ Google Calendar updated for task', taskId);
-            } else if (result.calendarSynced === false) {
-              console.warn('⚠️ Google Calendar sync failed:', result.calendarSyncError);
-              toast({
-                title: "⚠️ Google Calendar Not Updated",
-                description: result.calendarSyncError || "Failed to sync change to Google Calendar",
-                variant: "destructive",
-                duration: 4000,
-              });
-            }
-            
-            // Refetch to ensure data consistency
-            queryClient.invalidateQueries({ queryKey });
-            queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-          } else {
-            // Revert on error
-            if (previousData) {
-              queryClient.setQueryData(queryKey, previousData);
-            }
-            toast({
-              title: "Update Failed",
-              description: "Failed to save changes. Reverting...",
-              variant: "destructive",
-            });
-            console.error('Failed to update task:', await response.text());
-          }
-        } catch (error) {
-          // Revert on error
-          if (previousData) {
-            queryClient.setQueryData(queryKey, previousData);
-          }
-          toast({
-            title: "Update Failed",
-            description: "Failed to save changes. Reverting...",
-            variant: "destructive",
-          });
-          console.error('Failed to update task:', error);
-        }
-        
-        return; // Exit early since we handled everything
+      if (eventToUpdate) {
+        await saveEventMove(eventToUpdate, tempEventTime.start, tempEventTime.end, wasDrag);
       }
-
-      // Handle standalone event drag/resize
-      if (eventToUpdate && eventToUpdate.source === 'standalone') {
-        const numericId = eventToUpdate.id.replace('standalone-', '');
-        const durationMs = tempEventTime.end.getTime() - tempEventTime.start.getTime();
-        const durationMinutes = Math.round(durationMs / 60000);
-        const newStart = tempEventTime.start;
-
-        // Optimistic update
-        const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-        const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-
-        if (previousData?.events) {
-          queryClient.setQueryData(queryKey, {
-            ...previousData,
-            events: previousData.events.map(event =>
-              event.id === eventToUpdate.id
-                ? { ...event, start: newStart.toISOString(), end: tempEventTime.end.toISOString(), duration: durationMinutes }
-                : event
-            )
-          });
-        }
-
-        // Reset drag state
-        setDraggingEvent(null);
-        setResizingEvent(null);
-        setResizeEdge(null);
-        setDragStartY(0);
-        setDragStartTime(null);
-        setTempEventTime(null);
-        setTimeout(() => { setHasDragged(false); setHasResized(false); }, 100);
-
-        toast({
-          title: draggingEvent ? "Event Moved" : "Duration Updated",
-          description: `Updated to ${newStart.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} (${durationMinutes} min)`,
-          duration: 3000,
-        });
-
-        try {
-          await apiRequest("PATCH", `/api/standalone-events/${numericId}`, {
-            startTime: newStart.toISOString(),
-            duration: durationMinutes,
-          });
-          queryClient.invalidateQueries({ queryKey });
-        } catch (error) {
-          if (previousData) queryClient.setQueryData(queryKey, previousData);
-          toast({ title: "Update Failed", description: "Failed to save changes.", variant: "destructive" });
-          console.error('Failed to update standalone event:', error);
-        }
-
-        return;
-      }
+      return;
     }
 
-    // Reset drag state for non-ProductivityQuest events or if no temp time
+    // Reset drag state for non-saveable events or if no temp time
     setDraggingEvent(null);
     setResizingEvent(null);
     setResizeEdge(null);
     setDragStartY(0);
     setDragStartTime(null);
     setTempEventTime(null);
-    
-    // Use setTimeout to reset dragging flags after event handlers complete
-    setTimeout(() => {
-      setHasDragged(false);
-      setHasResized(false);
-    }, 100);
+    setTimeout(() => { setHasDragged(false); setHasResized(false); }, 100);
   };
 
   // ========== Mobile Touch Drag — powered by useCalendarTouch hook ==========
   // Handles: long-press-to-drag, double-tap-to-open, scroll passthrough
   // All touch state lives inside the hook with a clean state machine.
-
-  // We need the ref for handleMouseUp since it's used in the touch drop callback
-  const handleMouseUpRef = useRef(handleMouseUp);
-  handleMouseUpRef.current = handleMouseUp;
 
   const touchHook = useCalendarTouch({
     view,
@@ -944,20 +890,8 @@ export default function Calendar() {
     },
     onEventOpen: (event) => setSelectedEvent(event),
     onEventDrop: (event, newStart, newEnd, wasResize) => {
-      // Bridge touch drop into existing drag state so handleMouseUp can save
-      if (wasResize) {
-        setResizingEvent(event);
-        setResizeEdge('bottom'); // The hook tracked the actual edge
-        setHasResized(true);
-      } else {
-        setDraggingEvent(event);
-        setHasDragged(true);
-      }
-      setTempEventTime({ start: newStart, end: newEnd });
-      // Defer to next tick so state is set, then trigger save
-      setTimeout(() => {
-        handleMouseUpRef.current();
-      }, 0);
+      // Call saveEventMove directly — no fragile bridge through React state
+      saveEventMoveRef.current(event, newStart, newEnd, !wasResize);
     },
     isMobile,
   });

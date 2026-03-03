@@ -167,6 +167,16 @@ export const CalendarEventBlock = React.memo(function CalendarEventBlock({
     containerStyle.borderColor = '#a855f7';
   }
 
+  // On mobile, draggable events need touch-action:none so iOS doesn't commit
+  // to scrolling before our long-press timer fires. Also prevent context menu
+  // and text selection which iOS triggers on long-press.
+  if (isMobile && isDraggable) {
+    containerStyle.touchAction = 'none';
+    (containerStyle as any).WebkitTouchCallout = 'none';
+    containerStyle.userSelect = 'none';
+    (containerStyle as any).WebkitUserSelect = 'none';
+  }
+
   // ── CSS classes ──
   const baseClass = [
     'rounded border group',

@@ -314,11 +314,18 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance > MOVE_CANCEL_PX) {
+        // Finger moved too much — cancel long-press and let native scroll take over
         s.touchMovedAtAll = true;
         clearTimers();
         s.phase = 'IDLE';
         setDragState(prev => ({ ...prev, pendingEventId: null }));
-        // Don't prevent default — let native scroll happen
+        // Don't prevent default — let native scroll happen from this point
+      } else {
+        // Finger still within threshold — MUST preventDefault to stop iOS from
+        // starting a native scroll gesture. Without this, iOS WKWebView commits
+        // to scrolling before LONG_PRESS_MS fires, killing the long-press.
+        // This is safe because our listener uses { passive: false }.
+        e.preventDefault();
       }
     }
   }, [clearTimers, calcTempTime, updateAutoScroll]);
@@ -357,6 +364,12 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
     }
   }, [calcTempTime, clearTimers, resetToIdle]);
 
+  // ── Native touchcancel handler (iOS fires this when system steals the touch) ──
+
+  const handleTouchCancel = useCallback(() => {
+    resetToIdle();
+  }, [resetToIdle]);
+
   // ── Attach native listeners to the active scroll container ──────────
 
   useEffect(() => {
@@ -365,12 +378,14 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
 
     container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
     return () => {
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [getScrollContainer, handleTouchMove, handleTouchEnd, view]);
+  }, [getScrollContainer, handleTouchMove, handleTouchEnd, handleTouchCancel, view]);
 
   // Cleanup on unmount
   useEffect(() => {
