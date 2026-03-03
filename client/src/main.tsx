@@ -24,10 +24,9 @@ if (Capacitor.isNativePlatform()) {
 
 // ── Prevent pinch-to-zoom on iOS ──────────────────────────────────────
 // iOS Safari/WKWebView ignores the viewport meta maximum-scale since iOS 10.
-// The only reliable way to prevent zoom is:
-// 1. CSS touch-action: pan-x pan-y (on html/body, done in index.css)
-// 2. Block the proprietary 'gesturestart' event (iOS-only, fires on pinch)
-// 3. Block multi-touch touchmove (catches edge cases gesturestart misses)
+// Reliable prevention uses JS event interception:
+// 1. Block the proprietary 'gesturestart' event (iOS-only, fires on pinch)
+// 2. Block multi-touch touchmove (catches edge cases gesturestart misses)
 
 document.addEventListener('gesturestart', (e) => {
   e.preventDefault();

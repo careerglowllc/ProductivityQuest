@@ -62,9 +62,6 @@
     overscroll-behavior: none;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    /* Prevent pinch-to-zoom on iOS — pan-x pan-y allows scroll but blocks zoom */
-    touch-action: pan-x pan-y;
-    -ms-touch-action: pan-x pan-y;
   }
 
   /* Ensure no black gap at bottom of viewport on iOS */
@@ -88,8 +85,6 @@
     min-height: 100vh;
     min-height: 100dvh;
     min-height: -webkit-fill-available;
-    /* Prevent pinch-to-zoom on body too */
-    touch-action: pan-x pan-y;
   }
 }
 

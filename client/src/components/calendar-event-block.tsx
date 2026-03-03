@@ -229,6 +229,7 @@ export const CalendarEventBlock = React.memo(function CalendarEventBlock({
   return (
     <div
       data-event-id={event.id}
+      data-draggable={isDraggable ? 'true' : undefined}
       className={baseClass}
       style={containerStyle}
       onMouseDown={(e) => {

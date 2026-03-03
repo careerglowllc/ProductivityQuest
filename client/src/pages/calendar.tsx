@@ -1556,7 +1556,7 @@ export default function Calendar() {
   // On release below threshold: snap back with a short transition.
   const handleSwipeStart = (e: React.TouchEvent) => {
     if (!isMobile || swipeAnimating) return;
-    if (touchHook.dragState.isDragging || draggingEvent || resizingEvent) return;
+    if (touchHook.dragState.isDragging || touchHook.isInteracting() || draggingEvent || resizingEvent) return;
     const touch = e.touches[0];
     swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
     swipeLockedRef.current = null;
@@ -1566,7 +1566,7 @@ export default function Calendar() {
 
   const handleSwipeMove = (e: React.TouchEvent) => {
     if (!isMobile || !swipeStartRef.current) return;
-    if (touchHook.dragState.isDragging || draggingEvent || resizingEvent) return;
+    if (touchHook.dragState.isDragging || touchHook.isInteracting() || draggingEvent || resizingEvent) return;
     const touch = e.touches[0];
     const deltaX = touch.clientX - swipeStartRef.current.x;
     const deltaY = touch.clientY - swipeStartRef.current.y;
@@ -1588,7 +1588,7 @@ export default function Calendar() {
 
   const handleSwipeEnd = (e: React.TouchEvent) => {
     if (!isMobile || !swipeStartRef.current) return;
-    if (touchHook.dragState.isDragging || draggingEvent || resizingEvent) {
+    if (touchHook.dragState.isDragging || touchHook.isInteracting() || draggingEvent || resizingEvent) {
       swipeStartRef.current = null;
       swipeLockedRef.current = null;
       return;
