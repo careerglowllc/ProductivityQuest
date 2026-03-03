@@ -118,11 +118,12 @@
     padding-right: env(safe-area-inset-right);
   }
 
-  /* Disable text selection and callout on iOS for app-like feel */
+  /* Disable text selection, callout, and tap highlight on iOS for app-like feel */
   .capacitor-ios * {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Re-enable text selection for inputs and textareas */
