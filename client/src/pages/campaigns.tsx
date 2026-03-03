@@ -2,438 +2,344 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Crown, Sparkles, Rocket, Gift, Plus, Target, Pencil, Trash2, Check, X, CheckCircle } from "lucide-react";
+import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { AddQuestlineModal } from "@/components/add-questline-modal";
 
-const ICON_MAP: Record<string, any> = {
-  Sparkles,
-  Rocket,
-  Crown,
-  Gift,
-  Target,
-};
-
-type QuestStatus = 'completed' | 'in-progress' | 'locked';
-
-interface Quest {
+interface QuestlineTask {
   id: number;
   title: string;
-  status: QuestStatus;
+  description: string | null;
+  completed: boolean;
+  recycled: boolean | null;
+  goldValue: number;
+  duration: number;
+  importance: string | null;
+  questlineOrder: number | null;
+  skillTags: string[] | null;
 }
 
-interface Campaign {
+interface QuestlineData {
   id: number;
   title: string;
-  description: string;
-  icon: string;
-  quests: Quest[];
-  rewards: string[];
-  progress: number;
-  isActive: boolean;
+  description: string | null;
+  icon: string | null;
+  completed: boolean | null;
+  completedAt: string | null;
+  bonusAwarded: boolean | null;
+  tasks: QuestlineTask[];
 }
 
 export default function CampaignsPage() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
-  const [editQuests, setEditQuests] = useState<Quest[]>([]);
-  const [newQuestTitle, setNewQuestTitle] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Fetch campaigns from API
-  const { data: campaignsData = [], isLoading } = useQuery<Campaign[]>({
-    queryKey: ["/api/campaigns"],
+  const { data: questlines = [], isLoading } = useQuery<QuestlineData[]>({
+    queryKey: ["/api/questlines"],
   });
 
-  // Update campaign mutation
-  const updateCampaign = useMutation({
-    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Campaign> }) => {
-      const response = await apiRequest("PATCH", `/api/campaigns/${id}`, updates);
-      return response.json();
+  const deleteQuestline = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/questlines/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setDeletingId(null);
+      toast({ title: "Questline Deleted", description: "The questline has been removed." });
     },
   });
 
-  const toggleCampaign = async (campaign: Campaign) => {
-    const activeCampaigns = campaignsData.filter((c: Campaign) => c.isActive);
-    
-    if (campaign.isActive) {
-      // Remove from campaigns
-      await updateCampaign.mutateAsync({ id: campaign.id, updates: { isActive: false } });
-      toast({
-        title: "Campaign Removed",
-        description: "Questline removed from active campaigns.",
-      });
-    } else {
-      // Add to campaigns (max 2)
-      if (activeCampaigns.length >= 2) {
+  const checkCompletion = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/questlines/${id}/check-completion`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      if (data.bonusAwarded && data.bonusGold > 0) {
         toast({
-          title: "Maximum Campaigns Reached",
-          description: "You can only have 2 active campaigns. Remove one to add another.",
-          variant: "destructive",
+          title: "🏆 Questline Complete!",
+          description: `3× bonus awarded: 🪙 ${data.bonusGold} gold and ${data.bonusXp} XP!`,
         });
-        return;
       }
-      await updateCampaign.mutateAsync({ id: campaign.id, updates: { isActive: true } });
-      toast({
-        title: "Campaign Added",
-        description: "Questline marked as active campaign!",
-      });
-    }
-  };
+    },
+  });
 
-  const openEditModal = (campaign: Campaign, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingCampaign(campaign);
-    setEditQuests([...(campaign.quests || [])]);
-    setNewQuestTitle("");
-  };
-
-  const handleQuestStatusChange = (questId: number, newStatus: QuestStatus) => {
-    setEditQuests(prev => prev.map(q => q.id === questId ? { ...q, status: newStatus } : q));
-  };
-
-  const handleQuestTitleChange = (questId: number, newTitle: string) => {
-    setEditQuests(prev => prev.map(q => q.id === questId ? { ...q, title: newTitle } : q));
-  };
-
-  const handleAddQuest = () => {
-    if (!newQuestTitle.trim()) return;
-    const maxId = editQuests.reduce((max, q) => Math.max(max, q.id), 0);
-    setEditQuests([...editQuests, { id: maxId + 1, title: newQuestTitle.trim(), status: 'locked' }]);
-    setNewQuestTitle("");
-  };
-
-  const handleRemoveQuest = (questId: number) => {
-    setEditQuests(prev => prev.filter(q => q.id !== questId));
-  };
-
-  const handleSaveQuests = async () => {
-    if (!editingCampaign) return;
-    
-    // Recalculate progress based on quest statuses
-    const completed = editQuests.filter(q => q.status === 'completed').length;
-    const total = editQuests.length;
-    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-    
-    await updateCampaign.mutateAsync({
-      id: editingCampaign.id,
-      updates: { quests: editQuests, progress },
-    });
-    
-    setEditingCampaign(null);
-    toast({
-      title: "Questline Updated",
-      description: "Quest steps and statuses have been saved.",
-    });
-  };
-
-  const questlines = campaignsData;
-
-  const activeCampaignCount = questlines.filter((q: Campaign) => q.isActive).length;
+  const active = questlines.filter((q) => !q.completed);
+  const completed = questlines.filter((q) => q.completed);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? 'pb-20 px-2 pt-1' : 'pt-20 px-4'}`}>
-      <div className={`max-w-6xl mx-auto ${isMobile ? 'py-3' : 'py-8'}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? "pb-20 px-2 pt-1" : "pt-20 px-4"}`}>
+      <div className={`max-w-6xl mx-auto ${isMobile ? "py-3" : "py-8"}`}>
         {/* Page Header */}
-        <div className={isMobile ? 'mb-3' : 'mb-8'}>
-          <div className={`flex items-center ${isMobile ? 'gap-2 mb-1' : 'gap-3 mb-2'}`}>
-            <Target className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} text-purple-400`} />
-            <h1 className={`${isMobile ? 'text-xl' : 'text-4xl'} font-serif font-bold text-purple-100`}>Active Questlines</h1>
+        <div className={isMobile ? "mb-3" : "mb-8"}>
+          <div className={`flex items-center justify-between ${isMobile ? "mb-1" : "mb-2"}`}>
+            <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
+              <Target className={`${isMobile ? "h-5 w-5" : "h-8 w-8"} text-purple-400`} />
+              <h1 className={`${isMobile ? "text-xl" : "text-4xl"} font-serif font-bold text-purple-100`}>
+                Questlines
+              </h1>
+            </div>
+            <Button
+              size={isMobile ? "sm" : "default"}
+              onClick={() => setShowCreateModal(true)}
+              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white border border-purple-400/50"
+            >
+              <Plus className={`${isMobile ? "h-3.5 w-3.5 mr-0.5" : "h-4 w-4 mr-1"}`} />
+              {isMobile ? "New" : "New Questline"}
+            </Button>
           </div>
           {!isMobile && (
             <p className="text-purple-300/70 text-lg">
-              Select up to 2 questlines as active campaigns to track your major life objectives
+              Multi-stage quest chains. Complete all stages to earn a 3× gold &amp; XP bonus!
             </p>
           )}
         </div>
 
-        {/* Active Questlines */}
-        <Card className={`bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-md border-2 border-blue-600/40 ${isMobile ? 'mb-3' : 'mb-6'}`}>
-          <CardHeader className={`border-b border-blue-600/30 ${isMobile ? 'px-3 py-2' : ''}`}>
-            <div className="flex items-center justify-between">
-              <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
-                <Target className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} text-blue-400`} />
-                <CardTitle className={`${isMobile ? 'text-base' : 'text-2xl'} font-serif font-bold text-blue-100`}>
-                  Active Questlines
-                </CardTitle>
-              </div>
-              <Button
-                size="sm"
-                className={`bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white ${isMobile ? 'h-7 text-xs px-2' : ''}`}
-              >
-                <Plus className={`${isMobile ? 'h-3 w-3 mr-0.5' : 'h-4 w-4 mr-1'}`} />
-                {isMobile ? 'New' : 'New Questline'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className={isMobile ? 'p-3' : 'p-6'}>
-            {!isMobile && (
-              <p className="text-blue-300/70 mb-6 text-sm">
-                Questlines are interconnected series of tasks that guide you towards specific transformations. 
-                Click on a questline to mark it as an active campaign (max 2). Campaigns are highlighted in purple.
+        {isLoading ? (
+          <div className="text-center py-12 text-purple-300/60">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-purple-400" />
+            Loading questlines...
+          </div>
+        ) : questlines.length === 0 ? (
+          <Card className="bg-slate-800/40 border-purple-500/30">
+            <CardContent className="py-12 text-center">
+              <Target className="h-12 w-12 mx-auto mb-3 text-purple-400/50" />
+              <h3 className="text-lg font-serif text-purple-200 mb-2">No Questlines Yet</h3>
+              <p className="text-purple-300/50 text-sm mb-4">
+                Create your first multi-stage questline to earn massive bonus rewards.
               </p>
-            )}
-
-            {isLoading ? (
-              <div className="text-center py-8 text-blue-300/70">Loading questlines...</div>
-            ) : questlines.length === 0 ? (
-              <div className="text-center py-8 text-blue-300/70">No questlines yet. Create one to get started!</div>
-            ) : (
-            <div className={isMobile ? 'space-y-2' : 'space-y-4'}>
-              {questlines.map((questline: Campaign) => {
-                const isCampaign = questline.isActive;
-                const Icon = ICON_MAP[questline.icon] || Target;
-                
-                return (
-                  <Card 
-                    key={questline.id}
-                    className={`${
-                      isCampaign 
-                        ? 'bg-purple-900/30 border-2 border-purple-600/40 hover:border-purple-500/60' 
-                        : 'bg-blue-900/30 border-2 border-blue-600/40 hover:border-blue-500/60'
-                    } transition-all overflow-hidden cursor-pointer`}
-                    onClick={() => toggleCampaign(questline)}
-                  >
-                    <div className="relative">
-                      {/* Campaign Badge */}
-                      {isCampaign && (
-                        <div className={`absolute ${isMobile ? 'top-2 right-2' : 'top-4 right-4'} z-10`}>
-                          <div className={`flex items-center gap-1 ${isMobile ? 'px-2 py-0.5' : 'px-3 py-1'} bg-purple-600/90 rounded-full border border-purple-400`}>
-                            <Crown className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-purple-200`} />
-                            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-bold text-purple-100`}>CAMPAIGN</span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Progress bar at top */}
-                      <div className="absolute top-0 left-0 right-0 h-1 bg-slate-950/50">
-                        <div 
-                          className={`h-full ${
-                            isCampaign 
-                              ? 'bg-gradient-to-r from-purple-500 to-pink-400' 
-                              : 'bg-gradient-to-r from-blue-500 to-cyan-400'
-                          }`}
-                          style={{ width: `${questline.progress}%` }} 
-                        />
-                      </div>
-                      
-                      <CardContent className={isMobile ? 'pt-3 pb-2 px-3' : 'pt-6 pb-4 px-6'}>
-                        <div className={`flex items-start ${isMobile ? 'gap-2.5' : 'gap-4'}`}>
-                          {/* Icon */}
-                          <div className={`${isMobile ? 'p-2' : 'p-3'} rounded-xl border-2 flex-shrink-0 ${
-                            isCampaign
-                              ? 'bg-gradient-to-br from-purple-600/30 to-pink-600/30 border-purple-500/50'
-                              : 'bg-gradient-to-br from-blue-600/30 to-cyan-600/30 border-blue-500/50'
-                          }`}>
-                            <Icon className={`${isMobile ? 'h-5 w-5' : 'h-7 w-7'} ${
-                              isCampaign ? 'text-purple-300' : 'text-blue-300'
-                            }`} />
-                          </div>
-                          
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className={`flex items-start justify-between ${isMobile ? 'gap-2 mb-1' : 'gap-4 mb-2'}`}>
-                              <div className="min-w-0">
-                                <h3 className={`${isMobile ? 'text-sm' : 'text-xl'} font-serif font-bold ${isMobile ? 'mb-0.5' : 'mb-1'} ${
-                                  isCampaign ? 'text-purple-100' : 'text-blue-100'
-                                }`}>
-                                  {questline.title}
-                                </h3>
-                                <p className={`${isMobile ? 'text-xs line-clamp-2' : 'text-sm'} ${
-                                  isCampaign ? 'text-purple-300/70' : 'text-blue-300/70'
-                                }`}>
-                                  {questline.description}
-                                </p>
-                              </div>
-                              <div className={`flex items-start ${isMobile ? 'gap-1.5' : 'gap-3'} flex-shrink-0`}>
-                                {/* Edit Button */}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className={`${isMobile ? 'h-6 w-6 p-0' : ''} ${
-                                    isCampaign 
-                                      ? 'text-purple-300 hover:bg-purple-600/20 hover:text-purple-100' 
-                                      : 'text-blue-300 hover:bg-blue-600/20 hover:text-blue-100'
-                                  }`}
-                                  onClick={(e) => openEditModal(questline, e)}
-                                >
-                                  <Pencil className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                                </Button>
-                                <div className="text-right">
-                                  <p className={`text-xs ${isMobile ? 'hidden' : 'mb-1'} ${
-                                    isCampaign ? 'text-purple-200/70' : 'text-blue-200/70'
-                                  }`}>Progress</p>
-                                  <p className={`${isMobile ? 'text-sm' : 'text-2xl'} font-bold ${
-                                    isCampaign ? 'text-purple-100' : 'text-blue-100'
-                                  }`}>{questline.progress}%</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Quest Chain */}
-                            <div className={`${isMobile ? 'mt-2 space-y-1' : 'mt-4 space-y-2'}`}>
-                              {(questline.quests || []).map((quest: Quest) => (
-                                <div key={quest.id} className={`flex items-center ${isMobile ? 'gap-1.5 p-1' : 'gap-2.5 p-1.5'} rounded bg-slate-900/40`}>
-                                  {quest.status === 'completed' && (
-                                    <>
-                                      <CheckCircle className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-green-400 flex-shrink-0`} />
-                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate text-green-300`}>
-                                        {isMobile ? quest.title : `Quest ${quest.id}: ${quest.title}`}
-                                      </span>
-                                    </>
-                                  )}
-                                  {quest.status === 'in-progress' && (
-                                    <>
-                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0 flex items-center justify-center`}>
-                                        <div className={`${isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'} rounded-full border-2 border-yellow-400 border-t-transparent animate-spin`} />
-                                      </div>
-                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold truncate text-yellow-200`}>
-                                        {isMobile ? quest.title : `Quest ${quest.id}: ${quest.title} (In Progress)`}
-                                      </span>
-                                    </>
-                                  )}
-                                  {quest.status === 'locked' && (
-                                    <>
-                                      <div className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0 rounded-full bg-slate-600/50 flex items-center justify-center`}>
-                                        <div className={`${isMobile ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full bg-slate-400`} />
-                                      </div>
-                                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} truncate text-slate-400`}>
-                                        {isMobile ? `${quest.title} 🔒` : `Quest ${quest.id}: ${quest.title} (Locked)`}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Rewards Preview */}
-                            <div className={`${isMobile ? 'mt-2 p-2' : 'mt-4 p-3'} rounded-lg border ${
-                              isCampaign 
-                                ? 'bg-purple-950/40 border-purple-600/30' 
-                                : 'bg-blue-950/40 border-blue-600/30'
-                            }`}>
-                              <div className={`flex items-center ${isMobile ? 'gap-1.5 mb-1' : 'gap-2 mb-2'}`}>
-                                <Gift className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} ${
-                                  isCampaign ? 'text-purple-400' : 'text-blue-400'
-                                }`} />
-                                <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-semibold ${
-                                  isCampaign ? 'text-purple-200' : 'text-blue-200'
-                                }`}>{isMobile ? 'Rewards' : 'Questline Rewards'}</span>
-                              </div>
-                              <div className={`flex items-center ${isMobile ? 'gap-2 flex-wrap' : 'gap-4'} ${isMobile ? 'text-[10px]' : 'text-xs'} ${
-                                isCampaign ? 'text-purple-300/80' : 'text-blue-300/80'
-                              }`}>
-                                {(questline.rewards || []).map((reward: string, idx: number) => (
-                                  <span key={idx}>{reward}</span>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-            )}
-
-            {/* Info box */}
-            <div className={`${isMobile ? 'mt-3 p-2' : 'mt-6 p-4'} bg-slate-800/40 rounded-lg border border-slate-600/30`}>
-              <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-slate-300`}>
-                <strong className="text-purple-300">💡 Tip:</strong> {isMobile ? 'Tap a questline to mark as campaign.' : 'Click on any questline to mark it as an active campaign.'} 
-                {!isMobile && 'Active campaigns are highlighted in purple and will appear in your dashboard for quick tracking.'}
-                {activeCampaignCount > 0 && (
-                  <span className={`block ${isMobile ? 'mt-1' : 'mt-2'} text-purple-300`}>
-                    Tracking {activeCampaignCount}/2 campaigns.
-                  </span>
-                )}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Edit Quest Modal */}
-      <Dialog open={!!editingCampaign} onOpenChange={(open) => !open && setEditingCampaign(null)}>
-        <DialogContent className="bg-slate-800 border-2 border-yellow-600/40 max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-yellow-100 font-serif">
-              Edit Quests — {editingCampaign?.title}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            {editQuests.map((quest, index) => (
-              <div key={quest.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                <span className="text-yellow-200/70 text-sm font-mono w-6 flex-shrink-0">{index + 1}.</span>
-                <Input
-                  value={quest.title}
-                  onChange={(e) => handleQuestTitleChange(quest.id, e.target.value)}
-                  className="flex-1 bg-slate-800/50 border-slate-600/50 text-yellow-100 text-sm"
-                />
-                <Select
-                  value={quest.status}
-                  onValueChange={(val) => handleQuestStatusChange(quest.id, val as QuestStatus)}
-                >
-                  <SelectTrigger className="w-[130px] bg-slate-800/50 border-slate-600/50 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-600">
-                    <SelectItem value="completed" className="text-green-300">✓ Completed</SelectItem>
-                    <SelectItem value="in-progress" className="text-yellow-300">! In Progress</SelectItem>
-                    <SelectItem value="locked" className="text-slate-400">🔒 Locked</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="text-red-400 hover:text-red-300 hover:bg-red-900/30 h-8 w-8 flex-shrink-0"
-                  onClick={() => handleRemoveQuest(quest.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-
-            {/* Add New Quest */}
-            <div className="flex items-center gap-2 pt-2">
-              <Input
-                placeholder="New quest step..."
-                value={newQuestTitle}
-                onChange={(e) => setNewQuestTitle(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddQuest()}
-                className="flex-1 bg-slate-800/50 border-slate-600/50 text-yellow-100 text-sm"
-              />
               <Button
-                size="sm"
-                onClick={handleAddQuest}
-                disabled={!newQuestTitle.trim()}
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white"
+                onClick={() => setShowCreateModal(true)}
+                className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white"
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                Create Questline
               </Button>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingCampaign(null)} className="border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100">
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Active Questlines */}
+            {active.length > 0 && (
+              <div className={isMobile ? "mb-4" : "mb-8"}>
+                <h2 className={`${isMobile ? "text-base mb-2" : "text-xl mb-4"} font-serif text-purple-200 flex items-center gap-2`}>
+                  <Target className="h-5 w-5 text-purple-400" />
+                  Active ({active.length})
+                </h2>
+                <div className={isMobile ? "space-y-2" : "space-y-4"}>
+                  {active.map((ql) => (
+                    <QuestlineCard
+                      key={ql.id}
+                      questline={ql}
+                      isMobile={isMobile}
+                      expanded={expandedId === ql.id}
+                      onToggleExpand={() => setExpandedId(expandedId === ql.id ? null : ql.id)}
+                      onDelete={() => setDeletingId(ql.id)}
+                      onCheckCompletion={() => checkCompletion.mutate(ql.id)}
+                      isCheckingCompletion={checkCompletion.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Completed Questlines */}
+            {completed.length > 0 && (
+              <div>
+                <h2 className={`${isMobile ? "text-base mb-2" : "text-xl mb-4"} font-serif text-green-200 flex items-center gap-2`}>
+                  <Trophy className="h-5 w-5 text-green-400" />
+                  Completed ({completed.length})
+                </h2>
+                <div className={isMobile ? "space-y-2" : "space-y-4"}>
+                  {completed.map((ql) => (
+                    <QuestlineCard
+                      key={ql.id}
+                      questline={ql}
+                      isMobile={isMobile}
+                      expanded={expandedId === ql.id}
+                      onToggleExpand={() => setExpandedId(expandedId === ql.id ? null : ql.id)}
+                      onDelete={() => setDeletingId(ql.id)}
+                      onCheckCompletion={() => {}}
+                      isCheckingCompletion={false}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Create Questline Modal */}
+      <AddQuestlineModal open={showCreateModal} onOpenChange={setShowCreateModal} />
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <DialogContent className="bg-slate-800 border-2 border-red-500/40 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-red-200 font-serif">Delete Questline?</DialogTitle>
+          </DialogHeader>
+          <p className="text-slate-300 text-sm">
+            This will remove the questline. Its stage tasks will remain but be unlinked.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeletingId(null)} className="border-slate-600 text-slate-300">
               Cancel
             </Button>
-            <Button onClick={handleSaveQuests} className="bg-gradient-to-r from-yellow-600 to-amber-500 hover:from-yellow-500 hover:to-amber-400 text-white border border-yellow-400/50">
-              <Check className="h-4 w-4 mr-1" />
-              Save Changes
+            <Button
+              onClick={() => deletingId && deleteQuestline.mutate(deletingId)}
+              disabled={deleteQuestline.isPending}
+              className="bg-red-600 hover:bg-red-500 text-white"
+            >
+              {deleteQuestline.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ──── Questline Card Component ────
+
+interface QuestlineCardProps {
+  questline: QuestlineData;
+  isMobile: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onDelete: () => void;
+  onCheckCompletion: () => void;
+  isCheckingCompletion: boolean;
+}
+
+function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete, onCheckCompletion, isCheckingCompletion }: QuestlineCardProps) {
+  const tasks = questline.tasks || [];
+  const completedTasks = tasks.filter((t) => t.completed || t.recycled);
+  const totalTasks = tasks.length;
+  const progress = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
+  const totalGold = tasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
+  const bonusGold = totalGold * 3;
+  const isComplete = questline.completed;
+  const allDone = completedTasks.length === totalTasks && totalTasks > 0;
+
+  return (
+    <Card
+      className={`overflow-hidden transition-all ${
+        isComplete
+          ? "bg-green-900/20 border-green-500/30"
+          : "bg-purple-900/20 border-purple-500/30 hover:border-purple-400/50"
+      }`}
+    >
+      {/* Progress bar */}
+      <div className="h-1 bg-slate-900/50">
+        <div
+          className={`h-full transition-all ${isComplete ? "bg-gradient-to-r from-green-500 to-emerald-400" : "bg-gradient-to-r from-purple-500 to-pink-400"}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <CardContent className={isMobile ? "p-3" : "p-5"}>
+        {/* Header row */}
+        <div className="flex items-start gap-3 cursor-pointer" onClick={onToggleExpand}>
+          <span className={isMobile ? "text-xl" : "text-2xl"}>{questline.icon || "⚔️"}</span>
+          <div className="flex-1 min-w-0">
+            <h3 className={`${isMobile ? "text-sm" : "text-lg"} font-serif font-bold ${isComplete ? "text-green-200" : "text-purple-100"}`}>
+              {questline.title}
+              {isComplete && <span className="ml-2 text-green-400">✓</span>}
+            </h3>
+            {questline.description && (
+              <p className={`${isMobile ? "text-xs" : "text-sm"} ${isComplete ? "text-green-300/50" : "text-purple-300/60"} line-clamp-1`}>
+                {questline.description}
+              </p>
+            )}
+          </div>
+
+          {/* Progress + actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`${isMobile ? "text-sm" : "text-lg"} font-bold ${isComplete ? "text-green-300" : "text-purple-200"}`}>
+              {completedTasks.length}/{totalTasks}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="p-1 text-red-400/40 hover:text-red-400 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            {expanded ? (
+              <ChevronUp className={`w-4 h-4 ${isComplete ? "text-green-400/50" : "text-purple-400/50"}`} />
+            ) : (
+              <ChevronDown className={`w-4 h-4 ${isComplete ? "text-green-400/50" : "text-purple-400/50"}`} />
+            )}
+          </div>
+        </div>
+
+        {/* Expanded: stages list */}
+        {expanded && (
+          <div className={`${isMobile ? "mt-3" : "mt-4"} space-y-1.5`}>
+            {tasks.map((task, idx) => (
+              <div key={task.id} className={`flex items-center ${isMobile ? "gap-2 py-1 px-2" : "gap-2.5 py-1.5 px-3"} rounded bg-slate-900/40`}>
+                {task.completed || task.recycled ? (
+                  <CheckCircle className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-green-400 shrink-0`} />
+                ) : (
+                  <div className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} rounded-full border-2 border-purple-400/40 shrink-0`} />
+                )}
+                <span className={`flex-1 ${isMobile ? "text-xs" : "text-sm"} truncate ${
+                  task.completed || task.recycled ? "text-green-300 line-through opacity-70" : "text-yellow-100"
+                }`}>
+                  {idx + 1}. {task.title}
+                </span>
+                <span className={`${isMobile ? "text-[10px]" : "text-xs"} text-yellow-400/50 shrink-0`}>
+                  🪙 {task.goldValue}
+                </span>
+              </div>
+            ))}
+
+            {/* Bonus info */}
+            <div className={`${isMobile ? "mt-2 p-2" : "mt-3 p-3"} rounded-lg border ${
+              isComplete ? "bg-green-950/30 border-green-500/20" : "bg-purple-950/30 border-purple-500/20"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Gift className={`${isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} ${isComplete ? "text-green-400" : "text-purple-400"}`} />
+                  <span className={`${isMobile ? "text-xs" : "text-sm"} font-semibold ${isComplete ? "text-green-200" : "text-purple-200"}`}>
+                    {isComplete ? "Bonus Awarded!" : "Completion Bonus"}
+                  </span>
+                </div>
+                <span className={`${isMobile ? "text-xs" : "text-sm"} font-bold text-yellow-300`}>
+                  🪙 {bonusGold} (3×)
+                </span>
+              </div>
+              {!isComplete && allDone && !questline.bonusAwarded && (
+                <Button
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); onCheckCompletion(); }}
+                  disabled={isCheckingCompletion}
+                  className="mt-2 w-full bg-gradient-to-r from-yellow-600 to-amber-500 hover:from-yellow-500 hover:to-amber-400 text-slate-900 font-semibold"
+                >
+                  {isCheckingCompletion ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Trophy className="h-4 w-4 mr-1" />
+                  )}
+                  Claim 3× Bonus!
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

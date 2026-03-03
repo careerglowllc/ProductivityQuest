@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type CalendarEvent, type InsertCalendarEvent } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, isNull, inArray, gt, desc } from "drizzle-orm";
 
@@ -80,6 +80,14 @@ export interface IStorage {
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
   updateCalendarEvent(id: number, updates: Partial<CalendarEvent>, userId: string): Promise<CalendarEvent | undefined>;
   deleteCalendarEvent(id: number, userId: string): Promise<boolean>;
+  
+  // Questline operations
+  getQuestlines(userId: string): Promise<Questline[]>;
+  getQuestline(id: number, userId: string): Promise<Questline | undefined>;
+  createQuestline(questline: InsertQuestline): Promise<Questline>;
+  updateQuestline(userId: string, id: number, updates: Partial<Questline>): Promise<Questline | undefined>;
+  deleteQuestline(userId: string, id: number): Promise<boolean>;
+  getQuestlineTasks(userId: string, questlineId: number): Promise<Task[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1195,6 +1203,47 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(calendarEvents)
       .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ── Questline operations ────────────────────────────────────────────
+
+  async getQuestlines(userId: string): Promise<Questline[]> {
+    return db.select().from(questlines).where(eq(questlines.userId, userId));
+  }
+
+  async getQuestline(id: number, userId: string): Promise<Questline | undefined> {
+    const [ql] = await db.select().from(questlines)
+      .where(and(eq(questlines.id, id), eq(questlines.userId, userId)));
+    return ql;
+  }
+
+  async createQuestline(questline: InsertQuestline): Promise<Questline> {
+    const [newQl] = await db.insert(questlines).values(questline).returning();
+    return newQl;
+  }
+
+  async updateQuestline(userId: string, id: number, updates: Partial<Questline>): Promise<Questline | undefined> {
+    const [updated] = await db.update(questlines)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(questlines.id, id), eq(questlines.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteQuestline(userId: string, id: number): Promise<boolean> {
+    // Also clear questlineId from all tasks in this questline
+    await db.update(tasks)
+      .set({ questlineId: null, questlineOrder: null })
+      .where(and(eq(tasks.userId, userId), eq(tasks.questlineId, id)));
+    const result = await db.delete(questlines)
+      .where(and(eq(questlines.id, id), eq(questlines.userId, userId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getQuestlineTasks(userId: string, questlineId: number): Promise<Task[]> {
+    return db.select().from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.questlineId, questlineId)))
+      .orderBy(tasks.questlineOrder);
   }
 }
 

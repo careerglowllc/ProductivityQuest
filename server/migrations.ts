@@ -35,6 +35,32 @@ export async function runStartupMigrations() {
       ALTER TABLE users 
       ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York'
     `;
+
+    // Migration: Create questlines table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS questlines (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL REFERENCES users(id),
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        icon TEXT DEFAULT '⚔️',
+        completed BOOLEAN DEFAULT false,
+        completed_at TIMESTAMPTZ,
+        bonus_awarded BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
+
+    // Migration: Add questline fields to tasks table
+    await sql`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS questline_id INTEGER
+    `;
+    await sql`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS questline_order INTEGER
+    `;
     
     console.log('✅ Startup migrations completed successfully');
   } catch (error) {

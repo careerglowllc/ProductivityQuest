@@ -880,7 +880,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json({ task, skillXPGains });
+      // Auto-check questline completion if this task belongs to one
+      let questlineBonus = null;
+      if (task.questlineId) {
+        try {
+          const ql = await storage.getQuestline(task.questlineId, userId);
+          if (ql && !ql.bonusAwarded) {
+            const qlTasks = await storage.getQuestlineTasks(userId, task.questlineId);
+            const allCompleted = qlTasks.every(t => t.completed || t.recycled);
+            if (allCompleted && qlTasks.length > 0) {
+              const totalGold = qlTasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
+              const bonusGold = totalGold * 3;
+              await storage.addGold(userId, bonusGold);
+
+              const { calculateXPPerSkill } = await import("./xpCalculation");
+              let totalBonusXp = 0;
+              for (const t of qlTasks) {
+                if (t.skillTags && t.skillTags.length > 0) {
+                  const xpPerSkill = calculateXPPerSkill(t.importance, t.duration, t.skillTags.length);
+                  const bonusXpPerSkill = xpPerSkill * 3;
+                  totalBonusXp += bonusXpPerSkill * t.skillTags.length;
+                  for (const skillName of t.skillTags) {
+                    await storage.addSkillXp(userId, skillName, bonusXpPerSkill);
+                  }
+                }
+              }
+
+              await storage.updateQuestline(userId, task.questlineId, {
+                completed: true,
+                completedAt: new Date(),
+                bonusAwarded: true,
+              });
+
+              questlineBonus = { questlineId: task.questlineId, questlineTitle: ql.title, bonusGold, bonusXp: totalBonusXp };
+            }
+          }
+        } catch (qlError) {
+          console.error("Error checking questline completion:", qlError);
+        }
+      }
+      
+      res.json({ task, skillXPGains, questlineBonus });
     } catch (error) {
       console.error("Task completion error:", error);
       res.status(500).json({ error: "Failed to complete task" });
@@ -1159,12 +1199,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ).catch(() => {});
       }
 
+      // Auto-check questline completion for any completed tasks that belong to questlines
+      const questlineBonuses: any[] = [];
+      const checkedQuestlineIds = new Set<number>();
+      for (const task of completedTasks) {
+        if (task.questlineId && !checkedQuestlineIds.has(task.questlineId)) {
+          checkedQuestlineIds.add(task.questlineId);
+          try {
+            const ql = await storage.getQuestline(task.questlineId, userId);
+            if (ql && !ql.bonusAwarded) {
+              const qlTasks = await storage.getQuestlineTasks(userId, task.questlineId);
+              const allCompleted = qlTasks.every(t => t.completed || t.recycled);
+              if (allCompleted && qlTasks.length > 0) {
+                const qlTotalGold = qlTasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
+                const bonusGold = qlTotalGold * 3;
+                await storage.addGold(userId, bonusGold);
+
+                let totalBonusXp = 0;
+                for (const t of qlTasks) {
+                  if (t.skillTags && t.skillTags.length > 0) {
+                    const xpPerSkill = calculateXPPerSkill(t.importance, t.duration, t.skillTags.length);
+                    const bonusXpPerSkill = xpPerSkill * 3;
+                    totalBonusXp += bonusXpPerSkill * t.skillTags.length;
+                    for (const skillName of t.skillTags) {
+                      await storage.addSkillXp(userId, skillName, bonusXpPerSkill);
+                    }
+                  }
+                }
+
+                await storage.updateQuestline(userId, task.questlineId, {
+                  completed: true,
+                  completedAt: new Date(),
+                  bonusAwarded: true,
+                });
+
+                questlineBonuses.push({ questlineId: task.questlineId, questlineTitle: ql.title, bonusGold, bonusXp: totalBonusXp });
+              }
+            }
+          } catch (qlError) {
+            console.error("Error checking questline completion:", qlError);
+          }
+        }
+      }
+
       res.json({
         completedCount,
         totalGold,
         tasks: completedTasks,
         skillXPGains: allSkillXPGains,
-        leveledUpSkills: leveledUpSkills
+        leveledUpSkills: leveledUpSkills,
+        questlineBonuses: questlineBonuses.length > 0 ? questlineBonuses : undefined
       });
     } catch (error) {
       console.error("Batch completion error:", error);
@@ -4093,6 +4177,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating campaign:", error);
       res.status(500).json({ error: "Failed to update campaign" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  //  Questline routes
+  // ════════════════════════════════════════════════════════════════════
+
+  // Get all questlines for user (with tasks included)
+  app.get("/api/questlines", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qls = await storage.getQuestlines(userId);
+      // Include tasks for each questline so the frontend can show progress
+      const withTasks = await Promise.all(qls.map(async (ql) => {
+        const tasks = await storage.getQuestlineTasks(userId, ql.id);
+        return { ...ql, tasks };
+      }));
+      res.json(withTasks);
+    } catch (error: any) {
+      console.error("Error fetching questlines:", error);
+      res.status(500).json({ error: "Failed to fetch questlines" });
+    }
+  });
+
+  // Get a single questline with its tasks
+  app.get("/api/questlines/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qlId = parseInt(req.params.id);
+      const ql = await storage.getQuestline(qlId, userId);
+      if (!ql) return res.status(404).json({ error: "Questline not found" });
+      const qlTasks = await storage.getQuestlineTasks(userId, qlId);
+      res.json({ ...ql, tasks: qlTasks });
+    } catch (error: any) {
+      console.error("Error fetching questline:", error);
+      res.status(500).json({ error: "Failed to fetch questline" });
+    }
+  });
+
+  // Create a questline with stages (tasks)
+  app.post("/api/questlines", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { title, description, icon, stages } = req.body;
+
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      // Create the questline
+      const ql = await storage.createQuestline({
+        userId,
+        title,
+        description: description || "",
+        icon: icon || "⚔️",
+      });
+
+      // Create each stage as a task linked to this questline
+      const createdTasks = [];
+      if (stages && Array.isArray(stages)) {
+        for (let i = 0; i < stages.length; i++) {
+          const stage = stages[i];
+          const taskData = {
+            userId,
+            title: stage.title,
+            description: stage.description || "",
+            details: stage.details || undefined,
+            duration: stage.duration || 30,
+            goldValue: stage.goldValue || 30,
+            dueDate: stage.dueDate ? new Date(stage.dueDate) : null,
+            importance: stage.importance || "Medium",
+            recurType: stage.recurType || "⏳One-time",
+            businessWorkFilter: stage.businessWorkFilter || "General",
+            campaign: stage.campaign || "unassigned",
+            completed: false,
+            skillTags: [],
+            questlineId: ql.id,
+            questlineOrder: i + 1,
+            emoji: stage.emoji || "📝",
+          };
+          const [newTask] = await db.insert(tasksTable).values(taskData).returning();
+          createdTasks.push(newTask);
+        }
+      }
+
+      res.json({ ...ql, tasks: createdTasks });
+    } catch (error: any) {
+      console.error("Error creating questline:", error);
+      res.status(500).json({ error: "Failed to create questline" });
+    }
+  });
+
+  // Update a questline
+  app.patch("/api/questlines/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qlId = parseInt(req.params.id);
+      const { title, description, icon } = req.body;
+
+      const updates: any = {};
+      if (title !== undefined) updates.title = title;
+      if (description !== undefined) updates.description = description;
+      if (icon !== undefined) updates.icon = icon;
+
+      const updated = await storage.updateQuestline(userId, qlId, updates);
+      if (!updated) return res.status(404).json({ error: "Questline not found" });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating questline:", error);
+      res.status(500).json({ error: "Failed to update questline" });
+    }
+  });
+
+  // Delete a questline (also unlinks its tasks)
+  app.delete("/api/questlines/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qlId = parseInt(req.params.id);
+      await storage.deleteQuestline(userId, qlId);
+      res.json({ message: "Questline deleted" });
+    } catch (error: any) {
+      console.error("Error deleting questline:", error);
+      res.status(500).json({ error: "Failed to delete questline" });
+    }
+  });
+
+  // Check and award questline completion bonus
+  app.post("/api/questlines/:id/check-completion", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qlId = parseInt(req.params.id);
+      
+      const ql = await storage.getQuestline(qlId, userId);
+      if (!ql) return res.status(404).json({ error: "Questline not found" });
+      if (ql.bonusAwarded) return res.json({ completed: true, bonusAwarded: true, bonusGold: 0, bonusXp: 0 });
+
+      const qlTasks = await storage.getQuestlineTasks(userId, qlId);
+      if (qlTasks.length === 0) return res.json({ completed: false, bonusAwarded: false });
+
+      const allCompleted = qlTasks.every(t => t.completed || t.recycled);
+      if (!allCompleted) return res.json({ completed: false, bonusAwarded: false, progress: qlTasks.filter(t => t.completed || t.recycled).length, total: qlTasks.length });
+
+      // All tasks completed! Award 3× bonus
+      const totalGold = qlTasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
+      const bonusGold = totalGold * 3;
+
+      // Award bonus gold
+      await storage.addGold(userId, bonusGold);
+
+      // Award bonus XP across all skills from all tasks (3× multiplier)
+      const { calculateXPPerSkill } = await import("./xpCalculation");
+      let totalBonusXp = 0;
+      for (const task of qlTasks) {
+        if (task.skillTags && task.skillTags.length > 0) {
+          const xpPerSkill = calculateXPPerSkill(task.importance, task.duration, task.skillTags.length);
+          const bonusXpPerSkill = xpPerSkill * 3;
+          totalBonusXp += bonusXpPerSkill * task.skillTags.length;
+          for (const skillName of task.skillTags) {
+            await storage.addSkillXp(userId, skillName, bonusXpPerSkill);
+          }
+        }
+      }
+
+      // Mark questline as completed with bonus awarded
+      await storage.updateQuestline(userId, qlId, {
+        completed: true,
+        completedAt: new Date(),
+        bonusAwarded: true,
+      });
+
+      res.json({ completed: true, bonusAwarded: true, bonusGold, bonusXp: totalBonusXp });
+    } catch (error: any) {
+      console.error("Error checking questline completion:", error);
+      res.status(500).json({ error: "Failed to check questline completion" });
     }
   });
 

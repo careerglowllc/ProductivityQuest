@@ -25,7 +25,7 @@ import {
   X
 } from "lucide-react";
 import { format } from "date-fns";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -45,6 +45,12 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const detailsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Fetch questlines for the dropdown
+  const { data: questlines = [] } = useQuery<{ id: number; title: string; icon: string | null }[]>({
+    queryKey: ["/api/questlines"],
+    enabled: open,
+  });
 
   // Sync local state when task prop changes (e.g. switching between tasks)
   useEffect(() => {
@@ -161,7 +167,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   };
 
   const updateFieldMutation = useMutation({
-    mutationFn: async ({ field, value }: { field: string; value: string }) => {
+    mutationFn: async ({ field, value }: { field: string; value: string | number | null }) => {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -173,12 +179,14 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/questlines'] });
       const fieldLabels: Record<string, string> = {
         importance: '⚡ Importance',
         kanbanStage: '📊 Kanban Stage',
         recurType: '🔄 Recurrence',
         businessWorkFilter: '💼 Work Filter',
-        campaign: '👑 Questline',
+        campaign: '👑 Campaign',
+        questlineId: '⚔️ Questline',
         emoji: '😀 Emoji',
       };
       toast({
@@ -591,16 +599,22 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Questline</span>
               </div>
               <Select
-                value={task.campaign || "unassigned"}
-                onValueChange={(value) => updateFieldMutation.mutate({ field: 'campaign', value })}
+                value={task.questlineId ? String(task.questlineId) : "none"}
+                onValueChange={(value) => {
+                  const numVal = value === "none" ? null : parseInt(value);
+                  updateFieldMutation.mutate({ field: 'questlineId', value: numVal });
+                }}
               >
-                <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>
+                <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[180px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  <SelectItem value="Main">👑 Main</SelectItem>
-                  <SelectItem value="Side">⚔️ Side</SelectItem>
+                  <SelectItem value="none">No Questline</SelectItem>
+                  {questlines.map((ql) => (
+                    <SelectItem key={ql.id} value={String(ql.id)}>
+                      {ql.icon || "⚔️"} {ql.title}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

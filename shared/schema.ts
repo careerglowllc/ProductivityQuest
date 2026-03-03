@@ -86,6 +86,22 @@ export const tasks = pgTable("tasks", {
   skillTags: jsonb("skill_tags").$type<string[]>().default([]), // AI-generated skill tags
   calendarColor: text("calendar_color"), // Hex color from Google Calendar or custom
   emoji: text("emoji").default("📝"), // User-chosen emoji for visual identification
+  questlineId: integer("questline_id"), // FK to questlines table (null = standalone task)
+  questlineOrder: integer("questline_order"), // Order within the questline (1-based)
+});
+
+// Questlines — multi-stage quest chains. Each stage is a regular task with questlineId set.
+export const questlines = pgTable("questlines", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  icon: text("icon").default("⚔️"), // Emoji icon
+  completed: boolean("completed").default(false),
+  completedAt: timestamptz("completed_at"),
+  bonusAwarded: boolean("bonus_awarded").default(false), // Whether the 3× completion bonus was given
+  createdAt: timestamptz("created_at").defaultNow(),
+  updatedAt: timestamptz("updated_at").defaultNow(),
 });
 
 export const shopItems = pgTable("shop_items", {
@@ -263,6 +279,14 @@ export const insertCampaignSchema = createInsertSchema(campaigns).omit({
   updatedAt: true,
 });
 
+export const insertQuestlineSchema = createInsertSchema(questlines).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+  bonusAwarded: true,
+});
+
 // Auth schemas for registration and login
 export const insertUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(50),
@@ -335,3 +359,5 @@ export type Campaign = typeof campaigns.$inferSelect;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+export type Questline = typeof questlines.$inferSelect;
+export type InsertQuestline = z.infer<typeof insertQuestlineSchema>;

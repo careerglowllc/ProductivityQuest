@@ -19,6 +19,7 @@ import { CompletionAnimation } from "@/components/completion-animation";
 import { LevelUpModal } from "@/components/level-up-modal";
 import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
 import { AddTaskModal } from "@/components/add-task-modal";
+import { AddQuestlineModal } from "@/components/add-questline-modal";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +37,8 @@ export default function Home() {
   const [showItemShop, setShowItemShop] = useState(false);
   const [showCalendarSync, setShowCalendarSync] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showAddQuestline, setShowAddQuestline] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedTask, setCompletedTask] = useState<any>(null);
   const [completionSkillXPGains, setCompletionSkillXPGains] = useState<any[]>([]);
@@ -315,6 +318,18 @@ export default function Home() {
       if (data.skillXPGains && data.skillXPGains.length > 0) {
         // Backend returned actual XP with level-ups calculated
         setCompletionSkillXPGains(data.skillXPGains);
+      }
+      
+      // Check for questline completion bonuses
+      if (data.questlineBonuses && data.questlineBonuses.length > 0) {
+        for (const bonus of data.questlineBonuses) {
+          toast({
+            title: `🏆 Questline Complete: ${bonus.questlineTitle}!`,
+            description: `3× bonus: 🪙 ${bonus.bonusGold} gold${bonus.bonusXp > 0 ? ` and ${bonus.bonusXp} XP` : ''}!`,
+            duration: 10000,
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
       }
       
       // Refresh data after backend completes
@@ -1671,18 +1686,42 @@ export default function Home() {
                 )}
               </div>
               {/* Buttons — right side */}
-              <Button 
-                onClick={() => setShowAddTask(true)}
-                size="sm"
-                className="flex items-center gap-1 h-9 px-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-xs shrink-0"
-                title="Add Quest"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Add
-              </Button>
+              <div className="relative shrink-0">
+                <Button 
+                  onClick={() => setShowAddMenu(!showAddMenu)}
+                  size="sm"
+                  className="flex items-center gap-1 h-9 px-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-xs"
+                  title="Add"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Add
+                </Button>
+                {showAddMenu && (
+                  <>
+                    <div className="fixed inset-0 z-[60]" onClick={() => setShowAddMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-[70] bg-slate-800 border border-yellow-600/40 rounded-lg shadow-xl overflow-hidden min-w-[160px]">
+                      <button
+                        className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-yellow-100 hover:bg-yellow-600/20 transition-colors"
+                        onClick={() => { setShowAddMenu(false); setShowAddTask(true); }}
+                      >
+                        <span>📝</span>
+                        <span>New Quest</span>
+                      </button>
+                      <div className="border-t border-yellow-600/20" />
+                      <button
+                        className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-yellow-100 hover:bg-purple-600/20 transition-colors"
+                        onClick={() => { setShowAddMenu(false); setShowAddQuestline(true); }}
+                      >
+                        <span>⚔️</span>
+                        <span>New Questline</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <div className="relative shrink-0">
                 <Button 
                   size="sm"
@@ -1744,16 +1783,43 @@ export default function Home() {
           ) : (
             /* Desktop: Original button layout */
             <div className="flex flex-wrap gap-3">
-              <Button 
-                onClick={() => setShowAddTask(true)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>Add Quest</span>
-              </Button>
+              <div className="relative">
+                <Button 
+                  onClick={() => setShowAddMenu(!showAddMenu)}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>Add</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </Button>
+                {showAddMenu && (
+                  <>
+                    <div className="fixed inset-0 z-[60]" onClick={() => setShowAddMenu(false)} />
+                    <div className="absolute left-0 top-full mt-1 z-[70] bg-slate-800 border border-yellow-600/40 rounded-lg shadow-xl overflow-hidden min-w-[180px]">
+                      <button
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm text-yellow-100 hover:bg-yellow-600/20 transition-colors"
+                        onClick={() => { setShowAddMenu(false); setShowAddTask(true); }}
+                      >
+                        <span>📝</span>
+                        <span>New Quest</span>
+                      </button>
+                      <div className="border-t border-yellow-600/20" />
+                      <button
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm text-yellow-100 hover:bg-purple-600/20 transition-colors"
+                        onClick={() => { setShowAddMenu(false); setShowAddQuestline(true); }}
+                      >
+                        <span>⚔️</span>
+                        <span>New Questline</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <Button 
                 onClick={handleCategorizeAll}
                 variant="outline"
@@ -3008,6 +3074,12 @@ export default function Home() {
       <AddTaskModal
         open={showAddTask}
         onOpenChange={setShowAddTask}
+      />
+
+      {/* Add Questline Modal */}
+      <AddQuestlineModal
+        open={showAddQuestline}
+        onOpenChange={setShowAddQuestline}
       />
     </div>
   );
