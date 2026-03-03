@@ -211,12 +211,16 @@ export const CalendarEventBlock = React.memo(function CalendarEventBlock({
           isMobile ? 'opacity-30' : 'opacity-0 group-hover:opacity-100'
         } bg-white/30 ${isTop ? 'rounded-t' : 'rounded-b'}`}
         onMouseDown={(e) => {
+          if (isMobile) return; // Block synthesized mouse events on mobile
           e.stopPropagation();
           onMouseDown(event, e, edge);
         }}
         onTouchStart={(e) => {
           e.stopPropagation();
           onTouchStart(event, e, edge);
+        }}
+        onContextMenu={(e) => {
+          if (isMobile && isDraggable) e.preventDefault();
         }}
       />
     );
@@ -228,6 +232,7 @@ export const CalendarEventBlock = React.memo(function CalendarEventBlock({
       className={baseClass}
       style={containerStyle}
       onMouseDown={(e) => {
+        if (isMobile) return; // Block synthesized mouse events on mobile
         // Ctrl/Cmd + click = toggle multi-select
         if ((e.metaKey || e.ctrlKey) && onMetaClick) {
           e.stopPropagation();
@@ -242,6 +247,9 @@ export const CalendarEventBlock = React.memo(function CalendarEventBlock({
       onClick={(e) => {
         e.stopPropagation();
         onClick(event);
+      }}
+      onContextMenu={(e) => {
+        if (isMobile && isDraggable) e.preventDefault();
       }}
     >
       {/* Selection checkmark */}

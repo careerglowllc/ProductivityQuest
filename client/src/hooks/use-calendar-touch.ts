@@ -172,13 +172,24 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
   const onEventDropRef = useRef(onEventDrop);
   onEventDropRef.current = onEventDrop;
 
-  // Get the active scroll container
+  // Store view and scrollContainerRefs in refs so getScrollContainer is stable
+  // (prevents native listener churn on every render)
+  const scrollContainerRefsRef = useRef(scrollContainerRefs);
+  scrollContainerRefsRef.current = scrollContainerRefs;
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
+
+  // Get the active scroll container — stable reference (empty deps)
   const getScrollContainer = useCallback((): HTMLDivElement | null => {
-    if (view === 'day') return scrollContainerRefs.day.current;
-    if (view === '3day') return scrollContainerRefs.threeDay.current;
-    if (view === 'week') return scrollContainerRefs.week.current;
+    const v = viewRef.current;
+    const refs = scrollContainerRefsRef.current;
+    if (v === 'day') return refs.day.current;
+    if (v === '3day') return refs.threeDay.current;
+    if (v === 'week') return refs.week.current;
     return null;
-  }, [view, scrollContainerRefs]);
+  }, []);
 
   // ── Cleanup helper ──────────────────────────────────────────────────
 
@@ -286,6 +297,9 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
   const handleTouchMove = useCallback((e: TouchEvent) => {
     const s = S.current;
     const touch = e.touches[0];
+
+    // Capture previous Y before updating (needed for programmatic scroll delta)
+    const prevY = s.currentY;
     s.currentX = touch.clientX;
     s.currentY = touch.clientY;
 
@@ -308,27 +322,46 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
     }
 
     if (s.phase === 'WAITING' || s.phase === 'PENDING') {
-      // Check if finger moved too much — cancel long press, let scroll happen
+      // Check if finger moved too much — cancel long press
       const dx = touch.clientX - s.startX;
       const dy = touch.clientY - s.startY;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance > MOVE_CANCEL_PX) {
-        // Finger moved too much — cancel long-press and let native scroll take over
+        // Finger moved too much — cancel long-press
         s.touchMovedAtAll = true;
         clearTimers();
         s.phase = 'IDLE';
         setDragState(prev => ({ ...prev, pendingEventId: null }));
-        // Don't prevent default — let native scroll happen from this point
+
+        // Programmatically scroll since touch-action:none blocks native scroll
+        // on event blocks. Without this, users can't scroll by swiping on events.
+        e.preventDefault();
+        const container = getScrollContainer();
+        if (container) {
+          const deltaY = touch.clientY - prevY;
+          container.scrollTop -= deltaY;
+        }
       } else {
         // Finger still within threshold — MUST preventDefault to stop iOS from
         // starting a native scroll gesture. Without this, iOS WKWebView commits
         // to scrolling before LONG_PRESS_MS fires, killing the long-press.
-        // This is safe because our listener uses { passive: false }.
         e.preventDefault();
       }
+      return;
     }
-  }, [clearTimers, calcTempTime, updateAutoScroll]);
+
+    // Continue programmatic scroll after long-press was canceled
+    // (user is still swiping with finger down after we went back to IDLE)
+    if (s.phase === 'IDLE' && s.touchMovedAtAll) {
+      e.preventDefault();
+      const container = getScrollContainer();
+      if (container) {
+        const deltaY = touch.clientY - prevY;
+        container.scrollTop -= deltaY;
+      }
+    }
+  }, [clearTimers, calcTempTime, updateAutoScroll, getScrollContainer]);
 
   // ── Native touchend handler ─────────────────────────────────────────
 
@@ -380,10 +413,17 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
     container.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
+    // Prevent native context menu on long-press (iOS/Android show callout)
+    const preventContextMenu = (e: Event) => { e.preventDefault(); };
+    if (isMobileRef.current) {
+      container.addEventListener('contextmenu', preventContextMenu);
+    }
+
     return () => {
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('touchcancel', handleTouchCancel);
+      container.removeEventListener('contextmenu', preventContextMenu);
     };
   }, [getScrollContainer, handleTouchMove, handleTouchEnd, handleTouchCancel, view]);
 
@@ -399,6 +439,8 @@ export function useCalendarTouch(options: UseCalendarTouchOptions) {
   const handleEventTouchStart = useCallback((event: CalendarEvent, e: React.TouchEvent, edge?: 'top' | 'bottom') => {
     if (!isMobile) return;
     if (event.source !== 'productivityquest' && event.source !== 'standalone') return;
+
+    e.stopPropagation(); // Prevent touch from bubbling to parent handlers
 
     const touch = e.touches[0];
     const s = S.current;
