@@ -541,7 +541,15 @@ export default function CalendarPage() {
               onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
               onDragEnd={() => { if (drag) { commitDrag(drag); setDrag(null); } }}
               onDragCancel={() => setDrag(null)}
-              onEmptyTap={(date, minute) => { setTappedEvent(null); setResizeEventId(null); openNewEvent(date, minute); }}
+              onEmptyTap={(date, minute) => {
+                setTappedEvent(null);
+                if (resizeEventId) {
+                  // In resize mode: just exit resize mode (like pressing Done)
+                  setResizeEventId(null);
+                } else {
+                  openNewEvent(date, minute);
+                }
+              }}
             />
           )}
         </div>
@@ -802,6 +810,8 @@ const DayColumn = React.memo(function DayColumn({
   onDragEndRef.current = onDragEnd;
   const onDragCancelRef = useRef(onDragCancel);
   onDragCancelRef.current = onDragCancel;
+  const onEmptyTapRef = useRef(onEmptyTap);
+  onEmptyTapRef.current = onEmptyTap;
 
   useEffect(() => {
     const col = colRef.current;
@@ -827,6 +837,16 @@ const DayColumn = React.memo(function DayColumn({
     const handleTouchStart = (e: TouchEvent) => {
       const target = e.target as HTMLElement;
       const eventId = findEventId(target);
+
+      // If in resize mode and tapping empty space or a different event, exit resize mode
+      const resId = resizeEventIdRef.current;
+      if (resId && (!eventId || eventId !== resId)) {
+        // Fire onEmptyTap which will clear resizeEventId in the parent
+        const touch = e.touches[0];
+        onEmptyTapRef.current(getMinuteFromY(touch.clientY));
+        return;
+      }
+
       if (!eventId) return; // touch on empty space — let swipe/scroll handle it
 
       const ev = eventsRef.current.find((ev) => ev.id === eventId);
@@ -1370,9 +1390,78 @@ function EventDetailSheet({ event, isMobile, onClose, onDelete, onAdjust }: { ev
     ? `Google Calendar${event.calendarName ? ` \u00b7 ${event.calendarName}` : ""}`
     : event.source === "productivityquest" ? "Quest" : "Calendar Event";
 
+  // ── Swipe-down-to-dismiss (mobile) ──
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [dragY, setDragY] = useState(0);
+  const [dismissing, setDismissing] = useState(false);
+  const swipeState = useRef<{ startY: number; startX: number; tracking: boolean } | null>(null);
+
+  // Slide-up entrance animation
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    requestAnimationFrame(() => setEntered(true));
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const t = e.touches[0];
+    swipeState.current = { startY: t.clientY, startX: t.clientX, tracking: true };
+  }, [isMobile]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const s = swipeState.current;
+    if (!s || !s.tracking) return;
+    const t = e.touches[0];
+    const dy = t.clientY - s.startY;
+    const dx = Math.abs(t.clientX - s.startX);
+    // Only track vertical swipe down, ignore horizontal scroll
+    if (dx > 30 && dy < 30) { s.tracking = false; return; }
+    if (dy > 0) {
+      setDragY(dy);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const s = swipeState.current;
+    swipeState.current = null;
+    if (!s) return;
+    if (dragY > 100) {
+      // Dismiss with slide-down animation
+      setDismissing(true);
+      setDragY(window.innerHeight);
+      setTimeout(onClose, 250);
+    } else {
+      // Snap back
+      setDragY(0);
+    }
+  }, [dragY, onClose]);
+
+  const sheetTransform = dismissing
+    ? `translateY(${window.innerHeight}px)`
+    : entered
+    ? `translateY(${dragY}px)`
+    : "translateY(100%)";
+
+  const backdropOpacity = dismissing ? 0 : entered ? Math.max(0, 1 - dragY / 300) : 0;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div className={`bg-gray-900 border-t sm:border border-purple-500/30 ${isMobile ? "w-full rounded-t-2xl max-h-[70vh]" : "rounded-xl max-w-md w-full"} overflow-auto`} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ backgroundColor: `rgba(0,0,0,${0.5 * backdropOpacity})`, transition: dismissing || !entered ? "background-color 0.25s ease" : undefined }}
+      onClick={onClose}
+    >
+      <div
+        ref={sheetRef}
+        className={`bg-gray-900 border-t sm:border border-purple-500/30 ${isMobile ? "w-full rounded-t-2xl max-h-[70vh]" : "rounded-xl max-w-md w-full"} overflow-auto`}
+        style={{
+          transform: isMobile ? sheetTransform : undefined,
+          transition: (dragY === 0 || dismissing) && entered ? "transform 0.25s cubic-bezier(0.2, 0, 0, 1)" : "none",
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {isMobile && <div className="flex justify-center pt-2 pb-1"><div className="w-10 h-1 rounded-full bg-gray-600" /></div>}
         <div className="h-1.5 rounded-t-xl" style={{ backgroundColor: color }} />
         <div className="p-4 space-y-3">
