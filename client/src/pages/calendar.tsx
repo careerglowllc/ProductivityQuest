@@ -315,6 +315,16 @@ export default function CalendarPage() {
   }, [events, prevData, nextData]);
 
   // ── Mutations ──
+  // Delayed invalidation — let optimistic UI settle before refetching from server
+  const pendingInvalidation = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleInvalidation = useCallback(() => {
+    if (pendingInvalidation.current) clearTimeout(pendingInvalidation.current);
+    pendingInvalidation.current = setTimeout(() => {
+      invalidateCalendarEvents(queryClient);
+      pendingInvalidation.current = null;
+    }, 1500); // 1.5s delay so optimistic UI stays stable
+  }, [queryClient]);
+
   const updateStandaloneEvent = useMutation({
     mutationFn: async ({ id, startTime, duration }: { id: string; startTime: string; duration?: number }) => {
       const numId = id.replace("standalone-", "");
@@ -322,7 +332,7 @@ export default function CalendarPage() {
       if (duration !== undefined) body.duration = duration;
       return apiRequest("PATCH", `/api/standalone-events/${numId}`, body);
     },
-    onSuccess: () => invalidateCalendarEvents(queryClient),
+    onSuccess: () => scheduleInvalidation(),
   });
 
   const updateTaskSchedule = useMutation({
@@ -332,8 +342,9 @@ export default function CalendarPage() {
       return apiRequest("PATCH", `/api/tasks/${id}`, body);
     },
     onSuccess: () => {
-      invalidateCalendarEvents(queryClient);
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      scheduleInvalidation();
+      // Delay task list invalidation too
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }), 1500);
     },
   });
 
@@ -1252,10 +1263,10 @@ const DayColumn = React.memo(function DayColumn({
           <div
             key={ev.id}
             data-event-id={ev.id}
-            className={`absolute rounded-md border-l-[3px] select-none transition-all duration-150 ${
+            className={`absolute rounded-md border-l-[3px] select-none ${
               isDragging ? "z-30 shadow-xl shadow-purple-500/30 opacity-90 scale-x-[1.02]" :
-              isInResizeMode ? "z-30 ring-2 ring-purple-400/70 shadow-lg shadow-purple-500/30" :
-              "z-10 hover:brightness-110"
+              isInResizeMode ? "z-30 ring-2 ring-purple-400/70 shadow-lg shadow-purple-500/30 transition-shadow duration-150" :
+              "z-10 hover:brightness-110 transition-all duration-150"
             } ${ev.completed ? "opacity-50" : ""} ${draggable && !isMobile ? "cursor-grab" : "cursor-pointer"}`}
             style={{
               top: visTop, height: visHeight, left, width,
