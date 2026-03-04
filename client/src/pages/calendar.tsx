@@ -259,6 +259,7 @@ export default function CalendarPage() {
 
   // Imperatively set touch-action on scroll container when in resize mode
   // (CSS via React state may not be applied before browser processes the touch)
+  // Preserve scroll position when exiting resize mode (overflowY change can reset it)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -266,8 +267,13 @@ export default function CalendarPage() {
       el.style.touchAction = "none";
       el.style.overflowY = "hidden";
     } else {
+      const savedScroll = el.scrollTop;
       el.style.touchAction = "";
       el.style.overflowY = "";
+      // Restore scroll position after browser processes the overflow change
+      requestAnimationFrame(() => {
+        el.scrollTop = savedScroll;
+      });
     }
   }, [resizeEventId]);
 
@@ -359,9 +365,14 @@ export default function CalendarPage() {
 
   const goToToday = useCallback(() => setCurrentDate(new Date()), []);
 
-  // Auto-scroll to current time when calendar loads or view changes
+  // Auto-scroll to current time when calendar loads or view/date changes
+  // Use a key to avoid re-scrolling on data refetches
+  const lastScrollKeyRef = useRef("");
   useEffect(() => {
     if (view === "month" || isLoading) return;
+    const scrollKey = `${view}-${currentDate.toDateString()}`;
+    if (lastScrollKeyRef.current === scrollKey) return; // already scrolled for this view+date
+    lastScrollKeyRef.current = scrollKey;
     // Use a short delay to ensure the scroll container is laid out after render
     const timer = setTimeout(() => {
       if (!scrollRef.current) return;
