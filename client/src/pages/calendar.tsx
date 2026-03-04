@@ -1095,6 +1095,8 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   onDismiss: () => void;
 }) {
   const canAdjust = isDraggable(event);
+  // Track whether a button was tapped so backdrop dismiss doesn't also fire
+  const handledRef = useRef(false);
 
   // Determine which side of the screen the tap was on
   const screenW = window.innerWidth;
@@ -1110,10 +1112,8 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   // Horizontal position: bubble appears on the opposite side of the tap
   let bubbleLeft: number;
   if (onRightHalf) {
-    // Bubble on left side of tap point
     bubbleLeft = tapX - bubbleW - arrowSize - gap;
   } else {
-    // Bubble on right side of tap point
     bubbleLeft = tapX + arrowSize + gap;
   }
 
@@ -1122,16 +1122,40 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 
   // Vertical position: centered on tap Y, slightly up
   let bubbleTop = tapY - bubbleH / 2 - 8;
-  // Clamp vertically
   bubbleTop = Math.max(8, Math.min(bubbleTop, screenH - bubbleH - 8));
 
   // Arrow vertical center relative to bubble
   const arrowTop = Math.max(10, Math.min(tapY - bubbleTop, bubbleH - 10));
 
+  const handleView = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (handledRef.current) return;
+    handledRef.current = true;
+    onView();
+  }, [onView]);
+
+  const handleAdjust = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (handledRef.current) return;
+    handledRef.current = true;
+    onAdjust();
+  }, [onAdjust]);
+
+  const handleBackdropDismiss = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Small delay to let button handlers fire first
+    setTimeout(() => {
+      if (!handledRef.current) onDismiss();
+    }, 10);
+  }, [onDismiss]);
+
   return (
     <>
       {/* Transparent backdrop to dismiss on tap elsewhere */}
-      <div className="fixed inset-0 z-40" onClick={onDismiss} onTouchEnd={(e) => { e.preventDefault(); onDismiss(); }} />
+      <div className="fixed inset-0 z-40" onTouchEnd={handleBackdropDismiss} onClick={handleBackdropDismiss} />
 
       {/* Speech bubble container */}
       <div
@@ -1145,8 +1169,9 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
           {/* View detail */}
           <button
-            onClick={(e) => { e.stopPropagation(); onView(); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors"
+            onTouchEnd={handleView}
+            onClick={handleView}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl active:bg-purple-500/30 transition-colors"
           >
             <Eye className="w-5 h-5 text-purple-300" />
             <span className="text-sm font-medium text-white">View</span>
@@ -1158,8 +1183,9 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
           {/* Adjust time / resize */}
           {canAdjust && (
             <button
-              onClick={(e) => { e.stopPropagation(); onAdjust(); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors"
+              onTouchEnd={handleAdjust}
+              onClick={handleAdjust}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl active:bg-purple-500/30 transition-colors"
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300" />
               <span className="text-sm font-medium text-white">Adjust</span>
