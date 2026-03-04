@@ -1147,7 +1147,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   onDismiss: () => void;
 }) {
   const canAdjust = isDraggable(event);
-  const readyRef = useRef(false);
+  const bubbleRef = useRef<HTMLDivElement>(null);
 
   // Determine which side of the screen the tap was on
   const screenW = window.innerWidth;
@@ -1173,37 +1173,68 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 
   const arrowTop = Math.max(10, Math.min(tapY - bubbleTop, bubbleH - 10));
 
-  // Small delay before enabling interactions to prevent the tap that opened
-  // the bubble from immediately triggering dismiss
+  // Dismiss when tapping outside the bubble — use a native document listener
+  // so there's no backdrop element that could intercept touches on buttons
   useEffect(() => {
-    const timer = setTimeout(() => { readyRef.current = true; }, 120);
-    return () => clearTimeout(timer);
-  }, []);
+    let armed = false;
+    const armTimer = setTimeout(() => { armed = true; }, 150);
 
-  const handleView = useCallback((e: React.PointerEvent | React.MouseEvent) => {
+    const handleOutsideTouch = (e: TouchEvent | MouseEvent) => {
+      if (!armed) return;
+      const bubble = bubbleRef.current;
+      if (!bubble) return;
+      const target = e.target as Node;
+      if (bubble.contains(target)) return; // touch is inside bubble — ignore
+      e.preventDefault();
+      e.stopPropagation();
+      onDismiss();
+    };
+
+    // Use capture phase so we intercept before anything else
+    document.addEventListener("touchstart", handleOutsideTouch, { capture: true, passive: false });
+    document.addEventListener("mousedown", handleOutsideTouch, { capture: true });
+    return () => {
+      clearTimeout(armTimer);
+      document.removeEventListener("touchstart", handleOutsideTouch, { capture: true } as EventListenerOptions);
+      document.removeEventListener("mousedown", handleOutsideTouch, { capture: true } as EventListenerOptions);
+    };
+  }, [onDismiss]);
+
+  // Button handlers — call the action and stop propagation
+  const handleViewTouch = useCallback((e: Event) => {
     e.stopPropagation();
     e.preventDefault();
     onView();
   }, [onView]);
 
-  const handleAdjust = useCallback((e: React.PointerEvent | React.MouseEvent) => {
+  const handleAdjustTouch = useCallback((e: Event) => {
     e.stopPropagation();
     e.preventDefault();
     onAdjust();
   }, [onAdjust]);
 
-  const handleDismiss = useCallback((e: React.PointerEvent | React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!readyRef.current) return;
-    onDismiss();
-  }, [onDismiss]);
+  // Attach native touchstart listeners directly on the button elements
+  // (avoids React synthetic event issues entirely on iOS Capacitor)
+  const viewRef = useRef<HTMLDivElement>(null);
+  const adjustRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const vEl = viewRef.current;
+    const aEl = adjustRef.current;
+    vEl?.addEventListener("touchstart", handleViewTouch, { passive: false, capture: true });
+    vEl?.addEventListener("click", handleViewTouch);
+    aEl?.addEventListener("touchstart", handleAdjustTouch, { passive: false, capture: true });
+    aEl?.addEventListener("click", handleAdjustTouch);
+    return () => {
+      vEl?.removeEventListener("touchstart", handleViewTouch, { capture: true } as EventListenerOptions);
+      vEl?.removeEventListener("click", handleViewTouch);
+      aEl?.removeEventListener("touchstart", handleAdjustTouch, { capture: true } as EventListenerOptions);
+      aEl?.removeEventListener("click", handleAdjustTouch);
+    };
+  }, [handleViewTouch, handleAdjustTouch]);
 
   return (
-    <>
-      {/* Transparent backdrop */}
-      <div className="fixed inset-0 z-40" onPointerDown={handleDismiss} onClick={handleDismiss} />
-
+    <div ref={bubbleRef}>
       {/* Speech bubble */}
       <div
         className="fixed z-50 animate-in fade-in zoom-in-95 duration-150"
@@ -1211,9 +1242,8 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
       >
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
           <div
+            ref={viewRef}
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
-            onPointerDown={handleView}
-            onClick={handleView}
           >
             <Eye className="w-5 h-5 text-purple-300 pointer-events-none" />
             <span className="text-sm font-medium text-white pointer-events-none">View</span>
@@ -1223,9 +1253,8 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 
           {canAdjust && (
             <div
+              ref={adjustRef}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
-              onPointerDown={handleAdjust}
-              onClick={handleAdjust}
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
               <span className="text-sm font-medium text-white pointer-events-none">Adjust</span>
@@ -1249,7 +1278,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
           }}
         />
       </div>
-    </>
+    </div>
   );
 }
 
