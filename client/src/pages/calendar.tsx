@@ -1147,9 +1147,11 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   onDismiss: () => void;
 }) {
   const canAdjust = isDraggable(event);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const viewBtnRef = useRef<HTMLButtonElement>(null);
+  const adjustBtnRef = useRef<HTMLButtonElement>(null);
 
   // Find the actual event element in the DOM to position the bubble
-  // relative to the event's visual position
   const [pos, setPos] = useState<{ top: number; left: number; right: number; centerY: number } | null>(null);
 
   useEffect(() => {
@@ -1161,6 +1163,70 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
       setPos({ top: tapY - 20, left: tapX - 50, right: tapX + 50, centerY: tapY });
     }
   }, [event.id, tapX, tapY]);
+
+  // Store callbacks in refs so native listeners always read fresh values
+  const cbRef = useRef({ onView, onAdjust, onDismiss });
+  cbRef.current = { onView, onAdjust, onDismiss };
+
+  // Attach ALL event handling via native DOM listeners — zero React synthetic events
+  // Depends on [pos] so it re-runs once the bubble elements are rendered
+  useEffect(() => {
+    if (!pos) return; // Bubble not rendered yet
+    const backdrop = backdropRef.current;
+    const viewBtn = viewBtnRef.current;
+    const adjustBtn = adjustBtnRef.current;
+    if (!backdrop) return;
+
+    let handled = false;
+
+    const doView = (e: Event) => {
+      if (handled) return;
+      handled = true;
+      e.stopPropagation();
+      e.preventDefault();
+      cbRef.current.onView();
+    };
+
+    const doAdjust = (e: Event) => {
+      if (handled) return;
+      handled = true;
+      e.stopPropagation();
+      e.preventDefault();
+      cbRef.current.onAdjust();
+    };
+
+    const doDismiss = (e: Event) => {
+      if (handled) return;
+      handled = true;
+      e.stopPropagation();
+      e.preventDefault();
+      cbRef.current.onDismiss();
+    };
+
+    // Buttons: listen for touchstart (immediate) and click (fallback for desktop)
+    viewBtn?.addEventListener("touchstart", doView, { passive: false });
+    viewBtn?.addEventListener("click", doView);
+    adjustBtn?.addEventListener("touchstart", doAdjust, { passive: false });
+    adjustBtn?.addEventListener("click", doAdjust);
+
+    // Backdrop dismiss: use a delayed listener so the initial tap doesn't trigger it
+    let dismissTimer: ReturnType<typeof setTimeout>;
+    const enableDismiss = () => {
+      backdrop.addEventListener("touchstart", doDismiss, { passive: false });
+      backdrop.addEventListener("click", doDismiss);
+    };
+    dismissTimer = setTimeout(enableDismiss, 200);
+
+    return () => {
+      clearTimeout(dismissTimer);
+      viewBtn?.removeEventListener("touchstart", doView);
+      viewBtn?.removeEventListener("click", doView);
+      adjustBtn?.removeEventListener("touchstart", doAdjust);
+      adjustBtn?.removeEventListener("click", doAdjust);
+      backdrop.removeEventListener("touchstart", doDismiss);
+      backdrop.removeEventListener("click", doDismiss);
+    };
+  }, [pos]); // Re-run when pos is set so refs are attached
 
   if (!pos) return null;
 
@@ -1186,46 +1252,37 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 
   const arrowTop = Math.max(10, Math.min(pos.centerY - bubbleTop, bubbleH - 10));
 
-  // Everything is inside ONE full-screen fixed overlay (z-50).
-  // Buttons use onPointerDown (fires immediately on iOS before any other event).
-  // A ref guards against the overlay dismiss firing after a button press.
-  const actionTakenRef = useRef(false);
-
   return (
-    <div
-      className="fixed inset-0 z-50"
-      onPointerDown={() => {
-        // Small delay: if a button's onPointerDown already fired and set
-        // actionTakenRef, don't dismiss.
-        setTimeout(() => {
-          if (!actionTakenRef.current) onDismiss();
-        }, 0);
-      }}
-    >
-      {/* Speech bubble — positioned absolutely within the overlay */}
+    <>
+      {/* Backdrop — separate from the bubble, behind it */}
+      <div ref={backdropRef} className="fixed inset-0 z-50" />
+
+      {/* Bubble — above the backdrop */}
       <div
-        className="absolute animate-in fade-in zoom-in-95 duration-150"
+        className="fixed z-[51] animate-in fade-in zoom-in-95 duration-150"
         style={{ top: bubbleTop, left: bubbleLeft, width: bubbleW }}
       >
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
-          <div
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none"
-            onPointerDown={(e) => { e.stopPropagation(); actionTakenRef.current = true; onView(); }}
+          <button
+            ref={viewBtnRef}
+            type="button"
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none bg-transparent border-0 outline-none"
           >
             <Eye className="w-5 h-5 text-purple-300 pointer-events-none" />
             <span className="text-sm font-medium text-white pointer-events-none select-none">View</span>
-          </div>
+          </button>
 
           {canAdjust && <div className="w-px h-6 bg-purple-500/30" />}
 
           {canAdjust && (
-            <div
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none"
-              onPointerDown={(e) => { e.stopPropagation(); actionTakenRef.current = true; onAdjust(); }}
+            <button
+              ref={adjustBtnRef}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none bg-transparent border-0 outline-none"
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
               <span className="text-sm font-medium text-white pointer-events-none select-none">Adjust</span>
-            </div>
+            </button>
           )}
         </div>
 
@@ -1245,7 +1302,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
           }}
         />
       </div>
-    </div>
+    </>
   );
 }
 
