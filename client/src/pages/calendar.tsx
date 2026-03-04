@@ -198,6 +198,7 @@ export default function CalendarPage() {
 
   // Mobile action bubble: which event was tapped (shows eye + adjust icons)
   const [tappedEvent, setTappedEvent] = useState<CalendarEvent | null>(null);
+  const [tapPosition, setTapPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Resize mode: which event is currently in "adjust" mode (shows big edge handles)
   const [resizeEventId, setResizeEventId] = useState<string | null>(null);
@@ -470,10 +471,16 @@ export default function CalendarPage() {
               drag={drag}
               resizeEventId={resizeEventId}
               onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd}
-              onEventTap={(ev) => {
+              onEventTap={(ev, pos) => {
                 if (isMobile) {
                   // Mobile: show action bubble (or toggle off if same event)
-                  setTappedEvent((prev) => prev?.id === ev.id ? null : ev);
+                  if (tappedEvent?.id === ev.id) {
+                    setTappedEvent(null);
+                    setTapPosition(null);
+                  } else {
+                    setTappedEvent(ev);
+                    setTapPosition(pos || null);
+                  }
                   setResizeEventId(null);
                 } else {
                   // Desktop: open detail sheet directly
@@ -500,12 +507,14 @@ export default function CalendarPage() {
       {selectedEvent && <EventDetailSheet event={selectedEvent} isMobile={isMobile} onClose={() => setSelectedEvent(null)} onDelete={() => handleDeleteEvent(selectedEvent)} />}
 
       {/* Mobile action bubble — shows after tapping an event */}
-      {tappedEvent && isMobile && !resizeEventId && (
+      {tappedEvent && isMobile && !resizeEventId && tapPosition && (
         <EventActionBubble
           event={tappedEvent}
-          onView={() => { setSelectedEvent(tappedEvent); setTappedEvent(null); }}
-          onAdjust={() => { setResizeEventId(tappedEvent.id); setTappedEvent(null); }}
-          onDismiss={() => setTappedEvent(null)}
+          tapX={tapPosition.x}
+          tapY={tapPosition.y}
+          onView={() => { setSelectedEvent(tappedEvent); setTappedEvent(null); setTapPosition(null); }}
+          onAdjust={() => { setResizeEventId(tappedEvent.id); setTappedEvent(null); setTapPosition(null); }}
+          onDismiss={() => { setTappedEvent(null); setTapPosition(null); }}
         />
       )}
 
@@ -546,7 +555,7 @@ interface TimeGridViewProps {
   resizeEventId: string | null;
   onSwipeStart: (e: React.TouchEvent) => void;
   onSwipeEnd: (e: React.TouchEvent) => void;
-  onEventTap: (ev: CalendarEvent) => void;
+  onEventTap: (ev: CalendarEvent, pos?: { x: number; y: number }) => void;
   onDragStart: (ds: DragState) => void;
   onDragUpdate: (minute: number) => void;
   onDragEnd: () => void;
@@ -660,7 +669,7 @@ interface DayColumnProps {
   date: Date; events: CalendarEvent[]; isToday: boolean; isMobile: boolean; numCols: number;
   drag: DragState | null;
   resizeEventId: string | null;
-  onEventTap: (ev: CalendarEvent) => void;
+  onEventTap: (ev: CalendarEvent, pos?: { x: number; y: number }) => void;
   onDragStart: (ds: DragState) => void;
   onDragUpdate: (minute: number) => void;
   onDragEnd: () => void;
@@ -682,6 +691,7 @@ const DayColumn = React.memo(function DayColumn({
   const touchState = useRef<{
     ev: CalendarEvent;
     mode: DragMode | null; // null until determined
+    startX: number;
     startY: number;
     startMinute: number;
     offsetInEvent: number; // how far down in the event the touch started (for move)
@@ -728,6 +738,7 @@ const DayColumn = React.memo(function DayColumn({
       touchState.current = {
         ev,
         mode: null,
+        startX: touch.clientX,
         startY: touch.clientY,
         startMinute: 0,
         offsetInEvent: 0,
@@ -748,7 +759,7 @@ const DayColumn = React.memo(function DayColumn({
     if (mode === "move") {
       // Touched the middle — treat as tap
       touchState.current = {
-        ev, mode: null, startY: touch.clientY, startMinute: 0, offsetInEvent: 0,
+        ev, mode: null, startX: touch.clientX, startY: touch.clientY, startMinute: 0, offsetInEvent: 0,
         origStartMin: 0, origEndMin: 0, timer: null, active: false, moved: false,
       };
       return;
@@ -759,7 +770,7 @@ const DayColumn = React.memo(function DayColumn({
     const touchMinute = getMinuteFromY(touch.clientY);
 
     touchState.current = {
-      ev, mode, startY: touch.clientY, startMinute: touchMinute,
+      ev, mode, startX: touch.clientX, startY: touch.clientY, startMinute: touchMinute,
       offsetInEvent: touchMinute - origStartMin, origStartMin, origEndMin,
       timer: null, active: true, moved: false,
     };
@@ -818,7 +829,7 @@ const DayColumn = React.memo(function DayColumn({
         onDragCancel();
       } else {
         // Simple tap — show action bubble (mobile) or detail (desktop handled elsewhere)
-        onEventTap(ts.ev);
+        onEventTap(ts.ev, { x: ts.startX, y: ts.startY });
         didInteractRef.current = true; // suppress the synthetic onClick
       }
       touchState.current = null;
@@ -850,7 +861,7 @@ const DayColumn = React.memo(function DayColumn({
     // For non-draggable events, just open detail immediately
     if (!isDraggable(ev)) {
       didInteractRef.current = true; // suppress follow-up onClick
-      onEventTap(ev);
+      onEventTap(ev, { x: e.clientX, y: e.clientY });
       return;
     }
 
@@ -905,7 +916,7 @@ const DayColumn = React.memo(function DayColumn({
       } else {
         // No movement → treat as click → open detail modal
         didInteractRef.current = true; // suppress the follow-up onClick
-        onEventTap(ev);
+        onEventTap(ev, { x: e.clientX, y: e.clientY });
       }
     };
 
@@ -1005,7 +1016,7 @@ const DayColumn = React.memo(function DayColumn({
                 didInteractRef.current = false;
                 return;
               }
-              if (!isDragging) onEventTap(ev);
+              if (!isDragging) onEventTap(ev, { x: e.clientX, y: e.clientY });
             }}
             onTouchStart={(e) => handleEventTouchStart(ev, e)}
             onMouseDown={(e) => handleMouseDown(ev, e)}
@@ -1071,50 +1082,102 @@ const DayColumn = React.memo(function DayColumn({
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-//  EventActionBubble — mobile tap submenu (view detail / adjust time)
+//  EventActionBubble — speech bubble submenu near the tapped event
 // ═══════════════════════════════════════════════════════════════════════
 
-function EventActionBubble({ event, onView, onAdjust, onDismiss }: {
+function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   event: CalendarEvent;
+  tapX: number;
+  tapY: number;
   onView: () => void;
   onAdjust: () => void;
   onDismiss: () => void;
 }) {
-  const color = eventColor(event);
   const canAdjust = isDraggable(event);
+
+  // Determine which side of the screen the tap was on
+  const screenW = window.innerWidth;
+  const screenH = window.innerHeight;
+  const onRightHalf = tapX > screenW / 2;
+
+  // Bubble dimensions (approximate)
+  const bubbleW = canAdjust ? 190 : 100;
+  const bubbleH = 48;
+  const arrowSize = 8;
+  const gap = 4; // space between arrow tip and tap point
+
+  // Horizontal position: bubble appears on the opposite side of the tap
+  let bubbleLeft: number;
+  if (onRightHalf) {
+    // Bubble on left side of tap point
+    bubbleLeft = tapX - bubbleW - arrowSize - gap;
+  } else {
+    // Bubble on right side of tap point
+    bubbleLeft = tapX + arrowSize + gap;
+  }
+
+  // Clamp horizontally so it doesn't go off-screen
+  bubbleLeft = Math.max(8, Math.min(bubbleLeft, screenW - bubbleW - 8));
+
+  // Vertical position: centered on tap Y, slightly up
+  let bubbleTop = tapY - bubbleH / 2 - 8;
+  // Clamp vertically
+  bubbleTop = Math.max(8, Math.min(bubbleTop, screenH - bubbleH - 8));
+
+  // Arrow vertical center relative to bubble
+  const arrowTop = Math.max(10, Math.min(tapY - bubbleTop, bubbleH - 10));
 
   return (
     <>
       {/* Transparent backdrop to dismiss on tap elsewhere */}
       <div className="fixed inset-0 z-40" onClick={onDismiss} onTouchStart={onDismiss} />
 
-      {/* Floating action bubble */}
+      {/* Speech bubble container */}
       <div
-        className="fixed z-50 flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
-        style={{ top: "40%", left: "50%", transform: "translateX(-50%)" }}
+        className="fixed z-50 animate-in fade-in zoom-in-95 duration-150"
+        style={{ top: bubbleTop, left: bubbleLeft, width: bubbleW }}
       >
-        {/* View detail */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onView(); }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors"
-        >
-          <Eye className="w-5 h-5 text-purple-300" />
-          <span className="text-sm font-medium text-white">View</span>
-        </button>
-
-        {/* Divider */}
-        {canAdjust && <div className="w-px h-6 bg-purple-500/30" />}
-
-        {/* Adjust time / resize */}
-        {canAdjust && (
+        {/* Bubble body */}
+        <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
+          {/* View detail */}
           <button
-            onClick={(e) => { e.stopPropagation(); onAdjust(); }}
+            onClick={(e) => { e.stopPropagation(); onView(); }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors"
           >
-            <SlidersHorizontal className="w-5 h-5 text-purple-300" />
-            <span className="text-sm font-medium text-white">Adjust</span>
+            <Eye className="w-5 h-5 text-purple-300" />
+            <span className="text-sm font-medium text-white">View</span>
           </button>
-        )}
+
+          {/* Divider */}
+          {canAdjust && <div className="w-px h-6 bg-purple-500/30" />}
+
+          {/* Adjust time / resize */}
+          {canAdjust && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAdjust(); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors"
+            >
+              <SlidersHorizontal className="w-5 h-5 text-purple-300" />
+              <span className="text-sm font-medium text-white">Adjust</span>
+            </button>
+          )}
+        </div>
+
+        {/* Speech bubble arrow/tail */}
+        <div
+          className="absolute"
+          style={{
+            top: arrowTop - arrowSize,
+            [onRightHalf ? "right" : "left"]: -arrowSize * 2 + 1,
+            width: 0,
+            height: 0,
+            borderTop: `${arrowSize}px solid transparent`,
+            borderBottom: `${arrowSize}px solid transparent`,
+            ...(onRightHalf
+              ? { borderLeft: `${arrowSize}px solid rgb(168 85 247 / 0.4)` }
+              : { borderRight: `${arrowSize}px solid rgb(168 85 247 / 0.4)` }),
+          }}
+        />
       </div>
     </>
   );
