@@ -293,17 +293,18 @@ export default function CalendarPage() {
 
   const goToToday = useCallback(() => setCurrentDate(new Date()), []);
 
-  // Auto-scroll to current time
+  // Auto-scroll to current time when calendar loads or view changes
   useEffect(() => {
-    if (view === "month") return;
+    if (view === "month" || isLoading) return;
+    // Use a short delay to ensure the scroll container is laid out after render
     const timer = setTimeout(() => {
       if (!scrollRef.current) return;
       const now = new Date();
       const top = now.getHours() * HOUR_HEIGHT + (now.getMinutes() / 60) * HOUR_HEIGHT - 100;
       scrollRef.current.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-    }, 100);
+    }, 150);
     return () => clearTimeout(timer);
-  }, [view, currentDate]);
+  }, [view, currentDate, isLoading]);
 
   // ── Swipe navigation ──
   const swipeRef = useRef<{ x: number; y: number } | null>(null);
@@ -1130,12 +1131,15 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   return (
     <>
       {/* Transparent backdrop to dismiss on tap elsewhere */}
-      <div className="fixed inset-0 z-40" onClick={onDismiss} onTouchStart={onDismiss} />
+      <div className="fixed inset-0 z-40" onClick={onDismiss} onTouchEnd={(e) => { e.preventDefault(); onDismiss(); }} />
 
       {/* Speech bubble container */}
       <div
         className="fixed z-50 animate-in fade-in zoom-in-95 duration-150"
         style={{ top: bubbleTop, left: bubbleLeft, width: bubbleW }}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Bubble body */}
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
