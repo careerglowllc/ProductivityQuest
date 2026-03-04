@@ -147,32 +147,74 @@ function isDraggable(ev: CalendarEvent): boolean {
 function layoutEvents(events: CalendarEvent[]): Map<string, { col: number; total: number }> {
   const result = new Map<string, { col: number; total: number }>();
   if (!events.length) return result;
+
+  // Sort by start time, then by longest duration first (so wide events get col 0)
   const sorted = [...events].sort((a, b) => {
     const diff = new Date(a.start).getTime() - new Date(b.start).getTime();
     if (diff !== 0) return diff;
     return new Date(b.end).getTime() - new Date(a.end).getTime();
   });
+
+  // Step 1: Assign columns greedily (pack into first available column)
   const columns: { end: number; id: string }[][] = [];
+  const colAssignment = new Map<string, number>();
   for (const ev of sorted) {
     const start = minuteOfDay(new Date(ev.start));
-    const end = minuteOfDay(new Date(ev.end));
+    const end = Math.max(minuteOfDay(new Date(ev.end)), start + 1); // at least 1 min
     let placed = false;
     for (let c = 0; c < columns.length; c++) {
       const col = columns[c];
       if (start >= col[col.length - 1].end) {
         col.push({ end, id: ev.id });
-        result.set(ev.id, { col: c, total: 0 });
+        colAssignment.set(ev.id, c);
         placed = true;
         break;
       }
     }
     if (!placed) {
       columns.push([{ end, id: ev.id }]);
-      result.set(ev.id, { col: columns.length - 1, total: 0 });
+      colAssignment.set(ev.id, columns.length - 1);
     }
   }
-  const totalCols = columns.length;
-  result.forEach((layout) => { layout.total = totalCols; });
+
+  // Step 2: Build overlap groups — events that ACTUALLY overlap share a group
+  // Each group gets its own "total columns" count
+  type EvInfo = { id: string; start: number; end: number; col: number };
+  const evInfos: EvInfo[] = sorted.map((ev) => ({
+    id: ev.id,
+    start: minuteOfDay(new Date(ev.start)),
+    end: Math.max(minuteOfDay(new Date(ev.end)), minuteOfDay(new Date(ev.start)) + 1),
+    col: colAssignment.get(ev.id) || 0,
+  }));
+
+  // Find connected overlap groups via sweep
+  const groups: EvInfo[][] = [];
+  let currentGroup: EvInfo[] = [];
+  let groupEnd = 0;
+
+  for (const info of evInfos) {
+    if (currentGroup.length === 0 || info.start < groupEnd) {
+      // Overlaps with current group
+      currentGroup.push(info);
+      groupEnd = Math.max(groupEnd, info.end);
+    } else {
+      // New group — no overlap
+      groups.push(currentGroup);
+      currentGroup = [info];
+      groupEnd = info.end;
+    }
+  }
+  if (currentGroup.length > 0) groups.push(currentGroup);
+
+  // Step 3: For each group, determine the max column used and set total
+  for (const group of groups) {
+    const maxCol = Math.max(...group.map((e) => e.col));
+    const totalCols = maxCol + 1;
+    for (const e of group) {
+      result.set(e.id, { col: e.col, total: totalCols });
+    }
+  }
+
   return result;
 }
 
@@ -1241,18 +1283,21 @@ const DayColumn = React.memo(function DayColumn({
             )}
 
             {/* Event content */}
-            <div className="px-1.5 py-0.5 h-full flex flex-col justify-start overflow-hidden" style={{ paddingTop: (isInResizeMode || (draggable && !isMobile)) ? 6 : 2 }}>
+            <div className="px-2 py-0.5 h-full flex flex-col justify-start overflow-hidden" style={{ paddingTop: (isInResizeMode || (draggable && !isMobile)) ? 6 : 2 }}>
               <div className="flex items-center gap-1 min-w-0">
                 {ev.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
-                <span className={`text-[10px] font-semibold truncate ${ev.completed ? "line-through text-gray-400" : "text-white"}`}>{ev.title}</span>
+                <span className={`${visHeight > 25 ? "text-xs" : "text-[10px]"} font-semibold truncate ${ev.completed ? "line-through text-gray-400" : "text-white"}`}>{ev.title}</span>
               </div>
               {visHeight > 30 && (
-                <span className="text-[9px] text-white/60 truncate">
+                <span className="text-[10px] text-white/60 truncate">
                   {formatTime(start)}{visHeight > 45 && ` \u2013 ${formatTime(end)}`}
                 </span>
               )}
+              {visHeight > 55 && ev.campaign && (
+                <span className="text-[9px] text-white/40 truncate mt-0.5">{ev.campaign}</span>
+              )}
               {visHeight > 55 && ev.source === "google" && ev.calendarName && (
-                <span className="text-[8px] text-white/40 truncate">{ev.calendarName}</span>
+                <span className="text-[9px] text-white/40 truncate">{ev.calendarName}</span>
               )}
             </div>
 
