@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   Eye,
   SlidersHorizontal,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -208,6 +209,10 @@ export default function CalendarPage() {
   // Resize mode: which event is currently in "adjust" mode (shows big edge handles)
   const [resizeEventId, setResizeEventId] = useState<string | null>(null);
 
+  // Persistent undo action — shown as a button near the + button
+  const [lastUndoAction, setLastUndoAction] = useState<{ label: string; undo: () => void } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Imperatively set touch-action on scroll container when in resize mode
@@ -356,7 +361,36 @@ export default function CalendarPage() {
     } else if (ev.source === "productivityquest") {
       updateTaskSchedule.mutate({ id: ev.id, scheduledTime: origStartISO, duration: origDuration });
     }
+    // Also optimistically revert in cache
+    optimisticUpdateEvent(ev.id, origStartISO, origDuration);
   }, [updateStandaloneEvent, updateTaskSchedule]);
+
+  // Helper: optimistically update an event in the query cache (instant visual feedback)
+  const optimisticUpdateEvent = useCallback((eventId: string, newStartISO: string, newDuration?: number) => {
+    queryClient.setQueriesData<{ events: CalendarEvent[]; stats?: any }>(
+      { predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].includes("/api/google-calendar/events") },
+      (old) => {
+        if (!old?.events) return old;
+        return {
+          ...old,
+          events: old.events.map((e) => {
+            if (e.id !== eventId) return e;
+            const start = new Date(newStartISO);
+            const dur = newDuration ?? Math.round((new Date(e.end).getTime() - new Date(e.start).getTime()) / 60000);
+            const end = new Date(start.getTime() + dur * 60000);
+            return { ...e, start: start.toISOString(), end: end.toISOString(), duration: dur };
+          }),
+        };
+      },
+    );
+  }, [queryClient]);
+
+  // Helper: set persistent undo action (auto-clears after 10s)
+  const setUndoAction = useCallback((label: string, undoFn: () => void) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setLastUndoAction({ label, undo: undoFn });
+    undoTimerRef.current = setTimeout(() => setLastUndoAction(null), 10000);
+  }, []);
 
   const commitDrag = useCallback((ds: DragState) => {
     const ev = ds.event;
@@ -365,50 +399,68 @@ export default function CalendarPage() {
     const origDuration = Math.round((origEnd.getTime() - origStart.getTime()) / 60000);
     const origStartISO = origStart.toISOString();
 
+    const doUndo = () => {
+      revertEvent(ev, origStartISO, origDuration);
+      setLastUndoAction(null);
+    };
+
     if (ds.mode === "move") {
       const newStart = new Date(origStart);
       const snapped = snap(clamp(ds.minute, 0, 1440 - MIN_DURATION));
       newStart.setHours(Math.floor(snapped / 60), snapped % 60, 0, 0);
+      // Optimistic update — instant visual
+      optimisticUpdateEvent(ev.id, newStart.toISOString());
+      // Fire API call in background
       if (ev.source === "standalone") {
         updateStandaloneEvent.mutate({ id: ev.id, startTime: newStart.toISOString() });
       } else if (ev.source === "productivityquest") {
         updateTaskSchedule.mutate({ id: ev.id, scheduledTime: newStart.toISOString() });
       }
+      setUndoAction(`Moved to ${formatTimeShort(newStart)}`, doUndo);
       toast({
         title: `Event set to ${formatTimeShort(newStart)}`,
         description: `Moved from ${formatTimeShort(origStart)}`,
-        action: <ToastAction altText="Undo" onClick={() => revertEvent(ev, origStartISO, origDuration)}>Undo</ToastAction>,
+        duration: 10000,
+        action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
       });
     } else if (ds.mode === "resize-top") {
       const newStartMin = snap(clamp(ds.minute, 0, ds.origEndMin - MIN_DURATION));
       const newDuration = ds.origEndMin - newStartMin;
       const newStart = new Date(origStart);
       newStart.setHours(Math.floor(newStartMin / 60), newStartMin % 60, 0, 0);
+      // Optimistic update
+      optimisticUpdateEvent(ev.id, newStart.toISOString(), newDuration);
       if (ev.source === "standalone") {
         updateStandaloneEvent.mutate({ id: ev.id, startTime: newStart.toISOString(), duration: newDuration });
       } else if (ev.source === "productivityquest") {
         updateTaskSchedule.mutate({ id: ev.id, scheduledTime: newStart.toISOString(), duration: newDuration });
       }
+      setUndoAction(`Duration → ${fmtDur(newDuration)}`, doUndo);
       toast({
         title: "Duration changed",
         description: `${fmtDur(origDuration)} → ${fmtDur(newDuration)}`,
-        action: <ToastAction altText="Undo" onClick={() => revertEvent(ev, origStartISO, origDuration)}>Undo</ToastAction>,
+        duration: 10000,
+        action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
       });
     } else if (ds.mode === "resize-bottom") {
       const newEndMin = snap(clamp(ds.minute, ds.origStartMin + MIN_DURATION, 1440));
       const newDuration = newEndMin - ds.origStartMin;
+      // Optimistic update
+      optimisticUpdateEvent(ev.id, origStart.toISOString(), newDuration);
       if (ev.source === "standalone") {
         updateStandaloneEvent.mutate({ id: ev.id, startTime: origStart.toISOString(), duration: newDuration });
       } else if (ev.source === "productivityquest") {
         updateTaskSchedule.mutate({ id: ev.id, scheduledTime: origStart.toISOString(), duration: newDuration });
       }
+      setUndoAction(`Duration → ${fmtDur(newDuration)}`, doUndo);
       toast({
         title: "Duration changed",
         description: `${fmtDur(origDuration)} → ${fmtDur(newDuration)}`,
-        action: <ToastAction altText="Undo" onClick={() => revertEvent(ev, origStartISO, origDuration)}>Undo</ToastAction>,
+        duration: 10000,
+        action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
       });
     }
-  }, [updateStandaloneEvent, updateTaskSchedule, toast, revertEvent]);
+  }, [updateStandaloneEvent, updateTaskSchedule, toast, revertEvent, optimisticUpdateEvent, setUndoAction]);
 
   // ── Create new event ──
   const openNewEvent = useCallback((date?: Date, minute?: number) => {
@@ -495,6 +547,11 @@ export default function CalendarPage() {
             </div>
             <div className="flex items-center gap-1">
               {!isViewingToday && <Button size="sm" onClick={goToToday} className={`${isMobile ? "h-7 px-2 text-xs" : "h-8 px-3 text-sm"} bg-purple-600 hover:bg-purple-500`}>Today</Button>}
+              {lastUndoAction && (
+                <Button size="sm" variant="ghost" onClick={() => { lastUndoAction.undo(); setLastUndoAction(null); }} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 animate-in fade-in duration-200`} title={lastUndoAction.label}>
+                  <Undo2 className="w-4 h-4" />
+                </Button>
+              )}
               {!isMobile && <Link href="/settings/google-calendar"><Button variant="ghost" size="sm" className="h-8 px-2 text-purple-300"><Settings className="w-4 h-4" /></Button></Link>}
               <Button size="sm" onClick={() => openNewEvent()} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-3"} bg-purple-600 hover:bg-purple-500`}>
                 <Plus className={isMobile ? "w-4 h-4" : "w-4 h-4 mr-1"} />{!isMobile && "New Event"}
