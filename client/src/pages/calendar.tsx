@@ -26,6 +26,7 @@ import {
   Clock,
   Trash2,
   CheckCircle2,
+  Eye,
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -194,6 +195,10 @@ export default function CalendarPage() {
 
   // Unified drag state: covers move + resize-top + resize-bottom
   const [drag, setDrag] = useState<DragState | null>(null);
+
+  // Mobile action bubble: which event was tapped (shows View + Adjust)
+  const [tappedEvent, setTappedEvent] = useState<CalendarEvent | null>(null);
+  const [tapPosition, setTapPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Resize mode: which event is currently in "adjust" mode (shows big edge handles)
   const [resizeEventId, setResizeEventId] = useState<string | null>(null);
@@ -481,16 +486,25 @@ export default function CalendarPage() {
               drag={drag}
               resizeEventId={resizeEventId}
               onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd}
-              onEventTap={(ev) => {
-                // Both mobile and desktop: open detail sheet directly
-                setSelectedEvent(ev);
-                setResizeEventId(null);
+              onEventTap={(ev, pos) => {
+                if (isMobile) {
+                  if (tappedEvent?.id === ev.id) {
+                    setTappedEvent(null);
+                    setTapPosition(null);
+                  } else {
+                    setTappedEvent(ev);
+                    setTapPosition(pos || null);
+                  }
+                  setResizeEventId(null);
+                } else {
+                  setSelectedEvent(ev);
+                }
               }}
               onDragStart={(ds) => setDrag(ds)}
               onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
               onDragEnd={() => { if (drag) { commitDrag(drag); setDrag(null); } }}
               onDragCancel={() => setDrag(null)}
-              onEmptyTap={(date, minute) => { setResizeEventId(null); openNewEvent(date, minute); }}
+              onEmptyTap={(date, minute) => { setTappedEvent(null); setResizeEventId(null); openNewEvent(date, minute); }}
             />
           )}
         </div>
@@ -513,6 +527,18 @@ export default function CalendarPage() {
             setResizeEventId(selectedEvent.id);
             setSelectedEvent(null);
           } : undefined}
+        />
+      )}
+
+      {/* Mobile action bubble */}
+      {tappedEvent && isMobile && !resizeEventId && tapPosition && (
+        <EventActionBubble
+          event={tappedEvent}
+          tapX={tapPosition.x}
+          tapY={tapPosition.y}
+          onView={() => { setSelectedEvent(tappedEvent); setTappedEvent(null); setTapPosition(null); }}
+          onAdjust={() => { setResizeEventId(tappedEvent.id); setTappedEvent(null); setTapPosition(null); }}
+          onDismiss={() => { setTappedEvent(null); setTapPosition(null); }}
         />
       )}
 
@@ -1118,6 +1144,180 @@ const DayColumn = React.memo(function DayColumn({
 });
 
 
+
+// ═══════════════════════════════════════════════════════════════════════
+//  EventActionBubble — speech bubble submenu near the tapped event
+// ═══════════════════════════════════════════════════════════════════════
+
+function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
+  event: CalendarEvent;
+  tapX: number;
+  tapY: number;
+  onView: () => void;
+  onAdjust: () => void;
+  onDismiss: () => void;
+}) {
+  const canAdjust = isDraggable(event);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const viewBtnRef = useRef<HTMLButtonElement>(null);
+  const adjustBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Find actual event element position for bubble alignment
+  const [pos, setPos] = useState<{ top: number; left: number; right: number; centerY: number } | null>(null);
+
+  useEffect(() => {
+    const el = document.querySelector(`[data-event-id="${event.id}"]`) as HTMLElement | null;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      setPos({ top: rect.top, left: rect.left, right: rect.right, centerY: rect.top + rect.height / 2 });
+    } else {
+      setPos({ top: tapY - 20, left: tapX - 50, right: tapX + 50, centerY: tapY });
+    }
+  }, [event.id, tapX, tapY]);
+
+  // Callbacks in ref so native listeners always see fresh values
+  const cbRef = useRef({ onView, onAdjust, onDismiss });
+  cbRef.current = { onView, onAdjust, onDismiss };
+
+  // Native DOM listeners — no React synthetic events
+  useEffect(() => {
+    if (!pos) return;
+    const backdrop = backdropRef.current;
+    const viewBtn = viewBtnRef.current;
+    const adjustBtn = adjustBtnRef.current;
+    if (!backdrop) return;
+
+    let handled = false;
+
+    const doView = (e: Event) => {
+      if (handled) return;
+      handled = true;
+      e.stopPropagation();
+      e.preventDefault();
+      cbRef.current.onView();
+    };
+
+    const doAdjust = (e: Event) => {
+      if (handled) return;
+      handled = true;
+      e.stopPropagation();
+      e.preventDefault();
+      cbRef.current.onAdjust();
+    };
+
+    const doDismiss = (e: Event) => {
+      if (handled) return;
+      handled = true;
+      e.stopPropagation();
+      e.preventDefault();
+      cbRef.current.onDismiss();
+    };
+
+    // Button listeners: touchstart fires immediately on iOS
+    viewBtn?.addEventListener("touchstart", doView, { passive: false });
+    viewBtn?.addEventListener("click", doView);
+    adjustBtn?.addEventListener("touchstart", doAdjust, { passive: false });
+    adjustBtn?.addEventListener("click", doAdjust);
+
+    // Backdrop dismiss: delayed so the originating tap doesn't dismiss immediately
+    let dismissTimer: ReturnType<typeof setTimeout>;
+    const enableDismiss = () => {
+      backdrop.addEventListener("touchstart", doDismiss, { passive: false });
+      backdrop.addEventListener("click", doDismiss);
+    };
+    dismissTimer = setTimeout(enableDismiss, 200);
+
+    return () => {
+      clearTimeout(dismissTimer);
+      viewBtn?.removeEventListener("touchstart", doView);
+      viewBtn?.removeEventListener("click", doView);
+      adjustBtn?.removeEventListener("touchstart", doAdjust);
+      adjustBtn?.removeEventListener("click", doAdjust);
+      backdrop.removeEventListener("touchstart", doDismiss);
+      backdrop.removeEventListener("click", doDismiss);
+    };
+  }, [pos]);
+
+  // All hooks above — safe to early-return below
+  if (!pos) return null;
+
+  const screenW = window.innerWidth;
+  const screenH = window.innerHeight;
+  const onRightHalf = pos.right > screenW * 0.6;
+
+  const bubbleW = canAdjust ? 190 : 100;
+  const bubbleH = 48;
+  const arrowSize = 8;
+  const gap = 6;
+
+  let bubbleLeft: number;
+  if (onRightHalf) {
+    bubbleLeft = pos.left - bubbleW - arrowSize - gap;
+  } else {
+    bubbleLeft = pos.right + arrowSize + gap;
+  }
+  bubbleLeft = Math.max(8, Math.min(bubbleLeft, screenW - bubbleW - 8));
+
+  let bubbleTop = pos.centerY - bubbleH / 2;
+  bubbleTop = Math.max(8, Math.min(bubbleTop, screenH - bubbleH - 8));
+
+  const arrowTop = Math.max(10, Math.min(pos.centerY - bubbleTop, bubbleH - 10));
+
+  return (
+    <>
+      {/* Backdrop — SEPARATE div behind the bubble */}
+      <div ref={backdropRef} className="fixed inset-0 z-50" />
+
+      {/* Bubble — ABOVE the backdrop */}
+      <div
+        className="fixed z-[51] animate-in fade-in zoom-in-95 duration-150"
+        style={{ top: bubbleTop, left: bubbleLeft, width: bubbleW }}
+      >
+        <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
+          <button
+            ref={viewBtnRef}
+            type="button"
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none bg-transparent border-0 outline-none"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <Eye className="w-5 h-5 text-purple-300 pointer-events-none" />
+            <span className="text-sm font-medium text-white pointer-events-none select-none">View</span>
+          </button>
+
+          {canAdjust && <div className="w-px h-6 bg-purple-500/30" />}
+
+          {canAdjust && (
+            <button
+              ref={adjustBtnRef}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none bg-transparent border-0 outline-none"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
+              <span className="text-sm font-medium text-white pointer-events-none select-none">Adjust</span>
+            </button>
+          )}
+        </div>
+
+        {/* Speech bubble arrow */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: arrowTop - arrowSize,
+            [onRightHalf ? "right" : "left"]: -arrowSize * 2 + 1,
+            width: 0,
+            height: 0,
+            borderTop: `${arrowSize}px solid transparent`,
+            borderBottom: `${arrowSize}px solid transparent`,
+            ...(onRightHalf
+              ? { borderLeft: `${arrowSize}px solid rgb(168 85 247 / 0.4)` }
+              : { borderRight: `${arrowSize}px solid rgb(168 85 247 / 0.4)` }),
+          }}
+        />
+      </div>
+    </>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 //  EventDetailSheet
