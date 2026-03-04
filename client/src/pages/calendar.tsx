@@ -632,6 +632,9 @@ const DayColumn = React.memo(function DayColumn({
   const colRef = useRef<HTMLDivElement>(null);
   const layout = useMemo(() => layoutEvents(events), [events]);
 
+  // Flag to suppress onClick after a drag/resize interaction
+  const didInteractRef = useRef(false);
+
   // Touch state ref for long-press detection + drag
   const touchState = useRef<{
     ev: CalendarEvent;
@@ -670,8 +673,10 @@ const DayColumn = React.memo(function DayColumn({
   // ── Touch handlers ──
 
   const handleEventTouchStart = useCallback((ev: CalendarEvent, e: React.TouchEvent) => {
-    if (!isDraggable(ev)) return;
     e.stopPropagation();
+    // For non-draggable events, let onClick handle it
+    if (!isDraggable(ev)) return;
+
     const touch = e.touches[0];
     const eventEl = (e.currentTarget as HTMLElement);
     const mode = detectEdge(touch.clientY, eventEl);
@@ -696,6 +701,7 @@ const DayColumn = React.memo(function DayColumn({
       // Edge resize starts immediately (no long press needed)
       state.active = true;
       state.timer = null;
+      didInteractRef.current = true;
       const startVal = mode === "resize-top" ? origStartMin : origEndMin;
       onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
     } else {
@@ -704,6 +710,7 @@ const DayColumn = React.memo(function DayColumn({
       state.timer = setTimeout(() => {
         state.active = true;
         state.mode = "move";
+        didInteractRef.current = true;
         onDragStart({ event: ev, mode: "move", minute: origStartMin, origStartMin, origEndMin });
         if (navigator.vibrate) navigator.vibrate(30);
       }, LONG_PRESS_MS);
@@ -762,6 +769,10 @@ const DayColumn = React.memo(function DayColumn({
         onDragEnd();
       } else if (ts.active) {
         onDragCancel();
+      } else {
+        // Was just a tap (no long-press activated, no resize started) → open detail
+        onEventTap(ts.ev);
+        didInteractRef.current = true; // suppress the synthetic onClick
       }
       touchState.current = null;
     };
@@ -786,9 +797,17 @@ const DayColumn = React.memo(function DayColumn({
   // ── Mouse handlers for desktop ──
 
   const handleMouseDown = useCallback((ev: CalendarEvent, e: React.MouseEvent) => {
-    if (!isDraggable(ev) || isMobile) return;
-    e.preventDefault();
+    if (isMobile) return;
     e.stopPropagation();
+
+    // For non-draggable events, just open detail immediately
+    if (!isDraggable(ev)) {
+      didInteractRef.current = true; // suppress follow-up onClick
+      onEventTap(ev);
+      return;
+    }
+
+    e.preventDefault();
 
     const eventEl = e.currentTarget as HTMLElement;
     const mode = detectEdge(e.clientY, eventEl);
@@ -796,11 +815,28 @@ const DayColumn = React.memo(function DayColumn({
     const origEndMin = minuteOfDay(new Date(ev.end));
     const clickMinute = getMinuteFromY(e.clientY);
     const offsetInEvent = clickMinute - origStartMin;
-
-    const startVal = mode === "resize-top" ? origStartMin : mode === "resize-bottom" ? origEndMin : origStartMin;
-    onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let dragStarted = false;
 
     const handleMouseMove = (me: MouseEvent) => {
+      const dx = Math.abs(me.clientX - startX);
+      const dy = Math.abs(me.clientY - startY);
+
+      if (!dragStarted) {
+        // Only start drag after exceeding movement threshold
+        if (dx < MOVE_THRESHOLD && dy < MOVE_THRESHOLD) return;
+        dragStarted = true;
+        didInteractRef.current = true;
+        const startVal = mode === "resize-top" ? origStartMin : mode === "resize-bottom" ? origEndMin : origStartMin;
+        onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
+        if (mode === "resize-top" || mode === "resize-bottom") {
+          document.body.style.cursor = "ns-resize";
+        } else {
+          document.body.style.cursor = "grabbing";
+        }
+      }
+
       const currentMinute = getMinuteFromY(me.clientY);
       if (mode === "move") {
         onDragUpdate(clamp(snap(currentMinute - offsetInEvent), 0, 1440 - MIN_DURATION));
@@ -815,20 +851,20 @@ const DayColumn = React.memo(function DayColumn({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
       document.body.style.cursor = "";
-      // Use timeout to let state settle before committing
-      setTimeout(() => onDragEnd(), 0);
-    };
 
-    // Set cursor globally during drag
-    if (mode === "resize-top" || mode === "resize-bottom") {
-      document.body.style.cursor = "ns-resize";
-    } else {
-      document.body.style.cursor = "grabbing";
-    }
+      if (dragStarted) {
+        // Commit drag
+        setTimeout(() => onDragEnd(), 0);
+      } else {
+        // No movement → treat as click → open detail modal
+        didInteractRef.current = true; // suppress the follow-up onClick
+        onEventTap(ev);
+      }
+    };
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
-  }, [isMobile, detectEdge, getMinuteFromY, onDragStart, onDragUpdate, onDragEnd]);
+  }, [isMobile, detectEdge, getMinuteFromY, onDragStart, onDragUpdate, onDragEnd, onEventTap]);
 
   // Double-tap to create on empty space
   const lastTap = useRef<number>(0);
@@ -912,7 +948,16 @@ const DayColumn = React.memo(function DayColumn({
               backgroundColor: color + "25",
               touchAction: draggable && isMobile ? "none" : undefined,
             }}
-            onClick={(e) => { e.stopPropagation(); if (!touchState.current?.active && !isDragging) onEventTap(ev); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Suppress onClick if a drag/resize/touch-tap already handled it
+              if (didInteractRef.current) {
+                didInteractRef.current = false;
+                return;
+              }
+              // On mobile, non-draggable events get tapped via onClick (touchStart didn't handle them)
+              if (!isDragging) onEventTap(ev);
+            }}
             onTouchStart={(e) => handleEventTouchStart(ev, e)}
             onMouseDown={(e) => handleMouseDown(ev, e)}
           >
