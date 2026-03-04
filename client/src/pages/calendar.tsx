@@ -17,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import {
   ChevronLeft,
   ChevronRight,
@@ -107,6 +108,10 @@ function formatHourCompact(h: number): string {
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+function formatTimeShort(d: Date): string {
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/ /g, "").toLowerCase();
 }
 
 function minuteOfDay(d: Date): number {
@@ -336,12 +341,31 @@ export default function CalendarPage() {
   }, [navigate, drag]);
 
   // ── Commit drag/resize result to API ──
+  // Helper: format minutes as readable duration
+  const fmtDur = (mins: number) => {
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
+  };
+
+  // Helper: revert an event to its original time/duration
+  const revertEvent = useCallback((ev: CalendarEvent, origStartISO: string, origDuration: number) => {
+    if (ev.source === "standalone") {
+      updateStandaloneEvent.mutate({ id: ev.id, startTime: origStartISO, duration: origDuration });
+    } else if (ev.source === "productivityquest") {
+      updateTaskSchedule.mutate({ id: ev.id, scheduledTime: origStartISO, duration: origDuration });
+    }
+  }, [updateStandaloneEvent, updateTaskSchedule]);
+
   const commitDrag = useCallback((ds: DragState) => {
     const ev = ds.event;
     const origStart = new Date(ev.start);
+    const origEnd = new Date(ev.end);
+    const origDuration = Math.round((origEnd.getTime() - origStart.getTime()) / 60000);
+    const origStartISO = origStart.toISOString();
 
     if (ds.mode === "move") {
-      // Move: change start time, keep duration
       const newStart = new Date(origStart);
       const snapped = snap(clamp(ds.minute, 0, 1440 - MIN_DURATION));
       newStart.setHours(Math.floor(snapped / 60), snapped % 60, 0, 0);
@@ -350,8 +374,12 @@ export default function CalendarPage() {
       } else if (ev.source === "productivityquest") {
         updateTaskSchedule.mutate({ id: ev.id, scheduledTime: newStart.toISOString() });
       }
+      toast({
+        title: "Event moved",
+        description: `${formatTimeShort(origStart)} → ${formatTimeShort(newStart)}`,
+        action: <ToastAction altText="Undo" onClick={() => revertEvent(ev, origStartISO, origDuration)}>Undo</ToastAction>,
+      });
     } else if (ds.mode === "resize-top") {
-      // Resize from top: change start time + duration
       const newStartMin = snap(clamp(ds.minute, 0, ds.origEndMin - MIN_DURATION));
       const newDuration = ds.origEndMin - newStartMin;
       const newStart = new Date(origStart);
@@ -361,8 +389,12 @@ export default function CalendarPage() {
       } else if (ev.source === "productivityquest") {
         updateTaskSchedule.mutate({ id: ev.id, scheduledTime: newStart.toISOString(), duration: newDuration });
       }
+      toast({
+        title: "Duration changed",
+        description: `${fmtDur(origDuration)} → ${fmtDur(newDuration)}`,
+        action: <ToastAction altText="Undo" onClick={() => revertEvent(ev, origStartISO, origDuration)}>Undo</ToastAction>,
+      });
     } else if (ds.mode === "resize-bottom") {
-      // Resize from bottom: keep start, change duration
       const newEndMin = snap(clamp(ds.minute, ds.origStartMin + MIN_DURATION, 1440));
       const newDuration = newEndMin - ds.origStartMin;
       if (ev.source === "standalone") {
@@ -370,8 +402,13 @@ export default function CalendarPage() {
       } else if (ev.source === "productivityquest") {
         updateTaskSchedule.mutate({ id: ev.id, scheduledTime: origStart.toISOString(), duration: newDuration });
       }
+      toast({
+        title: "Duration changed",
+        description: `${fmtDur(origDuration)} → ${fmtDur(newDuration)}`,
+        action: <ToastAction altText="Undo" onClick={() => revertEvent(ev, origStartISO, origDuration)}>Undo</ToastAction>,
+      });
     }
-  }, [updateStandaloneEvent, updateTaskSchedule]);
+  }, [updateStandaloneEvent, updateTaskSchedule, toast, revertEvent]);
 
   // ── Create new event ──
   const openNewEvent = useCallback((date?: Date, minute?: number) => {
