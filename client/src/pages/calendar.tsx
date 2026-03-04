@@ -77,7 +77,7 @@ const HOUR_HEIGHT = 60;
 const TOTAL_HEIGHT = 24 * HOUR_HEIGHT;
 const SNAP_MINUTES = 5;
 const MIN_DURATION = 15; // minimum event length in minutes
-const MOVE_THRESHOLD = 8;
+const MOVE_THRESHOLD = 15; // px of movement before cancelling a long-press (forgiving for finger wobble)
 const EDGE_ZONE = 10; // px from top/bottom edge that triggers resize
 
 const MONTH_NAMES = [
@@ -897,8 +897,7 @@ const DayColumn = React.memo(function DayColumn({
     // While scrolling, also update the drag position so the event follows
     if (as.lastTouch) {
       const rect = colRef.current!.getBoundingClientRect();
-      const scrollTop = scrollContainer.scrollTop;
-      const y = as.lastTouch.clientY - rect.top + scrollTop;
+      const y = as.lastTouch.clientY - rect.top;
       const currentMinute = Math.max(0, Math.min(1439, (y / TOTAL_HEIGHT) * 1440));
       const ts = touchState.current;
       if (ts?.active && ts.mode) {
@@ -974,9 +973,9 @@ const DayColumn = React.memo(function DayColumn({
   const getMinuteFromY = useCallback((clientY: number): number => {
     if (!colRef.current) return 0;
     const rect = colRef.current.getBoundingClientRect();
-    const scrollContainer = colRef.current.closest("[class*='overflow-auto']");
-    const scrollTop = scrollContainer?.scrollTop || 0;
-    const y = clientY - rect.top + scrollTop;
+    // getBoundingClientRect already accounts for scroll position,
+    // so clientY - rect.top gives position within the 1440px column
+    const y = clientY - rect.top;
     return Math.max(0, Math.min(1439, (y / TOTAL_HEIGHT) * 1440));
   }, []);
 
@@ -1127,11 +1126,13 @@ const DayColumn = React.memo(function DayColumn({
       const ts = touchState.current;
       if (!ts) return;
       const touch = e.touches[0];
-      const dy = Math.abs(touch.clientY - ts.startY);
+      const dx = touch.clientX - ts.startX;
+      const dy = touch.clientY - ts.startY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (!ts.active) {
-        // Not in active drag — if finger moves too much, cancel (let scroll happen)
-        if (dy > MOVE_THRESHOLD) {
+        // Not in active drag — if finger moves too far, cancel (let scroll happen)
+        if (dist > MOVE_THRESHOLD) {
           if (ts.timer) clearTimeout(ts.timer);
           touchState.current = null;
           return;
@@ -1140,8 +1141,8 @@ const DayColumn = React.memo(function DayColumn({
       }
 
       // Active drag — use RELATIVE movement for precision
+      // Only prevent default vertical scrolling, allow horizontal finger movement
       e.preventDefault();
-      e.stopPropagation();
       ts.moved = true;
 
       // Auto-scroll when near viewport edges
