@@ -739,67 +739,104 @@ const DayColumn = React.memo(function DayColumn({
     return "move";
   }, [isMobile, resizeEventId]);
 
-  // ── Touch handlers (mobile) ──
-  // Simple model: tap → action bubble. In resize mode → edge drag only.
-
-  const handleEventTouchStart = useCallback((ev: CalendarEvent, e: React.TouchEvent) => {
-    e.stopPropagation();
-
-    // If this event is NOT in resize mode, just let tap handle it (via touchEnd)
-    const isResizing = resizeEventId === ev.id && isDraggable(ev);
-    if (!isResizing) {
-      // Store the event for tap detection in touchEnd
-      const touch = e.touches[0];
-      touchState.current = {
-        ev,
-        mode: null,
-        startX: touch.clientX,
-        startY: touch.clientY,
-        startMinute: 0,
-        offsetInEvent: 0,
-        origStartMin: 0,
-        origEndMin: 0,
-        timer: null,
-        active: false,
-        moved: false,
-      };
-      return;
-    }
-
-    // In resize mode — start edge resize immediately
-    const touch = e.touches[0];
-    const eventEl = (e.currentTarget as HTMLElement);
-    const mode = detectEdge(touch.clientY, eventEl);
-    // Only allow resize-top and resize-bottom in resize mode, not move
-    if (mode === "move") {
-      // Touched the middle — treat as tap
-      touchState.current = {
-        ev, mode: null, startX: touch.clientX, startY: touch.clientY, startMinute: 0, offsetInEvent: 0,
-        origStartMin: 0, origEndMin: 0, timer: null, active: false, moved: false,
-      };
-      return;
-    }
-
-    const origStartMin = minuteOfDay(new Date(ev.start));
-    const origEndMin = minuteOfDay(new Date(ev.end));
-    const touchMinute = getMinuteFromY(touch.clientY);
-
-    // Prevent default to claim this touch — stops the scroll container from intercepting
-    e.preventDefault();
-
-    touchState.current = {
-      ev, mode, startX: touch.clientX, startY: touch.clientY, startMinute: touchMinute,
-      offsetInEvent: touchMinute - origStartMin, origStartMin, origEndMin,
-      timer: null, active: true, moved: false,
-    };
-    didInteractRef.current = true;
-    const startVal = mode === "resize-top" ? origStartMin : origEndMin;
-    onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
-  }, [resizeEventId, onDragStart, getMinuteFromY, detectEdge]);
+  // ── Touch handlers (mobile) — 100% native listeners ──
+  // We use refs for values that the native handlers need so closures always
+  // read fresh state without requiring the effect to re-register on every render.
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+  const resizeEventIdRef = useRef(resizeEventId);
+  resizeEventIdRef.current = resizeEventId;
+  const onEventTapRef = useRef(onEventTap);
+  onEventTapRef.current = onEventTap;
+  const onDragStartRef = useRef(onDragStart);
+  onDragStartRef.current = onDragStart;
+  const onDragUpdateRef = useRef(onDragUpdate);
+  onDragUpdateRef.current = onDragUpdate;
+  const onDragEndRef = useRef(onDragEnd);
+  onDragEndRef.current = onDragEnd;
+  const onDragCancelRef = useRef(onDragCancel);
+  onDragCancelRef.current = onDragCancel;
 
   useEffect(() => {
     const col = colRef.current;
     if (!col) return;
+
+    // Find the event id from a touch target by walking up the DOM
+    const findEventId = (el: HTMLElement | null): string | null => {
+      while (el && el !== col) {
+        if (el.dataset.eventId) return el.dataset.eventId;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const findEventEl = (el: HTMLElement | null): HTMLElement | null => {
+      while (el && el !== col) {
+        if (el.dataset.eventId) return el;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      const eventId = findEventId(target);
+      if (!eventId) return; // touch on empty space — let swipe/scroll handle it
+
+      const ev = eventsRef.current.find((ev) => ev.id === eventId);
+      if (!ev) return;
+
+      const touch = e.touches[0];
+      const isResizing = resizeEventIdRef.current === ev.id && isDraggable(ev);
+
+      if (!isResizing) {
+        // Not in resize mode — just record for tap detection in touchEnd
+        touchState.current = {
+          ev, mode: null,
+          startX: touch.clientX, startY: touch.clientY,
+          startMinute: 0, offsetInEvent: 0, origStartMin: 0, origEndMin: 0,
+          timer: null, active: false, moved: false,
+        };
+        return;
+      }
+
+      // In resize mode — detect edge
+      const eventEl = findEventEl(target);
+      if (!eventEl) return;
+
+      const rect = eventEl.getBoundingClientRect();
+      const topDist = touch.clientY - rect.top;
+      const bottomDist = rect.bottom - touch.clientY;
+      const zone = 24; // big zone in resize mode
+      let mode: DragMode;
+      if (topDist <= zone) mode = "resize-top";
+      else if (bottomDist <= zone) mode = "resize-bottom";
+      else {
+        // Middle — treat as tap
+        touchState.current = {
+          ev, mode: null, startX: touch.clientX, startY: touch.clientY,
+          startMinute: 0, offsetInEvent: 0, origStartMin: 0, origEndMin: 0,
+          timer: null, active: false, moved: false,
+        };
+        return;
+      }
+
+      const origStartMin = minuteOfDay(new Date(ev.start));
+      const origEndMin = minuteOfDay(new Date(ev.end));
+      const touchMinute = getMinuteFromY(touch.clientY);
+
+      // Claim this touch — prevent scroll
+      e.preventDefault();
+
+      touchState.current = {
+        ev, mode, startX: touch.clientX, startY: touch.clientY, startMinute: touchMinute,
+        offsetInEvent: touchMinute - origStartMin, origStartMin, origEndMin,
+        timer: null, active: true, moved: false,
+      };
+      didInteractRef.current = true;
+      const startVal = mode === "resize-top" ? origStartMin : origEndMin;
+      onDragStartRef.current({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
+    };
 
     const handleTouchMove = (e: TouchEvent) => {
       const ts = touchState.current;
@@ -814,7 +851,6 @@ const DayColumn = React.memo(function DayColumn({
           touchState.current = null;
           return;
         }
-        // Don't preventDefault here — allow scroll
         return;
       }
 
@@ -828,10 +864,10 @@ const DayColumn = React.memo(function DayColumn({
 
       if (mode === "resize-top") {
         const newTop = snap(currentMinute);
-        onDragUpdate(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
+        onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
       } else if (mode === "resize-bottom") {
         const newBottom = snap(currentMinute);
-        onDragUpdate(clamp(newBottom, ts.origStartMin + MIN_DURATION, 1440));
+        onDragUpdateRef.current(clamp(newBottom, ts.origStartMin + MIN_DURATION, 1440));
       }
     };
 
@@ -840,15 +876,13 @@ const DayColumn = React.memo(function DayColumn({
       if (!ts) return;
       if (ts.timer) clearTimeout(ts.timer);
       if (ts.active && ts.moved) {
-        // Resize completed
-        onDragEnd();
+        onDragEndRef.current();
       } else if (ts.active) {
-        // Started resize but didn't move — cancel
-        onDragCancel();
+        onDragCancelRef.current();
       } else {
-        // Simple tap — show action bubble (mobile) or detail (desktop handled elsewhere)
-        onEventTap(ts.ev, { x: ts.startX, y: ts.startY });
-        didInteractRef.current = true; // suppress the synthetic onClick
+        // Simple tap
+        onEventTapRef.current(ts.ev, { x: ts.startX, y: ts.startY });
+        didInteractRef.current = true;
       }
       touchState.current = null;
     };
@@ -856,19 +890,21 @@ const DayColumn = React.memo(function DayColumn({
     const handleTouchCancel = () => {
       const ts = touchState.current;
       if (ts?.timer) clearTimeout(ts.timer);
-      if (ts?.active) onDragCancel();
+      if (ts?.active) onDragCancelRef.current();
       touchState.current = null;
     };
 
+    col.addEventListener("touchstart", handleTouchStart, { passive: false });
     col.addEventListener("touchmove", handleTouchMove, { passive: false });
     col.addEventListener("touchend", handleTouchEnd, { passive: true });
     col.addEventListener("touchcancel", handleTouchCancel, { passive: true });
     return () => {
+      col.removeEventListener("touchstart", handleTouchStart);
       col.removeEventListener("touchmove", handleTouchMove);
       col.removeEventListener("touchend", handleTouchEnd);
       col.removeEventListener("touchcancel", handleTouchCancel);
     };
-  }, [getMinuteFromY, onDragUpdate, onDragEnd, onDragCancel, onEventTap]);
+  }, [getMinuteFromY]); // Stable deps only — callbacks accessed via refs
 
   // ── Mouse handlers for desktop ──
 
@@ -1036,7 +1072,6 @@ const DayColumn = React.memo(function DayColumn({
               }
               if (!isDragging) onEventTap(ev, { x: e.clientX, y: e.clientY });
             }}
-            onTouchStart={(e) => handleEventTouchStart(ev, e)}
             onMouseDown={(e) => handleMouseDown(ev, e)}
           >
             {/* Top resize handle — prominent in resize mode, subtle on desktop, hidden on mobile normally */}
@@ -1112,7 +1147,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   onDismiss: () => void;
 }) {
   const canAdjust = isDraggable(event);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const readyRef = useRef(false);
 
   // Determine which side of the screen the tap was on
   const screenW = window.innerWidth;
@@ -1138,66 +1173,36 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 
   const arrowTop = Math.max(10, Math.min(tapY - bubbleTop, bubbleH - 10));
 
-  // Wire up ALL touch handling via native listeners to bypass React synthetic event issues on iOS
+  // Small delay before enabling interactions to prevent the tap that opened
+  // the bubble from immediately triggering dismiss
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const timer = setTimeout(() => { readyRef.current = true; }, 120);
+    return () => clearTimeout(timer);
+  }, []);
 
-    const viewBtn = container.querySelector("[data-action='view']") as HTMLElement;
-    const adjustBtn = container.querySelector("[data-action='adjust']") as HTMLElement;
-    const backdrop = container.querySelector("[data-action='backdrop']") as HTMLElement;
+  const handleView = useCallback((e: React.PointerEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onView();
+  }, [onView]);
 
-    let handled = false;
+  const handleAdjust = useCallback((e: React.PointerEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onAdjust();
+  }, [onAdjust]);
 
-    const onViewTouch = (e: Event) => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (handled) return;
-      handled = true;
-      onView();
-    };
-
-    const onAdjustTouch = (e: Event) => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (handled) return;
-      handled = true;
-      onAdjust();
-    };
-
-    const onBackdropTouch = (e: Event) => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (handled) return;
-      handled = true;
-      onDismiss();
-    };
-
-    // Use a small delay to avoid the same touch that opened the bubble from triggering dismiss
-    const timer = setTimeout(() => {
-      viewBtn?.addEventListener("touchstart", onViewTouch, { passive: false, capture: true });
-      viewBtn?.addEventListener("click", onViewTouch);
-      adjustBtn?.addEventListener("touchstart", onAdjustTouch, { passive: false, capture: true });
-      adjustBtn?.addEventListener("click", onAdjustTouch);
-      backdrop?.addEventListener("touchstart", onBackdropTouch, { passive: false });
-      backdrop?.addEventListener("click", onBackdropTouch);
-    }, 80);
-
-    return () => {
-      clearTimeout(timer);
-      viewBtn?.removeEventListener("touchstart", onViewTouch, { capture: true } as EventListenerOptions);
-      viewBtn?.removeEventListener("click", onViewTouch);
-      adjustBtn?.removeEventListener("touchstart", onAdjustTouch, { capture: true } as EventListenerOptions);
-      adjustBtn?.removeEventListener("click", onAdjustTouch);
-      backdrop?.removeEventListener("touchstart", onBackdropTouch);
-      backdrop?.removeEventListener("click", onBackdropTouch);
-    };
-  }, [onView, onAdjust, onDismiss]);
+  const handleDismiss = useCallback((e: React.PointerEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!readyRef.current) return;
+    onDismiss();
+  }, [onDismiss]);
 
   return (
-    <div ref={containerRef}>
+    <>
       {/* Transparent backdrop */}
-      <div data-action="backdrop" className="fixed inset-0 z-40" />
+      <div className="fixed inset-0 z-40" onPointerDown={handleDismiss} onClick={handleDismiss} />
 
       {/* Speech bubble */}
       <div
@@ -1205,7 +1210,11 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
         style={{ top: bubbleTop, left: bubbleLeft, width: bubbleW }}
       >
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
-          <div data-action="view" className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer">
+          <div
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
+            onPointerDown={handleView}
+            onClick={handleView}
+          >
             <Eye className="w-5 h-5 text-purple-300 pointer-events-none" />
             <span className="text-sm font-medium text-white pointer-events-none">View</span>
           </div>
@@ -1213,7 +1222,11 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
           {canAdjust && <div className="w-px h-6 bg-purple-500/30" />}
 
           {canAdjust && (
-            <div data-action="adjust" className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer">
+            <div
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
+              onPointerDown={handleAdjust}
+              onClick={handleAdjust}
+            >
               <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
               <span className="text-sm font-medium text-white pointer-events-none">Adjust</span>
             </div>
@@ -1236,7 +1249,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
           }}
         />
       </div>
-    </div>
+    </>
   );
 }
 
