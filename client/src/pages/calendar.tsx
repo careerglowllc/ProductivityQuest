@@ -26,6 +26,8 @@ import {
   Clock,
   Trash2,
   CheckCircle2,
+  Eye,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,7 +75,6 @@ const HOUR_HEIGHT = 60;
 const TOTAL_HEIGHT = 24 * HOUR_HEIGHT;
 const SNAP_MINUTES = 5;
 const MIN_DURATION = 15; // minimum event length in minutes
-const LONG_PRESS_MS = 350;
 const MOVE_THRESHOLD = 8;
 const EDGE_ZONE = 10; // px from top/bottom edge that triggers resize
 
@@ -194,6 +195,12 @@ export default function CalendarPage() {
 
   // Unified drag state: covers move + resize-top + resize-bottom
   const [drag, setDrag] = useState<DragState | null>(null);
+
+  // Mobile action bubble: which event was tapped (shows eye + adjust icons)
+  const [tappedEvent, setTappedEvent] = useState<CalendarEvent | null>(null);
+
+  // Resize mode: which event is currently in "adjust" mode (shows big edge handles)
+  const [resizeEventId, setResizeEventId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -461,13 +468,23 @@ export default function CalendarPage() {
             <TimeGridView
               dates={viewDates} allEvents={allEvents} today={today} isMobile={isMobile} scrollRef={scrollRef}
               drag={drag}
+              resizeEventId={resizeEventId}
               onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd}
-              onEventTap={setSelectedEvent}
+              onEventTap={(ev) => {
+                if (isMobile) {
+                  // Mobile: show action bubble (or toggle off if same event)
+                  setTappedEvent((prev) => prev?.id === ev.id ? null : ev);
+                  setResizeEventId(null);
+                } else {
+                  // Desktop: open detail sheet directly
+                  setSelectedEvent(ev);
+                }
+              }}
               onDragStart={(ds) => setDrag(ds)}
               onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
               onDragEnd={() => { if (drag) { commitDrag(drag); setDrag(null); } }}
               onDragCancel={() => setDrag(null)}
-              onEmptyTap={(date, minute) => openNewEvent(date, minute)}
+              onEmptyTap={(date, minute) => { setTappedEvent(null); setResizeEventId(null); openNewEvent(date, minute); }}
             />
           )}
         </div>
@@ -481,6 +498,30 @@ export default function CalendarPage() {
       </div>
 
       {selectedEvent && <EventDetailSheet event={selectedEvent} isMobile={isMobile} onClose={() => setSelectedEvent(null)} onDelete={() => handleDeleteEvent(selectedEvent)} />}
+
+      {/* Mobile action bubble — shows after tapping an event */}
+      {tappedEvent && isMobile && !resizeEventId && (
+        <EventActionBubble
+          event={tappedEvent}
+          onView={() => { setSelectedEvent(tappedEvent); setTappedEvent(null); }}
+          onAdjust={() => { setResizeEventId(tappedEvent.id); setTappedEvent(null); }}
+          onDismiss={() => setTappedEvent(null)}
+        />
+      )}
+
+      {/* Resize mode banner */}
+      {resizeEventId && isMobile && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-4 py-2 shadow-xl shadow-purple-500/20 backdrop-blur-sm">
+          <SlidersHorizontal className="w-4 h-4 text-purple-400" />
+          <span className="text-sm text-white font-medium">Drag edges to resize</span>
+          <button
+            onClick={() => setResizeEventId(null)}
+            className="ml-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-3 py-1 rounded-full"
+          >
+            Done
+          </button>
+        </div>
+      )}
 
       {showNewEventModal && (
         <NewEventModal date={newEventDate} time={newEventTime} title={newEventTitle} duration={newEventDuration}
@@ -502,6 +543,7 @@ interface TimeGridViewProps {
   isMobile: boolean;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   drag: DragState | null;
+  resizeEventId: string | null;
   onSwipeStart: (e: React.TouchEvent) => void;
   onSwipeEnd: (e: React.TouchEvent) => void;
   onEventTap: (ev: CalendarEvent) => void;
@@ -512,7 +554,7 @@ interface TimeGridViewProps {
   onEmptyTap: (date: Date, minute: number) => void;
 }
 
-function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, onSwipeStart, onSwipeEnd, onEventTap, onDragStart, onDragUpdate, onDragEnd, onDragCancel, onEmptyTap }: TimeGridViewProps) {
+function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resizeEventId, onSwipeStart, onSwipeEnd, onEventTap, onDragStart, onDragUpdate, onDragEnd, onDragCancel, onEmptyTap }: TimeGridViewProps) {
   const numCols = dates.length;
   const timeLabelWidth = isMobile ? (numCols > 3 ? 28 : 36) : 56;
 
@@ -546,7 +588,7 @@ function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, onSw
         {dates.map((date, colIdx) => (
           <DayColumn key={`${date.toISOString()}-${colIdx}`} date={date} events={getEventsForDate(allEvents, date)}
             isToday={sameDay(date, today)} isMobile={isMobile} numCols={numCols}
-            drag={drag}
+            drag={drag} resizeEventId={resizeEventId}
             onEventTap={onEventTap} onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onDragCancel={onDragCancel}
             onEmptyTap={(minute) => onEmptyTap(date, minute)} />
         ))}
@@ -617,6 +659,7 @@ function MonthView({ year, month, allEvents, today, isMobile, onSwipeStart, onSw
 interface DayColumnProps {
   date: Date; events: CalendarEvent[]; isToday: boolean; isMobile: boolean; numCols: number;
   drag: DragState | null;
+  resizeEventId: string | null;
   onEventTap: (ev: CalendarEvent) => void;
   onDragStart: (ds: DragState) => void;
   onDragUpdate: (minute: number) => void;
@@ -626,7 +669,7 @@ interface DayColumnProps {
 }
 
 const DayColumn = React.memo(function DayColumn({
-  date, events, isToday, isMobile, numCols, drag,
+  date, events, isToday, isMobile, numCols, drag, resizeEventId,
   onEventTap, onDragStart, onDragUpdate, onDragEnd, onDragCancel, onEmptyTap,
 }: DayColumnProps) {
   const colRef = useRef<HTMLDivElement>(null);
@@ -663,61 +706,67 @@ const DayColumn = React.memo(function DayColumn({
     const rect = eventEl.getBoundingClientRect();
     const topDist = clientY - rect.top;
     const bottomDist = rect.bottom - clientY;
-    // On mobile use slightly bigger zone
-    const zone = isMobile ? EDGE_ZONE + 4 : EDGE_ZONE;
+    // In resize mode, use a much bigger zone for easy grabbing
+    const isResizeActive = resizeEventId !== null;
+    const zone = isResizeActive ? 24 : (isMobile ? EDGE_ZONE + 4 : EDGE_ZONE);
     if (topDist <= zone) return "resize-top";
     if (bottomDist <= zone) return "resize-bottom";
     return "move";
-  }, [isMobile]);
+  }, [isMobile, resizeEventId]);
 
-  // ── Touch handlers ──
+  // ── Touch handlers (mobile) ──
+  // Simple model: tap → action bubble. In resize mode → edge drag only.
 
   const handleEventTouchStart = useCallback((ev: CalendarEvent, e: React.TouchEvent) => {
     e.stopPropagation();
-    // For non-draggable events, let onClick handle it
-    if (!isDraggable(ev)) return;
 
+    // If this event is NOT in resize mode, just let tap handle it (via touchEnd)
+    const isResizing = resizeEventId === ev.id && isDraggable(ev);
+    if (!isResizing) {
+      // Store the event for tap detection in touchEnd
+      const touch = e.touches[0];
+      touchState.current = {
+        ev,
+        mode: null,
+        startY: touch.clientY,
+        startMinute: 0,
+        offsetInEvent: 0,
+        origStartMin: 0,
+        origEndMin: 0,
+        timer: null,
+        active: false,
+        moved: false,
+      };
+      return;
+    }
+
+    // In resize mode — start edge resize immediately
     const touch = e.touches[0];
     const eventEl = (e.currentTarget as HTMLElement);
     const mode = detectEdge(touch.clientY, eventEl);
+    // Only allow resize-top and resize-bottom in resize mode, not move
+    if (mode === "move") {
+      // Touched the middle — treat as tap
+      touchState.current = {
+        ev, mode: null, startY: touch.clientY, startMinute: 0, offsetInEvent: 0,
+        origStartMin: 0, origEndMin: 0, timer: null, active: false, moved: false,
+      };
+      return;
+    }
+
     const origStartMin = minuteOfDay(new Date(ev.start));
     const origEndMin = minuteOfDay(new Date(ev.end));
     const touchMinute = getMinuteFromY(touch.clientY);
 
-    const state = {
-      ev,
-      mode: mode as DragMode | null,
-      startY: touch.clientY,
-      startMinute: touchMinute,
-      offsetInEvent: touchMinute - origStartMin,
-      origStartMin,
-      origEndMin,
-      timer: null as ReturnType<typeof setTimeout> | null,
-      active: false,
-      moved: false,
+    touchState.current = {
+      ev, mode, startY: touch.clientY, startMinute: touchMinute,
+      offsetInEvent: touchMinute - origStartMin, origStartMin, origEndMin,
+      timer: null, active: true, moved: false,
     };
-
-    if (mode === "resize-top" || mode === "resize-bottom") {
-      // Edge resize starts immediately (no long press needed)
-      state.active = true;
-      state.timer = null;
-      didInteractRef.current = true;
-      const startVal = mode === "resize-top" ? origStartMin : origEndMin;
-      onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
-    } else {
-      // Move requires long press
-      state.mode = null; // undecided until long press fires
-      state.timer = setTimeout(() => {
-        state.active = true;
-        state.mode = "move";
-        didInteractRef.current = true;
-        onDragStart({ event: ev, mode: "move", minute: origStartMin, origStartMin, origEndMin });
-        if (navigator.vibrate) navigator.vibrate(30);
-      }, LONG_PRESS_MS);
-    }
-
-    touchState.current = state;
-  }, [onDragStart, getMinuteFromY, detectEdge]);
+    didInteractRef.current = true;
+    const startVal = mode === "resize-top" ? origStartMin : origEndMin;
+    onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
+  }, [resizeEventId, onDragStart, getMinuteFromY, detectEdge]);
 
   useEffect(() => {
     const col = colRef.current;
@@ -730,17 +779,17 @@ const DayColumn = React.memo(function DayColumn({
       const dy = Math.abs(touch.clientY - ts.startY);
 
       if (!ts.active) {
-        // Waiting for long press
+        // Not in active drag — if finger moves too much, cancel (let scroll happen)
         if (dy > MOVE_THRESHOLD) {
           if (ts.timer) clearTimeout(ts.timer);
           touchState.current = null;
-          return; // let scroll happen
+          return;
         }
-        e.preventDefault();
+        // Don't preventDefault here — allow scroll
         return;
       }
 
-      // Active drag/resize
+      // Active resize drag
       e.preventDefault();
       e.stopPropagation();
       ts.moved = true;
@@ -748,11 +797,7 @@ const DayColumn = React.memo(function DayColumn({
       const currentMinute = getMinuteFromY(touch.clientY);
       const mode = ts.mode!;
 
-      if (mode === "move") {
-        // Move: new start = touch position minus the offset where we grabbed
-        const newStart = snap(currentMinute - ts.offsetInEvent);
-        onDragUpdate(clamp(newStart, 0, 1440 - MIN_DURATION));
-      } else if (mode === "resize-top") {
+      if (mode === "resize-top") {
         const newTop = snap(currentMinute);
         onDragUpdate(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
       } else if (mode === "resize-bottom") {
@@ -766,11 +811,13 @@ const DayColumn = React.memo(function DayColumn({
       if (!ts) return;
       if (ts.timer) clearTimeout(ts.timer);
       if (ts.active && ts.moved) {
+        // Resize completed
         onDragEnd();
       } else if (ts.active) {
+        // Started resize but didn't move — cancel
         onDragCancel();
       } else {
-        // Was just a tap (no long-press activated, no resize started) → open detail
+        // Simple tap — show action bubble (mobile) or detail (desktop handled elsewhere)
         onEventTap(ts.ev);
         didInteractRef.current = true; // suppress the synthetic onClick
       }
@@ -934,46 +981,56 @@ const DayColumn = React.memo(function DayColumn({
         const width = `calc(${colW}% - 2px)`;
         const color = eventColor(ev);
         const draggable = isDraggable(ev);
+        const isInResizeMode = resizeEventId === ev.id && draggable;
 
         return (
           <div
             key={ev.id}
             data-event-id={ev.id}
-            className={`absolute rounded-md border-l-[3px] overflow-hidden select-none transition-shadow ${
-              isDragging ? "z-30 shadow-xl shadow-purple-500/30 opacity-90 scale-x-[1.02]" : "z-10 hover:brightness-110"
+            className={`absolute rounded-md border-l-[3px] select-none transition-all duration-150 ${
+              isDragging ? "z-30 shadow-xl shadow-purple-500/30 opacity-90 scale-x-[1.02]" :
+              isInResizeMode ? "z-30 ring-2 ring-purple-400/70 shadow-lg shadow-purple-500/30" :
+              "z-10 hover:brightness-110"
             } ${ev.completed ? "opacity-50" : ""} ${draggable && !isMobile ? "cursor-grab" : "cursor-pointer"}`}
             style={{
               top: visTop, height: visHeight, left, width,
               borderLeftColor: color,
-              backgroundColor: color + "25",
-              touchAction: draggable && isMobile ? "none" : undefined,
+              backgroundColor: isInResizeMode ? color + "40" : color + "25",
+              overflow: isInResizeMode ? "visible" : "hidden",
+              touchAction: isInResizeMode ? "none" : undefined,
             }}
             onClick={(e) => {
               e.stopPropagation();
-              // Suppress onClick if a drag/resize/touch-tap already handled it
               if (didInteractRef.current) {
                 didInteractRef.current = false;
                 return;
               }
-              // On mobile, non-draggable events get tapped via onClick (touchStart didn't handle them)
               if (!isDragging) onEventTap(ev);
             }}
             onTouchStart={(e) => handleEventTouchStart(ev, e)}
             onMouseDown={(e) => handleMouseDown(ev, e)}
           >
-            {/* Top resize handle */}
-            {draggable && (
+            {/* Top resize handle — prominent in resize mode, subtle on desktop, hidden on mobile normally */}
+            {((isInResizeMode) || (draggable && !isMobile)) && (
               <div
                 className={`absolute top-0 left-0 right-0 z-20 flex justify-center items-start ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{ height: isMobile ? 14 : 10 }}
+                style={{ height: isInResizeMode ? 22 : 10 }}
               >
-                <div className={`rounded-full bg-white/40 ${isDragging && drag?.mode === "resize-top" ? "bg-white/80" : ""}`}
-                  style={{ width: 20, height: 3, marginTop: 2 }} />
+                <div className={`rounded-full transition-all ${
+                  isInResizeMode
+                    ? "bg-purple-400 shadow-md shadow-purple-400/50 -translate-y-1"
+                    : isDragging && drag?.mode === "resize-top" ? "bg-white/80" : "bg-white/40"
+                }`}
+                  style={{
+                    width: isInResizeMode ? 32 : 20,
+                    height: isInResizeMode ? 5 : 3,
+                    marginTop: isInResizeMode ? 0 : 2,
+                  }} />
               </div>
             )}
 
             {/* Event content */}
-            <div className="px-1.5 py-0.5 h-full flex flex-col justify-start" style={{ paddingTop: draggable ? 6 : 2 }}>
+            <div className="px-1.5 py-0.5 h-full flex flex-col justify-start overflow-hidden" style={{ paddingTop: (isInResizeMode || (draggable && !isMobile)) ? 6 : 2 }}>
               <div className="flex items-center gap-1 min-w-0">
                 {ev.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
                 <span className={`text-[10px] font-semibold truncate ${ev.completed ? "line-through text-gray-400" : "text-white"}`}>{ev.title}</span>
@@ -989,13 +1046,21 @@ const DayColumn = React.memo(function DayColumn({
             </div>
 
             {/* Bottom resize handle */}
-            {draggable && (
+            {((isInResizeMode) || (draggable && !isMobile)) && (
               <div
                 className={`absolute bottom-0 left-0 right-0 z-20 flex justify-center items-end ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{ height: isMobile ? 14 : 10 }}
+                style={{ height: isInResizeMode ? 22 : 10 }}
               >
-                <div className={`rounded-full bg-white/40 ${isDragging && drag?.mode === "resize-bottom" ? "bg-white/80" : ""}`}
-                  style={{ width: 20, height: 3, marginBottom: 2 }} />
+                <div className={`rounded-full transition-all ${
+                  isInResizeMode
+                    ? "bg-purple-400 shadow-md shadow-purple-400/50 translate-y-1"
+                    : isDragging && drag?.mode === "resize-bottom" ? "bg-white/80" : "bg-white/40"
+                }`}
+                  style={{
+                    width: isInResizeMode ? 32 : 20,
+                    height: isInResizeMode ? 5 : 3,
+                    marginBottom: isInResizeMode ? 0 : 2,
+                  }} />
               </div>
             )}
           </div>
@@ -1004,6 +1069,56 @@ const DayColumn = React.memo(function DayColumn({
     </div>
   );
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+//  EventActionBubble — mobile tap submenu (view detail / adjust time)
+// ═══════════════════════════════════════════════════════════════════════
+
+function EventActionBubble({ event, onView, onAdjust, onDismiss }: {
+  event: CalendarEvent;
+  onView: () => void;
+  onAdjust: () => void;
+  onDismiss: () => void;
+}) {
+  const color = eventColor(event);
+  const canAdjust = isDraggable(event);
+
+  return (
+    <>
+      {/* Transparent backdrop to dismiss on tap elsewhere */}
+      <div className="fixed inset-0 z-40" onClick={onDismiss} onTouchStart={onDismiss} />
+
+      {/* Floating action bubble */}
+      <div
+        className="fixed z-50 flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+        style={{ top: "40%", left: "50%", transform: "translateX(-50%)" }}
+      >
+        {/* View detail */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onView(); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors"
+        >
+          <Eye className="w-5 h-5 text-purple-300" />
+          <span className="text-sm font-medium text-white">View</span>
+        </button>
+
+        {/* Divider */}
+        {canAdjust && <div className="w-px h-6 bg-purple-500/30" />}
+
+        {/* Adjust time / resize */}
+        {canAdjust && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAdjust(); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors"
+          >
+            <SlidersHorizontal className="w-5 h-5 text-purple-300" />
+            <span className="text-sm font-medium text-white">Adjust</span>
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 //  EventDetailSheet
