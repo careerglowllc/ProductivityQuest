@@ -742,7 +742,7 @@ const DayColumn = React.memo(function DayColumn({
     const bottomDist = rect.bottom - clientY;
     // In resize mode, use a much bigger zone for easy grabbing
     const isResizeActive = resizeEventId !== null;
-    const zone = isResizeActive ? 24 : (isMobile ? EDGE_ZONE + 4 : EDGE_ZONE);
+    const zone = isResizeActive ? 36 : (isMobile ? EDGE_ZONE + 4 : EDGE_ZONE);
     if (topDist <= zone) return "resize-top";
     if (bottomDist <= zone) return "resize-bottom";
     return "move";
@@ -816,7 +816,7 @@ const DayColumn = React.memo(function DayColumn({
       const rect = eventEl.getBoundingClientRect();
       const topDist = touch.clientY - rect.top;
       const bottomDist = rect.bottom - touch.clientY;
-      const zone = 24; // big zone in resize mode
+      const zone = 36; // generous zone for finger-sized touch targets
       let mode: DragMode;
       if (topDist <= zone) mode = "resize-top";
       else if (bottomDist <= zone) mode = "resize-bottom";
@@ -863,19 +863,20 @@ const DayColumn = React.memo(function DayColumn({
         return;
       }
 
-      // Active resize drag
+      // Active resize drag — use RELATIVE movement for precision
       e.preventDefault();
       e.stopPropagation();
       ts.moved = true;
 
       const currentMinute = getMinuteFromY(touch.clientY);
+      const deltaMinutes = currentMinute - ts.startMinute;
       const mode = ts.mode!;
 
       if (mode === "resize-top") {
-        const newTop = snap(currentMinute);
+        const newTop = snap(ts.origStartMin + deltaMinutes);
         onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
       } else if (mode === "resize-bottom") {
-        const newBottom = snap(currentMinute);
+        const newBottom = snap(ts.origEndMin + deltaMinutes);
         onDragUpdateRef.current(clamp(newBottom, ts.origStartMin + MIN_DURATION, 1440));
       }
     };
@@ -1087,16 +1088,16 @@ const DayColumn = React.memo(function DayColumn({
             {((isInResizeMode) || (draggable && !isMobile)) && (
               <div
                 className={`absolute top-0 left-0 right-0 z-20 flex justify-center items-start ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{ height: isInResizeMode ? 22 : 10 }}
+                style={{ height: isInResizeMode ? 30 : 10 }}
               >
                 <div className={`rounded-full transition-all ${
                   isInResizeMode
-                    ? "bg-purple-400 shadow-md shadow-purple-400/50 -translate-y-1"
+                    ? "bg-purple-400 shadow-md shadow-purple-400/50 -translate-y-1.5"
                     : isDragging && drag?.mode === "resize-top" ? "bg-white/80" : "bg-white/40"
                 }`}
                   style={{
-                    width: isInResizeMode ? 32 : 20,
-                    height: isInResizeMode ? 5 : 3,
+                    width: isInResizeMode ? 40 : 20,
+                    height: isInResizeMode ? 6 : 3,
                     marginTop: isInResizeMode ? 0 : 2,
                   }} />
               </div>
@@ -1122,16 +1123,16 @@ const DayColumn = React.memo(function DayColumn({
             {((isInResizeMode) || (draggable && !isMobile)) && (
               <div
                 className={`absolute bottom-0 left-0 right-0 z-20 flex justify-center items-end ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{ height: isInResizeMode ? 22 : 10 }}
+                style={{ height: isInResizeMode ? 30 : 10 }}
               >
                 <div className={`rounded-full transition-all ${
                   isInResizeMode
-                    ? "bg-purple-400 shadow-md shadow-purple-400/50 translate-y-1"
+                    ? "bg-purple-400 shadow-md shadow-purple-400/50 translate-y-1.5"
                     : isDragging && drag?.mode === "resize-bottom" ? "bg-white/80" : "bg-white/40"
                 }`}
                   style={{
-                    width: isInResizeMode ? 32 : 20,
-                    height: isInResizeMode ? 5 : 3,
+                    width: isInResizeMode ? 40 : 20,
+                    height: isInResizeMode ? 6 : 3,
                     marginBottom: isInResizeMode ? 0 : 2,
                   }} />
               </div>
