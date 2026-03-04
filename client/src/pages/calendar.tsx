@@ -1187,18 +1187,19 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   const arrowTop = Math.max(10, Math.min(pos.centerY - bubbleTop, bubbleH - 10));
 
   // Everything is inside ONE full-screen fixed overlay (z-50).
-  // The overlay itself is the dismiss target. The buttons sit on top within it.
-  // This avoids all z-index stacking / competing listener problems.
+  // Buttons use onPointerDown (fires immediately on iOS before any other event).
+  // A ref guards against the overlay dismiss firing after a button press.
+  const actionTakenRef = useRef(false);
+
   return (
     <div
       className="fixed inset-0 z-50"
-      onTouchEnd={(e) => {
-        // If touch ended on a button, the button's own handler fires first
-        // and stops propagation. If it reaches here, it's a dismiss.
-        onDismiss();
-      }}
-      onClick={(e) => {
-        onDismiss();
+      onPointerDown={() => {
+        // Small delay: if a button's onPointerDown already fired and set
+        // actionTakenRef, don't dismiss.
+        setTimeout(() => {
+          if (!actionTakenRef.current) onDismiss();
+        }, 0);
       }}
     >
       {/* Speech bubble — positioned absolutely within the overlay */}
@@ -1209,8 +1210,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
           <div
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none"
-            onTouchEnd={(e) => { e.stopPropagation(); onView(); }}
-            onClick={(e) => { e.stopPropagation(); onView(); }}
+            onPointerDown={(e) => { e.stopPropagation(); actionTakenRef.current = true; onView(); }}
           >
             <Eye className="w-5 h-5 text-purple-300 pointer-events-none" />
             <span className="text-sm font-medium text-white pointer-events-none select-none">View</span>
@@ -1221,8 +1221,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
           {canAdjust && (
             <div
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none"
-              onTouchEnd={(e) => { e.stopPropagation(); onAdjust(); }}
-              onClick={(e) => { e.stopPropagation(); onAdjust(); }}
+              onPointerDown={(e) => { e.stopPropagation(); actionTakenRef.current = true; onAdjust(); }}
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
               <span className="text-sm font-medium text-white pointer-events-none select-none">Adjust</span>
