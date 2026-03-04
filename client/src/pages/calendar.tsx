@@ -1,30 +1,32 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Settings, Plus, Trash2, Clock, Undo2, Sparkles, CalendarX2, CalendarMinus, CheckCircle2, ChevronLeft, ChevronRight, X, Info, CalendarCheck } from "lucide-react";
-import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ToastAction } from "@/components/ui/toast";
-import { useState, useEffect, useRef, useCallback } from "react";
+/**
+ * Calendar Page — Apple Calendar-style UI
+ *
+ * Clean, touch-first calendar with Day / 3-Day / Week / Month views.
+ * Syncs with Google Calendar and ProductivityQuest tasks.
+ */
+
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useToast } from "@/hooks/use-toast";
-import { useCalendarTouch } from "@/hooks/use-calendar-touch";
-import { CalendarEventBlock, getEventStyle } from "@/components/calendar-event-block";
-import { MLSortFeedbackModal } from "@/components/ml-sort-feedback-modal";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
-import React from "react";
+import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Settings,
+  X,
+  Clock,
+  Trash2,
+  CheckCircle2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-type UserSettings = {
-  googleCalendarSyncEnabled?: boolean;
-  googleCalendarSyncDirection?: string;
-  googleCalendarClientId?: string | null;
-  googleCalendarClientSecret?: string | null;
-  googleCalendarAccessToken?: string | null;
-  googleCalendarLastSync?: Date | null;
-};
+// ─── Types ──────────────────────────────────────────────────────────────
 
-type CalendarEvent = {
+interface CalendarEvent {
   id: string;
   title: string;
   start: string;
@@ -40,3326 +42,976 @@ type CalendarEvent = {
   calendarColor?: string;
   calendarName?: string;
   recurType?: string;
-};
+  googleEventId?: string;
+}
 
-export default function Calendar() {
-  const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  const { toast } = useToast();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  
-  // Load saved view preference from localStorage, default to 'month'
-  const [view, setView] = useState<'day' | '3day' | 'week' | 'month'>(() => {
-    const savedView = localStorage.getItem('calendarView');
-    if (savedView === 'day' || savedView === '3day' || savedView === 'week' || savedView === 'month') {
-      return savedView;
-    }
-    return 'month';
+type ViewMode = "day" | "3day" | "week" | "month";
+
+// ─── Constants ──────────────────────────────────────────────────────────
+
+const HOUR_HEIGHT = 60;
+const TOTAL_HEIGHT = 24 * HOUR_HEIGHT;
+const SNAP_MINUTES = 5;
+const LONG_PRESS_MS = 400;
+const MOVE_THRESHOLD = 8;
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NAMES_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function formatHour(h: number): string {
+  if (h === 0) return "12 AM";
+  if (h < 12) return `${h} AM`;
+  if (h === 12) return "12 PM";
+  return `${h - 12} PM`;
+}
+
+function formatHourCompact(h: number): string {
+  if (h === 0) return "12a";
+  if (h < 12) return `${h}a`;
+  if (h === 12) return "12p";
+  return `${h - 12}p`;
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   });
-  
+}
+
+function minuteOfDay(d: Date): number {
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function snapMinutes(m: number): number {
+  return Math.round(m / SNAP_MINUTES) * SNAP_MINUTES;
+}
+
+function eventColor(ev: CalendarEvent): string {
+  if (ev.calendarColor) return ev.calendarColor;
+  if (ev.completed) return "#6b7280";
+  switch (ev.importance) {
+    case "Pareto":
+    case "High":
+      return "#ef4444";
+    case "Med-High":
+      return "#f97316";
+    case "Medium":
+      return "#eab308";
+    case "Med-Low":
+      return "#3b82f6";
+    case "Low":
+      return "#22c55e";
+    default:
+      return "#a855f7";
+  }
+}
+
+function isDraggable(ev: CalendarEvent): boolean {
+  return ev.source === "productivityquest" || ev.source === "standalone";
+}
+
+function layoutEvents(events: CalendarEvent[]): Map<string, { col: number; total: number }> {
+  const result = new Map<string, { col: number; total: number }>();
+  if (!events.length) return result;
+
+  const sorted = [...events].sort((a, b) => {
+    const diff = new Date(a.start).getTime() - new Date(b.start).getTime();
+    if (diff !== 0) return diff;
+    return new Date(b.end).getTime() - new Date(a.end).getTime();
+  });
+
+  const columns: { end: number; id: string }[][] = [];
+
+  for (const ev of sorted) {
+    const start = minuteOfDay(new Date(ev.start));
+    const end = minuteOfDay(new Date(ev.end));
+    let placed = false;
+    for (let c = 0; c < columns.length; c++) {
+      const col = columns[c];
+      const lastEnd = col[col.length - 1].end;
+      if (start >= lastEnd) {
+        col.push({ end, id: ev.id });
+        result.set(ev.id, { col: c, total: 0 });
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      columns.push([{ end, id: ev.id }]);
+      result.set(ev.id, { col: columns.length - 1, total: 0 });
+    }
+  }
+
+  const totalCols = columns.length;
+  result.forEach((layout) => {
+    layout.total = totalCols;
+  });
+  return result;
+}
+
+function getEventsForDate(events: CalendarEvent[], date: Date): CalendarEvent[] {
+  return events.filter((ev) => sameDay(new Date(ev.start), date));
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────
+
+export default function CalendarPage() {
+  const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem("calendarView");
+    return (saved as ViewMode) || (isMobile ? "3day" : "week");
+  });
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
-  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const dayViewRef = useRef<HTMLDivElement>(null);
-  const threeDayViewRef = useRef<HTMLDivElement>(null);
-  const weekViewRef = useRef<HTMLDivElement>(null);
-  const autoScrollInterval = useRef<NodeJS.Timeout | null>(null);
-  
-  // Drag and resize state
-  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
-  const [resizingEvent, setResizingEvent] = useState<CalendarEvent | null>(null);
-  const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom' | null>(null);
-  const [dragStartY, setDragStartY] = useState<number>(0);
-  const [dragStartScrollTop, setDragStartScrollTop] = useState<number>(0);
-  const [dragStartTime, setDragStartTime] = useState<Date | null>(null);
-  const [tempEventTime, setTempEventTime] = useState<{ start: Date; end: Date } | null>(null);
-  const [hasDragged, setHasDragged] = useState(false);
-  const [hasResized, setHasResized] = useState(false);
-
-  // Mobile long-press-to-drag is handled by useCalendarTouch hook (see below)
-
-  // Multi-select state for drag selection
-  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectionBox, setSelectionBox] = useState<{
-    startX: number;
-    startY: number;
-    currentX: number;
-    currentY: number;
-  } | null>(null);
-  const calendarContainerRef = useRef<HTMLDivElement>(null);
-
-  // Swipe navigation state (mobile only)
-  const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
-  const [swipeOffsetX, setSwipeOffsetX] = useState(0);
-  const [swipeAnimating, setSwipeAnimating] = useState(false);
-  const swipeLockedRef = useRef<'horizontal' | 'vertical' | null>(null);
-
-  // ── Modal swipe-down-to-close state (mobile) ──
-  const modalSwipeRef = useRef<{
-    startY: number;
-    lastY: number;
-    lastTime: number;
-    velocity: number;
-    dragging: boolean;
-  } | null>(null);
-  const [modalSwipeOffsetY, setModalSwipeOffsetY] = useState(0);
-  const [modalSwipeDismissing, setModalSwipeDismissing] = useState(false);
-  const modalTouchElRef = useRef<HTMLDivElement | null>(null);
-  const modalListenersAttachedRef = useRef(false);
-
-  // Undo state - stores the last change for undo functionality
-  const [undoStack, setUndoStack] = useState<{
-    taskId: string;
-    previousState: {
-      start: string;
-      end: string;
-      duration: number;
-      dueDate?: string;
-      scheduledTime?: string;
-    };
-    currentState: {
-      start: string;
-      end: string;
-      duration: number;
-      dueDate?: string;
-      scheduledTime?: string;
-    };
-  } | null>(null);
-
-  // ML Sorting state
-  const [showMLFeedback, setShowMLFeedback] = useState(false);
-  const [mlSortData, setMLSortData] = useState<{
-    originalSchedule: any[];
-    sortedSchedule: any[];
-    taskMetadata: any[];
-  } | null>(null);
-  const [isSorting, setIsSorting] = useState(false);
-
-  // New Event modal state
   const [showNewEventModal, setShowNewEventModal] = useState(false);
-  const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
-  const [newEventStartTime, setNewEventStartTime] = useState("09:00");
+  const [newEventTime, setNewEventTime] = useState("09:00");
+  const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventDuration, setNewEventDuration] = useState("60");
-  const [newEventDescription, setNewEventDescription] = useState("");
-  const [newEventColor, setNewEventColor] = useState("#8b5cf6");
-  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [dragEvent, setDragEvent] = useState<CalendarEvent | null>(null);
+  const [dragMinute, setDragMinute] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Save view preference whenever it changes
   useEffect(() => {
-    localStorage.setItem('calendarView', view);
+    localStorage.setItem("calendarView", view);
   }, [view]);
 
-  // Keyboard shortcuts: Undo (Cmd+Z) and Delete selected events (Delete/Backspace)
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      // Check for Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-        return;
-      }
-      
-      // Delete/Backspace to delete selected events
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEventIds.size > 0) {
-        // Don't delete if user is typing in an input
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-          return;
-        }
-        e.preventDefault();
-        await handleDeleteSelectedEvents();
-      }
-      
-      // Escape to clear selection
-      if (e.key === 'Escape') {
-        setSelectedEventIds(new Set());
-        setSelectedEvent(null);
-        setShowDeleteMenu(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undoStack]); // Re-attach listener when undoStack changes
-
-  // Cleanup auto-scroll interval on unmount
-  useEffect(() => {
-    return () => {
-      if (autoScrollInterval.current) {
-        clearInterval(autoScrollInterval.current);
-      }
-    };
-  }, []);
-
-  // Auto-scroll to current time in Day, 3-Day, and Week views
-  useEffect(() => {
-    const scrollToCurrentTime = () => {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      // Match the current time indicator position: hour * 60 + minute offset
-      const scrollPosition = currentHour * 60 + (currentMinute / 60) * 60;
-      
-      if (view === 'day' && dayViewRef.current) {
-        dayViewRef.current.scrollTo({
-          top: scrollPosition - 100, // Offset to show some context above
-          behavior: 'smooth'
-        });
-      } else if (view === '3day' && threeDayViewRef.current) {
-        threeDayViewRef.current.scrollTo({
-          top: scrollPosition - 100,
-          behavior: 'smooth'
-        });
-      } else if (view === 'week' && weekViewRef.current) {
-        weekViewRef.current.scrollTo({
-          top: scrollPosition - 100,
-          behavior: 'smooth'
-        });
-      }
-    };
-
-    // Small delay to ensure the ref is mounted after conditional rendering
-    const timer = setTimeout(scrollToCurrentTime, 100);
-    return () => clearTimeout(timer);
-  }, [view, currentDate]);
-
-  // Undo function - reverts the last drag/resize change
-  const handleUndo = async () => {
-    if (!undoStack) {
-      toast({
-        title: "Nothing to Undo",
-        description: "No recent calendar changes to undo",
-      });
-      return;
-    }
-
-    const { taskId, previousState } = undoStack;
-
-    // OPTIMISTIC UPDATE: Revert UI immediately
-    const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-    const currentData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-
-    if (currentData?.events) {
-      const revertedData = {
-        events: currentData.events.map(event => 
-          event.id === `task-${taskId}`
-            ? {
-                ...event,
-                start: previousState.start,
-                end: previousState.end,
-                duration: previousState.duration
-              }
-            : event
-        )
-      };
-      queryClient.setQueryData(queryKey, revertedData);
-    }
-
-    // Show toast notification
-    toast({
-      title: "Undone",
-      description: "Event reverted to previous state",
-    });
-
-    // Clear undo stack
-    setUndoStack(null);
-
-    // Update backend
-    try {
-      const updatePayload: any = {
-        scheduledTime: previousState.scheduledTime || previousState.start,
-        duration: previousState.duration,
-      };
-
-      // If dueDate was changed, restore it
-      if (previousState.dueDate) {
-        updatePayload.dueDate = previousState.dueDate;
-      }
-
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(updatePayload),
-      });
-
-      if (response.ok) {
-        // Refetch to ensure data consistency
-        queryClient.invalidateQueries({ queryKey });
-        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      } else {
-        toast({
-          title: "Undo Failed",
-          description: "Failed to revert changes on server",
-          variant: "destructive",
-        });
-        console.error('Failed to undo task update:', await response.text());
-      }
-    } catch (error) {
-      toast({
-        title: "Undo Failed",
-        description: "Failed to revert changes on server",
-        variant: "destructive",
-      });
-      console.error('Failed to undo task update:', error);
-    }
-  };
-
-  // Open new event modal with sensible defaults
-  const openNewEventModal = () => {
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    // Round to next hour
-    const nextHour = now.getHours() + 1;
-    const timeStr = `${String(Math.min(nextHour, 23)).padStart(2, '0')}:00`;
-    setNewEventTitle("");
-    setNewEventDate(dateStr);
-    setNewEventStartTime(timeStr);
-    setNewEventDuration("60");
-    setNewEventDescription("");
-    setNewEventColor("#8b5cf6");
-    setShowNewEventModal(true);
-  };
-
-  // Create a standalone calendar event
-  // Remove the temp "New Event" block from cache (used on cancel or after real save)
-  const removeTempEvent = () => {
-    const qk = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-    const data = queryClient.getQueryData<{ events: CalendarEvent[] }>(qk);
-    if (data) {
-      queryClient.setQueryData(qk, {
-        ...data,
-        events: data.events.filter(e => e.id !== 'standalone-temp'),
-      });
-    }
-  };
-
-  const handleCreateNewEvent = async () => {
-    if (!newEventTitle.trim()) {
-      toast({ title: "Title Required", description: "Please enter an event name.", variant: "destructive" });
-      return;
-    }
-    if (!newEventDate) {
-      toast({ title: "Date Required", description: "Please select a date.", variant: "destructive" });
-      return;
-    }
-
-    setIsCreatingEvent(true);
-    try {
-      const [yr, mo, dy] = newEventDate.split('-').map(Number);
-      const [hrs, mins] = newEventStartTime.split(':').map(Number);
-      const startDateTime = new Date(yr, mo - 1, dy, hrs, mins);
-
-      await apiRequest("POST", "/api/standalone-events", {
-        title: newEventTitle.trim(),
-        description: newEventDescription.trim(),
-        date: startDateTime.toISOString(),
-        startTime: startDateTime.toISOString(),
-        duration: parseInt(newEventDuration) || 60,
-        color: newEventColor,
-      });
-
-      // Remove temp event, then refresh to get the real one from server
-      removeTempEvent();
-      invalidateCalendarEvents(queryClient);
-
-      toast({ title: "Event Created", description: `"${newEventTitle.trim()}" has been added to your calendar.` });
-      setShowNewEventModal(false);
-    } catch (error) {
-      console.error("Failed to create event:", error);
-      removeTempEvent();
-      toast({ title: "Error", description: "Failed to create event. Please try again.", variant: "destructive" });
-    } finally {
-      setIsCreatingEvent(false);
-    }
-  };
-
-  // Cancel / close the new event modal — also cleans up temp event
-  const handleCloseNewEventModal = () => {
-    removeTempEvent();
-    setShowNewEventModal(false);
-  };
-
-  // Live-update the temp event preview as the user edits the modal form
-  useEffect(() => {
-    if (!showNewEventModal) return;
-    const qk = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-    const data = queryClient.getQueryData<{ events: CalendarEvent[] }>(qk);
-    if (!data) return;
-
-    const hasTempEvent = data.events.some(e => e.id === 'standalone-temp');
-    if (!hasTempEvent) return;
-
-    // Parse the current form values
-    const [yr, mo, dy] = (newEventDate || '2026-01-01').split('-').map(Number);
-    const [hrs, mins] = (newEventStartTime || '09:00').split(':').map(Number);
-    const dur = parseInt(newEventDuration) || 30;
-    const start = new Date(yr, mo - 1, dy, hrs, mins);
-    const end = new Date(start.getTime() + dur * 60000);
-
-    queryClient.setQueryData(qk, {
-      ...data,
-      events: data.events.map(e =>
-        e.id === 'standalone-temp'
-          ? { ...e, title: newEventTitle || 'New Event', start: start.toISOString(), end: end.toISOString(), duration: dur, calendarColor: newEventColor }
-          : e
-      ),
-    });
-  }, [showNewEventModal, newEventTitle, newEventDate, newEventStartTime, newEventDuration, newEventColor]);
-
-  // Delete a standalone calendar event
-  const handleDeleteStandaloneEvent = async (eventId: string) => {
-    const numericId = eventId.replace('standalone-', '');
-    try {
-      await apiRequest("DELETE", `/api/standalone-events/${numericId}`);
-      invalidateCalendarEvents(queryClient);
-      setSelectedEvent(null);
-      toast({ title: "Event Deleted", description: "The event has been removed from your calendar." });
-    } catch (error) {
-      console.error("Failed to delete standalone event:", error);
-      toast({ title: "Error", description: "Failed to delete event.", variant: "destructive" });
-    }
-  };
-
-  // Double-click on empty calendar space to create a new event (iCal-style)
-  const handleCalendarDoubleClick = (e: React.MouseEvent, dateOverride?: Date) => {
-    // Don't trigger if clicking on an existing event
-    const target = e.target as HTMLElement;
-    if (target.closest('[data-event-id]')) return;
-
-    // Get the time slot container
-    const container = e.currentTarget as HTMLElement;
-    const rect = container.getBoundingClientRect();
-    const scrollTop = container.closest('[class*="overflow"]')?.scrollTop || 0;
-    const clickY = e.clientY - rect.top + scrollTop;
-
-    // Convert Y position to time (1px = 1 minute in 1440px containers)
-    const totalMinutes = Math.max(0, Math.min(1439, Math.floor(clickY)));
-    // Snap to nearest 15-minute increment
-    const snappedMinutes = Math.round(totalMinutes / 15) * 15;
-    const hours = Math.floor(snappedMinutes / 60);
-    const minutes = snappedMinutes % 60;
-
-    // Determine the date for this event
-    const eventDate = dateOverride || new Date(currentDate);
-
-    const dateStr = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
-    const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-
-    // Pre-fill and open the modal
-    setNewEventTitle("New Event");
-    setNewEventDate(dateStr);
-    setNewEventStartTime(timeStr);
-    setNewEventDuration("30");
-    setNewEventDescription("");
-    setNewEventColor("#8b5cf6");
-    setShowNewEventModal(true);
-
-    // Auto-create the event immediately (like iCal) — it appears on calendar right away
-    const startDateTime = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), hours, minutes);
-    const endDateTime = new Date(startDateTime.getTime() + 30 * 60000);
-
-    // Optimistically add a temp event to the cache
-    const queryKey = [`/api/google-calendar/events?year=${year}&month=${month}`];
-    const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-    if (previousData) {
-      queryClient.setQueryData(queryKey, {
-        ...previousData,
-        events: [
-          ...previousData.events,
-          {
-            id: `standalone-temp`,
-            title: "New Event",
-            start: startDateTime.toISOString(),
-            end: endDateTime.toISOString(),
-            description: '',
-            completed: false,
-            importance: 'Medium',
-            goldValue: 0,
-            campaign: '',
-            skillTags: [],
-            duration: 30,
-            source: 'standalone',
-            calendarColor: '#8b5cf6',
-          }
-        ]
-      });
-    }
-  };
-
-  // ML Smart Sort handler
-  const handleMLSort = async () => {
-    if (view !== 'day') {
-      toast({
-        title: "Day View Required",
-        description: "ML sorting works best in Day view. Switch to Day view first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSorting(true);
-    try {
-      // Step 1: Get the sorted schedule from ML
-      // Send the local date components and timezone offset
-      // The offset helps the server find tasks that display on this local date
-      const localDateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-      const timezoneOffset = new Date().getTimezoneOffset(); // minutes offset from UTC (e.g., PST = 480)
-      const response = await apiRequest('POST', '/api/ml/sort-tasks', {
-        date: localDateString,
-        timezoneOffset: timezoneOffset,
-      });
-
-      const data = await response.json();
-
-      if (data.success && data.sortedSchedule?.length > 0) {
-        // Step 2: APPLY the sort immediately
-        const applyResponse = await apiRequest('POST', '/api/ml/apply-sort', {
-          sortedSchedule: data.sortedSchedule,
-        });
-
-        const applyData = await applyResponse.json();
-
-        if (applyData.success) {
-          // Refresh calendar to show new order - use the correct query key with year/month
-          const calendarQueryKey = `/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`;
-          await queryClient.refetchQueries({ queryKey: [calendarQueryKey] });
-          await queryClient.refetchQueries({ queryKey: ['/api/tasks'] });
-
-          toast({
-            title: "✨ Day Sorted!",
-            description: `Rearranged ${data.sortedSchedule.length} tasks by priority`,
-          });
-
-          // Step 3: Show small feedback modal
-          setMLSortData({
-            originalSchedule: data.originalSchedule,
-            sortedSchedule: data.sortedSchedule,
-            taskMetadata: data.taskMetadata,
-          });
-          setShowMLFeedback(true);
-        } else {
-          throw new Error('Failed to apply sorted schedule');
-        }
-      } else {
-        toast({
-          title: "No Tasks to Sort",
-          description: "No tasks found for this day. Add some tasks first!",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Sorting Failed",
-        description: error.message || "Failed to sort tasks",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSorting(false);
-    }
-  };
-
-  // Drag and drop handlers
-  const handleEventMouseDown = (event: CalendarEvent, e: React.MouseEvent, edge?: 'top' | 'bottom') => {
-    // Only allow dragging/resizing ProductivityQuest tasks and standalone events
-    if (event.source !== 'productivityquest' && event.source !== 'standalone') return;
-
-    e.stopPropagation();
-    e.preventDefault();
-
-    // Get current scroll container
-    const scrollContainer = view === 'day' ? dayViewRef.current : 
-                           view === '3day' ? threeDayViewRef.current :
-                           view === 'week' ? weekViewRef.current : null;
-
-    if (edge) {
-      // Resizing
-      setResizingEvent(event);
-      setResizeEdge(edge);
-      setDragStartY(e.clientY);
-      setDragStartScrollTop(scrollContainer?.scrollTop || 0);
-      setDragStartTime(new Date(edge === 'top' ? event.start : event.end));
-    } else {
-      // Moving
-      setDraggingEvent(event);
-      setDragStartY(e.clientY);
-      setDragStartScrollTop(scrollContainer?.scrollTop || 0);
-      setDragStartTime(new Date(event.start));
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggingEvent && !resizingEvent) return;
-
-    // Set dragging/resizing flag when mouse actually moves
-    if (draggingEvent && !hasDragged) {
-      setHasDragged(true);
-    }
-    if (resizingEvent && !hasResized) {
-      setHasResized(true);
-    }
-
-    // Auto-scroll logic when dragging near edges
-    const scrollContainer = view === 'day' ? dayViewRef.current : 
-                           view === '3day' ? threeDayViewRef.current :
-                           view === 'week' ? weekViewRef.current : null;
-
-    if (scrollContainer) {
-      const rect = scrollContainer.getBoundingClientRect();
-      const scrollThreshold = 50; // Pixels from edge to trigger scroll
-      const scrollSpeed = 10; // Pixels to scroll per frame
-      
-      // Clear any existing auto-scroll
-      if (autoScrollInterval.current) {
-        clearInterval(autoScrollInterval.current);
-        autoScrollInterval.current = null;
-      }
-
-      // Check if mouse is near top edge
-      if (e.clientY < rect.top + scrollThreshold) {
-        autoScrollInterval.current = setInterval(() => {
-          if (scrollContainer.scrollTop > 0) {
-            scrollContainer.scrollTop -= scrollSpeed;
-          }
-        }, 16); // ~60fps
-      }
-      // Check if mouse is near bottom edge
-      else if (e.clientY > rect.bottom - scrollThreshold) {
-        autoScrollInterval.current = setInterval(() => {
-          if (scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight) {
-            scrollContainer.scrollTop += scrollSpeed;
-          }
-        }, 16); // ~60fps
-      }
-    }
-
-    // Calculate delta including scroll offset
-    const currentScrollTop = scrollContainer?.scrollTop || 0;
-    const scrollDelta = currentScrollTop - dragStartScrollTop;
-    const deltaY = (e.clientY - dragStartY) + scrollDelta;
-    
-    // Each 60px (height of time slot) = 1 hour, snap to 5-minute intervals
-    const minutesDelta = Math.round((deltaY / 60) * 60 / 5) * 5; // Round to nearest 5 minutes
-
-    if (draggingEvent && dragStartTime) {
-      // Calculate new start and end times
-      const newStart = new Date(dragStartTime);
-      newStart.setMinutes(newStart.getMinutes() + minutesDelta);
-
-      const eventDuration = new Date(draggingEvent.end).getTime() - new Date(draggingEvent.start).getTime();
-      const newEnd = new Date(newStart.getTime() + eventDuration);
-
-      setTempEventTime({ start: newStart, end: newEnd });
-    } else if (resizingEvent && dragStartTime && resizeEdge) {
-      // Calculate new start or end time based on which edge is being dragged
-      const currentStart = new Date(resizingEvent.start);
-      const currentEnd = new Date(resizingEvent.end);
-
-      if (resizeEdge === 'top') {
-        const newStart = new Date(dragStartTime);
-        newStart.setMinutes(newStart.getMinutes() + minutesDelta);
-
-        // Ensure minimum duration of 5 minutes
-        const minEnd = new Date(newStart.getTime() + 5 * 60000);
-        if (currentEnd > minEnd) {
-          setTempEventTime({ start: newStart, end: currentEnd });
-        }
-      } else {
-        const newEnd = new Date(dragStartTime);
-        newEnd.setMinutes(newEnd.getMinutes() + minutesDelta);
-
-        // Ensure minimum duration of 5 minutes
-        const minEnd = new Date(currentStart.getTime() + 5 * 60000);
-        if (newEnd >= minEnd) {
-          setTempEventTime({ start: currentStart, end: newEnd });
-        }
-      }
-    }
-  };
-
-  // ── Save logic for moving/resizing an event (shared by desktop mouse + mobile touch) ──
-
-  const saveEventMove = async (eventToUpdate: CalendarEvent, newStart: Date, newEnd: Date, wasDrag: boolean) => {
-    const durationMs = newEnd.getTime() - newStart.getTime();
-    const durationMinutes = Math.round(durationMs / 60000);
-
-    if (eventToUpdate.source === 'productivityquest') {
-      const taskId = eventToUpdate.id.replace('task-', '');
-      const originalStart = new Date(eventToUpdate.start);
-
-      const isSameDay =
-        originalStart.getFullYear() === newStart.getFullYear() &&
-        originalStart.getMonth() === newStart.getMonth() &&
-        originalStart.getDate() === newStart.getDate();
-
-      let updatePayload: any;
-
-      if (isSameDay && wasDrag) {
-        updatePayload = {
-          scheduledTime: newStart.toISOString(),
-          duration: durationMinutes,
-        };
-      } else {
-        updatePayload = {
-          dueDate: newStart.toISOString(),
-          scheduledTime: newStart.toISOString(),
-          duration: durationMinutes,
-        };
-      }
-
-      // OPTIMISTIC UPDATE
-      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-
-      const originalEvent = previousData?.events.find(e => e.id === eventToUpdate.id);
-      if (originalEvent) {
-        setUndoStack({
-          taskId,
-          previousState: {
-            start: originalEvent.start,
-            end: originalEvent.end,
-            duration: originalEvent.duration || 30,
-            dueDate: originalEvent.start,
-            scheduledTime: originalEvent.start,
-          },
-          currentState: {
-            start: newStart.toISOString(),
-            end: newEnd.toISOString(),
-            duration: durationMinutes,
-            dueDate: updatePayload.dueDate,
-            scheduledTime: updatePayload.scheduledTime,
-          }
-        });
-      }
-
-      toast({
-        title: wasDrag ? "Event Rescheduled" : "Duration Updated",
-        description: `Updated to ${newStart.toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        })} (${durationMinutes} min)`,
-        action: (
-          <ToastAction
-            altText="Undo change"
-            onClick={handleUndo}
-            className="border-yellow-500/30 hover:bg-yellow-600/20 hover:border-yellow-400/50"
-          >
-            <Undo2 className="w-3 h-3 mr-1" />
-            Undo
-          </ToastAction>
-        ),
-        duration: 5000,
-      });
-
-      if (previousData?.events) {
-        queryClient.setQueryData(queryKey, {
-          events: previousData.events.map(event =>
-            event.id === eventToUpdate.id
-              ? { ...event, start: newStart.toISOString(), end: newEnd.toISOString(), duration: durationMinutes }
-              : event
-          )
-        });
-      }
-
-      try {
-        const response = await fetch(`/api/tasks/${taskId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(updatePayload),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.calendarSynced === true) {
-            console.log('✅ Google Calendar updated for task', taskId);
-          } else if (result.calendarSynced === false) {
-            console.warn('⚠️ Google Calendar sync failed:', result.calendarSyncError);
-            toast({
-              title: "⚠️ Google Calendar Not Updated",
-              description: result.calendarSyncError || "Failed to sync change to Google Calendar",
-              variant: "destructive",
-              duration: 4000,
-            });
-          }
-          queryClient.invalidateQueries({ queryKey });
-          queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-        } else {
-          if (previousData) queryClient.setQueryData(queryKey, previousData);
-          toast({ title: "Update Failed", description: "Failed to save changes. Reverting...", variant: "destructive" });
-          console.error('Failed to update task:', await response.text());
-        }
-      } catch (error) {
-        if (previousData) queryClient.setQueryData(queryKey, previousData);
-        toast({ title: "Update Failed", description: "Failed to save changes. Reverting...", variant: "destructive" });
-        console.error('Failed to update task:', error);
-      }
-      return;
-    }
-
-    if (eventToUpdate.source === 'standalone') {
-      const numericId = eventToUpdate.id.replace('standalone-', '');
-      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-
-      if (previousData?.events) {
-        queryClient.setQueryData(queryKey, {
-          ...previousData,
-          events: previousData.events.map(event =>
-            event.id === eventToUpdate.id
-              ? { ...event, start: newStart.toISOString(), end: newEnd.toISOString(), duration: durationMinutes }
-              : event
-          )
-        });
-      }
-
-      toast({
-        title: wasDrag ? "Event Moved" : "Duration Updated",
-        description: `Updated to ${newStart.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} (${durationMinutes} min)`,
-        duration: 3000,
-      });
-
-      try {
-        await apiRequest("PATCH", `/api/standalone-events/${numericId}`, {
-          startTime: newStart.toISOString(),
-          duration: durationMinutes,
-        });
-        queryClient.invalidateQueries({ queryKey });
-      } catch (error) {
-        if (previousData) queryClient.setQueryData(queryKey, previousData);
-        toast({ title: "Update Failed", description: "Failed to save changes.", variant: "destructive" });
-        console.error('Failed to update standalone event:', error);
-      }
-      return;
-    }
-  };
-
-  const saveEventMoveRef = useRef(saveEventMove);
-  saveEventMoveRef.current = saveEventMove;
-
-  const handleMouseUp = async () => {
-    // Clear auto-scroll interval
-    if (autoScrollInterval.current) {
-      clearInterval(autoScrollInterval.current);
-      autoScrollInterval.current = null;
-    }
-
-    if ((draggingEvent || resizingEvent) && tempEventTime) {
-      const eventToUpdate = draggingEvent || resizingEvent;
-      const wasDrag = !!draggingEvent;
-
-      // Reset drag state immediately for instant UI feedback
-      setDraggingEvent(null);
-      setResizingEvent(null);
-      setResizeEdge(null);
-      setDragStartY(0);
-      setDragStartTime(null);
-      setTempEventTime(null);
-      setTimeout(() => { setHasDragged(false); setHasResized(false); }, 100);
-
-      if (eventToUpdate) {
-        await saveEventMove(eventToUpdate, tempEventTime.start, tempEventTime.end, wasDrag);
-      }
-      return;
-    }
-
-    // Reset drag state for non-saveable events or if no temp time
-    setDraggingEvent(null);
-    setResizingEvent(null);
-    setResizeEdge(null);
-    setDragStartY(0);
-    setDragStartTime(null);
-    setTempEventTime(null);
-    setTimeout(() => { setHasDragged(false); setHasResized(false); }, 100);
-  };
-
-  // ========== Mobile Touch Drag — powered by useCalendarTouch hook ==========
-  // Handles: long-press-to-drag, double-tap-to-open, scroll passthrough
-  // All touch state lives inside the hook with a clean state machine.
-
-  const touchHook = useCalendarTouch({
-    view,
-    scrollContainerRefs: {
-      day: dayViewRef,
-      threeDay: threeDayViewRef,
-      week: weekViewRef,
-    },
-    onEventOpen: (event) => setSelectedEvent(event),
-    onEventDrop: (event, newStart, newEnd, wasResize) => {
-      // Call saveEventMove directly — no fragile bridge through React state
-      saveEventMoveRef.current(event, newStart, newEnd, !wasResize);
-    },
-    isMobile,
-  });
-
-  // Bridge: the touch hook manages its own dragging/resizing/tempTime for visual rendering.
-  // We also need getEventDisplayTime to work for both desktop mouse drag AND mobile touch drag.
-  const getEventDisplayTime = (event: CalendarEvent) => {
-    // Check hook's touch drag state first
-    const td = touchHook.dragState;
-    if (td.isDragging && td.tempTime) {
-      if (td.draggingEvent?.id === event.id || td.resizingEvent?.id === event.id) {
-        return td.tempTime;
-      }
-    }
-    // Check desktop mouse drag state
-    if ((draggingEvent?.id === event.id || resizingEvent?.id === event.id) && tempEventTime) {
-      return tempEventTime;
-    }
-    return { start: new Date(event.start), end: new Date(event.end) };
-  };
-
-  // Complete a task from the calendar view
-  const handleCompleteTask = async () => {
-    if (!selectedEvent || selectedEvent.source !== 'productivityquest' || selectedEvent.completed) return;
-
-    const taskId = selectedEvent.id;
-    const eventTitle = selectedEvent.title;
-    const isRecurring = selectedEvent.recurType && selectedEvent.recurType !== 'one-time';
-
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/complete`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to complete task');
-      }
-
-      const data = await response.json();
-      const goldEarned = data.task?.goldValue || selectedEvent.goldValue || 0;
-      const skillGains = data.skillXPGains || [];
-
-      // Update the event in cache to show completed state
-      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-
-      if (previousData) {
-        if (isRecurring) {
-          // For recurring tasks, remove from current calendar view (it's been rescheduled)
-          queryClient.setQueryData(queryKey, {
-            ...previousData,
-            events: previousData.events.filter(e => e.id !== taskId)
-          });
-        } else {
-          // For one-time tasks, mark as completed visually
-          queryClient.setQueryData(queryKey, {
-            ...previousData,
-            events: previousData.events.map(e =>
-              e.id === taskId ? { ...e, completed: true } : e
-            )
-          });
-        }
-      }
-
-      // Close modal
-      setSelectedEvent(null);
-      setShowDeleteMenu(false);
-
-      // Build skill XP description
-      const skillDesc = skillGains.length > 0
-        ? ` | ${skillGains.map((s: any) => `${s.skillName} +${s.xpGained} XP`).join(', ')}`
-        : '';
-
-      toast({
-        title: isRecurring
-          ? `🔄 Routine Quest Complete!`
-          : `⚔️ Quest Complete!`,
-        description: isRecurring
-          ? `"${eventTitle}" — Earned ${goldEarned} gold${skillDesc}. Rescheduled to next occurrence.`
-          : `"${eventTitle}" — Earned ${goldEarned} gold${skillDesc}. Moved to recycling bin.`,
-        duration: 15000,
-        action: (
-          <ToastAction altText="Undo completion" onClick={async () => {
-            try {
-              await apiRequest("POST", "/api/tasks/undo-complete", { taskIds: [taskId] });
-              invalidateCalendarEvents(queryClient);
-              queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/user/progress'] });
-              toast({ title: "Undo Successful", description: `1 task restored. ${goldEarned} gold refunded.` });
-            } catch {
-              toast({ title: "Error", description: "Failed to undo completion", variant: "destructive" });
-            }
-          }}>
-            Undo
-          </ToastAction>
-        ),
-      });
-
-      // Refresh data
-      invalidateCalendarEvents(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user/progress'] });
-    } catch (error) {
-      console.error('Failed to complete task:', error);
-      toast({
-        title: "Error",
-        description: "Failed to complete quest. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Remove event from calendar handler (does NOT delete the quest!)
-  const handleRemoveFromCalendar = async (removeFromGoogleToo: boolean) => {
-    if (!selectedEvent) return;
-
-    try {
-      // For Google Calendar events (not from ProductivityQuest)
-      if (selectedEvent.source === 'google') {
-        if (removeFromGoogleToo) {
-          // Open Google Calendar to delete (already handled in the button onClick)
-          return;
-        } else {
-          // For app-only removal of Google events, explain that we can't hide them
-          toast({
-            title: "Cannot Hide Google Calendar Events",
-            description: "Google Calendar events sync automatically. To remove this event, delete it from Google Calendar or disable calendar sync in Settings.",
-            variant: "destructive",
-          });
-          
-          // Close modals
-          setSelectedEvent(null);
-          setShowDeleteMenu(false);
-          return;
-        }
-      }
-
-      // For ProductivityQuest tasks - UNSCHEDULE (not delete!)
-      // This removes from calendar but keeps the quest in Quests page
-      const taskId = selectedEvent.id;
-      const eventToRemove = selectedEvent;
-      
-      // OPTIMISTIC UPDATE: Immediately remove from UI
-      const queryKey = [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`];
-      const previousData = queryClient.getQueryData<{ events: CalendarEvent[] }>(queryKey);
-      
-      // Remove from cache immediately
-      if (previousData) {
-        queryClient.setQueryData(queryKey, {
-          ...previousData,
-          events: previousData.events.filter(e => e.id !== eventToRemove.id)
-        });
-      }
-      
-      // Close modals immediately for snappy feel
-      setSelectedEvent(null);
-      setShowDeleteMenu(false);
-      
-      // Show immediate feedback
-      toast({
-        title: "Removed from Calendar",
-        description: removeFromGoogleToo 
-          ? "Event removed from calendar. Quest still available in Quests page." 
-          : "Event removed from app calendar. Quest still available in Quests page.",
-      });
-      
-      // Now do the backend call
-      const response = await fetch(`/api/tasks/${taskId}/unschedule`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ 
-          removeFromGoogleCalendar: removeFromGoogleToo 
-        })
-      });
-
-      if (!response.ok) {
-        // Revert optimistic update on failure
-        if (previousData) {
-          queryClient.setQueryData(queryKey, previousData);
-        }
-        throw new Error('Failed to remove from calendar');
-      }
-      
-      // Refresh to ensure consistency
-      invalidateCalendarEvents(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      
-    } catch (error) {
-      console.error('Failed to remove from calendar:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove from calendar. Please try again.",
-        variant: "destructive",
-      });
-      // Refresh to restore correct state
-      invalidateCalendarEvents(queryClient);
-    }
-  };
-
-  // Handle delete of multiple selected events
-  const handleDeleteSelectedEvents = async () => {
-    if (selectedEventIds.size === 0) return;
-    
-    const eventsToDelete = Array.from(selectedEventIds);
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const eventId of eventsToDelete) {
-      // Only delete ProductivityQuest events (not Google Calendar events)
-      if (eventId.startsWith('google-')) {
-        failCount++;
-        continue;
-      }
-      
-      try {
-        const response = await fetch(`/api/tasks/${eventId}/unschedule`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ removeFromGoogleCalendar: true })
-        });
-        
-        if (response.ok) {
-          successCount++;
-        } else {
-          failCount++;
-        }
-      } catch (error) {
-        console.error(`Failed to delete event ${eventId}:`, error);
-        failCount++;
-      }
-    }
-    
-    // Clear selection
-    setSelectedEventIds(new Set());
-    
-    // Refresh calendar data
-    invalidateCalendarEvents(queryClient);
-    queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-    
-    // Show result toast
-    if (successCount > 0) {
-      toast({
-        title: `Removed ${successCount} Event${successCount > 1 ? 's' : ''}`,
-        description: failCount > 0 
-          ? `${failCount} event(s) could not be removed (Google Calendar events must be deleted from Google Calendar)`
-          : "Events removed from calendar. Quests still available in Quests page.",
-      });
-    } else if (failCount > 0) {
-      toast({
-        title: "Cannot Remove",
-        description: "Google Calendar events must be deleted from Google Calendar directly.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Multi-select: Start selection box when clicking empty space
-  const handleSelectionStart = (e: React.MouseEvent) => {
-    // Only start selection if clicking on empty space (not an event)
-    if ((e.target as HTMLElement).closest('[data-event-id]')) return;
-    // Don't start selection if we're already dragging an event
-    if (draggingEvent || resizingEvent) return;
-    
-    const container = calendarContainerRef.current;
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left + container.scrollLeft;
-    const y = e.clientY - rect.top + container.scrollTop;
-    
-    setIsSelecting(true);
-    setSelectionBox({ startX: x, startY: y, currentX: x, currentY: y });
-    
-    // Clear previous selection if not holding shift
-    if (!e.shiftKey) {
-      setSelectedEventIds(new Set());
-    }
-  };
-
-  // Multi-select: Update selection box as mouse moves
-  const handleSelectionMove = (e: React.MouseEvent) => {
-    if (!isSelecting || !selectionBox) return;
-    
-    const container = calendarContainerRef.current;
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left + container.scrollLeft;
-    const y = e.clientY - rect.top + container.scrollTop;
-    
-    setSelectionBox(prev => prev ? { ...prev, currentX: x, currentY: y } : null);
-  };
-
-  // Multi-select: Finish selection and determine which events are selected
-  const handleSelectionEnd = () => {
-    if (!isSelecting || !selectionBox) {
-      setIsSelecting(false);
-      setSelectionBox(null);
-      return;
-    }
-    
-    // Calculate selection rectangle (normalized for drag direction)
-    const minX = Math.min(selectionBox.startX, selectionBox.currentX);
-    const maxX = Math.max(selectionBox.startX, selectionBox.currentX);
-    const minY = Math.min(selectionBox.startY, selectionBox.currentY);
-    const maxY = Math.max(selectionBox.startY, selectionBox.currentY);
-    
-    // Only select if box is larger than 10px (prevents accidental selections)
-    if (maxX - minX > 10 && maxY - minY > 10) {
-      // Find all event elements and check if they intersect with selection box
-      const container = calendarContainerRef.current;
-      if (container) {
-        const eventElements = container.querySelectorAll('[data-event-id]');
-        const newSelected = new Set(selectedEventIds);
-        
-        eventElements.forEach(el => {
-          const eventRect = el.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          
-          // Get event position relative to container (accounting for scroll)
-          const eventLeft = eventRect.left - containerRect.left + container.scrollLeft;
-          const eventTop = eventRect.top - containerRect.top + container.scrollTop;
-          const eventRight = eventLeft + eventRect.width;
-          const eventBottom = eventTop + eventRect.height;
-          
-          // Check if event intersects with selection box
-          const intersects = !(
-            eventRight < minX ||
-            eventLeft > maxX ||
-            eventBottom < minY ||
-            eventTop > maxY
-          );
-          
-          if (intersects) {
-            const eventId = el.getAttribute('data-event-id');
-            if (eventId) {
-              newSelected.add(eventId);
-            }
-          }
-        });
-        
-        setSelectedEventIds(newSelected);
-      }
-    }
-    
-    setIsSelecting(false);
-    setSelectionBox(null);
-  };
-
-  // Reschedule event handler
-  const handleReschedule = () => {
-    setShowRescheduleModal(true);
-    setShowDeleteMenu(false);
-    setShowColorPicker(false);
-  };
-
-  // Calendar color options (Apple Calendar style)
-  const calendarColors = [
-    { name: 'Purple', value: '#9333ea' },
-    { name: 'Pink', value: '#ec4899' },
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Orange', value: '#f97316' },
-    { name: 'Yellow', value: '#eab308' },
-    { name: 'Green', value: '#22c55e' },
-    { name: 'Teal', value: '#14b8a6' },
-    { name: 'Cyan', value: '#06b6d4' },
-    { name: 'Blue', value: '#3b82f6' },
-    { name: 'Indigo', value: '#6366f1' },
-    { name: 'Violet', value: '#8b5cf6' },
-    { name: 'Fuchsia', value: '#d946ef' },
-  ];
-
-  // Handle color change
-  const handleColorChange = async (color: string) => {
-    if (!selectedEvent) return;
-
-    // For ProductivityQuest tasks, update the task color in the database
-    if (selectedEvent.source === 'productivityquest') {
-      const taskId = selectedEvent.id.replace('task-', '');
-
-      try {
-        const response = await fetch(`/api/tasks/${taskId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ calendarColor: color }),
-        });
-
-        if (response.ok) {
-          toast({
-            title: "Color Updated",
-            description: "Event color changed successfully",
-          });
-
-          // Update local state
-          setSelectedEvent({ ...selectedEvent, calendarColor: color });
-
-          // Refresh calendar data
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/google-calendar/events?year=${currentDate.getFullYear()}&month=${currentDate.getMonth()}`] 
-          });
-          queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-
-          setShowColorPicker(false);
-        } else {
-          throw new Error('Failed to update color');
-        }
-      } catch (error) {
-        console.error('Failed to update color:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update event color. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      // For Google Calendar events, just update the local state (display only)
-      // The color change won't persist to Google Calendar, but will show in ProductivityQuest
-      toast({
-        title: "Color Updated",
-        description: "Display color changed (local only, not synced to Google Calendar)",
-      });
-
-      setSelectedEvent({ ...selectedEvent, calendarColor: color });
-      setShowColorPicker(false);
-    }
-  };
-
-  // Helper function to get hex color from importance
-  const getColorHexFromImportance = (importance: string | null | undefined): string => {
-    switch (importance) {
-      case 'Pareto':
-      case 'High':
-        return '#ef4444'; // Red
-      case 'Med-High':
-        return '#f97316'; // Orange
-      case 'Medium':
-        return '#eab308'; // Yellow
-      case 'Med-Low':
-        return '#3b82f6'; // Blue
-      case 'Low':
-        return '#22c55e'; // Green
-      default:
-        return '#9333ea'; // Purple (default)
-    }
-  };
-
-  // getEventStyle is now imported from @/components/calendar-event-block
-
-  // Fetch user settings to check if Google Calendar is connected
-  const { data: settings } = useQuery<UserSettings>({
-    queryKey: ['/api/user/settings'],
-  });
-
-  const googleConnected = settings?.googleCalendarSyncEnabled && 
-                          settings?.googleCalendarClientId && 
-                          settings?.googleCalendarClientSecret &&
-                          settings?.googleCalendarAccessToken; // Must have access token from OAuth
-
-  const isTwoWaySync = settings?.googleCalendarSyncDirection === 'both';
-
-  // Fetch calendar events for current month
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  
-  // Check if currently viewing today (used for Jump to Today button visibility)
-  const nowDate = new Date();
-  const isViewingToday = (() => {
-    if (view === 'month') {
-      return year === nowDate.getFullYear() && month === nowDate.getMonth();
-    }
-    if (view === 'day') {
-      return currentDate.getFullYear() === nowDate.getFullYear() && currentDate.getMonth() === nowDate.getMonth() && currentDate.getDate() === nowDate.getDate();
-    }
-    // For 3day/week, check if today falls within the visible range
-    const rangeStart = new Date(currentDate);
-    rangeStart.setHours(0, 0, 0, 0);
-    const rangeDays = view === '3day' ? 3 : 7;
-    const rangeEnd = new Date(rangeStart);
-    rangeEnd.setDate(rangeEnd.getDate() + rangeDays - 1);
-    rangeEnd.setHours(23, 59, 59, 999);
-    const todayMidnight = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
-    return todayMidnight >= rangeStart && todayMidnight <= rangeEnd;
-  })();
+  const today = useMemo(() => new Date(), []);
 
-  const { data: calendarData } = useQuery<{ events: CalendarEvent[] }>({
+  // Data fetching
+  const { data: settings } = useQuery<any>({ queryKey: ["/api/settings"] });
+
+  const { data: calendarData, isLoading } = useQuery<{ events: CalendarEvent[]; stats?: any }>({
     queryKey: [`/api/google-calendar/events?year=${year}&month=${month}`],
-    enabled: !!googleConnected,
+    refetchOnWindowFocus: false,
   });
 
   const events = calendarData?.events || [];
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const daysInMonth = lastDay.getDate();
-  const startingDayOfWeek = firstDay.getDay();
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+  const nextMonth = month === 11 ? 0 : month + 1;
+  const nextYear = month === 11 ? year + 1 : year;
 
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  const previousMonth = () => {
-    if (view === 'month') {
-      setCurrentDate(new Date(year, month - 1, 1));
-    } else if (view === 'day') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(currentDate.getDate() - 1);
-      setCurrentDate(newDate);
-    } else if (view === '3day') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(currentDate.getDate() - 3);
-      setCurrentDate(newDate);
-    } else if (view === 'week') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(currentDate.getDate() - 7);
-      setCurrentDate(newDate);
-    }
-  };
-
-  const nextMonth = () => {
-    if (view === 'month') {
-      setCurrentDate(new Date(year, month + 1, 1));
-    } else if (view === 'day') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(currentDate.getDate() + 1);
-      setCurrentDate(newDate);
-    } else if (view === '3day') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(currentDate.getDate() + 3);
-      setCurrentDate(newDate);
-    } else if (view === 'week') {
-      const newDate = new Date(currentDate);
-      newDate.setDate(currentDate.getDate() + 7);
-      setCurrentDate(newDate);
-    }
-  };
-
-  // ========== Modal Swipe-Down-to-Close (mobile) ==========
-  const findScrollableParent = (el: HTMLElement | null): HTMLElement | null => {
-    let node = el;
-    while (node) {
-      if (node.scrollHeight > node.clientHeight + 2) {
-        const style = window.getComputedStyle(node);
-        const overflow = style.overflowY;
-        if (overflow === 'auto' || overflow === 'scroll') return node;
-      }
-      node = node.parentElement;
-    }
-    return null;
-  };
-
-  const closeCurrentModal = useCallback(() => {
-    if (selectedEvent) {
-      setSelectedEvent(null);
-      setShowDeleteMenu(false);
-      setShowRescheduleModal(false);
-      setShowColorPicker(false);
-    } else if (showRescheduleModal) {
-      setShowRescheduleModal(false);
-    } else if (showNewEventModal) {
-      handleCloseNewEventModal();
-    }
-  }, [selectedEvent, showRescheduleModal, showNewEventModal]);
-
-  const handleModalSwipeTouchStart = useCallback((e: TouchEvent) => {
-    const scrollable = findScrollableParent(e.target as HTMLElement);
-    if (scrollable && scrollable.scrollTop > 5) return;
-    modalSwipeRef.current = {
-      startY: e.touches[0].clientY,
-      lastY: e.touches[0].clientY,
-      lastTime: Date.now(),
-      velocity: 0,
-      dragging: false,
-    };
-  }, []);
-
-  const handleModalSwipeTouchMove = useCallback((e: TouchEvent) => {
-    const s = modalSwipeRef.current;
-    if (!s) return;
-    const touchY = e.touches[0].clientY;
-    const deltaY = touchY - s.startY;
-
-    if (!s.dragging && deltaY > 3) {
-      s.dragging = true;
-    }
-    if (!s.dragging) return;
-
-    e.preventDefault();
-
-    const now = Date.now();
-    const dt = now - s.lastTime;
-    if (dt > 0) {
-      const instantV = (touchY - s.lastY) / dt;
-      s.velocity = s.velocity * 0.7 + instantV * 0.3;
-    }
-    s.lastY = touchY;
-    s.lastTime = now;
-
-    const offset = Math.max(0, deltaY * 0.85);
-    setModalSwipeOffsetY(offset);
-  }, []);
-
-  const handleModalSwipeTouchEnd = useCallback(() => {
-    const s = modalSwipeRef.current;
-    if (!s) { return; }
-
-    if (!s.dragging) {
-      modalSwipeRef.current = null;
-      return;
-    }
-
-    const offset = modalSwipeOffsetY;
-    const velocity = s.velocity;
-    const screenH = window.innerHeight;
-    modalSwipeRef.current = null;
-
-    const shouldClose =
-      velocity > 0.3 ||
-      offset > screenH * 0.25 ||
-      (offset > 80 && velocity > 0.05);
-
-    if (shouldClose) {
-      setModalSwipeDismissing(true);
-      setModalSwipeOffsetY(screenH);
-      setTimeout(() => {
-        closeCurrentModal();
-        setTimeout(() => {
-          setModalSwipeOffsetY(0);
-          setModalSwipeDismissing(false);
-        }, 100);
-      }, 250);
-    } else {
-      setModalSwipeOffsetY(0);
-    }
-  }, [modalSwipeOffsetY, closeCurrentModal]);
-
-  const modalSwipeCallbackRef = useCallback((node: HTMLDivElement | null) => {
-    if (modalTouchElRef.current && modalListenersAttachedRef.current) {
-      modalTouchElRef.current.removeEventListener('touchstart', handleModalSwipeTouchStart);
-      modalTouchElRef.current.removeEventListener('touchmove', handleModalSwipeTouchMove);
-      modalTouchElRef.current.removeEventListener('touchend', handleModalSwipeTouchEnd);
-      modalListenersAttachedRef.current = false;
-    }
-    modalTouchElRef.current = node;
-    if (node) {
-      node.addEventListener('touchstart', handleModalSwipeTouchStart, { passive: true });
-      node.addEventListener('touchmove', handleModalSwipeTouchMove, { passive: false });
-      node.addEventListener('touchend', handleModalSwipeTouchEnd, { passive: true });
-      modalListenersAttachedRef.current = true;
-    }
-  }, [handleModalSwipeTouchStart, handleModalSwipeTouchMove, handleModalSwipeTouchEnd]);
-
-  // Swipe navigation handlers for mobile — true seamless paging (Apple Calendar style)
-  // During drag: content follows finger 1:1.
-  // On release past threshold: date changes instantly, offset resets to 0 — no transition.
-  // On release below threshold: snap back with a short transition.
-  const handleSwipeStart = (e: React.TouchEvent) => {
-    if (!isMobile || swipeAnimating) return;
-    if (touchHook.dragState.isDragging || touchHook.isInteracting() || draggingEvent || resizingEvent) return;
-    const touch = e.touches[0];
-    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
-    swipeLockedRef.current = null;
-    // Kill any ongoing snap-back transition immediately
-    setSwipeAnimating(false);
-  };
-
-  const handleSwipeMove = (e: React.TouchEvent) => {
-    if (!isMobile || !swipeStartRef.current) return;
-    if (touchHook.dragState.isDragging || touchHook.isInteracting() || draggingEvent || resizingEvent) return;
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - swipeStartRef.current.x;
-    const deltaY = touch.clientY - swipeStartRef.current.y;
-
-    // Lock direction after 10px of movement
-    if (!swipeLockedRef.current) {
-      if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-        swipeLockedRef.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
-      }
-      return;
-    }
-
-    // If locked vertical, don't interfere with scroll
-    if (swipeLockedRef.current === 'vertical') return;
-
-    // 1:1 finger tracking — no resistance
-    setSwipeOffsetX(deltaX);
-  };
-
-  const handleSwipeEnd = (e: React.TouchEvent) => {
-    if (!isMobile || !swipeStartRef.current) return;
-    if (touchHook.dragState.isDragging || touchHook.isInteracting() || draggingEvent || resizingEvent) {
-      swipeStartRef.current = null;
-      swipeLockedRef.current = null;
-      return;
-    }
-
-    // If direction was vertical (scroll), just clean up
-    if (swipeLockedRef.current === 'vertical') {
-      swipeStartRef.current = null;
-      swipeLockedRef.current = null;
-      return;
-    }
-
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - swipeStartRef.current.x;
-    const elapsed = Date.now() - swipeStartRef.current.time;
-    swipeStartRef.current = null;
-    swipeLockedRef.current = null;
-
-    const absDx = Math.abs(deltaX);
-    const velocity = absDx / Math.max(elapsed, 1);
-    const screenW = window.innerWidth;
-    const threshold = screenW * 0.25;
-
-    if (absDx > threshold || (absDx > 40 && velocity > 0.5)) {
-      // Navigated: change date instantly, reset offset to 0 with NO transition
-      // React re-renders new content in place — seamless page change
-      if (deltaX > 0) previousMonth(); else nextMonth();
-      setSwipeOffsetX(0);
-      setSwipeAnimating(false);
-    } else {
-      // Below threshold: snap back with a short transition
-      setSwipeAnimating(true);
-      setSwipeOffsetX(0);
-      setTimeout(() => setSwipeAnimating(false), 200);
-    }
-  };
-
-  const today = new Date();
-  const isToday = (day: number) => {
-    return day === today.getDate() && 
-           month === today.getMonth() && 
-           year === today.getFullYear();
-  };
-
-  // Get events for a specific day
-  const getEventsForDay = (day: number) => {
-    return events.filter(event => {
-      const eventDate = new Date(event.start);
-      return eventDate.getDate() === day &&
-             eventDate.getMonth() === month &&
-             eventDate.getFullYear() === year;
-    });
-  };
-
-  // Get events for a specific date
-  const getEventsForDate = (date: Date) => {
-    return events.filter(event => {
-      const eventDate = new Date(event.start);
-      return eventDate.getDate() === date.getDate() &&
-             eventDate.getMonth() === date.getMonth() &&
-             eventDate.getFullYear() === date.getFullYear();
-    });
-  };
-
-  // Generate time slots (24 hours)
-  const timeSlots = Array.from({ length: 24 }, (_, i) => {
-    const hour = i;
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    const ampm = hour < 12 ? 'AM' : 'PM';
-    return { hour, label: `${displayHour}:00 ${ampm}` };
+  const { data: prevData } = useQuery<{ events: CalendarEvent[] }>({
+    queryKey: [`/api/google-calendar/events?year=${prevYear}&month=${prevMonth}`],
+    enabled: view !== "month",
+    refetchOnWindowFocus: false,
+  });
+  const { data: nextData } = useQuery<{ events: CalendarEvent[] }>({
+    queryKey: [`/api/google-calendar/events?year=${nextYear}&month=${nextMonth}`],
+    enabled: view !== "month",
+    refetchOnWindowFocus: false,
   });
 
-  // Get events for a specific hour on a specific date
-  const getEventsForHour = (date: Date, hour: number) => {
-    return events.filter(event => {
-      const eventDate = new Date(event.start);
-      const eventHour = eventDate.getHours();
-      return eventDate.getDate() === date.getDate() &&
-             eventDate.getMonth() === date.getMonth() &&
-             eventDate.getFullYear() === date.getFullYear() &&
-             eventHour === hour;
+  const allEvents = useMemo(() => {
+    const merged = [...events];
+    if (prevData?.events) merged.push(...prevData.events);
+    if (nextData?.events) merged.push(...nextData.events);
+    const seen = new Set<string>();
+    return merged.filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
     });
-  };
+  }, [events, prevData, nextData]);
 
-  // Calculate absolute position and height for an event
-  // Each hour slot is 60px tall
-  const getEventPosition = (event: CalendarEvent) => {
-    const displayTime = getEventDisplayTime(event);
-    const startDate = new Date(displayTime.start);
-    const endDate = new Date(displayTime.end);
-    
-    const startHour = startDate.getHours();
-    const startMinute = startDate.getMinutes();
-    const endHour = endDate.getHours();
-    const endMinute = endDate.getMinutes();
-    
-    // Calculate top position: hour * 60px + (minute/60) * 60px
-    const top = startHour * 60 + (startMinute / 60) * 60;
-    
-    // Calculate height: total minutes * (60px per hour / 60 minutes)
-    const durationMinutes = (endDate.getTime() - startDate.getTime()) / 60000;
-    const height = (durationMinutes / 60) * 60;
-    
-    return { top, height: Math.max(height, 20) }; // Minimum 20px height
-  };
+  // Mutations
+  const updateStandaloneEvent = useMutation({
+    mutationFn: async ({ id, startTime, duration }: { id: string; startTime: string; duration?: number }) => {
+      const numId = id.replace("standalone-", "");
+      const body: Record<string, unknown> = { startTime };
+      if (duration !== undefined) body.duration = duration;
+      return apiRequest("PATCH", `/api/standalone-events/${numId}`, body);
+    },
+    onSuccess: () => invalidateCalendarEvents(queryClient),
+  });
 
-  // Detect overlapping events and calculate their layout columns
-  const getEventLayout = (events: CalendarEvent[]) => {
-    const layout: Map<string, { column: number; totalColumns: number }> = new Map();
-    
-    // Sort events by start time, then by duration (longer first)
-    const sortedEvents = [...events].sort((a, b) => {
-      const aStart = new Date(getEventDisplayTime(a).start).getTime();
-      const bStart = new Date(getEventDisplayTime(b).start).getTime();
-      if (aStart !== bStart) return aStart - bStart;
-      
-      // If same start time, longer events first
-      const aDuration = new Date(getEventDisplayTime(a).end).getTime() - aStart;
-      const bDuration = new Date(getEventDisplayTime(b).end).getTime() - bStart;
-      return bDuration - aDuration;
-    });
-    
-    // Track which columns are occupied at which time ranges
-    const columns: Array<{ start: number; end: number; eventId: string }[]> = [];
-    
-    sortedEvents.forEach(event => {
-      const displayTime = getEventDisplayTime(event);
-      const eventStart = new Date(displayTime.start).getTime();
-      const eventEnd = new Date(displayTime.end).getTime();
-      
-      // Find the first available column
-      let columnIndex = 0;
-      while (true) {
-        if (!columns[columnIndex]) {
-          columns[columnIndex] = [];
-        }
-        
-        // Check if this column has any overlapping events
-        const hasOverlap = columns[columnIndex].some(occupiedEvent => {
-          return !(eventEnd <= occupiedEvent.start || eventStart >= occupiedEvent.end);
-        });
-        
-        if (!hasOverlap) {
-          // This column is free, use it
-          columns[columnIndex].push({ start: eventStart, end: eventEnd, eventId: event.id });
-          break;
-        }
-        
-        columnIndex++;
-      }
-      
-      // Find all events that overlap with this one to determine total columns
-      let maxColumn = columnIndex;
-      sortedEvents.forEach(otherEvent => {
-        const otherTime = getEventDisplayTime(otherEvent);
-        const otherStart = new Date(otherTime.start).getTime();
-        const otherEnd = new Date(otherTime.end).getTime();
-        
-        // Check if events overlap
-        if (!(eventEnd <= otherStart || eventStart >= otherEnd)) {
-          const otherLayout = layout.get(otherEvent.id);
-          if (otherLayout && otherLayout.column > maxColumn) {
-            maxColumn = otherLayout.column;
-          }
-        }
-      });
-      
-      layout.set(event.id, { column: columnIndex, totalColumns: maxColumn + 1 });
-    });
-    
-    // Update all overlapping events to have the same totalColumns
-    layout.forEach((value, eventId) => {
-      const event = sortedEvents.find(e => e.id === eventId);
-      if (!event) return;
-      
-      const displayTime = getEventDisplayTime(event);
-      const eventStart = new Date(displayTime.start).getTime();
-      const eventEnd = new Date(displayTime.end).getTime();
-      
-      let maxColumns = value.totalColumns;
-      layout.forEach((otherValue, otherEventId) => {
-        if (eventId === otherEventId) return;
-        
-        const otherEvent = sortedEvents.find(e => e.id === otherEventId);
-        if (!otherEvent) return;
-        
-        const otherTime = getEventDisplayTime(otherEvent);
-        const otherStart = new Date(otherTime.start).getTime();
-        const otherEnd = new Date(otherTime.end).getTime();
-        
-        // Check if events overlap
-        if (!(eventEnd <= otherStart || eventStart >= otherEnd)) {
-          maxColumns = Math.max(maxColumns, otherValue.totalColumns);
-        }
-      });
-      
-      value.totalColumns = maxColumns;
-    });
-    
-    return layout;
-  };
+  const updateTaskSchedule = useMutation({
+    mutationFn: async ({ id, scheduledTime }: { id: string; scheduledTime: string }) => {
+      return apiRequest("PATCH", `/api/tasks/${id}`, { scheduledTime });
+    },
+    onSuccess: () => {
+      invalidateCalendarEvents(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+  });
 
-  // Get dates for 3-day view
-  const get3DayDates = () => {
-    const dates = [];
-    for (let i = 0; i < 3; i++) {
-      const date = new Date(currentDate);
-      date.setDate(currentDate.getDate() + i);
-      dates.push(date);
+  const createStandaloneEvent = useMutation({
+    mutationFn: async (data: { title: string; startTime: string; duration: number; color?: string }) => {
+      return apiRequest("POST", "/api/standalone-events", data);
+    },
+    onSuccess: () => invalidateCalendarEvents(queryClient),
+  });
+
+  const deleteStandaloneEvent = useMutation({
+    mutationFn: async (id: string) => {
+      const numId = id.replace("standalone-", "");
+      return apiRequest("DELETE", `/api/standalone-events/${numId}`);
+    },
+    onSuccess: () => invalidateCalendarEvents(queryClient),
+  });
+
+  // Navigation
+  const navigate = useCallback((dir: -1 | 1) => {
+    setCurrentDate((prev) => {
+      const d = new Date(prev);
+      if (view === "day") d.setDate(d.getDate() + dir);
+      else if (view === "3day") d.setDate(d.getDate() + 3 * dir);
+      else if (view === "week") d.setDate(d.getDate() + 7 * dir);
+      else { d.setMonth(d.getMonth() + dir); d.setDate(1); }
+      return d;
+    });
+  }, [view]);
+
+  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
+
+  // Auto-scroll to current time
+  useEffect(() => {
+    if (view === "month") return;
+    const timer = setTimeout(() => {
+      if (!scrollRef.current) return;
+      const now = new Date();
+      const top = now.getHours() * HOUR_HEIGHT + (now.getMinutes() / 60) * HOUR_HEIGHT - 100;
+      scrollRef.current.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [view, currentDate]);
+
+  // Swipe navigation
+  const swipeRef = useRef<{ x: number; y: number } | null>(null);
+
+  const onSwipeStart = useCallback((e: React.TouchEvent) => {
+    if (dragEvent) return;
+    const t = e.touches[0];
+    swipeRef.current = { x: t.clientX, y: t.clientY };
+  }, [dragEvent]);
+
+  const onSwipeEnd = useCallback((e: React.TouchEvent) => {
+    if (!swipeRef.current || dragEvent) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeRef.current.x;
+    const dy = t.clientY - swipeRef.current.y;
+    swipeRef.current = null;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
+      navigate(dx > 0 ? -1 : 1);
     }
-    return dates;
-  };
+  }, [navigate, dragEvent]);
 
-  // Get dates for week view
-  const getWeekDates = () => {
-    const dates = [];
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Start on Sunday
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
-      dates.push(date);
+  // Event move (drag)
+  const moveEvent = useCallback((ev: CalendarEvent, newStartMinute: number) => {
+    const snapped = snapMinutes(Math.max(0, Math.min(1440 - 15, newStartMinute)));
+    const origStart = new Date(ev.start);
+    const newStart = new Date(origStart);
+    newStart.setHours(Math.floor(snapped / 60), snapped % 60, 0, 0);
+
+    if (ev.source === "standalone") {
+      updateStandaloneEvent.mutate({ id: ev.id, startTime: newStart.toISOString() });
+    } else if (ev.source === "productivityquest") {
+      updateTaskSchedule.mutate({ id: ev.id, scheduledTime: newStart.toISOString() });
     }
-    return dates;
-  };
+  }, [updateStandaloneEvent, updateTaskSchedule]);
 
-  // Generate calendar grid
-  const calendarDays = [];
-  
-  // Empty cells for days before month starts
-  for (let i = 0; i < startingDayOfWeek; i++) {
-    calendarDays.push(<div key={`empty-${i}`} className={`${isMobile ? 'min-h-12 p-0.5' : 'min-h-24 p-2'} bg-gray-900/20`} />);
-  }
-  
-  // Days of the month
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dayEvents = getEventsForDay(day);
-    
-    calendarDays.push(
-      <div
-        key={day}
-        className={`${isMobile ? 'min-h-12 p-0.5' : 'min-h-24 p-2'} border border-purple-500/20 bg-gray-900/40 hover:bg-gray-800/60 transition-colors cursor-pointer overflow-hidden ${
-          isToday(day) ? 'ring-2 ring-yellow-400/50 bg-yellow-400/10' : ''
-        }`}
-      >
-        <div className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-medium mb-1 ${
-          isToday(day) ? 'text-yellow-400' : 'text-purple-300'
-        }`}>
-          {day}
-        </div>
-        {/* Display events for this day */}
-        <div className="space-y-0.5">
-          {dayEvents.slice(0, isMobile ? 1 : 3).map(event => {
-            const eventStyle = getEventStyle(event);
-            return (
-              <div
-                key={event.id}
-                className={`${isMobile ? 'text-[8px] p-0.5' : 'text-xs p-1'} rounded truncate border cursor-pointer hover:opacity-80 overflow-hidden leading-tight ${eventStyle.className || ''}`}
-                style={eventStyle.backgroundColor ? { 
-                  backgroundColor: eventStyle.backgroundColor,
-                  borderColor: eventStyle.borderColor,
-                  color: eventStyle.color
-                } : undefined}
-                title={`${event.title}${event.calendarName ? ` (${event.calendarName})` : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedEvent(event);
-                }}
-              >
-                <span className="flex items-center gap-0.5">
-                  {event.completed && <CheckCircle2 className={`${isMobile ? 'w-2 h-2' : 'w-2.5 h-2.5'} text-green-400 flex-shrink-0`} />}
-                  <span className={event.completed ? 'line-through opacity-60' : ''}>{event.title}</span>
-                </span>
-              </div>
-            );
-          })}
-          {dayEvents.length > (isMobile ? 1 : 3) && (
-            <div className={`${isMobile ? 'text-[8px]' : 'text-xs'} text-gray-500`}>
-              +{dayEvents.length - (isMobile ? 1 : 3)}
-            </div>
-          )}
-        </div>
-      </div>
+  // Create new event
+  const openNewEvent = useCallback((date?: Date, minute?: number) => {
+    const d = date || currentDate;
+    const m = minute !== undefined ? snapMinutes(minute) : 9 * 60;
+    setNewEventDate(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
     );
-  }
+    setNewEventTime(
+      `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+    );
+    setNewEventTitle("");
+    setNewEventDuration("60");
+    setShowNewEventModal(true);
+  }, [currentDate]);
 
-  if (!googleConnected) {
-    return (
-      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'pt-1 pb-20 px-2' : 'pt-24 pb-8 px-8'}`}>
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-500/20 rounded-lg">
-                <CalendarIcon className="w-8 h-8 text-purple-400" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                  Calendar
-                </h1>
-                <p className="text-gray-400 text-sm">Sync your tasks with Google Calendar</p>
-              </div>
+  const handleCreateEvent = useCallback(() => {
+    if (!newEventTitle.trim()) return;
+    const [y, mo, d] = newEventDate.split("-").map(Number);
+    const [h, mi] = newEventTime.split(":").map(Number);
+    const start = new Date(y, mo - 1, d, h, mi);
+    createStandaloneEvent.mutate(
+      { title: newEventTitle.trim(), startTime: start.toISOString(), duration: parseInt(newEventDuration) || 60, color: "#a855f7" },
+      { onSuccess: () => { setShowNewEventModal(false); toast({ title: "Event created" }); } }
+    );
+  }, [newEventTitle, newEventDate, newEventTime, newEventDuration, createStandaloneEvent, toast]);
+
+  // Delete event
+  const handleDeleteEvent = useCallback((ev: CalendarEvent) => {
+    if (ev.source === "standalone") {
+      deleteStandaloneEvent.mutate(ev.id, {
+        onSuccess: () => { setSelectedEvent(null); toast({ title: "Event deleted" }); },
+      });
+    } else if (ev.source === "productivityquest") {
+      apiRequest("POST", `/api/tasks/${ev.id}/unschedule`, { removeFromGoogleCalendar: true }).then(() => {
+        invalidateCalendarEvents(queryClient);
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        setSelectedEvent(null);
+        toast({ title: "Removed from calendar" });
+      });
+    }
+  }, [deleteStandaloneEvent, queryClient, toast]);
+
+  // View dates
+  const viewDates = useMemo((): Date[] => {
+    if (view === "day") return [new Date(currentDate)];
+    if (view === "3day") {
+      return [0, 1, 2].map((i) => {
+        const d = new Date(currentDate);
+        d.setDate(d.getDate() + i);
+        return d;
+      });
+    }
+    if (view === "week") {
+      const start = new Date(currentDate);
+      start.setDate(start.getDate() - start.getDay());
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        return d;
+      });
+    }
+    return [];
+  }, [view, currentDate]);
+
+  // Title string
+  const titleStr = useMemo(() => {
+    if (view === "month") return `${MONTH_NAMES[month]} ${year}`;
+    if (view === "day") {
+      return currentDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    }
+    if (viewDates.length > 1) {
+      const first = viewDates[0];
+      const last = viewDates[viewDates.length - 1];
+      if (first.getMonth() === last.getMonth()) {
+        return `${MONTH_NAMES[first.getMonth()].slice(0, 3)} ${first.getDate()}\u2013${last.getDate()}, ${first.getFullYear()}`;
+      }
+      return `${MONTH_NAMES[first.getMonth()].slice(0, 3)} ${first.getDate()} \u2013 ${MONTH_NAMES[last.getMonth()].slice(0, 3)} ${last.getDate()}`;
+    }
+    return `${MONTH_NAMES[month]} ${year}`;
+  }, [view, currentDate, viewDates, month, year]);
+
+  const isViewingToday = sameDay(currentDate, today) || (view === "month" && month === today.getMonth() && year === today.getFullYear());
+
+  return (
+    <div
+      className={`bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 ${
+        isMobile ? "fixed inset-0 overflow-hidden" : "min-h-screen pt-24 pb-8 px-8"
+      }`}
+      style={isMobile ? { top: "env(safe-area-inset-top, 0px)", bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" } : undefined}
+    >
+      <div className={isMobile ? "h-full flex flex-col" : "max-w-7xl mx-auto"}>
+        <div className={isMobile ? "flex-1 flex flex-col min-h-0" : "bg-gray-900/60 border border-purple-500/20 rounded-xl p-4"}>
+          {/* Top bar */}
+          <div className={`flex items-center justify-between ${isMobile ? "px-2 pt-1.5 pb-1" : "mb-4"} flex-shrink-0`}>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className={`font-bold ${isMobile ? "text-sm" : "text-lg"} text-white min-w-0`}>{titleStr}</span>
+              <Button variant="ghost" size="sm" onClick={() => navigate(1)} className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-1">
+              {!isViewingToday && (
+                <Button size="sm" onClick={goToToday} className={`${isMobile ? "h-7 px-2 text-xs" : "h-8 px-3 text-sm"} bg-purple-600 hover:bg-purple-500`}>Today</Button>
+              )}
+              {!isMobile && (
+                <Link href="/settings/google-calendar">
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-purple-300"><Settings className="w-4 h-4" /></Button>
+                </Link>
+              )}
+              <Button size="sm" onClick={() => openNewEvent()} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-3"} bg-purple-600 hover:bg-purple-500`}>
+                <Plus className={isMobile ? "w-4 h-4" : "w-4 h-4 mr-1"} />
+                {!isMobile && "New Event"}
+              </Button>
+              {isMobile && (
+                <Link href="/settings/google-calendar">
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-purple-300"><Settings className="w-3.5 h-3.5" /></Button>
+                </Link>
+              )}
             </div>
           </div>
 
-          {/* Not Connected Card */}
-          <Card className="p-12 text-center bg-gray-900/60 border-purple-500/20">
-            <div className="max-w-md mx-auto">
-              <div className="mb-6 inline-flex p-4 bg-purple-500/10 rounded-full">
-                <CalendarIcon className="w-16 h-16 text-purple-400" />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-white mb-3">
-                Google Calendar Not Connected
-              </h2>
-              
-              <p className="text-gray-400 mb-8">
-                Connect your Google Calendar to sync your tasks and view them here. 
-                Follow our easy setup guide to get started.
-              </p>
+          {/* View switcher */}
+          <div className={`flex gap-0 bg-gray-800/60 ${isMobile ? "mx-2 p-0.5 rounded-md mb-1" : "p-1 rounded-lg mb-4 max-w-md"} border border-purple-500/20 flex-shrink-0`}>
+            {(["day", "3day", "week", "month"] as ViewMode[]).map((v) => (
+              <button key={v} onClick={() => setView(v)} className={`flex-1 ${isMobile ? "py-0.5 text-[11px]" : "py-1.5 text-sm"} rounded font-medium transition-colors ${view === v ? "bg-purple-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-700/50"}`}>
+                {v === "3day" ? "3 Day" : v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
 
-              <Link href="/google-calendar-integration">
-                <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Set Up Google Calendar
-                </Button>
-              </Link>
-
-              <div className="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-left">
-                <h3 className="text-sm font-semibold text-blue-400 mb-2">What you'll need:</h3>
-                <ul className="text-sm text-gray-300 space-y-1">
-                  <li>• A Google account</li>
-                  <li>• Google Cloud Console access</li>
-                  <li>• 5 minutes to set up OAuth credentials</li>
-                </ul>
-              </div>
+          {/* Loading */}
+          {isLoading && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400" />
             </div>
-          </Card>
+          )}
+
+          {/* Calendar content */}
+          {!isLoading && view === "month" && (
+            <MonthView year={year} month={month} allEvents={allEvents} today={today} isMobile={isMobile} onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd} onDayClick={(date) => { setCurrentDate(date); setView("day"); }} onEventClick={setSelectedEvent} />
+          )}
+          {!isLoading && view !== "month" && (
+            <TimeGridView
+              dates={viewDates}
+              allEvents={allEvents}
+              today={today}
+              isMobile={isMobile}
+              scrollRef={scrollRef}
+              dragEvent={dragEvent}
+              dragMinute={dragMinute}
+              onSwipeStart={onSwipeStart}
+              onSwipeEnd={onSwipeEnd}
+              onEventTap={setSelectedEvent}
+              onDragStart={(ev) => setDragEvent(ev)}
+              onDragMove={(min) => setDragMinute(min)}
+              onDragEnd={(ev, min) => { moveEvent(ev, min); setDragEvent(null); setDragMinute(null); }}
+              onDragCancel={() => { setDragEvent(null); setDragMinute(null); }}
+              onEmptyTap={(date, minute) => openNewEvent(date, minute)}
+            />
+          )}
         </div>
+
+        {!isMobile && (
+          <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-green-500/60" />
+              <span>Google Calendar synced</span>
+            </div>
+            {settings?.googleCalendarLastSync && (
+              <span>Last sync: {new Date(settings.googleCalendarLastSync).toLocaleString()}</span>
+            )}
+          </div>
+        )}
       </div>
-    );
-  }
+
+      {selectedEvent && (
+        <EventDetailSheet event={selectedEvent} isMobile={isMobile} onClose={() => setSelectedEvent(null)} onDelete={() => handleDeleteEvent(selectedEvent)} />
+      )}
+
+      {showNewEventModal && (
+        <NewEventModal
+          date={newEventDate}
+          time={newEventTime}
+          title={newEventTitle}
+          duration={newEventDuration}
+          onDateChange={setNewEventDate}
+          onTimeChange={setNewEventTime}
+          onTitleChange={setNewEventTitle}
+          onDurationChange={setNewEventDuration}
+          onCreate={handleCreateEvent}
+          onClose={() => setShowNewEventModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  TimeGridView — Day / 3-Day / Week
+// ═══════════════════════════════════════════════════════════════════════
+
+interface TimeGridViewProps {
+  dates: Date[];
+  allEvents: CalendarEvent[];
+  today: Date;
+  isMobile: boolean;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  dragEvent: CalendarEvent | null;
+  dragMinute: number | null;
+  onSwipeStart: (e: React.TouchEvent) => void;
+  onSwipeEnd: (e: React.TouchEvent) => void;
+  onEventTap: (ev: CalendarEvent) => void;
+  onDragStart: (ev: CalendarEvent) => void;
+  onDragMove: (minute: number) => void;
+  onDragEnd: (ev: CalendarEvent, minute: number) => void;
+  onDragCancel: () => void;
+  onEmptyTap: (date: Date, minute: number) => void;
+}
+
+function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, dragEvent, dragMinute, onSwipeStart, onSwipeEnd, onEventTap, onDragStart, onDragMove, onDragEnd, onDragCancel, onEmptyTap }: TimeGridViewProps) {
+  const numCols = dates.length;
+  const timeLabelWidth = isMobile ? (numCols > 3 ? 28 : 36) : 56;
 
   return (
-    <div className={`bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-24 pb-8 px-8'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
-      <div className={`${isMobile ? 'max-w-full h-full' : 'max-w-7xl'} mx-auto`}>
-        {/* Calendar Card */}
-        <Card
-          className={`${isMobile ? 'p-0 h-full flex flex-col rounded-none border-0 overflow-hidden' : 'p-6'} bg-gray-900/60 border-purple-500/20`}
-          onTouchStart={handleSwipeStart}
-          onTouchMove={handleSwipeMove}
-          onTouchEnd={handleSwipeEnd}
-        >
-          {/* View Selector and Month Navigation */}
-          <div className={`flex ${isMobile ? 'flex-col gap-1 px-1.5 pt-1.5 pb-1' : 'items-center justify-between'} ${isMobile ? '' : 'mb-6'} flex-shrink-0`}>
-            <div className={`flex ${isMobile ? 'flex-col gap-1' : 'items-center gap-4'}`}>
-              {/* Desktop: Settings and New Event buttons */}
-              {!isMobile && (
-                <div className="flex gap-2">
-                  <Link href="/settings/google-calendar">
-                    <Button variant="outline" size="default" className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </Button>
-                  </Link>
-                  <Button onClick={openNewEventModal} size="default" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Event
-                  </Button>
-                  {view === 'day' && (
-                    <Button 
-                      size="default" 
-                      onClick={handleMLSort}
-                      disabled={isSorting}
-                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white"
-                      title="AI-powered smart sorting for your day"
-                    >
-                      <Sparkles className={`w-4 h-4 mr-2 ${isSorting ? 'animate-spin' : ''}`} />
-                      {isSorting ? 'Sorting...' : 'Sort'}
-                    </Button>
+    <div ref={scrollRef as React.RefObject<HTMLDivElement>} className="flex-1 min-h-0 overflow-auto relative" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
+      {/* Sticky day headers */}
+      <div className="sticky top-0 z-20 flex bg-gray-900/95 backdrop-blur-sm border-b border-purple-500/20">
+        <div style={{ width: timeLabelWidth, flexShrink: 0 }} />
+        {dates.map((date, i) => {
+          const isToday = sameDay(date, today);
+          return (
+            <div key={i} className={`flex-1 text-center py-1 border-l border-purple-500/10 ${isToday ? "border-b-2 border-b-purple-400" : ""}`}>
+              <div className={`text-[10px] font-semibold ${isToday ? "text-purple-400" : "text-gray-400"}`}>
+                {isMobile && numCols > 3 ? DAY_NAMES_NARROW[date.getDay()] : DAY_NAMES_SHORT[date.getDay()]}
+              </div>
+              <div className={`text-sm font-bold ${isToday ? "text-purple-300" : "text-white"}`}>{date.getDate()}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Time grid body */}
+      <div className="flex relative" style={{ height: TOTAL_HEIGHT }}>
+        <div style={{ width: timeLabelWidth, flexShrink: 0 }} className="relative">
+          {Array.from({ length: 24 }, (_, h) => (
+            <div key={h} className="absolute right-1 text-gray-500" style={{ top: h * HOUR_HEIGHT - 6, fontSize: isMobile ? (numCols > 3 ? 8 : 9) : 11 }}>
+              {isMobile ? formatHourCompact(h) : formatHour(h)}
+            </div>
+          ))}
+        </div>
+
+        {dates.map((date, colIdx) => (
+          <DayColumn
+            key={`${date.toISOString()}-${colIdx}`}
+            date={date}
+            events={getEventsForDate(allEvents, date)}
+            isToday={sameDay(date, today)}
+            isMobile={isMobile}
+            numCols={numCols}
+            dragEvent={dragEvent}
+            dragMinute={dragMinute}
+            onEventTap={onEventTap}
+            onDragStart={onDragStart}
+            onDragMove={onDragMove}
+            onDragEnd={onDragEnd}
+            onDragCancel={onDragCancel}
+            onEmptyTap={(minute) => onEmptyTap(date, minute)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  MonthView
+// ═══════════════════════════════════════════════════════════════════════
+
+interface MonthViewProps {
+  year: number;
+  month: number;
+  allEvents: CalendarEvent[];
+  today: Date;
+  isMobile: boolean;
+  onSwipeStart: (e: React.TouchEvent) => void;
+  onSwipeEnd: (e: React.TouchEvent) => void;
+  onDayClick: (date: Date) => void;
+  onEventClick: (ev: CalendarEvent) => void;
+}
+
+function MonthView({ year, month, allEvents, today, isMobile, onSwipeStart, onSwipeEnd, onDayClick, onEventClick }: MonthViewProps) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDow = firstDay.getDay();
+  const totalDays = lastDay.getDate();
+  const weeks = Math.ceil((startDow + totalDays) / 7);
+
+  return (
+    <div className="flex-1 min-h-0 overflow-auto flex flex-col" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
+      <div className="grid grid-cols-7 border-b border-purple-500/20 flex-shrink-0">
+        {DAY_NAMES_SHORT.map((d) => (
+          <div key={d} className="text-center py-1 text-[10px] font-semibold text-gray-400">{isMobile ? d[0] : d}</div>
+        ))}
+      </div>
+
+      <div className="flex-1 grid" style={{ gridTemplateRows: `repeat(${weeks}, 1fr)` }}>
+        {Array.from({ length: weeks }, (_, w) => (
+          <div key={w} className="grid grid-cols-7 border-b border-purple-500/10">
+            {Array.from({ length: 7 }, (__, dow) => {
+              const dayNum = w * 7 + dow - startDow + 1;
+              const isValid = dayNum >= 1 && dayNum <= totalDays;
+              const date = isValid ? new Date(year, month, dayNum) : null;
+              const isToday = date ? sameDay(date, today) : false;
+              const dayEvents = date ? getEventsForDate(allEvents, date) : [];
+              const maxShow = isMobile ? 2 : 4;
+
+              return (
+                <div key={dow} className={`min-h-0 p-0.5 border-r border-purple-500/5 overflow-hidden ${isValid ? "cursor-pointer" : "bg-gray-900/30"}`} onClick={() => date && onDayClick(date)}>
+                  {isValid && (
+                    <>
+                      <div className={`text-xs font-semibold text-center mb-0.5 ${isToday ? "bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center mx-auto text-[10px]" : "text-gray-300"}`}>{dayNum}</div>
+                      <div className="space-y-px">
+                        {dayEvents.slice(0, maxShow).map((ev) => (
+                          <div key={ev.id} className="truncate rounded-sm px-0.5 text-[9px] leading-tight text-white" style={{ backgroundColor: eventColor(ev) + "80" }} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}>{ev.title}</div>
+                        ))}
+                        {dayEvents.length > maxShow && (
+                          <div className="text-[8px] text-gray-400 text-center">+{dayEvents.length - maxShow} more</div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
-              )}
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-              {/* Multi-select toolbar - shows when events are selected */}
-              {selectedEventIds.size > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 border border-purple-500/40 rounded-lg">
-                  <span className="text-sm text-purple-300">
-                    {selectedEventIds.size} selected
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={handleDeleteSelectedEvents}
-                    className="h-7 px-2 text-xs"
-                    title="Remove from calendar (quests will remain in Quests page)"
-                  >
-                    <CalendarMinus className="w-3 h-3 mr-1" />
-                    Remove from Calendar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSelectedEventIds(new Set())}
-                    className="h-7 px-2 text-xs text-gray-400 hover:text-white"
-                  >
-                    Clear
-                  </Button>
-                </div>
-              )}
+// ═══════════════════════════════════════════════════════════════════════
+//  DayColumn — single day column with events + touch drag
+// ═══════════════════════════════════════════════════════════════════════
 
-              {/* Mobile: Nav arrows + Title + action buttons all in one row */}
-              {isMobile ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-0.5">
-                    <Button
-                      onClick={previousMonth}
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      onClick={() => setCurrentDate(new Date())}
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-1.5 text-[11px] text-purple-300 hover:bg-purple-500/10 font-semibold"
-                    >
-                      {monthNames[month].slice(0, 3)} {year}
-                    </Button>
-                    <Button
-                      onClick={nextMonth}
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex gap-1">
-                    {!isViewingToday && (
-                      <Button 
-                        onClick={() => setCurrentDate(new Date())} 
-                        size="sm" 
-                        className="h-7 w-7 p-0 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white"
-                        title="Jump to today"
-                      >
-                        <CalendarCheck className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                    <Link href="/settings/google-calendar">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10">
-                        <Settings className="w-3.5 h-3.5" />
-                      </Button>
-                    </Link>
-                    <Button onClick={openNewEventModal} size="sm" className="h-7 w-7 p-0 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500">
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
-                    {view === 'day' && (
-                      <Button 
-                        size="sm"
-                        onClick={handleMLSort}
-                        disabled={isSorting}
-                        className="h-7 w-7 p-0 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white"
-                        title="AI-powered smart sorting"
-                      >
-                        <Sparkles className={`w-3.5 h-3.5 ${isSorting ? 'animate-spin' : ''}`} />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <h2 className="text-2xl font-bold text-white">
-                  {monthNames[month]} {year}
-                </h2>
-              )}
-              
-              {/* View Selector */}
-              <div className={`flex gap-0 bg-gray-800/60 ${isMobile ? 'p-0.5 rounded-md' : 'p-1 rounded-lg'} border border-purple-500/20 ${isMobile ? 'w-full' : ''}`}>
-                <button
-                  onClick={() => setView('day')}
-                  className={`${isMobile ? 'flex-1 px-1.5 py-0.5 text-[11px]' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
-                    view === 'day' 
-                      ? 'bg-purple-600 text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  Day
-                </button>
-                <button
-                  onClick={() => setView('3day')}
-                  className={`${isMobile ? 'flex-1 px-1.5 py-0.5 text-[11px]' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
-                    view === '3day' 
-                      ? 'bg-purple-600 text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  3 Days
-                </button>
-                <button
-                  onClick={() => setView('week')}
-                  className={`${isMobile ? 'flex-1 px-1.5 py-0.5 text-[11px]' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
-                    view === 'week' 
-                      ? 'bg-purple-600 text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  Week
-                </button>
-                <button
-                  onClick={() => setView('month')}
-                  className={`${isMobile ? 'flex-1 px-1.5 py-0.5 text-[11px]' : 'px-4 py-1.5'} rounded text-sm font-medium transition-colors ${
-                    view === 'month' 
-                      ? 'bg-purple-600 text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  Month
-                </button>
+interface DayColumnProps {
+  date: Date;
+  events: CalendarEvent[];
+  isToday: boolean;
+  isMobile: boolean;
+  numCols: number;
+  dragEvent: CalendarEvent | null;
+  dragMinute: number | null;
+  onEventTap: (ev: CalendarEvent) => void;
+  onDragStart: (ev: CalendarEvent) => void;
+  onDragMove: (minute: number) => void;
+  onDragEnd: (ev: CalendarEvent, minute: number) => void;
+  onDragCancel: () => void;
+  onEmptyTap: (minute: number) => void;
+}
+
+const DayColumn = React.memo(function DayColumn({
+  date, events, isToday, isMobile, numCols, dragEvent, dragMinute,
+  onEventTap, onDragStart, onDragMove, onDragEnd, onDragCancel, onEmptyTap,
+}: DayColumnProps) {
+  const colRef = useRef<HTMLDivElement>(null);
+  const layout = useMemo(() => layoutEvents(events), [events]);
+
+  const touchState = useRef<{
+    ev: CalendarEvent;
+    startY: number;
+    startMinute: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    active: boolean;
+    moved: boolean;
+  } | null>(null);
+
+  const getMinuteFromY = useCallback((clientY: number): number => {
+    if (!colRef.current) return 0;
+    const rect = colRef.current.getBoundingClientRect();
+    const scrollContainer = colRef.current.closest("[class*='overflow-auto']");
+    const scrollTop = scrollContainer?.scrollTop || 0;
+    const y = clientY - rect.top + scrollTop;
+    return Math.max(0, Math.min(1439, (y / TOTAL_HEIGHT) * 1440));
+  }, []);
+
+  const handleEventTouchStart = useCallback((ev: CalendarEvent, e: React.TouchEvent) => {
+    if (!isDraggable(ev)) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const startMinute = minuteOfDay(new Date(ev.start));
+
+    const state = {
+      ev,
+      startY: touch.clientY,
+      startMinute,
+      timer: null as ReturnType<typeof setTimeout> | null,
+      active: false,
+      moved: false,
+    };
+
+    state.timer = setTimeout(() => {
+      state.active = true;
+      onDragStart(ev);
+      onDragMove(startMinute);
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, LONG_PRESS_MS);
+
+    touchState.current = state;
+  }, [onDragStart, onDragMove]);
+
+  useEffect(() => {
+    const col = colRef.current;
+    if (!col) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const ts = touchState.current;
+      if (!ts) return;
+      const touch = e.touches[0];
+      const dy = Math.abs(touch.clientY - ts.startY);
+
+      if (!ts.active) {
+        if (dy > MOVE_THRESHOLD) {
+          if (ts.timer) clearTimeout(ts.timer);
+          touchState.current = null;
+          return;
+        }
+        e.preventDefault();
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      ts.moved = true;
+      const minute = getMinuteFromY(touch.clientY);
+      const delta = minute - ts.startMinute;
+      const origStart = minuteOfDay(new Date(ts.ev.start));
+      onDragMove(snapMinutes(origStart + delta));
+    };
+
+    const handleTouchEnd = () => {
+      const ts = touchState.current;
+      if (!ts) return;
+      if (ts.timer) clearTimeout(ts.timer);
+      if (ts.active && ts.moved && dragMinute !== null) {
+        onDragEnd(ts.ev, dragMinute);
+      } else if (ts.active) {
+        onDragCancel();
+      }
+      touchState.current = null;
+    };
+
+    const handleTouchCancel = () => {
+      const ts = touchState.current;
+      if (ts?.timer) clearTimeout(ts.timer);
+      if (ts?.active) onDragCancel();
+      touchState.current = null;
+    };
+
+    col.addEventListener("touchmove", handleTouchMove, { passive: false });
+    col.addEventListener("touchend", handleTouchEnd, { passive: true });
+    col.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+    return () => {
+      col.removeEventListener("touchmove", handleTouchMove);
+      col.removeEventListener("touchend", handleTouchEnd);
+      col.removeEventListener("touchcancel", handleTouchCancel);
+    };
+  }, [getMinuteFromY, onDragMove, onDragEnd, onDragCancel, dragMinute]);
+
+  // Double-tap to create on empty space
+  const lastTap = useRef<number>(0);
+  const handleEmptyClick = useCallback((e: React.MouseEvent) => {
+    const now = Date.now();
+    if (now - lastTap.current < 350) {
+      const minute = getMinuteFromY(e.clientY);
+      onEmptyTap(minute);
+    }
+    lastTap.current = now;
+  }, [getMinuteFromY, onEmptyTap]);
+
+  const now = new Date();
+  const showNow = isToday;
+  const nowMinute = now.getHours() * 60 + now.getMinutes();
+
+  return (
+    <div ref={colRef} className="flex-1 relative border-l border-purple-500/10" style={{ height: TOTAL_HEIGHT }} onClick={handleEmptyClick}>
+      {/* Hour grid lines */}
+      {Array.from({ length: 24 }, (_, h) => (
+        <div key={h} className="absolute left-0 right-0 border-b border-purple-500/[0.08]" style={{ top: h * HOUR_HEIGHT, height: HOUR_HEIGHT }} />
+      ))}
+
+      {/* Current time indicator */}
+      {showNow && (
+        <div className="absolute left-0 right-0 z-10 flex items-center pointer-events-none" style={{ top: (nowMinute / 1440) * TOTAL_HEIGHT }}>
+          <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shadow-lg shadow-red-500/50" />
+          <div className="flex-1 h-0.5 bg-red-500 shadow-sm shadow-red-500/50" />
+        </div>
+      )}
+
+      {/* Events */}
+      {events.map((ev) => {
+        const l = layout.get(ev.id) || { col: 0, total: 1 };
+        const start = new Date(ev.start);
+        const end = new Date(ev.end);
+        const isBeingDragged = dragEvent?.id === ev.id && dragMinute !== null;
+
+        const topMin = isBeingDragged ? dragMinute! : minuteOfDay(start);
+        const durMin = (end.getTime() - start.getTime()) / 60000;
+        const top = (topMin / 1440) * TOTAL_HEIGHT;
+        const height = Math.max(15, (durMin / 1440) * TOTAL_HEIGHT);
+        const colW = 100 / l.total;
+        const left = `${l.col * colW}%`;
+        const width = `calc(${colW}% - 2px)`;
+        const color = eventColor(ev);
+
+        return (
+          <div
+            key={ev.id}
+            data-event-id={ev.id}
+            className={`absolute rounded-md border-l-[3px] overflow-hidden cursor-pointer select-none transition-shadow ${isBeingDragged ? "z-30 shadow-xl shadow-purple-500/30 opacity-90 scale-[1.02]" : "z-10 hover:brightness-110"} ${ev.completed ? "opacity-50" : ""}`}
+            style={{ top, height, left, width, borderLeftColor: color, backgroundColor: color + "25", touchAction: isDraggable(ev) && isMobile ? "none" : undefined }}
+            onClick={(e) => { e.stopPropagation(); if (!touchState.current?.active) onEventTap(ev); }}
+            onTouchStart={(e) => handleEventTouchStart(ev, e)}
+            onMouseDown={(e) => {
+              if (!isDraggable(ev) || isMobile) return;
+              e.preventDefault();
+              const startMinute = minuteOfDay(start);
+              onDragStart(ev);
+              onDragMove(startMinute);
+              const handleMouseMove = (me: MouseEvent) => {
+                const minute = getMinuteFromY(me.clientY);
+                const delta = minute - startMinute;
+                onDragMove(snapMinutes(minuteOfDay(start) + delta));
+              };
+              const handleMouseUp = () => {
+                window.removeEventListener("mousemove", handleMouseMove);
+                window.removeEventListener("mouseup", handleMouseUp);
+                setTimeout(() => onDragCancel(), 0);
+              };
+              window.addEventListener("mousemove", handleMouseMove);
+              window.addEventListener("mouseup", handleMouseUp);
+            }}
+          >
+            <div className="px-1.5 py-0.5 h-full flex flex-col justify-start">
+              <div className="flex items-center gap-1 min-w-0">
+                {ev.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
+                <span className={`text-[10px] font-semibold truncate ${ev.completed ? "line-through text-gray-400" : "text-white"}`}>{ev.title}</span>
               </div>
+              {height > 30 && (
+                <span className="text-[9px] text-white/60 truncate">
+                  {formatTime(start)}{height > 45 && ` \u2013 ${formatTime(end)}`}
+                </span>
+              )}
+              {height > 55 && ev.source === "google" && ev.calendarName && (
+                <span className="text-[8px] text-white/40 truncate">{ev.calendarName}</span>
+              )}
             </div>
-            
-            {!isMobile && (
-              <div className="flex gap-2">
-                <Button
-                  onClick={previousMonth}
-                  variant="outline"
-                  className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
-                >
-                  ← Previous
-                </Button>
-                <Button
-                  onClick={() => setCurrentDate(new Date())}
-                  variant="outline"
-                  className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
-                >
-                  Today
-                </Button>
-                <Button
-                  onClick={nextMonth}
-                  variant="outline"
-                  className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
-                >
-                  Next →
-                </Button>
-              </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+//  EventDetailSheet
+// ═══════════════════════════════════════════════════════════════════════
+
+function EventDetailSheet({ event, isMobile, onClose, onDelete }: { event: CalendarEvent; isMobile: boolean; onClose: () => void; onDelete: () => void }) {
+  const start = new Date(event.start);
+  const end = new Date(event.end);
+  const color = eventColor(event);
+  const canModify = isDraggable(event);
+  const sourceLabel = event.source === "google"
+    ? `Google Calendar${event.calendarName ? ` \u00b7 ${event.calendarName}` : ""}`
+    : event.source === "productivityquest" ? "Quest" : "Calendar Event";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className={`bg-gray-900 border-t sm:border border-purple-500/30 ${isMobile ? "w-full rounded-t-2xl max-h-[70vh]" : "rounded-xl max-w-md w-full"} overflow-auto`} onClick={(e) => e.stopPropagation()}>
+        {isMobile && (
+          <div className="flex justify-center pt-2 pb-1">
+            <div className="w-10 h-1 rounded-full bg-gray-600" />
+          </div>
+        )}
+        <div className="h-1.5 rounded-t-xl" style={{ backgroundColor: color }} />
+        <div className="p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-lg font-bold text-white leading-tight">{event.title}</h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-white p-1 -mt-1"><X className="w-5 h-5" /></button>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-gray-300">
+            <Clock className="w-4 h-4 text-purple-400" />
+            <span>
+              {start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+              {" \u00b7 "}
+              {formatTime(start)} \u2013 {formatTime(end)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">{sourceLabel}</Badge>
+            {event.importance && event.source === "productivityquest" && (
+              <Badge variant="outline" className="text-[10px]" style={{ borderColor: color + "60", color }}>{event.importance}</Badge>
+            )}
+            {event.completed && (
+              <Badge className="text-[10px] bg-green-600/20 text-green-300 border-green-600/30">Completed</Badge>
             )}
           </div>
 
-          {/* Swipeable content wrapper */}
-          <div 
-            style={isMobile && (swipeOffsetX !== 0 || swipeAnimating) ? { 
-              transform: `translateX(${swipeOffsetX}px)`, 
-              transition: swipeAnimating ? 'transform 0.2s ease-out' : 'none',
-            } : undefined}
-            className={isMobile ? 'flex-1 flex flex-col min-h-0' : 'contents'}
-          >
+          {event.description && <p className="text-sm text-gray-400 whitespace-pre-wrap">{event.description}</p>}
 
-          {/* Day Headers - Only show for month view */}
-          {view === 'month' && (
-            <div className="grid grid-cols-7 gap-px mb-px flex-shrink-0">
-              {dayNames.map(day => (
-                <div
-                  key={day}
-                  className={`${isMobile ? 'p-1.5 text-xs' : 'p-3'} text-center font-semibold text-purple-300 bg-gray-800/60`}
-                >
-                  {isMobile ? day.slice(0, 3) : day}
-                </div>
+          {event.skillTags && event.skillTags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {event.skillTags.map((s) => (
+                <Badge key={s} variant="outline" className="text-[10px] text-yellow-300 border-yellow-600/30">{s}</Badge>
               ))}
             </div>
           )}
 
-          {/* Calendar Grid - Month View */}
-          {view === 'month' && (
-            <div className={`grid grid-cols-7 gap-px bg-purple-500/20 ${isMobile ? 'flex-1 min-h-0 overflow-auto' : ''}`}>
-              {calendarDays}
+          {event.goldValue && event.goldValue > 0 && <div className="text-sm text-yellow-400">{"\ud83e\ude99"} {event.goldValue} gold</div>}
+          {event.campaign && <div className="text-sm text-purple-300">{"\ud83d\udccb"} {event.campaign}</div>}
+
+          {canModify && (
+            <div className="pt-2 border-t border-gray-800">
+              <Button variant="destructive" size="sm" onClick={onDelete} className="w-full">
+                <Trash2 className="w-4 h-4 mr-2" />
+                {event.source === "productivityquest" ? "Remove from Calendar" : "Delete Event"}
+              </Button>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          {/* Day View */}
-          {view === 'day' && (
-            <div 
-              ref={dayViewRef} 
-              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'} ${touchHook.dragState.isDragging ? 'touch-none' : ''}`}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            >
-              <div className={isMobile ? 'min-w-full' : 'min-w-[600px]'}>
-                {/* Day Header */}
-                <div className={`grid ${isMobile ? 'grid-cols-[40px_1fr]' : 'grid-cols-[80px_1fr]'} gap-px bg-purple-500/20 sticky top-0 z-10`}>
-                  <div className={`bg-gray-800/60 ${isMobile ? 'p-1' : 'p-3'}`}></div>
-                  {isMobile ? (
-                    <div className="bg-gray-800/60 px-2 py-1 flex items-center justify-center gap-1.5">
-                      <span className="text-xs font-semibold text-purple-300">
-                        {currentDate.toLocaleDateString('en-US', { weekday: 'short' })}
-                      </span>
-                      <span className="text-sm font-bold text-white">
-                        {currentDate.getDate()}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-800/60 p-3 text-center">
-                      <div className="font-semibold text-purple-300">
-                        {currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
-                      </div>
-                      <div className="text-2xl font-bold text-white">
-                        {currentDate.getDate()}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        {currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                      </div>
-                    </div>
-                  )}
-                </div>
+// ═══════════════════════════════════════════════════════════════════════
+//  NewEventModal
+// ═══════════════════════════════════════════════════════════════════════
 
-                {/* Time Slots */}
-                <div className={`grid ${isMobile ? 'grid-cols-[40px_1fr]' : 'grid-cols-[80px_1fr]'} gap-px bg-purple-500/20`}>
-                  <div className="bg-gray-900/20">
-                    {/* Time labels column */}
-                    {timeSlots.map(({ hour, label }) => (
-                      <div key={hour} className={`${isMobile ? 'p-0.5 text-[9px] pr-1' : 'p-2 text-xs pr-3'} text-gray-500 text-right h-[60px] border-b border-purple-500/10`}>
-                        {isMobile ? label.replace(':00 ', '').replace('AM', 'a').replace('PM', 'p') : label}
-                      </div>
-                    ))}
-                  </div>
-                  <div 
-                    ref={calendarContainerRef}
-                    className="bg-gray-900/20 relative select-none" 
-                    style={{ height: '1440px' }}
-                    onDoubleClick={(e) => handleCalendarDoubleClick(e)}
-                    onMouseDown={handleSelectionStart}
-                    onMouseMove={(e) => {
-                      handleMouseMove(e as any);
-                      handleSelectionMove(e);
-                    }}
-                    onMouseUp={() => {
-                      handleMouseUp();
-                      handleSelectionEnd();
-                    }}
-                    onMouseLeave={() => {
-                      handleMouseUp();
-                      handleSelectionEnd();
-                    }}
-                  > {/* 24 hours * 60px */}
-                    {/* Hour grid lines */}
-                    {timeSlots.map(({ hour }) => (
-                      <div 
-                        key={hour}
-                        className="absolute left-0 right-0 h-[60px] border-b border-purple-500/10"
-                        style={{ top: `${hour * 60}px` }}
-                      />
-                    ))}
-                    
-                    {/* Selection Box */}
-                    {isSelecting && selectionBox && (
-                      <div
-                        className="absolute bg-purple-500/20 border-2 border-purple-400 rounded pointer-events-none z-30"
-                        style={{
-                          left: Math.min(selectionBox.startX, selectionBox.currentX),
-                          top: Math.min(selectionBox.startY, selectionBox.currentY),
-                          width: Math.abs(selectionBox.currentX - selectionBox.startX),
-                          height: Math.abs(selectionBox.currentY - selectionBox.startY),
-                        }}
-                      />
-                    )}
-                    
-                    {/* Current Time Indicator */}
-                    {(() => {
-                      const now = new Date();
-                      const isToday = currentDate.toDateString() === now.toDateString();
-                      if (isToday) {
-                        const currentHour = now.getHours();
-                        const currentMinute = now.getMinutes();
-                        const topPosition = currentHour * 60 + (currentMinute / 60) * 60;
-                        return (
-                          <div 
-                            className="absolute left-0 right-0 flex items-center z-20"
-                            style={{ top: `${topPosition}px` }}
-                          >
-                            <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
-                            <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                    
-                    {/* Events with absolute positioning */}
-                    {(() => {
-                      const dayEvents = getEventsForDate(currentDate);
-                      const eventLayout = getEventLayout(dayEvents);
-                      
-                      return dayEvents.map((event, idx) => {
-                        const displayTime = getEventDisplayTime(event);
-                        const position = getEventPosition(event);
-                        const layout = eventLayout.get(event.id) || { column: 0, totalColumns: 1 };
-                        const td = touchHook.dragState;
-                        const isDragging = draggingEvent?.id === event.id || td.draggingEvent?.id === event.id;
-                        const isResizing = resizingEvent?.id === event.id || td.resizingEvent?.id === event.id;
-                        const isDraggable = event.source === 'productivityquest' || event.source === 'standalone';
-                        const isSelected = selectedEventIds.has(event.id);
-                        
-                        return (
-                          <CalendarEventBlock
-                            key={event.id}
-                            event={event}
-                            position={position}
-                            layout={layout}
-                            displayTime={displayTime}
-                            isDragging={isDragging}
-                            isResizing={isResizing}
-                            isDraggable={isDraggable}
-                            isSelected={isSelected}
-                            isPending={td.pendingEventId === event.id}
-                            isMobile={isMobile}
-                            positionMode="absolute"
-                            onMouseDown={handleEventMouseDown}
-                            onTouchStart={touchHook.handleEventTouchStart}
-                            onClick={(evt) => {
-                              if (hasDragged || hasResized || td.isDragging || touchHook.shouldSuppressClick()) return;
-                              if (isMobile) {
-                                touchHook.handleEventClick(evt);
-                              } else {
-                                setSelectedEvent(evt);
-                              }
-                            }}
-                            onMetaClick={(evt) => {
-                              setSelectedEventIds(prev => {
-                                const next = new Set(prev);
-                                if (next.has(evt.id)) next.delete(evt.id);
-                                else next.add(evt.id);
-                                return next;
-                              });
-                            }}
-                          />
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 3-Day View */}
-          {view === '3day' && (
-            <div 
-              ref={threeDayViewRef} 
-              className={`overflow-y-auto overflow-x-hidden ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'} ${touchHook.dragState.isDragging ? 'touch-none' : ''}`}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            >
-              <div className="w-full">
-                {/* Day Headers */}
-                <div className={`grid gap-px bg-purple-500/20 sticky top-0 z-10`} style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
-                  <div className={`bg-gray-800/60 ${isMobile ? 'p-0.5' : 'p-2'}`}></div>
-                  {get3DayDates().map((date, idx) => {
-                    const isCurrentDay = date.toDateString() === today.toDateString();
-                    return (
-                      <div key={idx} className={`bg-gray-800/60 ${isMobile ? 'px-0.5 py-1' : 'p-2'} text-center ${isCurrentDay ? 'border-b-2 border-purple-400' : ''}`}>
-                        {isMobile ? (
-                          <div className="flex items-center justify-center gap-0.5">
-                            <span className="text-[10px] font-semibold text-purple-300">
-                              {date.toLocaleDateString('en-US', { weekday: 'narrow' })}
-                            </span>
-                            <span className={`text-xs font-bold ${isCurrentDay ? 'text-purple-400' : 'text-white'}`}>
-                              {date.getDate()}
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="font-semibold text-purple-300 text-xs">
-                              {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                            </div>
-                            <div className="text-lg font-bold text-white">
-                              {date.getDate()}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Time Slots with absolute positioned events — wrapped in relative container */}
-                <div className="relative" style={{ height: `${24 * 60}px` }}>
-                  {/* Background grid */}
-                  <div className="absolute inset-0 grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
-                  {/* Time labels column */}
-                  {timeSlots.map(({ hour, label }) => (
-                    <React.Fragment key={hour}>
-                      <div className={`bg-gray-900/20 ${isMobile ? 'p-0.5 text-[8px] pr-0.5' : 'p-2 text-xs pr-2'} text-gray-500 text-right`} style={{ gridColumn: '1', gridRow: `${hour + 1}` }}>
-                        {isMobile ? label.replace(':00 ', '').replace('AM', 'a').replace('PM', 'p') : label}
-                      </div>
-                      {get3DayDates().map((_, idx) => (
-                        <div key={idx} className="bg-gray-900/20 min-h-[60px]" style={{ gridColumn: `${idx + 2}`, gridRow: `${hour + 1}` }} />
-                      ))}
-                    </React.Fragment>
-                  ))}
-                  </div>
-
-                  {/* Overlay: Absolute-positioned events per day column */}
-                  <div className="absolute inset-0 grid gap-px pointer-events-none" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
-                    {/* Empty time label spacer */}
-                    <div />
-                    {get3DayDates().map((date, idx) => {
-                      const now = new Date();
-                      const isToday = date.toDateString() === now.toDateString();
-                      const currentHour = now.getHours();
-                      const currentMinute = now.getMinutes();
-                      const timeIndicatorTop = currentHour * 60 + currentMinute;
-                      
-                      const dayEvents = getEventsForDate(date);
-                      const eventLayout = getEventLayout(dayEvents);
-
-                      return (
-                        <div key={idx} className="relative pointer-events-auto" style={{ height: `${24 * 60}px` }} onDoubleClick={(e) => handleCalendarDoubleClick(e, date)}>
-                          {/* Current Time Indicator */}
-                          {isToday && (
-                            <div 
-                              className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
-                              style={{ top: `${timeIndicatorTop}px` }}
-                            >
-                              <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
-                              <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
-                            </div>
-                          )}
-
-                          {/* Events with absolute positioning */}
-                          {dayEvents.map((event, eventIdx) => {
-                            const displayTime = getEventDisplayTime(event);
-                            const position = getEventPosition(event);
-                            const layout = eventLayout.get(event.id) || { column: 0, totalColumns: 1 };
-                            const td = touchHook.dragState;
-                            const isDragging = draggingEvent?.id === event.id || td.draggingEvent?.id === event.id;
-                            const isResizing = resizingEvent?.id === event.id || td.resizingEvent?.id === event.id;
-                            const isDraggable = event.source === 'productivityquest' || event.source === 'standalone';
-
-                            return (
-                              <CalendarEventBlock
-                                key={event.id}
-                                event={event}
-                                position={position}
-                                layout={layout}
-                                displayTime={displayTime}
-                                isDragging={isDragging}
-                                isResizing={isResizing}
-                                isDraggable={isDraggable}
-                                isSelected={false}
-                                isPending={td.pendingEventId === event.id}
-                                isMobile={isMobile}
-                                positionMode="absolute"
-                                onMouseDown={handleEventMouseDown}
-                                onTouchStart={touchHook.handleEventTouchStart}
-                                onClick={(evt) => {
-                                  if (hasDragged || hasResized || td.isDragging || touchHook.shouldSuppressClick()) return;
-                                  if (isMobile) {
-                                    touchHook.handleEventClick(evt);
-                                  } else {
-                                    setSelectedEvent(evt);
-                                  }
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Week View */}
-          {view === 'week' && (
-            <div 
-              ref={weekViewRef} 
-              className={`overflow-auto ${isMobile ? 'flex-1 min-h-0' : 'max-h-[calc(100vh-280px)]'} ${touchHook.dragState.isDragging ? 'touch-none' : ''}`}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            >
-              <div className={isMobile ? 'min-w-full overflow-x-auto' : 'min-w-[1200px]'}>
-                {/* Day Headers */}
-                <div className="grid gap-px bg-purple-500/20 sticky top-0 z-10" style={{ gridTemplateColumns: isMobile ? '30px repeat(7, 1fr)' : '80px repeat(7, 1fr)' }}>
-                  <div className={`bg-gray-800/60 ${isMobile ? 'p-0.5' : 'p-3'}`}></div>
-                  {getWeekDates().map((date, idx) => {
-                    const isCurrentDay = date.toDateString() === today.toDateString();
-                    return (
-                      <div key={idx} className={`bg-gray-800/60 ${isMobile ? 'px-0 py-0.5' : 'p-3'} text-center ${isCurrentDay ? (isMobile ? 'border-b-2 border-purple-400' : 'border-2 border-purple-500') : ''}`}>
-                        {isMobile ? (
-                          <div className="flex flex-col items-center leading-none">
-                            <span className="text-[9px] font-semibold text-purple-300">
-                              {date.toLocaleDateString('en-US', { weekday: 'narrow' })}
-                            </span>
-                            <span className={`text-[11px] font-bold ${isCurrentDay ? 'text-purple-400' : 'text-white'}`}>
-                              {date.getDate()}
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="font-semibold text-purple-300">
-                              {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                            </div>
-                            <div className={`text-xl font-bold ${isCurrentDay ? 'text-purple-400' : 'text-white'}`}>
-                              {date.getDate()}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Time Slots */}
-                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: isMobile ? '30px repeat(7, 1fr)' : '80px repeat(7, 1fr)' }}>
-                  {timeSlots.map(({ hour, label }) => {
-                    const now = new Date();
-                    const currentHour = now.getHours();
-                    const currentMinute = now.getMinutes();
-                    const timeIndicatorPosition = (currentMinute / 60) * 100;
-                    
-                    return (
-                      <React.Fragment key={hour}>
-                        <div className={`bg-gray-900/20 ${isMobile ? 'p-0 text-[8px] pr-0.5' : 'p-2 text-xs pr-3'} text-gray-500 text-right`}>
-                          {isMobile ? label.replace(':00 ', '').replace('AM', 'a').replace('PM', 'p') : label}
-                        </div>
-                        {getWeekDates().map((date, idx) => {
-                          const hourEvents = getEventsForHour(date, hour);
-                          const isToday = date.toDateString() === now.toDateString();
-                          const showTimeIndicator = isToday && hour === currentHour;
-                          
-                          return (
-                            <div 
-                              key={idx} 
-                              className="bg-gray-900/20 p-1 min-h-[50px] relative overflow-hidden" 
-                              style={{ minWidth: 0 }}
-                              onDoubleClick={() => {
-                                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                                const timeStr = `${String(hour).padStart(2, '0')}:00`;
-                                setNewEventTitle("New Event");
-                                setNewEventDate(dateStr);
-                                setNewEventStartTime(timeStr);
-                                setNewEventDuration("30");
-                                setNewEventDescription("");
-                                setNewEventColor("#8b5cf6");
-                                setShowNewEventModal(true);
-                              }}
-                            >
-                              {/* Current Time Indicator */}
-                              {showTimeIndicator && (
-                                <div 
-                                  className="absolute left-0 right-0 flex items-center z-20"
-                                  style={{ top: `${timeIndicatorPosition}%` }}
-                                >
-                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>
-                                  <div className="flex-1 h-0.5 bg-red-500 shadow-md shadow-red-500/50"></div>
-                                </div>
-                              )}
-                              
-                              {hourEvents.map((event, eventIdx) => {
-                                const displayTime = getEventDisplayTime(event);
-                                const td = touchHook.dragState;
-                                const isDragging = draggingEvent?.id === event.id || td.draggingEvent?.id === event.id;
-                                const isResizing = resizingEvent?.id === event.id || td.resizingEvent?.id === event.id;
-                                const isDraggable = event.source === 'productivityquest' || event.source === 'standalone';
-                                
-                                return (
-                                  <CalendarEventBlock
-                                    key={event.id}
-                                    event={event}
-                                    position={{ top: 0, height: 40 }}
-                                    layout={{ column: 0, totalColumns: 1 }}
-                                    displayTime={displayTime}
-                                    isDragging={isDragging}
-                                    isResizing={isResizing}
-                                    isDraggable={isDraggable}
-                                    isSelected={false}
-                                    isPending={td.pendingEventId === event.id}
-                                    isMobile={isMobile}
-                                    positionMode="relative"
-                                    onMouseDown={handleEventMouseDown}
-                                    onTouchStart={touchHook.handleEventTouchStart}
-                                    onClick={(evt) => {
-                                      if (hasDragged || hasResized || td.isDragging || touchHook.shouldSuppressClick()) return;
-                                      if (isMobile) {
-                                        touchHook.handleEventClick(evt);
-                                      } else {
-                                        setSelectedEvent(evt);
-                                      }
-                                    }}
-                                  />
-                                );
-                              })}
-                            </div>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-          </div>{/* End swipeable content wrapper */}
-        </Card>
-
-        {/* Status Bar - desktop only */}
-        {!isMobile && (
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-              <span>Synced with Google Calendar</span>
-            </div>
-            <div>
-              Last sync: {settings?.googleCalendarLastSync 
-                ? new Date(settings.googleCalendarLastSync).toLocaleString()
-                : 'Never'}
-            </div>
-          </div>
-        )}
-
-        {/* Event Detail Modal */}
-        {selectedEvent && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-12 overflow-y-auto"
-            onClick={() => {
-              setSelectedEvent(null);
-              setShowColorPicker(false);
-            }}
-            style={{
-              opacity: modalSwipeDismissing ? 0 : modalSwipeOffsetY > 0 ? Math.max(0, 1 - modalSwipeOffsetY / 400) : 1,
-              transition: modalSwipeDismissing ? 'opacity 0.25s ease-out' : undefined,
-            }}
-          >
-            <Card 
-              ref={isMobile ? modalSwipeCallbackRef : undefined}
-              className="bg-gray-900/95 border-purple-500/30 max-w-lg w-full relative mb-8"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                transform: modalSwipeOffsetY > 0 ? `translateY(${modalSwipeOffsetY}px)` : undefined,
-                transition: !modalSwipeDismissing && modalSwipeOffsetY === 0 ? 'transform 0.2s ease-out' : modalSwipeDismissing ? 'transform 0.25s ease-out' : undefined,
-              }}
-            >
-              {/* Mobile grab bar */}
-              {isMobile && (
-                <div className="flex justify-center pt-2 pb-0">
-                  <div className="w-10 h-1 rounded-full bg-gray-500/40" />
-                </div>
-              )}
-              {/* Header with colored accent */}
-              <div 
-                className="h-2 rounded-t-lg"
-                style={{ 
-                  backgroundColor: selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance)
-                }}
-              />
-              
-              {/* Close X Button - Top Right */}
-              <button
-                onClick={() => {
-                  setSelectedEvent(null);
-                  setShowDeleteMenu(false);
-                  setShowRescheduleModal(false);
-                  setShowColorPicker(false);
-                }}
-                className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-gray-600/50 flex items-center justify-center transition-colors"
-                title="Close"
-              >
-                <X className="w-4 h-4 text-gray-300" />
-              </button>
-              
-              <div className="p-6">
-                {/* Title */}
-                <h3 className="text-2xl font-bold text-white mb-4 pr-8">
-                  {selectedEvent.title}
-                </h3>
-
-                {/* Time */}
-                <div className="flex items-start gap-3 mb-4">
-                  <CalendarIcon className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-white">
-                      {new Date(selectedEvent.start).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </p>
-                    <p className="text-gray-400">
-                      {new Date(selectedEvent.start).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
-                      })}
-                      {' - '}
-                      {new Date(selectedEvent.end).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
-                      })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Calendar Name */}
-                {selectedEvent.calendarName && (
-                  <div className="flex items-start gap-3 mb-4">
-                    <div>
-                      <p className="text-sm text-gray-400">Calendar</p>
-                      <p className="text-white">{selectedEvent.calendarName}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Description */}
-                {selectedEvent.description && (
-                  <div className="mb-4 pb-4 border-b border-gray-700">
-                    <p className="text-sm text-gray-400 mb-1">Description</p>
-                    <div className="text-gray-300 whitespace-pre-wrap max-h-96 overflow-y-auto">
-                      {selectedEvent.description.length > 1000 ? (
-                        <>
-                          {selectedEvent.description.substring(0, 1000)}
-                          <span className="text-gray-500">... (truncated)</span>
-                          <p className="text-xs text-blue-400 mt-2 italic">
-                            Click "View Details" below to see the full description
-                          </p>
-                        </>
-                      ) : (
-                        selectedEvent.description
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* ProductivityQuest specific fields */}
-                {selectedEvent.source === 'productivityquest' && (
-                  <div className="space-y-3 mb-4 pb-4 border-b border-gray-700">
-                    {selectedEvent.importance && (
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Importance</p>
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                          selectedEvent.importance === 'urgent' ? 'bg-red-500/20 text-red-300' :
-                          selectedEvent.importance === 'important' ? 'bg-orange-500/20 text-orange-300' :
-                          'bg-blue-500/20 text-blue-300'
-                        }`}>
-                          {selectedEvent.importance.toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-
-                    {selectedEvent.goldValue !== undefined && (
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Gold Reward</p>
-                        <p className="text-yellow-400 font-bold">
-                          🪙 {selectedEvent.goldValue} Gold
-                        </p>
-                      </div>
-                    )}
-
-                    {selectedEvent.campaign && (
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Questline</p>
-                        <p className="text-white">{selectedEvent.campaign}</p>
-                      </div>
-                    )}
-
-                    {selectedEvent.skillTags && selectedEvent.skillTags.length > 0 && (
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Skills</p>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedEvent.skillTags.map((skill, idx) => (
-                            <span 
-                              key={idx}
-                              className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 text-xs"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedEvent.completed !== undefined && (
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Status</p>
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                          selectedEvent.completed 
-                            ? 'bg-green-500/20 text-green-300' 
-                            : 'bg-gray-500/20 text-gray-300'
-                        }`}>
-                          {selectedEvent.completed ? '✓ Completed' : 'Pending'}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Standalone event info */}
-                {selectedEvent.source === 'standalone' && (
-                  <div className="mb-4 pb-4 border-b border-gray-700">
-                    <div className="flex items-start gap-2 p-2.5 bg-purple-900/20 rounded-lg border border-purple-500/15">
-                      <Info className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-purple-300/70">
-                        Calendar-only event — not linked to any quest. Drag to reschedule.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex flex-col gap-2">
-                  {/* First row - Main actions */}
-                  <div className="flex gap-2 flex-wrap">
-                    {/* Complete Quest Button - For ProductivityQuest events that aren't already completed */}
-                    {selectedEvent.source === 'productivityquest' && !selectedEvent.completed && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-green-500/30 hover:bg-green-500/10 text-green-400 text-xs"
-                        onClick={handleCompleteTask}
-                      >
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Complete Quest
-                      </Button>
-                    )}
-
-                    {/* Reschedule Button - For PQ and Google events */}
-                    {selectedEvent.source !== 'standalone' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-blue-500/30 hover:bg-blue-500/10 text-xs"
-                        onClick={handleReschedule}
-                      >
-                        <Clock className="w-3 h-3 mr-1" />
-                        Reschedule
-                      </Button>
-                    )}
-                    
-                    {/* Remove from Calendar Button - For ProductivityQuest events only */}
-                    {selectedEvent.source === 'productivityquest' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-orange-500/30 hover:bg-orange-500/10 text-orange-400 text-xs"
-                        onClick={() => handleRemoveFromCalendar(isTwoWaySync)}
-                      >
-                        <CalendarX2 className="w-3 h-3 mr-1" />
-                        Remove from Calendar
-                      </Button>
-                    )}
-                    
-                    {/* Delete Button - For ProductivityQuest events only (permanently deletes quest) */}
-                    {selectedEvent.source === 'productivityquest' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
-                        onClick={() => {
-                          setShowDeleteMenu(!showDeleteMenu);
-                          setShowColorPicker(false);
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Delete Quest
-                      </Button>
-                    )}
-                    
-                    {/* Delete Button - For Google Calendar events */}
-                    {selectedEvent.source === 'google' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
-                        onClick={() => {
-                          // Open in Google Calendar for deletion
-                          const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
-                          window.open(googleCalendarUrl, '_blank');
-                          toast({
-                            title: "Delete in Google Calendar",
-                            description: "Please delete this event in Google Calendar. It will sync automatically.",
-                          });
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Delete
-                      </Button>
-                    )}
-
-                    {selectedEvent.source === 'google' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-purple-500/30 text-xs"
-                        onClick={() => {
-                          // Open in Google Calendar
-                          const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
-                          window.open(googleCalendarUrl, '_blank');
-                        }}
-                      >
-                        Open in Google
-                      </Button>
-                    )}
-                    {selectedEvent.source === 'productivityquest' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-purple-500/30 text-xs"
-                        onClick={() => {
-                          window.location.href = '/';
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    )}
-
-                    {/* Delete Button - For standalone events */}
-                    {selectedEvent.source === 'standalone' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-500/30 hover:bg-red-500/10 text-red-400 text-xs"
-                        onClick={() => handleDeleteStandaloneEvent(selectedEvent.id)}
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Delete Event
-                      </Button>
-                    )}
-                    
-                    {/* Color Picker Button - Bottom Right */}
-                    <div className="relative ml-auto">
-                      <button
-                        onClick={() => setShowColorPicker(!showColorPicker)}
-                        className="w-8 h-8 rounded-full border-2 border-white/20 hover:border-white/40 transition-colors shadow-lg"
-                        style={{ backgroundColor: selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance) }}
-                        title="Change color"
-                      />
-                      
-                      {/* Color Picker Dropdown */}
-                      {showColorPicker && (
-                        <div 
-                          className="absolute bottom-10 right-0 bg-gray-800/95 border border-purple-500/30 rounded-lg shadow-xl p-3 backdrop-blur-sm"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="grid grid-cols-4 gap-2 w-40">
-                            {calendarColors.map((color) => {
-                              const currentColor = selectedEvent.calendarColor || getColorHexFromImportance(selectedEvent.importance);
-                              return (
-                                <button
-                                  key={color.value}
-                                  onClick={() => handleColorChange(color.value)}
-                                  className="w-8 h-8 rounded-full border-2 hover:border-white/60 transition-all hover:scale-110"
-                                  style={{ 
-                                    backgroundColor: color.value,
-                                    borderColor: currentColor === color.value ? '#fff' : 'transparent'
-                                  }}
-                                  title={color.name}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Delete Options Menu */}
-                {showDeleteMenu && (
-                  <div className="mt-4 p-3 bg-gray-800/50 border border-red-500/30 rounded-lg space-y-2">
-                    <p className="text-xs text-gray-400 mb-2">Choose delete option:</p>
-                    
-                    {/* Show different options based on event source */}
-                    {selectedEvent.source === 'google' ? (
-                      // For Google Calendar events - show both options
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={`w-full justify-start text-xs ${
-                            !isTwoWaySync 
-                              ? 'opacity-50 cursor-not-allowed border-gray-600' 
-                              : 'border-red-500/30 hover:bg-red-500/10'
-                          }`}
-                          disabled={!isTwoWaySync}
-                          onClick={() => {
-                            if (isTwoWaySync) {
-                              // Delete from Google Calendar
-                              const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
-                              window.open(googleCalendarUrl, '_blank');
-                              toast({
-                                title: "Delete in Google Calendar",
-                                description: "Please delete this event in Google Calendar. It will sync automatically.",
-                              });
-                              setSelectedEvent(null);
-                              setShowDeleteMenu(false);
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
-                          <div className="text-left flex-1">
-                            <div className="text-xs font-medium">Delete from Google Calendar</div>
-                            {!isTwoWaySync ? (
-                              <div className="text-[10px] text-gray-500 mt-0.5">
-                                Enable Two-Way Sync to use this
-                              </div>
-                            ) : (
-                              <div className="text-[10px] text-gray-400 mt-0.5">
-                                Opens Google Calendar to delete
-                              </div>
-                            )}
-                          </div>
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-xs"
-                          onClick={() => handleRemoveFromCalendar(false)}
-                        >
-                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
-                          <div className="text-left flex-1">
-                            <div className="text-xs font-medium">Remove from App Only</div>
-                            <div className="text-[10px] text-gray-500 mt-0.5">
-                              Keeps in Google Calendar
-                            </div>
-                          </div>
-                        </Button>
-
-                        <div className="text-[10px] text-gray-500 mt-1 p-1.5 bg-gray-800/30 rounded">
-                          Google Calendar event - choose where to delete
-                        </div>
-                      </>
-                    ) : (
-                      // For ProductivityQuest events - Delete Quest permanently
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start border-red-500/30 hover:bg-red-500/10 text-xs text-red-400"
-                          onClick={async () => {
-                            // Delete the task permanently
-                            const taskId = selectedEvent.id;
-                            try {
-                              const response = await fetch(`/api/tasks/${taskId}`, {
-                                method: 'DELETE',
-                                credentials: 'include',
-                              });
-                              
-                              if (response.ok) {
-                                toast({
-                                  title: "Quest Deleted",
-                                  description: "The quest has been permanently deleted.",
-                                  variant: "destructive",
-                                });
-                                
-                                // Refresh data
-                                invalidateCalendarEvents(queryClient);
-                                queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-                                
-                                // Close modals
-                                setSelectedEvent(null);
-                                setShowDeleteMenu(false);
-                              } else {
-                                throw new Error('Failed to delete quest');
-                              }
-                            } catch (error) {
-                              toast({
-                                title: "Error",
-                                description: "Failed to delete quest. Please try again.",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3 mr-2 shrink-0" />
-                          <div className="text-left flex-1">
-                            <div className="text-xs font-medium">Delete Quest Permanently</div>
-                            <div className="text-[10px] text-gray-500 mt-0.5">
-                              Removes quest from everywhere
-                            </div>
-                          </div>
-                        </Button>
-
-                        <div className="text-[10px] text-red-400/80 mt-1 p-1.5 bg-red-900/20 rounded border border-red-500/20">
-                          ⚠️ This will permanently delete the quest. Use "Remove from Calendar" to keep the quest.
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* Reschedule Modal */}
-        {showRescheduleModal && selectedEvent && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowRescheduleModal(false)}
-            style={{
-              opacity: modalSwipeDismissing ? 0 : modalSwipeOffsetY > 0 ? Math.max(0, 1 - modalSwipeOffsetY / 400) : 1,
-              transition: modalSwipeDismissing ? 'opacity 0.25s ease-out' : undefined,
-            }}
-          >
-            <Card 
-              ref={isMobile ? modalSwipeCallbackRef : undefined}
-              className="bg-gray-900/95 border-purple-500/30 max-w-md w-full"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                transform: modalSwipeOffsetY > 0 ? `translateY(${modalSwipeOffsetY}px)` : undefined,
-                transition: !modalSwipeDismissing && modalSwipeOffsetY === 0 ? 'transform 0.2s ease-out' : modalSwipeDismissing ? 'transform 0.25s ease-out' : undefined,
-              }}
-            >
-              {/* Mobile grab bar */}
-              {isMobile && (
-                <div className="flex justify-center pt-3 pb-0">
-                  <div className="w-10 h-1 rounded-full bg-gray-500/40" />
-                </div>
-              )}
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-4">
-                  <Clock className="w-5 h-5 inline mr-2" />
-                  Reschedule Event
-                </h3>
-                
-                <p className="text-gray-300 mb-4">
-                  {selectedEvent.title}
-                </p>
-
-                {selectedEvent.source === 'google' ? (
-                  <>
-                    <p className="text-sm text-gray-400 mb-6">
-                      This is a Google Calendar event. You can drag it in the calendar view to reschedule, or use Google Calendar directly for more options.
-                    </p>
-
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        variant="outline"
-                        className="border-purple-500/30"
-                        onClick={() => {
-                          const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit/${selectedEvent.id.replace('google-', '')}`;
-                          window.open(googleCalendarUrl, '_blank');
-                        }}
-                      >
-                        Open in Google Calendar
-                      </Button>
-                      <Button
-                        onClick={() => setShowRescheduleModal(false)}
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        Close
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-gray-400 mb-6">
-                      Drag the event in the calendar view to reschedule it, or click below to view the task details page for more options.
-                    </p>
-
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        variant="outline"
-                        className="border-purple-500/30"
-                        onClick={() => {
-                          window.location.href = '/';
-                        }}
-                      >
-                        Go to Task Details
-                      </Button>
-                      <Button
-                        onClick={() => setShowRescheduleModal(false)}
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        Close
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* New Event Modal */}
-        {showNewEventModal && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-12 overflow-y-auto"
-            onClick={handleCloseNewEventModal}
-            style={{
-              opacity: modalSwipeDismissing ? 0 : modalSwipeOffsetY > 0 ? Math.max(0, 1 - modalSwipeOffsetY / 400) : 1,
-              transition: modalSwipeDismissing ? 'opacity 0.25s ease-out' : undefined,
-            }}
-          >
-            <Card 
-              ref={isMobile ? modalSwipeCallbackRef : undefined}
-              className="bg-gray-900/95 border-purple-500/30 max-w-md w-full relative mb-8"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                transform: modalSwipeOffsetY > 0 ? `translateY(${modalSwipeOffsetY}px)` : undefined,
-                transition: !modalSwipeDismissing && modalSwipeOffsetY === 0 ? 'transform 0.2s ease-out' : modalSwipeDismissing ? 'transform 0.25s ease-out' : undefined,
-              }}
-            >
-              {/* Mobile grab bar */}
-              {isMobile && (
-                <div className="flex justify-center pt-2 pb-0">
-                  <div className="w-10 h-1 rounded-full bg-gray-500/40" />
-                </div>
-              )}
-              {/* Purple accent bar */}
-              <div className="h-2 rounded-t-lg bg-gradient-to-r from-purple-600 to-pink-600" />
-              
-              {/* Close button */}
-              <button
-                onClick={handleCloseNewEventModal}
-                className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-gray-600/50 flex items-center justify-center transition-colors"
-                title="Close"
-              >
-                <X className="w-4 h-4 text-gray-300" />
-              </button>
-
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-purple-400" />
-                  New Calendar Event
-                </h3>
-                
-                {/* Disclaimer */}
-                <div className="flex items-start gap-2 mb-5 p-2.5 bg-purple-900/30 rounded-lg border border-purple-500/20">
-                  <Info className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-purple-300/80">
-                    This creates a calendar-only event for scheduling purposes. It won't appear as a quest and won't earn gold or XP.
-                  </p>
-                </div>
-
-                {/* Event Name */}
-                <div className="space-y-1.5 mb-4">
-                  <Label htmlFor="event-title" className="text-sm text-gray-300">Event Name</Label>
-                  <Input 
-                    id="event-title"
-                    value={newEventTitle}
-                    onChange={(e) => setNewEventTitle(e.target.value)}
-                    placeholder="e.g., Doctor's Appointment, Team Lunch..."
-                    className="bg-gray-800/60 border-gray-600/50 text-white placeholder:text-gray-500 focus:border-purple-500"
-                    autoFocus
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNewEvent(); }}
-                  />
-                </div>
-
-                {/* Date */}
-                <div className="space-y-1.5 mb-4">
-                  <Label htmlFor="event-date" className="text-sm text-gray-300">Date</Label>
-                  <Input 
-                    id="event-date"
-                    type="date"
-                    value={newEventDate}
-                    onChange={(e) => setNewEventDate(e.target.value)}
-                    className="bg-gray-800/60 border-gray-600/50 text-white focus:border-purple-500 [color-scheme:dark]"
-                  />
-                </div>
-
-                {/* Start Time + Duration Row */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="event-start-time" className="text-sm text-gray-300">Start Time</Label>
-                    <Input 
-                      id="event-start-time"
-                      type="time"
-                      value={newEventStartTime}
-                      onChange={(e) => setNewEventStartTime(e.target.value)}
-                      className="bg-gray-800/60 border-gray-600/50 text-white focus:border-purple-500 [color-scheme:dark]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="event-duration" className="text-sm text-gray-300">Duration</Label>
-                    <select
-                      id="event-duration"
-                      value={newEventDuration}
-                      onChange={(e) => setNewEventDuration(e.target.value)}
-                      className="w-full h-10 px-3 rounded-md bg-gray-800/60 border border-gray-600/50 text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    >
-                      <option value="15">15 min</option>
-                      <option value="30">30 min</option>
-                      <option value="45">45 min</option>
-                      <option value="60">1 hour</option>
-                      <option value="90">1.5 hours</option>
-                      <option value="120">2 hours</option>
-                      <option value="180">3 hours</option>
-                      <option value="240">4 hours</option>
-                      <option value="480">8 hours</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Description (optional) */}
-                <div className="space-y-1.5 mb-4">
-                  <Label htmlFor="event-description" className="text-sm text-gray-300">
-                    Description <span className="text-gray-500">(optional)</span>
-                  </Label>
-                  <textarea
-                    id="event-description"
-                    value={newEventDescription}
-                    onChange={(e) => setNewEventDescription(e.target.value)}
-                    placeholder="Add notes or details..."
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-md bg-gray-800/60 border border-gray-600/50 text-white text-sm placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
-                  />
-                </div>
-
-                {/* Color Picker */}
-                <div className="space-y-1.5 mb-5">
-                  <Label className="text-sm text-gray-300">Color</Label>
-                  <div className="flex gap-2">
-                    {['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#6366f1', '#14b8a6'].map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setNewEventColor(color)}
-                        className={`w-7 h-7 rounded-full border-2 transition-all ${
-                          newEventColor === color ? 'border-white scale-110' : 'border-transparent hover:border-gray-400'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    className="border-gray-600/50 text-gray-300 hover:bg-gray-800"
-                    onClick={handleCloseNewEventModal}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleCreateNewEvent}
-                    disabled={isCreatingEvent || !newEventTitle.trim()}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500"
-                  >
-                    {isCreatingEvent ? 'Creating...' : 'Create Event'}
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* ML Sort Feedback Modal */}
-        {mlSortData && (
-          <MLSortFeedbackModal
-            isOpen={showMLFeedback}
-            onClose={() => {
-              setShowMLFeedback(false);
-              setMLSortData(null);
-            }}
-            date={currentDate}
-            originalSchedule={mlSortData.originalSchedule}
-            sortedSchedule={mlSortData.sortedSchedule}
-            taskMetadata={mlSortData.taskMetadata}
-          />
-        )}
+function NewEventModal({ date, time, title, duration, onDateChange, onTimeChange, onTitleChange, onDurationChange, onCreate, onClose }: {
+  date: string; time: string; title: string; duration: string;
+  onDateChange: (v: string) => void; onTimeChange: (v: string) => void;
+  onTitleChange: (v: string) => void; onDurationChange: (v: string) => void;
+  onCreate: () => void; onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gray-900 border border-purple-500/30 rounded-xl p-5 w-full max-w-sm space-y-4" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-white">New Event</h3>
+        <input
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
+          placeholder="Event title"
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          autoFocus
+          onKeyDown={(e) => e.key === "Enter" && onCreate()}
+        />
+        <div className="flex gap-2">
+          <input type="date" className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500" value={date} onChange={(e) => onDateChange(e.target.value)} />
+          <input type="time" className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500" value={time} onChange={(e) => onTimeChange(e.target.value)} />
+        </div>
+        <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500" value={duration} onChange={(e) => onDurationChange(e.target.value)}>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+          <option value="60">1 hour</option>
+          <option value="90">1.5 hours</option>
+          <option value="120">2 hours</option>
+          <option value="180">3 hours</option>
+        </select>
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={onClose} className="flex-1 text-gray-400">Cancel</Button>
+          <Button onClick={onCreate} className="flex-1 bg-purple-600 hover:bg-purple-500" disabled={!title.trim()}>Create</Button>
+        </div>
       </div>
     </div>
   );
