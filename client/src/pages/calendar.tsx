@@ -1148,6 +1148,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 }) {
   const canAdjust = isDraggable(event);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const handledRef = useRef(false);
 
   // Determine which side of the screen the tap was on
   const screenW = window.innerWidth;
@@ -1173,65 +1174,67 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 
   const arrowTop = Math.max(10, Math.min(tapY - bubbleTop, bubbleH - 10));
 
-  // Dismiss when tapping outside the bubble — use a native document listener
-  // so there's no backdrop element that could intercept touches on buttons
-  useEffect(() => {
-    let armed = false;
-    const armTimer = setTimeout(() => { armed = true; }, 150);
+  // Store callbacks in refs so the native listener always reads the latest
+  const onViewRef = useRef(onView);
+  onViewRef.current = onView;
+  const onAdjustRef = useRef(onAdjust);
+  onAdjustRef.current = onAdjust;
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
-    const handleOutsideTouch = (e: TouchEvent | MouseEvent) => {
-      if (!armed) return;
-      const bubble = bubbleRef.current;
-      if (!bubble) return;
-      const target = e.target as Node;
-      if (bubble.contains(target)) return; // touch is inside bubble — ignore
-      e.preventDefault();
-      e.stopPropagation();
-      onDismiss();
+  // Single native document-level touchend listener handles everything:
+  // - If touch ended on a button → fire that button's action
+  // - If touch ended outside the bubble → dismiss
+  // Using touchend (not touchstart) so the user can see what they're pressing
+  useEffect(() => {
+    const bubble = bubbleRef.current;
+    if (!bubble) return;
+    let armed = false;
+    const armTimer = setTimeout(() => { armed = true; }, 100);
+
+    const handler = (e: TouchEvent) => {
+      if (!armed || handledRef.current) return;
+
+      const touch = e.changedTouches?.[0];
+      if (!touch) return;
+
+      // Find what element is at the touch point
+      const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+      if (!target) { onDismissRef.current(); return; }
+
+      // Walk up from target to find a data-action attribute
+      let el: HTMLElement | null = target;
+      let action: string | null = null;
+      while (el && el !== document.body) {
+        if (el.dataset?.action) { action = el.dataset.action; break; }
+        el = el.parentElement;
+      }
+
+      if (action === "view") {
+        e.preventDefault();
+        e.stopPropagation();
+        handledRef.current = true;
+        onViewRef.current();
+      } else if (action === "adjust") {
+        e.preventDefault();
+        e.stopPropagation();
+        handledRef.current = true;
+        onAdjustRef.current();
+      } else if (!bubble.contains(target)) {
+        // Touch outside bubble — dismiss
+        handledRef.current = true;
+        onDismissRef.current();
+      }
     };
 
-    // Use capture phase so we intercept before anything else
-    document.addEventListener("touchstart", handleOutsideTouch, { capture: true, passive: false });
-    document.addEventListener("mousedown", handleOutsideTouch, { capture: true });
+    document.addEventListener("touchend", handler, { capture: true });
+    document.addEventListener("click", handler as any, { capture: true });
     return () => {
       clearTimeout(armTimer);
-      document.removeEventListener("touchstart", handleOutsideTouch, { capture: true } as EventListenerOptions);
-      document.removeEventListener("mousedown", handleOutsideTouch, { capture: true } as EventListenerOptions);
+      document.removeEventListener("touchend", handler, { capture: true } as EventListenerOptions);
+      document.removeEventListener("click", handler as any, { capture: true } as EventListenerOptions);
     };
-  }, [onDismiss]);
-
-  // Button handlers — call the action and stop propagation
-  const handleViewTouch = useCallback((e: Event) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onView();
-  }, [onView]);
-
-  const handleAdjustTouch = useCallback((e: Event) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onAdjust();
-  }, [onAdjust]);
-
-  // Attach native touchstart listeners directly on the button elements
-  // (avoids React synthetic event issues entirely on iOS Capacitor)
-  const viewRef = useRef<HTMLDivElement>(null);
-  const adjustRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const vEl = viewRef.current;
-    const aEl = adjustRef.current;
-    vEl?.addEventListener("touchstart", handleViewTouch, { passive: false, capture: true });
-    vEl?.addEventListener("click", handleViewTouch);
-    aEl?.addEventListener("touchstart", handleAdjustTouch, { passive: false, capture: true });
-    aEl?.addEventListener("click", handleAdjustTouch);
-    return () => {
-      vEl?.removeEventListener("touchstart", handleViewTouch, { capture: true } as EventListenerOptions);
-      vEl?.removeEventListener("click", handleViewTouch);
-      aEl?.removeEventListener("touchstart", handleAdjustTouch, { capture: true } as EventListenerOptions);
-      aEl?.removeEventListener("click", handleAdjustTouch);
-    };
-  }, [handleViewTouch, handleAdjustTouch]);
+  }, []); // No deps — callbacks accessed via refs
 
   return (
     <div ref={bubbleRef}>
@@ -1242,7 +1245,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
       >
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
           <div
-            ref={viewRef}
+            data-action="view"
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
           >
             <Eye className="w-5 h-5 text-purple-300 pointer-events-none" />
@@ -1253,7 +1256,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
 
           {canAdjust && (
             <div
-              ref={adjustRef}
+              data-action="adjust"
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
