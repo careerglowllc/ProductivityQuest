@@ -569,7 +569,7 @@ function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resi
   const timeLabelWidth = isMobile ? (numCols > 3 ? 28 : 36) : 56;
 
   return (
-    <div ref={scrollRef as React.RefObject<HTMLDivElement>} className="flex-1 min-h-0 overflow-auto relative" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
+    <div ref={scrollRef as React.RefObject<HTMLDivElement>} className="flex-1 min-h-0 overflow-auto relative" style={resizeEventId ? { touchAction: "none" } : undefined} onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
       {/* Sticky day headers */}
       <div className="sticky top-0 z-20 flex bg-gray-900/95 backdrop-blur-sm border-b border-purple-500/20">
         <div style={{ width: timeLabelWidth, flexShrink: 0 }} />
@@ -769,6 +769,9 @@ const DayColumn = React.memo(function DayColumn({
     const origStartMin = minuteOfDay(new Date(ev.start));
     const origEndMin = minuteOfDay(new Date(ev.end));
     const touchMinute = getMinuteFromY(touch.clientY);
+
+    // Prevent default to claim this touch — stops the scroll container from intercepting
+    e.preventDefault();
 
     touchState.current = {
       ev, mode, startX: touch.clientX, startY: touch.clientY, startMinute: touchMinute,
@@ -1095,8 +1098,6 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   onDismiss: () => void;
 }) {
   const canAdjust = isDraggable(event);
-  // Track whether a button was tapped so backdrop dismiss doesn't also fire
-  const handledRef = useRef(false);
 
   // Determine which side of the screen the tap was on
   const screenW = window.innerWidth;
@@ -1127,41 +1128,38 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   // Arrow vertical center relative to bubble
   const arrowTop = Math.max(10, Math.min(tapY - bubbleTop, bubbleH - 10));
 
-  const handleView = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (handledRef.current) return;
-    handledRef.current = true;
-    onView();
-  }, [onView]);
-
-  const handleAdjust = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (handledRef.current) return;
-    handledRef.current = true;
-    onAdjust();
-  }, [onAdjust]);
-
-  const handleBackdropDismiss = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    // Small delay to let button handlers fire first
-    setTimeout(() => {
-      if (!handledRef.current) onDismiss();
-    }, 10);
+  // Use a ref + native listener for the backdrop so it doesn't interfere with
+  // React's synthetic event system on the buttons (which was causing iOS issues).
+  const backdropRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = backdropRef.current;
+    if (!el) return;
+    const handler = (e: TouchEvent) => {
+      // Only dismiss — the bubble buttons handle their own touches
+      e.preventDefault();
+      onDismiss();
+    };
+    // Use a short delay so this listener doesn't catch the same touch that opened the bubble
+    const timer = setTimeout(() => {
+      el.addEventListener("touchstart", handler, { passive: false });
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      el.removeEventListener("touchstart", handler);
+    };
   }, [onDismiss]);
 
   return (
     <>
       {/* Transparent backdrop to dismiss on tap elsewhere */}
-      <div className="fixed inset-0 z-40" onTouchEnd={handleBackdropDismiss} onClick={handleBackdropDismiss} />
+      <div ref={backdropRef} className="fixed inset-0 z-40" onClick={onDismiss} />
 
-      {/* Speech bubble container */}
+      {/* Speech bubble container — stops ALL events from reaching backdrop */}
       <div
         className="fixed z-50 animate-in fade-in zoom-in-95 duration-150"
         style={{ top: bubbleTop, left: bubbleLeft, width: bubbleW }}
         onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
         onTouchEnd={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1169,9 +1167,13 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
           {/* View detail */}
           <button
-            onTouchEnd={handleView}
-            onClick={handleView}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl active:bg-purple-500/30 transition-colors"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onView();
+            }}
+            onClick={(e) => { e.stopPropagation(); onView(); }}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors"
           >
             <Eye className="w-5 h-5 text-purple-300" />
             <span className="text-sm font-medium text-white">View</span>
@@ -1183,9 +1185,13 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
           {/* Adjust time / resize */}
           {canAdjust && (
             <button
-              onTouchEnd={handleAdjust}
-              onClick={handleAdjust}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl active:bg-purple-500/30 transition-colors"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onAdjust();
+              }}
+              onClick={(e) => { e.stopPropagation(); onAdjust(); }}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors"
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300" />
               <span className="text-sm font-medium text-white">Adjust</span>
