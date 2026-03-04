@@ -1147,120 +1147,85 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   onDismiss: () => void;
 }) {
   const canAdjust = isDraggable(event);
-  const bubbleRef = useRef<HTMLDivElement>(null);
-  const handledRef = useRef(false);
 
-  // Determine which side of the screen the tap was on
+  // Find the actual event element in the DOM to position the bubble
+  // relative to the event's visual position
+  const [pos, setPos] = useState<{ top: number; left: number; right: number; centerY: number } | null>(null);
+
+  useEffect(() => {
+    const el = document.querySelector(`[data-event-id="${event.id}"]`) as HTMLElement | null;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      setPos({ top: rect.top, left: rect.left, right: rect.right, centerY: rect.top + rect.height / 2 });
+    } else {
+      setPos({ top: tapY - 20, left: tapX - 50, right: tapX + 50, centerY: tapY });
+    }
+  }, [event.id, tapX, tapY]);
+
+  if (!pos) return null;
+
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
-  const onRightHalf = tapX > screenW / 2;
+  const onRightHalf = pos.right > screenW * 0.6;
 
-  // Bubble dimensions (approximate)
   const bubbleW = canAdjust ? 190 : 100;
   const bubbleH = 48;
   const arrowSize = 8;
-  const gap = 4;
+  const gap = 6;
 
   let bubbleLeft: number;
   if (onRightHalf) {
-    bubbleLeft = tapX - bubbleW - arrowSize - gap;
+    bubbleLeft = pos.left - bubbleW - arrowSize - gap;
   } else {
-    bubbleLeft = tapX + arrowSize + gap;
+    bubbleLeft = pos.right + arrowSize + gap;
   }
   bubbleLeft = Math.max(8, Math.min(bubbleLeft, screenW - bubbleW - 8));
 
-  let bubbleTop = tapY - bubbleH / 2 - 8;
+  let bubbleTop = pos.centerY - bubbleH / 2;
   bubbleTop = Math.max(8, Math.min(bubbleTop, screenH - bubbleH - 8));
 
-  const arrowTop = Math.max(10, Math.min(tapY - bubbleTop, bubbleH - 10));
+  const arrowTop = Math.max(10, Math.min(pos.centerY - bubbleTop, bubbleH - 10));
 
-  // Store callbacks in refs so the native listener always reads the latest
-  const onViewRef = useRef(onView);
-  onViewRef.current = onView;
-  const onAdjustRef = useRef(onAdjust);
-  onAdjustRef.current = onAdjust;
-  const onDismissRef = useRef(onDismiss);
-  onDismissRef.current = onDismiss;
-
-  // Single native document-level touchend listener handles everything:
-  // - If touch ended on a button → fire that button's action
-  // - If touch ended outside the bubble → dismiss
-  // Using touchend (not touchstart) so the user can see what they're pressing
-  useEffect(() => {
-    const bubble = bubbleRef.current;
-    if (!bubble) return;
-    let armed = false;
-    const armTimer = setTimeout(() => { armed = true; }, 100);
-
-    const handler = (e: TouchEvent) => {
-      if (!armed || handledRef.current) return;
-
-      const touch = e.changedTouches?.[0];
-      if (!touch) return;
-
-      // Find what element is at the touch point
-      const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
-      if (!target) { onDismissRef.current(); return; }
-
-      // Walk up from target to find a data-action attribute
-      let el: HTMLElement | null = target;
-      let action: string | null = null;
-      while (el && el !== document.body) {
-        if (el.dataset?.action) { action = el.dataset.action; break; }
-        el = el.parentElement;
-      }
-
-      if (action === "view") {
-        e.preventDefault();
-        e.stopPropagation();
-        handledRef.current = true;
-        onViewRef.current();
-      } else if (action === "adjust") {
-        e.preventDefault();
-        e.stopPropagation();
-        handledRef.current = true;
-        onAdjustRef.current();
-      } else if (!bubble.contains(target)) {
-        // Touch outside bubble — dismiss
-        handledRef.current = true;
-        onDismissRef.current();
-      }
-    };
-
-    document.addEventListener("touchend", handler, { capture: true });
-    document.addEventListener("click", handler as any, { capture: true });
-    return () => {
-      clearTimeout(armTimer);
-      document.removeEventListener("touchend", handler, { capture: true } as EventListenerOptions);
-      document.removeEventListener("click", handler as any, { capture: true } as EventListenerOptions);
-    };
-  }, []); // No deps — callbacks accessed via refs
-
+  // Everything is inside ONE full-screen fixed overlay (z-50).
+  // The overlay itself is the dismiss target. The buttons sit on top within it.
+  // This avoids all z-index stacking / competing listener problems.
   return (
-    <div ref={bubbleRef}>
-      {/* Speech bubble */}
+    <div
+      className="fixed inset-0 z-50"
+      onTouchEnd={(e) => {
+        // If touch ended on a button, the button's own handler fires first
+        // and stops propagation. If it reaches here, it's a dismiss.
+        onDismiss();
+      }}
+      onClick={(e) => {
+        onDismiss();
+      }}
+    >
+      {/* Speech bubble — positioned absolutely within the overlay */}
       <div
-        className="fixed z-50 animate-in fade-in zoom-in-95 duration-150"
+        className="absolute animate-in fade-in zoom-in-95 duration-150"
         style={{ top: bubbleTop, left: bubbleLeft, width: bubbleW }}
       >
         <div className="flex items-center gap-1 bg-gray-900/95 border border-purple-500/40 rounded-2xl px-1.5 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-md">
           <div
-            data-action="view"
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none"
+            onTouchEnd={(e) => { e.stopPropagation(); onView(); }}
+            onClick={(e) => { e.stopPropagation(); onView(); }}
           >
             <Eye className="w-5 h-5 text-purple-300 pointer-events-none" />
-            <span className="text-sm font-medium text-white pointer-events-none">View</span>
+            <span className="text-sm font-medium text-white pointer-events-none select-none">View</span>
           </div>
 
           {canAdjust && <div className="w-px h-6 bg-purple-500/30" />}
 
           {canAdjust && (
             <div
-              data-action="adjust"
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl active:bg-purple-500/30 transition-colors cursor-pointer select-none"
+              onTouchEnd={(e) => { e.stopPropagation(); onAdjust(); }}
+              onClick={(e) => { e.stopPropagation(); onAdjust(); }}
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
-              <span className="text-sm font-medium text-white pointer-events-none">Adjust</span>
+              <span className="text-sm font-medium text-white pointer-events-none select-none">Adjust</span>
             </div>
           )}
         </div>
