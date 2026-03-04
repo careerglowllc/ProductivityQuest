@@ -375,8 +375,8 @@ export default function CalendarPage() {
         updateTaskSchedule.mutate({ id: ev.id, scheduledTime: newStart.toISOString() });
       }
       toast({
-        title: "Event moved",
-        description: `${formatTimeShort(origStart)} → ${formatTimeShort(newStart)}`,
+        title: `Event set to ${formatTimeShort(newStart)}`,
+        description: `Moved from ${formatTimeShort(origStart)}`,
         action: <ToastAction altText="Undo" onClick={() => revertEvent(ev, origStartISO, origDuration)}>Undo</ToastAction>,
       });
     } else if (ds.mode === "resize-top") {
@@ -539,7 +539,7 @@ export default function CalendarPage() {
               }}
               onDragStart={(ds) => setDrag(ds)}
               onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
-              onDragEnd={() => { if (drag) { commitDrag(drag); setDrag(null); } }}
+              onDragEnd={() => { if (drag) { const wasMove = drag.mode === "move"; commitDrag(drag); setDrag(null); if (wasMove) setResizeEventId(null); } }}
               onDragCancel={() => setDrag(null)}
               onEmptyTap={(date, minute) => {
                 setTappedEvent(null);
@@ -866,7 +866,7 @@ const DayColumn = React.memo(function DayColumn({
         return;
       }
 
-      // In resize mode — detect edge
+      // In resize mode — detect edge or body
       const eventEl = findEventEl(target);
       if (!eventEl) return;
 
@@ -878,12 +878,31 @@ const DayColumn = React.memo(function DayColumn({
       if (topDist <= zone) mode = "resize-top";
       else if (bottomDist <= zone) mode = "resize-bottom";
       else {
-        // Middle — treat as tap
+        // Middle body — long-press to enter MOVE mode (like Apple Calendar)
+        const origStartMin = minuteOfDay(new Date(ev.start));
+        const origEndMin = minuteOfDay(new Date(ev.end));
+        const touchMinute = getMinuteFromY(touch.clientY);
+
         touchState.current = {
-          ev, mode: null, startX: touch.clientX, startY: touch.clientY,
-          startMinute: 0, offsetInEvent: 0, origStartMin: 0, origEndMin: 0,
+          ev, mode: "move",
+          startX: touch.clientX, startY: touch.clientY,
+          startMinute: touchMinute,
+          offsetInEvent: touchMinute - origStartMin,
+          origStartMin, origEndMin,
           timer: null, active: false, moved: false,
         };
+
+        // After a brief hold, activate move mode with a "lift"
+        touchState.current.timer = setTimeout(() => {
+          const ts = touchState.current;
+          if (!ts || ts.active) return;
+          ts.active = true;
+          didInteractRef.current = true;
+          e.preventDefault();
+          // Start the drag in the parent (visual lift effect)
+          onDragStartRef.current({ event: ev, mode: "move", minute: origStartMin, origStartMin, origEndMin });
+        }, 200);
+
         return;
       }
 
@@ -929,7 +948,11 @@ const DayColumn = React.memo(function DayColumn({
       const deltaMinutes = currentMinute - ts.startMinute;
       const mode = ts.mode!;
 
-      if (mode === "resize-top") {
+      if (mode === "move") {
+        const duration = ts.origEndMin - ts.origStartMin;
+        const newStart = snap(ts.origStartMin + deltaMinutes);
+        onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration));
+      } else if (mode === "resize-top") {
         const newTop = snap(ts.origStartMin + deltaMinutes);
         onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
       } else if (mode === "resize-bottom") {
