@@ -259,21 +259,16 @@ export default function CalendarPage() {
 
   // Imperatively set touch-action on scroll container when in resize mode
   // (CSS via React state may not be applied before browser processes the touch)
-  // Preserve scroll position when exiting resize mode (overflowY change can reset it)
+  // Prevent touch-initiated scroll during resize mode, but keep overflow: auto
+  // so programmatic auto-scroll works during drag
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     if (resizeEventId) {
       el.style.touchAction = "none";
-      el.style.overflowY = "hidden";
+      // Don't set overflowY: hidden — auto-scroll needs overflow: auto to work
     } else {
-      const savedScroll = el.scrollTop;
       el.style.touchAction = "";
-      el.style.overflowY = "";
-      // Restore scroll position after browser processes the overflow change
-      requestAnimationFrame(() => {
-        el.scrollTop = savedScroll;
-      });
     }
   }, [resizeEventId]);
 
@@ -877,6 +872,90 @@ const DayColumn = React.memo(function DayColumn({
   // Flag to suppress onClick after a drag/resize interaction
   const didInteractRef = useRef(false);
 
+  // Auto-scroll state for edge dragging
+  const autoScrollRef = useRef<{
+    raf: number | null;
+    speed: number; // px per frame, negative = up, positive = down
+    lastTouch: { clientY: number } | null;
+  }>({ raf: null, speed: 0, lastTouch: null });
+
+  const stopAutoScroll = useCallback(() => {
+    const as = autoScrollRef.current;
+    if (as.raf) { cancelAnimationFrame(as.raf); as.raf = null; }
+    as.speed = 0;
+    as.lastTouch = null;
+  }, []);
+
+  // Auto-scroll loop: runs every frame while speed != 0
+  const runAutoScroll = useCallback(() => {
+    const as = autoScrollRef.current;
+    const scrollContainer = colRef.current?.closest("[class*='overflow-auto']") as HTMLElement | null;
+    if (!scrollContainer || as.speed === 0) { as.raf = null; return; }
+
+    scrollContainer.scrollTop += as.speed;
+
+    // While scrolling, also update the drag position so the event follows
+    if (as.lastTouch) {
+      const rect = colRef.current!.getBoundingClientRect();
+      const scrollTop = scrollContainer.scrollTop;
+      const y = as.lastTouch.clientY - rect.top + scrollTop;
+      const currentMinute = Math.max(0, Math.min(1439, (y / TOTAL_HEIGHT) * 1440));
+      const ts = touchState.current;
+      if (ts?.active && ts.mode) {
+        const deltaMinutes = currentMinute - ts.startMinute;
+        if (ts.mode === "move") {
+          const duration = ts.origEndMin - ts.origStartMin;
+          const newStart = snap(ts.origStartMin + deltaMinutes);
+          onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration));
+        } else if (ts.mode === "resize-top") {
+          const newTop = snap(ts.origStartMin + deltaMinutes);
+          onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
+        } else if (ts.mode === "resize-bottom") {
+          const newBottom = snap(ts.origEndMin + deltaMinutes);
+          onDragUpdateRef.current(clamp(newBottom, ts.origStartMin + MIN_DURATION, 1440));
+        }
+      }
+    }
+
+    as.raf = requestAnimationFrame(runAutoScroll);
+  }, []);
+
+  // Check if touch is near edge and start/stop auto-scroll
+  const updateAutoScroll = useCallback((clientY: number) => {
+    const scrollContainer = colRef.current?.closest("[class*='overflow-auto']") as HTMLElement | null;
+    if (!scrollContainer) return;
+
+    const rect = scrollContainer.getBoundingClientRect();
+    const EDGE_THRESHOLD = 60; // px from edge where scrolling kicks in
+    const MAX_SPEED = 12; // px per frame at the very edge
+
+    const distFromTop = clientY - rect.top;
+    const distFromBottom = rect.bottom - clientY;
+    const as = autoScrollRef.current;
+
+    let speed = 0;
+    if (distFromTop < EDGE_THRESHOLD && distFromTop >= 0) {
+      // Near top — scroll up (negative)
+      const factor = 1 - (distFromTop / EDGE_THRESHOLD); // 0 at threshold, 1 at edge
+      speed = -MAX_SPEED * factor * factor; // quadratic acceleration
+    } else if (distFromBottom < EDGE_THRESHOLD && distFromBottom >= 0) {
+      // Near bottom — scroll down (positive)
+      const factor = 1 - (distFromBottom / EDGE_THRESHOLD);
+      speed = MAX_SPEED * factor * factor;
+    }
+
+    as.speed = speed;
+    as.lastTouch = { clientY };
+
+    // Start the animation loop if not already running
+    if (speed !== 0 && !as.raf) {
+      as.raf = requestAnimationFrame(runAutoScroll);
+    } else if (speed === 0 && as.raf) {
+      cancelAnimationFrame(as.raf);
+      as.raf = null;
+    }
+  }, [runAutoScroll]);
+
   // Touch state ref for long-press detection + drag
   const touchState = useRef<{
     ev: CalendarEvent;
@@ -1060,10 +1139,13 @@ const DayColumn = React.memo(function DayColumn({
         return;
       }
 
-      // Active resize drag — use RELATIVE movement for precision
+      // Active drag — use RELATIVE movement for precision
       e.preventDefault();
       e.stopPropagation();
       ts.moved = true;
+
+      // Auto-scroll when near viewport edges
+      updateAutoScroll(touch.clientY);
 
       const currentMinute = getMinuteFromY(touch.clientY);
       const deltaMinutes = currentMinute - ts.startMinute;
@@ -1083,6 +1165,7 @@ const DayColumn = React.memo(function DayColumn({
     };
 
     const handleTouchEnd = () => {
+      stopAutoScroll();
       const ts = touchState.current;
       if (!ts) return;
       if (ts.timer) clearTimeout(ts.timer);
@@ -1099,6 +1182,7 @@ const DayColumn = React.memo(function DayColumn({
     };
 
     const handleTouchCancel = () => {
+      stopAutoScroll();
       const ts = touchState.current;
       if (ts?.timer) clearTimeout(ts.timer);
       if (ts?.active) onDragCancelRef.current();
@@ -1114,8 +1198,9 @@ const DayColumn = React.memo(function DayColumn({
       col.removeEventListener("touchmove", handleTouchMove);
       col.removeEventListener("touchend", handleTouchEnd);
       col.removeEventListener("touchcancel", handleTouchCancel);
+      stopAutoScroll();
     };
-  }, [getMinuteFromY]); // Stable deps only — callbacks accessed via refs
+  }, [getMinuteFromY, updateAutoScroll, stopAutoScroll]); // Stable deps only — callbacks accessed via refs
 
   // ── Mouse handlers for desktop ──
 
