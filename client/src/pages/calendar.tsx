@@ -2142,7 +2142,7 @@ export default function Calendar() {
 
           {/* Swipeable content wrapper */}
           <div 
-            style={isMobile ? { 
+            style={isMobile && (swipeOffsetX !== 0 || swipeAnimating) ? { 
               transform: `translateX(${swipeOffsetX}px)`, 
               transition: swipeAnimating ? 'transform 0.2s ease-out' : 'none',
             } : undefined}
@@ -2377,8 +2377,10 @@ export default function Calendar() {
                   })}
                 </div>
 
-                {/* Time Slots with absolute positioned events */}
-                <div className="grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
+                {/* Time Slots with absolute positioned events — wrapped in relative container */}
+                <div className="relative" style={{ height: `${24 * 60}px` }}>
+                  {/* Background grid */}
+                  <div className="absolute inset-0 grid gap-px bg-purple-500/20" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
                   {/* Time labels column */}
                   {timeSlots.map(({ hour, label }) => (
                     <React.Fragment key={hour}>
@@ -2390,11 +2392,10 @@ export default function Calendar() {
                       ))}
                     </React.Fragment>
                   ))}
-                </div>
+                  </div>
 
-                {/* Overlay: Absolute-positioned events per day column */}
-                <div className="relative" style={{ marginTop: `${-24 * 60}px`, height: `${24 * 60}px` }}>
-                  <div className="absolute inset-0 grid gap-px" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
+                  {/* Overlay: Absolute-positioned events per day column */}
+                  <div className="absolute inset-0 grid gap-px pointer-events-none" style={{ gridTemplateColumns: isMobile ? '40px repeat(3, 1fr)' : '60px repeat(3, 1fr)' }}>
                     {/* Empty time label spacer */}
                     <div />
                     {get3DayDates().map((date, idx) => {
@@ -2408,11 +2409,11 @@ export default function Calendar() {
                       const eventLayout = getEventLayout(dayEvents);
 
                       return (
-                        <div key={idx} className="relative" style={{ height: `${24 * 60}px` }} onDoubleClick={(e) => handleCalendarDoubleClick(e, date)}>
+                        <div key={idx} className="relative pointer-events-auto" style={{ height: `${24 * 60}px` }} onDoubleClick={(e) => handleCalendarDoubleClick(e, date)}>
                           {/* Current Time Indicator */}
                           {isToday && (
                             <div 
-                              className="absolute left-0 right-0 flex items-center z-20"
+                              className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
                               style={{ top: `${timeIndicatorTop}px` }}
                             >
                               <div className="w-2 h-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50 -ml-1"></div>

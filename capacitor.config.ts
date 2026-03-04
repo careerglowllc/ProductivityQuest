@@ -16,7 +16,7 @@ const config: CapacitorConfig = {
     ]
   },
   ios: {
-    contentInset: 'automatic',
+    contentInset: 'never',
     backgroundColor: '#0f172a',
     // Allow mixed content for development
     allowsLinkPreview: false,
