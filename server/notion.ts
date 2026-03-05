@@ -233,7 +233,7 @@ export async function getTasks(tasksDatabaseId: string, userApiKey: string) {
                 return {
                     notionId: page.id,
                     title: properties.Task?.title?.[0]?.plain_text || "Untitled Task",
-                    description: "", // Can be added later if needed
+                    description: details, // Use same content as details for consistency
                     details,
                     duration,
                     goldValue,

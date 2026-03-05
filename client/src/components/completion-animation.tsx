@@ -109,12 +109,13 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
 
   if (!task) return null;
 
+  // Include the centering translations (-50%, -50%) so inline transform doesn't override Tailwind's
   const swipeStyle: React.CSSProperties = swipeOffset !== 0 ? {
-    transform: `translateY(${swipeOffset}px) scale(${1 - Math.min(Math.abs(swipeOffset) / 600, 0.12)})`,
+    transform: `translate(-50%, -50%) translateY(${swipeOffset}px) scale(${1 - Math.min(Math.abs(swipeOffset) / 600, 0.12)})`,
     opacity: 1 - Math.min(Math.abs(swipeOffset) / 400, 0.5),
     transition: swipeRef.current.dragging ? 'none' : 'transform 0.25s ease-out, opacity 0.25s ease-out',
   } : {
-    transform: 'translateY(0) scale(1)',
+    transform: 'translate(-50%, -50%) translateY(0) scale(1)',
     opacity: 1,
     transition: 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.3s ease-out',
   };

@@ -529,9 +529,11 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                   </h3>
                 </div>
               </div>
-              <p className="text-yellow-200/70 text-sm mb-2">
-                {task.description}
-              </p>
+              {(task.description || task.details) && (
+                <p className="text-yellow-200/70 text-sm mb-2">
+                  {task.description || task.details}
+                </p>
+              )}
               <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-yellow-300/60 mb-2">
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4 flex-shrink-0" />

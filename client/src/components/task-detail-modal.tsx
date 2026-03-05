@@ -41,7 +41,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
-  const [detailsValue, setDetailsValue] = useState(task?.details || "");
+  const [detailsValue, setDetailsValue] = useState(task?.details || task?.description || "");
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -58,10 +58,10 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
   // Sync local state when task prop changes (e.g. switching between tasks)
   useEffect(() => {
-    setDetailsValue(task?.details || "");
+    setDetailsValue(task?.details || task?.description || "");
     setDurationInput(task?.duration?.toString() || "30");
     setIsEditingDetails(false);
-  }, [task?.id, task?.details, task?.duration]);
+  }, [task?.id, task?.details, task?.description, task?.duration]);
 
   // Detect if description text is truncated (overflows the display area)
   useLayoutEffect(() => {
@@ -161,7 +161,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ details: newDetails }),
+        body: JSON.stringify({ details: newDetails, description: newDetails }),
       });
       if (!response.ok) throw new Error('Failed to update details');
       return response.json();
