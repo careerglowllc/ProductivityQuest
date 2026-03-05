@@ -819,18 +819,15 @@ export default function CalendarPage() {
               resizeEventId={resizeEventId}
               onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd}
               onEventTap={(ev, pos) => {
-                if (isMobile) {
-                  if (tappedEvent?.id === ev.id) {
-                    setTappedEvent(null);
-                    setTapPosition(null);
-                  } else {
-                    setTappedEvent(ev);
-                    setTapPosition(pos || null);
-                  }
-                  setResizeEventId(null);
+                // Both mobile and desktop: tap/click shows action bubble
+                if (tappedEvent?.id === ev.id) {
+                  setTappedEvent(null);
+                  setTapPosition(null);
                 } else {
-                  setSelectedEvent(ev);
+                  setTappedEvent(ev);
+                  setTapPosition(pos || null);
                 }
+                setResizeEventId(null);
               }}
               onDragStart={(ds) => setDrag(ds)}
               onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
@@ -863,15 +860,15 @@ export default function CalendarPage() {
           isMobile={isMobile}
           onClose={() => setSelectedEvent(null)}
           onDelete={() => handleDeleteEvent(selectedEvent)}
-          onAdjust={isMobile && isDraggable(selectedEvent) ? () => {
+          onAdjust={isDraggable(selectedEvent) ? () => {
             setResizeEventId(selectedEvent.id);
             setSelectedEvent(null);
           } : undefined}
         />
       )}
 
-      {/* Mobile action bubble */}
-      {tappedEvent && isMobile && !resizeEventId && tapPosition && (
+      {/* Action bubble — tap event to see View / Adjust options */}
+      {tappedEvent && !resizeEventId && tapPosition && (
         <EventActionBubble
           event={tappedEvent}
           tapX={tapPosition.x}
@@ -882,12 +879,12 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* Resize mode banner — centered at top, below header+view switcher */}
-      {resizeEventId && isMobile && (
-        <div className="fixed top-[env(safe-area-inset-top,0px)] left-0 right-0 z-40 flex justify-center pointer-events-none" style={{ paddingTop: 6 }}>
+      {/* Resize mode banner — centered at top */}
+      {resizeEventId && (
+        <div className={`fixed ${isMobile ? "top-[env(safe-area-inset-top,0px)]" : "top-4"} left-0 right-0 z-40 flex justify-center pointer-events-none`} style={isMobile ? { paddingTop: 6 } : undefined}>
           <div className="flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-6 py-2.5 shadow-xl shadow-purple-500/20 backdrop-blur-sm pointer-events-auto">
             <SlidersHorizontal className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-white font-medium whitespace-nowrap">Drag edges to resize</span>
+            <span className="text-sm text-white font-medium whitespace-nowrap">{isMobile ? "Drag edges to resize" : "Drag edges to resize · Click body to move"}</span>
             <button
               onClick={() => setResizeEventId(null)}
               className="ml-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-3 py-1 rounded-full"
@@ -1397,81 +1394,85 @@ const DayColumn = React.memo(function DayColumn({
     if (isMobile) return;
     e.stopPropagation();
 
-    // For non-draggable events, just open detail immediately
+    // For non-draggable events, just show action bubble via click handler
     if (!isDraggable(ev)) {
-      didInteractRef.current = true; // suppress follow-up onClick
+      didInteractRef.current = true;
       onEventTap(ev, { x: e.clientX, y: e.clientY });
       return;
     }
 
-    e.preventDefault();
+    // ── In resize/adjust mode: allow immediate drag (like mobile) ──
+    if (resizeEventId === ev.id) {
+      e.preventDefault();
+      const eventEl = e.currentTarget as HTMLElement;
+      const mode = detectEdge(e.clientY, eventEl);
+      const origStartMin = minuteOfDay(new Date(ev.start));
+      const origEndMin = safeEndMinute(new Date(ev.start), new Date(ev.end));
+      const clickMinute = getMinuteFromY(e.clientY);
+      const offsetInEvent = clickMinute - origStartMin;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      let dragStarted = false;
 
-    const eventEl = e.currentTarget as HTMLElement;
-    const mode = detectEdge(e.clientY, eventEl);
-    const origStartMin = minuteOfDay(new Date(ev.start));
-    const origEndMin = safeEndMinute(new Date(ev.start), new Date(ev.end));
-    const clickMinute = getMinuteFromY(e.clientY);
-    const offsetInEvent = clickMinute - origStartMin;
-    const startX = e.clientX;
-    const startY = e.clientY;
-    let dragStarted = false;
+      const handleMouseMove = (me: MouseEvent) => {
+        const dx = Math.abs(me.clientX - startX);
+        const dy = Math.abs(me.clientY - startY);
 
-    const handleMouseMove = (me: MouseEvent) => {
-      const dx = Math.abs(me.clientX - startX);
-      const dy = Math.abs(me.clientY - startY);
-
-      if (!dragStarted) {
-        // Only start drag after exceeding movement threshold
-        if (dx < MOVE_THRESHOLD && dy < MOVE_THRESHOLD) return;
-        dragStarted = true;
-        didInteractRef.current = true;
-        const startVal = mode === "resize-top" ? origStartMin : mode === "resize-bottom" ? origEndMin : origStartMin;
-        onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
-        if (mode === "resize-top" || mode === "resize-bottom") {
-          document.body.style.cursor = "ns-resize";
-        } else {
-          document.body.style.cursor = "grabbing";
+        if (!dragStarted) {
+          if (dx < 5 && dy < 5) return; // very small threshold in resize mode
+          dragStarted = true;
+          didInteractRef.current = true;
+          const startVal = mode === "resize-top" ? origStartMin : mode === "resize-bottom" ? origEndMin : origStartMin;
+          onDragStart({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
+          document.body.style.cursor = mode === "move" ? "grabbing" : "ns-resize";
         }
-      }
 
-      const currentMinute = getMinuteFromY(me.clientY);
-      if (mode === "move") {
-        onDragUpdate(clamp(snap(currentMinute - offsetInEvent), 0, 1440 - MIN_DURATION));
-      } else if (mode === "resize-top") {
-        onDragUpdate(clamp(snap(currentMinute), 0, origEndMin - MIN_DURATION));
-      } else if (mode === "resize-bottom") {
-        onDragUpdate(clamp(snap(currentMinute), origStartMin + MIN_DURATION, 1440));
-      }
-    };
+        const currentMinute = getMinuteFromY(me.clientY);
+        if (mode === "move") {
+          const duration = origEndMin - origStartMin;
+          onDragUpdate(clamp(snap(currentMinute - offsetInEvent), 0, 1440 - duration));
+        } else if (mode === "resize-top") {
+          onDragUpdate(clamp(snap(currentMinute), 0, origEndMin - MIN_DURATION));
+        } else if (mode === "resize-bottom") {
+          onDragUpdate(clamp(snap(currentMinute), origStartMin + MIN_DURATION, 1440));
+        }
+      };
 
-    const handleMouseUp = () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "";
+      const handleMouseUp = () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+        document.body.style.cursor = "";
 
-      if (dragStarted) {
-        // Commit drag
-        setTimeout(() => onDragEnd(), 0);
-      } else {
-        // No movement → treat as click → open detail modal
-        didInteractRef.current = true; // suppress the follow-up onClick
-        onEventTap(ev, { x: e.clientX, y: e.clientY });
-      }
-    };
+        if (dragStarted) {
+          setTimeout(() => onDragEnd(), 0);
+        }
+        // If no movement in resize mode, just stay in resize mode (no-op)
+      };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  }, [isMobile, detectEdge, getMinuteFromY, onDragStart, onDragUpdate, onDragEnd, onEventTap]);
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return;
+    }
 
-  // Double-tap to create on empty space
+    // ── Not in resize mode: click shows action bubble (via onClick handler) ──
+    // Don't start drag — let the click event fire naturally to trigger onEventTap
+  }, [isMobile, detectEdge, getMinuteFromY, onDragStart, onDragUpdate, onDragEnd, onEventTap, resizeEventId]);
+
+  // Click on empty space: single click exits resize mode, double-click creates event
   const lastTap = useRef<number>(0);
   const handleEmptyClick = useCallback((e: React.MouseEvent) => {
+    // In resize mode, single click on empty space exits resize mode
+    if (resizeEventId) {
+      onEmptyTap(getMinuteFromY(e.clientY));
+      return;
+    }
+    // Otherwise, double-click to create a new event
     const now = Date.now();
     if (now - lastTap.current < 350) {
       onEmptyTap(getMinuteFromY(e.clientY));
     }
     lastTap.current = now;
-  }, [getMinuteFromY, onEmptyTap]);
+  }, [getMinuteFromY, onEmptyTap, resizeEventId]);
 
   // Current time indicator
   const now = new Date();
@@ -1543,7 +1544,7 @@ const DayColumn = React.memo(function DayColumn({
               isDragging ? "z-30 shadow-xl shadow-purple-500/30 opacity-90 scale-x-[1.02]" :
               isInResizeMode ? "z-30 ring-2 ring-purple-400/70 shadow-lg shadow-purple-500/30 transition-shadow duration-150" :
               "z-10 hover:brightness-110 transition-all duration-150"
-            } ${ev.completed ? "opacity-50" : ""} ${draggable && !isMobile ? "cursor-grab" : "cursor-pointer"}`}
+            } ${ev.completed ? "opacity-50" : ""} ${isInResizeMode ? "cursor-grab" : "cursor-pointer"}`}
             style={{
               top: visTop, height: visHeight,
               // During move drag: expand to full column width for free-form feel
@@ -1566,30 +1567,19 @@ const DayColumn = React.memo(function DayColumn({
             }}
             onMouseDown={(e) => handleMouseDown(ev, e)}
           >
-            {/* Top resize handle — prominent in resize mode, extends ABOVE event for outside-edge grabbing */}
-            {((isInResizeMode) || (draggable && !isMobile)) && (
+            {/* Top resize handle — prominent in resize/adjust mode */}
+            {isInResizeMode && (
               <div
                 className={`absolute left-0 right-0 z-20 flex justify-center items-start ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{
-                  top: isInResizeMode ? -20 : 0,
-                  height: isInResizeMode ? 36 : 10,
-                }}
+                style={{ top: -20, height: 36 }}
               >
-                <div className={`rounded-full transition-all ${
-                  isInResizeMode
-                    ? "bg-purple-400 shadow-md shadow-purple-400/50 -translate-y-1.5"
-                    : isDragging && drag?.mode === "resize-top" ? "bg-white/80" : "bg-white/40"
-                }`}
-                  style={{
-                    width: isInResizeMode ? 40 : 20,
-                    height: isInResizeMode ? 6 : 3,
-                    marginTop: isInResizeMode ? 0 : 2,
-                  }} />
+                <div className="bg-purple-400 shadow-md shadow-purple-400/50 -translate-y-1.5 rounded-full"
+                  style={{ width: 40, height: 6 }} />
               </div>
             )}
 
             {/* Event content */}
-            <div className="px-2 py-0.5 h-full flex flex-col justify-start overflow-hidden" style={{ paddingTop: (isInResizeMode || (draggable && !isMobile)) ? 6 : 2 }}>
+            <div className="px-2 py-0.5 h-full flex flex-col justify-start overflow-hidden" style={{ paddingTop: isInResizeMode ? 6 : 2 }}>
               <div className="flex items-center gap-1 min-w-0">
                 {ev.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
                 <span className={`${visHeight > 25 ? "text-xs" : "text-[10px]"} font-semibold truncate ${ev.completed ? "line-through text-gray-400" : "text-white"}`}>{ev.title}</span>
@@ -1607,25 +1597,14 @@ const DayColumn = React.memo(function DayColumn({
               )}
             </div>
 
-            {/* Bottom resize handle — extends BELOW event for outside-edge grabbing */}
-            {((isInResizeMode) || (draggable && !isMobile)) && (
+            {/* Bottom resize handle — in resize/adjust mode */}
+            {isInResizeMode && (
               <div
                 className={`absolute left-0 right-0 z-20 flex justify-center items-end ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{
-                  bottom: isInResizeMode ? -20 : 0,
-                  height: isInResizeMode ? 36 : 10,
-                }}
+                style={{ bottom: -20, height: 36 }}
               >
-                <div className={`rounded-full transition-all ${
-                  isInResizeMode
-                    ? "bg-purple-400 shadow-md shadow-purple-400/50 translate-y-1.5"
-                    : isDragging && drag?.mode === "resize-bottom" ? "bg-white/80" : "bg-white/40"
-                }`}
-                  style={{
-                    width: isInResizeMode ? 40 : 20,
-                    height: isInResizeMode ? 6 : 3,
-                    marginBottom: isInResizeMode ? 0 : 2,
-                  }} />
+                <div className="bg-purple-400 shadow-md shadow-purple-400/50 translate-y-1.5 rounded-full"
+                  style={{ width: 40, height: 6 }} />
               </div>
             )}
           </div>
