@@ -71,6 +71,8 @@ interface DragState {
   origStartMin: number;
   /** Original end minute of the event */
   origEndMin: number;
+  /** Horizontal pixel offset from event center — purely visual, for natural drag feel */
+  offsetX?: number;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────
@@ -263,7 +265,6 @@ export default function CalendarPage() {
 
   // Persistent undo action — shown as a button near the + button
   const [lastUndoAction, setLastUndoAction] = useState<{ label: string; undo: () => void } | null>(null);
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -454,11 +455,9 @@ export default function CalendarPage() {
     );
   }, [queryClient]);
 
-  // Helper: set persistent undo action (auto-clears after 10s)
+  // Helper: set persistent undo action (persists until used or replaced)
   const setUndoAction = useCallback((label: string, undoFn: () => void) => {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setLastUndoAction({ label, undo: undoFn });
-    undoTimerRef.current = setTimeout(() => setLastUndoAction(null), 10000);
   }, []);
 
   // ── Sort / auto-schedule ──────────────────────────────────────────────
@@ -778,11 +777,16 @@ export default function CalendarPage() {
             </div>
             <div className="flex items-center gap-1">
               {!isViewingToday && <Button size="sm" onClick={goToToday} className={`${isMobile ? "h-7 px-2 text-xs" : "h-8 px-3 text-sm"} bg-purple-600 hover:bg-purple-500`}>Today</Button>}
-              {lastUndoAction && (
-                <Button size="sm" variant="ghost" onClick={() => { lastUndoAction.undo(); setLastUndoAction(null); }} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 animate-in fade-in duration-200`} title={lastUndoAction.label}>
-                  <Undo2 className="w-4 h-4" />
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={!lastUndoAction}
+                onClick={() => { if (lastUndoAction) { lastUndoAction.undo(); setLastUndoAction(null); } }}
+                className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} ${lastUndoAction ? "text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10" : "text-gray-600"} transition-colors`}
+                title={lastUndoAction?.label || "No action to undo"}
+              >
+                <Undo2 className="w-4 h-4" />
+              </Button>
               {!isMobile && <Link href="/settings/google-calendar"><Button variant="ghost" size="sm" className="h-8 px-2 text-purple-300"><Settings className="w-4 h-4" /></Button></Link>}
               {view !== "month" && (
                 <Button size="sm" variant="ghost" onClick={handleSort} disabled={isSorting} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} text-purple-300 hover:text-purple-100 hover:bg-purple-500/10`} title="Sort tasks by priority">
@@ -831,7 +835,7 @@ export default function CalendarPage() {
                 }
               }}
               onDragStart={(ds) => setDrag(ds)}
-              onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
+              onDragUpdate={(minute, offsetX) => setDrag((prev) => prev ? { ...prev, minute, offsetX } : null)}
               onDragEnd={() => { if (drag) { const wasMove = drag.mode === "move"; commitDrag(drag); setDrag(null); if (wasMove) setResizeEventId(null); } }}
               onDragCancel={() => setDrag(null)}
               onEmptyTap={(date, minute) => {
@@ -921,7 +925,7 @@ interface TimeGridViewProps {
   onSwipeEnd: (e: React.TouchEvent) => void;
   onEventTap: (ev: CalendarEvent, pos?: { x: number; y: number }) => void;
   onDragStart: (ds: DragState) => void;
-  onDragUpdate: (minute: number) => void;
+  onDragUpdate: (minute: number, offsetX?: number) => void;
   onDragEnd: () => void;
   onDragCancel: () => void;
   onEmptyTap: (date: Date, minute: number) => void;
@@ -1037,7 +1041,7 @@ interface DayColumnProps {
   resizeEventId: string | null;
   onEventTap: (ev: CalendarEvent, pos?: { x: number; y: number }) => void;
   onDragStart: (ds: DragState) => void;
-  onDragUpdate: (minute: number) => void;
+  onDragUpdate: (minute: number, offsetX?: number) => void;
   onDragEnd: () => void;
   onDragCancel: () => void;
   onEmptyTap: (minute: number) => void;
@@ -1057,7 +1061,7 @@ const DayColumn = React.memo(function DayColumn({
   const autoScrollRef = useRef<{
     raf: number | null;
     speed: number; // px per frame, negative = up, positive = down
-    lastTouch: { clientY: number } | null;
+    lastTouch: { clientX: number; clientY: number } | null;
   }>({ raf: null, speed: 0, lastTouch: null });
 
   const stopAutoScroll = useCallback(() => {
@@ -1083,10 +1087,12 @@ const DayColumn = React.memo(function DayColumn({
       const ts = touchState.current;
       if (ts?.active && ts.mode) {
         const deltaMinutes = currentMinute - ts.startMinute;
+        // Preserve horizontal offset during auto-scroll
+        const hOffset = ts.mode === "move" ? clamp(as.lastTouch.clientX - ts.startX, -60, 60) : 0;
         if (ts.mode === "move") {
           const duration = ts.origEndMin - ts.origStartMin;
           const newStart = snap(ts.origStartMin + deltaMinutes);
-          onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration));
+          onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration), hOffset);
         } else if (ts.mode === "resize-top") {
           const newTop = snap(ts.origStartMin + deltaMinutes);
           onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
@@ -1101,7 +1107,7 @@ const DayColumn = React.memo(function DayColumn({
   }, []);
 
   // Check if touch is near edge and start/stop auto-scroll
-  const updateAutoScroll = useCallback((clientY: number) => {
+  const updateAutoScroll = useCallback((clientY: number, clientX?: number) => {
     const scrollContainer = colRef.current?.closest("[class*='overflow-auto']") as HTMLElement | null;
     if (!scrollContainer) return;
 
@@ -1125,7 +1131,7 @@ const DayColumn = React.memo(function DayColumn({
     }
 
     as.speed = speed;
-    as.lastTouch = { clientY };
+    as.lastTouch = { clientX: clientX ?? 0, clientY };
 
     // Start the animation loop if not already running
     if (speed !== 0 && !as.raf) {
@@ -1318,8 +1324,10 @@ const DayColumn = React.memo(function DayColumn({
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (!ts.active) {
-        // Not in active drag — if finger moves too far, cancel (let scroll happen)
-        if (dist > MOVE_THRESHOLD) {
+        // Not in active drag — only cancel if VERTICAL movement is too large
+        // (horizontal wobble is natural and shouldn't cancel a long-press)
+        const absY = Math.abs(dy);
+        if (absY > MOVE_THRESHOLD) {
           if (ts.timer) clearTimeout(ts.timer);
           touchState.current = null;
           return;
@@ -1328,21 +1336,22 @@ const DayColumn = React.memo(function DayColumn({
       }
 
       // Active drag — use RELATIVE movement for precision
-      // Only prevent default vertical scrolling, allow horizontal finger movement
       e.preventDefault();
       ts.moved = true;
 
       // Auto-scroll when near viewport edges
-      updateAutoScroll(touch.clientY);
+      updateAutoScroll(touch.clientY, touch.clientX);
 
       const currentMinute = getMinuteFromY(touch.clientY);
       const deltaMinutes = currentMinute - ts.startMinute;
       const mode = ts.mode!;
+      // Horizontal offset for natural "free drag" feel (capped to ±60px)
+      const hOffset = mode === "move" ? clamp(dx, -60, 60) : 0;
 
       if (mode === "move") {
         const duration = ts.origEndMin - ts.origStartMin;
         const newStart = snap(ts.origStartMin + deltaMinutes);
-        onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration));
+        onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration), hOffset);
       } else if (mode === "resize-top") {
         const newTop = snap(ts.origStartMin + deltaMinutes);
         onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
@@ -1551,6 +1560,10 @@ const DayColumn = React.memo(function DayColumn({
               touchAction: isInResizeMode ? "none" : undefined,
               // Demote overlapping events so they don't steal touches from the resize target
               pointerEvents: isOtherResizing ? "none" : undefined,
+              // Natural free-form drag: slight horizontal follow during move
+              transform: isDragging && drag?.mode === "move" && drag.offsetX
+                ? `translateX(${drag.offsetX}px)`
+                : undefined,
             }}
             onClick={(e) => {
               e.stopPropagation();
