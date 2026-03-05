@@ -27,7 +27,7 @@ import {
 import { format } from "date-fns";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TaskDetailModalProps {
@@ -42,6 +42,10 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
   const [detailsValue, setDetailsValue] = useState(task?.details || "");
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [showFullDetails, setShowFullDetails] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+  const detailsDisplayRef = useRef<HTMLDivElement>(null);
   const detailsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -56,7 +60,16 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   useEffect(() => {
     setDetailsValue(task?.details || "");
     setDurationInput(task?.duration?.toString() || "30");
+    setIsEditingDetails(false);
   }, [task?.id, task?.details, task?.duration]);
+
+  // Detect if description text is truncated (overflows the display area)
+  useLayoutEffect(() => {
+    const el = detailsDisplayRef.current;
+    if (el && !isEditingDetails) {
+      setIsTruncated(el.scrollHeight > el.clientHeight + 2);
+    }
+  }, [detailsValue, isEditingDetails, open]);
 
   const updateDueDateMutation = useMutation({
     mutationFn: async (newDate: Date) => {
@@ -445,7 +458,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         </DialogHeader>
 
         <div className={`${isMobile ? 'space-y-3 mt-1' : 'space-y-6 mt-4'}`}>
-          {/* Details - always show, editable */}
+          {/* Details - dynamic display with edit mode */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 text-yellow-400">
               <BarChart3 className={`${isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
@@ -453,15 +466,85 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               {updateDetailsMutation.isPending && (
                 <span className="text-xs text-yellow-400/50">Saving...</span>
               )}
+              <div className="ml-auto">
+                {!isEditingDetails ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 hover:bg-yellow-600/20 text-yellow-400 hover:text-yellow-300"
+                    onClick={() => setIsEditingDetails(true)}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 hover:bg-green-600/20 text-green-400 hover:text-green-300"
+                    onClick={() => setIsEditingDetails(false)}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
-            <Textarea
-              value={detailsValue}
-              onChange={(e) => handleDetailsChange(e.target.value)}
-              placeholder="Add details..."
-              className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none focus:border-yellow-500/50 focus:ring-yellow-500/20 ${isMobile ? 'p-2.5 min-h-[60px] text-sm' : 'p-3 min-h-[80px]'}`}
-              rows={isMobile ? 2 : 3}
-            />
+
+            {isEditingDetails ? (
+              <Textarea
+                value={detailsValue}
+                onChange={(e) => handleDetailsChange(e.target.value)}
+                placeholder="Add details..."
+                className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none focus:border-yellow-500/50 focus:ring-yellow-500/20 ${isMobile ? 'p-2.5 min-h-[200px] text-sm' : 'p-3 min-h-[260px]'}`}
+                rows={isMobile ? 8 : 10}
+                autoFocus
+              />
+            ) : (
+              <div className="relative">
+                <div
+                  ref={detailsDisplayRef}
+                  onClick={() => {
+                    if (!detailsValue) setIsEditingDetails(true);
+                  }}
+                  className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 whitespace-pre-wrap break-words overflow-hidden ${
+                    isMobile ? 'p-2.5 text-sm' : 'p-3'
+                  } ${!detailsValue ? 'text-yellow-200/30 cursor-text' : ''}`}
+                  style={{
+                    maxHeight: isMobile ? '200px' : '260px',
+                    minHeight: detailsValue ? undefined : (isMobile ? '48px' : '56px'),
+                  }}
+                >
+                  {detailsValue || 'Add details...'}
+                </div>
+                {isTruncated && detailsValue && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-800/95 via-slate-800/80 to-transparent rounded-b-lg pt-8 pb-2 px-2.5 flex justify-center">
+                    <button
+                      onClick={() => setShowFullDetails(true)}
+                      className="text-yellow-400 text-xs font-semibold hover:text-yellow-300 transition-colors bg-slate-800/90 px-3 py-1 rounded-full border border-yellow-600/30"
+                    >
+                      View full message…
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Full Details Popup Modal */}
+          <Dialog open={showFullDetails} onOpenChange={setShowFullDetails}>
+            <DialogContent className={`${isMobile ? 'max-w-[95vw] max-h-[80vh]' : 'max-w-2xl max-h-[80vh]'} bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30 flex flex-col`}>
+              <DialogHeader>
+                <DialogTitle className="text-yellow-100 font-serif flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-yellow-400" />
+                  Full Details
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto pr-2 -mr-2">
+                <p className={`text-yellow-200/80 whitespace-pre-wrap break-words ${isMobile ? 'text-sm' : ''}`}>
+                  {detailsValue}
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Key Information Grid */}
           <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-4'}`}>
