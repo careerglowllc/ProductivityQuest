@@ -121,6 +121,14 @@ function minuteOfDay(d: Date): number {
   return d.getHours() * 60 + d.getMinutes();
 }
 
+/** Compute origEndMin that is always >= origStartMin.
+ *  Uses timestamp diff to avoid midnight-wrap issues where minuteOfDay(end) < minuteOfDay(start). */
+function safeEndMinute(start: Date, end: Date): number {
+  const startMin = minuteOfDay(start);
+  const durMin = Math.round((end.getTime() - start.getTime()) / 60000);
+  return Math.max(startMin + MIN_DURATION, startMin + durMin);
+}
+
 function snap(m: number): number {
   return Math.round(m / SNAP_MINUTES) * SNAP_MINUTES;
 }
@@ -872,17 +880,19 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* Resize mode banner */}
+      {/* Resize mode banner — centered at top, below header+view switcher */}
       {resizeEventId && isMobile && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-6 py-2.5 shadow-xl shadow-purple-500/20 backdrop-blur-sm">
-          <SlidersHorizontal className="w-4 h-4 text-purple-400" />
-          <span className="text-sm text-white font-medium whitespace-nowrap">Drag edges to resize</span>
-          <button
-            onClick={() => setResizeEventId(null)}
-            className="ml-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-3 py-1 rounded-full"
-          >
-            Done
-          </button>
+        <div className="fixed top-[env(safe-area-inset-top,0px)] left-0 right-0 z-40 flex justify-center pointer-events-none" style={{ paddingTop: 6 }}>
+          <div className="flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-6 py-2.5 shadow-xl shadow-purple-500/20 backdrop-blur-sm pointer-events-auto">
+            <SlidersHorizontal className="w-4 h-4 text-purple-400" />
+            <span className="text-sm text-white font-medium whitespace-nowrap">Drag edges to resize</span>
+            <button
+              onClick={() => setResizeEventId(null)}
+              className="ml-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-3 py-1 rounded-full"
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
 
@@ -1241,7 +1251,7 @@ const DayColumn = React.memo(function DayColumn({
             else mode = "move"; // body = long-press to move
 
             const origStartMin = minuteOfDay(new Date(resEv.start));
-            const origEndMin = minuteOfDay(new Date(resEv.end));
+            const origEndMin = safeEndMinute(new Date(resEv.start), new Date(resEv.end));
             const touchMinute = getMinuteFromY(touch.clientY);
 
             if (mode === "move") {
@@ -1398,7 +1408,7 @@ const DayColumn = React.memo(function DayColumn({
     const eventEl = e.currentTarget as HTMLElement;
     const mode = detectEdge(e.clientY, eventEl);
     const origStartMin = minuteOfDay(new Date(ev.start));
-    const origEndMin = minuteOfDay(new Date(ev.end));
+    const origEndMin = safeEndMinute(new Date(ev.start), new Date(ev.end));
     const clickMinute = getMinuteFromY(e.clientY);
     const offsetInEvent = clickMinute - origStartMin;
     const startX = e.clientX;
