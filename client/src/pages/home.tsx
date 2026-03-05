@@ -782,8 +782,11 @@ export default function Home() {
   };
 
   // Undo date-based changes (reschedule, push days, move overdue)
-  const undoDateChanges = async () => {
-    const action = lastDateActionRef.current;
+  // Accepts direct data so toast closure never goes stale
+  const undoDateChanges = async (
+    directData?: { previousDates: { id: number; dueDate: string | null }[]; label: string }
+  ) => {
+    const action = directData || lastDateActionRef.current;
     if (!action) return;
 
     const { previousDates, label } = action;
@@ -899,14 +902,15 @@ export default function Home() {
 
     // Store undo data
     const undoLabel = `move of ${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''} to today`;
-    setLastDateAction({ label: undoLabel, previousDates });
+    const undoData = { label: undoLabel, previousDates };
+    setLastDateAction(undoData);
 
     toast({
       title: "📅 Overdue Tasks Updated",
       description: `Moved ${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''} to today.`,
       duration: 15000,
       action: (
-        <ToastAction altText="Undo move overdue" onClick={() => undoDateChanges()}>
+        <ToastAction altText="Undo move overdue" onClick={() => undoDateChanges(undoData)}>
           Undo
         </ToastAction>
       ),
@@ -968,7 +972,8 @@ export default function Home() {
 
     // Store undo data
     const undoLabel = `reschedule of ${taskCount} task${taskCount !== 1 ? 's' : ''}`;
-    setLastDateAction({ label: undoLabel, previousDates });
+    const undoData = { label: undoLabel, previousDates };
+    setLastDateAction(undoData);
 
     // Clear selection and show toast immediately
     setSelectedTasks(new Set());
@@ -977,7 +982,7 @@ export default function Home() {
       description: `Moved ${taskCount} task${taskCount !== 1 ? 's' : ''} to ${dateLabel}.`,
       duration: 15000,
       action: (
-        <ToastAction altText="Undo reschedule" onClick={() => undoDateChanges()}>
+        <ToastAction altText="Undo reschedule" onClick={() => undoDateChanges(undoData)}>
           Undo
         </ToastAction>
       ),
@@ -1048,7 +1053,8 @@ export default function Home() {
     // Store undo data
     const dayLabel = days === 7 ? '1 week' : days === 14 ? '2 weeks' : days === 30 ? '1 month' : `${days} day${days !== 1 ? 's' : ''}`;
     const undoLabel = `push of ${updates.length} task${updates.length !== 1 ? 's' : ''} by ${dayLabel}`;
-    setLastDateAction({ label: undoLabel, previousDates });
+    const undoData = { label: undoLabel, previousDates };
+    setLastDateAction(undoData);
 
     setSelectedTasks(new Set());
     toast({
@@ -1056,7 +1062,7 @@ export default function Home() {
       description: `Due dates moved forward from each task's current date.`,
       duration: 15000,
       action: (
-        <ToastAction altText="Undo push" onClick={() => undoDateChanges()}>
+        <ToastAction altText="Undo push" onClick={() => undoDateChanges(undoData)}>
           Undo
         </ToastAction>
       ),

@@ -144,16 +144,43 @@ Toast.displayName = ToastPrimitives.Root.displayName
 const ToastAction = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Action>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Action>
->(({ className, ...props }, ref) => (
-  <ToastPrimitives.Action
-    ref={ref}
-    className={cn(
-      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, onClick, ...props }, ref) => {
+  // On iOS Capacitor, the parent toast's touchAction:'none' + gotpointercapture release
+  // can prevent onClick from firing. Use onTouchEnd as a reliable fallback.
+  const firedRef = React.useRef(false);
+
+  const handleTouchEnd = React.useCallback((e: React.TouchEvent) => {
+    // Only fire if the touch ended on this button (not a swipe)
+    if (firedRef.current) return;
+    firedRef.current = true;
+    // Prevent the default so Radix doesn't double-fire
+    e.preventDefault();
+    // Synthesize the click
+    onClick?.(e as unknown as React.MouseEvent<HTMLButtonElement>);
+    // Reset after a tick
+    setTimeout(() => { firedRef.current = false; }, 300);
+  }, [onClick]);
+
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    if (firedRef.current) return; // Already fired via touchEnd
+    firedRef.current = true;
+    onClick?.(e);
+    setTimeout(() => { firedRef.current = false; }, 300);
+  }, [onClick]);
+
+  return (
+    <ToastPrimitives.Action
+      ref={ref}
+      className={cn(
+        "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
+        className
+      )}
+      onClick={handleClick}
+      onTouchEnd={handleTouchEnd}
+      {...props}
+    />
+  );
+})
 ToastAction.displayName = ToastPrimitives.Action.displayName
 
 const ToastClose = React.forwardRef<
