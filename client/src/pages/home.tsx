@@ -2507,12 +2507,21 @@ export default function Home() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="relative flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2">
                         <span className="text-blue-200 font-medium">
                           {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
                         </span>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedTasks(new Set())}
+                        className="absolute -top-1 -right-1 h-7 w-7 p-0 rounded-full text-gray-400 hover:text-white hover:bg-red-500/20"
+                        title="Close and deselect all"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                       <div className="flex gap-2 flex-wrap">
                         <Button 
                           onClick={handleCompleteSelected}
