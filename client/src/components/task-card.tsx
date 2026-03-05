@@ -405,7 +405,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                       </span>
                     </>
                   )}
-                  {task.recurType && task.recurType !== "one-time" && (
+                  {task.recurType === "🔄Recurring" && (
                     <>
                       <span className="text-yellow-600/30">·</span>
                       <Repeat className="w-3 h-3 text-purple-400/60" />
