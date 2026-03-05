@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Trophy, Coins, Sparkles } from "lucide-react";
+import { Trophy, Coins, Sparkles, X } from "lucide-react";
 import { getSkillIcon } from "@/lib/skillIcons";
 
 interface SkillXPGain {
@@ -39,6 +39,60 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
     skills
   });
 
+  // ── Swipe-to-dismiss (up or down) ──
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const swipeRef = useRef<{ startY: number; dragging: boolean }>({ startY: 0, dragging: false });
+  const contentRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    swipeRef.current = { startY: e.touches[0].clientY, dragging: false };
+  }, []);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    const dy = e.touches[0].clientY - swipeRef.current.startY;
+    if (!swipeRef.current.dragging && Math.abs(dy) > 8) {
+      swipeRef.current.dragging = true;
+    }
+    if (swipeRef.current.dragging) {
+      setSwipeOffset(dy * 0.85);
+      e.preventDefault();
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!swipeRef.current.dragging) { setSwipeOffset(0); return; }
+    const offset = Math.abs(swipeOffset);
+    if (offset > 80) {
+      // Animate out then close
+      setSwipeOffset(swipeOffset > 0 ? window.innerHeight : -window.innerHeight);
+      setTimeout(() => { onCloseRef.current(); setSwipeOffset(0); }, 200);
+    } else {
+      setSwipeOffset(0);
+    }
+    swipeRef.current.dragging = false;
+  }, [swipeOffset]);
+
+  // Attach native touch listeners
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !isOpen) return;
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isOpen, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  // Reset offset when modal closes
+  useEffect(() => {
+    if (!isOpen) setSwipeOffset(0);
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen) {
       console.log('🎨 CompletionAnimation opened with:', {
@@ -48,16 +102,29 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
       });
       const timer = setTimeout(() => {
         onClose();
-      }, 4000); // Extended to 4 seconds to show skills
+      }, 8000); // 8 seconds — user can swipe or tap Close earlier
       return () => clearTimeout(timer);
     }
   }, [isOpen, onClose, skillXPGains]);
 
   if (!task) return null;
 
+  const swipeStyle: React.CSSProperties = swipeOffset !== 0 ? {
+    transform: `translateY(${swipeOffset}px) scale(${1 - Math.min(Math.abs(swipeOffset) / 600, 0.12)})`,
+    opacity: 1 - Math.min(Math.abs(swipeOffset) / 400, 0.5),
+    transition: swipeRef.current.dragging ? 'none' : 'transform 0.25s ease-out, opacity 0.25s ease-out',
+  } : {
+    transform: 'translateY(0) scale(1)',
+    opacity: 1,
+    transition: 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.3s ease-out',
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-gradient-to-b from-slate-800 via-slate-900 to-indigo-950 border-2 border-yellow-500/50 shadow-2xl shadow-yellow-600/20">
+      <DialogContent 
+        ref={contentRef}
+        style={swipeStyle}
+        className="max-w-md bg-gradient-to-b from-slate-800 via-slate-900 to-indigo-950 border-2 border-yellow-500/50 shadow-2xl shadow-yellow-600/20">
         {/* Starfield effect */}
         <div className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden rounded-lg">
           <div className="absolute top-5 left-5 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
@@ -166,6 +233,14 @@ export function CompletionAnimation({ isOpen, onClose, task, newGoldTotal, skill
               <span className="text-xl font-bold text-yellow-100">{newGoldTotal}</span>
             </div>
           </div>
+
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="mt-5 mx-auto flex items-center gap-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/40 text-yellow-200 text-sm font-semibold px-6 py-2 rounded-full transition-colors"
+          >
+            Close
+          </button>
         </div>
       </DialogContent>
     </Dialog>
