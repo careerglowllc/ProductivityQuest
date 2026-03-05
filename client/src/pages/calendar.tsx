@@ -956,6 +956,8 @@ function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resi
             onEmptyTap={(minute) => onEmptyTap(date, minute)} />
         ))}
       </div>
+      {/* Extra scroll space below end-of-day so bottom events aren't cropped */}
+      <div style={{ height: 200 }} />
     </div>
   );
 }
