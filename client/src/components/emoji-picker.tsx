@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 
@@ -58,6 +58,128 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "😱", keywords: ["scream", "fear", "scared", "shock", "horror", "omg"] },
   { emoji: "🤯", keywords: ["mind", "blown", "explode", "shock", "surprise", "wow"] },
   { emoji: "🫠", keywords: ["melt", "melting", "disappear", "hot", "embarrassed"] },
+
+  // Faces — Men
+  { emoji: "👨", keywords: ["man", "male", "face", "person", "guy", "boy", "adult"] },
+  { emoji: "🧔", keywords: ["beard", "man", "bearded", "face", "facial hair", "male"] },
+  { emoji: "🧔‍♂️", keywords: ["beard", "man", "bearded", "face", "facial hair", "male"] },
+  { emoji: "👨‍🦰", keywords: ["man", "red hair", "ginger", "face", "male", "redhead"] },
+  { emoji: "👨‍🦱", keywords: ["man", "curly hair", "face", "male", "curly"] },
+  { emoji: "👨‍🦳", keywords: ["man", "white hair", "gray", "face", "male", "old", "senior"] },
+  { emoji: "👨‍🦲", keywords: ["man", "bald", "face", "male", "no hair"] },
+  { emoji: "👴", keywords: ["old man", "elderly", "grandpa", "grandfather", "senior", "face", "male"] },
+  { emoji: "👦", keywords: ["boy", "young", "child", "kid", "face", "male"] },
+  { emoji: "🧑", keywords: ["person", "adult", "face", "gender neutral", "human"] },
+  { emoji: "🧑‍🦰", keywords: ["person", "red hair", "ginger", "face", "redhead"] },
+  { emoji: "🧑‍🦱", keywords: ["person", "curly hair", "face", "curly"] },
+  { emoji: "🧑‍🦳", keywords: ["person", "white hair", "gray", "face", "senior"] },
+  { emoji: "🧑‍🦲", keywords: ["person", "bald", "face", "no hair"] },
+  { emoji: "🧓", keywords: ["older person", "elderly", "senior", "face", "old"] },
+  { emoji: "👱‍♂️", keywords: ["man", "blond", "blonde", "face", "male", "hair"] },
+  { emoji: "👲", keywords: ["man", "chinese", "cap", "face", "male", "hat"] },
+  { emoji: "🤵", keywords: ["man", "tuxedo", "groom", "suit", "face", "formal", "wedding"] },
+  { emoji: "🤵‍♂️", keywords: ["man", "tuxedo", "groom", "suit", "face", "formal"] },
+  { emoji: "🫅", keywords: ["person", "crown", "royal", "king", "queen", "face"] },
+  { emoji: "🤴", keywords: ["prince", "royal", "crown", "face", "male", "king"] },
+  { emoji: "🥸", keywords: ["disguise", "face", "glasses", "nose", "mustache", "funny"] },
+  { emoji: "🤠", keywords: ["cowboy", "hat", "face", "western", "country"] },
+  { emoji: "😈", keywords: ["devil", "face", "evil", "horns", "purple", "naughty"] },
+  { emoji: "👿", keywords: ["devil", "angry", "face", "evil", "horns", "mad"] },
+  { emoji: "🫨", keywords: ["shaking", "face", "vibrate", "shock", "earthquake"] },
+  { emoji: "🫣", keywords: ["peeking", "face", "eye", "shy", "nervous", "peek"] },
+  { emoji: "🫡", keywords: ["salute", "face", "respect", "military", "sir"] },
+  { emoji: "🤓", keywords: ["nerd", "face", "glasses", "smart", "geek", "study"] },
+  { emoji: "🧐", keywords: ["monocle", "face", "fancy", "inspect", "curious", "think"] },
+  { emoji: "😤", keywords: ["angry", "face", "frustrated", "huff", "steam", "mad"] },
+  { emoji: "😶‍🌫️", keywords: ["face", "clouds", "hidden", "fog", "mysterious", "lost"] },
+  { emoji: "🤫", keywords: ["shush", "face", "quiet", "secret", "silence", "hush"] },
+  { emoji: "🤥", keywords: ["lie", "face", "pinocchio", "liar", "nose"] },
+  { emoji: "😬", keywords: ["grimace", "face", "awkward", "nervous", "teeth"] },
+  { emoji: "🙄", keywords: ["eye roll", "face", "annoyed", "bored", "whatever"] },
+  { emoji: "😮‍💨", keywords: ["exhale", "face", "sigh", "relief", "tired", "phew"] },
+  { emoji: "🥱", keywords: ["yawn", "face", "tired", "bored", "sleepy"] },
+  { emoji: "🤗", keywords: ["hug", "face", "warm", "embrace", "happy", "friendly"] },
+  { emoji: "🤑", keywords: ["money", "face", "rich", "dollar", "greedy", "cash"] },
+  { emoji: "🤢", keywords: ["nauseated", "face", "sick", "green", "vomit", "ill"] },
+  { emoji: "🤮", keywords: ["vomit", "face", "sick", "throw up", "ill", "puke"] },
+  { emoji: "🥴", keywords: ["woozy", "face", "drunk", "dizzy", "tipsy", "dazed"] },
+  { emoji: "🥵", keywords: ["hot", "face", "heat", "sweating", "red", "fever"] },
+  { emoji: "🥶", keywords: ["cold", "face", "freezing", "ice", "blue", "frozen"] },
+  { emoji: "🤧", keywords: ["sneeze", "face", "sick", "cold", "tissue", "allergies"] },
+  { emoji: "😵", keywords: ["dizzy", "face", "dead", "unconscious", "knocked out"] },
+  { emoji: "😵‍💫", keywords: ["dizzy", "face", "spiral", "confused", "dazed"] },
+  { emoji: "🫥", keywords: ["dotted", "face", "invisible", "hidden", "disappear"] },
+  { emoji: "😶", keywords: ["no mouth", "face", "silent", "speechless", "quiet"] },
+  { emoji: "😐", keywords: ["neutral", "face", "meh", "expressionless", "blank"] },
+  { emoji: "😑", keywords: ["expressionless", "face", "blank", "unimpressed", "deadpan"] },
+  { emoji: "😒", keywords: ["unamused", "face", "bored", "annoyed", "unimpressed"] },
+  { emoji: "😔", keywords: ["pensive", "face", "sad", "thoughtful", "disappointed"] },
+  { emoji: "😕", keywords: ["confused", "face", "puzzled", "unsure", "uncertain"] },
+  { emoji: "🙁", keywords: ["frown", "face", "sad", "disappointed", "unhappy"] },
+  { emoji: "☹️", keywords: ["frown", "face", "sad", "unhappy", "upset"] },
+  { emoji: "😣", keywords: ["persevere", "face", "struggle", "tired", "frustrated"] },
+  { emoji: "😖", keywords: ["confounded", "face", "frustrated", "upset", "quivering"] },
+  { emoji: "😫", keywords: ["tired", "face", "weary", "exhausted", "distraught"] },
+  { emoji: "😩", keywords: ["weary", "face", "tired", "frustrated", "sad"] },
+  { emoji: "🥺", keywords: ["pleading", "face", "puppy eyes", "sad", "please", "beg"] },
+  { emoji: "😢", keywords: ["cry", "face", "tear", "sad", "upset"] },
+  { emoji: "😭", keywords: ["sob", "face", "cry", "tears", "sad", "loud", "wail"] },
+  { emoji: "😠", keywords: ["angry", "face", "mad", "annoyed", "grr"] },
+  { emoji: "😈", keywords: ["devil", "face", "naughty", "horns", "evil", "smile"] },
+  { emoji: "💀", keywords: ["skull", "face", "dead", "death", "skeleton"] },
+  { emoji: "☠️", keywords: ["skull", "crossbones", "face", "dead", "danger", "poison"] },
+  { emoji: "🤡", keywords: ["clown", "face", "funny", "silly", "circus", "joke"] },
+  { emoji: "👹", keywords: ["ogre", "face", "monster", "japanese", "demon", "scary"] },
+  { emoji: "👺", keywords: ["goblin", "face", "monster", "japanese", "tengu", "mask"] },
+  { emoji: "🎭", keywords: ["theater", "face", "masks", "drama", "comedy", "tragedy"] },
+
+  // Faces — Women
+  { emoji: "👩", keywords: ["woman", "female", "face", "person", "girl", "lady", "adult"] },
+  { emoji: "👩‍🦰", keywords: ["woman", "red hair", "ginger", "face", "female", "redhead"] },
+  { emoji: "👩‍🦱", keywords: ["woman", "curly hair", "face", "female", "curly"] },
+  { emoji: "👩‍🦳", keywords: ["woman", "white hair", "gray", "face", "female", "old", "senior"] },
+  { emoji: "👩‍🦲", keywords: ["woman", "bald", "face", "female", "no hair"] },
+  { emoji: "👵", keywords: ["old woman", "elderly", "grandma", "grandmother", "senior", "face", "female"] },
+  { emoji: "👧", keywords: ["girl", "young", "child", "kid", "face", "female"] },
+  { emoji: "👱‍♀️", keywords: ["woman", "blond", "blonde", "face", "female", "hair"] },
+  { emoji: "👰", keywords: ["bride", "wedding", "veil", "face", "woman", "marriage"] },
+  { emoji: "👰‍♀️", keywords: ["bride", "wedding", "veil", "face", "woman", "marriage"] },
+  { emoji: "🤵‍♀️", keywords: ["woman", "tuxedo", "suit", "face", "formal"] },
+  { emoji: "👸", keywords: ["princess", "royal", "crown", "face", "female", "queen"] },
+  { emoji: "🧕", keywords: ["hijab", "woman", "headscarf", "face", "female", "muslim"] },
+  { emoji: "👳‍♀️", keywords: ["woman", "turban", "face", "female"] },
+  { emoji: "👳‍♂️", keywords: ["man", "turban", "face", "male"] },
+  { emoji: "🧙‍♀️", keywords: ["witch", "woman", "magic", "wizard", "face", "female"] },
+  { emoji: "🧙‍♂️", keywords: ["wizard", "man", "magic", "mage", "face", "male"] },
+  { emoji: "🧛‍♀️", keywords: ["vampire", "woman", "face", "female", "dracula"] },
+  { emoji: "🧛‍♂️", keywords: ["vampire", "man", "face", "male", "dracula"] },
+  { emoji: "🧜‍♀️", keywords: ["mermaid", "woman", "face", "female", "sea", "ocean"] },
+  { emoji: "🧜‍♂️", keywords: ["merman", "man", "face", "male", "sea", "ocean"] },
+  { emoji: "🧚‍♀️", keywords: ["fairy", "woman", "face", "female", "magic", "fantasy"] },
+  { emoji: "🧚‍♂️", keywords: ["fairy", "man", "face", "male", "magic", "fantasy"] },
+  { emoji: "🦸‍♀️", keywords: ["superhero", "woman", "face", "female", "hero", "power"] },
+  { emoji: "🦸‍♂️", keywords: ["superhero", "man", "face", "male", "hero", "power"] },
+  { emoji: "🦹‍♀️", keywords: ["supervillain", "woman", "face", "female", "villain", "evil"] },
+  { emoji: "🦹‍♂️", keywords: ["supervillain", "man", "face", "male", "villain", "evil"] },
+  { emoji: "💁‍♀️", keywords: ["woman", "tipping", "hand", "face", "information", "sassy"] },
+  { emoji: "💁‍♂️", keywords: ["man", "tipping", "hand", "face", "information"] },
+  { emoji: "🙋‍♀️", keywords: ["woman", "raising", "hand", "face", "female", "hi", "question"] },
+  { emoji: "🙋‍♂️", keywords: ["man", "raising", "hand", "face", "male", "hi", "question"] },
+  { emoji: "🙅‍♀️", keywords: ["woman", "no", "gesture", "face", "female", "stop", "cross"] },
+  { emoji: "🙅‍♂️", keywords: ["man", "no", "gesture", "face", "male", "stop", "cross"] },
+  { emoji: "🙆‍♀️", keywords: ["woman", "ok", "gesture", "face", "female", "yes"] },
+  { emoji: "🙆‍♂️", keywords: ["man", "ok", "gesture", "face", "male", "yes"] },
+  { emoji: "🤷‍♀️", keywords: ["woman", "shrug", "face", "female", "idk", "whatever", "dunno"] },
+  { emoji: "🤷‍♂️", keywords: ["man", "shrug", "face", "male", "idk", "whatever", "dunno"] },
+  { emoji: "🤦‍♀️", keywords: ["woman", "facepalm", "face", "female", "disappointed", "smh"] },
+  { emoji: "🤦‍♂️", keywords: ["man", "facepalm", "face", "male", "disappointed", "smh"] },
+  { emoji: "🙇‍♀️", keywords: ["woman", "bow", "face", "female", "sorry", "respect"] },
+  { emoji: "🙇‍♂️", keywords: ["man", "bow", "face", "male", "sorry", "respect"] },
+
+  // Funnel / Filter
+  { emoji: "🫗", keywords: ["funnel", "pour", "pouring", "liquid", "filter", "spill"] },
+  { emoji: "🔻", keywords: ["funnel", "triangle", "red", "down", "filter", "sort", "point"] },
+  { emoji: "⏬", keywords: ["funnel", "fast down", "arrow", "download", "filter"] },
 
   // Work / Business
   { emoji: "💼", keywords: ["briefcase", "work", "business", "job", "office", "professional", "career"] },
@@ -815,15 +937,17 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
 
 const EMOJI_CATEGORIES: Record<string, string[]> = {
   "Common": ["📝", "📋", "📌", "✏️", "📖", "📚", "💡", "🎯", "⭐", "🌟", "💪", "🚀", "🔥", "⚡", "💎", "🏆", "🎉", "✅", "❤️", "💛", "💚", "💙", "💜", "🧡", "❗", "❓", "😀", "😊", "😎", "🤔", "✨", "💯", "👀", "🫶"],
-  "Work": ["💼", "🏢", "💻", "🖥️", "📊", "📈", "📧", "📞", "📱", "📅", "⏰", "⏳", "🔔", "💰", "💵", "💳", "🤝", "👔", "🎤", "🖨️", "📤", "📥", "🧑‍💻", "🧑‍💼", "📣", "🗂️", "📁", "⌨️", "🖱️", "💾", "📡", "🌐"],
+  "Faces": ["😀", "😊", "😎", "🤔", "😴", "😤", "🥳", "🤩", "😇", "🥰", "😂", "🥲", "😏", "😡", "😱", "🤯", "🫠", "🥸", "🤠", "😈", "��", "🤓", "🧐", "🤫", "🤥", "😬", "🙄", "🥱", "🤗", "🤑", "🤢", "🤮", "🥴", "🥵", "🥶", "🤧", "😵", "😵‍💫", "😶", "😐", "😑", "😒", "😔", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😠", "🤡", "👹", "👺", "💀", "☠️", "👻", "🫨", "🫣", "🫥", "😮‍��", "😶‍🌫️", "🫡"],
+  "People": ["👨", "🧔", "🧔‍♂️", "👨‍🦰", "👨‍🦱", "👨‍🦳", "👨‍🦲", "👴", "👦", "👱‍♂️", "👲", "��‍♂️", "🤴", "🤵", "🤵‍♂️", "👩", "👩‍🦰", "👩‍🦱", "👩‍🦳", "👩‍🦲", "👵", "👧", "👱‍♀️", "👰", "👸", "🧕", "👳‍♀️", "🤵‍♀️", "🧑", "🧑‍🦰", "🧑‍🦱", "🧑‍🦳", "🧑‍🦲", "🧓", "🫅", "🧙‍♀️", "🧙‍♂️", "🧛‍♀️", "🧛‍♂️", "🧜‍♀️", "🧜‍♂️", "🧚‍♀️", "🧚‍♂️", "🦸‍♀️", "🦸‍♂️", "🦹‍♀️", "🦹‍♂️", "💁‍♀️", "💁‍♂️", "🙋‍♀️", "🙋‍♂️", "🙅‍♀️", "🙅‍♂️", "🙆‍♀️", "🙆‍♂️", "🤷‍♀️", "🤷‍♂️", "🤦‍♀️", "🤦‍♂️", "🙇‍♀️", "🙇‍♂️"],
+  "Work": ["💼", "🏢", "💻", "🖥️", "📊", "📈", "📧", "📞", "📱", "📅", "⏰", "⏳", "🔔", "💰", "💵", "��", "🤝", "👔", "🎤", "🖨️", "📤", "📥", "🧑‍💻", "🧑‍💼", "📣", "🗂️", "📁", "⌨️", "🖱️", "💾", "📡", "🌐"],
   "Health": ["🏃", "🧘", "💊", "🩺", "🏋️", "🚴", "🏊", "🧠", "🍎", "🥗", "💧", "❤️‍🩹", "🦷", "👁️", "💉", "🧬", "🌿", "😴", "💤", "🩹", "🏥", "🧑‍⚕️", "🫀", "🫁", "🧴"],
-  "Learn": ["📖", "📚", "🎓", "🧪", "🔬", "🔭", "🌍", "🎨", "🎵", "🎹", "🎸", "📐", "🧮", "🔢", "✍️", "💬", "🗣️", "🧑‍🎓", "🧑‍🏫", "🧑‍🔬"],
-  "Clothing": ["👕", "👚", "👗", "👖", "🧥", "👒", "🧢", "🎩", "🧣", "🧤", "🧦", "👞", "👟", "👠", "👡", "👢", "🥾", "👙", "🩳", "👘", "🩴", "👜", "🎒", "👓", "🕶️", "🥽", "💍", "💄", "💅"],
-  "Life": ["🏠", "🏡", "�", "🏚️", "�🛒", "🧹", "🧺", "🍳", "🚗", "✈️", "🌅", "🎂", "🎁", "🐶", "🐱", "🌸", "🌈", "☀️", "🌙", "🛏️", "🪴", "👨‍👩‍👧‍👦", "🏍️", "🚪", "🪑", "🛋️", "🚿", "🧽", "🚜", "🌾", "🐄", "🐎"],
+  "Learn": ["📖", "📚", "��", "🧪", "🔬", "🔭", "🌍", "🎨", "🎵", "🎹", "🎸", "📐", "🧮", "🔢", "✍️", "💬", "🗣️", "🧑‍🎓", "🧑‍🏫", "🧑‍🔬"],
+  "Clothing": ["👕", "👚", "👗", "👖", "🧥", "👒", "🧢", "🎩", "🧣", "🧤", "🧦", "👞", "👟", "👠", "👡", "👢", "��", "👙", "🩳", "👘", "🩴", "👜", "🎒", "👓", "🕶️", "🥽", "💍", "💄", "💅"],
+  "Life": ["🏠", "🏡", "🏚️", "🛒", "🧹", "🧺", "🍳", "🚗", "✈️", "🌅", "��", "🎁", "🐶", "🐱", "🌸", "🌈", "☀️", "🌙", "🛏️", "🪴", "👨‍👩‍👧‍👦", "🏍️", "🚪", "🪑", "🛋️", "🚿", "🧽", "🚜", "🌾", "🐄", "🐎"],
   "Fun": ["🎮", "🎲", "🎭", "🎬", "📺", "🎵", "🎶", "⚽", "🏀", "🎾", "🧩", "📸", "🎧", "🎪", "🥳", "🎡", "🎢", "🎠", "🏈", "🏐"],
   "Food": ["☕", "🍕", "🍔", "🍜", "🍣", "🥑", "🍓", "🍰", "🍪", "🥤", "🍷", "🍺", "🫖", "🌮", "🍝", "🥞", "🍗", "🥩", "🍞", "🧀", "🍫", "🍩", "🍦", "🥪", "🍛", "🥦", "🥕", "🍌", "🍊", "🍇", "🍉"],
-  "Nature": ["🌳", "🌲", "🌴", "🌊", "🏔️", "🌋", "🏝️", "🌤️", "🌧️", "❄️", "🦋", "🐝", "🌺", "🍀", "🌹", "🌱", "🌪️", "🌩️", "☔", "☁️", "🌷", "🌼", "🍁", "🍃", "☘️", "🐬", "🦅", "🦉"],
-  "Tools": ["⚙️", "🔧", "🔨", "🛠️", "🔑", "🔒", "📍", "🏷️", "🔖", "🚫", "♻️", "🔗", "🗑️", "✂️", "⚖️", "🔍", "🔌", "🔋", "🔦", "🧰", "🪜", "🛡️", "⚔️"],
+  "Nature": ["🌳", "🌲", "🌴", "🌊", "🏔️", "🌋", "🏝️", "🌤️", "🌧️", "❄️", "🦋", "🐝", "🌺", "🍀", "🌹", "🌱", "🌪️", "🌩️", "☔", "☁️", "🌷", "🌼", "🍁", "🍃", "☘️", "🐬", "🦅", "��"],
+  "Tools": ["⚙️", "🔧", "🔨", "🛠️", "🔑", "🔒", "📍", "🏷️", "🔖", "🚫", "♻️", "🔗", "🗑️", "✂️", "⚖️", "🔍", "🔌", "🔋", "🔦", "🧰", "🪜", "🛡️", "⚔️", "🫗", "🔻"],
   "Shapes": ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🔘", "⭕", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜", "◼️", "◻️", "◾", "◽", "▪️", "▫️", "🔺", "🔻", "🔶", "🔷", "🔸", "🔹", "💠", "♦️", "♠️", "♣️", "♥️", "●", "○", "■", "□", "▲", "▼", "◆", "◇"],
   "Lines": ["〰️", "➰", "➿", "〽️", "✴️", "❇️", "✳️", "│", "─", "╱", "╲", "┼", "═", "║", "➡️", "⬅️", "⬆️", "⬇️", "↗️", "↘️", "↙️", "↖️", "↕️", "↔️", "🔄", "🔃"],
   "Symbols": ["♾️", "💲", "⚛️", "☮️", "☯️", "💯", "‼️", "⁉️", "❌", "©️", "®️", "™️", "🏁", "🚩"],
@@ -839,6 +963,33 @@ export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Common");
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  // Close popover when the page scrolls (iOS: swiping over popover should scroll page)
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = () => setOpen(false);
+    // Listen on the nearest scrollable ancestor and window
+    window.addEventListener("scroll", onScroll, true);
+    return () => window.removeEventListener("scroll", onScroll, true);
+  }, [open]);
+
+  // On touch: if the user swipes vertically over the popover (outside the emoji grid),
+  // close it so the page scroll can take over
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (dy > 10) {
+      // User is swiping vertically — close picker so page scrolls
+      setOpen(false);
+      touchStartY.current = null;
+    }
+  }, []);
 
   const sizeClasses = {
     sm: "text-lg w-8 h-8",
@@ -894,9 +1045,13 @@ export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) 
         </button>
       </PopoverTrigger>
       <PopoverContent
+        ref={popoverRef}
         className="w-[320px] p-0 bg-slate-900 border-yellow-600/30"
         align="start"
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="p-3 pb-2">
           <Input
