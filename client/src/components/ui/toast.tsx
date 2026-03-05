@@ -145,28 +145,29 @@ const ToastAction = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Action>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Action>
 >(({ className, onClick, ...props }, ref) => {
-  // On iOS Capacitor, the parent toast's touchAction:'none' + gotpointercapture release
-  // can prevent onClick from firing. Use onTouchEnd as a reliable fallback.
+  // Guard: fire the onClick exactly once per toast instance.
+  // On iOS Capacitor, multiple events (touchEnd, click, pointerUp) can fire
+  // from a single tap due to touchAction:'none' + gotpointercapture on the toast root.
   const firedRef = React.useRef(false);
 
-  const handleTouchEnd = React.useCallback((e: React.TouchEvent) => {
-    // Only fire if the touch ended on this button (not a swipe)
-    if (firedRef.current) return;
+  const fireOnce = React.useCallback((e: React.SyntheticEvent) => {
+    if (firedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     firedRef.current = true;
-    // Prevent the default so Radix doesn't double-fire
-    e.preventDefault();
-    // Synthesize the click
-    onClick?.(e as unknown as React.MouseEvent<HTMLButtonElement>);
-    // Reset after a tick
-    setTimeout(() => { firedRef.current = false; }, 300);
+    onClick?.(e as React.MouseEvent<HTMLButtonElement>);
   }, [onClick]);
 
+  const handleTouchEnd = React.useCallback((e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent synthesized click
+    fireOnce(e);
+  }, [fireOnce]);
+
   const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    if (firedRef.current) return; // Already fired via touchEnd
-    firedRef.current = true;
-    onClick?.(e);
-    setTimeout(() => { firedRef.current = false; }, 300);
-  }, [onClick]);
+    fireOnce(e);
+  }, [fireOnce]);
 
   return (
     <ToastPrimitives.Action
