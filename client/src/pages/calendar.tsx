@@ -71,8 +71,6 @@ interface DragState {
   origStartMin: number;
   /** Original end minute of the event */
   origEndMin: number;
-  /** Horizontal pixel offset from event center — purely visual, for natural drag feel */
-  offsetX?: number;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────
@@ -835,7 +833,7 @@ export default function CalendarPage() {
                 }
               }}
               onDragStart={(ds) => setDrag(ds)}
-              onDragUpdate={(minute, offsetX) => setDrag((prev) => prev ? { ...prev, minute, offsetX } : null)}
+              onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
               onDragEnd={() => { if (drag) { const wasMove = drag.mode === "move"; commitDrag(drag); setDrag(null); if (wasMove) setResizeEventId(null); } }}
               onDragCancel={() => setDrag(null)}
               onEmptyTap={(date, minute) => {
@@ -925,7 +923,7 @@ interface TimeGridViewProps {
   onSwipeEnd: (e: React.TouchEvent) => void;
   onEventTap: (ev: CalendarEvent, pos?: { x: number; y: number }) => void;
   onDragStart: (ds: DragState) => void;
-  onDragUpdate: (minute: number, offsetX?: number) => void;
+  onDragUpdate: (minute: number) => void;
   onDragEnd: () => void;
   onDragCancel: () => void;
   onEmptyTap: (date: Date, minute: number) => void;
@@ -1041,7 +1039,7 @@ interface DayColumnProps {
   resizeEventId: string | null;
   onEventTap: (ev: CalendarEvent, pos?: { x: number; y: number }) => void;
   onDragStart: (ds: DragState) => void;
-  onDragUpdate: (minute: number, offsetX?: number) => void;
+  onDragUpdate: (minute: number) => void;
   onDragEnd: () => void;
   onDragCancel: () => void;
   onEmptyTap: (minute: number) => void;
@@ -1087,12 +1085,10 @@ const DayColumn = React.memo(function DayColumn({
       const ts = touchState.current;
       if (ts?.active && ts.mode) {
         const deltaMinutes = currentMinute - ts.startMinute;
-        // Preserve horizontal offset during auto-scroll
-        const hOffset = ts.mode === "move" ? clamp(as.lastTouch.clientX - ts.startX, -60, 60) : 0;
         if (ts.mode === "move") {
           const duration = ts.origEndMin - ts.origStartMin;
           const newStart = snap(ts.origStartMin + deltaMinutes);
-          onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration), hOffset);
+          onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration));
         } else if (ts.mode === "resize-top") {
           const newTop = snap(ts.origStartMin + deltaMinutes);
           onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
@@ -1319,9 +1315,7 @@ const DayColumn = React.memo(function DayColumn({
       const ts = touchState.current;
       if (!ts) return;
       const touch = e.touches[0];
-      const dx = touch.clientX - ts.startX;
       const dy = touch.clientY - ts.startY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (!ts.active) {
         // Not in active drag — only cancel if VERTICAL movement is too large
@@ -1345,13 +1339,11 @@ const DayColumn = React.memo(function DayColumn({
       const currentMinute = getMinuteFromY(touch.clientY);
       const deltaMinutes = currentMinute - ts.startMinute;
       const mode = ts.mode!;
-      // Horizontal offset for natural "free drag" feel (capped to ±60px)
-      const hOffset = mode === "move" ? clamp(dx, -60, 60) : 0;
 
       if (mode === "move") {
         const duration = ts.origEndMin - ts.origStartMin;
         const newStart = snap(ts.origStartMin + deltaMinutes);
-        onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration), hOffset);
+        onDragUpdateRef.current(clamp(newStart, 0, 1440 - duration));
       } else if (mode === "resize-top") {
         const newTop = snap(ts.origStartMin + deltaMinutes);
         onDragUpdateRef.current(clamp(newTop, 0, ts.origEndMin - MIN_DURATION));
@@ -1553,17 +1545,16 @@ const DayColumn = React.memo(function DayColumn({
               "z-10 hover:brightness-110 transition-all duration-150"
             } ${ev.completed ? "opacity-50" : ""} ${draggable && !isMobile ? "cursor-grab" : "cursor-pointer"}`}
             style={{
-              top: visTop, height: visHeight, left, width,
+              top: visTop, height: visHeight,
+              // During move drag: expand to full column width for free-form feel
+              left: isDragging && drag?.mode === "move" ? 0 : left,
+              width: isDragging && drag?.mode === "move" ? "calc(100% - 2px)" : width,
               borderLeftColor: color,
               backgroundColor: isInResizeMode ? color + "40" : color + "25",
               overflow: isInResizeMode ? "visible" : "hidden",
               touchAction: isInResizeMode ? "none" : undefined,
               // Demote overlapping events so they don't steal touches from the resize target
               pointerEvents: isOtherResizing ? "none" : undefined,
-              // Natural free-form drag: slight horizontal follow during move
-              transform: isDragging && drag?.mode === "move" && drag.offsetX
-                ? `translateX(${drag.offsetX}px)`
-                : undefined,
             }}
             onClick={(e) => {
               e.stopPropagation();
