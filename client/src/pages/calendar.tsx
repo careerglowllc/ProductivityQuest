@@ -239,7 +239,7 @@ function getEventsForDate(events: CalendarEvent[], date: Date): CalendarEvent[] 
 export default function CalendarPage() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewMode>(() => {
@@ -618,9 +618,9 @@ export default function CalendarPage() {
       title: `Sorted ${updates.length} task${updates.length > 1 ? "s" : ""}`,
       description: "Tasks ordered by priority, placed after current time.",
       duration: 10000,
-      action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); doUndo(); toast({ title: "Action undone", duration: 1000 }); }}>Undo</ToastAction>,
     });
-  }, [allEvents, currentDate, view, toast, optimisticUpdateEvent, updateTaskSchedule, setUndoAction]);
+  }, [allEvents, currentDate, view, toast, dismiss, optimisticUpdateEvent, updateTaskSchedule, setUndoAction]);
 
   const commitDrag = useCallback((ds: DragState) => {
     const ev = ds.event;
@@ -651,7 +651,7 @@ export default function CalendarPage() {
         title: `Event set to ${formatTimeShort(newStart)}`,
         description: `Moved from ${formatTimeShort(origStart)}`,
         duration: 10000,
-        action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
+        action: <ToastAction altText="Undo" onClick={() => { dismiss(); doUndo(); toast({ title: "Action undone", duration: 1000 }); }}>Undo</ToastAction>,
       });
     } else if (ds.mode === "resize-top") {
       const newStartMin = snap(clamp(ds.minute, 0, ds.origEndMin - MIN_DURATION));
@@ -670,7 +670,7 @@ export default function CalendarPage() {
         title: "Duration changed",
         description: `${fmtDur(origDuration)} → ${fmtDur(newDuration)}`,
         duration: 10000,
-        action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
+        action: <ToastAction altText="Undo" onClick={() => { dismiss(); doUndo(); toast({ title: "Action undone", duration: 1000 }); }}>Undo</ToastAction>,
       });
     } else if (ds.mode === "resize-bottom") {
       const newEndMin = snap(clamp(ds.minute, ds.origStartMin + MIN_DURATION, 1440));
@@ -687,10 +687,10 @@ export default function CalendarPage() {
         title: "Duration changed",
         description: `${fmtDur(origDuration)} → ${fmtDur(newDuration)}`,
         duration: 10000,
-        action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
+        action: <ToastAction altText="Undo" onClick={() => { dismiss(); doUndo(); toast({ title: "Action undone", duration: 1000 }); }}>Undo</ToastAction>,
       });
     }
-  }, [updateStandaloneEvent, updateTaskSchedule, toast, revertEvent, optimisticUpdateEvent, setUndoAction]);
+  }, [updateStandaloneEvent, updateTaskSchedule, toast, dismiss, revertEvent, optimisticUpdateEvent, setUndoAction]);
 
   // ── Create new event ──
   const openNewEvent = useCallback((date?: Date, minute?: number) => {
@@ -781,7 +781,7 @@ export default function CalendarPage() {
                 size="sm"
                 variant="ghost"
                 disabled={!lastUndoAction}
-                onClick={() => { if (lastUndoAction) { lastUndoAction.undo(); setLastUndoAction(null); } }}
+                onClick={() => { if (lastUndoAction) { dismiss(); lastUndoAction.undo(); setLastUndoAction(null); toast({ title: "Action undone", duration: 1000 }); } }}
                 className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} ${lastUndoAction ? "text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10" : "text-gray-600"} transition-colors`}
                 title={lastUndoAction?.label || "No action to undo"}
               >
