@@ -31,6 +31,7 @@ import {
   SlidersHorizontal,
   Undo2,
   ArrowUpDown,
+  Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +80,7 @@ const TOTAL_HEIGHT = 24 * HOUR_HEIGHT;
 const SNAP_MINUTES = 5;
 const MIN_DURATION = 15; // minimum event length in minutes
 const MOVE_THRESHOLD = 15; // px of movement before cancelling a long-press (forgiving for finger wobble)
-const EDGE_ZONE = 10; // px from top/bottom edge that triggers resize
+const EDGE_ZONE = 18; // px from top/bottom edge that triggers resize (generous for finger taps)
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -873,9 +874,9 @@ export default function CalendarPage() {
 
       {/* Resize mode banner */}
       {resizeEventId && isMobile && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-4 py-2 shadow-xl shadow-purple-500/20 backdrop-blur-sm">
+        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-6 py-2.5 shadow-xl shadow-purple-500/20 backdrop-blur-sm">
           <SlidersHorizontal className="w-4 h-4 text-purple-400" />
-          <span className="text-sm text-white font-medium">Drag edges to resize</span>
+          <span className="text-sm text-white font-medium whitespace-nowrap">Drag edges to resize</span>
           <button
             onClick={() => setResizeEventId(null)}
             className="ml-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-3 py-1 rounded-full"
@@ -1885,7 +1886,7 @@ function EventDetailSheet({ event, isMobile, onClose, onDelete, onAdjust }: { ev
               {event.skillTags.map((s) => <Badge key={s} variant="outline" className="text-[10px] text-yellow-300 border-yellow-600/30">{s}</Badge>)}
             </div>
           )}
-          {event.goldValue && event.goldValue > 0 && <div className="text-sm text-yellow-400">{"\ud83e\ude99"} {event.goldValue} gold</div>}
+          {event.goldValue && event.goldValue > 0 && <div className="flex items-center gap-1.5 text-sm text-yellow-400"><Coins className="w-4 h-4" /> {event.goldValue} gold</div>}
           {event.campaign && <div className="text-sm text-purple-300">{"\ud83d\udccb"} {event.campaign}</div>}
           {canModify && (
             <div className="pt-2 border-t border-gray-800 space-y-2">
