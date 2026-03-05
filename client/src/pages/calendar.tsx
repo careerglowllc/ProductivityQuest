@@ -1148,16 +1148,20 @@ const DayColumn = React.memo(function DayColumn({
     return Math.max(0, Math.min(1439, (y / TOTAL_HEIGHT) * 1440));
   }, []);
 
-  /** Detect whether touch/click is near the top or bottom edge of an event element */
+  /** Detect whether touch/click is near the top or bottom edge of an event element.
+   *  The resize zone extends OUTSIDE the event bounds only, so touching inside
+   *  the event body always triggers a move (no accidental resize). */
   const detectEdge = useCallback((clientY: number, eventEl: HTMLElement): DragMode => {
     const rect = eventEl.getBoundingClientRect();
-    const topDist = clientY - rect.top;
-    const bottomDist = rect.bottom - clientY;
-    // In resize mode, use a much bigger zone for easy grabbing
+    const topDist = clientY - rect.top;      // positive = inside, negative = above
+    const bottomDist = rect.bottom - clientY; // positive = inside, negative = below
     const isResizeActive = resizeEventId !== null;
     const zone = isResizeActive ? 36 : (isMobile ? EDGE_ZONE + 4 : EDGE_ZONE);
-    if (topDist <= zone) return "resize-top";
-    if (bottomDist <= zone) return "resize-bottom";
+    // Only trigger resize if touch is OUTSIDE the event (above top or below bottom)
+    // or right at the very edge (within 4px inside) for precision
+    const insideTolerance = 4;
+    if (topDist < insideTolerance && topDist > -zone) return "resize-top";
+    if (bottomDist < insideTolerance && bottomDist > -zone) return "resize-bottom";
     return "move";
   }, [isMobile, resizeEventId]);
 
@@ -1242,9 +1246,10 @@ const DayColumn = React.memo(function DayColumn({
       const topDist = touch.clientY - rect.top;
       const bottomDist = rect.bottom - touch.clientY;
       const zone = 36; // generous zone for finger-sized touch targets
+      const insideTolerance = 4; // only trigger resize within 4px inside edge
       let mode: DragMode;
-      if (topDist <= zone) mode = "resize-top";
-      else if (bottomDist <= zone) mode = "resize-bottom";
+      if (topDist < insideTolerance && topDist > -zone) mode = "resize-top";
+      else if (bottomDist < insideTolerance && bottomDist > -zone) mode = "resize-bottom";
       else {
         // Middle body — long-press to enter MOVE mode (like Apple Calendar)
         const origStartMin = minuteOfDay(new Date(ev.start));
