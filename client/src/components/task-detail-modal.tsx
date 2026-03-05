@@ -57,11 +57,21 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   });
 
   // Sync local state when task prop changes (e.g. switching between tasks)
+  // But DON'T overwrite while user is actively editing details
   useEffect(() => {
-    setDetailsValue(task?.details || task?.description || "");
+    if (!isEditingDetails) {
+      setDetailsValue(task?.details || task?.description || "");
+    }
     setDurationInput(task?.duration?.toString() || "30");
-    setIsEditingDetails(false);
-  }, [task?.id, task?.details, task?.description, task?.duration]);
+    // Only reset editing state when switching to a different task
+  }, [task?.id]);
+
+  // When modal closes, reset editing state
+  useEffect(() => {
+    if (!open) {
+      setIsEditingDetails(false);
+    }
+  }, [open]);
 
   // Detect if description text is truncated (overflows the display area)
   useLayoutEffect(() => {
