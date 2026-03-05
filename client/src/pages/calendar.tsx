@@ -874,7 +874,7 @@ export default function CalendarPage() {
 
       {/* Resize mode banner */}
       {resizeEventId && isMobile && (
-        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-6 py-2.5 shadow-xl shadow-purple-500/20 backdrop-blur-sm">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-6 py-2.5 shadow-xl shadow-purple-500/20 backdrop-blur-sm">
           <SlidersHorizontal className="w-4 h-4 text-purple-400" />
           <span className="text-sm text-white font-medium whitespace-nowrap">Drag edges to resize</span>
           <button
