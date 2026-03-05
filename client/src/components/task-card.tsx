@@ -405,7 +405,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                       </span>
                     </>
                   )}
-                  {task.recurType === "🔄Recurring" && (
+                  {task.recurType && task.recurType !== "one-time" && (
                     <>
                       <span className="text-yellow-600/30">·</span>
                       <Repeat className="w-3 h-3 text-purple-400/60" />
@@ -547,10 +547,10 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                     <span className="whitespace-nowrap">{task.importance}</span>
                   </div>
                 )}
-                {task.recurType && (
+                {task.recurType && task.recurType !== "one-time" && (
                   <div className="flex items-center gap-1.5">
-                    <span className="flex-shrink-0">{task.recurType === "🔄Recurring" ? "🔄" : "⏳"}</span>
-                    <span className="whitespace-nowrap">{task.recurType === "🔄Recurring" ? "Recurring" : "One-time"}</span>
+                    <span className="flex-shrink-0">🔄</span>
+                    <span className="whitespace-nowrap">{task.recurType}</span>
                   </div>
                 )}
                 {task.completed && task.completedAt && (
@@ -578,10 +578,10 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                   </Badge>
                 )}
                 
-                {task.recurType === "🔄Recurring" && (
+                {task.recurType && task.recurType !== "one-time" && (
                   <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
                     <Repeat className="w-3 h-3 mr-1" />
-                    Recurring
+                    {task.recurType}
                   </Badge>
                 )}
                 
