@@ -1210,92 +1210,93 @@ const DayColumn = React.memo(function DayColumn({
 
     const handleTouchStart = (e: TouchEvent) => {
       const target = e.target as HTMLElement;
-      const eventId = findEventId(target);
+      const touch = e.touches[0];
 
-      // If in resize mode and tapping empty space or a different event, exit resize mode
+      // ── When in resize/adjust mode, the resizing event ALWAYS takes priority ──
+      // Touch may land on a different overlapping event or empty space, but if
+      // it's near the resize event's edges we should still start the resize.
       const resId = resizeEventIdRef.current;
-      if (resId && (!eventId || eventId !== resId)) {
-        // Fire onEmptyTap which will clear resizeEventId in the parent
-        const touch = e.touches[0];
-        onEmptyTapRef.current(getMinuteFromY(touch.clientY));
-        return;
+      if (resId) {
+        // Find the resizing event's DOM element directly (don't rely on touch target)
+        const resizeEl = col.querySelector(`[data-event-id="${resId}"]`) as HTMLElement | null;
+        const resEv = eventsRef.current.find((ev) => ev.id === resId);
+        if (resizeEl && resEv && isDraggable(resEv)) {
+          const rect = resizeEl.getBoundingClientRect();
+          const topDist = touch.clientY - rect.top;
+          const bottomDist = rect.bottom - touch.clientY;
+          const horizontalOk = touch.clientX >= rect.left - 10 && touch.clientX <= rect.right + 10;
+          const zone = 36; // generous zone for finger-sized touch targets
+          const insideTolerance = 4;
+
+          // Check if touch is near the resize handles (or inside the event body)
+          const nearTop = topDist < insideTolerance && topDist > -zone && horizontalOk;
+          const nearBottom = bottomDist < insideTolerance && bottomDist > -zone && horizontalOk;
+          const insideBody = topDist >= insideTolerance && bottomDist >= insideTolerance && horizontalOk;
+
+          if (nearTop || nearBottom || insideBody) {
+            // Touch is on/near the resize event — handle it as a resize/move
+            let mode: DragMode;
+            if (nearTop) mode = "resize-top";
+            else if (nearBottom) mode = "resize-bottom";
+            else mode = "move"; // body = long-press to move
+
+            const origStartMin = minuteOfDay(new Date(resEv.start));
+            const origEndMin = minuteOfDay(new Date(resEv.end));
+            const touchMinute = getMinuteFromY(touch.clientY);
+
+            if (mode === "move") {
+              // Body tap — long-press to enter MOVE mode
+              touchState.current = {
+                ev: resEv, mode: "move",
+                startX: touch.clientX, startY: touch.clientY,
+                startMinute: touchMinute,
+                offsetInEvent: touchMinute - origStartMin,
+                origStartMin, origEndMin,
+                timer: null, active: false, moved: false,
+              };
+              touchState.current.timer = setTimeout(() => {
+                const ts = touchState.current;
+                if (!ts || ts.active) return;
+                ts.active = true;
+                didInteractRef.current = true;
+                e.preventDefault();
+                onDragStartRef.current({ event: resEv, mode: "move", minute: origStartMin, origStartMin, origEndMin });
+              }, 200);
+              return;
+            }
+
+            // resize-top or resize-bottom — start immediately
+            e.preventDefault();
+            touchState.current = {
+              ev: resEv, mode, startX: touch.clientX, startY: touch.clientY, startMinute: touchMinute,
+              offsetInEvent: touchMinute - origStartMin, origStartMin, origEndMin,
+              timer: null, active: true, moved: false,
+            };
+            didInteractRef.current = true;
+            const startVal = mode === "resize-top" ? origStartMin : origEndMin;
+            onDragStartRef.current({ event: resEv, mode, minute: startVal, origStartMin, origEndMin });
+            return;
+          }
+
+          // Touch is NOT near the resize event at all — exit resize mode
+          onEmptyTapRef.current(getMinuteFromY(touch.clientY));
+          return;
+        }
       }
 
+      const eventId = findEventId(target);
       if (!eventId) return; // touch on empty space — let swipe/scroll handle it
 
       const ev = eventsRef.current.find((ev) => ev.id === eventId);
       if (!ev) return;
 
-      const touch = e.touches[0];
-      const isResizing = resizeEventIdRef.current === ev.id && isDraggable(ev);
-
-      if (!isResizing) {
-        // Not in resize mode — just record for tap detection in touchEnd
-        touchState.current = {
-          ev, mode: null,
-          startX: touch.clientX, startY: touch.clientY,
-          startMinute: 0, offsetInEvent: 0, origStartMin: 0, origEndMin: 0,
-          timer: null, active: false, moved: false,
-        };
-        return;
-      }
-
-      // In resize mode — detect edge or body
-      const eventEl = findEventEl(target);
-      if (!eventEl) return;
-
-      const rect = eventEl.getBoundingClientRect();
-      const topDist = touch.clientY - rect.top;
-      const bottomDist = rect.bottom - touch.clientY;
-      const zone = 36; // generous zone for finger-sized touch targets
-      const insideTolerance = 4; // only trigger resize within 4px inside edge
-      let mode: DragMode;
-      if (topDist < insideTolerance && topDist > -zone) mode = "resize-top";
-      else if (bottomDist < insideTolerance && bottomDist > -zone) mode = "resize-bottom";
-      else {
-        // Middle body — long-press to enter MOVE mode (like Apple Calendar)
-        const origStartMin = minuteOfDay(new Date(ev.start));
-        const origEndMin = minuteOfDay(new Date(ev.end));
-        const touchMinute = getMinuteFromY(touch.clientY);
-
-        touchState.current = {
-          ev, mode: "move",
-          startX: touch.clientX, startY: touch.clientY,
-          startMinute: touchMinute,
-          offsetInEvent: touchMinute - origStartMin,
-          origStartMin, origEndMin,
-          timer: null, active: false, moved: false,
-        };
-
-        // After a brief hold, activate move mode with a "lift"
-        touchState.current.timer = setTimeout(() => {
-          const ts = touchState.current;
-          if (!ts || ts.active) return;
-          ts.active = true;
-          didInteractRef.current = true;
-          e.preventDefault();
-          // Start the drag in the parent (visual lift effect)
-          onDragStartRef.current({ event: ev, mode: "move", minute: origStartMin, origStartMin, origEndMin });
-        }, 200);
-
-        return;
-      }
-
-      const origStartMin = minuteOfDay(new Date(ev.start));
-      const origEndMin = minuteOfDay(new Date(ev.end));
-      const touchMinute = getMinuteFromY(touch.clientY);
-
-      // Claim this touch — prevent scroll
-      e.preventDefault();
-
+      // Not in resize mode — just record for tap detection in touchEnd
       touchState.current = {
-        ev, mode, startX: touch.clientX, startY: touch.clientY, startMinute: touchMinute,
-        offsetInEvent: touchMinute - origStartMin, origStartMin, origEndMin,
-        timer: null, active: true, moved: false,
+        ev, mode: null,
+        startX: touch.clientX, startY: touch.clientY,
+        startMinute: 0, offsetInEvent: 0, origStartMin: 0, origEndMin: 0,
+        timer: null, active: false, moved: false,
       };
-      didInteractRef.current = true;
-      const startVal = mode === "resize-top" ? origStartMin : origEndMin;
-      onDragStartRef.current({ event: ev, mode, minute: startVal, origStartMin, origEndMin });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -1520,6 +1521,8 @@ const DayColumn = React.memo(function DayColumn({
         const color = eventColor(ev);
         const draggable = isDraggable(ev);
         const isInResizeMode = resizeEventId === ev.id && draggable;
+        // When another event is in resize/adjust mode, demote this event so touches pass through
+        const isOtherResizing = resizeEventId !== null && !isInResizeMode && !isDragging;
 
         return (
           <div
@@ -1536,6 +1539,8 @@ const DayColumn = React.memo(function DayColumn({
               backgroundColor: isInResizeMode ? color + "40" : color + "25",
               overflow: isInResizeMode ? "visible" : "hidden",
               touchAction: isInResizeMode ? "none" : undefined,
+              // Demote overlapping events so they don't steal touches from the resize target
+              pointerEvents: isOtherResizing ? "none" : undefined,
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -1547,11 +1552,14 @@ const DayColumn = React.memo(function DayColumn({
             }}
             onMouseDown={(e) => handleMouseDown(ev, e)}
           >
-            {/* Top resize handle — prominent in resize mode, subtle on desktop, hidden on mobile normally */}
+            {/* Top resize handle — prominent in resize mode, extends ABOVE event for outside-edge grabbing */}
             {((isInResizeMode) || (draggable && !isMobile)) && (
               <div
-                className={`absolute top-0 left-0 right-0 z-20 flex justify-center items-start ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{ height: isInResizeMode ? 30 : 10 }}
+                className={`absolute left-0 right-0 z-20 flex justify-center items-start ${!isMobile ? "cursor-ns-resize" : ""}`}
+                style={{
+                  top: isInResizeMode ? -20 : 0,
+                  height: isInResizeMode ? 36 : 10,
+                }}
               >
                 <div className={`rounded-full transition-all ${
                   isInResizeMode
@@ -1585,11 +1593,14 @@ const DayColumn = React.memo(function DayColumn({
               )}
             </div>
 
-            {/* Bottom resize handle */}
+            {/* Bottom resize handle — extends BELOW event for outside-edge grabbing */}
             {((isInResizeMode) || (draggable && !isMobile)) && (
               <div
-                className={`absolute bottom-0 left-0 right-0 z-20 flex justify-center items-end ${!isMobile ? "cursor-ns-resize" : ""}`}
-                style={{ height: isInResizeMode ? 30 : 10 }}
+                className={`absolute left-0 right-0 z-20 flex justify-center items-end ${!isMobile ? "cursor-ns-resize" : ""}`}
+                style={{
+                  bottom: isInResizeMode ? -20 : 0,
+                  height: isInResizeMode ? 36 : 10,
+                }}
               >
                 <div className={`rounded-full transition-all ${
                   isInResizeMode
