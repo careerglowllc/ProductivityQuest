@@ -30,6 +30,7 @@ import {
   Eye,
   SlidersHorizontal,
   Undo2,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -451,6 +452,168 @@ export default function CalendarPage() {
     undoTimerRef.current = setTimeout(() => setLastUndoAction(null), 10000);
   }, []);
 
+  // ── Sort / auto-schedule ──────────────────────────────────────────────
+  // Sorts PQ tasks on the current day:
+  //   • Only reschedules tasks whose source is "productivityquest" (not Google / standalone)
+  //   • Orders by importance (Pareto > High > Med-High > Medium > Med-Low > Low)
+  //   • Places events after the current time (rounded up to next 5-min)
+  //   • Avoids overlapping with fixed events (Google Calendar, standalone, completed PQ)
+  //   • All events must finish by 9:30 PM
+  //   • "Evening Routine" task is pinned at 9:00 PM
+  const [isSorting, setIsSorting] = useState(false);
+
+  const PRIORITY_ORDER: Record<string, number> = {
+    Pareto: 0, High: 1, "Med-High": 2, Medium: 3, "Med-Low": 4, Low: 5,
+  };
+  const SORT_END_MINUTE = 21 * 60 + 30; // 9:30 PM = 1290
+  const EVENING_ROUTINE_MINUTE = 21 * 60; // 9:00 PM = 1260
+
+  const handleSort = useCallback(() => {
+    // Work with the current view's first date (for day view) or today
+    const targetDate = view === "day" ? new Date(currentDate) : new Date();
+    const dayEvents = getEventsForDate(allEvents, targetDate);
+
+    // Separate into: movable PQ tasks vs fixed events
+    const movable: CalendarEvent[] = [];
+    const fixed: CalendarEvent[] = [];
+    for (const ev of dayEvents) {
+      if (ev.source === "productivityquest" && !ev.completed) {
+        movable.push(ev);
+      } else {
+        fixed.push(ev);
+      }
+    }
+
+    if (movable.length === 0) {
+      toast({ title: "Nothing to sort", description: "No unscheduled tasks on this day." });
+      return;
+    }
+
+    // Save originals for undo
+    const originals = movable.map((ev) => ({
+      id: ev.id,
+      startISO: ev.start,
+      duration: Math.round((new Date(ev.end).getTime() - new Date(ev.start).getTime()) / 60000),
+    }));
+
+    // Build "blocked" intervals from fixed events (in minutes of day)
+    const blocked: { start: number; end: number }[] = fixed.map((ev) => ({
+      start: minuteOfDay(new Date(ev.start)),
+      end: minuteOfDay(new Date(ev.end)),
+    }));
+
+    // Determine start minute: now (rounded up to next 5-min) or 8:00 AM, whichever is later
+    const now = new Date();
+    let startCursor: number;
+    if (sameDay(targetDate, now)) {
+      startCursor = snap(minuteOfDay(now) + 4); // round up to next 5-min slot
+      startCursor = Math.max(startCursor, 8 * 60); // no earlier than 8 AM
+    } else {
+      startCursor = 8 * 60; // 8:00 AM for future dates
+    }
+
+    // Separate evening routine from regular tasks
+    const isEveningRoutine = (ev: CalendarEvent) =>
+      ev.title.toLowerCase().includes("evening routine");
+
+    const eveningRoutineTask = movable.find(isEveningRoutine);
+    const regularTasks = movable.filter((ev) => !isEveningRoutine(ev));
+
+    // Sort regular tasks by priority (highest first), then by duration (longest first for tiebreaker)
+    regularTasks.sort((a, b) => {
+      const pa = PRIORITY_ORDER[a.importance || "Medium"] ?? 3;
+      const pb = PRIORITY_ORDER[b.importance || "Medium"] ?? 3;
+      if (pa !== pb) return pa - pb;
+      const da = (new Date(a.end).getTime() - new Date(a.start).getTime()) / 60000;
+      const db = (new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000;
+      return db - da; // longer tasks first
+    });
+
+    // Schedule function: find next available slot that doesn't overlap blocked intervals
+    const scheduledBlocked = [...blocked]; // mutable copy — we add each placed task to this
+
+    const findSlot = (durationMin: number, afterMinute: number, beforeMinute: number): number | null => {
+      let cursor = Math.max(afterMinute, startCursor);
+      while (cursor + durationMin <= beforeMinute) {
+        const slotEnd = cursor + durationMin;
+        // Check for conflicts with any blocked interval
+        const conflict = scheduledBlocked.find(
+          (b) => cursor < b.end && slotEnd > b.start
+        );
+        if (!conflict) return cursor;
+        // Jump past the conflicting block
+        cursor = snap(conflict.end);
+      }
+      return null; // no room
+    };
+
+    // If there's an evening routine, block out its slot at 9 PM
+    if (eveningRoutineTask) {
+      const erDuration = Math.round(
+        (new Date(eveningRoutineTask.end).getTime() - new Date(eveningRoutineTask.start).getTime()) / 60000
+      ) || 30;
+      scheduledBlocked.push({
+        start: EVENING_ROUTINE_MINUTE,
+        end: EVENING_ROUTINE_MINUTE + erDuration,
+      });
+    }
+
+    // Place regular tasks
+    const updates: { ev: CalendarEvent; newStartMin: number }[] = [];
+
+    for (const ev of regularTasks) {
+      const dur = Math.round(
+        (new Date(ev.end).getTime() - new Date(ev.start).getTime()) / 60000
+      ) || 30;
+      const slotStart = findSlot(dur, startCursor, SORT_END_MINUTE);
+      if (slotStart !== null) {
+        updates.push({ ev, newStartMin: slotStart });
+        scheduledBlocked.push({ start: slotStart, end: slotStart + dur });
+      }
+      // If no room, the task keeps its current time (skip)
+    }
+
+    // Place evening routine at 9 PM
+    if (eveningRoutineTask) {
+      updates.push({ ev: eveningRoutineTask, newStartMin: EVENING_ROUTINE_MINUTE });
+    }
+
+    if (updates.length === 0) {
+      toast({ title: "No room", description: "Could not fit any tasks in the remaining schedule." });
+      return;
+    }
+
+    // Apply updates — optimistic + API
+    setIsSorting(true);
+    for (const { ev, newStartMin } of updates) {
+      const newStart = new Date(targetDate);
+      newStart.setHours(Math.floor(newStartMin / 60), newStartMin % 60, 0, 0);
+      const dur = Math.round(
+        (new Date(ev.end).getTime() - new Date(ev.start).getTime()) / 60000
+      ) || 30;
+      optimisticUpdateEvent(ev.id, newStart.toISOString(), dur);
+      updateTaskSchedule.mutate({ id: ev.id, scheduledTime: newStart.toISOString(), duration: dur });
+    }
+    setIsSorting(false);
+
+    // Undo function
+    const doUndo = () => {
+      for (const orig of originals) {
+        optimisticUpdateEvent(orig.id, orig.startISO, orig.duration);
+        updateTaskSchedule.mutate({ id: orig.id, scheduledTime: orig.startISO, duration: orig.duration });
+      }
+      setLastUndoAction(null);
+    };
+
+    setUndoAction(`Sorted ${updates.length} tasks`, doUndo);
+    toast({
+      title: `Sorted ${updates.length} task${updates.length > 1 ? "s" : ""}`,
+      description: "Tasks ordered by priority, placed after current time.",
+      duration: 10000,
+      action: <ToastAction altText="Undo" onClick={doUndo}>Undo</ToastAction>,
+    });
+  }, [allEvents, currentDate, view, toast, optimisticUpdateEvent, updateTaskSchedule, setUndoAction]);
+
   const commitDrag = useCallback((ds: DragState) => {
     const ev = ds.event;
     const origStart = new Date(ev.start);
@@ -612,6 +775,11 @@ export default function CalendarPage() {
                 </Button>
               )}
               {!isMobile && <Link href="/settings/google-calendar"><Button variant="ghost" size="sm" className="h-8 px-2 text-purple-300"><Settings className="w-4 h-4" /></Button></Link>}
+              {view !== "month" && (
+                <Button size="sm" variant="ghost" onClick={handleSort} disabled={isSorting} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} text-purple-300 hover:text-purple-100 hover:bg-purple-500/10`} title="Sort tasks by priority">
+                  <ArrowUpDown className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                </Button>
+              )}
               <Button size="sm" onClick={() => openNewEvent()} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-3"} bg-purple-600 hover:bg-purple-500`}>
                 <Plus className={isMobile ? "w-4 h-4" : "w-4 h-4 mr-1"} />{!isMobile && "New Event"}
               </Button>
