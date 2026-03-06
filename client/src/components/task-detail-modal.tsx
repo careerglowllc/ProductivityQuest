@@ -43,10 +43,14 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
   const [detailsValue, setDetailsValue] = useState(task?.details || task?.description || "");
   const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(task?.title || "");
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const detailsDisplayRef = useRef<HTMLDivElement>(null);
   const detailsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -57,10 +61,13 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   });
 
   // Sync local state when task prop changes (e.g. switching between tasks)
-  // But DON'T overwrite while user is actively editing details
+  // But DON'T overwrite while user is actively editing details/title
   useEffect(() => {
     if (!isEditingDetails) {
       setDetailsValue(task?.details || task?.description || "");
+    }
+    if (!isEditingTitle) {
+      setTitleValue(task?.title || "");
     }
     setDurationInput(task?.duration?.toString() || "30");
     // Only reset editing state when switching to a different task
@@ -70,6 +77,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   useEffect(() => {
     if (!open) {
       setIsEditingDetails(false);
+      setIsEditingTitle(false);
     }
   }, [open]);
 
@@ -187,6 +195,52 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     detailsTimeoutRef.current = setTimeout(() => {
       updateDetailsMutation.mutate(value);
     }, 800);
+  };
+
+  const updateTitleMutation = useMutation({
+    mutationFn: async (newTitle: string) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: newTitle }),
+      });
+      if (!response.ok) throw new Error('Failed to update title');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+  });
+
+  const handleTitleChange = (value: string) => {
+    setTitleValue(value);
+    if (titleTimeoutRef.current) clearTimeout(titleTimeoutRef.current);
+    titleTimeoutRef.current = setTimeout(() => {
+      updateTitleMutation.mutate(value);
+    }, 800);
+  };
+
+  const handleTitleBlur = () => {
+    // Save immediately on blur if there's a pending debounce
+    if (titleTimeoutRef.current) {
+      clearTimeout(titleTimeoutRef.current);
+      titleTimeoutRef.current = null;
+    }
+    if (titleValue.trim() && titleValue !== task?.title) {
+      updateTitleMutation.mutate(titleValue.trim());
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      setTitleValue(task?.title || "");
+      setIsEditingTitle(false);
+    }
   };
 
   const updateFieldMutation = useMutation({
@@ -463,7 +517,31 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               onChange={(emoji) => updateFieldMutation.mutate({ field: 'emoji', value: emoji })}
               size="lg"
             />
-            <span className="pt-1">{task.title}</span>
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={titleValue}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                onBlur={handleTitleBlur}
+                onKeyDown={handleTitleKeyDown}
+                className={`pt-1 flex-1 min-w-0 bg-transparent border-b-2 border-yellow-500/50 focus:border-yellow-400 outline-none text-yellow-100 font-serif ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                autoFocus
+              />
+            ) : (
+              <span 
+                className="pt-1 cursor-text hover:text-yellow-200 transition-colors border-b-2 border-transparent"
+                onClick={() => {
+                  setIsEditingTitle(true);
+                  setTimeout(() => titleInputRef.current?.focus(), 0);
+                }}
+              >
+                {titleValue || task.title}
+                {updateTitleMutation.isPending && (
+                  <span className="ml-2 text-xs text-yellow-400/50 font-sans">Saving...</span>
+                )}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
