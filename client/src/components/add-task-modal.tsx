@@ -28,7 +28,6 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [details, setDetails] = useState("");
   const [duration, setDuration] = useState<string>("30");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [importance, setImportance] = useState<string>("Medium");
@@ -87,7 +86,6 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setDetails("");
     setDuration("30");
     // goldValue is auto-calculated, no need to reset
     setDueDate(undefined);
@@ -137,7 +135,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     const taskData = {
       title: title.trim(),
       description: description.trim(),
-      details: details.trim() || undefined,
+      details: description.trim(),
       duration: durationNum,
       goldValue, // Use auto-calculated value
       dueDate: dueDate ? dueDate.toISOString() : null,
@@ -188,31 +186,15 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             <Label htmlFor="description" className="text-yellow-200">
               Description <span className="text-red-400">*</span>
             </Label>
-            <Input
+            <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description..."
-              className="bg-slate-800/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40"
-              maxLength={500}
-            />
-            <p className="text-xs text-yellow-400/60">{description.length}/500 characters</p>
-          </div>
-
-          {/* Details */}
-          <div className="space-y-2">
-            <Label htmlFor="details" className="text-yellow-200">
-              Additional Details
-            </Label>
-            <Textarea
-              id="details"
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              placeholder="Enter detailed information (optional)..."
+              placeholder="Describe this quest..."
               className="bg-slate-800/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40 min-h-[100px]"
               maxLength={2000}
             />
-            <p className="text-xs text-yellow-400/60">{details.length}/2000 characters</p>
+            <p className="text-xs text-yellow-400/60">{description.length}/2000 characters</p>
           </div>
 
           {/* Duration and Gold Value */}
