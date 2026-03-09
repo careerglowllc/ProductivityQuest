@@ -893,26 +893,30 @@ export default function Dashboard() {
                   {expandedCampaigns[campaign.id] && (
                     <div className="mt-3 pt-3 border-t border-purple-500/20">
                       <p className="text-[10px] text-purple-200/80 mb-3">{campaign.description}</p>
-                      <div className="space-y-1.5">
-                        {(campaign.tasks || []).map((task: any, idx: number) => (
+                      <div className="space-y-1">
+                        {(campaign.tasks || []).map((task: any, idx: number) => {
+                          const indent = task.indentLevel || 0;
+                          return (
                           <div 
                             key={task.id}
-                            className="flex items-center gap-2 p-1.5 rounded bg-slate-900/40"
+                            className={`flex items-center gap-2 p-1.5 rounded bg-slate-900/40 ${indent > 0 ? 'border-l-2 border-l-blue-500/20' : ''}`}
+                            style={{ marginLeft: `${indent * 10}px` }}
                           >
                             {(task.completed || task.recycled) ? (
-                              <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                              <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
                             ) : (
-                              <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                              <div className="w-3.5 h-3.5 flex-shrink-0 flex items-center justify-center">
                                 <div className="w-2.5 h-2.5 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
                               </div>
                             )}
                             <span className={`text-[10px] ${
                               (task.completed || task.recycled) ? 'text-green-300' : 'text-yellow-200 font-medium'
                             }`}>
-                              Stage {task.questlineOrder || idx + 1}: {task.title}
+                              {task.title}
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

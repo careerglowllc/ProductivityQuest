@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
 const QUESTLINE_ICONS = ["⚔️", "🛡️", "🏰", "🐉", "🧙", "👑", "💎", "🔮", "🗡️", "🏹", "⚡", "🔥", "🌟", "📜", "🎯", "🚀", "💰", "🧪", "🎭", "🌙"];
+const MAX_DEPTH = 4;
 
 interface Stage {
   id: string;
@@ -22,9 +23,10 @@ interface Stage {
   businessWorkFilter: string;
   campaign: string;
   expanded: boolean;
+  indentLevel: number; // 0 = top-level stage, 1-4 = nested depth
 }
 
-function createEmptyStage(): Stage {
+function createEmptyStage(indentLevel = 0): Stage {
   return {
     id: crypto.randomUUID(),
     title: "",
@@ -34,8 +36,77 @@ function createEmptyStage(): Stage {
     businessWorkFilter: "General",
     campaign: "unassigned",
     expanded: true,
+    indentLevel,
   };
 }
+
+// Build a tree structure from the flat stages list for submission to backend
+function buildTree(stages: Stage[]): any[] {
+  const result: any[] = [];
+  const stack: { node: any; level: number }[] = [];
+
+  for (const stage of stages) {
+    const node: any = {
+      title: stage.title.trim(),
+      description: stage.description.trim(),
+      duration: parseInt(stage.duration) || 30,
+      goldValue: calculateGoldValue(stage.importance, parseInt(stage.duration) || 30),
+      importance: stage.importance,
+      businessWorkFilter: stage.businessWorkFilter,
+      campaign: stage.campaign,
+      children: [],
+    };
+
+    // Pop items from stack that are at same or deeper level
+    while (stack.length > 0 && stack[stack.length - 1].level >= stage.indentLevel) {
+      stack.pop();
+    }
+
+    if (stack.length === 0) {
+      result.push(node);
+    } else {
+      stack[stack.length - 1].node.children.push(node);
+    }
+
+    stack.push({ node, level: stage.indentLevel });
+  }
+
+  return result;
+}
+
+// Depth label helpers
+const getDepthLabel = (level: number) => {
+  switch (level) {
+    case 0: return "Stage";
+    case 1: return "Quest";
+    case 2: return "Sub-quest";
+    case 3: return "Task";
+    case 4: return "Sub-task";
+    default: return "Item";
+  }
+};
+
+const getDepthColor = (level: number) => {
+  switch (level) {
+    case 0: return "border-purple-500/40 bg-purple-900/15";
+    case 1: return "border-blue-500/30 bg-blue-900/10";
+    case 2: return "border-cyan-500/25 bg-cyan-900/8";
+    case 3: return "border-teal-500/20 bg-teal-900/5";
+    case 4: return "border-slate-500/20 bg-slate-800/5";
+    default: return "border-slate-500/20";
+  }
+};
+
+const getDepthBadge = (level: number) => {
+  switch (level) {
+    case 0: return "bg-purple-500/20 text-purple-300";
+    case 1: return "bg-blue-500/20 text-blue-300";
+    case 2: return "bg-cyan-500/20 text-cyan-300";
+    case 3: return "bg-teal-500/20 text-teal-300";
+    case 4: return "bg-slate-500/20 text-slate-300";
+    default: return "bg-slate-500/20 text-slate-300";
+  }
+};
 
 interface AddQuestlineModalProps {
   open: boolean;
@@ -52,14 +123,14 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
   const [icon, setIcon] = useState("⚔️");
   const [showIconPicker, setShowIconPicker] = useState(false);
 
-  // Stages state
+  // Stages state — flat list with indentLevel for tree structure
   const [stages, setStages] = useState<Stage[]>([createEmptyStage()]);
 
   // Scroll focused input into view above keyboard on iOS
   const scrollInputIntoView = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setTimeout(() => {
       e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300); // delay for keyboard animation
+    }, 300);
   }, []);
 
   const createQuestlineMutation = useMutation({
@@ -98,24 +169,138 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
   };
 
   const removeStage = (id: string) => {
-    if (stages.length <= 1) return;
-    setStages((prev) => prev.filter((s) => s.id !== id));
+    setStages((prev) => {
+      const idx = prev.findIndex((s) => s.id === id);
+      if (idx === -1) return prev;
+      const removedLevel = prev[idx].indentLevel;
+      // Remove this stage and all its descendants (deeper items immediately following)
+      const toRemove = new Set<string>([id]);
+      for (let i = idx + 1; i < prev.length; i++) {
+        if (prev[i].indentLevel > removedLevel) {
+          toRemove.add(prev[i].id);
+        } else {
+          break;
+        }
+      }
+      const result = prev.filter((s) => !toRemove.has(s.id));
+      return result.length === 0 ? [createEmptyStage()] : result;
+    });
   };
 
-  const addStage = () => {
-    // Collapse existing stages, add new expanded one
+  const addStageAfter = (id: string, asChild: boolean) => {
+    setStages((prev) => {
+      const idx = prev.findIndex((s) => s.id === id);
+      if (idx === -1) return prev;
+      const parentLevel = prev[idx].indentLevel;
+      const newLevel = asChild ? Math.min(parentLevel + 1, MAX_DEPTH) : parentLevel;
+
+      // Find insertion point
+      let insertIdx = idx + 1;
+      if (!asChild) {
+        // Insert as sibling — after all descendants of current item
+        for (let i = idx + 1; i < prev.length; i++) {
+          if (prev[i].indentLevel > parentLevel) {
+            insertIdx = i + 1;
+          } else {
+            break;
+          }
+        }
+      }
+
+      const newStage = createEmptyStage(newLevel);
+      const updated = prev.map((s) => ({ ...s, expanded: false }));
+      updated.splice(insertIdx, 0, newStage);
+      return updated;
+    });
+  };
+
+  const addTopLevelStage = () => {
     setStages((prev) => [
       ...prev.map((s) => ({ ...s, expanded: false })),
-      createEmptyStage(),
+      createEmptyStage(0),
     ]);
   };
 
+  // Indent a stage (make it a child of the previous item)
+  const indentStage = (id: string) => {
+    setStages((prev) => {
+      const idx = prev.findIndex((s) => s.id === id);
+      if (idx <= 0) return prev;
+      const current = prev[idx];
+      const prevItem = prev[idx - 1];
+      if (current.indentLevel > prevItem.indentLevel) return prev;
+      if (current.indentLevel >= MAX_DEPTH) return prev;
+
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], indentLevel: updated[idx].indentLevel + 1 };
+      for (let i = idx + 1; i < updated.length; i++) {
+        if (prev[i].indentLevel > current.indentLevel) {
+          if (updated[i].indentLevel + 1 <= MAX_DEPTH) {
+            updated[i] = { ...updated[i], indentLevel: updated[i].indentLevel + 1 };
+          }
+        } else {
+          break;
+        }
+      }
+      return updated;
+    });
+  };
+
+  // Outdent a stage (move it up one level)
+  const outdentStage = (id: string) => {
+    setStages((prev) => {
+      const idx = prev.findIndex((s) => s.id === id);
+      if (idx === -1) return prev;
+      const current = prev[idx];
+      if (current.indentLevel <= 0) return prev;
+
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], indentLevel: updated[idx].indentLevel - 1 };
+      for (let i = idx + 1; i < updated.length; i++) {
+        if (prev[i].indentLevel > current.indentLevel) {
+          updated[i] = { ...updated[i], indentLevel: updated[i].indentLevel - 1 };
+        } else {
+          break;
+        }
+      }
+      return updated;
+    });
+  };
+
   const moveStage = (index: number, direction: "up" | "down") => {
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= stages.length) return;
-    const updated = [...stages];
-    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-    setStages(updated);
+    setStages((prev) => {
+      const current = prev[index];
+      let endIdx = index + 1;
+      while (endIdx < prev.length && prev[endIdx].indentLevel > current.indentLevel) {
+        endIdx++;
+      }
+      const block = prev.slice(index, endIdx);
+
+      if (direction === "up") {
+        if (index === 0) return prev;
+        let prevStart = index - 1;
+        while (prevStart > 0 && prev[prevStart].indentLevel > current.indentLevel) {
+          prevStart--;
+        }
+        if (prev[prevStart].indentLevel !== current.indentLevel) return prev;
+        const updated = [...prev];
+        updated.splice(index, block.length);
+        updated.splice(prevStart, 0, ...block);
+        return updated;
+      } else {
+        if (endIdx >= prev.length) return prev;
+        const nextStart = endIdx;
+        if (prev[nextStart].indentLevel !== current.indentLevel) return prev;
+        let nextEnd = nextStart + 1;
+        while (nextEnd < prev.length && prev[nextEnd].indentLevel > current.indentLevel) {
+          nextEnd++;
+        }
+        const updated = [...prev];
+        const nextBlock = updated.splice(nextStart, nextEnd - nextStart);
+        updated.splice(index, 0, ...nextBlock);
+        return updated;
+      }
+    });
   };
 
   // Calculate totals
@@ -135,31 +320,24 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
       return;
     }
 
-    // Validate stages
     for (let i = 0; i < stages.length; i++) {
       if (!stages[i].title.trim()) {
+        const label = getDepthLabel(stages[i].indentLevel);
         toast({
-          title: `Stage ${i + 1} Missing Title`,
-          description: "Every stage needs a title.",
+          title: `${label} Missing Title`,
+          description: `Item ${i + 1} needs a title.`,
           variant: "destructive",
         });
         return;
       }
     }
 
+    const tree = buildTree(stages);
     const data = {
       title: title.trim(),
       description: description.trim(),
       icon,
-      stages: stages.map((s) => ({
-        title: s.title.trim(),
-        description: s.description.trim(),
-        duration: parseInt(s.duration) || 30,
-        goldValue: calculateGoldValue(s.importance, parseInt(s.duration) || 30),
-        importance: s.importance,
-        businessWorkFilter: s.businessWorkFilter,
-        campaign: s.campaign,
-      })),
+      stages: tree,
     };
 
     createQuestlineMutation.mutate(data);
@@ -173,7 +351,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
             <span>⚔️</span> Create New Questline
           </DialogTitle>
           <p className="text-sm text-purple-300/60 mt-1">
-            A questline is a chain of stages (quests) that earn a 3× bonus when all completed.
+            Build a quest chain with nested stages, quests, and subtasks (up to 4 levels deep).
           </p>
         </DialogHeader>
 
@@ -250,13 +428,13 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
           <div className="border-t border-purple-500/20 pt-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-serif text-purple-200">
-                Stages ({stages.length})
+                Stages & Quests ({stages.length} item{stages.length !== 1 ? "s" : ""})
               </h3>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={addStage}
+                onClick={addTopLevelStage}
                 className="border-purple-500/40 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100"
               >
                 <Plus className="w-4 h-4 mr-1" />
@@ -264,84 +442,123 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
               </Button>
             </div>
 
-            <div className="space-y-3">
-              {stages.map((stage, index) => (
-                <div
-                  key={stage.id}
-                  className="border border-purple-500/30 rounded-lg bg-slate-800/40 overflow-hidden"
-                >
-                  {/* Stage header — always visible */}
+            {/* Depth legend */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {[0, 1, 2, 3, 4].map((level) => (
+                <span key={level} className={`text-[10px] px-2 py-0.5 rounded-full ${getDepthBadge(level)}`}>
+                  L{level}: {getDepthLabel(level)}
+                </span>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              {stages.map((stage, index) => {
+                // Count same-level sibling number under same parent
+                let siblingNum = 0;
+                for (let i = 0; i <= index; i++) {
+                  if (stages[i].indentLevel < stage.indentLevel) {
+                    siblingNum = 0;
+                  }
+                  if (stages[i].indentLevel === stage.indentLevel && i <= index) {
+                    siblingNum++;
+                  }
+                }
+
+                return (
                   <div
-                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-purple-600/10 transition-colors"
-                    onClick={() => updateStage(stage.id, { expanded: !stage.expanded })}
+                    key={stage.id}
+                    className={`rounded-lg overflow-hidden border ${getDepthColor(stage.indentLevel)} transition-all`}
+                    style={{ marginLeft: `${stage.indentLevel * 20}px` }}
                   >
-                    <GripVertical className="w-4 h-4 text-purple-400/40 shrink-0" />
-                    <span className="text-sm font-medium text-purple-300/70 shrink-0 w-8">
-                      #{index + 1}
-                    </span>
-                    <span className="flex-1 text-sm text-yellow-100 truncate">
-                      {stage.title || <span className="text-purple-400/40 italic">Untitled stage</span>}
-                    </span>
-                    <span className="text-xs text-yellow-400/60 shrink-0">
-                      🪙 {calculateGoldValue(stage.importance, parseInt(stage.duration) || 30)}
-                    </span>
+                    {/* Stage header — always visible */}
+                    <div
+                      className="flex items-center gap-1.5 px-2.5 py-2 cursor-pointer hover:bg-purple-600/10 transition-colors"
+                      onClick={() => updateStage(stage.id, { expanded: !stage.expanded })}
+                    >
+                      {/* Indent connector icon */}
+                      {stage.indentLevel > 0 && (
+                        <CornerDownRight className="w-3 h-3 text-purple-400/30 shrink-0" />
+                      )}
 
-                    {/* Reorder buttons */}
-                    <div className="flex shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        disabled={index === 0}
-                        onClick={() => moveStage(index, "up")}
-                        className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-30"
-                      >
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={index === stages.length - 1}
-                        onClick={() => moveStage(index, "down")}
-                        className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-30"
-                      >
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                      {/* Depth badge */}
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(stage.indentLevel)}`}>
+                        {getDepthLabel(stage.indentLevel).charAt(0)}{siblingNum}
+                      </span>
 
-                    {stages.length > 1 && (
+                      <span className="flex-1 text-sm text-yellow-100 truncate">
+                        {stage.title || <span className="text-purple-400/40 italic">Untitled {getDepthLabel(stage.indentLevel).toLowerCase()}</span>}
+                      </span>
+
+                      <span className="text-xs text-yellow-400/60 shrink-0">
+                        🪙 {calculateGoldValue(stage.importance, parseInt(stage.duration) || 30)}
+                      </span>
+
+                      {/* Indent / Outdent */}
+                      <div className="flex shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          disabled={stage.indentLevel <= 0}
+                          onClick={() => outdentStage(stage.id)}
+                          className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
+                          title="Outdent (decrease level)"
+                        >
+                          <ArrowLeft className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={stage.indentLevel >= MAX_DEPTH || index === 0}
+                          onClick={() => indentStage(stage.id)}
+                          className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
+                          title="Indent (increase level)"
+                        >
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Move up/down */}
+                      <div className="flex shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" disabled={index === 0} onClick={() => moveStage(index, "up")}
+                          className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20">
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" disabled={index === stages.length - 1} onClick={() => moveStage(index, "down")}
+                          className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20">
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Delete */}
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeStage(stage.id);
-                        }}
-                        className="p-1 text-red-400/50 hover:text-red-400 shrink-0"
+                        onClick={(e) => { e.stopPropagation(); removeStage(stage.id); }}
+                        className="p-1 text-red-400/40 hover:text-red-400 shrink-0"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    )}
 
-                    {stage.expanded ? (
-                      <ChevronUp className="w-4 h-4 text-purple-400/50 shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-purple-400/50 shrink-0" />
-                    )}
-                  </div>
+                      {stage.expanded ? (
+                        <ChevronUp className="w-4 h-4 text-purple-400/50 shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-purple-400/50 shrink-0" />
+                      )}
+                    </div>
 
-                  {/* Stage body — collapsible */}
-                  {stage.expanded && (
-                    <div className="px-3 pb-3 pt-1 space-y-3 border-t border-purple-500/20">
-                      {/* Title */}
-                      <div className="space-y-1">
-                        <Label className="text-purple-200 text-xs">
-                          Stage Title <span className="text-red-400">*</span>
-                        </Label>
-                        <Input
-                          value={stage.title}
-                          onChange={(e) => updateStage(stage.id, { title: e.target.value })}
-                          onFocus={scrollInputIntoView}
-                          placeholder={`Stage ${index + 1} title...`}
-                          className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
-                          maxLength={200}
-                        />
+                    {/* Stage body — collapsible */}
+                    {stage.expanded && (
+                      <div className="px-3 pb-3 pt-1 space-y-3 border-t border-purple-500/15">
+                        {/* Title */}
+                        <div className="space-y-1">
+                          <Label className="text-purple-200 text-xs">
+                            {getDepthLabel(stage.indentLevel)} Title <span className="text-red-400">*</span>
+                          </Label>
+                          <Input
+                            value={stage.title}
+                            onChange={(e) => updateStage(stage.id, { title: e.target.value })}
+                            onFocus={scrollInputIntoView}
+                            placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
+                            className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
+                            maxLength={200}
+                          />
                       </div>
 
                       {/* Description */}
@@ -417,10 +634,37 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                           </Select>
                         </div>
                       </div>
+
+                        {/* Add child / sibling buttons */}
+                        <div className="flex gap-2 pt-1">
+                          {stage.indentLevel < MAX_DEPTH && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => { e.stopPropagation(); addStageAfter(stage.id, true); }}
+                              className="h-7 text-xs text-blue-300/70 hover:text-blue-200 hover:bg-blue-600/15"
+                            >
+                              <CornerDownRight className="w-3 h-3 mr-1" />
+                              Add {getDepthLabel(stage.indentLevel + 1)}
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => { e.stopPropagation(); addStageAfter(stage.id, false); }}
+                            className="h-7 text-xs text-purple-300/70 hover:text-purple-200 hover:bg-purple-600/15"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Add {getDepthLabel(stage.indentLevel)}
+                          </Button>
+                        </div>
                     </div>
                   )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -429,7 +673,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
             <h4 className="text-sm font-semibold text-purple-200 mb-2">Completion Bonus Preview</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <span className="text-purple-300/60">Total Stage Gold:</span>
+                <span className="text-purple-300/60">Total Gold ({stages.length} items):</span>
                 <span className="ml-2 text-yellow-300">🪙 {totalGold}</span>
               </div>
               <div>
@@ -438,7 +682,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
               </div>
             </div>
             <p className="text-xs text-purple-300/50 mt-2">
-              Complete all {stages.length} stage{stages.length > 1 ? "s" : ""} to earn the 3× gold &amp; XP bonus!
+              Complete all {stages.length} item{stages.length > 1 ? "s" : ""} to earn the 3× gold &amp; XP bonus!
             </p>
           </div>
         </div>

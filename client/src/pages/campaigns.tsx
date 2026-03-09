@@ -20,6 +20,8 @@ interface QuestlineTask {
   importance: string | null;
   questlineOrder: number | null;
   skillTags: string[] | null;
+  parentTaskId: number | null;
+  indentLevel: number | null;
 }
 
 interface QuestlineData {
@@ -287,24 +289,44 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
 
         {/* Expanded: stages list */}
         {expanded && (
-          <div className={`${isMobile ? "mt-3" : "mt-4"} space-y-1.5`}>
-            {tasks.map((task, idx) => (
-              <div key={task.id} className={`flex items-center ${isMobile ? "gap-2 py-1 px-2" : "gap-2.5 py-1.5 px-3"} rounded bg-slate-900/40`}>
-                {task.completed || task.recycled ? (
-                  <CheckCircle className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-green-400 shrink-0`} />
-                ) : (
-                  <div className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} rounded-full border-2 border-purple-400/40 shrink-0`} />
-                )}
-                <span className={`flex-1 ${isMobile ? "text-xs" : "text-sm"} truncate ${
-                  task.completed || task.recycled ? "text-green-300 line-through opacity-70" : "text-yellow-100"
-                }`}>
-                  {idx + 1}. {task.title}
-                </span>
-                <span className={`${isMobile ? "text-[10px]" : "text-xs"} text-yellow-400/50 shrink-0`}>
-                  🪙 {task.goldValue}
-                </span>
-              </div>
-            ))}
+          <div className={`${isMobile ? "mt-3" : "mt-4"} space-y-1`}>
+            {tasks.map((task, idx) => {
+              const indent = task.indentLevel || 0;
+              const depthColor = indent === 0 ? "border-l-purple-500/40" : indent === 1 ? "border-l-blue-500/30" : indent === 2 ? "border-l-cyan-500/30" : indent === 3 ? "border-l-teal-500/25" : "border-l-slate-500/20";
+              const depthLabel = indent === 0 ? "" : indent === 1 ? "Quest" : indent === 2 ? "Sub" : indent === 3 ? "Task" : "Sub";
+
+              return (
+                <div
+                  key={task.id}
+                  className={`flex items-center ${isMobile ? "gap-2 py-1 px-2" : "gap-2.5 py-1.5 px-3"} rounded bg-slate-900/40 ${indent > 0 ? `border-l-2 ${depthColor}` : ""}`}
+                  style={{ marginLeft: `${indent * (isMobile ? 12 : 16)}px` }}
+                >
+                  {task.completed || task.recycled ? (
+                    <CheckCircle className={`${isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} text-green-400 shrink-0`} />
+                  ) : (
+                    <div className={`${isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} rounded-full border-2 ${indent === 0 ? "border-purple-400/40" : "border-slate-400/30"} shrink-0`} />
+                  )}
+                  {indent > 0 && (
+                    <span className={`text-[8px] font-bold px-1 py-0 rounded ${
+                      indent === 1 ? "bg-blue-500/15 text-blue-400/60" :
+                      indent === 2 ? "bg-cyan-500/15 text-cyan-400/60" :
+                      indent === 3 ? "bg-teal-500/15 text-teal-400/60" :
+                      "bg-slate-500/15 text-slate-400/60"
+                    } shrink-0`}>
+                      L{indent}
+                    </span>
+                  )}
+                  <span className={`flex-1 ${isMobile ? "text-xs" : "text-sm"} truncate ${
+                    task.completed || task.recycled ? "text-green-300 line-through opacity-70" : "text-yellow-100"
+                  }`}>
+                    {task.title}
+                  </span>
+                  <span className={`${isMobile ? "text-[10px]" : "text-xs"} text-yellow-400/50 shrink-0`}>
+                    🪙 {task.goldValue}
+                  </span>
+                </div>
+              );
+            })}
 
             {/* Bonus info */}
             <div className={`${isMobile ? "mt-2 p-2" : "mt-3 p-3"} rounded-lg border ${

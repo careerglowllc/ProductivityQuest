@@ -4234,31 +4234,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         icon: icon || "⚔️",
       });
 
-      // Create each stage as a task linked to this questline
-      const createdTasks = [];
+      // Recursively create stages and their children (up to 4 levels deep)
+      const createdTasks: any[] = [];
+      let orderCounter = 1;
+
+      const createStageAndChildren = async (
+        stage: any,
+        parentId: number | null,
+        depth: number
+      ) => {
+        const taskData: any = {
+          userId,
+          title: stage.title,
+          description: stage.description || "",
+          details: stage.details || undefined,
+          duration: stage.duration || 30,
+          goldValue: stage.goldValue || 30,
+          dueDate: stage.dueDate ? new Date(stage.dueDate) : null,
+          importance: stage.importance || "Medium",
+          recurType: stage.recurType || "⏳One-time",
+          businessWorkFilter: stage.businessWorkFilter || "General",
+          campaign: stage.campaign || "unassigned",
+          completed: false,
+          skillTags: [],
+          questlineId: ql.id,
+          questlineOrder: orderCounter++,
+          emoji: stage.emoji || "📝",
+          parentTaskId: parentId,
+          indentLevel: depth,
+        };
+        const [newTask] = await db.insert(tasksTable).values(taskData).returning();
+        createdTasks.push(newTask);
+
+        // Recursively create children (max depth 4)
+        if (stage.children && Array.isArray(stage.children) && depth < 4) {
+          for (const child of stage.children) {
+            await createStageAndChildren(child, newTask.id, depth + 1);
+          }
+        }
+      };
+
       if (stages && Array.isArray(stages)) {
-        for (let i = 0; i < stages.length; i++) {
-          const stage = stages[i];
-          const taskData = {
-            userId,
-            title: stage.title,
-            description: stage.description || "",
-            details: stage.details || undefined,
-            duration: stage.duration || 30,
-            goldValue: stage.goldValue || 30,
-            dueDate: stage.dueDate ? new Date(stage.dueDate) : null,
-            importance: stage.importance || "Medium",
-            recurType: stage.recurType || "⏳One-time",
-            businessWorkFilter: stage.businessWorkFilter || "General",
-            campaign: stage.campaign || "unassigned",
-            completed: false,
-            skillTags: [],
-            questlineId: ql.id,
-            questlineOrder: i + 1,
-            emoji: stage.emoji || "📝",
-          };
-          const [newTask] = await db.insert(tasksTable).values(taskData).returning();
-          createdTasks.push(newTask);
+        for (const stage of stages) {
+          await createStageAndChildren(stage, null, 0);
         }
       }
 
@@ -4287,6 +4305,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating questline:", error);
       res.status(500).json({ error: "Failed to update questline" });
+    }
+  });
+
+  // Add a subtask to an existing questline task
+  app.post("/api/questlines/:id/add-subtask", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qlId = parseInt(req.params.id);
+      const { parentTaskId, title, description, duration, importance, businessWorkFilter, campaign } = req.body;
+
+      if (!title) return res.status(400).json({ error: "Title is required" });
+      if (!parentTaskId) return res.status(400).json({ error: "parentTaskId is required" });
+
+      // Verify questline exists and belongs to user
+      const ql = await storage.getQuestline(qlId, userId);
+      if (!ql) return res.status(404).json({ error: "Questline not found" });
+
+      // Verify parent task exists, belongs to this questline, and check depth
+      const parentTask = await db.select().from(tasksTable)
+        .where(and(eq(tasksTable.id, parentTaskId), eq(tasksTable.userId, userId), eq(tasksTable.questlineId, qlId)))
+        .then(r => r[0]);
+      if (!parentTask) return res.status(404).json({ error: "Parent task not found in this questline" });
+
+      const parentDepth = (parentTask as any).indentLevel || 0;
+      if (parentDepth >= 4) return res.status(400).json({ error: "Maximum nesting depth (4 levels) reached" });
+
+      // Get max order in questline for new task
+      const allTasks = await storage.getQuestlineTasks(userId, qlId);
+      const maxOrder = allTasks.reduce((max, t) => Math.max(max, t.questlineOrder || 0), 0);
+
+      const dur = duration || 30;
+      const imp = importance || "Medium";
+      const goldValue = Math.round(dur * (imp === "Pareto" ? 3 : imp === "High" ? 2.5 : imp === "Med-High" ? 2 : imp === "Medium" ? 1.5 : imp === "Med-Low" ? 1 : 0.5));
+
+      const taskData: any = {
+        userId,
+        title,
+        description: description || "",
+        duration: dur,
+        goldValue,
+        importance: imp,
+        recurType: "⏳One-time",
+        businessWorkFilter: businessWorkFilter || "General",
+        campaign: campaign || "unassigned",
+        completed: false,
+        skillTags: [],
+        questlineId: qlId,
+        questlineOrder: maxOrder + 1,
+        emoji: "📝",
+        parentTaskId,
+        indentLevel: parentDepth + 1,
+      };
+
+      const [newTask] = await db.insert(tasksTable).values(taskData).returning();
+      res.json(newTask);
+    } catch (error: any) {
+      console.error("Error adding subtask:", error);
+      res.status(500).json({ error: "Failed to add subtask" });
     }
   });
 
