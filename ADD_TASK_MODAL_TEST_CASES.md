@@ -1,8 +1,8 @@
 # AddTaskModal Test Cases - Comprehensive Testing Guide
 
 **Feature:** Task Creation Modal with Form Validation  
-**Last Updated:** December 2024  
-**Total Test Cases:** 60
+**Last Updated:** March 2026  
+**Total Test Cases:** 66
 
 ---
 
@@ -12,6 +12,7 @@
 3. [Form Validation Tests (10)](#form-validation-tests)
 4. [Integration Tests (5)](#integration-tests)
 5. [Edge Cases (5)](#edge-cases)
+6. [recurType Value Consistency Tests (6)](#recurtype-value-consistency-tests)
 
 ---
 
@@ -71,7 +72,7 @@ curl -X POST http://localhost:5001/api/tasks \
      "dueDate": "2024-12-31T23:59:59.000Z",
      "importance": "High",
      "kanbanStage": "In Progress",
-     "recurType": "⏳One-time",
+     "recurType": "one-time",
      "lifeDomain": "Purpose",
      "businessWorkFilter": "Apple",
      "apple": true,
@@ -388,7 +389,7 @@ curl -X POST http://localhost:5001/api/tasks \
 - Due Date: Not set
 - Importance: "Medium"
 - Kanban Stage: "To Do"
-- Recurrence: "⏳One-time"
+- Recurrence: "one-time"
 - Life Domain: "General"
 - Business Filter: "General"
 - All checkboxes: Unchecked
@@ -977,6 +978,100 @@ curl -X POST http://localhost:5001/api/tasks \
 - Eventually times out OR completes
 - Error message if timeout
 - Form data preserved for retry
+
+---
+
+## recurType Value Consistency Tests
+
+> **Background:** A critical bug was discovered where the Add Task modal stored `recurType` as `"⏳One-time"` (with emoji prefix), but the backend `completeTask()` checked for plain `"one-time"`. This caused all one-time tasks to be treated as recurring — they were rescheduled instead of completed/recycled and never disappeared from the task list.
+
+### TC-AT-061: recurType Stored as Plain Value on Create
+**Objective:** Verify new tasks store recurType without emoji prefixes  
+**Priority:** P0 (Critical)  
+**Steps:**
+1. Open Add Task modal
+2. Leave recurrence as default "One-time"
+3. Create the task
+4. Query the database or check API response
+
+**Expected Result:**
+- `recurType` field is `"one-time"` (plain, lowercase, no emoji)
+- NOT `"⏳One-time"` or any other emoji-prefixed variant
+
+---
+
+### TC-AT-062: One-Time Task Completes and Disappears
+**Objective:** Verify one-time tasks are properly completed and recycled  
+**Priority:** P0 (Critical)  
+**Steps:**
+1. Create a task with recurType "one-time"
+2. Select the task and click Complete
+3. Observe the task list after completion
+
+**Expected Result:**
+- Toast shows "Quest Complete! Earning X gold. Task moved to recycling bin."
+- Task disappears from the active task list
+- Task appears in recycling bin with `recycled: true`, `completed: true`
+- Task does NOT get rescheduled to a future date
+
+---
+
+### TC-AT-063: Recurring Task Reschedules (Not Recycled)
+**Objective:** Verify recurring tasks are rescheduled, not completed  
+**Priority:** P0 (Critical)  
+**Steps:**
+1. Create a task with recurType "daily" and a due date of today
+2. Select the task and click Complete
+3. Observe the task list after completion
+
+**Expected Result:**
+- Gold is awarded
+- Task remains in the active task list
+- Task due date is moved to tomorrow
+- Task is NOT marked as completed or recycled
+
+---
+
+### TC-AT-064: recurType Normalization in Backend
+**Objective:** Verify backend handles legacy emoji-prefixed recurType values  
+**Priority:** P1 (High)  
+**Steps:**
+1. Manually insert a task with `recurType = '⏳One-time'` in the database
+2. Complete the task via the UI
+
+**Expected Result:**
+- Backend normalizes the value (strips emojis, lowercases)
+- Task is treated as one-time and properly completed/recycled
+- Task disappears from active list
+
+---
+
+### TC-AT-065: All recurType Dropdown Values Match Backend
+**Objective:** Verify Add Task modal dropdown values match backend expectations  
+**Priority:** P1 (High)  
+**Steps:**
+1. Open Add Task modal
+2. Inspect all recurrence dropdown options
+
+**Expected Result:**
+- Values are plain strings: `one-time`, `daily`, `every other day`, `2x week`, `3x week`, `weekly`, `2x month`, `monthly`, `every 2 months`, `quarterly`, `every 6 months`, `yearly`
+- No emoji prefixes in the stored values (emojis only in display labels)
+- Values match `calculateNextDueDate()` switch cases in `server/storage.ts`
+
+---
+
+### TC-AT-066: Task Detail Modal recurType Matches Add Task Modal
+**Objective:** Verify recurType values are consistent between Add and Edit modals  
+**Priority:** P1 (High)  
+**Steps:**
+1. Create a task via Add Task modal with recurType "weekly"
+2. Open the task detail modal
+3. Check the Recurrence dropdown selected value
+
+**Expected Result:**
+- Task detail modal shows the correct recurrence value
+- Changing recurrence in detail modal saves the same plain format
+- No mismatch between the two modals
 
 ---
 

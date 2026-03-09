@@ -8,7 +8,7 @@ Your QuestList app is now configured to work with your existing Notion database 
 The app now looks for a Notion database with these exact properties:
 - **Task** (Title field) - The name of your task
 - **Details** (Text field) - Description of what needs to be done
-- **Recur Type** (Select field) - Options: "⏳One-Time" or "🔄Recurring"
+- **Recur Type** (Select field) - Options: "one-time", "daily", "every other day", "2x week", "3x week", "weekly", "2x month", "monthly", "every 2 months", "quarterly", "every 6 months", "yearly"
 - **Due** (Date field) - When the task is due
 - **Min to Complete** (Number field) - How many minutes the task takes
 - **Importance** (Select field) - Options: "Low", "Med-Low", "Medium", "Med-High", "High", "Pareto"

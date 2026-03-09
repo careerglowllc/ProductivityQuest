@@ -73,7 +73,7 @@ Added a comprehensive task creation modal to the ProductivityQuest application, 
   "dueDate": "ISO date string (optional)",
   "importance": "string (Pareto/High/Med-High/Medium/Med-Low/Low)",
   "kanbanStage": "string (To Do/In Progress/Review/Done)",
-  "recurType": "string (⏳One-time/🔄Recurring)",
+  "recurType": "string (one-time/daily/every other day/2x week/3x week/weekly/2x month/monthly/every 2 months/quarterly/every 6 months/yearly)",
   "lifeDomain": "string (General/Relationships/Finance/etc.)",
   "businessWorkFilter": "string (General/Apple/Vi/SP/Vel/CG)",
   "apple": "boolean",
@@ -115,7 +115,7 @@ This ensures tasks created in the app (via AddTaskModal or any other method) are
 | dueDate | Date | ❌ | undefined | - | Valid date or null |
 | importance | string | ❌ | "Medium" | - | Predefined options |
 | kanbanStage | string | ❌ | "To Do" | - | Predefined options |
-| recurType | string | ❌ | "⏳One-time" | - | Predefined options |
+| recurType | string | ❌ | "one-time" | - | one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly |
 | lifeDomain | string | ❌ | "General" | - | Predefined options |
 | businessWorkFilter | string | ❌ | "General" | - | Predefined options |
 | apple | boolean | ❌ | false | - | true/false |
@@ -363,6 +363,24 @@ Refer to `ADD_TASK_MODAL_TEST_CASES.md` for 60 comprehensive test cases
 - **Test Cases:** `ADD_TASK_MODAL_TEST_CASES.md`
 - **API Endpoint:** `server/routes.ts` (line 225)
 - **Schema:** `shared/schema.ts` (line 121 - insertTaskSchema)
+
+---
+
+## Bug Fixes
+
+### March 2026 — recurType Value Mismatch (Critical)
+
+**Bug:** One-time tasks were not disappearing from the task list after completion.
+
+**Root Cause:** The Add Task modal stored `recurType` as `"⏳One-time"` (emoji prefix, capital O), but `completeTask()` in `server/storage.ts` checked `task.recurType !== 'one-time'` (plain lowercase). Since `"⏳One-time" !== "one-time"`, all tasks created from the modal were treated as **recurring** and rescheduled instead of completed.
+
+**Fixes Applied:**
+1. **`add-task-modal.tsx`** — Changed default and dropdown values from `"⏳One-time"` / `"🔄Recurring"` to plain values (`"one-time"`, `"daily"`, `"weekly"`, etc.) matching the task detail modal and backend. Also expanded recurrence dropdown to include all 12 options.
+2. **`server/storage.ts`** — Added normalization in `completeTask()`: strips emojis/special characters and lowercases before comparing, so legacy values like `"⏳One-time"` are still handled correctly.
+3. **`home.tsx` + `task-card.tsx`** — Normalized `recurType` checks in routines filter and recurrence badge display.
+4. **Database migration** — Fixed 7 existing tasks with `"⏳One-time"` → `"one-time"`.
+
+**Key Rule:** `recurType` values stored in the database must always be plain lowercase strings (e.g., `"one-time"`, `"daily"`, `"weekly"`). Emojis are for display labels only, never for stored values.
 
 ---
 
