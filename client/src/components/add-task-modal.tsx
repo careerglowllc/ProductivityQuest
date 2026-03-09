@@ -32,7 +32,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [importance, setImportance] = useState<string>("Medium");
   const [kanbanStage, setKanbanStage] = useState<string>("To Do");
-  const [recurType, setRecurType] = useState<string>("⏳One-time");
+  const [recurType, setRecurType] = useState<string>("one-time");
   const [businessWorkFilter, setBusinessWorkFilter] = useState<string>("General");
   const [campaign, setCampaign] = useState<string>("unassigned");
   
@@ -91,7 +91,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setDueDate(undefined);
     setImportance("Medium");
     setKanbanStage("To Do");
-    setRecurType("⏳One-time");
+    setRecurType("one-time");
     setBusinessWorkFilter("General");
     setCampaign("unassigned");
     setApple(false);
@@ -309,8 +309,18 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-yellow-600/40">
-                <SelectItem value="⏳One-time">⏳ One-time</SelectItem>
-                <SelectItem value="🔄Recurring">🔄 Recurring</SelectItem>
+                <SelectItem value="one-time">⏳ One-time</SelectItem>
+                <SelectItem value="daily">� Daily</SelectItem>
+                <SelectItem value="every other day">📆 Every Other Day</SelectItem>
+                <SelectItem value="2x week">2️⃣ 2x Week</SelectItem>
+                <SelectItem value="3x week">3️⃣ 3x Week</SelectItem>
+                <SelectItem value="weekly">📅 Weekly</SelectItem>
+                <SelectItem value="2x month">📅 2x Month</SelectItem>
+                <SelectItem value="monthly">📅 Monthly</SelectItem>
+                <SelectItem value="every 2 months">📅 Every 2 Months</SelectItem>
+                <SelectItem value="quarterly">� Quarterly</SelectItem>
+                <SelectItem value="every 6 months">📅 Every 6 Months</SelectItem>
+                <SelectItem value="yearly">📅 Yearly</SelectItem>
               </SelectContent>
             </Select>
           </div>

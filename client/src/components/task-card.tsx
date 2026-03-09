@@ -405,7 +405,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                       </span>
                     </>
                   )}
-                  {task.recurType && task.recurType !== "one-time" && (
+                  {task.recurType && task.recurType.toLowerCase().replace(/[^a-z-]/g, '') !== "one-time" && (
                     <>
                       <span className="text-yellow-600/30">·</span>
                       <Repeat className="w-3 h-3 text-purple-400/60" />
@@ -549,7 +549,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                     <span className="whitespace-nowrap">{task.importance}</span>
                   </div>
                 )}
-                {task.recurType && task.recurType !== "one-time" && (
+                {task.recurType && task.recurType.toLowerCase().replace(/[^a-z-]/g, '') !== "one-time" && (
                   <div className="flex items-center gap-1.5">
                     <span className="flex-shrink-0">🔄</span>
                     <span className="whitespace-nowrap">{task.recurType}</span>
@@ -580,7 +580,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                   </Badge>
                 )}
                 
-                {task.recurType && task.recurType !== "one-time" && (
+                {task.recurType && task.recurType.toLowerCase().replace(/[^a-z-]/g, '') !== "one-time" && (
                   <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
                     <Repeat className="w-3 h-3 mr-1" />
                     {task.recurType}

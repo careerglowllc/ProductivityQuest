@@ -288,8 +288,9 @@ export class DatabaseStorage implements IStorage {
     const task = await this.getTask(id, userId);
     if (!task || task.completed) return undefined;
 
-    // Check if task is recurring
-    const isRecurring = task.recurType && task.recurType !== 'one-time';
+    // Check if task is recurring (normalize: handle "⏳One-time", "one-time", null, etc.)
+    const recurNormalized = (task.recurType || '').toLowerCase().replace(/[^a-z-]/g, '');
+    const isRecurring = recurNormalized !== '' && recurNormalized !== 'one-time';
     
     if (isRecurring) {
       // For recurring tasks: award rewards but reschedule instead of completing

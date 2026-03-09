@@ -1343,11 +1343,11 @@ export default function Home() {
         task.importance === "High" || 
         task.importance === "Med-High"
       ).length,
-      routines: activeTasks.filter((task: any) => 
-        task.recurType && 
-        task.recurType !== "one-time" && 
-        task.recurType.trim() !== ""
-      ).length,
+      routines: activeTasks.filter((task: any) => {
+        if (!task.recurType || task.recurType.trim() === "") return false;
+        const normalized = task.recurType.toLowerCase().replace(/[^a-z-]/g, '');
+        return normalized !== 'one-time' && normalized !== '';
+      }).length,
       businessApple: activeTasks.filter((task: any) => 
         task.apple === true || task.businessWorkFilter === "Apple"
       ).length,
@@ -1422,11 +1422,11 @@ export default function Home() {
       
       case "routines":
         // Filter for recurring tasks (Recur Type is not "one-time" or blank)
-        return activeTasks.filter((task: any) => 
-          task.recurType && 
-          task.recurType !== "one-time" && 
-          task.recurType.trim() !== ""
-        );
+        return activeTasks.filter((task: any) => {
+          if (!task.recurType || task.recurType.trim() === "") return false;
+          const normalized = task.recurType.toLowerCase().replace(/[^a-z-]/g, '');
+          return normalized !== 'one-time' && normalized !== '';
+        });
       
       case "business-apple":
         return activeTasks.filter((task: any) => 
