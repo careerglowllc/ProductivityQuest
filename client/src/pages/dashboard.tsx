@@ -648,13 +648,13 @@ export default function Dashboard() {
   // State for expanded campaigns
   const [expandedCampaigns, setExpandedCampaigns] = useState<{ [key: string]: boolean }>({});
   
-  // Fetch campaigns from API (same source as campaigns page)
-  const { data: campaignsData = [] } = useQuery<any[]>({
-    queryKey: ["/api/campaigns"],
+  // Fetch questlines from API (same source as questlines/campaigns page)
+  const { data: questlinesData = [] } = useQuery<any[]>({
+    queryKey: ["/api/questlines"],
   });
   
-  // Show all questlines on dashboard (same data as campaigns page)
-  const selectedCampaigns = campaignsData;
+  // Show only active (non-completed) questlines on dashboard
+  const selectedCampaigns = questlinesData.filter((q: any) => !q.completed);
   
   const toggleCampaign = (campaignId: string | number) => {
     setExpandedCampaigns(prev => ({
@@ -842,7 +842,13 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="space-y-2">
-            {selectedCampaigns.map((campaign) => (
+            {selectedCampaigns.map((campaign) => {
+              // Compute progress from actual tasks
+              const totalTasks = (campaign.tasks || []).length;
+              const completedTasks = (campaign.tasks || []).filter((t: any) => t.completed || t.recycled).length;
+              const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+              
+              return (
               <Card 
                 key={campaign.id}
                 className="bg-slate-800/60 border-purple-500/30 hover:border-purple-400/50 transition-all cursor-pointer"
@@ -855,12 +861,12 @@ export default function Dashboard() {
                         <h4 className="text-xs font-serif font-semibold text-purple-100">
                           {campaign.title}
                         </h4>
-                        <span className="text-[10px] font-bold text-purple-200">{campaign.progress}%</span>
+                        <span className="text-[10px] font-bold text-purple-200">{progress}%</span>
                       </div>
-                      <Progress value={campaign.progress} className="h-1.5 bg-slate-700/50 mb-1">
+                      <Progress value={progress} className="h-1.5 bg-slate-700/50 mb-1">
                         <div 
                           className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all" 
-                          style={{ width: `${campaign.progress}%` }} 
+                          style={{ width: `${progress}%` }} 
                         />
                       </Progress>
                       {!expandedCampaigns[campaign.id] && (
@@ -888,30 +894,22 @@ export default function Dashboard() {
                     <div className="mt-3 pt-3 border-t border-purple-500/20">
                       <p className="text-[10px] text-purple-200/80 mb-3">{campaign.description}</p>
                       <div className="space-y-1.5">
-                        {(campaign.quests || []).map((quest: any) => (
+                        {(campaign.tasks || []).map((task: any, idx: number) => (
                           <div 
-                            key={quest.id}
+                            key={task.id}
                             className="flex items-center gap-2 p-1.5 rounded bg-slate-900/40"
                           >
-                            {quest.status === 'completed' && (
+                            {(task.completed || task.recycled) ? (
                               <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                            )}
-                            {quest.status === 'in-progress' && (
+                            ) : (
                               <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
                                 <div className="w-2.5 h-2.5 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
                               </div>
                             )}
-                            {quest.status === 'locked' && (
-                              <div className="w-4 h-4 flex-shrink-0 rounded-full bg-slate-600/50 flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                              </div>
-                            )}
                             <span className={`text-[10px] ${
-                              quest.status === 'completed' ? 'text-green-300' :
-                              quest.status === 'in-progress' ? 'text-yellow-200 font-medium' :
-                              'text-slate-400'
+                              (task.completed || task.recycled) ? 'text-green-300' : 'text-yellow-200 font-medium'
                             }`}>
-                              Quest {quest.id}: {quest.title}
+                              Stage {task.questlineOrder || idx + 1}: {task.title}
                             </span>
                           </div>
                         ))}
@@ -920,7 +918,8 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

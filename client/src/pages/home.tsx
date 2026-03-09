@@ -110,6 +110,9 @@ export default function Home() {
     goldEarned?: number;
     exportDetails?: { exported: number[]; linked: number[] }; // For export undo
   }>({ type: null, taskIds: [] });
+  // Keep a ref so toast onClick callbacks always see the latest value (avoids stale closures)
+  const lastActionRef = useRef(lastAction);
+  lastActionRef.current = lastAction;
 
   // Date-based undo state (for reschedule, push days, move overdue)
   const [lastDateAction, setLastDateAction] = useState<{
@@ -714,45 +717,46 @@ export default function Home() {
   };
 
   const handleUndo = async () => {
-    if (!lastAction.type) return;
+    const action = lastActionRef.current;
+    if (!action.type) return;
 
     try {
       let response;
       let description = "";
 
-      switch (lastAction.type) {
+      switch (action.type) {
         case 'complete':
           response = await apiRequest("POST", "/api/tasks/undo-complete", {
-            taskIds: lastAction.taskIds
+            taskIds: action.taskIds
           });
-          description = `${lastAction.taskIds.length} task${lastAction.taskIds.length > 1 ? 's' : ''} restored. ${lastAction.goldEarned || 0} gold refunded.`;
+          description = `${action.taskIds.length} task${action.taskIds.length > 1 ? 's' : ''} restored. ${action.goldEarned || 0} gold refunded.`;
           break;
         
         case 'append-notion':
           response = await apiRequest("POST", "/api/notion/undo-append", {
-            taskIds: lastAction.taskIds
+            taskIds: action.taskIds
           });
-          description = `${lastAction.taskIds.length} task${lastAction.taskIds.length > 1 ? 's' : ''} removed from Notion`;
+          description = `${action.taskIds.length} task${action.taskIds.length > 1 ? 's' : ''} removed from Notion`;
           break;
         
         case 'delete-notion':
           response = await apiRequest("POST", "/api/notion/undo-delete", {
-            taskIds: lastAction.taskIds
+            taskIds: action.taskIds
           });
-          description = `${lastAction.taskIds.length} task${lastAction.taskIds.length > 1 ? 's' : ''} restored to Notion`;
+          description = `${action.taskIds.length} task${action.taskIds.length > 1 ? 's' : ''} restored to Notion`;
           break;
         
         case 'import-notion':
           response = await apiRequest("POST", "/api/notion/undo-import", {
-            taskIds: lastAction.taskIds
+            taskIds: action.taskIds
           });
-          description = `Deleted ${lastAction.taskIds.length} imported task${lastAction.taskIds.length > 1 ? 's' : ''} from app`;
+          description = `Deleted ${action.taskIds.length} imported task${action.taskIds.length > 1 ? 's' : ''} from app`;
           break;
         
         case 'export-notion':
           response = await apiRequest("POST", "/api/notion/undo-export", {
-            exportedTaskIds: lastAction.exportDetails?.exported || [],
-            linkedTaskIds: lastAction.exportDetails?.linked || []
+            exportedTaskIds: action.exportDetails?.exported || [],
+            linkedTaskIds: action.exportDetails?.linked || []
           });
           const result = await response.json();
           description = `Undid export: ${result.removed || 0} removed from Notion, ${result.unlinked || 0} unlinked`;
@@ -764,7 +768,7 @@ export default function Home() {
 
       // Refresh data
       refetchTasks();
-      if (lastAction.type === 'complete') {
+      if (action.type === 'complete') {
         refetchProgress();
       }
 
