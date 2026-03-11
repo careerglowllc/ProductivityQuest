@@ -59,13 +59,15 @@ interface TaskCardProps {
     velin?: boolean;
     skillTags?: string[];
     emoji?: string;
+    questlineId?: number | null;
   };
   onSelect: (taskId: number, selected: boolean) => void;
   isSelected: boolean;
   isCompact?: boolean;
+  questlineName?: string | null;
 }
 
-export function TaskCard({ task, onSelect, isSelected, isCompact = false }: TaskCardProps) {
+export function TaskCard({ task, onSelect, isSelected, isCompact = false, questlineName }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const queryClient = useQueryClient();
@@ -238,6 +240,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                   "text-sm font-semibold text-yellow-100 line-clamp-2 leading-tight pt-1",
                   task.completed && "line-through text-yellow-400/60"
                 )}>
+                  {questlineName && (
+                    <span className="text-purple-300/80 font-medium">{questlineName}: </span>
+                  )}
                   {task.title}
                 </h3>
               </div>
@@ -385,6 +390,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                   "text-sm font-semibold text-yellow-100 leading-tight line-clamp-1",
                   task.completed && "line-through text-yellow-400/60"
                 )}>
+                  {questlineName && (
+                    <span className="text-purple-300/80 font-medium">{questlineName}: </span>
+                  )}
                   {task.title}
                 </h3>
                 
@@ -525,6 +533,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false }: Task
                     "text-lg font-semibold text-yellow-100",
                     task.completed && "line-through text-yellow-400/60"
                   )}>
+                    {questlineName && (
+                      <span className="text-purple-300/80 font-medium">{questlineName}: </span>
+                    )}
                     {task.title}
                   </h3>
                 </div>

@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AddQuestlineModal } from "@/components/add-questline-modal";
+import { EmojiPicker } from "@/components/emoji-picker";
 
 interface QuestlineTask {
   id: number;
@@ -23,6 +24,7 @@ interface QuestlineTask {
   parentTaskId: number | null;
   indentLevel: number | null;
   kanbanStage: string | null;
+  emoji: string | null;
 }
 
 interface QuestlineData {
@@ -370,6 +372,36 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
     updateKanbanStatus.mutate({ taskId: task.id, newStatus: next });
   }, [updateKanbanStatus]);
 
+  // ── Emoji update mutation ──
+  const updateEmoji = useMutation({
+    mutationFn: async ({ taskId, emoji }: { taskId: number; emoji: string }) => {
+      return apiRequest("PATCH", `/api/tasks/${taskId}`, { emoji });
+    },
+    onMutate: async ({ taskId, emoji }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/questlines"] });
+      queryClient.setQueryData<QuestlineData[]>(["/api/questlines"], (old) => {
+        if (!old) return old;
+        return old.map((ql) => {
+          if (ql.id !== questline.id) return ql;
+          return {
+            ...ql,
+            tasks: ql.tasks.map((t) =>
+              t.id === taskId ? { ...t, emoji } : t
+            ),
+          };
+        });
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      toast({ title: "Error", description: "Failed to update emoji.", variant: "destructive" });
+    },
+  });
+
   return (
     <Card
       className={`overflow-hidden transition-all ${
@@ -446,6 +478,16 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                     size={isMobile ? 14 : 16}
                     onClick={(e) => handleStatusClick(e, task)}
                   />
+                  <span
+                    className="flex-shrink-0 cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <EmojiPicker
+                      value={task.emoji || "📝"}
+                      onChange={(emoji: string) => updateEmoji.mutate({ taskId: task.id, emoji })}
+                      size="sm"
+                    />
+                  </span>
                   {indent > 0 && (
                     <span className={`text-[8px] font-bold px-1 py-0 rounded ${
                       indent === 1 ? "bg-blue-500/15 text-blue-400/60" :

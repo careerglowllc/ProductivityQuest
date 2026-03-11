@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,6 +138,18 @@ export default function Home() {
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
     queryKey: ["/api/tasks"],
   });
+
+  // Fetch questlines to build a questlineId → title map for task card prefixes
+  const { data: questlines = [] } = useQuery<{ id: number; title: string }[]>({
+    queryKey: ["/api/questlines"],
+  });
+  const questlineNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const ql of questlines) {
+      map.set(ql.id, ql.title);
+    }
+    return map;
+  }, [questlines]);
 
   // Handle taskId query parameter
   useEffect(() => {
@@ -1374,7 +1386,9 @@ export default function Home() {
         const descriptionMatch = task.description?.toLowerCase().includes(query);
         const categoryMatch = task.category?.toLowerCase().includes(query);
         const importanceMatch = task.importance?.toLowerCase().includes(query);
-        return titleMatch || descriptionMatch || categoryMatch || importanceMatch;
+        const questlineName = task.questlineId ? questlineNameMap.get(task.questlineId) : null;
+        const questlineMatch = questlineName?.toLowerCase().includes(query);
+        return titleMatch || descriptionMatch || categoryMatch || importanceMatch || questlineMatch;
       });
     }
     
@@ -2765,6 +2779,7 @@ export default function Home() {
                     task={task}
                     onSelect={handleTaskSelect}
                     isSelected={selectedTasks.has(task.id)}
+                    questlineName={task.questlineId ? questlineNameMap.get(task.questlineId) : undefined}
                   />
                 ))
               ) : (
@@ -2805,6 +2820,7 @@ export default function Home() {
                             isCompact={viewType === "grid"}
                             onSelect={handleTaskSelect}
                             isSelected={selectedTasks.has(task.id)}
+                            questlineName={task.questlineId ? questlineNameMap.get(task.questlineId) : undefined}
                           />
                         ))}
                       </div>
