@@ -139,14 +139,35 @@ export default function Home() {
     queryKey: ["/api/tasks"],
   });
 
-  // Fetch questlines to build a questlineId → title map for task card prefixes
-  const { data: questlines = [] } = useQuery<{ id: number; title: string }[]>({
+  // Fetch questlines to build a taskId → prefix map for task card display
+  // Rule: use parent stage name if task has a parent, otherwise use questline name
+  const { data: questlines = [] } = useQuery<{
+    id: number;
+    title: string;
+    tasks: { id: number; title: string; parentTaskId: number | null; questlineId: number | null }[];
+  }[]>({
     queryKey: ["/api/questlines"],
   });
-  const questlineNameMap = useMemo(() => {
+
+  // Map from taskId → display prefix (parent stage title or questline title)
+  const questlinePrefixMap = useMemo(() => {
     const map = new Map<number, string>();
     for (const ql of questlines) {
-      map.set(ql.id, ql.title);
+      if (!ql.tasks) continue;
+      // Build a taskId → title lookup within this questline
+      const taskTitleById = new Map<number, string>();
+      for (const t of ql.tasks) {
+        taskTitleById.set(t.id, t.title);
+      }
+      for (const t of ql.tasks) {
+        // If this task has a parent stage, use the parent's title
+        // Otherwise use the questline title
+        if (t.parentTaskId && taskTitleById.has(t.parentTaskId)) {
+          map.set(t.id, taskTitleById.get(t.parentTaskId)!);
+        } else {
+          map.set(t.id, ql.title);
+        }
+      }
     }
     return map;
   }, [questlines]);
@@ -1386,7 +1407,7 @@ export default function Home() {
         const descriptionMatch = task.description?.toLowerCase().includes(query);
         const categoryMatch = task.category?.toLowerCase().includes(query);
         const importanceMatch = task.importance?.toLowerCase().includes(query);
-        const questlineName = task.questlineId ? questlineNameMap.get(task.questlineId) : null;
+        const questlineName = questlinePrefixMap.get(task.id) ?? null;
         const questlineMatch = questlineName?.toLowerCase().includes(query);
         return titleMatch || descriptionMatch || categoryMatch || importanceMatch || questlineMatch;
       });
@@ -2779,7 +2800,7 @@ export default function Home() {
                     task={task}
                     onSelect={handleTaskSelect}
                     isSelected={selectedTasks.has(task.id)}
-                    questlineName={task.questlineId ? questlineNameMap.get(task.questlineId) : undefined}
+                    questlineName={questlinePrefixMap.get(task.id)}
                   />
                 ))
               ) : (
@@ -2820,7 +2841,7 @@ export default function Home() {
                             isCompact={viewType === "grid"}
                             onSelect={handleTaskSelect}
                             isSelected={selectedTasks.has(task.id)}
-                            questlineName={task.questlineId ? questlineNameMap.get(task.questlineId) : undefined}
+                            questlineName={questlinePrefixMap.get(task.id)}
                           />
                         ))}
                       </div>
