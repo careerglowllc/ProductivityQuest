@@ -254,6 +254,9 @@ export default function CalendarPage() {
 
   // Unified drag state: covers move + resize-top + resize-bottom
   const [drag, setDrag] = useState<DragState | null>(null);
+  // Keep a ref mirror of drag state so callbacks in stale closures can read the latest value
+  const dragRef = useRef<DragState | null>(null);
+  dragRef.current = drag;
 
   // Mobile action bubble: which event was tapped (shows View + Adjust)
   const [tappedEvent, setTappedEvent] = useState<CalendarEvent | null>(null);
@@ -832,7 +835,12 @@ export default function CalendarPage() {
               }}
               onDragStart={(ds) => setDrag(ds)}
               onDragUpdate={(minute) => setDrag((prev) => prev ? { ...prev, minute } : null)}
-              onDragEnd={() => { if (drag) { const wasMove = drag.mode === "move"; commitDrag(drag); setDrag(null); if (wasMove) setResizeEventId(null); } }}
+              onDragEnd={() => {
+                // Read from dragRef to avoid stale closure — the inline onDragEnd
+                // may be captured before React re-renders with the latest drag state.
+                const d = dragRef.current;
+                if (d) { const wasMove = d.mode === "move"; commitDrag(d); setDrag(null); if (wasMove) setResizeEventId(null); }
+              }}
               onDragCancel={() => setDrag(null)}
               onEmptyTap={(date, minute) => {
                 setTappedEvent(null);
@@ -1479,7 +1487,10 @@ const DayColumn = React.memo(function DayColumn({
         document.body.style.cursor = "";
 
         if (dragStarted) {
-          setTimeout(() => onDragEnd(), 0);
+          // Use ref to avoid stale closure — onDragEnd reads `drag` state which
+          // has changed since handleMouseDown captured it. The ref always points
+          // to the latest onDragEnd from the most recent render.
+          setTimeout(() => onDragEndRef.current(), 0);
         }
         // If no movement in resize mode, just stay in resize mode (no-op)
       };
@@ -1491,7 +1502,7 @@ const DayColumn = React.memo(function DayColumn({
 
     // ── Not in resize mode: click shows action bubble (via onClick handler) ──
     // Don't start drag — let the click event fire naturally to trigger onEventTap
-  }, [isMobile, detectEdge, getMinuteFromY, onDragStart, onDragUpdate, onDragEnd, onEventTap, resizeEventId]);
+  }, [isMobile, detectEdge, getMinuteFromY, onDragStart, onDragUpdate, onEventTap, resizeEventId]);
 
   // Click on empty space: single click exits resize mode, double-click creates event
   const lastTap = useRef<number>(0);
