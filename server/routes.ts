@@ -3407,11 +3407,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // All-day events use gEvent.start.date (e.g. "2026-03-12") with no time/timezone.
+        // new Date("2026-03-12") in JS = midnight UTC = previous day in US timezones.
+        // Fix: append T00:00:00 so JS treats it as local midnight, preserving the correct date.
+        const isAllDay = !gEvent.start?.dateTime && !!gEvent.start?.date;
+        let eventStart: string;
+        let eventEnd: string;
+        if (isAllDay) {
+          // gEvent.start.date = "YYYY-MM-DD" → append T00:00:00 for local-time parsing
+          eventStart = `${gEvent.start!.date}T00:00:00`;
+          eventEnd = gEvent.end?.date ? `${gEvent.end.date}T00:00:00` : eventStart;
+        } else {
+          eventStart = gEvent.start?.dateTime || gEvent.start?.date || '';
+          eventEnd = gEvent.end?.dateTime || gEvent.end?.date || '';
+        }
+
         events.push({
           id: `google-${gEvent.id}`,
           title: gEvent.summary || 'Untitled Event',
-          start: gEvent.start?.dateTime || gEvent.start?.date,
-          end: gEvent.end?.dateTime || gEvent.end?.date,
+          start: eventStart,
+          end: eventEnd,
           description: gEvent.description || '',
           completed: false,
           importance: 'Medium',
@@ -3422,7 +3437,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           calendarId: gEvent.calendarId,
           calendarName: gEvent.calendarName,
           calendarColor: gEvent.calendarBackgroundColor,
-          googleEventId: gEvent.id
+          googleEventId: gEvent.id,
+          allDay: isAllDay
         });
       }
 

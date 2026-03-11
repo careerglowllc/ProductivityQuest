@@ -55,6 +55,7 @@ interface CalendarEvent {
   calendarName?: string;
   recurType?: string;
   googleEventId?: string;
+  allDay?: boolean;
 }
 
 type ViewMode = "day" | "3day" | "week" | "month";
@@ -948,6 +949,36 @@ function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resi
         })}
       </div>
 
+      {/* All-day events banner */}
+      {(() => {
+        const hasAnyAllDay = dates.some((d) => getEventsForDate(allEvents, d).some((ev) => ev.allDay));
+        if (!hasAnyAllDay) return null;
+        return (
+          <div className="flex border-b border-purple-500/20 bg-gray-900/80">
+            <div style={{ width: timeLabelWidth, flexShrink: 0 }} className="flex items-center justify-end pr-1">
+              <span className="text-[9px] text-gray-500">all-day</span>
+            </div>
+            {dates.map((date, i) => {
+              const dayAllDay = getEventsForDate(allEvents, date).filter((ev) => ev.allDay);
+              return (
+                <div key={i} className="flex-1 border-l border-purple-500/10 p-0.5 min-h-[24px] flex flex-col gap-0.5">
+                  {dayAllDay.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="truncate rounded-sm px-1 py-0.5 text-[10px] leading-tight text-white cursor-pointer hover:brightness-110"
+                      style={{ backgroundColor: eventColor(ev) + "80" }}
+                      onClick={() => onEventTap(ev)}
+                    >
+                      {ev.title}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Time grid body */}
       <div className="flex relative" style={{ height: TOTAL_HEIGHT }}>
         <div style={{ width: timeLabelWidth, flexShrink: 0 }} className="relative">
@@ -957,13 +988,17 @@ function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resi
             </div>
           ))}
         </div>
-        {dates.map((date, colIdx) => (
-          <DayColumn key={`${date.toISOString()}-${colIdx}`} date={date} events={getEventsForDate(allEvents, date)}
-            isToday={sameDay(date, today)} isMobile={isMobile} numCols={numCols}
-            drag={drag} resizeEventId={resizeEventId}
-            onEventTap={onEventTap} onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onDragCancel={onDragCancel}
-            onEmptyTap={(minute) => onEmptyTap(date, minute)} />
-        ))}
+        {dates.map((date, colIdx) => {
+          // Filter out all-day events from the time grid — they're shown in the banner above
+          const timedEvents = getEventsForDate(allEvents, date).filter((ev) => !ev.allDay);
+          return (
+            <DayColumn key={`${date.toISOString()}-${colIdx}`} date={date} events={timedEvents}
+              isToday={sameDay(date, today)} isMobile={isMobile} numCols={numCols}
+              drag={drag} resizeEventId={resizeEventId}
+              onEventTap={onEventTap} onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onDragCancel={onDragCancel}
+              onEmptyTap={(minute) => onEmptyTap(date, minute)} />
+          );
+        })}
       </div>
       {/* Extra scroll space below end-of-day so bottom events aren't cropped */}
       <div style={{ height: 200 }} />
@@ -1884,7 +1919,11 @@ function EventDetailSheet({ event, isMobile, onClose, onDelete, onAdjust }: { ev
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <Clock className="w-4 h-4 text-purple-400" />
-            <span>{start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} {"\u00b7"} {formatTime(start)} {"\u2013"} {formatTime(end)}</span>
+            {event.allDay ? (
+              <span>{start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} {"\u00b7"} All Day</span>
+            ) : (
+              <span>{start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} {"\u00b7"} {formatTime(start)} {"\u2013"} {formatTime(end)}</span>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">{sourceLabel}</Badge>
