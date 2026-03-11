@@ -365,12 +365,13 @@ export default function Home() {
             duration: 10000,
           });
         }
-        queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
       }
       
       // Refresh data after backend completes
       refetchTasks();
       refetchProgress();
+      // Always sync questline status so the questlines page reflects completed stages
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
     } catch (error) {
       toast({
         title: "Error",
@@ -420,6 +421,7 @@ export default function Home() {
       
       // Refresh data after backend completes
       refetchTasks();
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
     } catch (error) {
       toast({
         title: "Error",
@@ -803,6 +805,7 @@ export default function Home() {
       refetchTasks();
       if (action.type === 'complete') {
         refetchProgress();
+        queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
       }
 
       toast({
