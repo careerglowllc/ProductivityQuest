@@ -788,7 +788,58 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 value={task.questlineId ? String(task.questlineId) : "none"}
                 onValueChange={(value) => {
                   const numVal = value === "none" ? null : parseInt(value);
-                  updateFieldMutation.mutate({ field: 'questlineId', value: numVal });
+                  if (numVal === null) {
+                    // Removing from questline — clear questline fields
+                    updateFieldMutation.mutate({ field: 'questlineId', value: null });
+                  } else {
+                    // Assigning to a questline — compute smart placement
+                    const ql = questlines.find((q) => q.id === numVal);
+                    const qlTasks = ql?.tasks || [];
+
+                    // Find insertion point: after the last "In Progress" or "Done" task
+                    let insertAfterOrder = 0;
+                    for (const t of qlTasks) {
+                      const order = (t as any).questlineOrder || 0;
+                      const isDone = (t as any).completed || (t as any).kanbanStage === "Done";
+                      const isInProgress = (t as any).kanbanStage === "In Progress" || (t as any).kanbanStage === "Review";
+                      if (isDone || isInProgress) {
+                        insertAfterOrder = Math.max(insertAfterOrder, order);
+                      }
+                    }
+
+                    // If nothing is in progress/done, place at the end
+                    if (insertAfterOrder === 0) {
+                      insertAfterOrder = qlTasks.reduce((max, t) => Math.max(max, (t as any).questlineOrder || 0), 0);
+                    }
+
+                    // Shift all tasks after the insertion point to make room
+                    const tasksToShift = qlTasks.filter((t) => ((t as any).questlineOrder || 0) > insertAfterOrder);
+                    tasksToShift.forEach((t) => {
+                      fetch(`/api/tasks/${t.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ questlineOrder: ((t as any).questlineOrder || 0) + 1 }),
+                      });
+                    });
+
+                    // Assign task to questline with smart order and In Progress status
+                    fetch(`/api/tasks/${task.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        questlineId: numVal,
+                        questlineOrder: insertAfterOrder + 1,
+                        kanbanStage: "In Progress",
+                        indentLevel: 0,
+                      }),
+                    }).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/questlines'] });
+                      toast({ title: "Added to Questline", description: `Placed as "In Progress" in ${ql?.title || 'questline'}` });
+                    });
+                  }
                 }}
               >
                 <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[180px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>

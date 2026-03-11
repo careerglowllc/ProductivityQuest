@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X } from "lucide-react";
+import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X, ArrowUp, ArrowDown } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -397,6 +397,44 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
     setEditingTaskId(null);
   };
 
+  // ── Reorder: swap two adjacent tasks by questlineOrder ──
+  const handleMoveTask = useCallback(async (taskId: number, direction: "up" | "down") => {
+    // Sort tasks by questlineOrder to find neighbours
+    const sorted = [...tasks].sort((a, b) => (a.questlineOrder || 0) - (b.questlineOrder || 0));
+    const idx = sorted.findIndex((t) => t.id === taskId);
+    if (idx === -1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+
+    const taskA = sorted[idx];
+    const taskB = sorted[swapIdx];
+    const orderA = taskA.questlineOrder || 0;
+    const orderB = taskB.questlineOrder || 0;
+
+    // Optimistic update
+    queryClient.setQueryData<QuestlineData[]>(["/api/questlines"], (old) => {
+      if (!old) return old;
+      return old.map((ql) => {
+        if (ql.id !== questline.id) return ql;
+        return {
+          ...ql,
+          tasks: ql.tasks.map((t) => {
+            if (t.id === taskA.id) return { ...t, questlineOrder: orderB };
+            if (t.id === taskB.id) return { ...t, questlineOrder: orderA };
+            return t;
+          }).sort((a, b) => (a.questlineOrder || 0) - (b.questlineOrder || 0)),
+        };
+      });
+    });
+
+    // Persist to server
+    await Promise.all([
+      apiRequest("PATCH", `/api/tasks/${taskA.id}`, { questlineOrder: orderB }),
+      apiRequest("PATCH", `/api/tasks/${taskB.id}`, { questlineOrder: orderA }),
+    ]);
+    queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+  }, [tasks, questline.id, queryClient]);
+
   // ── Kanban status toggle mutation ──
   const updateKanbanStatus = useMutation({
     mutationFn: async ({ taskId, newStatus }: { taskId: number; newStatus: KanbanStatus }) => {
@@ -585,7 +623,7 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
             {isEditing && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-purple-500/10 border border-purple-500/20 mb-2">
                 <Pencil className="w-3 h-3 text-purple-400" />
-                <span className="text-[11px] text-purple-300/70">Click any stage to edit its title and gold value</span>
+                <span className="text-[11px] text-purple-300/70">Click any stage to edit · Use arrows to reorder</span>
               </div>
             )}
             {tasks.map((task, idx) => {
@@ -681,6 +719,26 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                       }`}>
                         🪙 {task.goldValue}
                       </span>
+                      {isEditing && (
+                        <div className="flex flex-col shrink-0 -my-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleMoveTask(task.id, "up")}
+                            disabled={idx === 0}
+                            className="p-0 text-purple-400/50 hover:text-purple-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                            title="Move up"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleMoveTask(task.id, "down")}
+                            disabled={idx === tasks.length - 1}
+                            className="p-0 text-purple-400/50 hover:text-purple-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                            title="Move down"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
