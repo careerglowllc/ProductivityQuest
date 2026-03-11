@@ -596,14 +596,14 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                 </span>
                 <button
                   onClick={startEditing}
-                  className="p-1 text-purple-400/40 hover:text-purple-300 transition-colors"
+                  className="p-1.5 rounded-md bg-purple-500/15 text-purple-300 hover:bg-purple-500/30 hover:text-purple-200 transition-colors"
                   title="Edit questline"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                  className="p-1 text-red-400/40 hover:text-red-400 transition-colors"
+                  className="p-1.5 rounded-md bg-red-500/15 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
