@@ -79,6 +79,27 @@ export default {
             height: "0",
           },
         },
+        kanbanCheckPop: {
+          "0%": { transform: "scale(0.5)", opacity: "0" },
+          "60%": { transform: "scale(1.15)" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        kanbanCheckFill: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        kanbanCheckDraw: {
+          "0%": { strokeDashoffset: "20" },
+          "100%": { strokeDashoffset: "0" },
+        },
+        kanbanSpin: {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
+        kanbanPulse: {
+          "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.25)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
