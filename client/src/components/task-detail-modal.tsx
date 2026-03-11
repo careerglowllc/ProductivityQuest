@@ -22,7 +22,8 @@ import {
   Flag,
   Edit2,
   Check,
-  X
+  X,
+  Target
 } from "lucide-react";
 import { format } from "date-fns";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -54,11 +55,25 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch questlines for the dropdown
-  const { data: questlines = [] } = useQuery<{ id: number; title: string; icon: string | null }[]>({
+  // Fetch questlines for the dropdown and stage resolution
+  const { data: questlines = [] } = useQuery<{
+    id: number;
+    title: string;
+    icon: string | null;
+    tasks: { id: number; title: string; parentTaskId: number | null }[];
+  }[]>({
     queryKey: ["/api/questlines"],
     enabled: open,
   });
+
+  // Resolve the parent stage name for this task (if it belongs to a questline and has a parent)
+  const parentStageName = (() => {
+    if (!task?.questlineId || !task?.parentTaskId) return null;
+    const ql = questlines.find((q) => q.id === task.questlineId);
+    if (!ql?.tasks) return null;
+    const parent = ql.tasks.find((t) => t.id === task.parentTaskId);
+    return parent?.title ?? null;
+  })();
 
   // Sync local state when task prop changes (e.g. switching between tasks)
   // But DON'T overwrite while user is actively editing details/title
@@ -789,6 +804,19 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Stage (shown when task belongs to a questline and has a parent stage) */}
+            {parentStageName && (
+              <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-purple-600/20`}>
+                <div className="flex items-center gap-2 text-purple-400">
+                  <Target className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Stage</span>
+                </div>
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-purple-200/80 truncate ${isMobile ? '' : 'max-w-[180px]'}`}>
+                  {parentStageName}
+                </span>
+              </div>
+            )}
 
             {/* Business/Work Filter */}
             <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
