@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock } from "lucide-react";
+import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -318,6 +319,84 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
   const isComplete = questline.completed;
   const allDone = completedTasks.length === totalTasks && totalTasks > 0;
 
+  // ── Edit mode state ──
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(questline.title);
+  const [editDesc, setEditDesc] = useState(questline.description || "");
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState("");
+  const [editTaskGold, setEditTaskGold] = useState("");
+  const taskTitleRef = useRef<HTMLInputElement>(null);
+
+  // ── Questline header update mutation ──
+  const updateQuestline = useMutation({
+    mutationFn: async (updates: { title?: string; description?: string; icon?: string }) => {
+      return apiRequest("PATCH", `/api/questlines/${questline.id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update questline.", variant: "destructive" });
+    },
+  });
+
+  // ── Task field update mutation ──
+  const updateTask = useMutation({
+    mutationFn: async ({ taskId, updates }: { taskId: number; updates: Record<string, unknown> }) => {
+      return apiRequest("PATCH", `/api/tasks/${taskId}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update task.", variant: "destructive" });
+    },
+  });
+
+  const startEditing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditTitle(questline.title);
+    setEditDesc(questline.description || "");
+    setIsEditing(true);
+    // Also expand the card so stages are visible for editing
+    if (!expanded) onToggleExpand();
+  };
+
+  const saveQuestlineEdits = () => {
+    const updates: Record<string, string> = {};
+    if (editTitle.trim() && editTitle !== questline.title) updates.title = editTitle.trim();
+    if (editDesc !== (questline.description || "")) updates.description = editDesc;
+    if (Object.keys(updates).length > 0) updateQuestline.mutate(updates);
+    setIsEditing(false);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditingTaskId(null);
+  };
+
+  const startEditingTask = (e: React.MouseEvent, task: QuestlineTask) => {
+    if (!isEditing) return;
+    e.stopPropagation();
+    setEditingTaskId(task.id);
+    setEditTaskTitle(task.title);
+    setEditTaskGold(String(task.goldValue || 0));
+    setTimeout(() => taskTitleRef.current?.focus(), 50);
+  };
+
+  const saveTaskEdits = (taskId: number) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const updates: Record<string, unknown> = {};
+    if (editTaskTitle.trim() && editTaskTitle !== task.title) updates.title = editTaskTitle.trim();
+    const goldNum = parseInt(editTaskGold);
+    if (!isNaN(goldNum) && goldNum !== task.goldValue) updates.goldValue = goldNum;
+    if (Object.keys(updates).length > 0) updateTask.mutate({ taskId, updates });
+    setEditingTaskId(null);
+  };
+
   // ── Kanban status toggle mutation ──
   const updateKanbanStatus = useMutation({
     mutationFn: async ({ taskId, newStatus }: { taskId: number; newStatus: KanbanStatus }) => {
@@ -420,35 +499,82 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
 
       <CardContent className={isMobile ? "p-3" : "p-5"}>
         {/* Header row */}
-        <div className="flex items-start gap-3 cursor-pointer" onClick={onToggleExpand}>
+        <div className="flex items-start gap-3 cursor-pointer" onClick={isEditing ? undefined : onToggleExpand}>
           <span className={isMobile ? "text-xl" : "text-2xl"}>{questline.icon || "⚔️"}</span>
           <div className="flex-1 min-w-0">
-            <h3 className={`${isMobile ? "text-sm" : "text-lg"} font-serif font-bold ${isComplete ? "text-green-200" : "text-purple-100"}`}>
-              {questline.title}
-              {isComplete && <span className="ml-2 text-green-400">✓</span>}
-            </h3>
-            {questline.description && (
-              <p className={`${isMobile ? "text-xs" : "text-sm"} ${isComplete ? "text-green-300/50" : "text-purple-300/60"} line-clamp-1`}>
-                {questline.description}
-              </p>
+            {isEditing ? (
+              <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="bg-slate-900/60 border-purple-500/40 text-purple-100 font-serif font-bold h-8 text-sm"
+                  placeholder="Questline title"
+                />
+                <Input
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="bg-slate-900/60 border-purple-500/30 text-purple-300/70 h-7 text-xs"
+                  placeholder="Description (optional)"
+                />
+              </div>
+            ) : (
+              <>
+                <h3 className={`${isMobile ? "text-sm" : "text-lg"} font-serif font-bold ${isComplete ? "text-green-200" : "text-purple-100"}`}>
+                  {questline.title}
+                  {isComplete && <span className="ml-2 text-green-400">✓</span>}
+                </h3>
+                {questline.description && (
+                  <p className={`${isMobile ? "text-xs" : "text-sm"} ${isComplete ? "text-green-300/50" : "text-purple-300/60"} line-clamp-1`}>
+                    {questline.description}
+                  </p>
+                )}
+              </>
             )}
           </div>
 
           {/* Progress + actions */}
           <div className="flex items-center gap-2 shrink-0">
-            <span className={`${isMobile ? "text-sm" : "text-lg"} font-bold ${isComplete ? "text-green-300" : "text-purple-200"}`}>
-              {completedTasks.length}/{totalTasks}
-            </span>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1 text-red-400/40 hover:text-red-400 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-            {expanded ? (
-              <ChevronUp className={`w-4 h-4 ${isComplete ? "text-green-400/50" : "text-purple-400/50"}`} />
+            {isEditing ? (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); saveQuestlineEdits(); }}
+                  className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                  title="Save"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); cancelEditing(); }}
+                  className="p-1 text-red-400/60 hover:text-red-400 transition-colors"
+                  title="Cancel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </>
             ) : (
-              <ChevronDown className={`w-4 h-4 ${isComplete ? "text-green-400/50" : "text-purple-400/50"}`} />
+              <>
+                <span className={`${isMobile ? "text-sm" : "text-lg"} font-bold ${isComplete ? "text-green-300" : "text-purple-200"}`}>
+                  {completedTasks.length}/{totalTasks}
+                </span>
+                <button
+                  onClick={startEditing}
+                  className="p-1 text-purple-400/40 hover:text-purple-300 transition-colors"
+                  title="Edit questline"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  className="p-1 text-red-400/40 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+                {expanded ? (
+                  <ChevronUp className={`w-4 h-4 ${isComplete ? "text-green-400/50" : "text-purple-400/50"}`} />
+                ) : (
+                  <ChevronDown className={`w-4 h-4 ${isComplete ? "text-green-400/50" : "text-purple-400/50"}`} />
+                )}
+              </>
             )}
           </div>
         </div>
@@ -456,6 +582,12 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
         {/* Expanded: stages list */}
         {expanded && (
           <div className={`${isMobile ? "mt-3" : "mt-4"} space-y-1`}>
+            {isEditing && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-purple-500/10 border border-purple-500/20 mb-2">
+                <Pencil className="w-3 h-3 text-purple-400" />
+                <span className="text-[11px] text-purple-300/70">Click any stage to edit its title and gold value</span>
+              </div>
+            )}
             {tasks.map((task, idx) => {
               const indent = task.indentLevel || 0;
               const status = getEffectiveStatus(task);
@@ -498,25 +630,59 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                       L{indent}
                     </span>
                   )}
-                  <span className={`flex-1 ${isMobile ? "text-xs" : "text-sm"} truncate transition-all ${
-                    status === "Done"
-                      ? "text-green-300 line-through opacity-60"
-                      : status === "In Progress"
-                      ? "text-purple-200"
-                      : "text-slate-300"
-                  }`}>
-                    {task.title}
-                  </span>
-                  {status === "In Progress" && (
-                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 shrink-0">
-                      Active
-                    </span>
+                  {isEditing && editingTaskId === task.id ? (
+                    <>
+                      <Input
+                        ref={taskTitleRef}
+                        value={editTaskTitle}
+                        onChange={(e) => setEditTaskTitle(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") saveTaskEdits(task.id); if (e.key === "Escape") setEditingTaskId(null); }}
+                        className="flex-1 bg-slate-900/60 border-purple-500/40 text-purple-100 h-7 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-yellow-400/50 text-[10px]">🪙</span>
+                        <Input
+                          value={editTaskGold}
+                          onChange={(e) => setEditTaskGold(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") saveTaskEdits(task.id); if (e.key === "Escape") setEditingTaskId(null); }}
+                          className="w-14 bg-slate-900/60 border-yellow-600/30 text-yellow-200 h-7 text-xs text-center"
+                          type="number"
+                        />
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); saveTaskEdits(task.id); }} className="p-0.5 text-green-400 hover:text-green-300">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setEditingTaskId(null); }} className="p-0.5 text-red-400/60 hover:text-red-400">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        className={`flex-1 ${isMobile ? "text-xs" : "text-sm"} truncate transition-all ${
+                          status === "Done"
+                            ? "text-green-300 line-through opacity-60"
+                            : status === "In Progress"
+                            ? "text-purple-200"
+                            : "text-slate-300"
+                        } ${isEditing ? "cursor-pointer hover:text-purple-200" : ""}`}
+                        onClick={(e) => startEditingTask(e, task)}
+                      >
+                        {task.title}
+                      </span>
+                      {status === "In Progress" && (
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 shrink-0">
+                          Active
+                        </span>
+                      )}
+                      <span className={`${isMobile ? "text-[10px]" : "text-xs"} shrink-0 ${
+                        status === "Done" ? "text-green-400/40" : "text-yellow-400/50"
+                      }`}>
+                        🪙 {task.goldValue}
+                      </span>
+                    </>
                   )}
-                  <span className={`${isMobile ? "text-[10px]" : "text-xs"} shrink-0 ${
-                    status === "Done" ? "text-green-400/40" : "text-yellow-400/50"
-                  }`}>
-                    🪙 {task.goldValue}
-                  </span>
                 </div>
               );
             })}
