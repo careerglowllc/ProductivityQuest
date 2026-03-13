@@ -1,10 +1,10 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X, GripVertical } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -397,43 +397,115 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
     setEditingTaskId(null);
   };
 
-  // ── Reorder: swap two adjacent tasks by questlineOrder ──
-  const handleMoveTask = useCallback(async (taskId: number, direction: "up" | "down") => {
-    // Sort tasks by questlineOrder to find neighbours
-    const sorted = [...tasks].sort((a, b) => (a.questlineOrder || 0) - (b.questlineOrder || 0));
-    const idx = sorted.findIndex((t) => t.id === taskId);
-    if (idx === -1) return;
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+  // ── Drag-and-drop reorder state ──
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
+  const [dropIndent, setDropIndent] = useState<number>(0);
+  const dragStartX = useRef<number>(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
-    const taskA = sorted[idx];
-    const taskB = sorted[swapIdx];
-    const orderA = taskA.questlineOrder || 0;
-    const orderB = taskB.questlineOrder || 0;
+  const handleDragStart = useCallback((e: React.DragEvent, task: QuestlineTask) => {
+    setDragId(task.id);
+    dragStartX.current = e.clientX;
+    e.dataTransfer.effectAllowed = "move";
+    // Make the drag image semi-transparent
+    const el = e.currentTarget as HTMLElement;
+    e.dataTransfer.setDragImage(el, 20, 20);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number, currentIndent: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTargetIdx(idx);
+    // Horizontal offset from drag start determines indent change
+    const dx = e.clientX - dragStartX.current;
+    const indentStep = isMobile ? 12 : 16;
+    const rawIndent = currentIndent + Math.round(dx / (indentStep * 3));
+    setDropIndent(Math.max(0, Math.min(4, rawIndent)));
+  }, [isMobile]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDropTargetIdx(null);
+    setDropIndent(0);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (dragId === null) return;
+
+    const sorted = [...tasks].sort((a, b) => (a.questlineOrder || 0) - (b.questlineOrder || 0));
+    const dragIdx = sorted.findIndex((t) => t.id === dragId);
+    if (dragIdx === -1 || dragIdx === targetIdx) {
+      handleDragEnd();
+      return;
+    }
+
+    // Calculate new indent from horizontal offset
+    const draggedTask = sorted[dragIdx];
+    const dx = e.clientX - dragStartX.current;
+    const indentStep = isMobile ? 12 : 16;
+    const newIndent = Math.max(0, Math.min(4, (draggedTask.indentLevel || 0) + Math.round(dx / (indentStep * 3))));
+
+    // Figure out parentTaskId based on new indent:
+    // Walk backwards from the target position to find the nearest task with indent < newIndent
+    let newParentId: number | null = null;
+    const insertPos = targetIdx > dragIdx ? targetIdx : targetIdx; // where it will be after removal
+    // Build the new order by removing dragged and inserting at target
+    const withoutDragged = sorted.filter((_, i) => i !== dragIdx);
+    const adjustedInsertIdx = targetIdx > dragIdx ? targetIdx - 1 : targetIdx;
+    const newList = [
+      ...withoutDragged.slice(0, adjustedInsertIdx),
+      draggedTask,
+      ...withoutDragged.slice(adjustedInsertIdx),
+    ];
+
+    // Find parent: nearest preceding task with indent strictly less than newIndent
+    const myPos = newList.findIndex((t) => t.id === dragId);
+    if (newIndent > 0) {
+      for (let i = myPos - 1; i >= 0; i--) {
+        if ((newList[i].indentLevel || 0) < newIndent) {
+          newParentId = newList[i].id;
+          break;
+        }
+      }
+    }
 
     // Optimistic update
+    const updatedTasks = newList.map((t, i) => ({
+      ...t,
+      questlineOrder: i + 1,
+      ...(t.id === dragId ? { indentLevel: newIndent, parentTaskId: newParentId } : {}),
+    }));
+
     queryClient.setQueryData<QuestlineData[]>(["/api/questlines"], (old) => {
       if (!old) return old;
       return old.map((ql) => {
         if (ql.id !== questline.id) return ql;
-        return {
-          ...ql,
-          tasks: ql.tasks.map((t) => {
-            if (t.id === taskA.id) return { ...t, questlineOrder: orderB };
-            if (t.id === taskB.id) return { ...t, questlineOrder: orderA };
-            return t;
-          }).sort((a, b) => (a.questlineOrder || 0) - (b.questlineOrder || 0)),
-        };
+        return { ...ql, tasks: updatedTasks };
       });
     });
 
-    // Persist to server
-    await Promise.all([
-      apiRequest("PATCH", `/api/tasks/${taskA.id}`, { questlineOrder: orderB }),
-      apiRequest("PATCH", `/api/tasks/${taskB.id}`, { questlineOrder: orderA }),
-    ]);
+    handleDragEnd();
+
+    // Persist: update all reordered tasks + the dragged task's indent/parent
+    const patchPromises: Promise<any>[] = [];
+    for (const t of updatedTasks) {
+      const original = tasks.find((o) => o.id === t.id);
+      const updates: Record<string, unknown> = {};
+      if ((original?.questlineOrder || 0) !== t.questlineOrder) updates.questlineOrder = t.questlineOrder;
+      if (t.id === dragId) {
+        if ((original?.indentLevel || 0) !== newIndent) updates.indentLevel = newIndent;
+        if (original?.parentTaskId !== newParentId) updates.parentTaskId = newParentId;
+      }
+      if (Object.keys(updates).length > 0) {
+        patchPromises.push(apiRequest("PATCH", `/api/tasks/${t.id}`, updates));
+      }
+    }
+    await Promise.all(patchPromises);
     queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
-  }, [tasks, questline.id, queryClient]);
+    queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+  }, [dragId, tasks, questline.id, queryClient, isMobile, handleDragEnd]);
 
   // ── Kanban status toggle mutation ──
   const updateKanbanStatus = useMutation({
@@ -619,30 +691,49 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
 
         {/* Expanded: stages list */}
         {expanded && (
-          <div className={`${isMobile ? "mt-3" : "mt-4"} space-y-1`}>
+          <div ref={listRef} className={`${isMobile ? "mt-3" : "mt-4"} space-y-1`}>
             {isEditing && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-purple-500/10 border border-purple-500/20 mb-2">
-                <Pencil className="w-3 h-3 text-purple-400" />
-                <span className="text-[11px] text-purple-300/70">Click any stage to edit · Use arrows to reorder</span>
+                <GripVertical className="w-3 h-3 text-purple-400" />
+                <span className="text-[11px] text-purple-300/70">Drag to reorder · Drag left/right to change nesting · Click to edit</span>
               </div>
             )}
             {tasks.map((task, idx) => {
               const indent = task.indentLevel || 0;
               const status = getEffectiveStatus(task);
               const depthColor = indent === 0 ? "border-l-purple-500/40" : indent === 1 ? "border-l-blue-500/30" : indent === 2 ? "border-l-cyan-500/30" : indent === 3 ? "border-l-teal-500/25" : "border-l-slate-500/20";
+              const isDragging = dragId === task.id;
+              const isDropTarget = dropTargetIdx === idx && dragId !== null && dragId !== task.id;
 
               return (
-                <div
-                  key={task.id}
-                  className={`flex items-center ${isMobile ? "gap-2 py-1.5 px-2" : "gap-2.5 py-1.5 px-3"} rounded transition-colors ${
-                    status === "Done"
-                      ? "bg-green-950/30"
-                      : status === "In Progress"
-                      ? "bg-purple-950/30"
-                      : "bg-slate-900/40"
-                  } ${indent > 0 ? `border-l-2 ${depthColor}` : ""}`}
-                  style={{ marginLeft: `${indent * (isMobile ? 12 : 16)}px` }}
-                >
+                <div key={task.id}>
+                  {/* Drop indicator line */}
+                  {isDropTarget && (
+                    <div
+                      className="h-0.5 bg-purple-400 rounded-full my-0.5 transition-all"
+                      style={{ marginLeft: `${dropIndent * (isMobile ? 12 : 16)}px` }}
+                    />
+                  )}
+                  <div
+                    draggable={isEditing && editingTaskId !== task.id}
+                    onDragStart={(e) => handleDragStart(e, task)}
+                    onDragOver={(e) => handleDragOver(e, idx, indent)}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    className={`flex items-center ${isMobile ? "gap-2 py-1.5 px-2" : "gap-2.5 py-1.5 px-3"} rounded transition-all ${
+                      isDragging
+                        ? "opacity-40 scale-95 bg-purple-500/20 border border-purple-400/40 border-dashed"
+                        : status === "Done"
+                        ? "bg-green-950/30"
+                        : status === "In Progress"
+                        ? "bg-purple-950/30"
+                        : "bg-slate-900/40"
+                    } ${indent > 0 ? `border-l-2 ${depthColor}` : ""}`}
+                    style={{ marginLeft: `${indent * (isMobile ? 12 : 16)}px` }}
+                  >
+                  {isEditing && editingTaskId !== task.id && (
+                    <GripVertical className="w-3.5 h-3.5 text-purple-400/40 cursor-grab active:cursor-grabbing shrink-0" />
+                  )}
                   <KanbanStatusIcon
                     status={status}
                     size={isMobile ? 14 : 16}
@@ -719,28 +810,9 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                       }`}>
                         🪙 {task.goldValue}
                       </span>
-                      {isEditing && (
-                        <div className="flex flex-col shrink-0 -my-1" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => handleMoveTask(task.id, "up")}
-                            disabled={idx === 0}
-                            className="p-0 text-purple-400/50 hover:text-purple-300 disabled:opacity-20 disabled:cursor-not-allowed"
-                            title="Move up"
-                          >
-                            <ArrowUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleMoveTask(task.id, "down")}
-                            disabled={idx === tasks.length - 1}
-                            className="p-0 text-purple-400/50 hover:text-purple-300 disabled:opacity-20 disabled:cursor-not-allowed"
-                            title="Move down"
-                          >
-                            <ArrowDown className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
                     </>
                   )}
+                  </div>
                 </div>
               );
             })}
