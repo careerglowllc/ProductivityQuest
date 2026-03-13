@@ -75,7 +75,7 @@ export default function CampaignsPage() {
       if (data.bonusAwarded && data.bonusGold > 0) {
         toast({
           title: "🏆 Questline Complete!",
-          description: `3× bonus awarded: 🪙 ${data.bonusGold} gold and ${data.bonusXp} XP!`,
+          description: `Cascading bonus awarded: 🪙 ${data.bonusGold} gold and ${data.bonusXp} XP!`,
         });
       }
     },
@@ -107,7 +107,7 @@ export default function CampaignsPage() {
           </div>
           {!isMobile && (
             <p className="text-purple-300/70 text-lg">
-              Multi-stage quest chains. Complete all stages to earn a 3× gold &amp; XP bonus!
+              Multi-stage quest chains. Stages earn 2× sub-quest gold, completion earns 2× total!
             </p>
           )}
         </div>
@@ -315,9 +315,49 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
   const totalTasks = tasks.length;
   const progress = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
   const totalGold = tasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
-  const bonusGold = totalGold * 3;
   const isComplete = questline.completed;
   const allDone = completedTasks.length === totalTasks && totalTasks > 0;
+
+  // ── Cascading bonus calculation ──
+  // Stages (indent 0 with children) earn 2× rollup of their sub-quests
+  // Questline completion earns 2× the sum of all stage-level totals
+  const sortedTasks = [...tasks].sort((a, b) => (a.questlineOrder || 0) - (b.questlineOrder || 0));
+
+  // Build parent→children map
+  const childrenOf = new Map<number, QuestlineTask[]>();
+  const topLevel: QuestlineTask[] = [];
+  for (const t of sortedTasks) {
+    if (t.parentTaskId) {
+      const arr = childrenOf.get(t.parentTaskId) || [];
+      arr.push(t);
+      childrenOf.set(t.parentTaskId, arr);
+    } else {
+      topLevel.push(t);
+    }
+  }
+
+  // Recursive function to compute total gold including bonuses for a task subtree
+  const computeSubtreeGold = (task: QuestlineTask): number => {
+    const children = childrenOf.get(task.id) || [];
+    if (children.length === 0) return task.goldValue || 0; // leaf quest: base gold only
+    const childrenTotal = children.reduce((sum, c) => sum + computeSubtreeGold(c), 0);
+    return (task.goldValue || 0) + childrenTotal + childrenTotal * 2; // base + children + 2× bonus
+  };
+
+  // Stage bonuses: sum of 2× children gold for each stage that has children
+  const stageBonusGold = sortedTasks
+    .filter(t => (childrenOf.get(t.id) || []).length > 0)
+    .reduce((sum, stage) => {
+      const childGold = (childrenOf.get(stage.id) || []).reduce((s, c) => s + computeSubtreeGold(c), 0);
+      return sum + childGold * 2;
+    }, 0);
+
+  // Questline completion bonus: 2× the sum of all top-level subtree totals
+  const allStagesTotal = topLevel.reduce((sum, t) => sum + computeSubtreeGold(t), 0);
+  const questlineBonusGold = allStagesTotal * 2;
+
+  // Grand total bonus = stage bonuses + questline completion bonus
+  const bonusGold = stageBonusGold + questlineBonusGold;
 
   // ── Edit mode state ──
   const [isEditing, setIsEditing] = useState(false);
@@ -817,10 +857,10 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
               );
             })}
 
-            {/* Bonus info */}
+            {/* Bonus breakdown */}
             <div className={`${isMobile ? "mt-2 p-2" : "mt-3 p-3"} rounded-lg border ${
               isComplete ? "bg-green-950/30 border-green-500/20" : "bg-purple-950/30 border-purple-500/20"
-            }`}>
+            } space-y-1.5`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Gift className={`${isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} ${isComplete ? "text-green-400" : "text-purple-400"}`} />
@@ -829,8 +869,25 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                   </span>
                 </div>
                 <span className={`${isMobile ? "text-xs" : "text-sm"} font-bold text-yellow-300`}>
-                  🪙 {bonusGold} (3×)
+                  🪙 {bonusGold} bonus
                 </span>
+              </div>
+              {/* Breakdown rows */}
+              <div className="space-y-0.5">
+                <div className="flex justify-between text-[10px] text-slate-400">
+                  <span>Base quest gold</span>
+                  <span className="text-yellow-400/60">🪙 {totalGold}</span>
+                </div>
+                {stageBonusGold > 0 && (
+                  <div className="flex justify-between text-[10px] text-blue-300/70">
+                    <span>Stage bonuses (2× sub-quests)</span>
+                    <span>+🪙 {stageBonusGold}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-[10px] text-purple-300/70">
+                  <span>Questline bonus (2× total)</span>
+                  <span>+🪙 {questlineBonusGold}</span>
+                </div>
               </div>
               {!isComplete && allDone && !questline.bonusAwarded && (
                 <Button
@@ -844,7 +901,7 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                   ) : (
                     <Trophy className="h-4 w-4 mr-1" />
                   )}
-                  Claim 3× Bonus!
+                  Claim Bonus!
                 </Button>
               )}
             </div>

@@ -4411,23 +4411,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allCompleted = qlTasks.every(t => t.completed || t.recycled);
       if (!allCompleted) return res.json({ completed: false, bonusAwarded: false, progress: qlTasks.filter(t => t.completed || t.recycled).length, total: qlTasks.length });
 
-      // All tasks completed! Award 3× bonus
-      const totalGold = qlTasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
-      const bonusGold = totalGold * 3;
+      // ── Cascading bonus: stages earn 2× sub-quest rollup, questline earns 2× total ──
+      // Build parent→children map
+      const childrenOf = new Map<number, typeof qlTasks>();
+      const topLevel: typeof qlTasks = [];
+      for (const t of qlTasks) {
+        if (t.parentTaskId) {
+          const arr = childrenOf.get(t.parentTaskId) || [];
+          arr.push(t);
+          childrenOf.set(t.parentTaskId, arr);
+        } else {
+          topLevel.push(t);
+        }
+      }
+
+      // Recursive: compute subtree gold for a task (base + children + 2× children bonus if has children)
+      const computeSubtreeGold = (task: typeof qlTasks[0]): number => {
+        const children = childrenOf.get(task.id) || [];
+        if (children.length === 0) return task.goldValue || 0;
+        const childrenTotal = children.reduce((sum: number, c) => sum + computeSubtreeGold(c), 0);
+        return (task.goldValue || 0) + childrenTotal + childrenTotal * 2; // base + children + 2× stage bonus
+      };
+
+      // Stage bonuses: 2× children gold for stages with children
+      const stageBonusGold = qlTasks
+        .filter(t => (childrenOf.get(t.id) || []).length > 0)
+        .reduce((sum: number, stage) => {
+          const childGold = (childrenOf.get(stage.id) || []).reduce((s: number, c) => s + computeSubtreeGold(c), 0);
+          return sum + childGold * 2;
+        }, 0);
+
+      // Questline bonus: 2× total of all top-level subtree totals
+      const allStagesTotal = topLevel.reduce((sum: number, t) => sum + computeSubtreeGold(t), 0);
+      const questlineBonusGold = allStagesTotal * 2;
+
+      const bonusGold = stageBonusGold + questlineBonusGold;
 
       // Award bonus gold
       await storage.addGold(userId, bonusGold);
 
-      // Award bonus XP across all skills from all tasks (3× multiplier)
+      // Award bonus XP with same cascading multiplier
       const { calculateXPPerSkill } = await import("./xpCalculation");
       let totalBonusXp = 0;
+
+      // Recursive: compute XP multiplier for a task based on hierarchy depth
+      // Leaf tasks get base XP, stages get 2× child XP bonus, questline gets 2× total bonus
+      const computeSubtreeXpMultiplier = (task: typeof qlTasks[0]): number => {
+        const children = childrenOf.get(task.id) || [];
+        if (children.length === 0) return 1; // leaf: base multiplier
+        return 1 + 2; // has children: base + 2× bonus
+      };
+
+      // Award stage bonuses: for each stage with children, award 2× of children's XP
+      for (const task of qlTasks) {
+        const children = childrenOf.get(task.id) || [];
+        if (children.length > 0) {
+          // Award 2× of children's XP to skills of this stage
+          for (const child of children) {
+            if (child.skillTags && child.skillTags.length > 0) {
+              const xpPerSkill = calculateXPPerSkill(child.importance, child.duration, child.skillTags.length);
+              const bonusXp = xpPerSkill * 2;
+              totalBonusXp += bonusXp * child.skillTags.length;
+              for (const skillName of child.skillTags) {
+                await storage.addSkillXp(userId, skillName, bonusXp);
+              }
+            }
+          }
+        }
+      }
+
+      // Award questline completion bonus: 2× all task XP
       for (const task of qlTasks) {
         if (task.skillTags && task.skillTags.length > 0) {
           const xpPerSkill = calculateXPPerSkill(task.importance, task.duration, task.skillTags.length);
-          const bonusXpPerSkill = xpPerSkill * 3;
-          totalBonusXp += bonusXpPerSkill * task.skillTags.length;
+          const bonusXp = xpPerSkill * 2;
+          totalBonusXp += bonusXp * task.skillTags.length;
           for (const skillName of task.skillTags) {
-            await storage.addSkillXp(userId, skillName, bonusXpPerSkill);
+            await storage.addSkillXp(userId, skillName, bonusXp);
           }
         }
       }

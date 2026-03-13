@@ -884,6 +884,7 @@ export default function CalendarPage() {
           tapY={tapPosition.y}
           onView={() => { setSelectedEvent(tappedEvent); setTappedEvent(null); setTapPosition(null); }}
           onAdjust={() => { setResizeEventId(tappedEvent.id); setTappedEvent(null); setTapPosition(null); }}
+          onDelete={() => { handleDeleteEvent(tappedEvent); setTappedEvent(null); setTapPosition(null); }}
           onDismiss={() => { setTappedEvent(null); setTapPosition(null); }}
         />
       )}
@@ -1666,18 +1667,21 @@ const DayColumn = React.memo(function DayColumn({
 //  EventActionBubble — speech bubble submenu near the tapped event
 // ═══════════════════════════════════════════════════════════════════════
 
-function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
+function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDelete, onDismiss }: {
   event: CalendarEvent;
   tapX: number;
   tapY: number;
   onView: () => void;
   onAdjust: () => void;
+  onDelete: () => void;
   onDismiss: () => void;
 }) {
   const canAdjust = isDraggable(event);
+  const canDelete = isDraggable(event);
   const backdropRef = useRef<HTMLDivElement>(null);
   const viewBtnRef = useRef<HTMLButtonElement>(null);
   const adjustBtnRef = useRef<HTMLButtonElement>(null);
+  const deleteBtnRef = useRef<HTMLButtonElement>(null);
 
   // Find actual event element position for bubble alignment
   const [pos, setPos] = useState<{ top: number; left: number; right: number; centerY: number } | null>(null);
@@ -1693,8 +1697,8 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   }, [event.id, tapX, tapY]);
 
   // Callbacks in ref so native listeners always see fresh values
-  const cbRef = useRef({ onView, onAdjust, onDismiss });
-  cbRef.current = { onView, onAdjust, onDismiss };
+  const cbRef = useRef({ onView, onAdjust, onDelete, onDismiss });
+  cbRef.current = { onView, onAdjust, onDelete, onDismiss };
 
   // Native DOM listeners — no React synthetic events
   useEffect(() => {
@@ -1702,6 +1706,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
     const backdrop = backdropRef.current;
     const viewBtn = viewBtnRef.current;
     const adjustBtn = adjustBtnRef.current;
+    const deleteBtn = deleteBtnRef.current;
     if (!backdrop) return;
 
     let handled = false;
@@ -1722,6 +1727,14 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
       cbRef.current.onAdjust();
     };
 
+    const doDelete = (e: Event) => {
+      if (handled) return;
+      handled = true;
+      e.stopPropagation();
+      e.preventDefault();
+      cbRef.current.onDelete();
+    };
+
     const doDismiss = (e: Event) => {
       if (handled) return;
       handled = true;
@@ -1735,6 +1748,8 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
     viewBtn?.addEventListener("click", doView);
     adjustBtn?.addEventListener("touchstart", doAdjust, { passive: false });
     adjustBtn?.addEventListener("click", doAdjust);
+    deleteBtn?.addEventListener("touchstart", doDelete, { passive: false });
+    deleteBtn?.addEventListener("click", doDelete);
 
     // Backdrop dismiss: delayed so the originating tap doesn't dismiss immediately
     let dismissTimer: ReturnType<typeof setTimeout>;
@@ -1750,6 +1765,8 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
       viewBtn?.removeEventListener("click", doView);
       adjustBtn?.removeEventListener("touchstart", doAdjust);
       adjustBtn?.removeEventListener("click", doAdjust);
+      deleteBtn?.removeEventListener("touchstart", doDelete);
+      deleteBtn?.removeEventListener("click", doDelete);
       backdrop.removeEventListener("touchstart", doDismiss);
       backdrop.removeEventListener("click", doDismiss);
     };
@@ -1762,7 +1779,7 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
   const screenH = window.innerHeight;
   const onRightHalf = pos.right > screenW * 0.6;
 
-  const bubbleW = canAdjust ? 190 : 100;
+  const bubbleW = canAdjust ? (canDelete ? 260 : 190) : (canDelete ? 170 : 100);
   const bubbleH = 48;
   const arrowSize = 8;
   const gap = 6;
@@ -1812,6 +1829,19 @@ function EventActionBubble({ event, tapX, tapY, onView, onAdjust, onDismiss }: {
             >
               <SlidersHorizontal className="w-5 h-5 text-purple-300 pointer-events-none" />
               <span className="text-sm font-medium text-white pointer-events-none select-none">Adjust</span>
+            </button>
+          )}
+
+          {canDelete && <div className="w-px h-6 bg-purple-500/30" />}
+
+          {canDelete && (
+            <button
+              ref={deleteBtnRef}
+              type="button"
+              className="flex items-center gap-1 px-2.5 py-2.5 rounded-xl active:bg-red-500/30 transition-colors cursor-pointer select-none bg-transparent border-0 outline-none"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <Trash2 className="w-4.5 h-4.5 text-red-400 pointer-events-none" />
             </button>
           )}
         </div>
