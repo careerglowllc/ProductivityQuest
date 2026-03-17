@@ -88,7 +88,6 @@ export default function Home() {
   // Categorization adjustment state
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [lastCategorizedTasks, setLastCategorizedTasks] = useState<any[]>([]);
-  const [recategorizeQueue, setRecategorizeQueue] = useState<any[]>([]);
   
   // Mobile file menu state
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -625,24 +624,6 @@ export default function Home() {
         variant: "destructive",
       });
     }
-  };
-
-  const handleRecategorizeSelected = async () => {
-    if (selectedTasks.size === 0) return;
-
-    const selectedTaskIds = Array.from(selectedTasks);
-    const tasksToRecategorize = (tasks as any[]).filter((task: any) => 
-      selectedTaskIds.includes(task.id)
-    );
-    
-    if (tasksToRecategorize.length === 0) return;
-    
-    // Set up the queue for sequential recategorization
-    setRecategorizeQueue(tasksToRecategorize);
-    setShowAdjustModal(true);
-    
-    // Clear selection
-    setSelectedTasks(new Set());
   };
 
   const handleAddToCalendar = async (force = false) => {
@@ -2435,7 +2416,7 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* 3) Organize — dropdown: Categorize Skill, Recategorize */}
+                        {/* 3) Organize — dropdown: Categorize Skill */}
                         <div className="relative">
                           <Button 
                             onClick={() => { setShowOrganizeMenu(!showOrganizeMenu); setShowCalendarMenu(false); setShowMoreMenu(false); setShowPushSubmenu(false); }}
@@ -2453,10 +2434,6 @@ export default function Home() {
                                 <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-purple-200 hover:bg-slate-700 active:bg-slate-600"
                                   onClick={() => { setShowOrganizeMenu(false); handleCategorizeSkill(); }}>
                                   <Tag className="w-3.5 h-3.5" /> Categorize Skill
-                                </button>
-                                <button className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-xs text-yellow-300 hover:bg-slate-700 active:bg-slate-600"
-                                  onClick={() => { setShowOrganizeMenu(false); handleRecategorizeSelected(); }}>
-                                  <Tag className="w-3.5 h-3.5" /> Recategorize
                                 </button>
                               </div>
                             </>
@@ -2628,15 +2605,6 @@ export default function Home() {
                         >
                           <Tag className="w-4 h-4 mr-2" />
                           Categorize Skill
-                        </Button>
-                        <Button 
-                          onClick={handleRecategorizeSelected}
-                          variant="outline"
-                          className="border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/20 hover:text-yellow-200"
-                          disabled={selectedTasks.size === 0}
-                        >
-                          <Tag className="w-4 h-4 mr-2" />
-                          Recategorize
                         </Button>
                         <Popover open={showReschedulePopover} onOpenChange={setShowReschedulePopover}>
                           <PopoverTrigger asChild>
@@ -3130,15 +3098,10 @@ export default function Home() {
         open={showAdjustModal}
         onOpenChange={(open) => {
           setShowAdjustModal(open);
-          // Clear recategorize queue when modal closes
-          if (!open) {
-            setRecategorizeQueue([]);
-          }
         }}
-        tasks={recategorizeQueue.length > 0 ? recategorizeQueue : lastCategorizedTasks}
+        tasks={lastCategorizedTasks}
         onComplete={() => {
           refetchTasks();
-          setRecategorizeQueue([]);
         }}
       />
 

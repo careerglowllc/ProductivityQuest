@@ -264,11 +264,11 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                 
                 {task.importance && (
                   <span className="text-xs" title={task.importance}>
-                    {task.importance === "Pareto" ? "🔥" : 
-                     task.importance === "High" ? "🚨" : 
-                     task.importance === "Med-High" ? "⚠️" : 
-                     task.importance === "Medium" ? "📋" : 
-                     task.importance === "Med-Low" ? "📝" : "📄"}
+                    {task.importance === "Pareto" ? "�" : 
+                     task.importance === "High" ? "�" : 
+                     task.importance === "Med-High" ? "🟠" : 
+                     task.importance === "Medium" ? "�" : 
+                     task.importance === "Med-Low" ? "�" : "�"}
                   </span>
                 )}
               </div>
@@ -556,7 +556,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                 </div>
                 {task.importance && (
                   <div className="flex items-center gap-1.5">
-                    <span className="flex-shrink-0">{task.importance === "Pareto" ? "🔥" : task.importance === "High" ? "🚨" : task.importance === "Med-High" ? "⚠️" : task.importance === "Medium" ? "📋" : task.importance === "Med-Low" ? "📝" : "📄"}</span>
+                    <span className="flex-shrink-0">{task.importance === "Pareto" ? "�" : task.importance === "High" ? "�" : task.importance === "Med-High" ? "🟠" : task.importance === "Medium" ? "�" : task.importance === "Med-Low" ? "�" : "�"}</span>
                     <span className="whitespace-nowrap">{task.importance}</span>
                   </div>
                 )}

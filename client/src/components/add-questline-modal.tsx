@@ -594,12 +594,12 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-800 border-purple-500/40">
-                              <SelectItem value="Pareto">🔥 Pareto</SelectItem>
-                              <SelectItem value="High">🚨 High</SelectItem>
-                              <SelectItem value="Med-High">⚠️ Med-High</SelectItem>
-                              <SelectItem value="Medium">📋 Medium</SelectItem>
-                              <SelectItem value="Med-Low">📝 Med-Low</SelectItem>
-                              <SelectItem value="Low">📄 Low</SelectItem>
+                              <SelectItem value="Pareto">� Pareto</SelectItem>
+                              <SelectItem value="High">� High</SelectItem>
+                              <SelectItem value="Med-High">🟠 Med-High</SelectItem>
+                              <SelectItem value="Medium">� Medium</SelectItem>
+                              <SelectItem value="Med-Low">� Med-Low</SelectItem>
+                              <SelectItem value="Low">� Low</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

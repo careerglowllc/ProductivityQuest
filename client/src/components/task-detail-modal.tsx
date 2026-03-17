@@ -765,12 +765,12 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
-                  <SelectItem value="Pareto">🔥 Pareto (Critical)</SelectItem>
-                  <SelectItem value="High">🚨 High</SelectItem>
-                  <SelectItem value="Med-High">⚠️ Med-High</SelectItem>
-                  <SelectItem value="Medium">📋 Medium</SelectItem>
-                  <SelectItem value="Med-Low">📝 Med-Low</SelectItem>
-                  <SelectItem value="Low">📄 Low</SelectItem>
+                  <SelectItem value="Pareto">� Pareto (Critical)</SelectItem>
+                  <SelectItem value="High">� High</SelectItem>
+                  <SelectItem value="Med-High">🟠 Med-High</SelectItem>
+                  <SelectItem value="Medium">� Medium</SelectItem>
+                  <SelectItem value="Med-Low">� Med-Low</SelectItem>
+                  <SelectItem value="Low">� Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
