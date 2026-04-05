@@ -11,7 +11,28 @@ import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
-const QUESTLINE_ICONS = ["⚔️", "🛡️", "🏰", "🐉", "🧙", "👑", "💎", "🔮", "🗡️", "🏹", "⚡", "🔥", "🌟", "📜", "🎯", "🚀", "💰", "🧪", "🎭", "🌙"];
+const QUESTLINE_ICONS = [
+  // Fantasy / RPG
+  "⚔️", "🛡️", "🏰", "🐉", "🧙", "👑", "💎", "🔮", "🗡️", "🏹", "⚡", "🔥", "🌟", "📜", "🎯", "🚀", "💰", "🧪", "🎭", "🌙",
+  // Household / Chores / Home
+  "🏠", "🏡", "🧹", "🧺", "🧽", "🪣", "🧴", "🛁", "🚿", "🪥", "🪒", "🧻", "🗑️", "♻️",
+  // Kitchen & Appliances
+  "🍳", "🥘", "🍽️", "🧊", "🫙", "🍶", "☕", "🧑‍🍳", "🔪", "🥄",
+  // Furniture & Rooms
+  "🛋️", "🪑", "🛏️", "🪞", "🖼️", "🚪", "🪟", "💡", "🕯️", "🪴",
+  // Outdoor / Yard / Garden
+  "🌿", "🌻", "🌳", "🪻", "🪵", "🪨", "⛏️", "🧑‍🌾", "🌾", "🪴",
+  // Tools & Maintenance
+  "🔧", "🔨", "🪛", "🪚", "🧰", "🪜", "📐", "🪤", "🔩", "⚙️",
+  // Vehicles & Errands
+  "🚗", "🚙", "⛽", "🛒", "📦", "📬", "🏪", "🧾",
+  // Cleaning & Laundry
+  "👕", "👖", "🧤", "🧣", "👟", "🪮", "🧶", "🪡", "🧵",
+  // Pets
+  "🐶", "🐱", "🐾", "🦴", "🐟", "🐦",
+  // Miscellaneous objects
+  "🔑", "🔒", "📎", "✂️", "🖊️", "📋", "🗂️", "🗃️", "💻", "📱", "🖥️", "🎮", "📚", "🎒",
+];
 const MAX_DEPTH = 4;
 
 interface Stage {
@@ -371,7 +392,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
               {showIconPicker && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowIconPicker(false)} />
-                  <div className="absolute left-0 top-full mt-1 z-[70] bg-slate-800 border border-purple-500/40 rounded-lg p-2 grid grid-cols-5 gap-1 shadow-xl">
+                  <div className="absolute left-0 top-full mt-1 z-[70] bg-slate-800 border border-purple-500/40 rounded-lg p-2 grid grid-cols-8 gap-1 shadow-xl max-h-60 overflow-y-auto w-[280px]">
                     {QUESTLINE_ICONS.map((emoji) => (
                       <button
                         key={emoji}
