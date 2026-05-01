@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
 const QUESTLINE_ICONS = [
@@ -154,6 +154,10 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
   const [icon, setIcon] = useState("⚔️");
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [newStages, setNewStages] = useState<Stage[]>([]);
+  // Local flat list of existing tasks for drag-and-drop reordering
+  const [orderedTasks, setOrderedTasks] = useState<QuestlineTask[]>([]);
+  const dragId = useRef<number | null>(null);
+  const dragOverId = useRef<number | null>(null);
 
   // Pre-fill when questline changes
   useEffect(() => {
@@ -162,6 +166,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
       setDescription(questline.description || "");
       setIcon(questline.icon || "⚔️");
       setNewStages([]);
+      setOrderedTasks([...questline.tasks].sort((a, b) => (a.questlineOrder ?? 0) - (b.questlineOrder ?? 0)));
     }
   }, [questline, open]);
 
@@ -170,6 +175,122 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
       e.target.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 300);
   }, []);
+
+  const reorderMutation = useMutation({
+    mutationFn: async (order: Array<{ id: number; parentTaskId: number | null; questlineOrder: number; indentLevel: number }>) =>
+      apiRequest("POST", `/api/questlines/${questline!.id}/reorder`, { order }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "✅ Order saved!", description: "Quest positions updated." });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to reorder.", variant: "destructive" }),
+  });
+
+  // Recalculate indentLevels from parentTaskId after a reorder
+  const rebuildIndentLevels = useCallback((tasks: QuestlineTask[]): QuestlineTask[] => {
+    const idToTask = new Map(tasks.map((t) => [t.id, { ...t }]));
+    const getDepth = (id: number, visited = new Set<number>()): number => {
+      if (visited.has(id)) return 0;
+      visited.add(id);
+      const t = idToTask.get(id);
+      if (!t || !t.parentTaskId) return 0;
+      return 1 + getDepth(t.parentTaskId, visited);
+    };
+    return tasks.map((t) => ({ ...t, indentLevel: getDepth(t.id) }));
+  }, []);
+
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: number) => {
+    dragId.current = taskId;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(taskId));
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, taskId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    dragOverId.current = taskId;
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, dropOnId: number) => {
+    e.preventDefault();
+    const fromId = dragId.current;
+    if (!fromId || fromId === dropOnId) return;
+
+    setOrderedTasks((prev) => {
+      const fromIdx = prev.findIndex((t) => t.id === fromId);
+      const toIdx = prev.findIndex((t) => t.id === dropOnId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIdx, 1);
+      updated.splice(toIdx, 0, moved);
+
+      // Reassign questlineOrder
+      const reindexed = updated.map((t, i) => ({ ...t, questlineOrder: i }));
+
+      // Rebuild parentTaskId: the parent is the nearest preceding item with indentLevel = this item's indentLevel - 1
+      const rebuiltParents = reindexed.map((t, i) => {
+        const myLevel = t.indentLevel ?? 0;
+        if (myLevel === 0) return { ...t, parentTaskId: null };
+        for (let j = i - 1; j >= 0; j--) {
+          if ((reindexed[j].indentLevel ?? 0) < myLevel) {
+            return { ...t, parentTaskId: reindexed[j].id };
+          }
+        }
+        return { ...t, parentTaskId: null };
+      });
+
+      // Persist
+      reorderMutation.mutate(rebuiltParents.map((t) => ({
+        id: t.id,
+        parentTaskId: t.parentTaskId ?? null,
+        questlineOrder: t.questlineOrder ?? 0,
+        indentLevel: t.indentLevel ?? 0,
+      })));
+
+      return rebuiltParents;
+    });
+
+    dragId.current = null;
+    dragOverId.current = null;
+  }, [reorderMutation]);
+
+  // Allow changing indent level (parent reassignment) via left/right arrows on existing tasks
+  const changeExistingIndent = useCallback((taskId: number, direction: "in" | "out") => {
+    setOrderedTasks((prev) => {
+      const idx = prev.findIndex((t) => t.id === taskId);
+      if (idx === -1) return prev;
+      const cur = prev[idx];
+      const curLevel = cur.indentLevel ?? 0;
+      const newLevel = direction === "in" ? Math.min(curLevel + 1, MAX_DEPTH) : Math.max(curLevel - 1, 0);
+      if (newLevel === curLevel) return prev;
+
+      const updated = [...prev];
+      updated[idx] = { ...cur, indentLevel: newLevel };
+
+      // Update parent
+      const parentUpdated = updated.map((t, i) => {
+        const myLevel = t.indentLevel ?? 0;
+        if (myLevel === 0) return { ...t, parentTaskId: null };
+        for (let j = i - 1; j >= 0; j--) {
+          if ((updated[j].indentLevel ?? 0) < myLevel) {
+            return { ...t, parentTaskId: updated[j].id };
+          }
+        }
+        return { ...t, parentTaskId: null };
+      });
+
+      reorderMutation.mutate(parentUpdated.map((t, i) => ({
+        id: t.id,
+        parentTaskId: t.parentTaskId ?? null,
+        questlineOrder: i,
+        indentLevel: t.indentLevel ?? 0,
+      })));
+
+      return parentUpdated;
+    });
+  }, [reorderMutation]);
 
   const saveQuestlineMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -356,7 +477,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
 
   if (!questline) return null;
 
-  const existingTasks = [...questline.tasks].sort((a, b) => (a.questlineOrder ?? 0) - (b.questlineOrder ?? 0));
+  const existingTasks = orderedTasks;
   // Compute gold for new top-level stages only (for the summary)
   const topLevelNew = newStages.filter((s) => !s.existingParentId);
   const existingChildNew = newStages.filter((s) => s.existingParentId != null);
@@ -444,15 +565,24 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
               />
             </div>
 
-            {/* Existing tasks — interactive */}
+            {/* Existing tasks — interactive + draggable */}
             {existingTasks.length > 0 && (
               <div className="border-t border-purple-500/20 pt-4">
                 <h3 className="text-base font-serif text-purple-200 mb-2 flex items-center gap-2">
                   📋 Current Structure
                   <span className="text-sm text-purple-400/50 font-normal">({existingTasks.length} items)</span>
+                  {reorderMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />}
                 </h3>
-                <p className="text-[11px] text-blue-300/60 mb-3">
-                  Click <span className="font-semibold">+ Quest</span> (or deeper) on any item to add new children under it.
+                <p className="text-[11px] text-purple-300/50 mb-3 flex flex-wrap gap-2">
+                  <span>
+                    <span className="text-blue-300/70 font-medium">⠿ Drag</span> rows to reorder.
+                  </span>
+                  <span>
+                    <span className="text-cyan-300/70 font-medium">← →</span> to change nesting level.
+                  </span>
+                  <span>
+                    <span className="text-blue-300/70 font-medium">+ Quest</span> to add children.
+                  </span>
                 </p>
                 <div className="space-y-0.5">
                   {existingTasks.map((task) => {
@@ -463,9 +593,17 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                     return (
                       <div key={task.id}>
                         <div
-                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${getDepthColor(indent)}`}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          onDragOver={(e) => handleDragOver(e, task.id)}
+                          onDrop={(e) => handleDrop(e, task.id)}
+                          onDragEnd={() => { dragId.current = null; dragOverId.current = null; }}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-all ${getDepthColor(indent)} hover:border-purple-400/40 cursor-grab active:cursor-grabbing active:opacity-60 active:scale-[0.99]`}
                           style={{ marginLeft: `${indent * 16}px` }}
                         >
+                          {/* Drag handle */}
+                          <GripVertical className="w-3.5 h-3.5 text-purple-400/30 shrink-0 hover:text-purple-300/60" />
+
                           {indent > 0 && <CornerDownRight className="w-3 h-3 text-purple-400/25 shrink-0" />}
                           <span className="shrink-0">
                             {done
@@ -480,6 +618,21 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                             {task.title}
                           </span>
                           <span className="text-[10px] text-yellow-400/40 shrink-0">🪙 {task.goldValue}</span>
+
+                          {/* Indent controls */}
+                          <div className="flex shrink-0 gap-0">
+                            <button type="button" disabled={indent <= 0}
+                              onClick={(e) => { e.stopPropagation(); changeExistingIndent(task.id, "out"); }}
+                              className="p-0.5 text-purple-400/40 hover:text-purple-300 disabled:opacity-20" title="Move out (decrease nesting)">
+                              <ArrowLeft className="w-3 h-3" />
+                            </button>
+                            <button type="button" disabled={indent >= MAX_DEPTH}
+                              onClick={(e) => { e.stopPropagation(); changeExistingIndent(task.id, "in"); }}
+                              className="p-0.5 text-purple-400/40 hover:text-purple-300 disabled:opacity-20" title="Move in (increase nesting)">
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
+
                           {indent < MAX_DEPTH && (
                             <button
                               type="button"

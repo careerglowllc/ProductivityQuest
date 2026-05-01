@@ -4400,6 +4400,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk reorder/reparent tasks within a questline (drag & drop)
+  app.post("/api/questlines/:id/reorder", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qlId = parseInt(req.params.id);
+      const { order } = req.body as {
+        order: Array<{ id: number; parentTaskId: number | null; questlineOrder: number; indentLevel: number }>;
+      };
+
+      if (!Array.isArray(order)) return res.status(400).json({ error: "order array required" });
+
+      // Verify all tasks belong to this questline & user
+      const existing = await db
+        .select()
+        .from(tasksTable)
+        .where(and(eq(tasksTable.questlineId, qlId), eq(tasksTable.userId, userId)));
+      const validIds = new Set(existing.map((t: any) => t.id));
+
+      for (const item of order) {
+        if (!validIds.has(item.id)) continue;
+        await db
+          .update(tasksTable)
+          .set({
+            parentTaskId: item.parentTaskId ?? null,
+            questlineOrder: item.questlineOrder,
+            indentLevel: item.indentLevel,
+          })
+          .where(eq(tasksTable.id, item.id));
+      }
+
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Error reordering questline tasks:", error);
+      res.status(500).json({ error: "Failed to reorder" });
+    }
+  });
+
   // Add a subtask to an existing questline task
   app.post("/api/questlines/:id/add-subtask", requireAuth, async (req: any, res) => {
     try {
