@@ -4324,6 +4324,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new stages/tasks to an existing questline (full tree, same shape as create)
+  app.post("/api/questlines/:id/add-stages", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const qlId = parseInt(req.params.id);
+      const { title, description, icon, stages } = req.body;
+
+      const ql = await storage.getQuestline(qlId, userId);
+      if (!ql) return res.status(404).json({ error: "Questline not found" });
+
+      // Update header fields if provided
+      const headerUpdates: any = {};
+      if (title !== undefined) headerUpdates.title = title;
+      if (description !== undefined) headerUpdates.description = description;
+      if (icon !== undefined) headerUpdates.icon = icon;
+      if (Object.keys(headerUpdates).length > 0) {
+        await storage.updateQuestline(userId, qlId, headerUpdates);
+      }
+
+      // Get current max order so new tasks are appended
+      const existingTasks = await storage.getQuestlineTasks(userId, qlId);
+      let orderCounter = existingTasks.reduce((max, t) => Math.max(max, t.questlineOrder || 0), 0) + 1;
+
+      const createdTasks: any[] = [];
+
+      const createStageAndChildren = async (stage: any, parentId: number | null, depth: number) => {
+        const dur = stage.duration || 30;
+        const imp = stage.importance || "Medium";
+        const goldValue = stage.goldValue || Math.round(dur * (imp === "Pareto" ? 3 : imp === "High" ? 2.5 : imp === "Med-High" ? 2 : imp === "Medium" ? 1.5 : imp === "Med-Low" ? 1 : 0.5));
+        const taskData: any = {
+          userId,
+          title: stage.title,
+          description: stage.description || "",
+          duration: dur,
+          goldValue,
+          importance: imp,
+          recurType: "⏳One-time",
+          businessWorkFilter: stage.businessWorkFilter || "General",
+          campaign: stage.campaign || "unassigned",
+          completed: false,
+          skillTags: [],
+          questlineId: qlId,
+          questlineOrder: orderCounter++,
+          emoji: stage.emoji || "📝",
+          parentTaskId: parentId,
+          indentLevel: depth,
+        };
+        const [newTask] = await db.insert(tasksTable).values(taskData).returning();
+        createdTasks.push(newTask);
+        if (stage.children && Array.isArray(stage.children) && depth < 4) {
+          for (const child of stage.children) {
+            await createStageAndChildren(child, newTask.id, depth + 1);
+          }
+        }
+      };
+
+      if (stages && Array.isArray(stages)) {
+        for (const stage of stages) {
+          await createStageAndChildren(stage, null, 0);
+        }
+      }
+
+      res.json({ questlineId: qlId, addedTasks: createdTasks });
+    } catch (error: any) {
+      console.error("Error adding stages:", error);
+      res.status(500).json({ error: "Failed to add stages" });
+    }
+  });
+
   // Add a subtask to an existing questline task
   app.post("/api/questlines/:id/add-subtask", requireAuth, async (req: any, res) => {
     try {

@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AddQuestlineModal } from "@/components/add-questline-modal";
+import { EditQuestlineModal } from "@/components/edit-questline-modal";
 import { EmojiPicker } from "@/components/emoji-picker";
 
 interface QuestlineTask {
@@ -46,6 +47,7 @@ export default function CampaignsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingQuestline, setEditingQuestline] = useState<QuestlineData | null>(null);
 
   const { data: questlines = [], isLoading } = useQuery<QuestlineData[]>({
     queryKey: ["/api/questlines"],
@@ -152,6 +154,7 @@ export default function CampaignsPage() {
                       expanded={expandedId === ql.id}
                       onToggleExpand={() => setExpandedId(expandedId === ql.id ? null : ql.id)}
                       onDelete={() => setDeletingId(ql.id)}
+                      onEdit={() => setEditingQuestline(ql)}
                       onCheckCompletion={() => checkCompletion.mutate(ql.id)}
                       isCheckingCompletion={checkCompletion.isPending}
                     />
@@ -176,6 +179,7 @@ export default function CampaignsPage() {
                       expanded={expandedId === ql.id}
                       onToggleExpand={() => setExpandedId(expandedId === ql.id ? null : ql.id)}
                       onDelete={() => setDeletingId(ql.id)}
+                      onEdit={() => setEditingQuestline(ql)}
                       onCheckCompletion={() => {}}
                       isCheckingCompletion={false}
                     />
@@ -189,6 +193,13 @@ export default function CampaignsPage() {
 
       {/* Create Questline Modal */}
       <AddQuestlineModal open={showCreateModal} onOpenChange={setShowCreateModal} />
+
+      {/* Edit Questline Modal */}
+      <EditQuestlineModal
+        open={!!editingQuestline}
+        onOpenChange={(open) => { if (!open) setEditingQuestline(null); }}
+        questline={editingQuestline}
+      />
 
       {/* Delete Confirmation */}
       <Dialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
@@ -303,11 +314,12 @@ interface QuestlineCardProps {
   expanded: boolean;
   onToggleExpand: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   onCheckCompletion: () => void;
   isCheckingCompletion: boolean;
 }
 
-function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete, onCheckCompletion, isCheckingCompletion }: QuestlineCardProps) {
+function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete, onEdit, onCheckCompletion, isCheckingCompletion }: QuestlineCardProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const tasks = questline.tasks || [];
@@ -707,7 +719,7 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                   {completedTasks.length}/{totalTasks}
                 </span>
                 <button
-                  onClick={startEditing}
+                  onClick={(e) => { e.stopPropagation(); onEdit(); }}
                   className="p-1.5 rounded-md bg-purple-500/15 text-purple-300 hover:bg-purple-500/30 hover:text-purple-200 transition-colors"
                   title="Edit questline"
                 >

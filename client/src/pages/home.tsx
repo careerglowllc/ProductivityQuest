@@ -20,6 +20,7 @@ import { LevelUpModal } from "@/components/level-up-modal";
 import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
 import { AddTaskModal } from "@/components/add-task-modal";
 import { AddQuestlineModal } from "@/components/add-questline-modal";
+import { QuestlineTreeModal } from "@/components/questline-tree-modal";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +40,8 @@ export default function Home() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [showAddQuestline, setShowAddQuestline] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [treeModalQuestlineId, setTreeModalQuestlineId] = useState<number | null>(null);
+  const [treeModalFocusTaskId, setTreeModalFocusTaskId] = useState<number | null>(null);
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedTask, setCompletedTask] = useState<any>(null);
   const [completionSkillXPGains, setCompletionSkillXPGains] = useState<any[]>([]);
@@ -168,6 +171,13 @@ export default function Home() {
         }
       }
     }
+    return map;
+  }, [questlines]);
+
+  // Map from questlineId → full questline data (for tree modal)
+  const questlineById = useMemo(() => {
+    const map = new Map<number, any>();
+    for (const ql of questlines) map.set(ql.id, ql);
     return map;
   }, [questlines]);
 
@@ -2772,6 +2782,7 @@ export default function Home() {
                     onSelect={handleTaskSelect}
                     isSelected={selectedTasks.has(task.id)}
                     questlineName={questlinePrefixMap.get(task.id)}
+                    onQuestlineNameClick={task.questlineId ? (qlId, taskId) => { setTreeModalQuestlineId(qlId); setTreeModalFocusTaskId(taskId); } : undefined}
                   />
                 ))
               ) : (
@@ -2813,6 +2824,7 @@ export default function Home() {
                             onSelect={handleTaskSelect}
                             isSelected={selectedTasks.has(task.id)}
                             questlineName={questlinePrefixMap.get(task.id)}
+                            onQuestlineNameClick={task.questlineId ? (qlId, taskId) => { setTreeModalQuestlineId(qlId); setTreeModalFocusTaskId(taskId); } : undefined}
                           />
                         ))}
                       </div>
@@ -2826,6 +2838,13 @@ export default function Home() {
       </div>{/* End h-full wrapper */}
 
       {/* Modals */}
+      <QuestlineTreeModal
+        open={treeModalQuestlineId !== null}
+        onOpenChange={(open) => { if (!open) { setTreeModalQuestlineId(null); setTreeModalFocusTaskId(null); } }}
+        questline={treeModalQuestlineId ? questlineById.get(treeModalQuestlineId) ?? null : null}
+        focusTaskId={treeModalFocusTaskId}
+      />
+
       <ItemShopModal
         isOpen={showItemShop}
         onClose={() => setShowItemShop(false)}

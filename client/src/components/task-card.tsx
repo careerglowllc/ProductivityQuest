@@ -65,9 +65,10 @@ interface TaskCardProps {
   isSelected: boolean;
   isCompact?: boolean;
   questlineName?: string | null;
+  onQuestlineNameClick?: (questlineId: number, taskId: number) => void;
 }
 
-export function TaskCard({ task, onSelect, isSelected, isCompact = false, questlineName }: TaskCardProps) {
+export function TaskCard({ task, onSelect, isSelected, isCompact = false, questlineName, onQuestlineNameClick }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const queryClient = useQueryClient();
@@ -241,7 +242,10 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                   task.completed && "line-through text-yellow-400/60"
                 )}>
                   {questlineName && (
-                    <span className="text-purple-300/80 font-medium">{questlineName}: </span>
+                    <span
+                      className={`text-purple-300/80 font-medium ${onQuestlineNameClick && task.questlineId ? "cursor-pointer hover:text-purple-200 hover:underline underline-offset-2" : ""}`}
+                      onClick={onQuestlineNameClick && task.questlineId ? (e) => { e.stopPropagation(); onQuestlineNameClick(task.questlineId!, task.id); } : undefined}
+                    >{questlineName}: </span>
                   )}
                   {task.title}
                 </h3>
@@ -391,7 +395,10 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                   task.completed && "line-through text-yellow-400/60"
                 )}>
                   {questlineName && (
-                    <span className="text-purple-300/80 font-medium">{questlineName}: </span>
+                    <span
+                      className={`text-purple-300/80 font-medium ${onQuestlineNameClick && task.questlineId ? "cursor-pointer hover:text-purple-200 hover:underline underline-offset-2" : ""}`}
+                      onClick={onQuestlineNameClick && task.questlineId ? (e) => { e.stopPropagation(); onQuestlineNameClick(task.questlineId!, task.id); } : undefined}
+                    >{questlineName}: </span>
                   )}
                   {task.title}
                 </h3>
@@ -534,7 +541,10 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                     task.completed && "line-through text-yellow-400/60"
                   )}>
                     {questlineName && (
-                      <span className="text-purple-300/80 font-medium">{questlineName}: </span>
+                      <span
+                        className={`text-purple-300/80 font-medium ${onQuestlineNameClick && task.questlineId ? "cursor-pointer hover:text-purple-200 hover:underline underline-offset-2" : ""}`}
+                        onClick={onQuestlineNameClick && task.questlineId ? (e) => { e.stopPropagation(); onQuestlineNameClick(task.questlineId!, task.id); } : undefined}
+                      >{questlineName}: </span>
                     )}
                     {task.title}
                   </h3>
