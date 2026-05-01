@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
 const QUESTLINE_ICONS = [
@@ -37,9 +37,11 @@ interface Stage {
   campaign: string;
   expanded: boolean;
   indentLevel: number;
+  /** If set, this new item will be nested under an existing task with this ID */
+  existingParentId?: number | null;
 }
 
-function createEmptyStage(indentLevel = 0): Stage {
+function createEmptyStage(indentLevel = 0, existingParentId: number | null = null): Stage {
   return {
     id: crypto.randomUUID(),
     title: "",
@@ -50,6 +52,7 @@ function createEmptyStage(indentLevel = 0): Stage {
     campaign: "unassigned",
     expanded: true,
     indentLevel,
+    existingParentId,
   };
 }
 
@@ -126,6 +129,8 @@ interface QuestlineTask {
   goldValue: number;
   indentLevel?: number | null;
   parentTaskId?: number | null;
+  questlineOrder?: number | null;
+  emoji?: string | null;
 }
 
 interface EditQuestlineModalProps {
@@ -232,7 +237,14 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
   const addTopLevelStage = () => {
     setNewStages((prev) => [
       ...prev.map((s) => ({ ...s, expanded: false })),
-      createEmptyStage(0),
+      createEmptyStage(0, null),
+    ]);
+  };
+
+  const addChildUnderExisting = (existingTask: QuestlineTask) => {
+    setNewStages((prev) => [
+      ...prev,
+      createEmptyStage(0, existingTask.id),
     ]);
   };
 
@@ -314,19 +326,51 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
         return;
       }
     }
-    const tree = buildTree(newStages);
+
+    // Group stages by existingParentId, build trees per group
+    const groups = new Map<number | null, Stage[]>();
+    for (const s of newStages) {
+      const key = s.existingParentId ?? null;
+      const arr = groups.get(key) ?? [];
+      arr.push(s);
+      groups.set(key, arr);
+    }
+
+    const stages: any[] = [];
+    groups.forEach((items, parentId) => {
+      const trees = buildTree(items);
+      if (parentId === null) {
+        stages.push(...trees);
+      } else {
+        stages.push(...trees.map((t) => ({ ...t, existingParentId: parentId })));
+      }
+    });
+
     saveQuestlineMutation.mutate({
       title: title.trim(),
       description: description.trim(),
       icon,
-      stages: tree,
+      stages,
     });
   };
 
   if (!questline) return null;
 
-  const existingTasks = [...questline.tasks].sort((a, b) => (a as any).questlineOrder - (b as any).questlineOrder);
+  const existingTasks = [...questline.tasks].sort((a, b) => (a.questlineOrder ?? 0) - (b.questlineOrder ?? 0));
+  // Compute gold for new top-level stages only (for the summary)
+  const topLevelNew = newStages.filter((s) => !s.existingParentId);
+  const existingChildNew = newStages.filter((s) => s.existingParentId != null);
   const newGold = newStages.reduce((sum, s) => sum + calculateGoldValue(s.importance, parseInt(s.duration) || 30), 0);
+
+  // Group pending-new items by existingParentId
+  const pendingByParent = new Map<number, Stage[]>();
+  for (const s of existingChildNew) {
+    if (s.existingParentId != null) {
+      const arr = pendingByParent.get(s.existingParentId) ?? [];
+      arr.push(s);
+      pendingByParent.set(s.existingParentId, arr);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -400,46 +444,155 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
               />
             </div>
 
-            {/* Existing tasks — read-only overview */}
+            {/* Existing tasks — interactive */}
             {existingTasks.length > 0 && (
               <div className="border-t border-purple-500/20 pt-4">
-                <h3 className="text-base font-serif text-purple-200 mb-2">
-                  Existing Stages &amp; Quests ({existingTasks.length})
+                <h3 className="text-base font-serif text-purple-200 mb-2 flex items-center gap-2">
+                  📋 Current Structure
+                  <span className="text-sm text-purple-400/50 font-normal">({existingTasks.length} items)</span>
                 </h3>
-                <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+                <p className="text-[11px] text-blue-300/60 mb-3">
+                  Click <span className="font-semibold">+ Quest</span> (or deeper) on any item to add new children under it.
+                </p>
+                <div className="space-y-0.5">
                   {existingTasks.map((task) => {
                     const indent = task.indentLevel || 0;
                     const done = task.completed || task.recycled;
+                    const childLabel = getDepthLabel(indent + 1);
+                    const pending = pendingByParent.get(task.id) ?? [];
                     return (
-                      <div
-                        key={task.id}
-                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded border ${getDepthColor(indent)} opacity-75`}
-                        style={{ marginLeft: `${indent * 16}px` }}
-                      >
-                        {indent > 0 && <CornerDownRight className="w-3 h-3 text-purple-400/30 shrink-0" />}
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(indent)}`}>
-                          {getDepthLabel(indent).charAt(0)}
-                        </span>
-                        <span className={`text-xs flex-1 truncate ${done ? "line-through text-slate-500" : "text-purple-100"}`}>
-                          {task.title}
-                        </span>
-                        {done && <span className="text-[10px] text-green-400/60">✓</span>}
-                        <span className="text-[10px] text-yellow-400/50 shrink-0">🪙 {task.goldValue}</span>
+                      <div key={task.id}>
+                        <div
+                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${getDepthColor(indent)}`}
+                          style={{ marginLeft: `${indent * 16}px` }}
+                        >
+                          {indent > 0 && <CornerDownRight className="w-3 h-3 text-purple-400/25 shrink-0" />}
+                          <span className="shrink-0">
+                            {done
+                              ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400/60" />
+                              : <Circle className="w-3.5 h-3.5 text-slate-500" />}
+                          </span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(indent)}`}>
+                            {getDepthLabel(indent).charAt(0)}
+                          </span>
+                          <span className={`text-xs flex-1 truncate min-w-0 ${done ? "line-through text-slate-500" : "text-purple-100"}`}>
+                            {task.emoji && <span className="mr-1">{task.emoji}</span>}
+                            {task.title}
+                          </span>
+                          <span className="text-[10px] text-yellow-400/40 shrink-0">🪙 {task.goldValue}</span>
+                          {indent < MAX_DEPTH && (
+                            <button
+                              type="button"
+                              onClick={() => addChildUnderExisting(task)}
+                              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border transition-colors shrink-0 ${
+                                indent === 0 ? "bg-blue-500/15 text-blue-300 border-blue-500/20 hover:bg-blue-500/30" :
+                                indent === 1 ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/30" :
+                                indent === 2 ? "bg-teal-500/15 text-teal-300 border-teal-500/20 hover:bg-teal-500/30" :
+                                "bg-slate-500/15 text-slate-300 border-slate-500/20 hover:bg-slate-500/30"
+                              }`}
+                              title={`Add a ${childLabel} under "${task.title}"`}
+                            >
+                              <CornerDownRight className="w-2.5 h-2.5" />+ {childLabel}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Pending new items under this existing task */}
+                        {pending.length > 0 && (
+                          <div className="mt-0.5 mb-1 space-y-1" style={{ marginLeft: `${(indent + 1) * 16}px` }}>
+                            <div className="flex items-center gap-1.5 px-1 py-0.5">
+                              <div className="h-px flex-1 bg-blue-500/20" />
+                              <span className="text-[9px] text-blue-400/60 uppercase tracking-wide">adding here →</span>
+                              <div className="h-px flex-1 bg-blue-500/20" />
+                            </div>
+                            {pending.map((stage, sidx) => (
+                              <div key={stage.id}
+                                className={`rounded-lg overflow-hidden border ${getDepthColor(stage.indentLevel)} ring-1 ring-blue-500/20`}
+                                style={{ marginLeft: `${stage.indentLevel * 16}px` }}>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer hover:bg-white/5 transition-colors"
+                                  onClick={() => updateStage(stage.id, { expanded: !stage.expanded })}>
+                                  {stage.indentLevel > 0 && <CornerDownRight className="w-3 h-3 text-blue-400/30 shrink-0" />}
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(stage.indentLevel)}`}>
+                                    NEW {getDepthLabel(stage.indentLevel).charAt(0)}
+                                  </span>
+                                  <span className="flex-1 text-sm text-yellow-100/90 truncate min-w-0">
+                                    {stage.title || <span className="text-purple-400/40 italic">Untitled…</span>}
+                                  </span>
+                                  <span className="text-[11px] text-yellow-400/50 shrink-0">
+                                    🪙 {calculateGoldValue(stage.importance, parseInt(stage.duration) || 30)}
+                                  </span>
+                                  <div className="flex shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <button type="button" disabled={stage.indentLevel <= 0} onClick={() => outdentStage(stage.id)}
+                                      className="p-1 text-purple-400/50 hover:text-purple-300 disabled:opacity-20"><ArrowLeft className="w-3 h-3" /></button>
+                                    <button type="button" disabled={stage.indentLevel >= MAX_DEPTH || sidx === 0} onClick={() => indentStage(stage.id)}
+                                      className="p-1 text-purple-400/50 hover:text-purple-300 disabled:opacity-20"><ArrowRight className="w-3 h-3" /></button>
+                                  </div>
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); removeStage(stage.id); }}
+                                    className="p-1 text-red-400/40 hover:text-red-400 shrink-0">
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                  {stage.expanded ? <ChevronUp className="w-3.5 h-3.5 text-purple-400/40 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-purple-400/40 shrink-0" />}
+                                </div>
+                                {/* Quick child-add */}
+                                {stage.indentLevel < MAX_DEPTH && (
+                                  <div className="flex items-center gap-1.5 px-2.5 pb-1.5" onClick={(e) => e.stopPropagation()}>
+                                    <button type="button" onClick={() => addStageAfter(stage.id, true)}
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/15 text-blue-300 border border-blue-500/20 hover:bg-blue-500/30 transition-colors">
+                                      <CornerDownRight className="w-2.5 h-2.5" />+ {getDepthLabel(stage.indentLevel + 1)}
+                                    </button>
+                                    <button type="button" onClick={() => addStageAfter(stage.id, false)}
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 hover:bg-purple-500/25 transition-colors">
+                                      <Plus className="w-2.5 h-2.5" />+ Same level
+                                    </button>
+                                  </div>
+                                )}
+                                {stage.expanded && (
+                                  <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-white/5">
+                                    <div className="space-y-1">
+                                      <Label className="text-purple-200 text-xs">{getDepthLabel(stage.indentLevel)} Title <span className="text-red-400">*</span></Label>
+                                      <Input value={stage.title} onChange={(e) => updateStage(stage.id, { title: e.target.value })}
+                                        onFocus={scrollInputIntoView} placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
+                                        className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-8 text-sm" maxLength={200} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-1">
+                                        <Label className="text-purple-200 text-xs">Duration (min)</Label>
+                                        <Input type="number" value={stage.duration} onChange={(e) => updateStage(stage.id, { duration: e.target.value })}
+                                          onFocus={scrollInputIntoView} min="1" className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-8 text-sm" />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <Label className="text-purple-200 text-xs">Importance</Label>
+                                        <Select value={stage.importance} onValueChange={(v) => updateStage(stage.id, { importance: v })}>
+                                          <SelectTrigger className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-8 text-sm"><SelectValue /></SelectTrigger>
+                                          <SelectContent className="bg-slate-800 border-purple-500/40">
+                                            <SelectItem value="Pareto">⭐ Pareto</SelectItem>
+                                            <SelectItem value="High">🔴 High</SelectItem>
+                                            <SelectItem value="Med-High">🟠 Med-High</SelectItem>
+                                            <SelectItem value="Medium">🟡 Medium</SelectItem>
+                                            <SelectItem value="Med-Low">🟢 Med-Low</SelectItem>
+                                            <SelectItem value="Low">⚪ Low</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-purple-300/40 mt-2">
-                  Existing items can be edited inline on the Questlines page.
-                </p>
               </div>
             )}
 
-            {/* New stages builder */}
+            {/* New stages builder — top-level only */}
             <div className="border-t border-purple-500/20 pt-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-serif text-purple-200">
-                  Add New Stages &amp; Quests {newStages.length > 0 && `(+${newStages.length})`}
+                  ✨ Add New Top-Level Stages {topLevelNew.length > 0 && `(+${topLevelNew.length})`}
                 </h3>
                 <Button
                   type="button"
@@ -453,10 +606,10 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                 </Button>
               </div>
 
-              {newStages.length === 0 ? (
-                <div className="text-center py-6 text-purple-300/40 text-sm border border-dashed border-purple-500/20 rounded-lg">
-                  <p className="mb-1">No new items yet.</p>
-                  <p>Click <span className="text-purple-300/70 font-medium">+ Add Stage</span> to create a top-level stage, then use <span className="text-blue-300/70 font-medium">+ Quest</span> buttons on each stage to nest quests inside it.</p>
+              {topLevelNew.length === 0 ? (
+                <div className="text-center py-5 text-purple-300/40 text-xs border border-dashed border-purple-500/20 rounded-lg leading-relaxed">
+                  <p>Click <span className="text-purple-300/70 font-medium">+ Add Stage</span> to create a new top-level stage.</p>
+                  <p className="mt-1">Or use <span className="text-blue-300/60 font-medium">+ Quest</span> buttons above to add items inside an existing stage.</p>
                 </div>
               ) : (
                 <>
@@ -470,11 +623,12 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                   </div>
 
                   <div className="space-y-2">
-                    {newStages.map((stage, index) => {
+                    {topLevelNew.map((stage, tlIdx) => {
+                      const realIndex = newStages.findIndex((s) => s.id === stage.id);
                       let siblingNum = 0;
-                      for (let i = 0; i <= index; i++) {
-                        if (newStages[i].indentLevel < stage.indentLevel) siblingNum = 0;
-                        if (newStages[i].indentLevel === stage.indentLevel && i <= index) siblingNum++;
+                      for (let i = 0; i <= tlIdx; i++) {
+                        if (topLevelNew[i].indentLevel < stage.indentLevel) siblingNum = 0;
+                        if (topLevelNew[i].indentLevel === stage.indentLevel && i <= tlIdx) siblingNum++;
                       }
 
                       return (
@@ -517,7 +671,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                               </button>
                               <button
                                 type="button"
-                                disabled={stage.indentLevel >= MAX_DEPTH || index === 0}
+                                disabled={stage.indentLevel >= MAX_DEPTH || realIndex === 0}
                                 onClick={() => indentStage(stage.id)}
                                 className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
                                 title="Indent"
@@ -528,11 +682,11 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
 
                             {/* Move up/down */}
                             <div className="flex shrink-0" onClick={(e) => e.stopPropagation()}>
-                              <button type="button" disabled={index === 0} onClick={() => moveStage(index, "up")}
+                              <button type="button" disabled={realIndex === 0} onClick={() => moveStage(realIndex, "up")}
                                 className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20">
                                 <ChevronUp className="w-3.5 h-3.5" />
                               </button>
-                              <button type="button" disabled={index === newStages.length - 1} onClick={() => moveStage(index, "down")}
+                              <button type="button" disabled={realIndex === newStages.length - 1} onClick={() => moveStage(realIndex, "down")}
                                 className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20">
                                 <ChevronDown className="w-3.5 h-3.5" />
                               </button>
@@ -671,14 +825,16 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
               )}
             </div>
 
-            {/* Gold preview for new stages */}
+            {/* Summary — shown when any new items exist */}
             {newStages.length > 0 && (
-              <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-purple-200 mb-2">New Items Gold Preview</h4>
-                <div className="text-sm">
-                  <span className="text-purple-300/60">Added gold ({newStages.length} new items):</span>
-                  <span className="ml-2 text-yellow-300">🪙 {newGold}</span>
+              <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 flex items-center justify-between">
+                <div className="text-sm text-purple-300/70">
+                  <span className="font-semibold text-purple-200">{newStages.length}</span> new item{newStages.length > 1 ? "s" : ""} will be added
+                  {existingChildNew.length > 0 && (
+                    <span className="ml-2 text-blue-300/60">({existingChildNew.length} inside existing stages)</span>
+                  )}
                 </div>
+                <div className="text-sm text-yellow-300 font-semibold">🪙 +{newGold}</div>
               </div>
             )}
           </div>

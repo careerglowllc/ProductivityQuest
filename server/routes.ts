@@ -4382,7 +4382,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (stages && Array.isArray(stages)) {
         for (const stage of stages) {
-          await createStageAndChildren(stage, null, 0);
+          // existingParentId allows new items to be nested under an existing task
+          const rootParentId = (stage.existingParentId != null) ? stage.existingParentId : null;
+          let rootDepth = 0;
+          if (rootParentId !== null) {
+            const parentTask = existingTasks.find((t: any) => t.id === rootParentId);
+            rootDepth = parentTask ? ((parentTask as any).indentLevel ?? 0) + 1 : 1;
+          }
+          await createStageAndChildren(stage, rootParentId, rootDepth);
         }
       }
 
