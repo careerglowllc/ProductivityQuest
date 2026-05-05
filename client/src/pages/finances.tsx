@@ -81,7 +81,7 @@ export default function Finances() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "table">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
 
   const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(() => {
@@ -178,6 +178,26 @@ export default function Finances() {
     ...d,
     pct: ((d.value / (totalIncome + totalRetirement + totalExpenses)) * 100),
   }));
+
+  // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
+  const W2_ITEM_NAME = "Post-Tax W2 Salary Income";
+  const w2Income = financialItems.find(i => i.item === W2_ITEM_NAME)?.monthlyCost ?? 0;
+  const cashflowNetRaw = w2Income - totalExpenses;
+  const nonW2Income = totalIncome - w2Income; // RSUs, ESPP, etc.
+
+  const cashflowPie = [
+    { name: "W2 Salary", value: w2Income, color: "#22C55E" },
+    { name: "Expenses", value: totalExpenses, color: "#EF4444" },
+    { name: "Retirement (out of W2)", value: totalRetirement, color: "#FBBF24" },
+  ].filter(d => d.value > 0).map(d => {
+    const total = w2Income + totalExpenses + totalRetirement;
+    return { ...d, pct: total > 0 ? (d.value / total) * 100 : 0 };
+  });
+
+  // Expense items sorted for cashflow detail
+  const topExpenses = financialItems
+    .filter(i => classifyItem(i.category) === "expense")
+    .sort((a, b) => b.monthlyCost - a.monthlyCost);
 
   const expenseByCategory = financialItems
     .filter(i => classifyItem(i.category) === "expense")
@@ -320,6 +340,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="retirement" className="data-[state=active]:bg-yellow-600/40 text-xs px-3 py-1.5">
               <PiggyBank className="h-3.5 w-3.5 mr-1.5" />Retirement
+            </TabsTrigger>
+            <TabsTrigger value="cashflow" className="data-[state=active]:bg-blue-600/40 text-xs px-3 py-1.5">
+              <Wallet className="h-3.5 w-3.5 mr-1.5" />Cash Flow (W2 Only)
             </TabsTrigger>
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
@@ -714,6 +737,94 @@ export default function Finances() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ── Cash Flow (W2 Only) ───────────────────── */}
+          <TabsContent value="cashflow" className="space-y-4">
+            <Card className="bg-slate-800/60 border-blue-500/20">
+              <CardHeader>
+                <CardTitle className="text-blue-300 flex items-center gap-2">
+                  <Wallet className="h-5 w-5" /> W2 Salary Cash Flow
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  Only your <span className="text-blue-300 font-semibold">Post-Tax W2 Salary</span> counts as income here —
+                  RSUs, ESPP, and HSA contributions are excluded. This shows your true monthly budget reality.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Key numbers */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                  <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4 text-center">
+                    <p className="text-xs text-blue-400 mb-1">W2 Salary (take-home)</p>
+                    <p className="text-3xl font-bold text-blue-300">{formatCurrency(w2Income)}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
+                  </div>
+                  <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-center">
+                    <p className="text-xs text-red-400 mb-1">Total Expenses</p>
+                    <p className="text-3xl font-bold text-red-300">{formatCurrency(totalExpenses)}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
+                  </div>
+                  <div className={`rounded-xl p-4 text-center border ${cashflowNetRaw >= 0 ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}>
+                    <p className={`text-xs mb-1 ${cashflowNetRaw >= 0 ? "text-green-400" : "text-red-400"}`}>W2 Net (excl. retirement)</p>
+                    <p className={`text-3xl font-bold ${cashflowNetRaw >= 0 ? "text-green-300" : "text-red-300"}`}>{formatCurrency(cashflowNetRaw)}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {w2Income > 0 ? ((cashflowNetRaw / w2Income) * 100).toFixed(1) : "0"}% of W2
+                    </p>
+                  </div>
+                </div>
+
+                {nonW2Income > 0 && (
+                  <div className="rounded-lg bg-slate-700/30 border border-slate-600/30 px-4 py-3 mb-5 flex items-start gap-2.5">
+                    <span className="text-yellow-400 text-sm mt-0.5">💡</span>
+                    <p className="text-xs text-slate-300">
+                      <span className="text-yellow-300 font-semibold">{formatCurrency(nonW2Income)}/mo</span> of additional income from
+                      RSUs, ESPP, HSA, and other non-W2 sources is excluded from this view.
+                      Including those, your total income is <span className="text-green-300 font-semibold">{formatCurrency(totalIncome)}/mo</span>.
+                    </p>
+                  </div>
+                )}
+
+                {/* Pie chart */}
+                <ResponsiveContainer width="100%" height={320}>
+                  <RechartsPieChart>
+                    <Pie data={cashflowPie} cx="50%" cy="50%" outerRadius={120} innerRadius={55}
+                      dataKey="value" labelLine={false} label={false}>
+                      {cashflowPie.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend formatter={(value) => <span className="text-slate-200 text-sm">{value}</span>} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+
+                {/* Expense detail */}
+                <div className="mt-4 pt-4 border-t border-slate-700/50">
+                  <p className="text-xs text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+                    <TrendingDown className="h-3.5 w-3.5 text-red-400" /> Where your W2 salary goes (top expenses)
+                  </p>
+                  <div className="space-y-1">
+                    {topExpenses.slice(0, 12).map(item => {
+                      const pct = w2Income > 0 ? (item.monthlyCost / w2Income) * 100 : 0;
+                      return (
+                        <div key={item.id} className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between text-xs mb-0.5">
+                              <span className="text-slate-300 truncate mr-2">{item.item}</span>
+                              <span className="text-red-300 shrink-0 font-medium">{formatCurrency(item.monthlyCost)} ({pct.toFixed(1)}% of W2)</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-slate-700">
+                              <div className="h-1.5 rounded-full bg-red-500/60" style={{ width: `${Math.min(pct, 100)}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
         </Tabs>
       </div>
     </div>
