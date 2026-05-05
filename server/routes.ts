@@ -4370,6 +4370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emoji: stage.emoji || "📝",
           parentTaskId: parentId,
           indentLevel: depth,
+          dueDate: stage.dueDate ? new Date(stage.dueDate) : null,
         };
         const [newTask] = await db.insert(tasksTable).values(taskData).returning();
         createdTasks.push(newTask);

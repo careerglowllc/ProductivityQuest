@@ -39,6 +39,7 @@ interface Stage {
   indentLevel: number;
   /** If set, this new item will be nested under an existing task with this ID */
   existingParentId?: number | null;
+  dueDate: string;
 }
 
 function createEmptyStage(indentLevel = 0, existingParentId: number | null = null): Stage {
@@ -53,6 +54,7 @@ function createEmptyStage(indentLevel = 0, existingParentId: number | null = nul
     expanded: true,
     indentLevel,
     existingParentId,
+    dueDate: "",
   };
 }
 
@@ -69,6 +71,7 @@ function buildTree(stages: Stage[]): any[] {
       importance: stage.importance,
       businessWorkFilter: stage.businessWorkFilter,
       campaign: stage.campaign,
+      dueDate: stage.dueDate || null,
       children: [],
     };
 
@@ -446,6 +449,11 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
         toast({ title: `${label} Missing Title`, description: `New item ${i + 1} needs a title.`, variant: "destructive" });
         return;
       }
+      if (!newStages[i].dueDate) {
+        const label = getDepthLabel(newStages[i].indentLevel);
+        toast({ title: `${label} Missing Due Date`, description: `"${newStages[i].title.trim() || `Item ${i + 1}`}" needs a due date.`, variant: "destructive" });
+        return;
+      }
     }
 
     // Group stages by existingParentId, build trees per group
@@ -707,6 +715,12 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                         onFocus={scrollInputIntoView} placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
                                         className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-8 text-sm" maxLength={200} />
                                     </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-purple-200 text-xs">Due Date <span className="text-red-400">*</span></Label>
+                                      <Input type="date" value={stage.dueDate} onChange={(e) => updateStage(stage.id, { dueDate: e.target.value })}
+                                        onFocus={scrollInputIntoView}
+                                        className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-8 text-sm [color-scheme:dark]" />
+                                    </div>
                                     <div className="grid grid-cols-2 gap-2">
                                       <div className="space-y-1">
                                         <Label className="text-purple-200 text-xs">Duration (min)</Label>
@@ -895,6 +909,17 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                   placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
                                   className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
                                   maxLength={200}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-purple-200 text-xs">Due Date <span className="text-red-400">*</span></Label>
+                                <Input
+                                  type="date"
+                                  value={stage.dueDate}
+                                  onChange={(e) => updateStage(stage.id, { dueDate: e.target.value })}
+                                  onFocus={scrollInputIntoView}
+                                  className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm [color-scheme:dark]"
                                 />
                               </div>
 
