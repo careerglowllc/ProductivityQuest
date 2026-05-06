@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical, MoreVertical } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
 const QUESTLINE_ICONS = [
@@ -294,6 +295,21 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
       return parentUpdated;
     });
   }, [reorderMutation]);
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (taskId: number) => {
+      return await apiRequest("DELETE", `/api/tasks/${taskId}`);
+    },
+    onSuccess: (_data, taskId) => {
+      setOrderedTasks(prev => prev.filter(t => t.id !== taskId));
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "🗑️ Quest removed", description: "Moved to recycling bin." });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove quest", variant: "destructive" });
+    },
+  });
 
   const saveQuestlineMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -609,8 +625,38 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                           className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-all ${getDepthColor(indent)} hover:border-purple-400/40 cursor-grab active:cursor-grabbing active:opacity-60 active:scale-[0.99]`}
                           style={{ marginLeft: `${indent * 16}px` }}
                         >
-                          {/* Drag handle */}
-                          <GripVertical className="w-3.5 h-3.5 text-purple-400/30 shrink-0 hover:text-purple-300/60" />
+                          {/* Drag handle + context menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={(e) => e.stopPropagation()}
+                                className="shrink-0 p-0.5 rounded hover:bg-purple-500/20 cursor-grab active:cursor-grabbing group"
+                                title="Options"
+                              >
+                                <GripVertical className="w-3.5 h-3.5 text-purple-400/30 group-hover:text-purple-300/70 transition-colors" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              className="bg-slate-800 border-purple-500/30 text-sm min-w-[160px]"
+                              side="right"
+                              align="start"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="px-2 py-1.5 text-[10px] text-purple-400/60 uppercase tracking-wide font-semibold truncate max-w-[200px]">
+                                {task.title}
+                              </div>
+                              <DropdownMenuSeparator className="bg-purple-500/20" />
+                              <DropdownMenuItem
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/15 cursor-pointer flex items-center gap-2"
+                                onClick={() => deleteTaskMutation.mutate(task.id)}
+                                disabled={deleteTaskMutation.isPending}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Remove from questline
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
 
                           {indent > 0 && <CornerDownRight className="w-3 h-3 text-purple-400/25 shrink-0" />}
                           <span className="shrink-0">
