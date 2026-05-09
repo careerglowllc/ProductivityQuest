@@ -83,6 +83,7 @@ export default function Finances() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [tableSearch, setTableSearch] = useState<string>("");
 
   const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(() => {
     try {
@@ -606,6 +607,7 @@ export default function Finances() {
 
           {/* ── All Items Table ───────────────────────── */}
           <TabsContent value="table" className="space-y-4">
+            {/* Add New Item */}
             <Card className="bg-slate-800/60 border-purple-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-purple-300 text-base">Add New Item</CardTitle>
@@ -650,14 +652,21 @@ export default function Finances() {
               </CardContent>
             </Card>
 
+            {/* Full Breakdown Table */}
             <Card className="bg-slate-800/60 border-purple-500/30">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
                     <CardTitle className="text-purple-300 text-base">All Financial Items</CardTitle>
-                    <CardDescription className="text-slate-400 text-xs">{sortedItems.length} items shown</CardDescription>
+                    <CardDescription className="text-slate-400 text-xs">{sortedItems.length} items · click column headers to sort</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Input
+                      placeholder="Search items…"
+                      value={tableSearch}
+                      onChange={(e) => setTableSearch(e.target.value)}
+                      className="bg-slate-900/50 border-slate-600 text-white h-8 text-xs w-44 placeholder:text-slate-500"
+                    />
                     <Filter className="h-3.5 w-3.5 text-slate-400" />
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                       <SelectTrigger className="bg-slate-900/50 border-slate-600 text-white h-8 text-xs w-44">
@@ -675,65 +684,131 @@ export default function Finances() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="px-3">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-slate-700">
-                        <TableHead className="text-slate-300 cursor-pointer hover:text-white text-xs" onClick={() => handleSort("item")}>
-                          <div className="flex items-center">Item{getSortIcon("item")}</div>
-                        </TableHead>
-                        <TableHead className="text-slate-300 cursor-pointer hover:text-white text-xs" onClick={() => handleSort("category")}>
-                          <div className="flex items-center">Category{getSortIcon("category")}</div>
-                        </TableHead>
-                        <TableHead className="text-slate-300 cursor-pointer hover:text-white text-xs" onClick={() => handleSort("monthlyCost")}>
-                          <div className="flex items-center">Monthly{getSortIcon("monthlyCost")}</div>
-                        </TableHead>
-                        <TableHead className="text-slate-300 cursor-pointer hover:text-white text-xs" onClick={() => handleSort("recurType")}>
-                          <div className="flex items-center">Recur{getSortIcon("recurType")}</div>
-                        </TableHead>
-                        <TableHead className="text-slate-300 text-xs">Type</TableHead>
-                        <TableHead className="text-slate-300 text-xs">Del</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedItems.map((item) => {
-                        const type = classifyItem(item.category);
-                        return (
-                          <TableRow key={item.id} className="border-slate-700/50 hover:bg-slate-700/20">
-                            <TableCell className="text-white text-xs py-2 max-w-[200px] truncate">{item.item}</TableCell>
-                            <TableCell className="py-2">
-                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${classifyBadge(item.category)}`}>
-                                {item.category}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className={`text-xs py-2 font-semibold ${
-                              type === "income" ? "text-green-300" :
-                              type === "retirement" ? "text-yellow-300" : "text-red-300"
-                            }`}>
-                              {type !== "expense" ? "+" : "-"}{formatCurrency(item.monthlyCost)}
-                            </TableCell>
-                            <TableCell className="text-slate-400 text-[10px] py-2">{item.recurType}</TableCell>
-                            <TableCell className="py-2">
-                              <span className={`text-[10px] font-semibold ${
-                                type === "income" ? "text-green-400" :
-                                type === "retirement" ? "text-yellow-400" : "text-red-400"
-                              }`}>
-                                {type === "income" ? "INCOME" : type === "retirement" ? "RETIRE" : "EXPENSE"}
-                              </span>
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(item.id)}
-                                className="h-6 w-6 p-0 text-red-400/50 hover:text-red-300 hover:bg-red-500/20">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+              <CardContent className="px-0 pb-0">
+                {(() => {
+                  const searched = sortedItems.filter(i =>
+                    tableSearch === "" ||
+                    i.item.toLowerCase().includes(tableSearch.toLowerCase()) ||
+                    i.category.toLowerCase().includes(tableSearch.toLowerCase())
+                  );
+
+                  const groups: { label: string; colorClass: string; headerBg: string; items: typeof searched }[] = [
+                    {
+                      label: "💚 Income & Investment",
+                      colorClass: "text-green-300",
+                      headerBg: "bg-green-500/10 border-green-500/20",
+                      items: searched.filter(i => classifyItem(i.category) === "income"),
+                    },
+                    {
+                      label: "💛 Retirement",
+                      colorClass: "text-yellow-300",
+                      headerBg: "bg-yellow-500/10 border-yellow-500/20",
+                      items: searched.filter(i => classifyItem(i.category) === "retirement"),
+                    },
+                    {
+                      label: "🔴 Expenses",
+                      colorClass: "text-red-300",
+                      headerBg: "bg-red-500/10 border-red-500/20",
+                      items: searched.filter(i => classifyItem(i.category) === "expense"),
+                    },
+                  ].filter(g => g.items.length > 0);
+
+                  const renderGroup = (g: typeof groups[0]) => {
+                    const type = g.label.startsWith("💚") ? "income" : g.label.startsWith("💛") ? "retirement" : "expense";
+                    const groupTotal = g.items.reduce((s, i) => s + i.monthlyCost, 0);
+                    return (
+                      <div key={g.label} className="mb-0">
+                        {/* Section header */}
+                        <div className={`flex items-center justify-between px-4 py-2 border-y border-slate-700/60 ${g.headerBg}`}>
+                          <span className={`text-xs font-bold tracking-wide ${g.colorClass}`}>{g.label}</span>
+                          <span className={`text-xs font-semibold ${g.colorClass}`}>
+                            {g.items.length} items · {formatCurrency(groupTotal)}/mo · {formatCurrency(groupTotal * 12)}/yr
+                          </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-slate-700/40 bg-slate-900/20">
+                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] pl-4 w-[35%]" onClick={() => handleSort("item")}>
+                                  <div className="flex items-center">Item{getSortIcon("item")}</div>
+                                </TableHead>
+                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] w-[18%]" onClick={() => handleSort("category")}>
+                                  <div className="flex items-center">Category{getSortIcon("category")}</div>
+                                </TableHead>
+                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] w-[14%]" onClick={() => handleSort("monthlyCost")}>
+                                  <div className="flex items-center">Monthly{getSortIcon("monthlyCost")}</div>
+                                </TableHead>
+                                <TableHead className="text-slate-400 text-[11px] w-[14%]">Annual</TableHead>
+                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] w-[13%]" onClick={() => handleSort("recurType")}>
+                                  <div className="flex items-center">Recur{getSortIcon("recurType")}</div>
+                                </TableHead>
+                                <TableHead className="text-slate-400 text-[11px] w-[6%]" />
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {g.items.map((item) => (
+                                <TableRow key={item.id} className="border-slate-700/30 hover:bg-slate-700/20 group">
+                                  <TableCell className="text-white text-xs py-2 pl-4 font-medium">{item.item}</TableCell>
+                                  <TableCell className="py-2">
+                                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${classifyBadge(item.category)}`}>
+                                      {item.category}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className={`text-xs py-2 font-semibold tabular-nums ${
+                                    type === "income" ? "text-green-300" :
+                                    type === "retirement" ? "text-yellow-300" : "text-red-300"
+                                  }`}>
+                                    {type !== "expense" ? "+" : "-"}{formatCurrency(item.monthlyCost)}
+                                  </TableCell>
+                                  <TableCell className={`text-xs py-2 tabular-nums opacity-70 ${
+                                    type === "income" ? "text-green-200" :
+                                    type === "retirement" ? "text-yellow-200" : "text-red-200"
+                                  }`}>
+                                    {type !== "expense" ? "+" : "-"}{formatCurrency(item.monthlyCost * 12)}
+                                  </TableCell>
+                                  <TableCell className="text-slate-400 text-[10px] py-2">{item.recurType}</TableCell>
+                                  <TableCell className="py-2 pr-3">
+                                    <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(item.id)}
+                                      className="h-6 w-6 p-0 text-red-400/30 hover:text-red-300 hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              {/* Group subtotal */}
+                              <TableRow className="border-t border-slate-600/50 bg-slate-900/30">
+                                <TableCell className={`text-xs font-bold pl-4 py-2 ${g.colorClass}`} colSpan={2}>Subtotal</TableCell>
+                                <TableCell className={`text-xs font-bold py-2 tabular-nums ${g.colorClass}`}>
+                                  {type !== "expense" ? "+" : "-"}{formatCurrency(groupTotal)}
+                                </TableCell>
+                                <TableCell className={`text-xs font-semibold py-2 tabular-nums opacity-80 ${g.colorClass}`}>
+                                  {type !== "expense" ? "+" : "-"}{formatCurrency(groupTotal * 12)}
+                                </TableCell>
+                                <TableCell colSpan={2} />
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="divide-y divide-slate-700/30">
+                      {groups.map(renderGroup)}
+                      {/* Grand totals footer */}
+                      <div className="px-4 py-3 flex flex-wrap gap-x-8 gap-y-1 bg-slate-900/40 text-xs">
+                        <span className="text-slate-400">{searched.length} items shown</span>
+                        <span className="text-green-300 font-semibold">Income: +{formatCurrency(totalIncome)}/mo</span>
+                        <span className="text-yellow-300 font-semibold">Retirement: +{formatCurrency(totalRetirement)}/mo</span>
+                        <span className="text-red-300 font-semibold">Expenses: -{formatCurrency(totalExpenses)}/mo</span>
+                        <span className={`font-bold ${netCashFlow >= 0 ? "text-white" : "text-red-300"}`}>
+                          Net: {netCashFlow >= 0 ? "+" : ""}{formatCurrency(netCashFlow)}/mo
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
