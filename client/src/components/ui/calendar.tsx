@@ -19,8 +19,8 @@ function Calendar({
       className={cn("p-3 bg-slate-900", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center h-8",
+        month: "space-y-4 flex flex-col",
+        caption: "flex justify-center pt-1 relative items-center h-8 shrink-0",
         caption_label: "text-sm font-medium text-yellow-100",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
@@ -29,7 +29,7 @@ function Calendar({
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1 min-h-[252px]",
+        table: "w-full border-collapse space-y-1 h-[264px]",
         head_row: "flex",
         head_cell:
           "text-yellow-400/70 rounded-md w-9 font-semibold text-[0.8rem]",
