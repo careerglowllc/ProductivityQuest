@@ -16,6 +16,20 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
+const TASK_EMOJIS = [
+  "📝","⚔️","🎯","🚀","💡","🔥","⭐","🏆","💼","📱","💻","🌐","📊","📈","🔧","🛠️",
+  "📦","🎨","✏️","📚","🧠","💪","🤝","📞","✉️","🗓️","⏰","🔔","🎉","🌟","💰","🏦",
+  "🔍","🧩","🎭","🎬","🎵","🎮","🏋️","🧘","🌱","🌍","🚗","✈️","🏠","🍽️","☕","🎁",
+  "🛡️","⚡","🔑","🧪","🔬","📡","🤖","👁️","🦁","🐉","🌈","🎪","🏗️","📌","🗺️","💎",
+];
+
+const EMOJI_CATEGORIES = [
+  { label: "Work", emojis: ["📝","💼","💻","📱","🔧","🛠️","📊","📈","📦","🔍","📡","🤖"] },
+  { label: "Goals", emojis: ["🎯","🚀","⭐","🏆","💡","🔥","💪","🌟","⚔️","🛡️","⚡","💎"] },
+  { label: "Social", emojis: ["🤝","📞","✉️","🎉","🎁","🎭","🎬","🎵","🎮","👁️","🦁","🐉"] },
+  { label: "Life", emojis: ["🏠","🚗","✈️","🍽️","☕","🌱","🌍","🧘","🏋️","🌈","🗓️","⏰"] },
+];
+
 interface AddTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,6 +41,8 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
 
   // Form state
   const [title, setTitle] = useState("");
+  const [taskEmoji, setTaskEmoji] = useState("📝");
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState<string>("30");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
@@ -85,6 +101,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
 
   const resetForm = () => {
     setTitle("");
+    setTaskEmoji("📝");
     setDescription("");
     setDuration("30");
     // goldValue is auto-calculated, no need to reset
@@ -134,6 +151,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
 
     const taskData = {
       title: title.trim(),
+      emoji: taskEmoji,
       description: description.trim(),
       details: description.trim(),
       duration: durationNum,
@@ -170,14 +188,53 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             <Label htmlFor="title" className="text-yellow-200">
               Quest Title <span className="text-red-400">*</span>
             </Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter quest title..."
-              className="bg-slate-800/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40"
-              maxLength={200}
-            />
+            <div className="flex gap-2">
+              {/* Emoji picker */}
+              <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="shrink-0 h-10 w-10 flex items-center justify-center text-xl rounded-md border border-yellow-600/30 bg-slate-800/50 hover:bg-slate-700/70 hover:border-yellow-500/60 transition-colors cursor-pointer"
+                    title="Choose emoji"
+                  >
+                    {taskEmoji}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-3 bg-slate-900 border-yellow-600/40" side="bottom" align="start">
+                  <p className="text-xs text-yellow-400/70 mb-2 font-semibold">Choose quest icon</p>
+                  <div className="space-y-3">
+                    {EMOJI_CATEGORIES.map(cat => (
+                      <div key={cat.label}>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{cat.label}</p>
+                        <div className="grid grid-cols-12 gap-0.5">
+                          {cat.emojis.map(e => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => { setTaskEmoji(e); setEmojiPickerOpen(false); }}
+                              className={cn(
+                                "h-7 w-7 flex items-center justify-center text-base rounded hover:bg-yellow-600/20 transition-colors",
+                                taskEmoji === e && "bg-yellow-600/30 ring-1 ring-yellow-500/50"
+                              )}
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter quest title..."
+                className="bg-slate-800/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40"
+                maxLength={200}
+              />
+            </div>
             <p className="text-xs text-yellow-400/60">{title.length}/200 characters</p>
           </div>
 
