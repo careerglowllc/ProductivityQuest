@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter
+  BarChart3, Filter, Download
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
@@ -261,14 +261,69 @@ export default function Finances() {
     return "bg-red-500/15 text-red-300 border-red-500/20";
   };
 
+  const handleExport = () => {
+    const rows: string[][] = [];
+    rows.push(["Item", "Category", "Type", "Recur Type", "Monthly ($)", "Annual ($)"]);
+
+    const order: Array<"income" | "retirement" | "expense"> = ["income", "retirement", "expense"];
+    const labels: Record<string, string> = { income: "Income/Investment", retirement: "Retirement", expense: "Expense" };
+
+    for (const type of order) {
+      const group = financialItems.filter(i => classifyItem(i.category) === type)
+        .sort((a, b) => b.monthlyCost - a.monthlyCost);
+      if (!group.length) continue;
+      rows.push([]);
+      rows.push([`--- ${labels[type]} ---`, "", "", "", "", ""]);
+      for (const item of group) {
+        rows.push([
+          item.item, item.category, labels[type], item.recurType,
+          (item.monthlyCost / 100).toFixed(2),
+          ((item.monthlyCost * 12) / 100).toFixed(2),
+        ]);
+      }
+      const groupTotal = group.reduce((s, i) => s + i.monthlyCost, 0);
+      rows.push([`${labels[type]} Subtotal`, "", "", "", (groupTotal / 100).toFixed(2), ((groupTotal * 12) / 100).toFixed(2)]);
+    }
+
+    rows.push([]);
+    rows.push(["--- Summary ---", "", "", "", "", ""]);
+    rows.push(["Total Income + Investment", "", "", "", (totalIncome / 100).toFixed(2), (totalIncome * 12 / 100).toFixed(2)]);
+    rows.push(["Total Retirement", "", "", "", (totalRetirement / 100).toFixed(2), (totalRetirement * 12 / 100).toFixed(2)]);
+    rows.push(["Total Expenses", "", "", "", (totalExpenses / 100).toFixed(2), (totalExpenses * 12 / 100).toFixed(2)]);
+    rows.push(["Net Cash Flow (Income - Expenses)", "", "", "", (netCashFlow / 100).toFixed(2), (netCashFlow * 12 / 100).toFixed(2)]);
+    rows.push(["Savings Rate", "", "", "", `${savingsRate.toFixed(1)}%`, ""]);
+
+    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `financial-dashboard-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: "Export downloaded!", description: `${financialItems.length} items exported to CSV` });
+  };
+
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? "pt-16" : ""} pb-24`}>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-1">
-            💰 Financial Dashboard
-          </h1>
-          <p className="text-slate-400 text-sm">Monthly snapshot · {financialItems.length} items tracked</p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-1">
+              💰 Financial Dashboard
+            </h1>
+            <p className="text-slate-400 text-sm">Monthly snapshot · {financialItems.length} items tracked</p>
+          </div>
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            className="shrink-0 mt-1 border-green-500/40 text-green-300 hover:bg-green-500/10 hover:text-green-200 hover:border-green-400/60 gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
         </div>
 
         {/* Summary Cards */}
