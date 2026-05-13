@@ -61,10 +61,6 @@ export default function GoogleCalendarIntegration() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
-      toast({
-        title: "Success!",
-        description: "Your Google Calendar integration has been configured.",
-      });
       setClientId("");
       setClientSecret("");
     },
@@ -191,7 +187,32 @@ export default function GoogleCalendarIntegration() {
     updateMutation.mutate({ 
       googleCalendarClientId: clientId, 
       googleCalendarClientSecret: clientSecret,
-      googleCalendarSyncEnabled: true // Enable sync when credentials are saved
+      googleCalendarSyncEnabled: true
+    }, {
+      onSuccess: async () => {
+        // Automatically redirect to Google OAuth immediately after saving credentials
+        try {
+          const response = await fetch('/api/google-calendar/authorize-url', {
+            credentials: 'include',
+          });
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || error.details || 'Failed to get authorization URL');
+          }
+          const data = await response.json();
+          if (data.authUrl) {
+            window.location.href = data.authUrl;
+          } else {
+            throw new Error('No authorization URL received');
+          }
+        } catch (error: any) {
+          toast({
+            title: "Authorization Error",
+            description: error.message || "Credentials saved but failed to start authorization. Use the Authorize button below.",
+            variant: "destructive",
+          });
+        }
+      }
     });
   };
 
