@@ -4733,29 +4733,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // VTSAX price via Yahoo Finance (unofficial but no key needed)
+  // Generic Yahoo Finance ticker helper
+  async function fetchYahooPrice(symbol: string): Promise<{ symbol: string; price: number; change24h: number | null; source: string }> {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2d`;
+    const response = await fetch(url, {
+      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0" },
+    });
+    if (!response.ok) throw new Error(`Yahoo Finance responded ${response.status} for ${symbol}`);
+    const data = await response.json() as any;
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta) throw new Error(`Unexpected Yahoo Finance response shape for ${symbol}`);
+    const price = meta.regularMarketPrice ?? meta.previousClose;
+    const prevClose = meta.previousClose ?? meta.chartPreviousClose;
+    const change24h = prevClose ? ((price - prevClose) / prevClose) * 100 : null;
+    return { symbol, price, change24h, source: "Yahoo Finance" };
+  }
+
   app.get("/api/market/vtsax", async (_req, res) => {
     try {
-      const response = await fetch(
-        "https://query1.finance.yahoo.com/v8/finance/chart/VTSAX?interval=1d&range=2d",
-        { headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0" } }
-      );
-      if (!response.ok) throw new Error(`Yahoo Finance responded ${response.status}`);
-      const data = await response.json() as any;
-      const meta = data?.chart?.result?.[0]?.meta;
-      if (!meta) throw new Error("Unexpected Yahoo Finance response shape");
-      const price = meta.regularMarketPrice ?? meta.previousClose;
-      const prevClose = meta.previousClose ?? meta.chartPreviousClose;
-      const change24h = prevClose ? ((price - prevClose) / prevClose) * 100 : null;
-      res.json({
-        symbol: "VTSAX",
-        price,
-        change24h,
-        source: "Yahoo Finance",
-      });
+      res.json(await fetchYahooPrice("VTSAX"));
     } catch (error: any) {
       console.error("VTSAX price fetch error:", error);
       res.status(502).json({ error: "Failed to fetch VTSAX price", details: error.message });
+    }
+  });
+
+  app.get("/api/market/voo", async (_req, res) => {
+    try {
+      res.json(await fetchYahooPrice("VOO"));
+    } catch (error: any) {
+      console.error("VOO price fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch VOO price", details: error.message });
     }
   });
 
