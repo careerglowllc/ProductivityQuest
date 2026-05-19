@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter, Download
+  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
@@ -81,9 +81,18 @@ export default function Finances() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
+
+  // Net Worth holdings (persisted in localStorage)
+  const [btcHoldings, setBtcHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-btc") || "1"); } catch { return 1; }
+  });
+  const [vtsaxHoldings, setVtsaxHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-vtsax") || "400"); } catch { return 400; }
+  });
+  const [editingHoldings, setEditingHoldings] = useState(false);
 
   const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(() => {
     try {
@@ -104,6 +113,18 @@ export default function Finances() {
 
   const { data: financialItems = [] } = useQuery<FinancialItem[]>({
     queryKey: ["/api/finances"],
+  });
+
+  const { data: btcData, isLoading: btcLoading, refetch: refetchBtc } = useQuery<{ price: number; change24h: number | null; source: string }>({
+    queryKey: ["/api/market/bitcoin"],
+    staleTime: 60_000, // 1 min
+    retry: 2,
+  });
+
+  const { data: vtsaxData, isLoading: vtsaxLoading, refetch: refetchVtsax } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+    queryKey: ["/api/market/vtsax"],
+    staleTime: 60_000,
+    retry: 2,
   });
 
   const createMutation = useMutation({
@@ -402,6 +423,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
+            </TabsTrigger>
+            <TabsTrigger value="networth" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
+              <Bitcoin className="h-3.5 w-3.5 mr-1.5" />Net Worth
             </TabsTrigger>
           </TabsList>
 
@@ -953,6 +977,217 @@ export default function Finances() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── Net Worth ────────────────────────────── */}
+          <TabsContent value="networth" className="space-y-4">
+            {(() => {
+              const btcPrice = btcData?.price ?? 0;
+              const vtsaxPrice = vtsaxData?.price ?? 0;
+              const btcValue = btcHoldings * btcPrice;
+              const vtsaxValue = vtsaxHoldings * vtsaxPrice;
+              const monthlyIncomeCents = totalIncome;
+              const monthlyExpenseCents = totalExpenses + totalRetirement;
+              // Annual net savings (income - all outflows) scaled to cents→dollars
+              const annualSavings = ((monthlyIncomeCents - monthlyExpenseCents) / 100) * 12;
+              const investmentNetWorth = btcValue + vtsaxValue;
+              const totalNetWorth = investmentNetWorth + annualSavings;
+
+              const assets = [
+                { name: "Bitcoin (BTC)", value: btcValue, color: "#F59E0B", holdings: btcHoldings, price: btcPrice, change: btcData?.change24h ?? null, unit: "BTC" },
+                { name: "VTSAX", value: vtsaxValue, color: "#6366F1", holdings: vtsaxHoldings, price: vtsaxPrice, change: vtsaxData?.change24h ?? null, unit: "shares" },
+              ];
+
+              const pieData = assets.filter(a => a.value > 0).map(a => ({
+                name: a.name,
+                value: Math.round(a.value),
+                color: a.color,
+                pct: investmentNetWorth > 0 ? (a.value / investmentNetWorth) * 100 : 0,
+              }));
+
+              return (
+                <>
+                  {/* Live price header */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h2 className="text-lg font-bold text-orange-300 flex items-center gap-2">
+                        <Bitcoin className="h-5 w-5" /> Investment Net Worth
+                      </h2>
+                      <p className="text-xs text-slate-400">Live prices · refreshes every 60s</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { refetchBtc(); refetchVtsax(); }}
+                      className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 gap-1.5"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Refresh Prices
+                    </Button>
+                  </div>
+
+                  {/* Asset cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {assets.map(asset => (
+                      <Card key={asset.name} className="bg-slate-800/60 border-slate-600/40">
+                        <CardContent className="pt-4 pb-3 px-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <p className="text-xs text-slate-400 font-semibold">{asset.name}</p>
+                              <p className="text-2xl font-bold text-white mt-0.5">
+                                {btcLoading || vtsaxLoading ? (
+                                  <span className="text-slate-500 text-base animate-pulse">Loading…</span>
+                                ) : asset.price > 0 ? (
+                                  `$${asset.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                ) : (
+                                  <span className="text-red-400 text-sm">Unavailable</span>
+                                )}
+                              </p>
+                            </div>
+                            {asset.change !== null && (
+                              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${asset.change >= 0 ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"}`}>
+                                {asset.change >= 0 ? "▲" : "▼"} {Math.abs(asset.change).toFixed(2)}% 24h
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
+                            <span>{asset.holdings.toLocaleString()} {asset.unit} held</span>
+                            <span className="font-semibold text-white">
+                              = ${asset.value > 0 ? asset.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Holdings editor */}
+                  <Card className="bg-slate-800/60 border-orange-500/20">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-orange-300 text-base flex items-center gap-2">
+                          <Edit3 className="h-4 w-4" /> My Holdings
+                        </CardTitle>
+                        <Button variant="ghost" size="sm" onClick={() => setEditingHoldings(v => !v)}
+                          className="text-xs text-slate-400 hover:text-white h-7">
+                          {editingHoldings ? "Done" : "Edit"}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {editingHoldings ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">Bitcoin (BTC) quantity</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.0001"
+                              value={btcHoldings}
+                              onChange={e => {
+                                const v = parseFloat(e.target.value) || 0;
+                                setBtcHoldings(v);
+                                try { localStorage.setItem("nw-btc", String(v)); } catch {}
+                              }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">VTSAX shares quantity</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={vtsaxHoldings}
+                              onChange={e => {
+                                const v = parseFloat(e.target.value) || 0;
+                                setVtsaxHoldings(v);
+                                try { localStorage.setItem("nw-vtsax", String(v)); } catch {}
+                              }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-center">
+                            <p className="text-xs text-yellow-400 mb-0.5">Bitcoin</p>
+                            <p className="text-xl font-bold text-yellow-300">{btcHoldings} BTC</p>
+                          </div>
+                          <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
+                            <p className="text-xs text-indigo-400 mb-0.5">VTSAX</p>
+                            <p className="text-xl font-bold text-indigo-300">{vtsaxHoldings.toLocaleString()} shares</p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Pie + totals */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="bg-slate-800/60 border-purple-500/20">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-purple-300 text-base">Portfolio Allocation</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {pieData.length > 0 && (btcPrice > 0 || vtsaxPrice > 0) ? (
+                          <ResponsiveContainer width="100%" height={240}>
+                            <RechartsPieChart>
+                              <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} innerRadius={45}
+                                dataKey="value" labelLine={false} label={false}>
+                                {pieData.map((d, i) => <Cell key={i} fill={d.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />)}
+                              </Pie>
+                              <Tooltip
+                                formatter={(v: number) => [`$${v.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, ""]}
+                                contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1" }}
+                              />
+                              <Legend formatter={(value) => <span className="text-slate-200 text-xs">{value}</span>} />
+                            </RechartsPieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="flex items-center justify-center h-[240px] text-slate-500 text-sm">
+                            {btcLoading || vtsaxLoading ? "Loading prices…" : "Price data unavailable"}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-800/60 border-green-500/20">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-green-300 text-base">Net Worth Summary</CardTitle>
+                        <CardDescription className="text-slate-400 text-xs">Investments + annual savings trajectory</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
+                          <span className="text-yellow-300">🟡 Bitcoin ({btcHoldings} BTC)</span>
+                          <span className="text-white font-semibold">
+                            {btcPrice > 0 ? `$${btcValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "—"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
+                          <span className="text-indigo-300">🔵 VTSAX ({vtsaxHoldings.toLocaleString()} shares)</span>
+                          <span className="text-white font-semibold">
+                            {vtsaxPrice > 0 ? `$${vtsaxValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "—"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
+                          <span className="text-green-300">💵 Est. Annual Savings</span>
+                          <span className="text-green-300 font-semibold">
+                            ${annualSavings > 0 ? annualSavings.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-base py-2 pt-3">
+                          <span className="text-white font-bold">Total Net Worth</span>
+                          <span className="text-green-300 font-bold text-lg">
+                            ${(btcValue + vtsaxValue).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">* Prices are live from CoinGecko & Yahoo Finance. Holdings stored locally in your browser.</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </>
+              );
+            })()}
           </TabsContent>
 
         </Tabs>

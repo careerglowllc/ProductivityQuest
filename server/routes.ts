@@ -4712,6 +4712,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Market price proxy routes ─────────────────────────────
+  // Bitcoin price via CoinGecko (free, no API key)
+  app.get("/api/market/bitcoin", async (_req, res) => {
+    try {
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true",
+        { headers: { "Accept": "application/json" } }
+      );
+      if (!response.ok) throw new Error(`CoinGecko responded ${response.status}`);
+      const data = await response.json() as any;
+      res.json({
+        price: data.bitcoin.usd,
+        change24h: data.bitcoin.usd_24h_change ?? null,
+        source: "CoinGecko",
+      });
+    } catch (error: any) {
+      console.error("Bitcoin price fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch Bitcoin price", details: error.message });
+    }
+  });
+
+  // VTSAX price via Yahoo Finance (unofficial but no key needed)
+  app.get("/api/market/vtsax", async (_req, res) => {
+    try {
+      const response = await fetch(
+        "https://query1.finance.yahoo.com/v8/finance/chart/VTSAX?interval=1d&range=2d",
+        { headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0" } }
+      );
+      if (!response.ok) throw new Error(`Yahoo Finance responded ${response.status}`);
+      const data = await response.json() as any;
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) throw new Error("Unexpected Yahoo Finance response shape");
+      const price = meta.regularMarketPrice ?? meta.previousClose;
+      const prevClose = meta.previousClose ?? meta.chartPreviousClose;
+      const change24h = prevClose ? ((price - prevClose) / prevClose) * 100 : null;
+      res.json({
+        symbol: "VTSAX",
+        price,
+        change24h,
+        source: "Yahoo Finance",
+      });
+    } catch (error: any) {
+      console.error("VTSAX price fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch VTSAX price", details: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
