@@ -95,6 +95,9 @@ export default function Finances() {
   const [vooHoldings, setVooHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-voo") || "240.676"); } catch { return 240.676; }
   });
+  const [rothIraVtsaxHoldings, setRothIraVtsaxHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-roth-vtsax") || "315.662"); } catch { return 315.662; }
+  });
   const [editingHoldings, setEditingHoldings] = useState(false);
 
   const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(() => {
@@ -999,15 +1002,17 @@ export default function Finances() {
               const btcValue = btcHoldings * btcPrice;
               const vtsaxValue = vtsaxHoldings * vtsaxPrice;
               const vooValue = vooHoldings * vooPrice;
+              const rothIraValue = rothIraVtsaxHoldings * vtsaxPrice;
               const vanguardTotal = vtsaxValue + vooValue;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = btcValue + vanguardTotal;
+              const investmentTotal = btcValue + vanguardTotal + rothIraValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading;
 
               const pieData = [
                 { name: "Bitcoin (BTC)", value: Math.round(btcValue), color: "#F59E0B" },
                 { name: "Vanguard Brokerage", value: Math.round(vanguardTotal), color: "#6366F1" },
+                { name: "Roth IRA (VTSAX)", value: Math.round(rothIraValue), color: "#10B981" },
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
                 pct: investmentTotal > 0 ? (d.value / investmentTotal) * 100 : 0,
@@ -1034,8 +1039,8 @@ export default function Finances() {
                     </Button>
                   </div>
 
-                  {/* Top-level asset cards: BTC + Vanguard Brokerage bundle */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Top-level asset cards: BTC + Vanguard Brokerage bundle + Roth IRA */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Bitcoin */}
                     <Card className="bg-slate-800/60 border-yellow-500/30">
                       <CardContent className="pt-4 pb-3 px-4">
@@ -1090,6 +1095,26 @@ export default function Finances() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Roth IRA */}
+                    <Card className="bg-slate-800/60 border-emerald-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-xs text-emerald-400 font-bold tracking-wide">🌿 Roth IRA</p>
+                            <p className="text-2xl font-bold text-white mt-0.5">
+                              {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
+                                : rothIraValue > 0 ? fmt(rothIraValue) : <span className="text-red-400 text-sm">Unavailable</span>}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">VTSAX</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
+                          <span>VTSAX · {rothIraVtsaxHoldings} shares · {fmt(vtsaxPrice)}/share</span>
+                          <span className="font-semibold text-emerald-300">{fmt(rothIraValue)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
                   {/* Holdings editor */}
@@ -1107,7 +1132,7 @@ export default function Finances() {
                     </CardHeader>
                     <CardContent>
                       {editingHoldings ? (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <Label className="text-slate-300 text-xs mb-1 block">Bitcoin (BTC)</Label>
                             <Input type="number" min="0" step="0.0001" value={btcHoldings}
@@ -1115,7 +1140,7 @@ export default function Finances() {
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-slate-300 text-xs mb-1 block">VTSAX shares</Label>
+                            <Label className="text-slate-300 text-xs mb-1 block">VTSAX shares (Vanguard Brokerage)</Label>
                             <Input type="number" min="0" step="0.001" value={vtsaxHoldings}
                               onChange={e => { const v = parseFloat(e.target.value)||0; setVtsaxHoldings(v); try { localStorage.setItem("nw-vtsax", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
@@ -1126,20 +1151,30 @@ export default function Finances() {
                               onChange={e => { const v = parseFloat(e.target.value)||0; setVooHoldings(v); try { localStorage.setItem("nw-voo", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">VTSAX shares (Roth IRA)</Label>
+                            <Input type="number" min="0" step="0.001" value={rothIraVtsaxHoldings}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setRothIraVtsaxHoldings(v); try { localStorage.setItem("nw-roth-vtsax", String(v)); } catch {} }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                           <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-center">
                             <p className="text-xs text-yellow-400 mb-0.5">Bitcoin</p>
                             <p className="text-lg font-bold text-yellow-300">{btcHoldings} BTC</p>
                           </div>
                           <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
-                            <p className="text-xs text-indigo-400 mb-0.5">VTSAX</p>
+                            <p className="text-xs text-indigo-400 mb-0.5">VTSAX (Brokerage)</p>
                             <p className="text-lg font-bold text-indigo-300">{vtsaxHoldings} sh.</p>
                           </div>
                           <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
                             <p className="text-xs text-indigo-400 mb-0.5">VOO</p>
                             <p className="text-lg font-bold text-indigo-300">{vooHoldings} sh.</p>
+                          </div>
+                          <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
+                            <p className="text-xs text-emerald-400 mb-0.5">VTSAX (Roth IRA)</p>
+                            <p className="text-lg font-bold text-emerald-300">{rothIraVtsaxHoldings} sh.</p>
                           </div>
                         </div>
                       )}
@@ -1195,6 +1230,16 @@ export default function Finances() {
                           <div className="flex justify-between text-xs text-slate-500 pl-3">
                             <span>VOO {vooHoldings} × {fmt(vooPrice)}</span>
                             <span>{fmt(vooValue)}</span>
+                          </div>
+                        </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-emerald-300">🌿 Roth IRA</span>
+                            <span className="text-white font-semibold">{fmt(rothIraValue)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>VTSAX {rothIraVtsaxHoldings} × {fmt(vtsaxPrice)}</span>
+                            <span>{fmt(rothIraValue)}</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
