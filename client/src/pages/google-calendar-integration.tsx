@@ -796,8 +796,32 @@ export default function GoogleCalendarIntegration() {
                   googleCalendarClientId: clientId, 
                   googleCalendarClientSecret: clientSecret,
                   googleCalendarSyncEnabled: true
+                }, {
+                  onSuccess: async () => {
+                    setShowConnectModal(false);
+                    try {
+                      const response = await fetch('/api/google-calendar/authorize-url', {
+                        credentials: 'include',
+                      });
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || error.details || 'Failed to get authorization URL');
+                      }
+                      const data = await response.json();
+                      if (data.authUrl) {
+                        window.location.href = data.authUrl;
+                      } else {
+                        throw new Error('No authorization URL received');
+                      }
+                    } catch (error: any) {
+                      toast({
+                        title: "Authorization Error",
+                        description: error.message || "Credentials saved but failed to start authorization. Use the Authorize button below.",
+                        variant: "destructive",
+                      });
+                    }
+                  }
                 });
-                setShowConnectModal(false);
               }} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="modal-clientId" className="text-yellow-100">Client ID</Label>
