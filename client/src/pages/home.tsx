@@ -95,6 +95,13 @@ export default function Home() {
   // Mobile file menu state
   const [showFileMenu, setShowFileMenu] = useState(false);
   
+  // CSV Import state
+  const csvImportRef = useRef<HTMLInputElement>(null);
+  const [csvImportParsedRows, setCsvImportParsedRows] = useState<Record<string, string>[]>([]);
+  const [showCsvDuplicateDialog, setShowCsvDuplicateDialog] = useState(false);
+  const [csvDuplicateCount, setCsvDuplicateCount] = useState(0);
+  const [csvTotalCount, setCsvTotalCount] = useState(0);
+  
   // Mobile selection bar sub-menu states
   const [showCalendarMenu, setShowCalendarMenu] = useState(false);
   const [showOrganizeMenu, setShowOrganizeMenu] = useState(false);
@@ -1173,6 +1180,99 @@ export default function Home() {
     }
   };
 
+  // Parse CSV text into array of header-keyed objects
+  const parseCSV = (text: string): Record<string, string>[] => {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const parseRow = (line: string): string[] => {
+      const result: string[] = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          result.push(cur); cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur);
+      return result;
+    };
+    const headers = parseRow(lines[0]);
+    return lines.slice(1).map(line => {
+      const vals = parseRow(line);
+      const obj: Record<string, string> = {};
+      headers.forEach((h, i) => { obj[h.trim()] = (vals[i] ?? '').trim(); });
+      return obj;
+    }).filter(r => r['Title']);
+  };
+
+  const doCSVImport = async (rows: Record<string, string>[], skipDuplicates: boolean) => {
+    try {
+      const res = await fetch('/api/tasks/import/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ rows, skipDuplicates }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "✅ Import Complete",
+        description: `${data.imported} task${data.imported !== 1 ? 's' : ''} imported${data.skipped > 0 ? `, ${data.skipped} duplicate${data.skipped !== 1 ? 's' : ''} skipped` : ''}.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Import Failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleImportCSVFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so re-selecting same file works
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseCSV(text);
+      if (!rows.length) {
+        toast({ title: "No tasks found", description: "The CSV appears empty or has an unrecognized format.", variant: "destructive" });
+        return;
+      }
+      // First probe the server to detect duplicates
+      const res = await fetch('/api/tasks/import/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ rows }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Import Failed", description: data.error || 'Unknown error', variant: "destructive" });
+        return;
+      }
+      if (data.needsConfirmation) {
+        setCsvImportParsedRows(rows);
+        setCsvDuplicateCount(data.duplicateCount);
+        setCsvTotalCount(data.totalCount);
+        setShowCsvDuplicateDialog(true);
+      } else {
+        // No duplicates – imported immediately
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        toast({
+          title: "✅ Import Complete",
+          description: `${data.imported} task${data.imported !== 1 ? 's' : ''} imported.`,
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleImportConfirm = async () => {
     try {
       // When triggered from "Import ALL" modal (showImportConfirm), delete all existing tasks first
@@ -1799,6 +1899,13 @@ export default function Home() {
                         <FileSpreadsheet className="w-4 h-4" />
                         Export as CSV
                       </button>
+                      <button
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-emerald-200 hover:bg-slate-700 active:bg-slate-600"
+                        onClick={() => { setShowFileMenu(false); csvImportRef.current?.click(); }}
+                      >
+                        <Download className="w-4 h-4" />
+                        Import as CSV
+                      </button>
                     </div>
                   </>
                 )}
@@ -1897,6 +2004,10 @@ export default function Home() {
               <Button onClick={handleExportCSV} variant="outline" className="flex items-center space-x-2 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 hover:text-emerald-100 hover:border-emerald-500/60">
                 <FileSpreadsheet className="w-4 h-4" />
                 <span>Export as CSV</span>
+              </Button>
+              <Button onClick={() => csvImportRef.current?.click()} variant="outline" className="flex items-center space-x-2 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 hover:text-emerald-100 hover:border-emerald-500/60">
+                <Download className="w-4 h-4" />
+                <span>Import as CSV</span>
               </Button>
             </div>
           )}
@@ -3135,6 +3246,64 @@ export default function Home() {
         open={showAddQuestline}
         onOpenChange={setShowAddQuestline}
       />
+
+      {/* Hidden CSV file input */}
+      <input
+        ref={csvImportRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={handleImportCSVFile}
+      />
+
+      {/* CSV Duplicate Resolution Dialog */}
+      <Dialog open={showCsvDuplicateDialog} onOpenChange={setShowCsvDuplicateDialog}>
+        <DialogContent className="bg-slate-900 border-yellow-600/40 text-yellow-100 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-yellow-200">
+              <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
+              Duplicate Tasks Detected
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3 text-sm text-yellow-100/80">
+            <p>
+              Found <span className="font-bold text-white">{csvTotalCount}</span> task{csvTotalCount !== 1 ? 's' : ''} in the CSV.
+            </p>
+            <p>
+              <span className="font-bold text-yellow-300">{csvDuplicateCount}</span> task{csvDuplicateCount !== 1 ? 's appear' : ' appears'} to already exist (same title, description, stage, and recurrence).
+            </p>
+            <p>How would you like to handle the duplicates?</p>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              variant="outline"
+              className="border-slate-600 text-slate-300 hover:bg-slate-700 flex-1"
+              onClick={() => {
+                setShowCsvDuplicateDialog(false);
+                doCSVImport(csvImportParsedRows, true);
+              }}
+            >
+              Skip Duplicates
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1"
+              onClick={() => {
+                setShowCsvDuplicateDialog(false);
+                doCSVImport(csvImportParsedRows, false);
+              }}
+            >
+              Add All Anyway
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-slate-400 hover:text-white flex-1"
+              onClick={() => setShowCsvDuplicateDialog(false)}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

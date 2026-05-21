@@ -504,6 +504,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export tasks as CSV
+  app.post("/api/tasks/import/csv", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { rows, skipDuplicates } = req.body as {
+        rows: Record<string, string>[];
+        skipDuplicates: boolean;
+      };
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ error: "No rows provided" });
+      }
+
+      const existingTasks = await storage.getTasks(userId);
+
+      const parseBoolean = (v: string) => v?.toLowerCase() === 'yes' || v === '1' || v?.toLowerCase() === 'true';
+      const parseDate = (v: string) => (v && v.trim() ? new Date(v.trim()) : null);
+      const parseNum = (v: string, fallback: number) => {
+        const n = parseInt(v, 10);
+        return isNaN(n) ? fallback : n;
+      };
+
+      // Parse each CSV row into a task shape
+      const parsed = rows.map(r => ({
+        title: r['Title']?.trim() || '',
+        description: r['Description']?.trim() || null,
+        details: r['Details']?.trim() || null,
+        duration: parseNum(r['Duration (min)'], 30),
+        goldValue: parseNum(r['Gold Value'], 10),
+        importance: r['Importance']?.trim() || 'Medium',
+        kanbanStage: r['Kanban Stage']?.trim() || 'todo',
+        recurType: r['Recurrence']?.trim() || 'none',
+        campaign: r['Campaign']?.trim() || null,
+        businessWorkFilter: r['Business/Work Filter']?.trim() || null,
+        dueDate: parseDate(r['Due Date']),
+        skillTags: r['Skill Tags'] ? r['Skill Tags'].split(';').map(s => s.trim()).filter(Boolean) : [],
+        apple: parseBoolean(r['Apple']),
+        smartPrep: parseBoolean(r['Smart Prep']),
+        delegationTask: parseBoolean(r['Delegation']),
+        velin: parseBoolean(r['Velin']),
+        completed: false,
+      })).filter(t => t.title);
+
+      // Identify duplicates: same title + description + kanbanStage + recurType
+      const isDuplicate = (t: typeof parsed[0]) =>
+        existingTasks.some(
+          e =>
+            e.title === t.title &&
+            (e.description || null) === (t.description || null) &&
+            e.kanbanStage === t.kanbanStage &&
+            e.recurType === t.recurType
+        );
+
+      const duplicates = parsed.filter(isDuplicate);
+      const nonDuplicates = parsed.filter(t => !isDuplicate(t));
+
+      // If not yet resolved and there are duplicates, return info for client to ask
+      if (duplicates.length > 0 && skipDuplicates === undefined) {
+        return res.json({ needsConfirmation: true, duplicateCount: duplicates.length, totalCount: parsed.length });
+      }
+
+      const toImport = skipDuplicates ? nonDuplicates : parsed;
+
+      let imported = 0;
+      for (const t of toImport) {
+        await storage.createTask({ ...t, userId } as any);
+        imported++;
+      }
+
+      console.log(`📥 [CSV IMPORT] Imported ${imported} tasks for user ${userId} (skipped ${parsed.length - imported} duplicates)`);
+      res.json({ imported, skipped: parsed.length - imported, total: parsed.length });
+    } catch (error: any) {
+      console.error('❌ [CSV IMPORT] Error:', error.message);
+      res.status(500).json({ error: "Failed to import tasks from CSV" });
+    }
+  });
+
   app.get("/api/tasks/export/csv", requireAuth, async (req: any, res) => {
     try {
       console.log('📊 [CSV EXPORT] Starting export for user:', req.session.userId);
