@@ -1852,19 +1852,42 @@ export default function Finances() {
                       </CardHeader>
                       <CardContent>
                         {pieData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={240}>
+                          <>
+                          <ResponsiveContainer width="100%" height={220}>
                             <RechartsPieChart>
                               <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} innerRadius={45}
                                 dataKey="value" labelLine={false} label={false}>
                                 {pieData.map((d, i) => <Cell key={i} fill={d.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />)}
                               </Pie>
-                              <Tooltip formatter={(v: number) => [fmt(v), ""]}
-                                contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1", color: "#fff" }}
-                                labelStyle={{ color: "#fff" }}
-                                itemStyle={{ color: "#fff" }} />
-                              <Legend formatter={(value) => <span style={{ color: "#fff" }} className="text-xs">{value}</span>} />
+                              <Tooltip
+                                content={({ active, payload }) => {
+                                  if (!active || !payload?.length) return null;
+                                  const d = payload[0].payload;
+                                  return (
+                                    <div className="bg-slate-800 border border-purple-500/50 rounded-lg px-3 py-2 shadow-xl text-sm">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                                        <span className="text-white font-semibold">{d.name}</span>
+                                      </div>
+                                      <p className="text-slate-200">{fmt(d.value)}</p>
+                                      <p className="text-purple-300 font-bold">{d.pct.toFixed(1)}% of portfolio</p>
+                                    </div>
+                                  );
+                                }}
+                              />
                             </RechartsPieChart>
                           </ResponsiveContainer>
+                          {/* Legend with percentages */}
+                          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-1">
+                            {pieData.map((d) => (
+                              <div key={d.name} className="flex items-center gap-1.5">
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                                <span className="text-xs text-slate-300">{d.name}</span>
+                                <span className="text-xs font-semibold" style={{ color: d.color }}>{d.pct.toFixed(1)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                          </>
                         ) : (
                           <div className="flex items-center justify-center h-[240px] text-slate-500 text-sm">
                             {isLoading ? "Loading prices…" : "Price data unavailable"}
