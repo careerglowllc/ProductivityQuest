@@ -69,19 +69,13 @@ function Router() {
             <Route path="/" component={Landing} />
             {/* Redirect all other routes to login for unauthenticated users */}
             <Route path="/:rest*">
-              {() => {
-                window.location.href = '/login';
-                return null;
-              }}
+              {() => <Redirect to="/login" />}
             </Route>
           </>
         ) : (
           <>
             <Route path="/">
-              {() => {
-                window.location.href = '/dashboard';
-                return null;
-              }}
+              {() => <Redirect to="/dashboard" />}
             </Route>
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/tasks" component={Tasks} />

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Trophy } from "lucide-react";
+import { Trophy, CheckCircle } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -14,6 +14,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,18 +25,28 @@ export default function Login() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
-        credentials: 'include', // Important for session cookies
+        credentials: 'include',
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Invalidate auth query to refetch user data
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-        
-        // Redirect immediately - toast will show on dashboard
-        window.location.href = "/dashboard";
-        return; // Prevent further execution
+        // Immediately seed the auth cache so Router sees isAuthenticated = true
+        // without needing a refetch/reload
+        queryClient.setQueryData(["/api/auth/user"], data);
+
+        // Show welcome state briefly, then navigate via SPA (no reload)
+        setLoginSuccess(true);
+        toast({
+          title: "✅ Welcome back!",
+          description: `Good to see you, ${data.username}! Loading your quests…`,
+          duration: 2500,
+        });
+
+        setTimeout(() => {
+          setLocation("/dashboard");
+        }, 800);
+        return;
       } else {
         toast({
           title: "Login failed",
@@ -68,6 +79,14 @@ export default function Login() {
       </div>
 
       <Card className="w-full max-w-md bg-slate-800/80 backdrop-blur-md border-2 border-yellow-600/40 relative z-10 my-auto sm:my-0 mt-8 sm:mt-0 mb-[calc(env(safe-area-inset-bottom,0px)+2rem)]">
+        {loginSuccess ? (
+          <CardContent className="pt-10 pb-10 flex flex-col items-center gap-4 text-center">
+            <CheckCircle className="w-16 h-16 text-green-400 animate-bounce" />
+            <p className="text-2xl font-bold text-yellow-100">Welcome back!</p>
+            <p className="text-yellow-200/70 text-sm">Loading your quests…</p>
+          </CardContent>
+        ) : (
+          <>
         <CardHeader className="text-center border-b border-yellow-600/20 pb-6">
           <div className="flex items-center justify-center mb-4">
             <Trophy className="text-yellow-400 w-12 h-12 mr-3" />
@@ -133,6 +152,8 @@ export default function Login() {
             </div>
           </form>
         </CardContent>
+          </>
+        )}
       </Card>
     </div>
   );
