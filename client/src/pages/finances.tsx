@@ -1264,7 +1264,7 @@ export default function Finances() {
                             </div>
                           )}
                           <div className="flex justify-between">
-                            <span>Loan payoff</span>
+                            <span className="flex items-center gap-1.5">Loan payoff <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">manual</span></span>
                             <span className="text-red-400">-${homeLoanBalance.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1">
