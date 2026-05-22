@@ -135,6 +135,10 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
+  // Cash — checking account (manual, last updated May 2026)
+  const [checkingBalance, setCheckingBalance] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-checking") || "35000"); } catch { return 35000; }
+  });
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
 
@@ -1087,14 +1091,14 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + homeEquity;
+              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + homeEquity + checkingBalance;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading;
 
               const cryptoTotal = totalBtcValue + rothIraValue;
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
                 { name: "Index Funds", value: Math.round(vanguardTotal), color: "#6366F1" },
-                // Real Estate always included when positive; stays in code ready for when equity turns positive
+                { name: "Cash", value: Math.round(checkingBalance), color: "#22D3EE" },
                 ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
@@ -1327,6 +1331,22 @@ export default function Finances() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Cash — Checking Account */}
+                    <Card className="bg-slate-800/60 border-cyan-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-cyan-400 font-bold tracking-wide">💵 Checking Account</p>
+                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
+                            </div>
+                            <p className="text-2xl font-bold mt-0.5 text-white">${checkingBalance.toLocaleString()}</p>
+                          </div>
+                          <span className="text-[10px] border rounded px-1.5 py-0.5 text-cyan-400 border-cyan-500/30">cash</span>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
                   {/* Holdings editor */}
@@ -1467,6 +1487,19 @@ export default function Finances() {
                               </div>
                             </div>
                           </div>
+                          {/* Cash */}
+                          <div className="col-span-1 md:col-span-2 pt-2 border-t border-cyan-500/20">
+                            <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest font-semibold mb-3">💵 Cash</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Checking Account Balance ($)</Label>
+                                <Input type="number" min="0" step="100" value={checkingBalance}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setCheckingBalance(v); try { localStorage.setItem("nw-checking", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual entry · last updated May 2026</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -1536,6 +1569,15 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">after-tax net cash</p>
                                 </div>
                               </div>
+                              {/* Cash umbrella */}
+                              <div className="rounded-lg bg-cyan-500/5 border border-cyan-500/20 p-3">
+                                <p className="text-[10px] text-cyan-400/70 font-semibold uppercase tracking-widest mb-2">💵 Cash</p>
+                                <div className="rounded-md bg-cyan-500/10 p-2 text-center">
+                                  <p className="text-[10px] text-cyan-400 mb-0.5">Checking</p>
+                                  <p className="text-sm font-bold text-cyan-300">${checkingBalance.toLocaleString()}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
+                                </div>
+                              </div>
                             </div>
                           ) : (
                             <div className="space-y-2">
@@ -1594,6 +1636,14 @@ export default function Finances() {
                                 <p className={`text-sm font-bold ${homeAfterTaxNetCash >= 0 ? "text-pink-300" : "text-red-300"}`}>
                                   {homeAfterTaxNetCash >= 0 ? `$${Math.round(homeAfterTaxNetCash).toLocaleString()}` : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString()}`}
                                 </p>
+                              </div>
+                              {/* Checking Account */}
+                              <div className="rounded-lg bg-cyan-500/5 border border-cyan-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-cyan-400 font-semibold">Checking Account</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Cash · manual · May 2026</p>
+                                </div>
+                                <p className="text-sm font-bold text-cyan-300">${checkingBalance.toLocaleString()}</p>
                               </div>
                             </div>
                           )}
@@ -1684,6 +1734,15 @@ export default function Finances() {
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
                             <span>After-tax net cash · {homeSellerFee}% commission + 0.22% transfer tax · {homeFedCapGainsRate + homeCaCapGainsRate}% cap gains</span>
+                          </div>
+                        </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-cyan-300">💵 Checking Account</span>
+                            <span className="text-white font-semibold">${checkingBalance.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>Cash · manual entry · May 2026</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
