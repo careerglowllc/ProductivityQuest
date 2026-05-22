@@ -125,6 +125,11 @@ export default function Finances() {
   const [rothIraIbitHoldings, setRothIraIbitHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "69"); } catch { return 69; }
   });
+  // 401k — VG INST 500 IDX (VIIIX) via employer plan
+  // $117,112.75 current value ÷ $599.22/share (VIIIX, May 22 2026) ≈ 195.44 shares
+  const [k401Shares, setK401Shares] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-401k-viiix") || "195.44"); } catch { return 195.44; }
+  });
   // Real Estate — 2605 Plumbago Court (all defaults set for alexbaer321@gmail.com, May 2026)
   const [homeAddress, setHomeAddress] = useState<string>(() => {
     try { return localStorage.getItem("nw-home-address") || "2605 Plumbago Court, Rocklin, CA 95677"; } catch { return "2605 Plumbago Court, Rocklin, CA 95677"; }
@@ -207,6 +212,13 @@ export default function Finances() {
 
   const { data: ibitData, isLoading: ibitLoading, refetch: refetchIbit } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/ibit"],
+    staleTime: 60_000,
+    retry: 2,
+  });
+
+  // VIIIX (Vanguard Institutional 500 Index) — used for 401k valuation
+  const { data: viiixData, isLoading: viiixLoading } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+    queryKey: ["/api/market/viiix"],
     staleTime: 60_000,
     retry: 2,
   });
@@ -303,12 +315,14 @@ export default function Finances() {
   const _vtsaxPrice = vtsaxData?.price ?? 0;
   const _vooPrice = vooData?.price ?? 0;
   const _ibitPrice = ibitData?.price ?? 0;
+  const _viiixPrice = viiixData?.price ?? 0;
   const _btcValue = btcHoldings * _btcPrice;
   const _coinbaseValue = coinbaseBtcHoldings * _btcPrice;
   const _totalBtcValue = _btcValue + _coinbaseValue;
   const _vtsaxValue = vtsaxHoldings * _vtsaxPrice;
   const _vooValue = vooHoldings * _vooPrice;
   const _rothIraValue = rothIraIbitHoldings * _ibitPrice;
+  const _k401Value = k401Shares * _viiixPrice;
   const _vanguardTotal = _vtsaxValue + _vooValue;
   const _homeLivePrice = propertyData?.price ?? null;
   const _homeSalePrice = (_homeLivePrice !== null && _homeLivePrice > 0) ? _homeLivePrice : homeEstValue;
@@ -322,8 +336,8 @@ export default function Finances() {
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
-  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _homeAfterTaxNetCash + checkingBalance;
-  const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading;
+  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance;
+  const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
   const W2_ITEM_NAME = "Post-Tax W2 Salary Income";
@@ -702,6 +716,7 @@ export default function Finances() {
                                 { label: "Crypto (BTC)", value: _totalBtcValue, color: "text-yellow-300" },
                                 { label: "Index Funds", value: _vanguardTotal, color: "text-indigo-300" },
                                 { label: "Roth IRA (IBIT)", value: _rothIraValue, color: "text-purple-300" },
+                                { label: "401k (VIIIX)", value: _k401Value, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
                               ].map(({ label, value, color }) => (
@@ -1340,6 +1355,7 @@ export default function Finances() {
               const vtsaxPrice = vtsaxData?.price ?? 0;
               const vooPrice = vooData?.price ?? 0;
               const ibitPrice = ibitData?.price ?? 0;
+              const viiixPrice = viiixData?.price ?? 0;
 
               const btcValue = btcHoldings * btcPrice;
               const coinbaseValue = coinbaseBtcHoldings * btcPrice;
@@ -1347,6 +1363,7 @@ export default function Finances() {
               const vtsaxValue = vtsaxHoldings * vtsaxPrice;
               const vooValue = vooHoldings * vooPrice;
               const rothIraValue = rothIraIbitHoldings * ibitPrice;
+              const k401Value = k401Shares * viiixPrice;
               const vanguardTotal = vtsaxValue + vooValue;
 
               // Real estate — use live Redfin price when available, else fall back to manual
@@ -1371,13 +1388,14 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + homeEquity + checkingBalance;
-              const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading;
+              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance;
+              const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
               const cryptoTotal = totalBtcValue + rothIraValue;
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
                 { name: "Index Funds", value: Math.round(vanguardTotal), color: "#6366F1" },
+                { name: "401k (VIIIX)", value: Math.round(k401Value), color: "#14B8A6" },
                 { name: "Cash", value: Math.round(checkingBalance), color: "#22D3EE" },
                 ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
               ].filter(d => d.value > 0).map(d => ({
@@ -1494,6 +1512,26 @@ export default function Finances() {
                         <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
                           <span>IBIT · {rothIraIbitHoldings} sh. · {fmt(ibitPrice)}/sh.</span>
                           <span className="font-semibold text-emerald-300">{fmt(rothIraValue)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* 401k — VG INST 500 IDX (VIIIX) */}
+                    <Card className="bg-slate-800/60 border-teal-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-xs text-teal-400 font-bold tracking-wide">🏦 401k</p>
+                            <p className="text-2xl font-bold text-white mt-0.5">
+                              {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
+                                : k401Value > 0 ? fmt(k401Value) : <span className="text-red-400 text-sm">Unavailable</span>}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-teal-400 border border-teal-500/30 rounded px-1.5 py-0.5">VIIIX</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
+                          <span>VIIIX · {k401Shares} sh. · {fmt(viiixPrice)}/sh.</span>
+                          <span className="font-semibold text-teal-300">{fmt(k401Value)}</span>
                         </div>
                       </CardContent>
                     </Card>
@@ -1676,6 +1714,12 @@ export default function Finances() {
                               onChange={e => { const v = parseFloat(e.target.value)||0; setRothIraIbitHoldings(v); try { localStorage.setItem("nw-roth-ibit", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">VIIIX shares (401k — VG INST 500 IDX)</Label>
+                            <Input type="number" min="0" step="0.001" value={k401Shares}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setK401Shares(v); try { localStorage.setItem("nw-401k-viiix", String(v)); } catch {} }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          </div>
                           {/* Real Estate — organized into 3 sub-sections */}
                           <div className="col-span-1 md:col-span-2 pt-2 border-t border-pink-500/20">
                             <p className="text-[10px] text-pink-400/70 uppercase tracking-widest font-semibold mb-3">🏠 2605 Plumbago Court — Property &amp; Loan</p>
@@ -1839,6 +1883,15 @@ export default function Finances() {
                                   </div>
                                 </div>
                               </div>
+                              {/* 401k umbrella */}
+                              <div className="rounded-lg bg-teal-500/5 border border-teal-500/20 p-3">
+                                <p className="text-[10px] text-teal-400/70 font-semibold uppercase tracking-widest mb-2">🏦 401k</p>
+                                <div className="rounded-md bg-teal-500/10 p-2 text-center">
+                                  <p className="text-[10px] text-teal-400 mb-0.5">VG INST 500 IDX</p>
+                                  <p className="text-sm font-bold text-teal-300">{viiixPrice > 0 ? `$${Math.round(k401Value).toLocaleString()}` : "—"}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">{k401Shares} sh. VIIIX</p>
+                                </div>
+                              </div>
                               {/* Real Estate umbrella */}
                               <div className={`rounded-lg p-3 ${homeAfterTaxNetCash >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
                                 <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${homeAfterTaxNetCash >= 0 ? "text-pink-400/70" : "text-red-400/70"}`}>🏠 Real Estate</p>
@@ -1907,6 +1960,14 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">Retirement · {rothIraIbitHoldings} sh. IBIT</p>
                                 </div>
                                 <p className="text-sm font-bold text-emerald-300">{ibitPrice > 0 ? `$${Math.round(rothIraValue).toLocaleString()}` : "—"}</p>
+                              </div>
+                              {/* 401k */}
+                              <div className="rounded-lg bg-teal-500/5 border border-teal-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-teal-400 font-semibold">401k</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Employer plan · {k401Shares} sh. VIIIX</p>
+                                </div>
+                                <p className="text-sm font-bold text-teal-300">{viiixPrice > 0 ? `$${Math.round(k401Value).toLocaleString()}` : "—"}</p>
                               </div>
                               {/* Real Estate */}
                               <div className={`rounded-lg p-3 flex items-center justify-between ${homeAfterTaxNetCash >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
@@ -2027,6 +2088,16 @@ export default function Finances() {
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
                             <span>IBIT {rothIraIbitHoldings} × {fmt(ibitPrice)}</span>
                             <span>{fmt(rothIraValue)}</span>
+                          </div>
+                        </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-teal-300">🏦 401k</span>
+                            <span className="text-white font-semibold">{fmt(k401Value)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>VIIIX {k401Shares} × {fmt(viiixPrice)}</span>
+                            <span>{fmt(k401Value)}</span>
                           </div>
                         </div>
                         <div className="py-2 border-b border-slate-700/40">

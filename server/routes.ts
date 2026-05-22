@@ -4852,6 +4852,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Vanguard Institutional 500 Index (VIIIX) — used for 401k valuation
+  app.get("/api/market/viiix", async (_req, res) => {
+    try {
+      res.json(await fetchYahooPrice("VIIIX"));
+    } catch (error: any) {
+      console.error("VIIIX price fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch VIIIX price", details: error.message });
+    }
+  });
+
   // ── Property valuation via Redfin unofficial search API ──────────────────
   // No API key required. Results are cached 6 hours since prices change slowly.
   const propertyCache = new Map<string, { price: number; fetchedAt: number; source: string }>();
