@@ -24,11 +24,136 @@ const TASK_EMOJIS = [
 ];
 
 const EMOJI_CATEGORIES = [
-  { label: "Work", emojis: ["📝","💼","💻","📱","🔧","🛠️","📊","📈","📦","🔍","📡","🤖"] },
-  { label: "Goals", emojis: ["🎯","🚀","⭐","🏆","💡","🔥","💪","🌟","⚔️","🛡️","⚡","💎"] },
-  { label: "Social", emojis: ["🤝","📞","✉️","🎉","🎁","🎭","🎬","🎵","🎮","👁️","🦁","🐉"] },
-  { label: "Life", emojis: ["🏠","🚗","✈️","🍽️","☕","🌱","🌍","🧘","🏋️","🌈","🗓️","⏰"] },
+  { label: "Work", emojis: ["📝","💼","💻","📱","🔧","🛠️","📊","📈","📦","🔍","📡","🤖","🖥️","⌨️","🖨️","💾","📁","📂","🗂️","📋","📌","📍","✂️","📏","📐","🔏","🔐","🔒","🔓","🔑","🗝️","🏗️","🏢","📠","📺","📷","📸","📹","🎞️","📽️","🎙️","📻"] },
+  { label: "Goals", emojis: ["🎯","🚀","⭐","🏆","💡","🔥","💪","🌟","⚔️","🛡️","⚡","💎","🥇","🥈","🥉","🎖️","🏅","🎗️","🎀","👑","✨","🌠","🌌","🧭","🗺️","🏁","🚩","🎌","🏴","🔮","⚗️","🧬","🔬","🔭","🧪","🧫","💫","🌀","🎆","🎇"] },
+  { label: "Social", emojis: ["🤝","📞","✉️","🎉","🎁","🎭","🎬","🎵","🎮","👁️","🦁","🐉","💬","💭","🗨️","🗯️","👋","🙌","👏","🤗","🥂","🍾","🎤","🎧","🎼","🎹","🥁","🎷","🎸","🎺","🎻","🪗","👥","👤","🧑‍🤝‍🧑","🫂","💌","📮","📯","📣","📢"] },
+  { label: "Life", emojis: ["🏠","🚗","✈️","🍽️","☕","🌱","🌍","🧘","🏋️","🌈","🗓️","⏰","🏡","🛖","🏘️","🏰","🏯","🚂","🚢","🛸","🚁","⛵","🏄","🚴","🏇","⛷️","🤸","🧗","🎭","🎠","🎡","🎢","🌅","🌇","🌆","🏖️","🏕️","🌲","🌳","🌴","🌵","🌾","🍀","🌺","🌸","🌼","🌻","🍁","🍂","🍃","🌙","☀️","⛅","🌤️","🌦️","⛈️","❄️","🌊","🌋"] },
+  { label: "Health", emojis: ["🏥","💊","💉","🩺","🩻","🩹","🧬","❤️","🧡","💛","💚","💙","💜","🖤","🤍","❤️‍🔥","💓","💗","💖","💝","😴","🛌","🥗","🥤","🍎","🧃","🏃","🚶","🧠","🫀","🫁","🦷","👁️","👂","🤲","💆","💇","🛁","🚿"] },
+  { label: "Finance", emojis: ["💰","💵","💴","💶","💷","💸","💳","🏦","📈","📉","💹","🪙","💲","🤑","🏧","🏷️","🧾","📊","⚖️","🔖","💼","🪙","🏪","🏬","🏫","🏨","🏩","🏛️","⚱️","🎰","🎲","🃏","🀄","🎴"] },
+  { label: "Food", emojis: ["🍕","🍔","🌮","🌯","🥙","🧆","🥚","🍳","🧇","🥞","🧈","🥓","🥩","🍗","🍖","🌭","🍟","🫔","🍱","🍘","🍣","🍤","🍙","🍚","🍛","🍜","🍝","🍠","🍢","🍡","🍧","🍨","🍦","🥧","🧁","🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","☕","🍵","🧋","🥛","🍺","🍷","🥤"] },
+  { label: "Travel", emojis: ["✈️","🚀","🛸","🚂","🚢","🛳️","⛴️","🚁","🛩️","🪂","🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑","🚒","🚐","🛻","🚚","🚛","🚜","🏍️","🛵","🚲","🛴","🛹","🛼","🛷","⛷️","🏄","🚣","🧗","🏇","🏊","🤽","🚵","🏌️","🗺️","🌐","🏔️","🏝️","🏜️","🏟️"] },
+  { label: "Animals", emojis: ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦟","🦗","🕷️","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍","🦧","🦣","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🦬","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐩","🦮","🐈","🐓","🦃","🦤","🦚","🦜","🦢","🦩","🕊️","🐇","🦝","🦨","🦡","🦫","🦦","🦥","🐁","🐀","🐿️","🦔","🐾","🐉","🐲","🌵","🌲","🌳","🌴"] },
+  { label: "Objects", emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🏉","🎱","🏓","🏸","🏒","🥍","🏑","🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌","🪄","🎿","🛷","🥌","🎯","🎳","🎰","🎲","♟️","🧩","🪆","🪅","🎭","🎨","🖼️","🎪","🎤","🎧","🎼","🎹","🥁","🪘","🎷","🎸","🎺","🎻","🪗","📱","📲","💻","⌨️","🖥️","🖨️","🖱️","🗜️","💽","💾","💿","📀","📼","📷","📸","📹","🎥","📽️","🎞️","📞","☎️","📟","📠","📺","📻","🧭","⏱️","⏲️","⏰","🕰️","⌛","⏳","📡","🔋","🔌","💡","🔦","🕯️","🪔","🧯","🛢️","💸","💵","💴","💶","💷","💰","💳","🪙","💎","⚖️","🧲","🔧","🔨","⚒️","🛠️","⛏️","🔩","🗜️","🔗","⛓️","🪝","🧱","🪞","🪟","🛏️","🛋️","🪑","🚽","🚿","🛁","🧴","🪒","🧼","🪥","🧻","🪣","🧺","🧹","🧽","🪤","🪣","🧴","🛒","🚪","🪣","🏺","🎎","🪆","🪅","🎠","🎡","🎢"] },
 ];
+
+// All emojis with searchable keywords
+const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
+  { emoji: "📝", keywords: "note write task memo document" },
+  { emoji: "💼", keywords: "work business briefcase job" },
+  { emoji: "💻", keywords: "laptop computer work tech" },
+  { emoji: "📱", keywords: "phone mobile app" },
+  { emoji: "🔧", keywords: "fix repair tool wrench" },
+  { emoji: "🛠️", keywords: "tools build repair" },
+  { emoji: "📊", keywords: "chart graph data analytics" },
+  { emoji: "📈", keywords: "growth increase stock up" },
+  { emoji: "📉", keywords: "decline decrease down" },
+  { emoji: "📦", keywords: "box package ship deliver" },
+  { emoji: "🔍", keywords: "search find look investigate" },
+  { emoji: "📡", keywords: "signal broadcast antenna tech" },
+  { emoji: "🤖", keywords: "robot ai tech automation" },
+  { emoji: "🎯", keywords: "goal target aim focus" },
+  { emoji: "🚀", keywords: "launch start rocket growth" },
+  { emoji: "⭐", keywords: "star favorite rating" },
+  { emoji: "🏆", keywords: "trophy win achievement" },
+  { emoji: "💡", keywords: "idea lightbulb creative" },
+  { emoji: "🔥", keywords: "fire hot streak urgent" },
+  { emoji: "💪", keywords: "strong workout gym fitness" },
+  { emoji: "🌟", keywords: "star shine glow special" },
+  { emoji: "⚔️", keywords: "sword battle fight challenge" },
+  { emoji: "🛡️", keywords: "shield protect defend" },
+  { emoji: "⚡", keywords: "lightning fast electric energy" },
+  { emoji: "💎", keywords: "diamond gem value precious" },
+  { emoji: "🤝", keywords: "handshake deal partner meet" },
+  { emoji: "📞", keywords: "call phone talk" },
+  { emoji: "✉️", keywords: "email letter message" },
+  { emoji: "🎉", keywords: "party celebrate event" },
+  { emoji: "🎁", keywords: "gift present reward" },
+  { emoji: "🎭", keywords: "theater drama art performance" },
+  { emoji: "🎬", keywords: "film movie video camera" },
+  { emoji: "🎵", keywords: "music note song audio" },
+  { emoji: "🎮", keywords: "game gaming controller play" },
+  { emoji: "🏠", keywords: "house home real estate" },
+  { emoji: "🚗", keywords: "car drive vehicle auto" },
+  { emoji: "✈️", keywords: "plane flight travel trip" },
+  { emoji: "🍽️", keywords: "food eat meal restaurant" },
+  { emoji: "☕", keywords: "coffee morning drink" },
+  { emoji: "🌱", keywords: "grow plant nature garden" },
+  { emoji: "🌍", keywords: "earth world global" },
+  { emoji: "🧘", keywords: "meditation yoga relax mindful" },
+  { emoji: "🏋️", keywords: "gym lift weight exercise" },
+  { emoji: "🌈", keywords: "rainbow color diversity" },
+  { emoji: "🗓️", keywords: "calendar schedule date plan" },
+  { emoji: "⏰", keywords: "alarm time clock deadline" },
+  { emoji: "💰", keywords: "money cash rich finance" },
+  { emoji: "🏦", keywords: "bank finance money savings" },
+  { emoji: "💊", keywords: "medicine pill health drug" },
+  { emoji: "❤️", keywords: "love heart care" },
+  { emoji: "🧠", keywords: "brain think mind smart" },
+  { emoji: "🏃", keywords: "run jog sprint exercise" },
+  { emoji: "🎨", keywords: "art paint creative design" },
+  { emoji: "📚", keywords: "books study read learn" },
+  { emoji: "🔑", keywords: "key unlock access" },
+  { emoji: "👑", keywords: "crown king queen royal important" },
+  { emoji: "🧩", keywords: "puzzle piece solve problem" },
+  { emoji: "🌙", keywords: "moon night sleep rest" },
+  { emoji: "☀️", keywords: "sun morning bright day" },
+  { emoji: "🌊", keywords: "wave ocean water surf" },
+  { emoji: "🏡", keywords: "home house family" },
+  { emoji: "🐶", keywords: "dog pet animal" },
+  { emoji: "🐱", keywords: "cat pet animal" },
+  { emoji: "🦁", keywords: "lion courage brave strong" },
+  { emoji: "🐉", keywords: "dragon power fantasy" },
+  { emoji: "🦋", keywords: "butterfly change transform" },
+  { emoji: "🌺", keywords: "flower bloom beauty" },
+  { emoji: "🏔️", keywords: "mountain climb peak challenge" },
+  { emoji: "🍕", keywords: "pizza food eat" },
+  { emoji: "🧪", keywords: "science lab experiment test" },
+  { emoji: "⚽", keywords: "soccer football sport" },
+  { emoji: "🏀", keywords: "basketball sport" },
+  { emoji: "🎯", keywords: "bullseye target goal" },
+  { emoji: "🪙", keywords: "coin money gold token" },
+  { emoji: "📜", keywords: "scroll document plan quest" },
+  { emoji: "🗡️", keywords: "dagger blade combat" },
+  { emoji: "🏹", keywords: "bow arrow shoot aim" },
+  { emoji: "⛏️", keywords: "pickaxe mine dig work" },
+  { emoji: "🔮", keywords: "crystal ball magic future predict" },
+  { emoji: "🗺️", keywords: "map explore travel quest" },
+  { emoji: "🧲", keywords: "magnet attract pull" },
+  { emoji: "🫂", keywords: "hug support friend care" },
+  { emoji: "🧑‍💻", keywords: "developer code programmer" },
+  { emoji: "🏗️", keywords: "build construct project" },
+  { emoji: "🚁", keywords: "helicopter fly transport" },
+  { emoji: "🚢", keywords: "ship ocean travel voyage" },
+  { emoji: "🛒", keywords: "shop shopping cart buy" },
+  { emoji: "📌", keywords: "pin mark location note" },
+  { emoji: "🗂️", keywords: "folder organize files" },
+  { emoji: "🔬", keywords: "microscope research science" },
+  { emoji: "🔭", keywords: "telescope observe space" },
+  { emoji: "💫", keywords: "sparkle special highlight" },
+  { emoji: "🎪", keywords: "circus fun entertainment" },
+  { emoji: "🧹", keywords: "clean sweep tidy" },
+  { emoji: "🚿", keywords: "shower clean refresh" },
+  { emoji: "🛁", keywords: "bath relax clean" },
+  { emoji: "🪴", keywords: "plant grow indoor home" },
+  { emoji: "🧳", keywords: "luggage travel pack trip" },
+  { emoji: "🎓", keywords: "graduation school learn study" },
+  { emoji: "👨‍⚕️", keywords: "doctor health medical" },
+  { emoji: "👩‍⚕️", keywords: "doctor health medical nurse" },
+  { emoji: "🧑‍🏫", keywords: "teacher education school" },
+  { emoji: "👮", keywords: "police law protect" },
+  { emoji: "🧑‍🍳", keywords: "chef cook food kitchen" },
+  { emoji: "🧑‍🚀", keywords: "astronaut space explore" },
+  { emoji: "🦺", keywords: "safety vest protect work" },
+  { emoji: "🪖", keywords: "helmet safety construction" },
+  { emoji: "🎤", keywords: "microphone sing speak present" },
+  { emoji: "📸", keywords: "camera photo capture" },
+  { emoji: "🛺", keywords: "ride transport" },
+  { emoji: "🏊", keywords: "swim water pool exercise" },
+  { emoji: "🚴", keywords: "bike cycle exercise commute" },
+  { emoji: "⛳", keywords: "golf sport club" },
+];
+
+
 
 interface AddTaskModalProps {
   open: boolean;
@@ -43,6 +168,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [title, setTitle] = useState("");
   const [taskEmoji, setTaskEmoji] = useState("📝");
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [emojiSearch, setEmojiSearch] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState<string>("30");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
@@ -190,7 +316,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             </Label>
             <div className="flex gap-2">
               {/* Emoji picker */}
-              <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+              <Popover open={emojiPickerOpen} onOpenChange={(open) => { setEmojiPickerOpen(open); if (!open) setEmojiSearch(""); }}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
@@ -200,29 +326,58 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                     {taskEmoji}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 p-3 bg-slate-900 border-yellow-600/40" side="bottom" align="start">
+                <PopoverContent className="w-80 p-3 bg-slate-900 border-yellow-600/40" side="bottom" align="start">
                   <p className="text-xs text-yellow-400/70 mb-2 font-semibold">Choose quest icon</p>
-                  <div className="space-y-3">
-                    {EMOJI_CATEGORIES.map(cat => (
-                      <div key={cat.label}>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{cat.label}</p>
-                        <div className="grid grid-cols-12 gap-0.5">
-                          {cat.emojis.map(e => (
-                            <button
-                              key={e}
-                              type="button"
-                              onClick={() => { setTaskEmoji(e); setEmojiPickerOpen(false); }}
-                              className={cn(
-                                "h-7 w-7 flex items-center justify-center text-base rounded hover:bg-yellow-600/20 transition-colors",
-                                taskEmoji === e && "bg-yellow-600/30 ring-1 ring-yellow-500/50"
-                              )}
-                            >
-                              {e}
-                            </button>
-                          ))}
+                  {/* Search */}
+                  <input
+                    type="text"
+                    value={emojiSearch}
+                    onChange={e => setEmojiSearch(e.target.value)}
+                    placeholder="Search emojis… (e.g. fire, goal, money)"
+                    className="w-full text-xs bg-slate-800 border border-slate-700 rounded-md px-2 py-1.5 text-slate-200 placeholder:text-slate-500 outline-none focus:border-yellow-600/60 mb-2"
+                  />
+                  <div className="h-56 overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-slate-700">
+                    {emojiSearch.trim() ? (
+                      /* Search results */
+                      (() => {
+                        const q = emojiSearch.trim().toLowerCase();
+                        const matches = EMOJI_SEARCH_MAP.filter(e =>
+                          e.keywords.includes(q) || e.emoji === q
+                        ).map(e => e.emoji);
+                        // Also include any category emojis that happen to contain the search char
+                        const allCatEmojis = EMOJI_CATEGORIES.flatMap(c => c.emojis);
+                        const extra = allCatEmojis.filter(e => !matches.includes(e) && e.toLowerCase().includes(q));
+                        const seen = new Set<string>();
+                        const results = [...matches, ...extra].filter(e => seen.has(e) ? false : seen.add(e) && true);
+                        return results.length > 0 ? (
+                          <div className="grid grid-cols-10 gap-0.5">
+                            {results.map(e => (
+                              <button key={e} type="button"
+                                onClick={() => { setTaskEmoji(e); setEmojiPickerOpen(false); setEmojiSearch(""); }}
+                                className={cn("h-7 w-7 flex items-center justify-center text-base rounded hover:bg-yellow-600/20 transition-colors", taskEmoji === e && "bg-yellow-600/30 ring-1 ring-yellow-500/50")}
+                              >{e}</button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500 text-center pt-4">No emojis found for "{emojiSearch}"</p>
+                        );
+                      })()
+                    ) : (
+                      /* Categorized browse */
+                      EMOJI_CATEGORIES.map(cat => (
+                        <div key={cat.label}>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{cat.label}</p>
+                          <div className="grid grid-cols-10 gap-0.5">
+                            {cat.emojis.map(e => (
+                              <button key={e} type="button"
+                                onClick={() => { setTaskEmoji(e); setEmojiPickerOpen(false); }}
+                                className={cn("h-7 w-7 flex items-center justify-center text-base rounded hover:bg-yellow-600/20 transition-colors", taskEmoji === e && "bg-yellow-600/30 ring-1 ring-yellow-500/50")}
+                              >{e}</button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>
