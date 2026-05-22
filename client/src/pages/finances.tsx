@@ -84,6 +84,16 @@ export default function Finances() {
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
+  // Overview widget visibility toggles
+  const [overviewWidgets, setOverviewWidgets] = useState({
+    incomeSources: true,
+    topExpenses: true,
+    netWorth: true,
+    incomeVsExpense: true,
+    monthlyAllocation: true,
+  });
+  const toggleWidget = (key: keyof typeof overviewWidgets) =>
+    setOverviewWidgets(prev => ({ ...prev, [key]: !prev[key] }));
   // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
   const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
   const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
@@ -276,6 +286,33 @@ export default function Finances() {
     ...d,
     pct: ((d.value / (totalIncome + totalRetirement + totalExpenses)) * 100),
   }));
+
+  // ── Net Worth (component-level, shared between Overview & Net Worth tab) ──
+  const _btcPrice = btcData?.price ?? 0;
+  const _vtsaxPrice = vtsaxData?.price ?? 0;
+  const _vooPrice = vooData?.price ?? 0;
+  const _ibitPrice = ibitData?.price ?? 0;
+  const _btcValue = btcHoldings * _btcPrice;
+  const _coinbaseValue = coinbaseBtcHoldings * _btcPrice;
+  const _totalBtcValue = _btcValue + _coinbaseValue;
+  const _vtsaxValue = vtsaxHoldings * _vtsaxPrice;
+  const _vooValue = vooHoldings * _vooPrice;
+  const _rothIraValue = rothIraIbitHoldings * _ibitPrice;
+  const _vanguardTotal = _vtsaxValue + _vooValue;
+  const _homeLivePrice = propertyData?.price ?? null;
+  const _homeSalePrice = (_homeLivePrice !== null && _homeLivePrice > 0) ? _homeLivePrice : homeEstValue;
+  const _HOME_TRANSFER_TAX_RATE = 0.0022;
+  const _homeAgentCommission = _homeSalePrice * (homeSellerFee / 100);
+  const _homeTransferTax = _homeSalePrice * _HOME_TRANSFER_TAX_RATE;
+  const _homeTotalSellingCosts = _homeAgentCommission + _homeTransferTax + homeOtherCosts;
+  const _homeNetCashAfterSale = _homeSalePrice - homeLoanBalance - _homeTotalSellingCosts;
+  const _homeAdjustedBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
+  const _homeRawGain = _homeSalePrice - _homeTotalSellingCosts - _homeAdjustedBasis;
+  const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
+  const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
+  const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
+  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _homeAfterTaxNetCash + checkingBalance;
+  const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
   const W2_ITEM_NAME = "Post-Tax W2 Salary Income";
@@ -507,77 +544,194 @@ export default function Finances() {
 
           {/* ── Overview ─────────────────────────────── */}
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="bg-slate-800/60 border-green-500/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-green-300 text-base">Income Sources</CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">by category</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={Object.entries(incomeByCategory).map(([name, value]) => ({ name, value }))} layout="vertical" margin={{ left: 10, right: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `$${(v/100).toFixed(0)}`} />
-                      <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} width={90} />
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1" }} />
-                      <Bar dataKey="value" radius={[0,4,4,0]}>
-                        {Object.entries(incomeByCategory).map(([cat]) => (
-                          <Cell key={cat} fill={CATEGORY_COLORS[cat] || "#22C55E"} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-800/60 border-red-500/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-red-300 text-base">Top Expense Categories</CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">monthly spend</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={expensePie.slice(0, 8)} layout="vertical" margin={{ left: 10, right: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `$${(v/100).toFixed(0)}`} />
-                      <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} width={120} />
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1" }} />
-                      <Bar dataKey="value" radius={[0,4,4,0]}>
-                        {expensePie.slice(0, 8).map((d) => (
-                          <Cell key={d.name} fill={d.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+            {/* Widget toggle legend */}
+            <div className="flex justify-end">
+              <div className="bg-slate-800/80 border border-purple-500/30 rounded-xl px-4 py-2.5 flex flex-wrap gap-x-4 gap-y-2 items-center">
+                <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mr-1">Widgets</span>
+                {([
+                  { key: "incomeSources",    label: "Income Sources",         dot: "bg-green-400" },
+                  { key: "topExpenses",      label: "Top Expense Categories", dot: "bg-red-400" },
+                  { key: "netWorth",         label: "Total Net Worth",        dot: "bg-orange-400" },
+                  { key: "incomeVsExpense",  label: "Income vs Expense",      dot: "bg-purple-400" },
+                  { key: "monthlyAllocation",label: "Monthly Allocation",     dot: "bg-blue-400" },
+                ] as { key: keyof typeof overviewWidgets; label: string; dot: string }[]).map(({ key, label, dot }) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleWidget(key)}
+                    className={`flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-all border ${
+                      overviewWidgets[key]
+                        ? "border-purple-500/50 text-slate-200 bg-slate-700/60"
+                        : "border-slate-700/40 text-slate-500 bg-transparent line-through"
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${dot} ${overviewWidgets[key] ? "opacity-100" : "opacity-30"}`} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <Card className="bg-slate-800/60 border-purple-500/20">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-purple-300 text-base">Monthly Allocation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { label: "Income & Investment", value: totalIncome, color: "bg-green-500" },
-                  { label: "Expenses", value: totalExpenses, color: "bg-red-500" },
-                  { label: "Retirement Contributions", value: totalRetirement, color: "bg-yellow-400" },
-                ].map(({ label, value, color }) => {
-                  const total = totalIncome + totalExpenses + totalRetirement;
-                  return (
-                    <div key={label}>
-                      <div className="flex justify-between text-xs text-slate-300 mb-1">
-                        <span>{label}</span>
-                        <span>{formatCurrency(value)} ({total > 0 ? ((value/total)*100).toFixed(1) : "0"}%)</span>
+            {/* Income Sources + Top Expense Categories */}
+            {(overviewWidgets.incomeSources || overviewWidgets.topExpenses) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {overviewWidgets.incomeSources && (
+                  <Card className="bg-slate-800/60 border-green-500/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-green-300 text-base">Income Sources</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">by category</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={Object.entries(incomeByCategory).map(([name, value]) => ({ name, value }))} layout="vertical" margin={{ left: 10, right: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                          <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `$${(v/100).toFixed(0)}`} />
+                          <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} width={90} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1" }} />
+                          <Bar dataKey="value" radius={[0,4,4,0]}>
+                            {Object.entries(incomeByCategory).map(([cat]) => (
+                              <Cell key={cat} fill={CATEGORY_COLORS[cat] || "#22C55E"} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                )}
+                {overviewWidgets.topExpenses && (
+                  <Card className="bg-slate-800/60 border-red-500/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-red-300 text-base">Top Expense Categories</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">monthly spend</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={expensePie.slice(0, 8)} layout="vertical" margin={{ left: 10, right: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                          <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `$${(v/100).toFixed(0)}`} />
+                          <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} width={120} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1" }} />
+                          <Bar dataKey="value" radius={[0,4,4,0]}>
+                            {expensePie.slice(0, 8).map((d) => (
+                              <Cell key={d.name} fill={d.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* Total Net Worth + Income vs Expense */}
+            {(overviewWidgets.netWorth || overviewWidgets.incomeVsExpense) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {overviewWidgets.netWorth && (
+                  <Card className="bg-slate-800/60 border-orange-500/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-orange-300 text-base flex items-center gap-2">
+                        <Bitcoin className="h-4 w-4" /> Total Net Worth
+                      </CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">
+                        Investments · Real Estate · Cash · live prices
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {nwIsLoading ? (
+                        <div className="flex items-center justify-center h-28 text-slate-400 text-sm">Loading prices…</div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="text-center">
+                            <p className="text-4xl font-bold text-orange-300">
+                              ${overviewNetWorth.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">estimated total</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 pt-2">
+                            {[
+                              { label: "Crypto (BTC)", value: _totalBtcValue, color: "text-yellow-300" },
+                              { label: "Index Funds", value: _vanguardTotal, color: "text-indigo-300" },
+                              { label: "Roth IRA (IBIT)", value: _rothIraValue, color: "text-purple-300" },
+                              { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
+                              { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
+                            ].map(({ label, value, color }) => (
+                              <div key={label} className="bg-slate-700/40 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-slate-400">{label}</p>
+                                <p className={`text-sm font-semibold ${color}`}>
+                                  ${value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+                {overviewWidgets.incomeVsExpense && (
+                  <Card className="bg-slate-800/60 border-purple-500/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-purple-300 text-base">Income vs Expense</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">
+                        🟢 Income &amp; Investment · 🟡 Retirement · 🔴 Expenses
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <RechartsPieChart>
+                          <Pie data={incomeVsExpensePie} cx="50%" cy="50%" outerRadius={85} innerRadius={42}
+                            dataKey="value" labelLine={false} label={false}>
+                            {incomeVsExpensePie.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend formatter={(value) => <span className="text-slate-200 text-xs">{value}</span>} />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-700/50">
+                        {incomeVsExpensePie.map(d => (
+                          <div key={d.name} className="text-center">
+                            <p className="text-[10px] text-slate-400 truncate">{d.name}</p>
+                            <p className="text-xs font-semibold" style={{ color: d.color }}>{formatCurrency(d.value)}</p>
+                            <p className="text-[10px] text-slate-500">{d.pct.toFixed(1)}%</p>
+                          </div>
+                        ))}
                       </div>
-                      <div className="h-2 rounded-full bg-slate-700">
-                        <div className={`h-2 rounded-full ${color}`} style={{ width: `${total > 0 ? (value/total)*100 : 0}%` }} />
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* Monthly Allocation */}
+            {overviewWidgets.monthlyAllocation && (
+              <Card className="bg-slate-800/60 border-purple-500/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-purple-300 text-base">Monthly Allocation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    { label: "Income & Investment", value: totalIncome, color: "bg-green-500" },
+                    { label: "Expenses", value: totalExpenses, color: "bg-red-500" },
+                    { label: "Retirement Contributions", value: totalRetirement, color: "bg-yellow-400" },
+                  ].map(({ label, value, color }) => {
+                    const total = totalIncome + totalExpenses + totalRetirement;
+                    return (
+                      <div key={label}>
+                        <div className="flex justify-between text-xs text-slate-300 mb-1">
+                          <span>{label}</span>
+                          <span>{formatCurrency(value)} ({total > 0 ? ((value/total)*100).toFixed(1) : "0"}%)</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-700">
+                          <div className={`h-2 rounded-full ${color}`} style={{ width: `${total > 0 ? (value/total)*100 : 0}%` }} />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* ── Income vs Expense Pie ─────────────────── */}
