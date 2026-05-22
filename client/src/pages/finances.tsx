@@ -1163,7 +1163,10 @@ export default function Finances() {
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <p className="text-xs text-pink-400 font-bold tracking-wide">🏠 2605 Plumbago Ct</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-pink-400 font-bold tracking-wide">🏠 2605 Plumbago Ct</p>
+                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">updated May 2026</span>
+                            </div>
                             <p className={`text-2xl font-bold mt-0.5 ${homeEquity >= 0 ? "text-white" : "text-red-300"}`}>
                               {homeEquity >= 0 ? fmt(homeEquity) : `-$${Math.abs(homeEquity).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
                             </p>
