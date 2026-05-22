@@ -102,6 +102,9 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "69"); } catch { return 69; }
   });
   // Real Estate — 2605 Plumbago Court (all defaults set for alexbaer321@gmail.com, May 2026)
+  const [homeAddress, setHomeAddress] = useState<string>(() => {
+    try { return localStorage.getItem("nw-home-address") || "2605 Plumbago Court, Rocklin, CA 95677"; } catch { return "2605 Plumbago Court, Rocklin, CA 95677"; }
+  });
   const [homeEstValue, setHomeEstValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-value") || "635000"); } catch { return 635000; }
   });
@@ -178,6 +181,19 @@ export default function Finances() {
     queryKey: ["/api/market/ibit"],
     staleTime: 60_000,
     retry: 2,
+  });
+
+  // Live property valuation via Redfin — re-fetches every 6 hours; falls back to manual value on error
+  const { data: propertyData } = useQuery<{ address: string; price: number; source: string; cached: boolean }>({
+    queryKey: ["/api/market/property", homeAddress],
+    queryFn: async () => {
+      const res = await fetch(`/api/market/property?address=${encodeURIComponent(homeAddress)}`);
+      if (!res.ok) throw new Error("Property fetch failed");
+      return res.json();
+    },
+    staleTime: 6 * 60 * 60 * 1000, // 6 hours — property values change slowly
+    retry: 1,
+    enabled: !!homeAddress,
   });
 
   const createMutation = useMutation({
@@ -1049,16 +1065,21 @@ export default function Finances() {
               const rothIraValue = rothIraIbitHoldings * ibitPrice;
               const vanguardTotal = vtsaxValue + vooValue;
 
-              // Real estate — full Rocklin/Placer County formula (May 2026)
+              // Real estate — use live Redfin price when available, else fall back to manual
+              const homeLivePrice = propertyData?.price ?? null;
+              const homePriceIsLive = homeLivePrice !== null && homeLivePrice > 0;
+              const homeSalePrice = homePriceIsLive ? homeLivePrice : homeEstValue;
+
+              // Full Rocklin/Placer County formula (May 2026)
               // Transfer tax: Placer County $0.55/$500 + Rocklin city $0.55/$500 = 0.22% combined
               const HOME_TRANSFER_TAX_RATE = 0.0022;
-              const homeAgentCommission = homeEstValue * (homeSellerFee / 100);
-              const homeTransferTax = homeEstValue * HOME_TRANSFER_TAX_RATE;
+              const homeAgentCommission = homeSalePrice * (homeSellerFee / 100);
+              const homeTransferTax = homeSalePrice * HOME_TRANSFER_TAX_RATE;
               const homeTotalSellingCosts = homeAgentCommission + homeTransferTax + homeOtherCosts;
-              const homeNetCashAfterSale = homeEstValue - homeLoanBalance - homeTotalSellingCosts;
+              const homeNetCashAfterSale = homeSalePrice - homeLoanBalance - homeTotalSellingCosts;
               // Capital gains side (loan not subtracted — IRS basis calculation)
               const homeAdjustedBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
-              const homeRawGain = homeEstValue - homeTotalSellingCosts - homeAdjustedBasis;
+              const homeRawGain = homeSalePrice - homeTotalSellingCosts - homeAdjustedBasis;
               const homeTaxableGain = Math.max(0, homeRawGain - homePrimaryExclusion);
               const homeCapGainsTax = homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
               const homeAfterTaxNetCash = homeNetCashAfterSale - homeCapGainsTax;
@@ -1200,7 +1221,10 @@ export default function Finances() {
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="text-xs text-pink-400 font-bold tracking-wide">🏠 2605 Plumbago Ct</p>
-                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">updated May 2026</span>
+                              {homePriceIsLive
+                                ? <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none">● live · redfin</span>
+                                : <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
+                              }
                             </div>
                             <p className={`text-2xl font-bold mt-0.5 ${homeEquity >= 0 ? "text-white" : "text-red-300"}`}>
                               {homeEquity >= 0
@@ -1218,8 +1242,8 @@ export default function Finances() {
                         <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Sale Proceeds</p>
                           <div className="flex justify-between">
-                            <span>Sale price</span>
-                            <span className="text-slate-300">${homeEstValue.toLocaleString()}</span>
+                            <span>{homePriceIsLive ? "Sale price (Redfin live)" : "Sale price (manual)"}</span>
+                            <span className={homePriceIsLive ? "text-emerald-400" : "text-slate-300"}>${homeSalePrice.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>Agent commission ({homeSellerFee}%)</span>
@@ -1355,8 +1379,24 @@ export default function Finances() {
                           <div className="col-span-1 md:col-span-2 pt-2 border-t border-pink-500/20">
                             <p className="text-[10px] text-pink-400/70 uppercase tracking-widest font-semibold mb-3">🏠 2605 Plumbago Court — Property &amp; Loan</p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="md:col-span-3">
+                                <Label className="text-slate-300 text-xs mb-1 block">Property Address (used for live Redfin lookup)</Label>
+                                <input
+                                  type="text"
+                                  value={homeAddress}
+                                  onChange={e => { setHomeAddress(e.target.value); try { localStorage.setItem("nw-home-address", e.target.value); } catch {} }}
+                                  className="w-full bg-slate-900/50 border border-slate-600 text-white h-9 text-sm rounded-md px-3"
+                                  placeholder="2605 Plumbago Court, Rocklin, CA 95677"
+                                />
+                                {homePriceIsLive && (
+                                  <p className="text-[10px] text-emerald-400 mt-1">✓ Live Redfin price: ${homeLivePrice!.toLocaleString()} — manual fallback value below is ignored</p>
+                                )}
+                                {!homePriceIsLive && (
+                                  <p className="text-[10px] text-slate-500 mt-1">Redfin lookup unavailable — using manual value below</p>
+                                )}
+                              </div>
                               <div>
-                                <Label className="text-slate-300 text-xs mb-1 block">Est. Sale Value ($)</Label>
+                                <Label className="text-slate-300 text-xs mb-1 block">Manual Est. Value ($) <span className="text-slate-600">(fallback)</span></Label>
                                 <Input type="number" min="0" step="1000" value={homeEstValue}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setHomeEstValue(v); try { localStorage.setItem("nw-home-value", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />

@@ -4852,6 +4852,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Property valuation via Redfin unofficial search API ──────────────────
+  // No API key required. Results are cached 6 hours since prices change slowly.
+  const propertyCache = new Map<string, { price: number; fetchedAt: number; source: string }>();
+  const PROPERTY_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+  app.get("/api/market/property", async (req, res) => {
+    const address = (req.query.address as string || "").trim();
+    if (!address) {
+      return res.status(400).json({ error: "address query param is required" });
+    }
+
+    const cacheKey = address.toLowerCase();
+    const cached = propertyCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < PROPERTY_CACHE_TTL_MS) {
+      return res.json({ address, price: cached.price, source: cached.source, cached: true });
+    }
+
+    try {
+      // Step 1: Search Redfin for the address to get property ID
+      const searchUrl = `https://www.redfin.com/stingray/api/gis?al=1&num_homes=1&q=${encodeURIComponent(address)}`;
+      const searchResp = await fetch(searchUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json, text/plain, */*",
+          "Referer": "https://www.redfin.com/",
+        },
+      });
+
+      if (!searchResp.ok) throw new Error(`Redfin search HTTP ${searchResp.status}`);
+
+      const rawText = await searchResp.text();
+      // Redfin prepends "{}&&" to JSON responses as CSRF protection
+      const json = JSON.parse(rawText.replace(/^\{\}&&/, ""));
+
+      // Dig into homes list for first match
+      const homes: any[] = json?.payload?.homes ?? json?.payload?.exactMatch ? [json.payload.exactMatch] : [];
+      const allHomes: any[] = homes.length ? homes : (json?.payload?.cluster?.homes ?? []);
+      const first = allHomes[0];
+
+      if (!first) throw new Error("No property found for address");
+
+      // Redfin returns lastSalePrice, listingPrice, or zestimate-equivalent (avm)
+      const price: number =
+        first.price?.value ??
+        first.listingPrice?.value ??
+        first.lastSalePrice?.value ??
+        first.avm?.value ??
+        0;
+
+      if (!price) throw new Error("Price not available from Redfin for this address");
+
+      propertyCache.set(cacheKey, { price, fetchedAt: Date.now(), source: "redfin" });
+      return res.json({ address, price, source: "redfin", cached: false });
+    } catch (err: any) {
+      console.error("Property price fetch error:", err.message);
+      // Return error so client can fall back to manual value
+      return res.status(502).json({ error: "Unable to fetch property price", details: err.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
