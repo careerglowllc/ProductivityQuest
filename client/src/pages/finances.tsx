@@ -1073,7 +1073,8 @@ export default function Finances() {
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
                 { name: "Index Funds", value: Math.round(vanguardTotal), color: "#6366F1" },
-                { name: "Real Estate", value: Math.round(homeEquity), color: "#EC4899" },
+                // Real Estate always included when positive; stays in code ready for when equity turns positive
+                ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
                 pct: investmentTotal > 0 ? (d.value / investmentTotal) * 100 : 0,
@@ -1453,15 +1454,18 @@ export default function Finances() {
                                 <div className="grid grid-cols-3 gap-2">
                                   <div className="rounded-md bg-yellow-500/10 p-2 text-center">
                                     <p className="text-[10px] text-yellow-400 mb-0.5">BTC Wallet</p>
-                                    <p className="text-sm font-bold text-yellow-300">{btcHoldings} BTC</p>
+                                    <p className="text-sm font-bold text-yellow-300">{btcPrice > 0 ? `$${Math.round(btcValue).toLocaleString()}` : "—"}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{btcHoldings} BTC</p>
                                   </div>
                                   <div className="rounded-md bg-orange-500/10 p-2 text-center">
                                     <p className="text-[10px] text-orange-400 mb-0.5">Coinbase</p>
-                                    <p className="text-sm font-bold text-orange-300">{coinbaseBtcHoldings} BTC</p>
+                                    <p className="text-sm font-bold text-orange-300">{btcPrice > 0 ? `$${Math.round(coinbaseValue).toLocaleString()}` : "—"}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{coinbaseBtcHoldings} BTC</p>
                                   </div>
                                   <div className="rounded-md bg-emerald-500/10 p-2 text-center">
                                     <p className="text-[10px] text-emerald-400 mb-0.5">IBIT (Roth IRA)</p>
-                                    <p className="text-sm font-bold text-emerald-300">{rothIraIbitHoldings} sh.</p>
+                                    <p className="text-sm font-bold text-emerald-300">{ibitPrice > 0 ? `$${Math.round(rothIraValue).toLocaleString()}` : "—"}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{rothIraIbitHoldings} sh. IBIT</p>
                                   </div>
                                 </div>
                               </div>
@@ -1471,22 +1475,25 @@ export default function Finances() {
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="rounded-md bg-indigo-500/10 p-2 text-center">
                                     <p className="text-[10px] text-indigo-400 mb-0.5">VTSAX</p>
-                                    <p className="text-sm font-bold text-indigo-300">{vtsaxHoldings} sh.</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vtsaxPrice > 0 ? `$${Math.round(vtsaxValue).toLocaleString()}` : "—"}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{vtsaxHoldings} sh.</p>
                                   </div>
                                   <div className="rounded-md bg-indigo-500/10 p-2 text-center">
                                     <p className="text-[10px] text-indigo-400 mb-0.5">VOO</p>
-                                    <p className="text-sm font-bold text-indigo-300">{vooHoldings} sh.</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vooPrice > 0 ? `$${Math.round(vooValue).toLocaleString()}` : "—"}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{vooHoldings} sh.</p>
                                   </div>
                                 </div>
                               </div>
                               {/* Real Estate umbrella */}
-                              <div className={`rounded-lg p-3 ${homeEquity >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
-                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${homeEquity >= 0 ? "text-pink-400/70" : "text-red-400/70"}`}>🏠 Real Estate</p>
+                              <div className={`rounded-lg p-3 ${homeAfterTaxNetCash >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
+                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${homeAfterTaxNetCash >= 0 ? "text-pink-400/70" : "text-red-400/70"}`}>🏠 Real Estate</p>
                                 <div className="rounded-md p-2 text-center bg-slate-900/30">
-                                  <p className={`text-[10px] mb-0.5 ${homeEquity >= 0 ? "text-pink-400" : "text-red-400"}`}>Plumbago Ct</p>
-                                  <p className={`text-sm font-bold ${homeEquity >= 0 ? "text-pink-300" : "text-red-300"}`}>
-                                    {homeEquity >= 0 ? `+$${Math.round(homeEquity).toLocaleString()}` : `-$${Math.abs(Math.round(homeEquity)).toLocaleString()}`}
+                                  <p className={`text-[10px] mb-0.5 ${homeAfterTaxNetCash >= 0 ? "text-pink-400" : "text-red-400"}`}>Plumbago Ct</p>
+                                  <p className={`text-sm font-bold ${homeAfterTaxNetCash >= 0 ? "text-pink-300" : "text-red-300"}`}>
+                                    {homeAfterTaxNetCash >= 0 ? `$${Math.round(homeAfterTaxNetCash).toLocaleString()}` : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString()}`}
                                   </p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">after-tax net cash</p>
                                 </div>
                               </div>
                             </div>
@@ -1496,17 +1503,17 @@ export default function Finances() {
                               <div className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-3 flex items-center justify-between">
                                 <div>
                                   <p className="text-xs text-yellow-400 font-semibold">BTC Wallet</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Self-custody · Bitcoin</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Self-custody · {btcHoldings} BTC</p>
                                 </div>
-                                <p className="text-sm font-bold text-yellow-300">{btcHoldings} BTC</p>
+                                <p className="text-sm font-bold text-yellow-300">{btcPrice > 0 ? `$${Math.round(btcValue).toLocaleString()}` : "—"}</p>
                               </div>
                               {/* Coinbase */}
                               <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3 flex items-center justify-between">
                                 <div>
                                   <p className="text-xs text-orange-400 font-semibold">Coinbase</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Exchange · Bitcoin</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Exchange · {coinbaseBtcHoldings} BTC</p>
                                 </div>
-                                <p className="text-sm font-bold text-orange-300">{coinbaseBtcHoldings} BTC</p>
+                                <p className="text-sm font-bold text-orange-300">{btcPrice > 0 ? `$${Math.round(coinbaseValue).toLocaleString()}` : "—"}</p>
                               </div>
                               {/* Vanguard Brokerage */}
                               <div className="rounded-lg bg-indigo-500/5 border border-indigo-500/20 p-3">
@@ -1515,15 +1522,18 @@ export default function Finances() {
                                     <p className="text-xs text-indigo-400 font-semibold">Vanguard Brokerage</p>
                                     <p className="text-[10px] text-slate-500 mt-0.5">Taxable brokerage · Stocks</p>
                                   </div>
+                                  <p className="text-sm font-bold text-indigo-300">{vtsaxPrice > 0 || vooPrice > 0 ? `$${Math.round(vanguardTotal).toLocaleString()}` : "—"}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="rounded-md bg-indigo-500/10 p-2 text-center">
                                     <p className="text-[10px] text-indigo-400 mb-0.5">VTSAX</p>
-                                    <p className="text-sm font-bold text-indigo-300">{vtsaxHoldings} sh.</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vtsaxPrice > 0 ? `$${Math.round(vtsaxValue).toLocaleString()}` : "—"}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{vtsaxHoldings} sh.</p>
                                   </div>
                                   <div className="rounded-md bg-indigo-500/10 p-2 text-center">
                                     <p className="text-[10px] text-indigo-400 mb-0.5">VOO</p>
-                                    <p className="text-sm font-bold text-indigo-300">{vooHoldings} sh.</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vooPrice > 0 ? `$${Math.round(vooValue).toLocaleString()}` : "—"}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{vooHoldings} sh.</p>
                                   </div>
                                 </div>
                               </div>
@@ -1531,18 +1541,18 @@ export default function Finances() {
                               <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-3 flex items-center justify-between">
                                 <div>
                                   <p className="text-xs text-emerald-400 font-semibold">Roth IRA</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Retirement · IBIT</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Retirement · {rothIraIbitHoldings} sh. IBIT</p>
                                 </div>
-                                <p className="text-sm font-bold text-emerald-300">{rothIraIbitHoldings} sh. IBIT</p>
+                                <p className="text-sm font-bold text-emerald-300">{ibitPrice > 0 ? `$${Math.round(rothIraValue).toLocaleString()}` : "—"}</p>
                               </div>
                               {/* Real Estate */}
-                              <div className={`rounded-lg p-3 flex items-center justify-between ${homeEquity >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
+                              <div className={`rounded-lg p-3 flex items-center justify-between ${homeAfterTaxNetCash >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
                                 <div>
-                                  <p className={`text-xs font-semibold ${homeEquity >= 0 ? "text-pink-400" : "text-red-400"}`}>2605 Plumbago Ct</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Real estate · Primary home</p>
+                                  <p className={`text-xs font-semibold ${homeAfterTaxNetCash >= 0 ? "text-pink-400" : "text-red-400"}`}>2605 Plumbago Ct</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Real estate · after-tax net cash</p>
                                 </div>
-                                <p className={`text-sm font-bold ${homeEquity >= 0 ? "text-pink-300" : "text-red-300"}`}>
-                                  {homeEquity >= 0 ? `+$${Math.round(homeEquity).toLocaleString()}` : `-$${Math.abs(Math.round(homeEquity)).toLocaleString()}`}
+                                <p className={`text-sm font-bold ${homeAfterTaxNetCash >= 0 ? "text-pink-300" : "text-red-300"}`}>
+                                  {homeAfterTaxNetCash >= 0 ? `$${Math.round(homeAfterTaxNetCash).toLocaleString()}` : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString()}`}
                                 </p>
                               </div>
                             </div>
