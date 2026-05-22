@@ -101,6 +101,16 @@ export default function Finances() {
   const [rothIraIbitHoldings, setRothIraIbitHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "69"); } catch { return 69; }
   });
+  // Real Estate
+  const [homeEstValue, setHomeEstValue] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-value") || "635000"); } catch { return 635000; }
+  });
+  const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-loan") || "614000"); } catch { return 614000; }
+  });
+  const [homeSellerFee, setHomeSellerFee] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-fee") || "6"); } catch { return 6; }
+  });
   const [editingHoldings, setEditingHoldings] = useState(false);
 
   const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(() => {
@@ -1017,14 +1027,19 @@ export default function Finances() {
               const rothIraValue = rothIraIbitHoldings * ibitPrice;
               const vanguardTotal = vtsaxValue + vooValue;
 
+              // Real estate equity (can be negative)
+              const homeNetProceeds = homeEstValue * (1 - homeSellerFee / 100);
+              const homeEquity = homeNetProceeds - homeLoanBalance;
+
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue;
+              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + homeEquity;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading;
 
               const pieData = [
                 { name: "Bitcoin (BTC)", value: Math.round(totalBtcValue), color: "#F59E0B" },
                 { name: "Vanguard Brokerage", value: Math.round(vanguardTotal), color: "#6366F1" },
                 { name: "Roth IRA (IBIT)", value: Math.round(rothIraValue), color: "#10B981" },
+                { name: "Real Estate Equity", value: Math.round(homeEquity), color: "#EC4899" },
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
                 pct: investmentTotal > 0 ? (d.value / investmentTotal) * 100 : 0,
@@ -1142,6 +1157,37 @@ export default function Finances() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Real Estate — 2605 Plumbago Court */}
+                    <Card className={`bg-slate-800/60 ${homeEquity >= 0 ? "border-pink-500/30" : "border-red-500/40"}`}>
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-xs text-pink-400 font-bold tracking-wide">🏠 2605 Plumbago Ct</p>
+                            <p className={`text-2xl font-bold mt-0.5 ${homeEquity >= 0 ? "text-white" : "text-red-300"}`}>
+                              {homeEquity >= 0 ? fmt(homeEquity) : `-$${Math.abs(homeEquity).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                            </p>
+                          </div>
+                          <span className={`text-[10px] border rounded px-1.5 py-0.5 ${homeEquity >= 0 ? "text-pink-400 border-pink-500/30" : "text-red-400 border-red-500/30"}`}>
+                            {homeEquity >= 0 ? "equity" : "underwater"}
+                          </span>
+                        </div>
+                        <div className="space-y-0.5 mt-2 pt-2 border-t border-slate-700/40 text-xs text-slate-400">
+                          <div className="flex justify-between">
+                            <span>Est. sale value</span>
+                            <span>${homeEstValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Seller fees ({homeSellerFee}%)</span>
+                            <span className="text-red-400">-${(homeEstValue * homeSellerFee / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Loan balance</span>
+                            <span className="text-red-400">-${homeLoanBalance.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
                   {/* Holdings editor */}
@@ -1190,6 +1236,24 @@ export default function Finances() {
                               onChange={e => { const v = parseFloat(e.target.value)||0; setRothIraIbitHoldings(v); try { localStorage.setItem("nw-roth-ibit", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">🏠 2605 Plumbago Ct — Est. Value ($)</Label>
+                            <Input type="number" min="0" step="1000" value={homeEstValue}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setHomeEstValue(v); try { localStorage.setItem("nw-home-value", String(v)); } catch {} }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">🏠 2605 Plumbago Ct — Loan Balance ($)</Label>
+                            <Input type="number" min="0" step="1000" value={homeLoanBalance}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setHomeLoanBalance(v); try { localStorage.setItem("nw-home-loan", String(v)); } catch {} }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">🏠 2605 Plumbago Ct — Seller Fee (%)</Label>
+                            <Input type="number" min="0" step="0.5" value={homeSellerFee}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setHomeSellerFee(v); try { localStorage.setItem("nw-home-fee", String(v)); } catch {} }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          </div>
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
@@ -1212,6 +1276,12 @@ export default function Finances() {
                           <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
                             <p className="text-xs text-emerald-400 mb-0.5">IBIT (Roth IRA)</p>
                             <p className="text-lg font-bold text-emerald-300">{rothIraIbitHoldings} sh.</p>
+                          </div>
+                          <div className={`rounded-lg p-3 text-center ${homeEquity >= 0 ? "bg-pink-500/10 border border-pink-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
+                            <p className={`text-xs mb-0.5 ${homeEquity >= 0 ? "text-pink-400" : "text-red-400"}`}>Plumbago Ct</p>
+                            <p className={`text-lg font-bold ${homeEquity >= 0 ? "text-pink-300" : "text-red-300"}`}>
+                              {homeEquity >= 0 ? `+$${Math.round(homeEquity).toLocaleString()}` : `-$${Math.abs(Math.round(homeEquity)).toLocaleString()}`}
+                            </p>
                           </div>
                         </div>
                       )}
@@ -1287,6 +1357,17 @@ export default function Finances() {
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
                             <span>IBIT {rothIraIbitHoldings} × {fmt(ibitPrice)}</span>
                             <span>{fmt(rothIraValue)}</span>
+                          </div>
+                        </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-pink-300">🏠 2605 Plumbago Court</span>
+                            <span className={`font-semibold ${homeEquity >= 0 ? "text-white" : "text-red-300"}`}>
+                              {homeEquity >= 0 ? fmt(homeEquity) : `-$${Math.abs(Math.round(homeEquity)).toLocaleString("en-US")}`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>Value ${homeEstValue.toLocaleString()} − {homeSellerFee}% fees − loan ${homeLoanBalance.toLocaleString()}</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
