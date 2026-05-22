@@ -1036,11 +1036,11 @@ export default function Finances() {
               const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + homeEquity;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading;
 
+              const cryptoTotal = totalBtcValue + rothIraValue;
               const pieData = [
-                { name: "Bitcoin (BTC)", value: Math.round(totalBtcValue), color: "#F59E0B" },
-                { name: "Vanguard Brokerage", value: Math.round(vanguardTotal), color: "#6366F1" },
-                { name: "Roth IRA (IBIT)", value: Math.round(rothIraValue), color: "#10B981" },
-                { name: "Real Estate Equity", value: Math.round(homeEquity), color: "#EC4899" },
+                { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
+                { name: "Index Funds", value: Math.round(vanguardTotal), color: "#6366F1" },
+                { name: "Real Estate", value: Math.round(homeEquity), color: "#EC4899" },
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
                 pct: investmentTotal > 0 ? (d.value / investmentTotal) * 100 : 0,
@@ -1399,8 +1399,10 @@ export default function Finances() {
                                 {pieData.map((d, i) => <Cell key={i} fill={d.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />)}
                               </Pie>
                               <Tooltip formatter={(v: number) => [fmt(v), ""]}
-                                contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1" }} />
-                              <Legend formatter={(value) => <span className="text-slate-200 text-xs">{value}</span>} />
+                                contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #6366f1", color: "#fff" }}
+                                labelStyle={{ color: "#fff" }}
+                                itemStyle={{ color: "#fff" }} />
+                              <Legend formatter={(value) => <span style={{ color: "#fff" }} className="text-xs">{value}</span>} />
                             </RechartsPieChart>
                           </ResponsiveContainer>
                         ) : (
