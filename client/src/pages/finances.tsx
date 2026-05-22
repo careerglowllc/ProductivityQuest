@@ -101,15 +101,36 @@ export default function Finances() {
   const [rothIraIbitHoldings, setRothIraIbitHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "69"); } catch { return 69; }
   });
-  // Real Estate
+  // Real Estate — 2605 Plumbago Court (all defaults set for alexbaer321@gmail.com, May 2026)
   const [homeEstValue, setHomeEstValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-value") || "635000"); } catch { return 635000; }
   });
   const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-loan") || "614000"); } catch { return 614000; }
   });
+  const [homePurchasePrice, setHomePurchasePrice] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-purchase") || "636000"); } catch { return 636000; }
+  });
   const [homeSellerFee, setHomeSellerFee] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-fee") || "6"); } catch { return 6; }
+  });
+  const [homeOtherCosts, setHomeOtherCosts] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-other-costs") || "0"); } catch { return 0; }
+  });
+  const [homeCapImprovements, setHomeCapImprovements] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-cap-imp") || "0"); } catch { return 0; }
+  });
+  const [homeDepreciation, setHomeDepreciation] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-depreciation") || "0"); } catch { return 0; }
+  });
+  const [homePrimaryExclusion, setHomePrimaryExclusion] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-exclusion") || "250000"); } catch { return 250000; }
+  });
+  const [homeFedCapGainsRate, setHomeFedCapGainsRate] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-fed-cg") || "15"); } catch { return 15; }
+  });
+  const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
@@ -1028,9 +1049,21 @@ export default function Finances() {
               const rothIraValue = rothIraIbitHoldings * ibitPrice;
               const vanguardTotal = vtsaxValue + vooValue;
 
-              // Real estate equity (can be negative)
-              const homeNetProceeds = homeEstValue * (1 - homeSellerFee / 100);
-              const homeEquity = homeNetProceeds - homeLoanBalance;
+              // Real estate — full Rocklin/Placer County formula (May 2026)
+              // Transfer tax: Placer County $0.55/$500 + Rocklin city $0.55/$500 = 0.22% combined
+              const HOME_TRANSFER_TAX_RATE = 0.0022;
+              const homeAgentCommission = homeEstValue * (homeSellerFee / 100);
+              const homeTransferTax = homeEstValue * HOME_TRANSFER_TAX_RATE;
+              const homeTotalSellingCosts = homeAgentCommission + homeTransferTax + homeOtherCosts;
+              const homeNetCashAfterSale = homeEstValue - homeLoanBalance - homeTotalSellingCosts;
+              // Capital gains side (loan not subtracted — IRS basis calculation)
+              const homeAdjustedBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
+              const homeRawGain = homeEstValue - homeTotalSellingCosts - homeAdjustedBasis;
+              const homeTaxableGain = Math.max(0, homeRawGain - homePrimaryExclusion);
+              const homeCapGainsTax = homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
+              const homeAfterTaxNetCash = homeNetCashAfterSale - homeCapGainsTax;
+              // homeEquity = after-tax net cash proceeds (used throughout for net worth)
+              const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
               const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + homeEquity;
@@ -1169,25 +1202,102 @@ export default function Finances() {
                               <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">updated May 2026</span>
                             </div>
                             <p className={`text-2xl font-bold mt-0.5 ${homeEquity >= 0 ? "text-white" : "text-red-300"}`}>
-                              {homeEquity >= 0 ? fmt(homeEquity) : `-$${Math.abs(homeEquity).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                              {homeEquity >= 0
+                                ? `$${Math.round(homeEquity).toLocaleString("en-US")}`
+                                : `-$${Math.abs(Math.round(homeEquity)).toLocaleString("en-US")}`}
                             </p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">est. after-tax net cash from sale</p>
                           </div>
-                          <span className={`text-[10px] border rounded px-1.5 py-0.5 ${homeEquity >= 0 ? "text-pink-400 border-pink-500/30" : "text-red-400 border-red-500/30"}`}>
+                          <span className={`text-[10px] border rounded px-1.5 py-0.5 mt-0.5 ${homeEquity >= 0 ? "text-pink-400 border-pink-500/30" : "text-red-400 border-red-500/30"}`}>
                             {homeEquity >= 0 ? "equity" : "underwater"}
                           </span>
                         </div>
-                        <div className="space-y-0.5 mt-2 pt-2 border-t border-slate-700/40 text-xs text-slate-400">
+
+                        {/* Selling costs breakdown */}
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Sale Proceeds</p>
                           <div className="flex justify-between">
-                            <span>Est. sale value</span>
-                            <span>${homeEstValue.toLocaleString()}</span>
+                            <span>Sale price</span>
+                            <span className="text-slate-300">${homeEstValue.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Seller fees ({homeSellerFee}%)</span>
-                            <span className="text-red-400">-${(homeEstValue * homeSellerFee / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                            <span>Agent commission ({homeSellerFee}%)</span>
+                            <span className="text-red-400">-${Math.round(homeAgentCommission).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Loan balance</span>
+                            <span>Transfer tax (0.22% Rocklin)</span>
+                            <span className="text-red-400">-${Math.round(homeTransferTax).toLocaleString()}</span>
+                          </div>
+                          {homeOtherCosts > 0 && (
+                            <div className="flex justify-between">
+                              <span>Other costs</span>
+                              <span className="text-red-400">-${Math.round(homeOtherCosts).toLocaleString()}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span>Loan payoff</span>
                             <span className="text-red-400">-${homeLoanBalance.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1">
+                            <span className="text-slate-300">Net cash (pre-tax)</span>
+                            <span className={homeNetCashAfterSale >= 0 ? "text-slate-200" : "text-red-400"}>
+                              {homeNetCashAfterSale >= 0 ? `$${Math.round(homeNetCashAfterSale).toLocaleString()}` : `-$${Math.abs(Math.round(homeNetCashAfterSale)).toLocaleString()}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Capital gains breakdown */}
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Capital Gains</p>
+                          <div className="flex justify-between">
+                            <span>Purchase price</span>
+                            <span>${homePurchasePrice.toLocaleString()}</span>
+                          </div>
+                          {homeCapImprovements > 0 && (
+                            <div className="flex justify-between">
+                              <span>+ Capital improvements</span>
+                              <span>${homeCapImprovements.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {homeDepreciation > 0 && (
+                            <div className="flex justify-between">
+                              <span>- Depreciation taken</span>
+                              <span className="text-red-400">-${homeDepreciation.toLocaleString()}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span>Raw gain / (loss)</span>
+                            <span className={homeRawGain >= 0 ? "text-slate-300" : "text-emerald-400"}>
+                              {homeRawGain >= 0 ? `$${Math.round(homeRawGain).toLocaleString()}` : `-$${Math.abs(Math.round(homeRawGain)).toLocaleString()}`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Primary home exclusion</span>
+                            <span className="text-emerald-400">-${homePrimaryExclusion.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Taxable gain</span>
+                            <span className={homeTaxableGain > 0 ? "text-yellow-400" : "text-emerald-400"}>
+                              ${Math.round(homeTaxableGain).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1">
+                            <span className="text-slate-300">Est. cap gains tax ({homeFedCapGainsRate + homeCaCapGainsRate}%)</span>
+                            <span className={homeCapGainsTax > 0 ? "text-red-400" : "text-emerald-400"}>
+                              {homeCapGainsTax > 0 ? `-$${Math.round(homeCapGainsTax).toLocaleString()}` : "$0"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Final after-tax */}
+                        <div className="mt-2 pt-2 border-t border-slate-600/60">
+                          <div className="flex justify-between text-sm font-bold">
+                            <span className="text-slate-200">After-tax net cash</span>
+                            <span className={homeAfterTaxNetCash >= 0 ? "text-emerald-300" : "text-red-300"}>
+                              {homeAfterTaxNetCash >= 0
+                                ? `$${Math.round(homeAfterTaxNetCash).toLocaleString()}`
+                                : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString()}`}
+                            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -1240,23 +1350,81 @@ export default function Finances() {
                               onChange={e => { const v = parseFloat(e.target.value)||0; setRothIraIbitHoldings(v); try { localStorage.setItem("nw-roth-ibit", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
-                          <div>
-                            <Label className="text-slate-300 text-xs mb-1 block">🏠 2605 Plumbago Ct — Est. Value ($)</Label>
-                            <Input type="number" min="0" step="1000" value={homeEstValue}
-                              onChange={e => { const v = parseFloat(e.target.value)||0; setHomeEstValue(v); try { localStorage.setItem("nw-home-value", String(v)); } catch {} }}
-                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          {/* Real Estate — organized into 3 sub-sections */}
+                          <div className="col-span-1 md:col-span-2 pt-2 border-t border-pink-500/20">
+                            <p className="text-[10px] text-pink-400/70 uppercase tracking-widest font-semibold mb-3">🏠 2605 Plumbago Court — Property &amp; Loan</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Est. Sale Value ($)</Label>
+                                <Input type="number" min="0" step="1000" value={homeEstValue}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeEstValue(v); try { localStorage.setItem("nw-home-value", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Loan Balance ($)</Label>
+                                <Input type="number" min="0" step="1000" value={homeLoanBalance}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeLoanBalance(v); try { localStorage.setItem("nw-home-loan", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Original Purchase Price ($)</Label>
+                                <Input type="number" min="0" step="1000" value={homePurchasePrice}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomePurchasePrice(v); try { localStorage.setItem("nw-home-purchase", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <Label className="text-slate-300 text-xs mb-1 block">🏠 2605 Plumbago Ct — Loan Balance ($)</Label>
-                            <Input type="number" min="0" step="1000" value={homeLoanBalance}
-                              onChange={e => { const v = parseFloat(e.target.value)||0; setHomeLoanBalance(v); try { localStorage.setItem("nw-home-loan", String(v)); } catch {} }}
-                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          <div className="col-span-1 md:col-span-2">
+                            <p className="text-[10px] text-pink-400/70 uppercase tracking-widest font-semibold mb-3">Selling Costs</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Agent Commission (%)</Label>
+                                <Input type="number" min="0" step="0.5" value={homeSellerFee}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeSellerFee(v); try { localStorage.setItem("nw-home-fee", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Other Selling Costs ($)</Label>
+                                <Input type="number" min="0" step="100" value={homeOtherCosts}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeOtherCosts(v); try { localStorage.setItem("nw-home-other-costs", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <Label className="text-slate-300 text-xs mb-1 block">🏠 2605 Plumbago Ct — Seller Fee (%)</Label>
-                            <Input type="number" min="0" step="0.5" value={homeSellerFee}
-                              onChange={e => { const v = parseFloat(e.target.value)||0; setHomeSellerFee(v); try { localStorage.setItem("nw-home-fee", String(v)); } catch {} }}
-                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          <div className="col-span-1 md:col-span-2">
+                            <p className="text-[10px] text-pink-400/70 uppercase tracking-widest font-semibold mb-3">Tax Basis &amp; Rates</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Capital Improvements ($)</Label>
+                                <Input type="number" min="0" step="500" value={homeCapImprovements}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeCapImprovements(v); try { localStorage.setItem("nw-home-cap-imp", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Depreciation Taken ($)</Label>
+                                <Input type="number" min="0" step="500" value={homeDepreciation}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeDepreciation(v); try { localStorage.setItem("nw-home-depreciation", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Primary Home Exclusion ($)</Label>
+                                <Input type="number" min="0" step="50000" value={homePrimaryExclusion}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomePrimaryExclusion(v); try { localStorage.setItem("nw-home-exclusion", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Federal Cap Gains Rate (%)</Label>
+                                <Input type="number" min="0" step="1" value={homeFedCapGainsRate}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeFedCapGainsRate(v); try { localStorage.setItem("nw-home-fed-cg", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">CA Cap Gains Rate (%)</Label>
+                                <Input type="number" min="0" step="0.1" value={homeCaCapGainsRate}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeCaCapGainsRate(v); try { localStorage.setItem("nw-home-ca-cg", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -1460,12 +1628,12 @@ export default function Finances() {
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
                             <span className="text-pink-300">🏠 2605 Plumbago Court</span>
-                            <span className={`font-semibold ${homeEquity >= 0 ? "text-white" : "text-red-300"}`}>
-                              {homeEquity >= 0 ? fmt(homeEquity) : `-$${Math.abs(Math.round(homeEquity)).toLocaleString("en-US")}`}
+                            <span className={`font-semibold ${homeAfterTaxNetCash >= 0 ? "text-white" : "text-red-300"}`}>
+                              {homeAfterTaxNetCash >= 0 ? `$${Math.round(homeAfterTaxNetCash).toLocaleString("en-US")}` : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString("en-US")}`}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
-                            <span>Value ${homeEstValue.toLocaleString()} − {homeSellerFee}% fees − loan ${homeLoanBalance.toLocaleString()}</span>
+                            <span>After-tax net cash · {homeSellerFee}% commission + 0.22% transfer tax · {homeFedCapGainsRate + homeCaCapGainsRate}% cap gains</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
