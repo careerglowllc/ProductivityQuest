@@ -485,6 +485,9 @@ export default function Finances() {
             <TabsTrigger value="income-vs-expense" className="data-[state=active]:bg-green-600/40 text-xs px-3 py-1.5">
               <PieChart className="h-3.5 w-3.5 mr-1.5" />Income vs Expenses
             </TabsTrigger>
+            <TabsTrigger value="networth" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
+              <Bitcoin className="h-3.5 w-3.5 mr-1.5" />Net Worth
+            </TabsTrigger>
             <TabsTrigger value="expense-breakdown" className="data-[state=active]:bg-red-600/40 text-xs px-3 py-1.5">
               <PieChart className="h-3.5 w-3.5 mr-1.5" />Expense Breakdown
             </TabsTrigger>
@@ -496,9 +499,6 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
-            </TabsTrigger>
-            <TabsTrigger value="networth" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
-              <Bitcoin className="h-3.5 w-3.5 mr-1.5" />Net Worth
             </TabsTrigger>
           </TabsList>
 
