@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,9 @@ export default function Finances() {
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
+  // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
+  const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
+  const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
 
   // Net Worth holdings (persisted in localStorage, defaults set for alexbaer321@gmail.com)
   const [btcHoldings, setBtcHoldings] = useState<number>(() => {
@@ -878,23 +881,58 @@ export default function Finances() {
                           </span>
                         </div>
                         <div className="overflow-x-auto">
-                          <Table>
+                          <Table style={{ tableLayout: "fixed", width: colWidths.reduce((a, b) => a + b, 0) }}>
+                            <colgroup>
+                              {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                            </colgroup>
                             <TableHeader>
                               <TableRow className="border-slate-700/40 bg-slate-900/20">
-                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] pl-4 w-[35%]" onClick={() => handleSort("item")}>
-                                  <div className="flex items-center">Item{getSortIcon("item")}</div>
-                                </TableHead>
-                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] w-[18%]" onClick={() => handleSort("category")}>
-                                  <div className="flex items-center">Category{getSortIcon("category")}</div>
-                                </TableHead>
-                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] w-[14%]" onClick={() => handleSort("monthlyCost")}>
-                                  <div className="flex items-center">Monthly{getSortIcon("monthlyCost")}</div>
-                                </TableHead>
-                                <TableHead className="text-slate-400 text-[11px] w-[14%]">Annual</TableHead>
-                                <TableHead className="text-slate-400 cursor-pointer hover:text-white text-[11px] w-[13%]" onClick={() => handleSort("recurType")}>
-                                  <div className="flex items-center">Recur{getSortIcon("recurType")}</div>
-                                </TableHead>
-                                <TableHead className="text-slate-400 text-[11px] w-[6%]" />
+                                {[
+                                  { key: "item", label: "Item" },
+                                  { key: "category", label: "Category" },
+                                  { key: "monthlyCost", label: "Monthly" },
+                                  { key: null, label: "Annual" },
+                                  { key: "recurType", label: "Recur" },
+                                  { key: null, label: "" },
+                                ].map((col, ci) => (
+                                  <TableHead
+                                    key={ci}
+                                    className={`text-slate-400 text-[11px] relative select-none overflow-visible ${ci === 0 ? "pl-4" : ""} ${col.key ? "cursor-pointer hover:text-white" : ""}`}
+                                    style={{ width: colWidths[ci], position: "relative" }}
+                                    onClick={col.key ? () => handleSort(col.key as any) : undefined}
+                                  >
+                                    <div className="flex items-center pr-2 truncate">
+                                      {col.label}{col.key && getSortIcon(col.key as any)}
+                                    </div>
+                                    {/* Resize handle — not on last column */}
+                                    {ci < 5 && (
+                                      <div
+                                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize z-10 flex items-center justify-center group/rh"
+                                        style={{ touchAction: "none" }}
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          resizingCol.current = { idx: ci, startX: e.clientX, startW: colWidths[ci] };
+                                          const onMove = (me: MouseEvent) => {
+                                            if (!resizingCol.current) return;
+                                            const delta = me.clientX - resizingCol.current.startX;
+                                            const newW = Math.max(60, resizingCol.current.startW + delta);
+                                            setColWidths(prev => { const next = [...prev]; next[resizingCol.current!.idx] = newW; return next; });
+                                          };
+                                          const onUp = () => {
+                                            resizingCol.current = null;
+                                            window.removeEventListener("mousemove", onMove);
+                                            window.removeEventListener("mouseup", onUp);
+                                          };
+                                          window.addEventListener("mousemove", onMove);
+                                          window.addEventListener("mouseup", onUp);
+                                        }}
+                                      >
+                                        <div className="w-px h-4 bg-slate-600 group-hover/rh:bg-yellow-500/70 transition-colors" />
+                                      </div>
+                                    )}
+                                  </TableHead>
+                                ))}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
