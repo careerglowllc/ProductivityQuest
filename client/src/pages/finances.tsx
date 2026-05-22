@@ -168,6 +168,9 @@ export default function Finances() {
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-checking") || "35000"); } catch { return 35000; }
   });
+  const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "2500"); } catch { return 2500; }
+  });
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
 
@@ -336,7 +339,7 @@ export default function Finances() {
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
-  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance;
+  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
@@ -719,6 +722,7 @@ export default function Finances() {
                                 { label: "401k (VIIIX)", value: _k401Value, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
+                                { label: "veluna.com Domain", value: velunaDomainValue, color: "text-violet-300" },
                               ].map(({ label, value, color }) => (
                                 <div key={label} className="bg-slate-700/40 rounded-lg px-3 py-2">
                                   <p className="text-[10px] text-slate-400">{label}</p>
@@ -1388,7 +1392,7 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance;
+              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
               const cryptoTotal = totalBtcValue + rothIraValue;
@@ -1397,6 +1401,7 @@ export default function Finances() {
                 { name: "Index Funds", value: Math.round(vanguardTotal), color: "#6366F1" },
                 { name: "401k (VIIIX)", value: Math.round(k401Value), color: "#14B8A6" },
                 { name: "Cash", value: Math.round(checkingBalance), color: "#22D3EE" },
+                { name: "veluna.com", value: Math.round(velunaDomainValue), color: "#8B5CF6" },
                 ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
@@ -1666,6 +1671,23 @@ export default function Finances() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* veluna.com Domain */}
+                    <Card className="bg-slate-800/60 border-violet-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-violet-400 font-bold tracking-wide">🌐 veluna.com</p>
+                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Domain name — estimated value</p>
+                            <p className="text-2xl font-bold mt-0.5 text-white">${velunaDomainValue.toLocaleString()}</p>
+                          </div>
+                          <span className="text-[10px] border rounded px-1.5 py-0.5 text-violet-400 border-violet-500/30">domain</span>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
                   {/* Holdings editor */}
@@ -1825,6 +1847,19 @@ export default function Finances() {
                               </div>
                             </div>
                           </div>
+                          {/* veluna.com Domain */}
+                          <div className="col-span-1 md:col-span-2 pt-2 border-t border-violet-500/20">
+                            <p className="text-[10px] text-violet-400/70 uppercase tracking-widest font-semibold mb-3">🌐 Digital Assets</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">veluna.com — Estimated Domain Value ($)</Label>
+                                <Input type="number" min="0" step="100" value={velunaDomainValue}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setVelunaDomainValue(v); try { localStorage.setItem("nw-veluna-domain", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -1912,6 +1947,15 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
                                 </div>
                               </div>
+                              {/* Digital Assets umbrella */}
+                              <div className="rounded-lg bg-violet-500/5 border border-violet-500/20 p-3">
+                                <p className="text-[10px] text-violet-400/70 font-semibold uppercase tracking-widest mb-2">🌐 Digital Assets</p>
+                                <div className="rounded-md bg-violet-500/10 p-2 text-center">
+                                  <p className="text-[10px] text-violet-400 mb-0.5">veluna.com</p>
+                                  <p className="text-sm font-bold text-violet-300">${velunaDomainValue.toLocaleString()}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
+                                </div>
+                              </div>
                             </div>
                           ) : (
                             <div className="space-y-2">
@@ -1986,6 +2030,14 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">BMO Checking Account ···1711 · manual</p>
                                 </div>
                                 <p className="text-sm font-bold text-cyan-300">${checkingBalance.toLocaleString()}</p>
+                              </div>
+                              {/* veluna.com */}
+                              <div className="rounded-lg bg-violet-500/5 border border-violet-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-violet-400 font-semibold">veluna.com</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Domain name · manual estimate · May 2026</p>
+                                </div>
+                                <p className="text-sm font-bold text-violet-300">${velunaDomainValue.toLocaleString()}</p>
                               </div>
                             </div>
                           )}
@@ -2118,6 +2170,15 @@ export default function Finances() {
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
                             <span>BMO Checking Account ···1711 · manual entry</span>
+                          </div>
+                        </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-violet-300">🌐 veluna.com</span>
+                            <span className="text-white font-semibold">${velunaDomainValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>Domain name · manual estimate · May 2026</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
