@@ -1612,15 +1612,16 @@ export default function Finances() {
                       </CardContent>
                     </Card>
 
-                    {/* Cash — Checking Account */}
+                    {/* Cash */}
                     <Card className="bg-slate-800/60 border-cyan-500/30">
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs text-cyan-400 font-bold tracking-wide">💵 Checking Account</p>
+                              <p className="text-xs text-cyan-400 font-bold tracking-wide">💵 Cash</p>
                               <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
                             </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">BMO Checking Account ···1711</p>
                             <p className="text-2xl font-bold mt-0.5 text-white">${checkingBalance.toLocaleString()}</p>
                           </div>
                           <span className="text-[10px] border rounded px-1.5 py-0.5 text-cyan-400 border-cyan-500/30">cash</span>
@@ -1772,7 +1773,7 @@ export default function Finances() {
                             <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest font-semibold mb-3">💵 Cash</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <Label className="text-slate-300 text-xs mb-1 block">Checking Account Balance ($)</Label>
+                                <Label className="text-slate-300 text-xs mb-1 block">Cash Balance — BMO ···1711 ($)</Label>
                                 <Input type="number" min="0" step="100" value={checkingBalance}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setCheckingBalance(v); try { localStorage.setItem("nw-checking", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
@@ -1917,11 +1918,11 @@ export default function Finances() {
                                   {homeAfterTaxNetCash >= 0 ? `$${Math.round(homeAfterTaxNetCash).toLocaleString()}` : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString()}`}
                                 </p>
                               </div>
-                              {/* Checking Account */}
+                              {/* Cash */}
                               <div className="rounded-lg bg-cyan-500/5 border border-cyan-500/20 p-3 flex items-center justify-between">
                                 <div>
-                                  <p className="text-xs text-cyan-400 font-semibold">Checking Account</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Cash · manual · May 2026</p>
+                                  <p className="text-xs text-cyan-400 font-semibold">Cash</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">BMO Checking Account ···1711 · manual</p>
                                 </div>
                                 <p className="text-sm font-bold text-cyan-300">${checkingBalance.toLocaleString()}</p>
                               </div>
@@ -2041,11 +2042,11 @@ export default function Finances() {
                         </div>
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
-                            <span className="text-cyan-300">💵 Checking Account</span>
+                            <span className="text-cyan-300">💵 Cash</span>
                             <span className="text-white font-semibold">${checkingBalance.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
-                            <span>Cash · manual entry · May 2026</span>
+                            <span>BMO Checking Account ···1711 · manual entry</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
