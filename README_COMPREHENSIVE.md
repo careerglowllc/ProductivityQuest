@@ -1499,3 +1499,99 @@ Confirmation dialog for syncing selected tasks to Google Calendar.
 14. **Zod schemas in shared/schema.ts:** Insert/select schemas are defined alongside table definitions. Use these for request validation in routes.
 
 15. **Capacitor (iOS):** The app runs as a native iOS app via Capacitor. The `capacitor.config.ts` and `ios/` folder contain native config. `npm run cap:sync` syncs web assets to iOS.
+
+16. **Redfin property API:** Uses the unofficial Redfin stingray endpoint. Response starts with `{}&&` (CSRF prefix) which must be stripped before JSON.parse. This API is bot-blocked intermittently — the UI falls back to a stored `homeEstValue` (manual = $635,000) and shows a "manual" badge when the API fails. This is expected behavior, not a bug.
+
+17. **Finance widget ordering:** The overview tab widget order is persisted to `localStorage` under `overviewWidgetOrder`. Order is a JSON array of widget keys. Widgets support HTML5 drag-and-drop reordering with a GripVertical handle.
+
+18. **Net worth calculation (client-side):** `BTC holdings × live BTC price + Vanguard total + home value after-tax net cash`. Computed in `finances.tsx` from market API data. Shows `—` if APIs fail.
+
+19. **Finance monthlyCost is in cents:** All `monthlyCost` and `annualCost` values in `financial_items` are stored in **cents** (integer). Divide by 100 for display.
+
+20. **Cash account display:** The checking account card shows title "💵 Cash" with subheader "BMO Checking Account ···1711". If renaming, update all 4 locations in `finances.tsx`.
+
+---
+
+## 26. Finance Dashboard — Detailed Reference
+
+### Overview Tab Widgets
+
+The overview tab shows 5 draggable widgets in a responsive 2-column CSS grid:
+
+| Widget Key | Title | Description |
+|---|---|---|
+| `incomeSources` | Income Sources | Pie chart of income by source |
+| `topExpenses` | Top Expenses | Bar chart of top monthly expenses |
+| `netWorth` | Net Worth | Live net worth calculation |
+| `incomeVsExpense` | Income vs Expense | Monthly comparison bar chart |
+| `monthlyAllocation` | Monthly Allocation | Remaining allocation breakdown |
+
+Drag-to-reorder: each widget has a GripVertical handle (HTML5 draggable API). Order saved to `localStorage['overviewWidgetOrder']`.
+
+### Net Worth Calculation
+
+```
+netWorth = (btcHoldings × livePrice) + vanguardTotal + homeAfterTaxNetCash
+```
+
+The Portfolio Allocation pie shows custom tooltips with `Name — $value (XX.X%)` and a custom legend with colored dots and percentages.
+
+### Market Data APIs
+
+| Endpoint | Asset | Source |
+|---|---|---|
+| `GET /api/market/bitcoin` | BTC/USD | CoinGecko |
+| `GET /api/market/vtsax` | VTSAX | Yahoo Finance |
+| `GET /api/market/voo` | VOO | Yahoo Finance |
+| `GET /api/market/ibit` | IBIT | Yahoo Finance |
+| `GET /api/market/property?address=` | Home AVM | Redfin stingray (unofficial) |
+
+Response: `{ "price": 95000.50, "source": "coingecko" }`
+
+**Property API:** The Redfin stingray API is unofficial and subject to bot-blocking (HTTP 403/502). When blocked, backend returns 502 and frontend shows the manual `homeEstValue` with a "manual" badge.
+
+---
+
+## 27. Test Suite Reference
+
+### Running Tests
+
+```bash
+npm run dev          # start server first
+node test-suite.js   # run all tests
+TEST_URL=http://localhost:5001 node test-suite.js  # custom port
+```
+
+### 18 Test Suites
+
+| # | Suite | Key Coverage |
+|---|---|---|
+| 1 | Authentication | Register, login, logout, settings |
+| 2 | Tasks CRUD | Create/update/complete/batch/undo |
+| 3 | Task Filtering | All 15 filters + search + category |
+| 4 | Recycle Bin | Soft delete, restore, permanent delete |
+| 5 | CSV | Export CSV, import endpoint check |
+| 6 | XP & Skills | XP formula, custom skill CRUD, milestones |
+| 7 | Shop & Inventory | Seed, purchase, inventory, use item |
+| 8 | Campaigns & Questlines | Full CRUD + stages + completion |
+| 9 | Finances | CRUD, cents validation, annual cost |
+| 10 | Market Data | BTC/VTSAX/VOO/IBIT/Property + caching |
+| 11 | Google Calendar | OAuth URL, sync, events, settings |
+| 12 | Standalone Events | Create, update, delete |
+| 13 | Notion | Connection, import, export, sync-update |
+| 14 | AI Categorization | Categorize, bulk, training, feedback |
+| 15 | Stats | Stats object shape |
+| 16 | Add Task to Calendar | Graceful no-token handling |
+| 17 | Getting Started | Checklist, mark complete |
+| 18 | Logout | Clear session, 401 verification |
+
+### XP Formula
+
+```
+totalXP = duration(min) × multiplier
+  Low=1.0, Medium=1.2, High=1.2, Pareto=1.3, Critical=1.5
+
+xpPerSkill = totalXP / skillTags.length
+```
+
+Example: High, 60 min, 2 skills → 72 total → 36 XP each.

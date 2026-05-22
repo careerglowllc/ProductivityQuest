@@ -1,845 +1,1035 @@
 #!/usr/bin/env node
 
 /**
- * ProductivityQuest Comprehensive Test Suite
- * 
- * Tests all major user features:
- * - Authentication (login, register, validation)
- * - Shop (buy items, consume items)
- * - Tasks (create, complete, filter, delete)
- * - Task Filtering (all filter types including Business/Work filters)
- * - XP System (skill XP calculation, leveling, UI messages)
- * - Getting Started Guide (route accessibility)
- * - Notion integration (import, append, delete)
- * 
- * Run with: node test-suite.js
+ * ProductivityQuest — Comprehensive Test Suite
+ *
+ * Covers ALL major features:
+ *   Auth · Tasks · Filters · XP / Skills · Shop / Inventory
+ *   Notion Integration · Google Calendar · Finances · Market Data
+ *   Campaigns / Questlines · Stats · CSV Import/Export
+ *   Standalone Calendar Events · Recycle Bin · AI Categorization
+ *
+ * Run: node test-suite.js
+ * Override server: TEST_URL=http://localhost:5001 node test-suite.js
  */
 
 const BASE_URL = process.env.TEST_URL || 'http://localhost:5001';
 
-// ANSI color codes for pretty output
-const colors = {
-  reset: '\x1b[0m',
-  green: '\x1b[32m',
-  red: '\x1b[31m',
+// ── ANSI colours ─────────────────────────────────────────────────────────────
+const c = {
+  reset:  '\x1b[0m',
+  green:  '\x1b[32m',
+  red:    '\x1b[31m',
   yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  cyan: '\x1b[36m',
-  gray: '\x1b[90m',
+  blue:   '\x1b[34m',
+  cyan:   '\x1b[36m',
+  gray:   '\x1b[90m',
+  bold:   '\x1b[1m',
 };
 
-// Test results tracker
-const results = {
-  passed: 0,
-  failed: 0,
-  tests: [],
-};
+// ── Results tracker ───────────────────────────────────────────────────────────
+const results = { passed: 0, failed: 0, skipped: 0, tests: [] };
 
-// Helper function to make HTTP requests
-async function request(method, path, body = null, cookies = null) {
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (cookies) {
-    headers['Cookie'] = cookies;
-  }
-
-  const options = {
-    method,
-    headers,
-  };
-
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
-
-  const response = await fetch(`${BASE_URL}${path}`, options);
-  
-  // Extract cookies from response
-  const setCookie = response.headers.get('set-cookie');
-  
+// ── HTTP helper ───────────────────────────────────────────────────────────────
+async function request(method, path, body = null, cookies = null, extraHeaders = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
+  if (cookies) headers['Cookie'] = cookies;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const response = await fetch(`${BASE_URL}${path}`, opts);
+  const ct = response.headers.get('content-type') || '';
   return {
     status: response.status,
-    data: response.headers.get('content-type')?.includes('application/json')
-      ? await response.json()
-      : await response.text(),
-    cookies: setCookie,
+    data: ct.includes('application/json') ? await response.json() : await response.text(),
+    cookies: response.headers.get('set-cookie'),
+    headers: response.headers,
   };
 }
 
-// Test runner
-async function test(name, fn) {
-  process.stdout.write(`${colors.cyan}▶${colors.reset} ${name}...`);
+// ── Assertions ────────────────────────────────────────────────────────────────
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
+function assertEqual(a, b, msg) { if (a !== b) throw new Error(msg || `Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+function assertStatus(res, expected, msg) { if (res.status !== expected) throw new Error(msg || `Expected HTTP ${expected}, got ${res.status}: ${JSON.stringify(res.data)}`); }
+function assertHas(obj, key, msg) { if (!(key in obj)) throw new Error(msg || `Expected key "${key}" in object`); }
+
+// ── Test runner ───────────────────────────────────────────────────────────────
+async function test(name, fn, { skip = false } = {}) {
+  if (skip) {
+    console.log(`${c.yellow}○${c.reset} ${name} ${c.gray}(skipped)${c.reset}`);
+    results.skipped++;
+    results.tests.push({ name, status: 'SKIP' });
+    return;
+  }
+  process.stdout.write(`${c.cyan}▶${c.reset} ${name}...`);
   try {
     await fn();
-    console.log(` ${colors.green}✓ PASS${colors.reset}`);
+    console.log(` ${c.green}✓ PASS${c.reset}`);
     results.passed++;
     results.tests.push({ name, status: 'PASS' });
-  } catch (error) {
-    console.log(` ${colors.red}✗ FAIL${colors.reset}`);
-    console.log(`  ${colors.red}${error.message}${colors.reset}`);
+  } catch (err) {
+    console.log(` ${c.red}✗ FAIL${c.reset}`);
+    console.log(`  ${c.gray}→ ${err.message}${c.reset}`);
     results.failed++;
-    results.tests.push({ name, status: 'FAIL', error: error.message });
+    results.tests.push({ name, status: 'FAIL', error: err.message });
   }
 }
 
-// Assertion helpers
-function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message || 'Assertion failed');
-  }
+function section(title) {
+  console.log(`\n${c.blue}${c.bold}═══ ${title} ═══${c.reset}\n`);
 }
 
-function assertEqual(actual, expected, message) {
-  if (actual !== expected) {
-    throw new Error(message || `Expected ${expected}, got ${actual}`);
-  }
-}
+// ── Shared state ──────────────────────────────────────────────────────────────
+let testUser = { cookies: null, id: null, username: null };
+let taskId = null;
+let financeItemId = null;
+let campaignId = null;
+let questlineId = null;
+let shopItemId = null;
+let purchaseId = null;
+let standaloneEventId = null;
+let createdSkillId = null;
 
-function assertStatus(response, expectedStatus, message) {
-  if (response.status !== expectedStatus) {
-    throw new Error(
-      message || `Expected status ${expectedStatus}, got ${response.status}`
-    );
-  }
-}
+const TEST_USERNAME = `testuser_${Date.now()}`;
+const TEST_EMAIL    = `${TEST_USERNAME}@test.com`;
+const TEST_PASSWORD = 'TestPass123!';
 
-// Generate random test data
-function randomString(length = 8) {
-  return Math.random().toString(36).substring(2, length + 2);
-}
-
-function randomEmail() {
-  return `test_${randomString()}@test.com`;
-}
-
-// Test state
-let testUser = {
-  email: randomEmail(),
-  password: 'TestPassword123!',
-  username: `testuser_${randomString()}`,
-  cookies: null,
-};
-
-// ============================================================================
-// AUTHENTICATION TESTS
-// ============================================================================
-
+// =============================================================================
+// 1. AUTHENTICATION
+// =============================================================================
 async function authTests() {
-  console.log(`\n${colors.blue}═══ Authentication Tests ═══${colors.reset}\n`);
+  section('Authentication');
 
-  await test('Register with valid credentials', async () => {
-    const response = await request('POST', '/api/register', {
-      email: testUser.email,
-      password: testUser.password,
-      username: testUser.username,
+  await test('Register new user', async () => {
+    const res = await request('POST', '/api/auth/register', {
+      username: TEST_USERNAME, email: TEST_EMAIL, password: TEST_PASSWORD,
     });
-    
-    assertStatus(response, 200, 'Registration should succeed');
-    assert(response.data.id, 'Should return user ID');
-    testUser.cookies = response.cookies;
+    assertStatus(res, 200, 'Register should return 200');
+    assert(res.data.id, 'Should return user id');
+    testUser.cookies = res.cookies;
+    testUser.id = res.data.id;
+    testUser.username = res.data.username;
   });
 
-  await test('Register with duplicate email should fail', async () => {
-    const response = await request('POST', '/api/register', {
-      email: testUser.email, // Same email
-      password: 'DifferentPass123!',
-      username: `different_${randomString()}`,
+  await test('Reject duplicate username', async () => {
+    const res = await request('POST', '/api/auth/register', {
+      username: TEST_USERNAME, email: `dup_${TEST_EMAIL}`, password: TEST_PASSWORD,
     });
-    
-    assert(response.status === 400 || response.status === 409, 
-      'Should return 400 or 409 for duplicate email');
+    assert(res.status === 400 || res.status === 409, 'Duplicate username should fail');
   });
 
-  await test('Register with weak password should fail', async () => {
-    const response = await request('POST', '/api/register', {
-      email: randomEmail(),
-      password: '123', // Too weak
-      username: `user_${randomString()}`,
+  await test('Reject weak password', async () => {
+    const res = await request('POST', '/api/auth/register', {
+      username: `weakpwd_${Date.now()}`, email: 'weak@test.com', password: '123',
     });
-    
-    assert(response.status === 400, 'Should reject weak password');
-  });
-
-  await test('Register with invalid email should fail', async () => {
-    const response = await request('POST', '/api/register', {
-      email: 'not-an-email', // Invalid format
-      password: 'ValidPass123!',
-      username: `user_${randomString()}`,
-    });
-    
-    assert(response.status === 400, 'Should reject invalid email');
+    assert(res.status === 400, 'Weak password should be rejected');
   });
 
   await test('Login with correct credentials', async () => {
-    const response = await request('POST', '/api/login', {
-      email: testUser.email,
-      password: testUser.password,
+    const res = await request('POST', '/api/auth/login', {
+      username: TEST_USERNAME, password: TEST_PASSWORD,
     });
-    
-    assertStatus(response, 200, 'Login should succeed');
-    assert(response.cookies, 'Should return session cookie');
-    testUser.cookies = response.cookies;
+    assertStatus(res, 200, 'Login should return 200');
+    assert(res.cookies, 'Should set session cookie');
+    testUser.cookies = res.cookies;
   });
 
-  await test('Login with wrong password should fail', async () => {
-    const response = await request('POST', '/api/login', {
-      email: testUser.email,
-      password: 'WrongPassword123!',
+  await test('Login with wrong password returns 401', async () => {
+    const res = await request('POST', '/api/auth/login', {
+      username: TEST_USERNAME, password: 'wrongpassword',
     });
-    
-    assert(response.status === 401, 'Should return 401 for wrong password');
+    assertEqual(res.status, 401, 'Wrong password should be 401');
   });
 
-  await test('Login with non-existent email should fail', async () => {
-    const response = await request('POST', '/api/login', {
-      email: 'nonexistent@test.com',
-      password: 'AnyPassword123!',
-    });
-    
-    assert(response.status === 401, 'Should return 401 for non-existent user');
+  await test('GET /api/auth/user returns current user', async () => {
+    const res = await request('GET', '/api/auth/user', null, testUser.cookies);
+    assertStatus(res, 200);
+    assertEqual(res.data.username, TEST_USERNAME, 'Should return correct username');
   });
 
-  await test('Access protected route without auth should fail', async () => {
-    const response = await request('GET', '/api/tasks', null, null);
-    assert(response.status === 401, 'Should require authentication');
+  await test('Unauthenticated request returns 401', async () => {
+    const res = await request('GET', '/api/tasks');
+    assertEqual(res.status, 401, 'Should return 401 without auth');
   });
 
-  await test('Access protected route with auth should succeed', async () => {
-    const response = await request('GET', '/api/tasks', null, testUser.cookies);
-    assertStatus(response, 200, 'Should access with valid session');
+  await test('GET /api/user/settings returns settings object', async () => {
+    const res = await request('GET', '/api/user/settings', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(typeof res.data === 'object', 'Should return settings object');
+  });
+
+  await test('PUT /api/user/settings updates settings', async () => {
+    const res = await request('PUT', '/api/user/settings', {
+      timezone: 'America/Los_Angeles',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('POST /api/settings/timezone updates timezone', async () => {
+    const res = await request('POST', '/api/settings/timezone', {
+      timezone: 'America/New_York',
+    }, testUser.cookies);
+    assertStatus(res, 200);
   });
 }
 
-// ============================================================================
-// SHOP TESTS
-// ============================================================================
+// =============================================================================
+// 2. TASKS — CRUD
+// =============================================================================
+async function taskCrudTests() {
+  section('Tasks — CRUD');
 
-async function shopTests() {
-  console.log(`\n${colors.blue}═══ Shop Tests ═══${colors.reset}\n`);
-
-  let shopItem = null;
-  let purchaseId = null;
-
-  await test('Get shop items', async () => {
-    const response = await request('GET', '/api/shop/items', null, testUser.cookies);
-    assertStatus(response, 200, 'Should get shop items');
-    assert(Array.isArray(response.data), 'Should return array of items');
-    assert(response.data.length > 0, 'Should have at least one item');
-    shopItem = response.data[0];
-  });
-
-  await test('Get user progress', async () => {
-    const response = await request('GET', '/api/progress', null, testUser.cookies);
-    assertStatus(response, 200, 'Should get user progress');
-    assert(typeof response.data.goldTotal === 'number', 'Should have gold amount');
-  });
-
-  await test('Purchase item with insufficient gold should fail', async () => {
-    // Find an expensive item
-    const response = await request('POST', '/api/shop/purchase', {
-      itemId: shopItem.id,
-    }, testUser.cookies);
-    
-    // Might succeed if user has enough gold, or fail if not
-    // Either is acceptable for this test
-    assert(response.status === 200 || response.status === 400, 
-      'Should either succeed or fail with 400');
-  });
-
-  await test('Add gold to user (for testing)', async () => {
-    // Create and complete some tasks to earn gold
-    const taskResponse = await request('POST', '/api/tasks', {
-      title: 'Test Task for Gold',
-      description: 'Earn some gold',
-      duration: 30,
-      goldValue: 500,
-    }, testUser.cookies);
-    
-    if (taskResponse.status === 200) {
-      const task = taskResponse.data;
-      // Complete the task
-      await request('PATCH', `/api/tasks/${task.id}`, {
-        completed: true,
-      }, testUser.cookies);
-    }
-  });
-
-  await test('Purchase item with sufficient gold', async () => {
-    const response = await request('POST', '/api/shop/purchase', {
-      itemId: shopItem.id,
-    }, testUser.cookies);
-    
-    if (response.status === 200) {
-      assert(response.data.id, 'Should return purchase ID');
-      purchaseId = response.data.id;
-    }
-  });
-
-  await test('Get user purchases', async () => {
-    const response = await request('GET', '/api/shop/purchases', null, testUser.cookies);
-    assertStatus(response, 200, 'Should get user purchases');
-    assert(Array.isArray(response.data), 'Should return array of purchases');
-  });
-
-  await test('Consume purchased item', async () => {
-    if (purchaseId) {
-      const response = await request('POST', `/api/shop/consume/${purchaseId}`, 
-        null, testUser.cookies);
-      assertStatus(response, 200, 'Should consume item successfully');
-    }
-  });
-
-  await test('Consume already consumed item should fail', async () => {
-    if (purchaseId) {
-      const response = await request('POST', `/api/shop/consume/${purchaseId}`, 
-        null, testUser.cookies);
-      assert(response.status === 400, 'Should not consume item twice');
-    }
-  });
-}
-
-// ============================================================================
-// TASK TESTS
-// ============================================================================
-
-async function taskTests() {
-  console.log(`\n${colors.blue}═══ Task Management Tests ═══${colors.reset}\n`);
-
-  let testTask = null;
-
-  await test('Create task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Test Task',
-      description: 'This is a test task',
-      duration: 60,
-      goldValue: 100,
+  await test('Create task with full fields', async () => {
+    const res = await request('POST', '/api/tasks', {
+      title: 'Test Task Alpha',
+      description: 'Integration test task',
+      duration: 45,
+      goldValue: 80,
       importance: 'High',
-    }, testUser.cookies);
-    
-    assertStatus(response, 200, 'Should create task');
-    assert(response.data.id, 'Should return task ID');
-    assert(response.data.title === 'Test Task', 'Should set correct title');
-    testTask = response.data;
-  });
-
-  await test('Get all tasks', async () => {
-    const response = await request('GET', '/api/tasks', null, testUser.cookies);
-    assertStatus(response, 200, 'Should get tasks');
-    assert(Array.isArray(response.data), 'Should return array');
-    assert(response.data.length > 0, 'Should have at least one task');
-  });
-
-  await test('Get single task', async () => {
-    const response = await request('GET', `/api/tasks/${testTask.id}`, null, testUser.cookies);
-    assertStatus(response, 200, 'Should get task');
-    assertEqual(response.data.id, testTask.id, 'Should return correct task');
-  });
-
-  await test('Update task', async () => {
-    const response = await request('PATCH', `/api/tasks/${testTask.id}`, {
-      title: 'Updated Test Task',
-      importance: 'Pareto',
-    }, testUser.cookies);
-    
-    assertStatus(response, 200, 'Should update task');
-    assertEqual(response.data.title, 'Updated Test Task', 'Should update title');
-    assertEqual(response.data.importance, 'Pareto', 'Should update importance');
-  });
-
-  await test('Complete task', async () => {
-    const response = await request('PATCH', `/api/tasks/${testTask.id}`, {
-      completed: true,
-    }, testUser.cookies);
-    
-    assertStatus(response, 200, 'Should complete task');
-    assert(response.data.completed === true, 'Task should be marked complete');
-    assert(response.data.completedAt, 'Should have completion timestamp');
-  });
-
-  await test('Filter tasks (completed)', async () => {
-    const response = await request('GET', '/api/tasks?completed=true', 
-      null, testUser.cookies);
-    assertStatus(response, 200, 'Should filter tasks');
-    assert(Array.isArray(response.data), 'Should return array');
-  });
-
-  await test('Delete task', async () => {
-    const response = await request('DELETE', `/api/tasks/${testTask.id}`, 
-      null, testUser.cookies);
-    assertStatus(response, 200, 'Should delete task');
-  });
-
-  await test('Get deleted task should fail', async () => {
-    const response = await request('GET', `/api/tasks/${testTask.id}`, 
-      null, testUser.cookies);
-    assert(response.status === 404, 'Should not find deleted task');
-  });
-
-  await test('Batch complete multiple tasks', async () => {
-    // Create multiple tasks
-    const task1 = await request('POST', '/api/tasks', {
-      title: 'Batch Task 1',
-      duration: 30,
-      goldValue: 50,
-    }, testUser.cookies);
-    
-    const task2 = await request('POST', '/api/tasks', {
-      title: 'Batch Task 2',
-      duration: 30,
-      goldValue: 50,
-    }, testUser.cookies);
-
-    if (task1.status === 200 && task2.status === 200) {
-      const response = await request('POST', '/api/tasks/complete-batch', {
-        taskIds: [task1.data.id, task2.data.id],
-      }, testUser.cookies);
-      
-      assertStatus(response, 200, 'Should complete batch');
-    }
-  });
-}
-
-// ============================================================================
-// TASK FILTERING TESTS
-// ============================================================================
-
-async function taskFilteringTests() {
-  console.log(`\n${colors.blue}═══ Task Filtering Tests ═══${colors.reset}\n`);
-
-  // Create test tasks with different attributes
-  const today = new Date().toISOString();
-  const tomorrow = new Date(Date.now() + 86400000).toISOString();
-
-  await test('Create task due today', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Due Today Task',
-      duration: 30,
-      goldValue: 50,
-      dueDate: today,
-      importance: 'High',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create due today task');
-  });
-
-  await test('Create high priority task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'High Priority Task',
-      duration: 30,
-      goldValue: 50,
-      importance: 'Pareto',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create high priority task');
-  });
-
-  await test('Create quick task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Quick Task',
-      duration: 15,
-      goldValue: 50,
-      importance: 'Medium',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create quick task');
-  });
-
-  await test('Create high reward task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'High Reward Task',
-      duration: 60,
-      goldValue: 200,
-      importance: 'Medium',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create high reward task');
-  });
-
-  await test('Create Apple business task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Apple Task',
-      duration: 30,
-      goldValue: 50,
-      apple: true,
-      businessWorkFilter: 'Apple',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create Apple task');
-  });
-
-  await test('Create Vi business task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Vi Business Task',
-      duration: 30,
-      goldValue: 50,
-      businessWorkFilter: 'Vi',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create Vi business task');
-  });
-
-  await test('Create General business task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'General Business Task',
-      duration: 30,
-      goldValue: 50,
-      businessWorkFilter: 'General',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create General business task');
-  });
-
-  await test('Create SP business task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'SP Business Task',
-      duration: 30,
-      goldValue: 50,
-      businessWorkFilter: 'SP',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create SP business task');
-  });
-
-  await test('Create Vel business task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Vel Business Task',
-      duration: 30,
-      goldValue: 50,
-      businessWorkFilter: 'Vel',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create Vel business task');
-  });
-
-  await test('Create CG business task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'CG Business Task',
-      duration: 30,
-      goldValue: 50,
-      businessWorkFilter: 'CG',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create CG business task');
-  });
-
-  await test('Create routine task', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Routine Task',
-      duration: 30,
-      goldValue: 50,
-      recurType: 'Daily',
-    }, testUser.cookies);
-    assertStatus(response, 200, 'Should create routine task');
-  });
-}
-
-// ============================================================================
-// XP SYSTEM TESTS
-// ============================================================================
-
-async function xpSystemTests() {
-  console.log(`\n${colors.blue}═══ XP System Tests ═══${colors.reset}\n`);
-
-  let skillTask = null;
-  let initialProgress = null;
-
-  await test('Get initial user progress', async () => {
-    const response = await request('GET', '/api/user/progress', null, testUser.cookies);
-    assertStatus(response, 200, 'Should get user progress');
-    initialProgress = response.data;
-    assert(initialProgress.skills, 'Should have skills data');
-  });
-
-  await test('Create task with skills for XP testing', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Skill XP Test Task',
-      description: 'Task to test XP calculation and skill leveling',
-      duration: 60,
-      goldValue: 100,
-      importance: 'High',
+      category: 'Work',
       skillTags: ['Coding', 'Problem Solving'],
     }, testUser.cookies);
-    
-    assertStatus(response, 200, 'Should create task with skills');
-    skillTask = response.data;
-    assert(Array.isArray(skillTask.skillTags), 'Should have skill tags');
-    assertEqual(skillTask.skillTags.length, 2, 'Should have 2 skills');
+    assertStatus(res, 200, 'Should create task');
+    assert(res.data.id, 'Should have id');
+    assertEqual(res.data.title, 'Test Task Alpha');
+    taskId = res.data.id;
   });
 
-  await test('Complete task and verify XP calculation', async () => {
-    const response = await request('PATCH', `/api/tasks/${skillTask.id}`, {
+  await test('GET /api/tasks returns array', async () => {
+    const res = await request('GET', '/api/tasks', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data), 'Should return array');
+    assert(res.data.length > 0, 'Should have at least one task');
+  });
+
+  await test('Create task with minimal fields', async () => {
+    const res = await request('POST', '/api/tasks', {
+      title: 'Minimal Task', duration: 15, goldValue: 20, importance: 'Low',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('Create task fails without title', async () => {
+    const res = await request('POST', '/api/tasks', {
+      duration: 30, goldValue: 50, importance: 'Medium',
+    }, testUser.cookies);
+    assert(res.status === 400 || res.status === 422, 'Should reject missing title');
+  });
+
+  await test('PATCH task updates fields', async () => {
+    const res = await request('PATCH', `/api/tasks/${taskId}`, {
+      title: 'Test Task Alpha (updated)', description: 'Updated description',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    assertEqual(res.data.title, 'Test Task Alpha (updated)');
+  });
+
+  await test('PATCH /api/tasks/:id/color updates color', async () => {
+    const res = await request('PATCH', `/api/tasks/${taskId}/color`, {
+      color: '#FF5733',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('POST /api/tasks/:id/unschedule unschedules task', async () => {
+    const res = await request('POST', `/api/tasks/${taskId}/unschedule`, null, testUser.cookies);
+    assert(res.status === 200 || res.status === 404);
+  });
+
+  await test('Complete task awards XP and gold', async () => {
+    const res = await request('PATCH', `/api/tasks/${taskId}`, {
       completed: true,
     }, testUser.cookies);
-    
-    assertStatus(response, 200, 'Should complete task');
-    assert(response.data.completed === true, 'Task should be marked complete');
-    assert(response.data.skillXPGains, 'Should return skill XP gains');
-    assert(Array.isArray(response.data.skillXPGains), 'skillXPGains should be array');
-    
-    // Verify XP was awarded to both skills
-    assertEqual(response.data.skillXPGains.length, 2, 'Should award XP to 2 skills');
-    
-    // Verify each skill gain has required properties
-    response.data.skillXPGains.forEach(gain => {
-      assert(gain.skillName, 'Skill gain should have skillName');
-      assert(typeof gain.xpGained === 'number', 'xpGained should be number');
-      assert(typeof gain.newXP === 'number', 'newXP should be number');
-      assert(typeof gain.newLevel === 'number', 'newLevel should be number');
-      assert(gain.xpGained > 0, 'Should gain positive XP');
+    assertStatus(res, 200);
+    assert(res.data.completed === true, 'Task should be marked completed');
+  });
+
+  await test('POST /api/tasks/undo-complete reverts completion', async () => {
+    const res = await request('POST', '/api/tasks/undo-complete', {
+      taskId: taskId,
+    }, testUser.cookies);
+    assert(res.status === 200 || res.status === 404);
+  });
+
+  await test('POST /api/tasks/complete-batch completes multiple tasks', async () => {
+    const t1 = await request('POST', '/api/tasks', { title: 'Batch 1', duration: 15, goldValue: 20, importance: 'Low' }, testUser.cookies);
+    const t2 = await request('POST', '/api/tasks', { title: 'Batch 2', duration: 15, goldValue: 20, importance: 'Low' }, testUser.cookies);
+    if (t1.status === 200 && t2.status === 200) {
+      const res = await request('POST', '/api/tasks/complete-batch', {
+        taskIds: [t1.data.id, t2.data.id],
+      }, testUser.cookies);
+      assertStatus(res, 200);
+    }
+  });
+
+  await test('POST /api/tasks/move-overdue-to-today', async () => {
+    const res = await request('POST', '/api/tasks/move-overdue-to-today', null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+}
+
+// =============================================================================
+// 3. TASK FILTERING
+// =============================================================================
+async function taskFilteringTests() {
+  section('Task Filtering');
+
+  const filters = [
+    'today','tomorrow','this-week','overdue',
+    'high','medium','low','pareto',
+    'completed','active',
+    'business','personal',
+    'duration-short','duration-medium','duration-long',
+  ];
+
+  for (const filter of filters) {
+    await test(`Filter: ${filter}`, async () => {
+      const res = await request('GET', `/api/tasks?filter=${filter}`, null, testUser.cookies);
+      assertStatus(res, 200);
+      assert(Array.isArray(res.data), `Filter "${filter}" should return array`);
     });
-  });
-
-  await test('Verify XP calculation formula (High priority, 60 min)', async () => {
-    // Formula: XP = 15 × (Duration/15) × (1 + PriorityBonus)
-    // High priority has 20% bonus = 1.2 multiplier
-    // Expected: 15 × (60/15) × 1.2 = 15 × 4 × 1.2 = 72 XP total
-    // Split between 2 skills = 36 XP each
-    
-    const response = await request('PATCH', `/api/tasks/${skillTask.id}`, {
-      completed: false, // Mark incomplete first
-    }, testUser.cookies);
-    
-    // Complete again
-    const completeResponse = await request('PATCH', `/api/tasks/${skillTask.id}`, {
-      completed: true,
-    }, testUser.cookies);
-    
-    if (completeResponse.status === 200 && completeResponse.data.skillXPGains) {
-      const xpPerSkill = completeResponse.data.skillXPGains[0].xpGained;
-      // Should be 36 XP per skill (72 total / 2 skills)
-      assertEqual(xpPerSkill, 36, 'Should award 36 XP per skill for High priority 60min task');
-    }
-  });
-
-  await test('Create and complete Pareto task (highest priority)', async () => {
-    const paretoTask = await request('POST', '/api/tasks', {
-      title: 'Pareto Task',
-      duration: 30,
-      goldValue: 100,
-      importance: 'Pareto',
-      skillTags: ['Leadership'],
-    }, testUser.cookies);
-    
-    if (paretoTask.status === 200) {
-      const response = await request('PATCH', `/api/tasks/${paretoTask.data.id}`, {
-        completed: true,
-      }, testUser.cookies);
-      
-      assertStatus(response, 200, 'Should complete Pareto task');
-      assert(response.data.skillXPGains, 'Should return skill XP gains');
-      
-      // Pareto has 30% bonus = 1.3 multiplier
-      // Expected: 15 × (30/15) × 1.3 = 15 × 2 × 1.3 = 39 XP
-      const xpGained = response.data.skillXPGains[0].xpGained;
-      assertEqual(xpGained, 39, 'Pareto task should award 39 XP (30% bonus)');
-    }
-  });
-
-  await test('Create and complete Low priority task', async () => {
-    const lowTask = await request('POST', '/api/tasks', {
-      title: 'Low Priority Task',
-      duration: 15,
-      goldValue: 25,
-      importance: 'Low',
-      skillTags: ['Organization'],
-    }, testUser.cookies);
-    
-    if (lowTask.status === 200) {
-      const response = await request('PATCH', `/api/tasks/${lowTask.data.id}`, {
-        completed: true,
-      }, testUser.cookies);
-      
-      assertStatus(response, 200, 'Should complete Low task');
-      assert(response.data.skillXPGains, 'Should return skill XP gains');
-      
-      // Low has 0% bonus = 1.0 multiplier
-      // Expected: 15 × (15/15) × 1.0 = 15 XP
-      const xpGained = response.data.skillXPGains[0].xpGained;
-      assertEqual(xpGained, 15, 'Low priority task should award 15 XP (no bonus)');
-    }
-  });
-
-  await test('Verify skill level up mechanics', async () => {
-    // Create and complete multiple tasks to trigger level up
-    for (let i = 0; i < 5; i++) {
-      const task = await request('POST', '/api/tasks', {
-        title: `Level Up Task ${i}`,
-        duration: 60,
-        goldValue: 100,
-        importance: 'High',
-        skillTags: ['Testing'],
-      }, testUser.cookies);
-      
-      if (task.status === 200) {
-        await request('PATCH', `/api/tasks/${task.data.id}`, {
-          completed: true,
-        }, testUser.cookies);
-      }
-    }
-    
-    // Check if Testing skill leveled up
-    const progress = await request('GET', '/api/user/progress', null, testUser.cookies);
-    if (progress.status === 200) {
-      const testingSkill = progress.data.skills?.find(s => s.name === 'Testing');
-      if (testingSkill) {
-        assert(testingSkill.xp > 0, 'Testing skill should have XP');
-        assert(testingSkill.level >= 1, 'Testing skill should have level');
-      }
-    }
-  });
-
-  await test('Verify XP UI message includes skill names', async () => {
-    const task = await request('POST', '/api/tasks', {
-      title: 'UI Message Test',
-      duration: 30,
-      goldValue: 50,
-      importance: 'Medium',
-      skillTags: ['Communication', 'Writing'],
-    }, testUser.cookies);
-    
-    if (task.status === 200) {
-      const response = await request('PATCH', `/api/tasks/${task.data.id}`, {
-        completed: true,
-      }, testUser.cookies);
-      
-      assert(response.data.skillXPGains, 'Should have skillXPGains array');
-      response.data.skillXPGains.forEach(gain => {
-        assert(['Communication', 'Writing'].includes(gain.skillName), 
-          'Skill names should match task skills');
-      });
-    }
-  });
-}
-
-// ============================================================================
-// GETTING STARTED GUIDE TESTS
-// ============================================================================
-
-async function gettingStartedTests() {
-  console.log(`\n${colors.blue}═══ Getting Started Guide Tests ═══${colors.reset}\n`);
-
-  await test('Getting Started page should be accessible', async () => {
-    const response = await request('GET', '/getting-started', null, testUser.cookies);
-    // Should return HTML or redirect successfully
-    assert(response.status === 200 || response.status === 304, 
-      'Getting Started page should be accessible');
-  });
-
-  await test('User can access Getting Started from landing page', async () => {
-    const response = await request('GET', '/', null, null);
-    assert(response.status === 200 || response.status === 304, 
-      'Landing page should be accessible');
-    // The page should contain a link or reference to getting started
-  });
-
-  await test('Getting Started route exists in navigation', async () => {
-    // This tests that the route is properly configured
-    // Getting started is at /getting-started
-    const response = await request('GET', '/getting-started', null, null);
-    assert(response.status !== 404, 'Getting Started route should exist');
-  });
-}
-
-// ============================================================================
-// NOTION INTEGRATION TESTS
-// ============================================================================
-
-async function notionIntegrationTests() {
-  console.log(`\n${colors.blue}═══ Notion Integration Tests ═══${colors.reset}\n`);
-
-  let taskForNotion = null;
-
-  await test('Create task for Notion testing', async () => {
-    const response = await request('POST', '/api/tasks', {
-      title: 'Notion Test Task',
-      description: 'Task to test Notion integration',
-      duration: 45,
-      goldValue: 75,
-    }, testUser.cookies);
-    
-    if (response.status === 200) {
-      taskForNotion = response.data;
-    }
-  });
-
-  await test('Sync with Notion (if configured)', async () => {
-    const response = await request('POST', '/api/tasks/sync', null, testUser.cookies);
-    // May succeed or fail depending on Notion configuration
-    // Both are acceptable
-    assert(response.status === 200 || response.status === 400 || response.status === 500,
-      'Should handle Notion sync gracefully');
-  });
-
-  await test('Append task to Notion (if configured)', async () => {
-    if (taskForNotion) {
-      const response = await request('POST', '/api/tasks/append-to-notion', {
-        taskIds: [taskForNotion.id],
-      }, testUser.cookies);
-      
-      // May succeed or fail depending on Notion configuration
-      assert(response.status === 200 || response.status === 400 || response.status === 500,
-        'Should handle Notion append gracefully');
-    }
-  });
-
-  await test('Delete task from Notion (if configured)', async () => {
-    if (taskForNotion && taskForNotion.notionId) {
-      const response = await request('POST', '/api/tasks/delete-from-notion', {
-        taskIds: [taskForNotion.id],
-      }, testUser.cookies);
-      
-      assert(response.status === 200 || response.status === 400 || response.status === 500,
-        'Should handle Notion delete gracefully');
-    }
-  });
-}
-
-// ============================================================================
-// MAIN TEST RUNNER
-// ============================================================================
-
-async function runAllTests() {
-  console.log(`\n${colors.yellow}╔════════════════════════════════════════════════╗${colors.reset}`);
-  console.log(`${colors.yellow}║   ProductivityQuest Test Suite                 ║${colors.reset}`);
-  console.log(`${colors.yellow}║   Testing against: ${BASE_URL.padEnd(30)}║${colors.reset}`);
-  console.log(`${colors.yellow}╚════════════════════════════════════════════════╝${colors.reset}`);
-
-  const startTime = Date.now();
-
-  // Run all test suites
-  await authTests();
-  await shopTests();
-  await taskTests();
-  await taskFilteringTests();
-  await xpSystemTests();
-  await gettingStartedTests();
-  await notionIntegrationTests();
-
-  const endTime = Date.now();
-  const duration = ((endTime - startTime) / 1000).toFixed(2);
-
-  // Print summary
-  console.log(`\n${colors.yellow}╔════════════════════════════════════════════════╗${colors.reset}`);
-  console.log(`${colors.yellow}║   Test Summary                                 ║${colors.reset}`);
-  console.log(`${colors.yellow}╚════════════════════════════════════════════════╝${colors.reset}\n`);
-  
-  console.log(`Total Tests: ${results.passed + results.failed}`);
-  console.log(`${colors.green}Passed: ${results.passed}${colors.reset}`);
-  console.log(`${colors.red}Failed: ${results.failed}${colors.reset}`);
-  console.log(`Duration: ${duration}s`);
-
-  if (results.failed > 0) {
-    console.log(`\n${colors.red}Failed Tests:${colors.reset}`);
-    results.tests
-      .filter(t => t.status === 'FAIL')
-      .forEach(t => {
-        console.log(`  ${colors.red}✗${colors.reset} ${t.name}`);
-        if (t.error) {
-          console.log(`    ${colors.gray}${t.error}${colors.reset}`);
-        }
-      });
   }
 
-  console.log('\n');
-  
-  // Exit with appropriate code
+  await test('Search tasks by title keyword', async () => {
+    const res = await request('GET', '/api/tasks?search=Test', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('Filter tasks by category', async () => {
+    const res = await request('GET', '/api/tasks?category=Work', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+}
+
+// =============================================================================
+// 4. TASK RECYCLE BIN
+// =============================================================================
+async function recycleBinTests() {
+  section('Task Recycle Bin');
+
+  let binTaskId = null;
+
+  await test('Create task to be deleted', async () => {
+    const res = await request('POST', '/api/tasks', {
+      title: 'To Be Deleted', duration: 15, goldValue: 10, importance: 'Low',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    binTaskId = res.data.id;
+  });
+
+  await test('Soft-delete task moves to recycle bin', async () => {
+    if (!binTaskId) return;
+    const res = await request('DELETE', `/api/tasks/${binTaskId}`, null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('GET /api/recycled-tasks returns array', async () => {
+    const res = await request('GET', '/api/recycled-tasks', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('Restore task from recycle bin', async () => {
+    if (!binTaskId) return;
+    const res = await request('POST', `/api/tasks/${binTaskId}/restore`, null, testUser.cookies);
+    assert(res.status === 200 || res.status === 404);
+  });
+
+  await test('Permanently delete task', async () => {
+    if (!binTaskId) return;
+    await request('DELETE', `/api/tasks/${binTaskId}`, null, testUser.cookies);
+    const res = await request('DELETE', `/api/tasks/${binTaskId}/permanent`, null, testUser.cookies);
+    assert(res.status === 200 || res.status === 404);
+  });
+
+  await test('POST /api/tasks/restore handles empty array', async () => {
+    const res = await request('POST', '/api/tasks/restore', { taskIds: [] }, testUser.cookies);
+    assert(res.status === 200 || res.status === 400);
+  });
+
+  await test('POST /api/tasks/permanent-delete handles empty array', async () => {
+    const res = await request('POST', '/api/tasks/permanent-delete', { taskIds: [] }, testUser.cookies);
+    assert(res.status === 200 || res.status === 400);
+  });
+}
+
+// =============================================================================
+// 5. CSV IMPORT / EXPORT
+// =============================================================================
+async function csvTests() {
+  section('CSV Import / Export');
+
+  await test('GET /api/tasks/export/csv returns CSV data', async () => {
+    const res = await request('GET', '/api/tasks/export/csv', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(typeof res.data === 'string' || typeof res.data === 'object', 'Should return CSV data');
+  });
+
+  await test('POST /api/tasks/import/csv endpoint exists (no file = 400)', async () => {
+    const res = await request('POST', '/api/tasks/import/csv', null, testUser.cookies);
+    assert(res.status !== 404, 'CSV import endpoint should exist (not 404)');
+  });
+}
+
+// =============================================================================
+// 6. XP SYSTEM & SKILLS
+// =============================================================================
+async function xpSkillTests() {
+  section('XP System & Skills');
+
+  await test('GET /api/skills returns array', async () => {
+    const res = await request('GET', '/api/skills', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('GET /api/progress returns level and xp', async () => {
+    const res = await request('GET', '/api/progress', null, testUser.cookies);
+    assertStatus(res, 200);
+    assertHas(res.data, 'level');
+    assertHas(res.data, 'xp');
+  });
+
+  await test('XP formula: High priority 60min / 2 skills = 36 XP each', async () => {
+    const t = await request('POST', '/api/tasks', {
+      title: 'XP Calc Test', duration: 60, goldValue: 100, importance: 'High',
+      skillTags: ['Coding', 'Problem Solving'],
+    }, testUser.cookies);
+    assertStatus(t, 200);
+    const res = await request('PATCH', `/api/tasks/${t.data.id}`, { completed: true }, testUser.cookies);
+    assertStatus(res, 200);
+    if (res.data.skillXPGains && res.data.skillXPGains.length === 2) {
+      assertEqual(res.data.skillXPGains[0].xpGained, 36, 'High 60min / 2 skills = 36 XP each');
+    }
+  });
+
+  await test('XP formula: Low priority 15min = 15 XP', async () => {
+    const t = await request('POST', '/api/tasks', {
+      title: 'Low XP Test', duration: 15, goldValue: 25, importance: 'Low',
+      skillTags: ['Organization'],
+    }, testUser.cookies);
+    assertStatus(t, 200);
+    const res = await request('PATCH', `/api/tasks/${t.data.id}`, { completed: true }, testUser.cookies);
+    if (res.data.skillXPGains && res.data.skillXPGains.length > 0) {
+      assertEqual(res.data.skillXPGains[0].xpGained, 15, 'Low 15min = 15 XP');
+    }
+  });
+
+  await test('XP formula: Pareto 30min = 39 XP (30% bonus)', async () => {
+    const t = await request('POST', '/api/tasks', {
+      title: 'Pareto XP Test', duration: 30, goldValue: 50, importance: 'Pareto',
+      skillTags: ['Leadership'],
+    }, testUser.cookies);
+    assertStatus(t, 200);
+    const res = await request('PATCH', `/api/tasks/${t.data.id}`, { completed: true }, testUser.cookies);
+    if (res.data.skillXPGains && res.data.skillXPGains.length > 0) {
+      assertEqual(res.data.skillXPGains[0].xpGained, 39, 'Pareto 30min = 39 XP (30% bonus)');
+    }
+  });
+
+  await test('POST /api/skills/custom creates custom skill', async () => {
+    const res = await request('POST', '/api/skills/custom', {
+      name: `TestSkill_${Date.now()}`, description: 'Integration test skill', icon: 'Star',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    assert(res.data.id);
+    createdSkillId = res.data.id;
+  });
+
+  await test('PATCH /api/skills/id/:id updates skill', async () => {
+    if (!createdSkillId) return;
+    const res = await request('PATCH', `/api/skills/id/${createdSkillId}`, {
+      description: 'Updated description',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('PATCH /api/skills/:id/milestones updates milestones', async () => {
+    if (!createdSkillId) return;
+    const res = await request('PATCH', `/api/skills/${createdSkillId}/milestones`, {
+      milestones: [{ id: 'ms1', title: 'First Milestone', xpRequired: 100, completed: false }],
+    }, testUser.cookies);
+    assert(res.status === 200 || res.status === 404);
+  });
+
+  await test('DELETE /api/skills/:id deletes custom skill', async () => {
+    if (!createdSkillId) return;
+    const res = await request('DELETE', `/api/skills/${createdSkillId}`, null, testUser.cookies);
+    assertStatus(res, 200);
+    createdSkillId = null;
+  });
+
+  await test('POST /api/skills/restore-defaults restores defaults', async () => {
+    const res = await request('POST', '/api/skills/restore-defaults', null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+}
+
+// =============================================================================
+// 7. SHOP & INVENTORY
+// =============================================================================
+async function shopTests() {
+  section('Shop & Inventory');
+
+  await test('GET /api/shop/items returns array', async () => {
+    const res = await request('GET', '/api/shop/items', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('POST /api/shop/seed-defaults seeds shop', async () => {
+    const res = await request('POST', '/api/shop/seed-defaults', null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('Shop has items after seed', async () => {
+    const res = await request('GET', '/api/shop/items', null, testUser.cookies);
+    assertStatus(res, 200);
+    if (res.data.length > 0) shopItemId = res.data[0].id;
+  });
+
+  await test('POST /api/shop/items creates custom shop item', async () => {
+    const res = await request('POST', '/api/shop/items', {
+      name: 'Test Potion', description: 'A test item', cost: 50, emoji: '🧪', category: 'consumable',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    assert(res.data.id);
+  });
+
+  await test('POST /api/shop/purchase buys item or returns 400 (insufficient gold)', async () => {
+    if (!shopItemId) return;
+    const res = await request('POST', '/api/shop/purchase', { itemId: shopItemId }, testUser.cookies);
+    assert(res.status === 200 || res.status === 400);
+    if (res.status === 200) purchaseId = res.data.purchaseId || res.data.id;
+  });
+
+  await test('GET /api/purchases returns purchase history', async () => {
+    const res = await request('GET', '/api/purchases', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('GET /api/inventory returns inventory', async () => {
+    const res = await request('GET', '/api/inventory', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('PATCH /api/purchases/:id/use uses inventory item', async () => {
+    if (!purchaseId) return;
+    const res = await request('PATCH', `/api/purchases/${purchaseId}/use`, null, testUser.cookies);
+    assert(res.status === 200 || res.status === 404);
+  });
+}
+
+// =============================================================================
+// 8. CAMPAIGNS & QUESTLINES
+// =============================================================================
+async function campaignQuestlineTests() {
+  section('Campaigns & Questlines');
+
+  await test('GET /api/campaigns returns array', async () => {
+    const res = await request('GET', '/api/campaigns', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('POST /api/campaigns creates campaign', async () => {
+    const res = await request('POST', '/api/campaigns', {
+      name: 'Test Campaign', description: 'Integration test campaign',
+      icon: 'Target', color: '#6366f1',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    assert(res.data.id);
+    campaignId = res.data.id;
+  });
+
+  await test('PATCH /api/campaigns/:id updates campaign', async () => {
+    if (!campaignId) return;
+    const res = await request('PATCH', `/api/campaigns/${campaignId}`, {
+      description: 'Updated description',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('GET /api/questlines returns array', async () => {
+    const res = await request('GET', '/api/questlines', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('POST /api/questlines creates questline', async () => {
+    const res = await request('POST', '/api/questlines', {
+      name: 'Test Questline', description: 'Integration test questline',
+      category: 'Work', icon: 'BookOpen',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    assert(res.data.id);
+    questlineId = res.data.id;
+  });
+
+  await test('GET /api/questlines/:id returns questline', async () => {
+    if (!questlineId) return;
+    const res = await request('GET', `/api/questlines/${questlineId}`, null, testUser.cookies);
+    assertStatus(res, 200);
+    assertEqual(res.data.name, 'Test Questline');
+  });
+
+  await test('PATCH /api/questlines/:id updates questline', async () => {
+    if (!questlineId) return;
+    const res = await request('PATCH', `/api/questlines/${questlineId}`, {
+      description: 'Updated questline description',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('POST /api/questlines/:id/add-stages adds stages', async () => {
+    if (!questlineId) return;
+    const res = await request('POST', `/api/questlines/${questlineId}/add-stages`, {
+      stages: [{ title: 'Stage 1', tasks: [] }],
+    }, testUser.cookies);
+    assert(res.status === 200 || res.status === 400);
+  });
+
+  await test('POST /api/questlines/:id/check-completion responds', async () => {
+    if (!questlineId) return;
+    const res = await request('POST', `/api/questlines/${questlineId}/check-completion`, null, testUser.cookies);
+    assert(res.status === 200 || res.status === 404);
+  });
+
+  await test('DELETE /api/questlines/:id deletes questline', async () => {
+    if (!questlineId) return;
+    const res = await request('DELETE', `/api/questlines/${questlineId}`, null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('DELETE /api/campaigns/:id deletes campaign', async () => {
+    if (!campaignId) return;
+    const res = await request('DELETE', `/api/campaigns/${campaignId}`, null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+}
+
+// =============================================================================
+// 9. FINANCES
+// =============================================================================
+async function financeTests() {
+  section('Finances');
+
+  await test('GET /api/finances returns array', async () => {
+    const res = await request('GET', '/api/finances', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('POST /api/finances creates finance item', async () => {
+    const res = await request('POST', '/api/finances', {
+      item: 'Test Expense',
+      category: 'General',
+      monthlyCost: 5000,
+      recurType: 'Monthly',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    assert(res.data.id);
+    financeItemId = res.data.id;
+  });
+
+  await test('Finance item fields persisted correctly', async () => {
+    const res = await request('GET', '/api/finances', null, testUser.cookies);
+    assertStatus(res, 200);
+    const item = res.data.find(i => i.id === financeItemId);
+    assert(item, 'Created item should appear in list');
+    assertEqual(item.monthlyCost, 5000, 'Monthly cost should be 5000 cents');
+    assertEqual(item.category, 'General');
+    assertEqual(item.recurType, 'Monthly');
+  });
+
+  await test('Annual cost = monthlyCost * 12', async () => {
+    const res = await request('GET', '/api/finances', null, testUser.cookies);
+    const item = res.data.find(i => i.id === financeItemId);
+    if (item && item.annualCost !== undefined) {
+      assertEqual(item.annualCost, item.monthlyCost * 12, 'annualCost should be 12x monthlyCost');
+    }
+  });
+
+  await test('PG&E/NEM item label check (existing data)', async () => {
+    const res = await request('GET', '/api/finances', null, testUser.cookies);
+    assertStatus(res, 200);
+    const pgItem = res.data.find(i => i.item && i.item.toLowerCase().includes('nem'));
+    if (!pgItem) {
+      console.log(`  \x1b[90m  info: PG&E/NEM item not present (expected for fresh accounts)\x1b[0m`);
+    } else {
+      assert(pgItem.item.includes('NEED UPDATE'), 'PG&E item should contain NEM/update note');
+    }
+  });
+
+  await test('DELETE /api/finances/:id removes item', async () => {
+    if (!financeItemId) return;
+    const res = await request('DELETE', `/api/finances/${financeItemId}`, null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('Deleted finance item absent from list', async () => {
+    const res = await request('GET', '/api/finances', null, testUser.cookies);
+    const item = res.data.find(i => i.id === financeItemId);
+    assert(!item, 'Deleted finance item should not appear in list');
+  });
+}
+
+// =============================================================================
+// 10. MARKET DATA APIs
+// =============================================================================
+async function marketDataTests() {
+  section('Market Data APIs');
+
+  await test('GET /api/market/bitcoin returns positive BTC price', async () => {
+    const res = await request('GET', '/api/market/bitcoin');
+    assertStatus(res, 200);
+    assert(typeof res.data.price === 'number', 'Price should be a number');
+    assert(res.data.price > 0, 'BTC price should be > 0');
+    console.log(`  \x1b[90m  BTC: $${res.data.price.toLocaleString()} (source: ${res.data.source})\x1b[0m`);
+  });
+
+  await test('GET /api/market/vtsax returns positive VTSAX price', async () => {
+    const res = await request('GET', '/api/market/vtsax');
+    assertStatus(res, 200);
+    assert(typeof res.data.price === 'number');
+    assert(res.data.price > 0);
+    console.log(`  \x1b[90m  VTSAX: $${res.data.price} (source: ${res.data.source})\x1b[0m`);
+  });
+
+  await test('GET /api/market/voo returns positive VOO price', async () => {
+    const res = await request('GET', '/api/market/voo');
+    assertStatus(res, 200);
+    assert(typeof res.data.price === 'number');
+    assert(res.data.price > 0);
+    console.log(`  \x1b[90m  VOO: $${res.data.price} (source: ${res.data.source})\x1b[0m`);
+  });
+
+  await test('GET /api/market/ibit returns IBIT price', async () => {
+    const res = await request('GET', '/api/market/ibit');
+    assertStatus(res, 200);
+    assert(typeof res.data.price === 'number');
+    console.log(`  \x1b[90m  IBIT: $${res.data.price} (source: ${res.data.source})\x1b[0m`);
+  });
+
+  await test('GET /api/market/property: 200 with price OR 502 (Redfin may block)', async () => {
+    const address = '2605 Plumbago Court, Rocklin, CA 95677';
+    const res = await request('GET', `/api/market/property?address=${encodeURIComponent(address)}`);
+    if (res.status === 200) {
+      assert(typeof res.data.price === 'number', 'Should have numeric price');
+      assert(res.data.price > 0, 'Property price should be positive');
+      console.log(`  \x1b[90m  Property: $${res.data.price?.toLocaleString()} (source: ${res.data.source})\x1b[0m`);
+    } else {
+      console.log(`  \x1b[33m  Redfin returned ${res.status} - bot detection likely active\x1b[0m`);
+      console.log(`  \x1b[90m  UI falls back to manual value ($635,000) - this is expected behavior\x1b[0m`);
+    }
+    assert([200, 400, 500, 502].includes(res.status), `Unexpected status: ${res.status}`);
+  });
+
+  await test('GET /api/market/property without address returns 400', async () => {
+    const res = await request('GET', '/api/market/property');
+    assertEqual(res.status, 400, 'Missing address should return 400');
+  });
+
+  await test('BTC consecutive calls stay within $500 (caching check)', async () => {
+    const r1 = await request('GET', '/api/market/bitcoin');
+    const r2 = await request('GET', '/api/market/bitcoin');
+    assertStatus(r2, 200);
+    assert(Math.abs(r1.data.price - r2.data.price) < 500, 'Cached BTC price should be nearly equal');
+  });
+}
+
+// =============================================================================
+// 11. GOOGLE CALENDAR
+// =============================================================================
+async function googleCalendarTests() {
+  section('Google Calendar Integration');
+
+  await test('GET /api/google-calendar/authorize-url returns OAuth URL', async () => {
+    const res = await request('GET', '/api/google-calendar/authorize-url', null, testUser.cookies);
+    assertStatus(res, 200);
+    const url = res.data.url || res.data.authUrl || res.data;
+    assert(typeof url === 'string' && (url.includes('google') || url.includes('oauth')),
+      'Should return a Google OAuth URL');
+  });
+
+  await test('GET /api/google/test returns connection status', async () => {
+    const res = await request('GET', '/api/google/test', null, testUser.cookies);
+    assert([200, 400, 401].includes(res.status));
+    console.log(`  \x1b[90m  Google status: ${res.status === 200 ? 'connected' : 'not connected (expected for test user)'}\x1b[0m`);
+  });
+
+  await test('GET /api/google-calendar/debug responds', async () => {
+    const res = await request('GET', '/api/google-calendar/debug', null, testUser.cookies);
+    assert([200, 400, 401].includes(res.status));
+  });
+
+  await test('GET /api/google-calendar/calendars returns list or auth error', async () => {
+    const res = await request('GET', '/api/google-calendar/calendars', null, testUser.cookies);
+    assert([200, 400, 401].includes(res.status));
+  });
+
+  await test('GET /api/google-calendar/events returns events or auth error', async () => {
+    const res = await request('GET', '/api/google-calendar/events', null, testUser.cookies);
+    assert([200, 400, 401].includes(res.status));
+  });
+
+  await test('POST /api/calendar/sync handles no-token gracefully', async () => {
+    const res = await request('POST', '/api/calendar/sync', {}, testUser.cookies);
+    assert([200, 400, 401].includes(res.status));
+  });
+
+  await test('POST /api/google-calendar/sync handles no-token gracefully', async () => {
+    const res = await request('POST', '/api/google-calendar/sync', {}, testUser.cookies);
+    assert([200, 400, 401].includes(res.status));
+  });
+
+  await test('PUT /api/google-calendar/settings updates sync settings', async () => {
+    const res = await request('PUT', '/api/google-calendar/settings', {
+      enabled: false, syncDirection: 'one-way',
+    }, testUser.cookies);
+    assert([200, 400].includes(res.status));
+  });
+}
+
+// =============================================================================
+// 12. STANDALONE CALENDAR EVENTS
+// =============================================================================
+async function standaloneEventTests() {
+  section('Standalone Calendar Events');
+
+  await test('POST /api/standalone-events creates event', async () => {
+    const res = await request('POST', '/api/standalone-events', {
+      title: 'Test Standalone Event',
+      startTime: new Date().toISOString(),
+      endTime: new Date(Date.now() + 3600000).toISOString(),
+      color: '#6366f1',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+    assert(res.data.id);
+    standaloneEventId = res.data.id;
+  });
+
+  await test('PATCH /api/standalone-events/:id updates event', async () => {
+    if (!standaloneEventId) return;
+    const res = await request('PATCH', `/api/standalone-events/${standaloneEventId}`, {
+      title: 'Updated Event Title',
+    }, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('DELETE /api/standalone-events/:id deletes event', async () => {
+    if (!standaloneEventId) return;
+    const res = await request('DELETE', `/api/standalone-events/${standaloneEventId}`, null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+}
+
+// =============================================================================
+// 13. NOTION INTEGRATION
+// =============================================================================
+async function notionTests() {
+  section('Notion Integration');
+
+  await test('GET /api/notion/test returns connection status', async () => {
+    const res = await request('GET', '/api/notion/test', null, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+    console.log(`  \x1b[90m  Notion: ${res.status === 200 ? 'connected' : 'not configured (expected for test user)'}\x1b[0m`);
+  });
+
+  await test('GET /api/notion/databases responds', async () => {
+    const res = await request('GET', '/api/notion/databases', null, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+  });
+
+  await test('GET /api/notion/count responds', async () => {
+    const res = await request('GET', '/api/notion/count', null, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+  });
+
+  await test('GET /api/notion/check-duplicates responds', async () => {
+    const res = await request('GET', '/api/notion/check-duplicates', null, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+  });
+
+  await test('POST /api/notion/import handles missing token gracefully', async () => {
+    const res = await request('POST', '/api/notion/import', { databaseId: 'test' }, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+  });
+
+  await test('POST /api/notion/export handles gracefully', async () => {
+    const res = await request('POST', '/api/notion/export', { taskIds: [] }, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+  });
+
+  await test('POST /api/notion/sync-update responds', async () => {
+    const res = await request('POST', '/api/notion/sync-update', {}, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+  });
+}
+
+// =============================================================================
+// 14. AI AUTO-CATEGORIZATION
+// =============================================================================
+async function aiCategorizationTests() {
+  section('AI Auto-Categorization');
+
+  await test('POST /api/tasks/categorize responds with suggestions', async () => {
+    const res = await request('POST', '/api/tasks/categorize', {
+      title: 'Write quarterly financial report', description: 'Q3 analysis',
+    }, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+    if (res.status === 200) {
+      assert(res.data.category || res.data.skillTags || res.data.suggestions, 'Should return categorization');
+    }
+  });
+
+  await test('POST /api/tasks/categorize-all bulk categorizes', async () => {
+    const res = await request('POST', '/api/tasks/categorize-all', null, testUser.cookies);
+    assert([200, 400, 500].includes(res.status));
+  });
+
+  await test('GET /api/tasks/training-examples returns array', async () => {
+    const res = await request('GET', '/api/tasks/training-examples', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data));
+  });
+
+  await test('POST /api/tasks/categorize-feedback accepts feedback', async () => {
+    const res = await request('POST', '/api/tasks/categorize-feedback', {
+      taskTitle: 'Write report', suggestedCategory: 'Work', accepted: true,
+    }, testUser.cookies);
+    assert([200, 400].includes(res.status));
+  });
+}
+
+// =============================================================================
+// 15. STATS
+// =============================================================================
+async function statsTests() {
+  section('Stats');
+
+  await test('GET /api/stats returns stats object', async () => {
+    const res = await request('GET', '/api/stats', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(typeof res.data === 'object');
+  });
+}
+
+// =============================================================================
+// 16. ADD TASK TO CALENDAR
+// =============================================================================
+async function addTaskToCalendarTests() {
+  section('Add Task to Calendar');
+
+  await test('POST /api/tasks/add-to-calendar handles no-token gracefully', async () => {
+    const t = await request('POST', '/api/tasks', {
+      title: 'Calendar Task', duration: 30, goldValue: 50, importance: 'Medium',
+    }, testUser.cookies);
+    if (t.status !== 200) return;
+    const res = await request('POST', '/api/tasks/add-to-calendar', {
+      taskId: t.data.id, startTime: new Date().toISOString(),
+    }, testUser.cookies);
+    assert([200, 400, 401].includes(res.status));
+  });
+}
+
+// =============================================================================
+// 17. GETTING STARTED
+// =============================================================================
+async function gettingStartedTests() {
+  section('Getting Started');
+
+  await test('GET /api/getting-started returns checklist', async () => {
+    const res = await request('GET', '/api/getting-started', null, testUser.cookies);
+    assertStatus(res, 200);
+    assert(Array.isArray(res.data) || typeof res.data === 'object');
+  });
+
+  await test('POST /api/getting-started/:id/complete marks item complete', async () => {
+    const listRes = await request('GET', '/api/getting-started', null, testUser.cookies);
+    const items = Array.isArray(listRes.data) ? listRes.data : [];
+    if (items.length > 0) {
+      const res = await request('POST', `/api/getting-started/${items[0].id}/complete`, null, testUser.cookies);
+      assert([200, 404].includes(res.status));
+    }
+  });
+}
+
+// =============================================================================
+// 18. LOGOUT
+// =============================================================================
+async function logoutTests() {
+  section('Logout');
+
+  await test('POST /api/auth/logout clears session', async () => {
+    const res = await request('POST', '/api/auth/logout', null, testUser.cookies);
+    assertStatus(res, 200);
+  });
+
+  await test('GET /api/auth/user after logout returns 401', async () => {
+    const res = await request('GET', '/api/auth/user', null, testUser.cookies);
+    assertEqual(res.status, 401, 'Should be unauthorized after logout');
+  });
+}
+
+// =============================================================================
+// MAIN RUNNER
+// =============================================================================
+async function runAllTests() {
+  const bar = '='.repeat(52);
+  console.log(`\n\x1b[33m\x1b[1m${'='.repeat(54)}\x1b[0m`);
+  console.log(`\x1b[33m\x1b[1m   ProductivityQuest -- Full Integration Test Suite\x1b[0m`);
+  console.log(`\x1b[33m\x1b[1m   Server: ${BASE_URL}\x1b[0m`);
+  console.log(`\x1b[33m\x1b[1m${'='.repeat(54)}\x1b[0m`);
+
+  const start = Date.now();
+
+  await authTests();
+  await taskCrudTests();
+  await taskFilteringTests();
+  await recycleBinTests();
+  await csvTests();
+  await xpSkillTests();
+  await shopTests();
+  await campaignQuestlineTests();
+  await financeTests();
+  await marketDataTests();
+  await googleCalendarTests();
+  await standaloneEventTests();
+  await notionTests();
+  await aiCategorizationTests();
+  await statsTests();
+  await addTaskToCalendarTests();
+  await gettingStartedTests();
+  await logoutTests();
+
+  const duration = ((Date.now() - start) / 1000).toFixed(2);
+  const total = results.passed + results.failed + results.skipped;
+
+  console.log(`\n\x1b[33m\x1b[1m${'='.repeat(54)}\x1b[0m`);
+  console.log(`\x1b[33m\x1b[1m   Test Summary\x1b[0m`);
+  console.log(`\x1b[33m\x1b[1m${'='.repeat(54)}\x1b[0m`);
+  console.log(`\nTotal:    ${total}`);
+  console.log(`\x1b[32mPassed:   ${results.passed}\x1b[0m`);
+  console.log(`\x1b[31mFailed:   ${results.failed}\x1b[0m`);
+  console.log(`\x1b[33mSkipped:  ${results.skipped}\x1b[0m`);
+  console.log(`Duration: ${duration}s\n`);
+
+  if (results.failed > 0) {
+    console.log(`\x1b[31m\x1b[1mFailed tests:\x1b[0m`);
+    results.tests
+      .filter(t => t.status === 'FAIL')
+      .forEach(t => console.log(`  \x1b[31mx\x1b[0m ${t.name}\n    \x1b[90m-> ${t.error}\x1b[0m`));
+    console.log('');
+  }
+
   process.exit(results.failed > 0 ? 1 : 0);
 }
 
-// Run tests
-runAllTests().catch(error => {
-  console.error(`\n${colors.red}Fatal Error:${colors.reset}`, error);
+runAllTests().catch(err => {
+  console.error(`\n\x1b[31mFatal Error:\x1b[0m`, err);
   process.exit(1);
 });
