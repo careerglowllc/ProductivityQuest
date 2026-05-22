@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical
+  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
@@ -170,6 +170,12 @@ export default function Finances() {
   });
   const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "2500"); } catch { return 2500; }
+  });
+  const [eTradeRsuValue, setETradeRsuValue] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-etrade-rsu") || "65000"); } catch { return 65000; }
+  });
+  const [fordExplorerValue, setFordExplorerValue] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-ford-explorer") || "17000"); } catch { return 17000; }
   });
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
@@ -339,7 +345,7 @@ export default function Finances() {
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
-  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue;
+  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
@@ -568,6 +574,9 @@ export default function Finances() {
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
             </TabsTrigger>
+            <TabsTrigger value="credit-cards" className="data-[state=active]:bg-red-600/40 text-xs px-3 py-1.5">
+              <CreditCard className="h-3.5 w-3.5 mr-1.5" />Credit Cards
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Overview ─────────────────────────────── */}
@@ -723,6 +732,8 @@ export default function Finances() {
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
                                 { label: "veluna.com Domain", value: velunaDomainValue, color: "text-violet-300" },
+                                { label: "E*Trade (Apple RSU)", value: eTradeRsuValue, color: "text-green-300" },
+                                { label: "Ford Explorer XLT", value: fordExplorerValue, color: "text-orange-300" },
                               ].map(({ label, value, color }) => (
                                 <div key={label} className="bg-slate-700/40 rounded-lg px-3 py-2">
                                   <p className="text-[10px] text-slate-400">{label}</p>
@@ -1392,7 +1403,7 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue;
+              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
               const cryptoTotal = totalBtcValue + rothIraValue;
@@ -1402,6 +1413,8 @@ export default function Finances() {
                 { name: "401k (VIIIX)", value: Math.round(k401Value), color: "#14B8A6" },
                 { name: "Cash", value: Math.round(checkingBalance), color: "#22D3EE" },
                 { name: "veluna.com", value: Math.round(velunaDomainValue), color: "#8B5CF6" },
+                { name: "E*Trade RSU", value: Math.round(eTradeRsuValue), color: "#22C55E" },
+                { name: "Ford Explorer", value: Math.round(fordExplorerValue), color: "#F97316" },
                 ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
@@ -1688,6 +1701,40 @@ export default function Finances() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* E*Trade — Apple RSU */}
+                    <Card className="bg-slate-800/60 border-green-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-green-400 font-bold tracking-wide">📈 E*Trade (Apple RSU)</p>
+                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Apple Inc. RSU vested shares — E*Trade account</p>
+                            <p className="text-2xl font-bold mt-0.5 text-white">${eTradeRsuValue.toLocaleString()}</p>
+                          </div>
+                          <span className="text-[10px] border rounded px-1.5 py-0.5 text-green-400 border-green-500/30">equity</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Ford Explorer XLT */}
+                    <Card className="bg-slate-800/60 border-orange-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-orange-400 font-bold tracking-wide">🚗 Ford Explorer XLT</p>
+                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Vehicle — estimated market value</p>
+                            <p className="text-2xl font-bold mt-0.5 text-white">${fordExplorerValue.toLocaleString()}</p>
+                          </div>
+                          <span className="text-[10px] border rounded px-1.5 py-0.5 text-orange-400 border-orange-500/30">vehicle</span>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
                   {/* Holdings editor */}
@@ -1860,6 +1907,32 @@ export default function Finances() {
                               </div>
                             </div>
                           </div>
+                          {/* E*Trade Apple RSU */}
+                          <div className="col-span-1 md:col-span-2 pt-2 border-t border-green-500/20">
+                            <p className="text-[10px] text-green-400/70 uppercase tracking-widest font-semibold mb-3">📈 Equity — E*Trade</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Apple RSU — Estimated Value ($)</Label>
+                                <Input type="number" min="0" step="100" value={eTradeRsuValue}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setETradeRsuValue(v); try { localStorage.setItem("nw-etrade-rsu", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Ford Explorer XLT */}
+                          <div className="col-span-1 md:col-span-2 pt-2 border-t border-orange-500/20">
+                            <p className="text-[10px] text-orange-400/70 uppercase tracking-widest font-semibold mb-3">🚗 Vehicle</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Ford Explorer XLT — Estimated Market Value ($)</Label>
+                                <Input type="number" min="0" step="100" value={fordExplorerValue}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setFordExplorerValue(v); try { localStorage.setItem("nw-ford-explorer", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -1956,6 +2029,24 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
                                 </div>
                               </div>
+                              {/* E*Trade Equity umbrella */}
+                              <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-3">
+                                <p className="text-[10px] text-green-400/70 font-semibold uppercase tracking-widest mb-2">📈 Equity — E*Trade</p>
+                                <div className="rounded-md bg-green-500/10 p-2 text-center">
+                                  <p className="text-[10px] text-green-400 mb-0.5">Apple RSU</p>
+                                  <p className="text-sm font-bold text-green-300">${eTradeRsuValue.toLocaleString()}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
+                                </div>
+                              </div>
+                              {/* Vehicle umbrella */}
+                              <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
+                                <p className="text-[10px] text-orange-400/70 font-semibold uppercase tracking-widest mb-2">🚗 Vehicle</p>
+                                <div className="rounded-md bg-orange-500/10 p-2 text-center">
+                                  <p className="text-[10px] text-orange-400 mb-0.5">Ford Explorer XLT</p>
+                                  <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
+                                </div>
+                              </div>
                             </div>
                           ) : (
                             <div className="space-y-2">
@@ -2038,6 +2129,22 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">Domain name · manual estimate · May 2026</p>
                                 </div>
                                 <p className="text-sm font-bold text-violet-300">${velunaDomainValue.toLocaleString()}</p>
+                              </div>
+                              {/* E*Trade Apple RSU */}
+                              <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-green-400 font-semibold">E*Trade (Apple RSU)</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Apple RSU vested shares · manual · May 2026</p>
+                                </div>
+                                <p className="text-sm font-bold text-green-300">${eTradeRsuValue.toLocaleString()}</p>
+                              </div>
+                              {/* Ford Explorer XLT */}
+                              <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-orange-400 font-semibold">Ford Explorer XLT</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Vehicle · estimated market value · May 2026</p>
+                                </div>
+                                <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
                               </div>
                             </div>
                           )}
@@ -2181,6 +2288,24 @@ export default function Finances() {
                             <span>Domain name · manual estimate · May 2026</span>
                           </div>
                         </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-green-300">📈 E*Trade (Apple RSU)</span>
+                            <span className="text-white font-semibold">${eTradeRsuValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>Apple RSU vested shares · manual estimate · May 2026</span>
+                          </div>
+                        </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-orange-300">🚗 Ford Explorer XLT</span>
+                            <span className="text-white font-semibold">${fordExplorerValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>Vehicle · estimated market value · May 2026</span>
+                          </div>
+                        </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
                           <span className="text-green-300">💵 Est. Annual Savings</span>
                           <span className="text-green-300 font-semibold">
@@ -2198,6 +2323,128 @@ export default function Finances() {
                 </>
               );
             })()}
+          </TabsContent>
+
+          {/* ── Credit Cards ─────────────────────────────── */}
+          <TabsContent value="credit-cards" className="space-y-4">
+            <Card className="bg-slate-800/60 border-red-500/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-red-300 text-base flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" /> Credit Cards
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  Cards on file — verify status before use. ⚠️ = needs verification.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[
+                    {
+                      name: "BMO Cash Back World Elite Mastercard",
+                      issuer: "BMO",
+                      type: "Cash Back",
+                      status: "active",
+                      color: "border-blue-500/30 bg-blue-500/5",
+                      badge: "text-blue-400 border-blue-500/30",
+                      icon: "🏦",
+                    },
+                    {
+                      name: "Amazon Prime Rewards Visa",
+                      issuer: "Chase",
+                      type: "Cash Back · Amazon",
+                      status: "active",
+                      color: "border-orange-500/30 bg-orange-500/5",
+                      badge: "text-orange-400 border-orange-500/30",
+                      icon: "📦",
+                    },
+                    {
+                      name: "Citi Double Cash Card",
+                      issuer: "Citi",
+                      type: "2% Cash Back",
+                      status: "active",
+                      color: "border-sky-500/30 bg-sky-500/5",
+                      badge: "text-sky-400 border-sky-500/30",
+                      icon: "💳",
+                    },
+                    {
+                      name: "Uber Visa Card (Barclays)",
+                      issuer: "Barclays",
+                      type: "Rewards",
+                      status: "discontinued",
+                      statusNote: "⚠️ Discontinued — Barclays ended Uber card partnership (2019). Verify if still open.",
+                      color: "border-yellow-500/30 bg-yellow-500/5",
+                      badge: "text-yellow-400 border-yellow-500/30",
+                      icon: "🚗",
+                    },
+                    {
+                      name: "Wells Fargo Card",
+                      issuer: "Wells Fargo",
+                      type: "Unknown product",
+                      status: "verify",
+                      statusNote: "⚠️ Product unspecified — verify which Wells Fargo card and whether it's still active.",
+                      color: "border-red-500/30 bg-red-500/5",
+                      badge: "text-red-400 border-red-500/30",
+                      icon: "🏛️",
+                    },
+                    {
+                      name: "Discover it Cash Back",
+                      issuer: "Discover",
+                      type: "5% Rotating Categories",
+                      status: "active",
+                      color: "border-amber-500/30 bg-amber-500/5",
+                      badge: "text-amber-400 border-amber-500/30",
+                      icon: "🔍",
+                    },
+                    {
+                      name: "United Gateway℠ Card (MileagePlus)",
+                      issuer: "Chase",
+                      type: "Travel Miles · United",
+                      status: "active",
+                      color: "border-indigo-500/30 bg-indigo-500/5",
+                      badge: "text-indigo-400 border-indigo-500/30",
+                      icon: "✈️",
+                    },
+                    {
+                      name: "Chase Freedom Flex℠",
+                      issuer: "Chase",
+                      type: "5% Rotating + Cash Back",
+                      status: "active",
+                      color: "border-green-500/30 bg-green-500/5",
+                      badge: "text-green-400 border-green-500/30",
+                      icon: "💚",
+                    },
+                    {
+                      name: "Chase Sapphire Preferred®",
+                      issuer: "Chase",
+                      type: "Travel Rewards · Points",
+                      status: "active",
+                      color: "border-purple-500/30 bg-purple-500/5",
+                      badge: "text-purple-400 border-purple-500/30",
+                      icon: "💎",
+                    },
+                  ].map(card => (
+                    <div key={card.name} className={`rounded-lg border p-3 ${card.color}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-base leading-none">{card.icon}</span>
+                            <p className="text-sm font-semibold text-white leading-tight">{card.name}</p>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-1">{card.issuer} · {card.type}</p>
+                          {card.statusNote && (
+                            <p className="text-[10px] text-yellow-400/80 mt-1.5 leading-snug">{card.statusNote}</p>
+                          )}
+                        </div>
+                        <span className={`text-[9px] border rounded px-1.5 py-0.5 shrink-0 font-medium ${card.badge} ${card.status === "discontinued" || card.status === "verify" ? "opacity-70" : ""}`}>
+                          {card.status === "active" ? "active" : card.status === "discontinued" ? "discontinued?" : "verify"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-4">Last reviewed May 2026. ⚠️ cards require manual verification before use.</p>
+              </CardContent>
+            </Card>
           </TabsContent>
 
         </Tabs>
