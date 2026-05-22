@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard
+  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
@@ -576,6 +576,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="credit-cards" className="data-[state=active]:bg-red-600/40 text-xs px-3 py-1.5">
               <CreditCard className="h-3.5 w-3.5 mr-1.5" />Credit Cards
+            </TabsTrigger>
+            <TabsTrigger value="accounts" className="data-[state=active]:bg-slate-600/60 text-xs px-3 py-1.5">
+              <Building2 className="h-3.5 w-3.5 mr-1.5" />Accounts
             </TabsTrigger>
           </TabsList>
 
@@ -2455,6 +2458,280 @@ export default function Finances() {
                 <p className="text-[11px] text-slate-500 mt-4">Last reviewed May 2026. ⚠️ cards require manual verification before use.</p>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── Accounts ─────────────────────────────── */}
+          <TabsContent value="accounts" className="space-y-4">
+            {(() => {
+              type AccountEntry = {
+                name: string;
+                institution: string;
+                detail: string;
+                category: string;
+                status: "active" | "verify" | "empty";
+                color: string;
+                badge: string;
+                icon: string;
+                note?: string;
+              };
+              const accountGroups: { label: string; icon: string; color: string; accounts: AccountEntry[] }[] = [
+                {
+                  label: "Crypto",
+                  icon: "₿",
+                  color: "border-yellow-500/20",
+                  accounts: [
+                    {
+                      name: "Ledger Hardware Wallet",
+                      institution: "Ledger",
+                      detail: "Self-custody cold storage · BTC",
+                      category: "crypto",
+                      status: "active",
+                      color: "border-yellow-500/30 bg-yellow-500/5",
+                      badge: "text-yellow-400 border-yellow-500/30",
+                      icon: "🔐",
+                    },
+                    {
+                      name: "Coinbase",
+                      institution: "Coinbase",
+                      detail: "Exchange · BTC",
+                      category: "crypto",
+                      status: "active",
+                      color: "border-orange-500/30 bg-orange-500/5",
+                      badge: "text-orange-400 border-orange-500/30",
+                      icon: "🪙",
+                    },
+                  ],
+                },
+                {
+                  label: "Investments & Retirement",
+                  icon: "📈",
+                  color: "border-indigo-500/20",
+                  accounts: [
+                    {
+                      name: "Vanguard Brokerage",
+                      institution: "Vanguard",
+                      detail: "Taxable brokerage · VTSAX, VOO",
+                      category: "brokerage",
+                      status: "active",
+                      color: "border-indigo-500/30 bg-indigo-500/5",
+                      badge: "text-indigo-400 border-indigo-500/30",
+                      icon: "📊",
+                    },
+                    {
+                      name: "Vanguard Roth IRA",
+                      institution: "Vanguard",
+                      detail: "Roth IRA · IBIT (iShares Bitcoin ETF)",
+                      category: "retirement",
+                      status: "active",
+                      color: "border-emerald-500/30 bg-emerald-500/5",
+                      badge: "text-emerald-400 border-emerald-500/30",
+                      icon: "🌿",
+                    },
+                    {
+                      name: "E*Trade (Apple RSUs)",
+                      institution: "E*Trade / Morgan Stanley",
+                      detail: "Equity compensation · Apple Inc. RSU vested shares",
+                      category: "equity",
+                      status: "active",
+                      color: "border-green-500/30 bg-green-500/5",
+                      badge: "text-green-400 border-green-500/30",
+                      icon: "📈",
+                    },
+                    {
+                      name: "Fidelity 401k (Apple)",
+                      institution: "Fidelity",
+                      detail: "Employer 401k · VG INST 500 IDX (VIIIX) · via Apple",
+                      category: "retirement",
+                      status: "active",
+                      color: "border-teal-500/30 bg-teal-500/5",
+                      badge: "text-teal-400 border-teal-500/30",
+                      icon: "🏦",
+                    },
+                  ],
+                },
+                {
+                  label: "Banking",
+                  icon: "🏛️",
+                  color: "border-cyan-500/20",
+                  accounts: [
+                    {
+                      name: "BMO Checking Account",
+                      institution: "BMO",
+                      detail: "Primary checking · ···1711",
+                      category: "checking",
+                      status: "active",
+                      color: "border-cyan-500/30 bg-cyan-500/5",
+                      badge: "text-cyan-400 border-cyan-500/30",
+                      icon: "💵",
+                    },
+                    {
+                      name: "Charles Schwab Checking",
+                      institution: "Charles Schwab",
+                      detail: "Checking account · $0 balance · no foreign transaction fees",
+                      category: "checking",
+                      status: "empty",
+                      color: "border-slate-500/30 bg-slate-500/5",
+                      badge: "text-slate-400 border-slate-500/30",
+                      icon: "🏦",
+                      note: "Kept open — useful for ATM fee reimbursements while traveling.",
+                    },
+                  ],
+                },
+                {
+                  label: "Credit Card Accounts",
+                  icon: "💳",
+                  color: "border-red-500/20",
+                  accounts: [
+                    {
+                      name: "Chase",
+                      institution: "Chase",
+                      detail: "Sapphire Preferred · Freedom Flex · United Gateway",
+                      category: "credit",
+                      status: "active",
+                      color: "border-purple-500/30 bg-purple-500/5",
+                      badge: "text-purple-400 border-purple-500/30",
+                      icon: "💎",
+                    },
+                    {
+                      name: "Citi",
+                      institution: "Citi",
+                      detail: "Custom Cash · Double Cash",
+                      category: "credit",
+                      status: "active",
+                      color: "border-sky-500/30 bg-sky-500/5",
+                      badge: "text-sky-400 border-sky-500/30",
+                      icon: "🔵",
+                    },
+                    {
+                      name: "Discover",
+                      institution: "Discover",
+                      detail: "Discover it® Cash Back",
+                      category: "credit",
+                      status: "active",
+                      color: "border-amber-500/30 bg-amber-500/5",
+                      badge: "text-amber-400 border-amber-500/30",
+                      icon: "🔍",
+                    },
+                    {
+                      name: "Wells Fargo",
+                      institution: "Wells Fargo",
+                      detail: "Credit card account — product TBD",
+                      category: "credit",
+                      status: "verify",
+                      color: "border-red-500/30 bg-red-500/5",
+                      badge: "text-red-400 border-red-500/30",
+                      icon: "🏛️",
+                      note: "⚠️ Verify which card product and confirm still active.",
+                    },
+                    {
+                      name: "Barclays",
+                      institution: "Barclays",
+                      detail: "Credit card account — product TBD",
+                      category: "credit",
+                      status: "verify",
+                      color: "border-yellow-500/30 bg-yellow-500/5",
+                      badge: "text-yellow-400 border-yellow-500/30",
+                      icon: "🏴",
+                      note: "⚠️ The Uber Visa (Barclays) was discontinued in 2019 — verify if a different Barclays card is still open.",
+                    },
+                    {
+                      name: "Bank of America",
+                      institution: "Bank of America",
+                      detail: "Credit card account — product TBD",
+                      category: "credit",
+                      status: "verify",
+                      color: "border-rose-500/30 bg-rose-500/5",
+                      badge: "text-rose-400 border-rose-500/30",
+                      icon: "🔴",
+                      note: "⚠️ Verify which Bank of America card and confirm current status.",
+                    },
+                  ],
+                },
+                {
+                  label: "Digital Assets",
+                  icon: "🌐",
+                  color: "border-violet-500/20",
+                  accounts: [
+                    {
+                      name: "GoDaddy — veluna.com",
+                      institution: "GoDaddy",
+                      detail: "Domain registrar · veluna.com · est. value $2,500",
+                      category: "domain",
+                      status: "active",
+                      color: "border-violet-500/30 bg-violet-500/5",
+                      badge: "text-violet-400 border-violet-500/30",
+                      icon: "🌐",
+                    },
+                  ],
+                },
+              ];
+
+              const totalAccounts = accountGroups.reduce((s, g) => s + g.accounts.length, 0);
+              const verifyCount = accountGroups.flatMap(g => g.accounts).filter(a => a.status === "verify").length;
+
+              return (
+                <>
+                  {/* Summary bar */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <Card className="bg-slate-800/60 border-slate-700/40">
+                      <CardContent className="pt-3 pb-3 px-4 text-center">
+                        <p className="text-2xl font-bold text-white">{totalAccounts}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Total Accounts</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/60 border-green-500/20">
+                      <CardContent className="pt-3 pb-3 px-4 text-center">
+                        <p className="text-2xl font-bold text-green-300">{totalAccounts - verifyCount}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Confirmed Active</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/60 border-yellow-500/20">
+                      <CardContent className="pt-3 pb-3 px-4 text-center">
+                        <p className="text-2xl font-bold text-yellow-300">{verifyCount}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Needs Verification</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Account groups */}
+                  {accountGroups.map(group => (
+                    <Card key={group.label} className={`bg-slate-800/60 ${group.color}`}>
+                      <CardHeader className="pb-3 pt-4">
+                        <CardTitle className="text-slate-200 text-sm flex items-center gap-2">
+                          <span className="text-base leading-none">{group.icon}</span>
+                          {group.label}
+                          <span className="text-[10px] text-slate-500 font-normal ml-1">{group.accounts.length} account{group.accounts.length !== 1 ? "s" : ""}</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {group.accounts.map(acct => (
+                            <div key={acct.name} className={`rounded-lg border p-3 ${acct.color}`}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm leading-none">{acct.icon}</span>
+                                    <p className="text-sm font-semibold text-white leading-tight">{acct.name}</p>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">{acct.detail}</p>
+                                  {acct.note && (
+                                    <p className="text-[10px] text-yellow-400/80 mt-1.5 leading-snug">{acct.note}</p>
+                                  )}
+                                </div>
+                                <span className={`text-[9px] border rounded px-1.5 py-0.5 shrink-0 font-medium ${acct.badge} ${acct.status !== "active" ? "opacity-70" : ""}`}>
+                                  {acct.status === "active" ? "active" : acct.status === "empty" ? "open · $0" : "verify"}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  <p className="text-[11px] text-slate-500 pb-2">Last reviewed May 2026.</p>
+                </>
+              );
+            })()}
           </TabsContent>
 
         </Tabs>
