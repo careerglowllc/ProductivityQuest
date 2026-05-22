@@ -112,6 +112,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-home-fee") || "6"); } catch { return 6; }
   });
   const [editingHoldings, setEditingHoldings] = useState(false);
+  const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
 
   const [sortField, setSortField] = useState<"item" | "category" | "monthlyCost" | "recurType" | null>(() => {
     try {
@@ -1259,33 +1260,125 @@ export default function Finances() {
                           </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
-                          <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-center">
-                            <p className="text-xs text-yellow-400 mb-0.5">BTC Wallet</p>
-                            <p className="text-lg font-bold text-yellow-300">{btcHoldings} BTC</p>
+                        <div className="space-y-3">
+                          {/* Filter tabs */}
+                          <div className="flex gap-1 bg-slate-900/50 rounded-lg p-1 w-fit">
+                            <button
+                              onClick={() => setHoldingsView("type")}
+                              className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${holdingsView === "type" ? "bg-orange-500/20 text-orange-300 border border-orange-500/30" : "text-slate-400 hover:text-slate-200"}`}
+                            >
+                              By Asset Type
+                            </button>
+                            <button
+                              onClick={() => setHoldingsView("account")}
+                              className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${holdingsView === "account" ? "bg-orange-500/20 text-orange-300 border border-orange-500/30" : "text-slate-400 hover:text-slate-200"}`}
+                            >
+                              By Account
+                            </button>
                           </div>
-                          <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 p-3 text-center">
-                            <p className="text-xs text-orange-400 mb-0.5">Coinbase</p>
-                            <p className="text-lg font-bold text-orange-300">{coinbaseBtcHoldings} BTC</p>
-                          </div>
-                          <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
-                            <p className="text-xs text-indigo-400 mb-0.5">VTSAX</p>
-                            <p className="text-lg font-bold text-indigo-300">{vtsaxHoldings} sh.</p>
-                          </div>
-                          <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
-                            <p className="text-xs text-indigo-400 mb-0.5">VOO</p>
-                            <p className="text-lg font-bold text-indigo-300">{vooHoldings} sh.</p>
-                          </div>
-                          <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
-                            <p className="text-xs text-emerald-400 mb-0.5">IBIT (Roth IRA)</p>
-                            <p className="text-lg font-bold text-emerald-300">{rothIraIbitHoldings} sh.</p>
-                          </div>
-                          <div className={`rounded-lg p-3 text-center ${homeEquity >= 0 ? "bg-pink-500/10 border border-pink-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
-                            <p className={`text-xs mb-0.5 ${homeEquity >= 0 ? "text-pink-400" : "text-red-400"}`}>Plumbago Ct</p>
-                            <p className={`text-lg font-bold ${homeEquity >= 0 ? "text-pink-300" : "text-red-300"}`}>
-                              {homeEquity >= 0 ? `+$${Math.round(homeEquity).toLocaleString()}` : `-$${Math.abs(Math.round(homeEquity)).toLocaleString()}`}
-                            </p>
-                          </div>
+
+                          {holdingsView === "type" ? (
+                            <div className="space-y-2">
+                              {/* Bitcoin umbrella */}
+                              <div className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-3">
+                                <p className="text-[10px] text-yellow-500/70 font-semibold uppercase tracking-widest mb-2">₿ Bitcoin</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="rounded-md bg-yellow-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-yellow-400 mb-0.5">BTC Wallet</p>
+                                    <p className="text-sm font-bold text-yellow-300">{btcHoldings} BTC</p>
+                                  </div>
+                                  <div className="rounded-md bg-orange-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-orange-400 mb-0.5">Coinbase</p>
+                                    <p className="text-sm font-bold text-orange-300">{coinbaseBtcHoldings} BTC</p>
+                                  </div>
+                                  <div className="rounded-md bg-emerald-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-emerald-400 mb-0.5">IBIT (Roth IRA)</p>
+                                    <p className="text-sm font-bold text-emerald-300">{rothIraIbitHoldings} sh.</p>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Stocks & Funds umbrella */}
+                              <div className="rounded-lg bg-indigo-500/5 border border-indigo-500/20 p-3">
+                                <p className="text-[10px] text-indigo-400/70 font-semibold uppercase tracking-widest mb-2">📈 Stocks & Mutual Funds</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="rounded-md bg-indigo-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-indigo-400 mb-0.5">VTSAX</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vtsaxHoldings} sh.</p>
+                                  </div>
+                                  <div className="rounded-md bg-indigo-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-indigo-400 mb-0.5">VOO</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vooHoldings} sh.</p>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Real Estate umbrella */}
+                              <div className={`rounded-lg p-3 ${homeEquity >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
+                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${homeEquity >= 0 ? "text-pink-400/70" : "text-red-400/70"}`}>🏠 Real Estate</p>
+                                <div className="rounded-md p-2 text-center bg-slate-900/30">
+                                  <p className={`text-[10px] mb-0.5 ${homeEquity >= 0 ? "text-pink-400" : "text-red-400"}`}>Plumbago Ct</p>
+                                  <p className={`text-sm font-bold ${homeEquity >= 0 ? "text-pink-300" : "text-red-300"}`}>
+                                    {homeEquity >= 0 ? `+$${Math.round(homeEquity).toLocaleString()}` : `-$${Math.abs(Math.round(homeEquity)).toLocaleString()}`}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {/* BTC Wallet */}
+                              <div className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-yellow-400 font-semibold">BTC Wallet</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Self-custody · Bitcoin</p>
+                                </div>
+                                <p className="text-sm font-bold text-yellow-300">{btcHoldings} BTC</p>
+                              </div>
+                              {/* Coinbase */}
+                              <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-orange-400 font-semibold">Coinbase</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Exchange · Bitcoin</p>
+                                </div>
+                                <p className="text-sm font-bold text-orange-300">{coinbaseBtcHoldings} BTC</p>
+                              </div>
+                              {/* Vanguard Brokerage */}
+                              <div className="rounded-lg bg-indigo-500/5 border border-indigo-500/20 p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div>
+                                    <p className="text-xs text-indigo-400 font-semibold">Vanguard Brokerage</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">Taxable brokerage · Stocks</p>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="rounded-md bg-indigo-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-indigo-400 mb-0.5">VTSAX</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vtsaxHoldings} sh.</p>
+                                  </div>
+                                  <div className="rounded-md bg-indigo-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-indigo-400 mb-0.5">VOO</p>
+                                    <p className="text-sm font-bold text-indigo-300">{vooHoldings} sh.</p>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Roth IRA */}
+                              <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-emerald-400 font-semibold">Roth IRA</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Retirement · IBIT</p>
+                                </div>
+                                <p className="text-sm font-bold text-emerald-300">{rothIraIbitHoldings} sh. IBIT</p>
+                              </div>
+                              {/* Real Estate */}
+                              <div className={`rounded-lg p-3 flex items-center justify-between ${homeEquity >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
+                                <div>
+                                  <p className={`text-xs font-semibold ${homeEquity >= 0 ? "text-pink-400" : "text-red-400"}`}>2605 Plumbago Ct</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Real estate · Primary home</p>
+                                </div>
+                                <p className={`text-sm font-bold ${homeEquity >= 0 ? "text-pink-300" : "text-red-300"}`}>
+                                  {homeEquity >= 0 ? `+$${Math.round(homeEquity).toLocaleString()}` : `-$${Math.abs(Math.round(homeEquity)).toLocaleString()}`}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </CardContent>
