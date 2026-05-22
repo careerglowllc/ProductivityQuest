@@ -4843,6 +4843,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/market/ibit", async (_req, res) => {
+    try {
+      res.json(await fetchYahooPrice("IBIT"));
+    } catch (error: any) {
+      console.error("IBIT price fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch IBIT price", details: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

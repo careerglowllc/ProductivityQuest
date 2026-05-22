@@ -89,14 +89,17 @@ export default function Finances() {
   const [btcHoldings, setBtcHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-btc") || "1"); } catch { return 1; }
   });
+  const [coinbaseBtcHoldings, setCoinbaseBtcHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-coinbase-btc") || "0.06953573"); } catch { return 0.06953573; }
+  });
   const [vtsaxHoldings, setVtsaxHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-vtsax") || "58.625"); } catch { return 58.625; }
+    try { return parseFloat(localStorage.getItem("nw-vtsax") || "146.857"); } catch { return 146.857; }
   });
   const [vooHoldings, setVooHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-voo") || "240.676"); } catch { return 240.676; }
   });
-  const [rothIraVtsaxHoldings, setRothIraVtsaxHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-roth-vtsax") || "315.662"); } catch { return 315.662; }
+  const [rothIraIbitHoldings, setRothIraIbitHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "69"); } catch { return 69; }
   });
   const [editingHoldings, setEditingHoldings] = useState(false);
 
@@ -135,6 +138,12 @@ export default function Finances() {
 
   const { data: vooData, isLoading: vooLoading, refetch: refetchVoo } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/voo"],
+    staleTime: 60_000,
+    retry: 2,
+  });
+
+  const { data: ibitData, isLoading: ibitLoading, refetch: refetchIbit } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+    queryKey: ["/api/market/ibit"],
     staleTime: 60_000,
     retry: 2,
   });
@@ -998,21 +1007,24 @@ export default function Finances() {
               const btcPrice = btcData?.price ?? 0;
               const vtsaxPrice = vtsaxData?.price ?? 0;
               const vooPrice = vooData?.price ?? 0;
+              const ibitPrice = ibitData?.price ?? 0;
 
               const btcValue = btcHoldings * btcPrice;
+              const coinbaseValue = coinbaseBtcHoldings * btcPrice;
+              const totalBtcValue = btcValue + coinbaseValue;
               const vtsaxValue = vtsaxHoldings * vtsaxPrice;
               const vooValue = vooHoldings * vooPrice;
-              const rothIraValue = rothIraVtsaxHoldings * vtsaxPrice;
+              const rothIraValue = rothIraIbitHoldings * ibitPrice;
               const vanguardTotal = vtsaxValue + vooValue;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = btcValue + vanguardTotal + rothIraValue;
-              const isLoading = btcLoading || vtsaxLoading || vooLoading;
+              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue;
+              const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading;
 
               const pieData = [
-                { name: "Bitcoin (BTC)", value: Math.round(btcValue), color: "#F59E0B" },
+                { name: "Bitcoin (BTC)", value: Math.round(totalBtcValue), color: "#F59E0B" },
                 { name: "Vanguard Brokerage", value: Math.round(vanguardTotal), color: "#6366F1" },
-                { name: "Roth IRA (VTSAX)", value: Math.round(rothIraValue), color: "#10B981" },
+                { name: "Roth IRA (IBIT)", value: Math.round(rothIraValue), color: "#10B981" },
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
                 pct: investmentTotal > 0 ? (d.value / investmentTotal) * 100 : 0,
@@ -1033,20 +1045,20 @@ export default function Finances() {
                       <p className="text-xs text-slate-400">Live prices via CoinGecko & Yahoo Finance · auto-refreshes every 60s</p>
                     </div>
                     <Button variant="outline" size="sm"
-                      onClick={() => { refetchBtc(); refetchVtsax(); refetchVoo(); }}
+                      onClick={() => { refetchBtc(); refetchVtsax(); refetchVoo(); refetchIbit(); }}
                       className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 gap-1.5">
                       <RefreshCw className="h-3.5 w-3.5" /> Refresh Prices
                     </Button>
                   </div>
 
-                  {/* Top-level asset cards: BTC + Vanguard Brokerage bundle + Roth IRA */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Bitcoin */}
+                  {/* Top-level asset cards: BTC Wallet + Coinbase + Vanguard + Roth IRA */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Bitcoin — Personal Wallet */}
                     <Card className="bg-slate-800/60 border-yellow-500/30">
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <p className="text-xs text-yellow-400 font-bold tracking-wide">₿ Bitcoin</p>
+                            <p className="text-xs text-yellow-400 font-bold tracking-wide">₿ Bitcoin Wallet</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : btcPrice > 0 ? fmt(btcPrice) : <span className="text-red-400 text-sm">Unavailable</span>}
@@ -1054,13 +1066,33 @@ export default function Finances() {
                           </div>
                           {btcData?.change24h != null && (
                             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${btcData.change24h >= 0 ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"}`}>
-                              {btcData.change24h >= 0 ? "▲" : "▼"} {Math.abs(btcData.change24h).toFixed(2)}% 24h
+                              {btcData.change24h >= 0 ? "▲" : "▼"} {Math.abs(btcData.change24h).toFixed(2)}%
                             </span>
                           )}
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
-                          <span>{btcHoldings} BTC held</span>
+                          <span>{btcHoldings} BTC</span>
                           <span className="font-semibold text-yellow-300">{fmt(btcValue)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Coinbase */}
+                    <Card className="bg-slate-800/60 border-orange-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-xs text-orange-400 font-bold tracking-wide">🔵 Coinbase</p>
+                            <p className="text-2xl font-bold text-white mt-0.5">
+                              {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
+                                : coinbaseValue > 0 ? fmt(coinbaseValue) : <span className="text-red-400 text-sm">Unavailable</span>}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-orange-400 border border-orange-500/30 rounded px-1.5 py-0.5">BTC</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
+                          <span>{coinbaseBtcHoldings} BTC</span>
+                          <span className="font-semibold text-orange-300">{fmt(coinbaseValue)}</span>
                         </div>
                       </CardContent>
                     </Card>
@@ -1078,25 +1110,20 @@ export default function Finances() {
                           </div>
                           <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO</span>
                         </div>
-                        {/* Sub-rows */}
                         <div className="space-y-1 mt-2 pt-2 border-t border-slate-700/40">
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-400">VTSAX · {vtsaxHoldings} shares · {fmt(vtsaxPrice)}/share</span>
+                            <span className="text-slate-400">VTSAX · {vtsaxHoldings} sh.</span>
                             <span className="text-indigo-300 font-semibold">{fmt(vtsaxValue)}</span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-400">VOO · {vooHoldings} shares · {fmt(vooPrice)}/share</span>
+                            <span className="text-slate-400">VOO · {vooHoldings} sh.</span>
                             <span className="text-indigo-300 font-semibold">{fmt(vooValue)}</span>
-                          </div>
-                          <div className="flex justify-between text-xs pt-1 border-t border-slate-700/30">
-                            <span className="text-slate-300 font-semibold">Total Vanguard</span>
-                            <span className="text-indigo-200 font-bold">{fmt(vanguardTotal)}</span>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
 
-                    {/* Roth IRA */}
+                    {/* Roth IRA — IBIT */}
                     <Card className="bg-slate-800/60 border-emerald-500/30">
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
@@ -1107,10 +1134,10 @@ export default function Finances() {
                                 : rothIraValue > 0 ? fmt(rothIraValue) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
                           </div>
-                          <span className="text-[10px] text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">VTSAX</span>
+                          <span className="text-[10px] text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">IBIT</span>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
-                          <span>VTSAX · {rothIraVtsaxHoldings} shares · {fmt(vtsaxPrice)}/share</span>
+                          <span>IBIT · {rothIraIbitHoldings} sh. · {fmt(ibitPrice)}/sh.</span>
                           <span className="font-semibold text-emerald-300">{fmt(rothIraValue)}</span>
                         </div>
                       </CardContent>
@@ -1134,9 +1161,15 @@ export default function Finances() {
                       {editingHoldings ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <Label className="text-slate-300 text-xs mb-1 block">Bitcoin (BTC)</Label>
+                            <Label className="text-slate-300 text-xs mb-1 block">Bitcoin — Personal Wallet (BTC)</Label>
                             <Input type="number" min="0" step="0.0001" value={btcHoldings}
                               onChange={e => { const v = parseFloat(e.target.value)||0; setBtcHoldings(v); try { localStorage.setItem("nw-btc", String(v)); } catch {} }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">Coinbase (BTC)</Label>
+                            <Input type="number" min="0" step="0.00000001" value={coinbaseBtcHoldings}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setCoinbaseBtcHoldings(v); try { localStorage.setItem("nw-coinbase-btc", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
                           <div>
@@ -1146,26 +1179,30 @@ export default function Finances() {
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-slate-300 text-xs mb-1 block">VOO shares</Label>
+                            <Label className="text-slate-300 text-xs mb-1 block">VOO shares (Vanguard Brokerage)</Label>
                             <Input type="number" min="0" step="0.001" value={vooHoldings}
                               onChange={e => { const v = parseFloat(e.target.value)||0; setVooHoldings(v); try { localStorage.setItem("nw-voo", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
                           <div>
-                            <Label className="text-slate-300 text-xs mb-1 block">VTSAX shares (Roth IRA)</Label>
-                            <Input type="number" min="0" step="0.001" value={rothIraVtsaxHoldings}
-                              onChange={e => { const v = parseFloat(e.target.value)||0; setRothIraVtsaxHoldings(v); try { localStorage.setItem("nw-roth-vtsax", String(v)); } catch {} }}
+                            <Label className="text-slate-300 text-xs mb-1 block">IBIT shares (Roth IRA)</Label>
+                            <Input type="number" min="0" step="0.001" value={rothIraIbitHoldings}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setRothIraIbitHoldings(v); try { localStorage.setItem("nw-roth-ibit", String(v)); } catch {} }}
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                           <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-center">
-                            <p className="text-xs text-yellow-400 mb-0.5">Bitcoin</p>
+                            <p className="text-xs text-yellow-400 mb-0.5">BTC Wallet</p>
                             <p className="text-lg font-bold text-yellow-300">{btcHoldings} BTC</p>
                           </div>
+                          <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 p-3 text-center">
+                            <p className="text-xs text-orange-400 mb-0.5">Coinbase</p>
+                            <p className="text-lg font-bold text-orange-300">{coinbaseBtcHoldings} BTC</p>
+                          </div>
                           <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
-                            <p className="text-xs text-indigo-400 mb-0.5">VTSAX (Brokerage)</p>
+                            <p className="text-xs text-indigo-400 mb-0.5">VTSAX</p>
                             <p className="text-lg font-bold text-indigo-300">{vtsaxHoldings} sh.</p>
                           </div>
                           <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
@@ -1173,8 +1210,8 @@ export default function Finances() {
                             <p className="text-lg font-bold text-indigo-300">{vooHoldings} sh.</p>
                           </div>
                           <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
-                            <p className="text-xs text-emerald-400 mb-0.5">VTSAX (Roth IRA)</p>
-                            <p className="text-lg font-bold text-emerald-300">{rothIraVtsaxHoldings} sh.</p>
+                            <p className="text-xs text-emerald-400 mb-0.5">IBIT (Roth IRA)</p>
+                            <p className="text-lg font-bold text-emerald-300">{rothIraIbitHoldings} sh.</p>
                           </div>
                         </div>
                       )}
@@ -1214,9 +1251,19 @@ export default function Finances() {
                         <CardDescription className="text-slate-400 text-xs">Live investment value</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-2">
-                        <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
-                          <span className="text-yellow-300">₿ Bitcoin ({btcHoldings} BTC)</span>
-                          <span className="text-white font-semibold">{fmt(btcValue)}</span>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-yellow-300">₿ Bitcoin (all wallets)</span>
+                            <span className="text-white font-semibold">{fmt(totalBtcValue)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>Personal Wallet · {btcHoldings} BTC</span>
+                            <span>{fmt(btcValue)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 pl-3">
+                            <span>Coinbase · {coinbaseBtcHoldings} BTC</span>
+                            <span>{fmt(coinbaseValue)}</span>
+                          </div>
                         </div>
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
@@ -1238,7 +1285,7 @@ export default function Finances() {
                             <span className="text-white font-semibold">{fmt(rothIraValue)}</span>
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
-                            <span>VTSAX {rothIraVtsaxHoldings} × {fmt(vtsaxPrice)}</span>
+                            <span>IBIT {rothIraIbitHoldings} × {fmt(ibitPrice)}</span>
                             <span>{fmt(rothIraValue)}</span>
                           </div>
                         </div>
