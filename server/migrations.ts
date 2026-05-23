@@ -61,6 +61,12 @@ export async function runStartupMigrations() {
       ALTER TABLE tasks
       ADD COLUMN IF NOT EXISTS questline_order INTEGER
     `;
+
+    // Migration: Add widget_preferences column to users table
+    await sql`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS widget_preferences JSONB DEFAULT '{}'
+    `;
     
     console.log('✅ Startup migrations completed successfully');
   } catch (error) {
