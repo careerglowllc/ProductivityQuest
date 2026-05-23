@@ -177,6 +177,9 @@ export default function Finances() {
   const [fordExplorerValue, setFordExplorerValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-ford-explorer") || "17000"); } catch { return 17000; }
   });
+  const [kawasakiNinjaValue, setKawasakiNinjaValue] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-kawasaki-ninja") || "1200"); } catch { return 1200; }
+  });
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
 
@@ -345,7 +348,7 @@ export default function Finances() {
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
-  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue;
+  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
@@ -737,6 +740,7 @@ export default function Finances() {
                                 { label: "veluna.com Domain", value: velunaDomainValue, color: "text-violet-300" },
                                 { label: "E*Trade (Apple RSU)", value: eTradeRsuValue, color: "text-green-300" },
                                 { label: "Ford Explorer XLT", value: fordExplorerValue, color: "text-orange-300" },
+                                { label: "Kawasaki Ninja 300", value: kawasakiNinjaValue, color: "text-red-300" },
                               ].map(({ label, value, color }) => (
                                 <div key={label} className="bg-slate-700/40 rounded-lg px-3 py-2">
                                   <p className="text-[10px] text-slate-400">{label}</p>
@@ -1406,13 +1410,13 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue;
+              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
               const cryptoTotal = totalBtcValue + rothIraValue; // BTC wallets + Roth IRA (IBIT = crypto ETF)
               const indexFundsTotal = vanguardTotal + k401Value + eTradeRsuValue; // Vanguard + 401k VIIIX + Apple RSUs
               const domainTotal = velunaDomainValue;
-              const vehicleTotal = fordExplorerValue;
+              const vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
                 { name: "Index Funds & Equity", value: Math.round(indexFundsTotal), color: "#6366F1" },
@@ -1739,6 +1743,23 @@ export default function Finances() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Kawasaki Ninja 300 */}
+                    <Card className="bg-slate-800/60 border-red-500/30">
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-red-400 font-bold tracking-wide">🏍️ Kawasaki Ninja 300</p>
+                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">2014 motorcycle — estimated sell value</p>
+                            <p className="text-2xl font-bold mt-0.5 text-white">${kawasakiNinjaValue.toLocaleString()}</p>
+                          </div>
+                          <span className="text-[10px] border rounded px-1.5 py-0.5 text-red-400 border-red-500/30">vehicle</span>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
                   {/* Holdings editor */}
@@ -1926,12 +1947,19 @@ export default function Finances() {
                           </div>
                           {/* Ford Explorer XLT */}
                           <div className="col-span-1 md:col-span-2 pt-2 border-t border-orange-500/20">
-                            <p className="text-[10px] text-orange-400/70 uppercase tracking-widest font-semibold mb-3">🚗 Vehicle</p>
+                            <p className="text-[10px] text-orange-400/70 uppercase tracking-widest font-semibold mb-3">🚗 Vehicles</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <Label className="text-slate-300 text-xs mb-1 block">Ford Explorer XLT — Estimated Market Value ($)</Label>
                                 <Input type="number" min="0" step="100" value={fordExplorerValue}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setFordExplorerValue(v); try { localStorage.setItem("nw-ford-explorer", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Kawasaki Ninja 300 (2014) — Estimated Sell Value ($)</Label>
+                                <Input type="number" min="0" step="100" value={kawasakiNinjaValue}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setKawasakiNinjaValue(v); try { localStorage.setItem("nw-kawasaki-ninja", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                                 <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
                               </div>
@@ -2044,11 +2072,18 @@ export default function Finances() {
                               </div>
                               {/* Vehicle umbrella */}
                               <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
-                                <p className="text-[10px] text-orange-400/70 font-semibold uppercase tracking-widest mb-2">🚗 Vehicle</p>
-                                <div className="rounded-md bg-orange-500/10 p-2 text-center">
-                                  <p className="text-[10px] text-orange-400 mb-0.5">Ford Explorer XLT</p>
-                                  <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
+                                <p className="text-[10px] text-orange-400/70 font-semibold uppercase tracking-widest mb-2">🚗 Vehicles</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="rounded-md bg-orange-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-orange-400 mb-0.5">Ford Explorer XLT</p>
+                                    <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
+                                  </div>
+                                  <div className="rounded-md bg-red-500/10 p-2 text-center">
+                                    <p className="text-[10px] text-red-400 mb-0.5">Kawasaki Ninja 300</p>
+                                    <p className="text-sm font-bold text-red-300">${kawasakiNinjaValue.toLocaleString()}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">2014 · manual · May 2026</p>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -2149,6 +2184,14 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">Vehicle · estimated market value · May 2026</p>
                                 </div>
                                 <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
+                              </div>
+                              {/* Kawasaki Ninja 300 */}
+                              <div className="rounded-lg bg-red-500/5 border border-red-500/20 p-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-red-400 font-semibold">Kawasaki Ninja 300 (2014)</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Motorcycle · estimated sell value · May 2026</p>
+                                </div>
+                                <p className="text-sm font-bold text-red-300">${kawasakiNinjaValue.toLocaleString()}</p>
                               </div>
                             </div>
                           )}
@@ -2308,6 +2351,15 @@ export default function Finances() {
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
                             <span>Vehicle · estimated market value · May 2026</span>
+                          </div>
+                        </div>
+                        <div className="py-2 border-b border-slate-700/40">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-red-300">🏍️ Kawasaki Ninja 300 (2014)</span>
+                            <span className="text-white font-semibold">${kawasakiNinjaValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                            <span>Motorcycle · estimated sell value · May 2026</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
