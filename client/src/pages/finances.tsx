@@ -1409,15 +1409,16 @@ export default function Finances() {
               const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
-              const cryptoTotal = totalBtcValue + rothIraValue;
+              const cryptoTotal = totalBtcValue + rothIraValue; // BTC wallets + Roth IRA (IBIT = crypto ETF)
+              const indexFundsTotal = vanguardTotal + k401Value + eTradeRsuValue; // Vanguard + 401k VIIIX + Apple RSUs
+              const domainTotal = velunaDomainValue;
+              const vehicleTotal = fordExplorerValue;
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
-                { name: "Index Funds", value: Math.round(vanguardTotal), color: "#6366F1" },
-                { name: "401k (VIIIX)", value: Math.round(k401Value), color: "#14B8A6" },
+                { name: "Index Funds & Equity", value: Math.round(indexFundsTotal), color: "#6366F1" },
                 { name: "Cash", value: Math.round(checkingBalance), color: "#22D3EE" },
-                { name: "veluna.com", value: Math.round(velunaDomainValue), color: "#8B5CF6" },
-                { name: "E*Trade RSU", value: Math.round(eTradeRsuValue), color: "#22C55E" },
-                { name: "Ford Explorer", value: Math.round(fordExplorerValue), color: "#F97316" },
+                { name: "Domain Names", value: Math.round(domainTotal), color: "#8B5CF6" },
+                { name: "Vehicle", value: Math.round(vehicleTotal), color: "#F97316" },
                 ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
               ].filter(d => d.value > 0).map(d => ({
                 ...d,

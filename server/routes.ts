@@ -450,6 +450,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Widget preferences endpoints
+  app.get('/api/widget-preferences', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUserById(userId);
+      res.json((user?.widgetPreferences as any) ?? {});
+    } catch (error) {
+      console.error("Error fetching widget preferences:", error);
+      res.status(500).json({ error: "Failed to fetch widget preferences" });
+    }
+  });
+
+  app.post('/api/widget-preferences', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { overviewOrder, overviewVisible, nwOrder, nwVisible } = req.body;
+      const user = await storage.getUserById(userId);
+      const current = (user?.widgetPreferences as any) ?? {};
+      const merged = {
+        ...current,
+        ...(overviewOrder !== undefined && { overviewOrder }),
+        ...(overviewVisible !== undefined && { overviewVisible }),
+        ...(nwOrder !== undefined && { nwOrder }),
+        ...(nwVisible !== undefined && { nwVisible }),
+      };
+      await storage.updateUserSettings(userId, { widgetPreferences: merged });
+      res.json(merged);
+    } catch (error) {
+      console.error("Error saving widget preferences:", error);
+      res.status(500).json({ error: "Failed to save widget preferences" });
+    }
+  });
+
   // Timezone settings endpoint
   app.get('/api/settings', requireAuth, async (req: any, res) => {
     try {

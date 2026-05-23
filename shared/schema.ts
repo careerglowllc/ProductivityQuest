@@ -51,6 +51,12 @@ export const users = pgTable("users", {
   googleCalendarInstantSync: boolean("google_calendar_instant_sync").default(false),
   googleCalendarLastSync: timestamp("google_calendar_last_sync"),
   timezone: text("timezone").default("America/New_York"),
+  widgetPreferences: jsonb("widget_preferences").$type<{
+    overviewOrder?: string[];
+    overviewVisible?: Record<string, boolean>;
+    nwOrder?: string[];
+    nwVisible?: Record<string, boolean>;
+  }>().default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

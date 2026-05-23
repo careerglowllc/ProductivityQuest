@@ -32,6 +32,12 @@ export interface IStorage {
     googleCalendarSyncEnabled?: boolean;
     googleCalendarSyncDirection?: string;
     timezone?: string;
+    widgetPreferences?: {
+      overviewOrder?: string[];
+      overviewVisible?: Record<string, boolean>;
+      nwOrder?: string[];
+      nwVisible?: Record<string, boolean>;
+    };
   }): Promise<User>;
   
   // Task operations
@@ -201,6 +207,12 @@ export class DatabaseStorage implements IStorage {
       googleCalendarTokenExpiry?: Date | null;
       googleCalendarSyncEnabled?: boolean;
       googleCalendarSyncDirection?: string;
+      widgetPreferences?: {
+        overviewOrder?: string[];
+        overviewVisible?: Record<string, boolean>;
+        nwOrder?: string[];
+        nwVisible?: Record<string, boolean>;
+      };
     }
   ): Promise<User> {
     const updateData: any = {
@@ -220,6 +232,7 @@ export class DatabaseStorage implements IStorage {
     if (settings.googleCalendarTokenExpiry !== undefined) updateData.googleCalendarTokenExpiry = settings.googleCalendarTokenExpiry;
     if (settings.googleCalendarSyncEnabled !== undefined) updateData.googleCalendarSyncEnabled = settings.googleCalendarSyncEnabled;
     if (settings.googleCalendarSyncDirection !== undefined) updateData.googleCalendarSyncDirection = settings.googleCalendarSyncDirection;
+    if (settings.widgetPreferences !== undefined) updateData.widgetPreferences = settings.widgetPreferences;
     
     const [user] = await db
       .update(users)
