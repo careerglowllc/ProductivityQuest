@@ -1345,10 +1345,7 @@ export default function Finances() {
                               <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.25)" strokeWidth={1} />
                             ))}
                           </Pie>
-                          <Tooltip
-                            formatter={(value: number, name: string) => [formatCurrency(value), name]}
-                            contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: "8px", fontSize: "12px" }}
-                          />
+                          <Tooltip content={<CustomTooltip />} />
                         </RechartsPieChart>
                       </ResponsiveContainer>
 
