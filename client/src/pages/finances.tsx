@@ -91,6 +91,7 @@ export default function Finances() {
     netWorth: true,
     incomeVsExpense: true,
     monthlyAllocation: true,
+    portfolioAllocation: true,
   });
   const toggleWidget = (key: keyof typeof overviewWidgets) => {
     setOverviewWidgets(prev => {
@@ -100,13 +101,18 @@ export default function Finances() {
     });
   };
   // Widget order for drag-and-drop (persisted)
-  type WidgetKey = "incomeSources" | "topExpenses" | "netWorth" | "incomeVsExpense" | "monthlyAllocation";
+  type WidgetKey = "incomeSources" | "topExpenses" | "netWorth" | "incomeVsExpense" | "monthlyAllocation" | "portfolioAllocation";
   const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(() => {
     try {
       const saved = localStorage.getItem("overview-widget-order");
-      if (saved) return JSON.parse(saved) as WidgetKey[];
+      if (saved) {
+        const parsed = JSON.parse(saved) as WidgetKey[];
+        // ensure new key is included if upgrading from old saved order
+        if (!parsed.includes("portfolioAllocation")) parsed.push("portfolioAllocation");
+        return parsed;
+      }
     } catch {}
-    return ["incomeSources", "topExpenses", "netWorth", "incomeVsExpense", "monthlyAllocation"];
+    return ["incomeSources", "topExpenses", "netWorth", "incomeVsExpense", "monthlyAllocation", "portfolioAllocation"];
   });
   const dragSrcIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -148,8 +154,11 @@ export default function Finances() {
   useEffect(() => {
     if (!widgetPrefs) return;
     if (widgetPrefs.overviewOrder?.length) {
-      setWidgetOrder(widgetPrefs.overviewOrder as WidgetKey[]);
-      try { localStorage.setItem("overview-widget-order", JSON.stringify(widgetPrefs.overviewOrder)); } catch {}
+      const order = widgetPrefs.overviewOrder as WidgetKey[];
+      // ensure portfolioAllocation is present if stored order predates this widget
+      if (!order.includes("portfolioAllocation")) order.push("portfolioAllocation");
+      setWidgetOrder(order);
+      try { localStorage.setItem("overview-widget-order", JSON.stringify(order)); } catch {}
     }
     if (widgetPrefs.overviewVisible) {
       setOverviewWidgets(prev => ({ ...prev, ...widgetPrefs.overviewVisible }));
@@ -664,11 +673,12 @@ export default function Finances() {
               <div className="bg-slate-800/80 border border-purple-500/30 rounded-xl px-4 py-2.5 flex flex-wrap gap-x-4 gap-y-2 items-center">
                 <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mr-1">Widgets</span>
                 {([
-                  { key: "incomeSources",    label: "Income Sources",         dot: "bg-green-400" },
-                  { key: "topExpenses",      label: "Top Expense Categories", dot: "bg-red-400" },
-                  { key: "netWorth",         label: "Total Net Worth",        dot: "bg-orange-400" },
-                  { key: "incomeVsExpense",  label: "Income vs Expense",      dot: "bg-purple-400" },
-                  { key: "monthlyAllocation",label: "Monthly Allocation",     dot: "bg-blue-400" },
+                  { key: "incomeSources",      label: "Income Sources",         dot: "bg-green-400" },
+                  { key: "topExpenses",        label: "Top Expense Categories", dot: "bg-red-400" },
+                  { key: "netWorth",           label: "Total Net Worth",        dot: "bg-orange-400" },
+                  { key: "incomeVsExpense",    label: "Income vs Expense",      dot: "bg-purple-400" },
+                  { key: "monthlyAllocation",  label: "Monthly Allocation",     dot: "bg-blue-400" },
+                  { key: "portfolioAllocation",label: "Portfolio Allocation",   dot: "bg-yellow-400" },
                 ] as { key: keyof typeof overviewWidgets; label: string; dot: string }[]).map(({ key, label, dot }) => (
                   <button
                     key={key}
@@ -689,11 +699,12 @@ export default function Finances() {
             {/* Single auto-filling grid — visible widgets reflow to fill rows */}
             {(() => {
               const WIDGET_META: Record<WidgetKey, { label: string; fullWidth?: boolean }> = {
-                incomeSources:     { label: "Income Sources" },
-                topExpenses:       { label: "Top Expense Categories" },
-                netWorth:          { label: "Total Net Worth" },
-                incomeVsExpense:   { label: "Income vs Expense" },
-                monthlyAllocation: { label: "Monthly Allocation", fullWidth: true },
+                incomeSources:       { label: "Income Sources" },
+                topExpenses:         { label: "Top Expense Categories" },
+                netWorth:            { label: "Total Net Worth" },
+                incomeVsExpense:     { label: "Income vs Expense" },
+                monthlyAllocation:   { label: "Monthly Allocation", fullWidth: true },
+                portfolioAllocation: { label: "Portfolio Allocation" },
               };
 
               const visibleKeys = widgetOrder.filter(k => overviewWidgets[k]);
@@ -888,15 +899,90 @@ export default function Finances() {
                       </CardContent>
                     </>
                   );
+                  case "portfolioAllocation": {
+                    const _cryptoTotal = _totalBtcValue + _rothIraValue;
+                    const _indexTotal = _vanguardTotal + _k401Value + eTradeRsuValue;
+                    const _domainTotal = velunaDomainValue;
+                    const _vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
+                    const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
+                    const _overviewPieData = [
+                      { name: "Crypto",                value: Math.round(_cryptoTotal),         color: "#F59E0B" },
+                      { name: "Index Funds & Equity",  value: Math.round(_indexTotal),          color: "#6366F1" },
+                      { name: "Cash",                  value: Math.round(checkingBalance),      color: "#22D3EE" },
+                      { name: "Domain Names",          value: Math.round(_domainTotal),         color: "#8B5CF6" },
+                      { name: "Vehicle",               value: Math.round(_vehicleTotal),        color: "#F97316" },
+                      ...(_homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(_homeAfterTaxNetCash), color: "#EC4899" }] : []),
+                    ].filter(d => d.value > 0).map(d => ({
+                      ...d,
+                      pct: _nwTotal > 0 ? (d.value / _nwTotal) * 100 : 0,
+                    }));
+                    const fmtShort = (n: number) => `$${n >= 1000 ? `${(n/1000).toFixed(0)}k` : n.toLocaleString()}`;
+                    return (
+                      <>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-yellow-300 text-base flex items-center gap-2">
+                            <PieChart className="h-4 w-4" /> Portfolio Allocation
+                          </CardTitle>
+                          <CardDescription className="text-slate-400 text-xs">
+                            Investment portfolio breakdown · live prices
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {nwIsLoading ? (
+                            <div className="flex items-center justify-center h-[260px] text-slate-400 text-sm animate-pulse">Loading prices…</div>
+                          ) : _overviewPieData.length === 0 ? (
+                            <div className="flex items-center justify-center h-[260px] text-slate-500 text-sm">No data</div>
+                          ) : (
+                            <>
+                              <ResponsiveContainer width="100%" height={200}>
+                                <RechartsPieChart>
+                                  <Pie data={_overviewPieData} cx="50%" cy="50%" outerRadius={85} innerRadius={40}
+                                    dataKey="value" labelLine={false} label={false}>
+                                    {_overviewPieData.map((d, i) => <Cell key={i} fill={d.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />)}
+                                  </Pie>
+                                  <Tooltip
+                                    content={({ active, payload }) => {
+                                      if (!active || !payload?.length) return null;
+                                      const d = payload[0].payload;
+                                      return (
+                                        <div className="bg-slate-800 border border-yellow-500/50 rounded-lg px-3 py-2 shadow-xl text-sm">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                                            <span className="text-white font-semibold">{d.name}</span>
+                                          </div>
+                                          <p className="text-slate-200">${d.value.toLocaleString()}</p>
+                                          <p className="font-bold" style={{ color: d.color }}>{d.pct.toFixed(1)}%</p>
+                                        </div>
+                                      );
+                                    }}
+                                  />
+                                </RechartsPieChart>
+                              </ResponsiveContainer>
+                              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 pt-1">
+                                {_overviewPieData.map(d => (
+                                  <div key={d.name} className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                    <span className="text-[11px] text-slate-300">{d.name}</span>
+                                    <span className="text-[11px] font-semibold" style={{ color: d.color }}>{d.pct.toFixed(1)}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </CardContent>
+                      </>
+                    );
+                  }
                 }
               };
 
               const BORDER: Record<WidgetKey, string> = {
-                incomeSources:     "border-green-500/20 hover:border-green-500/50",
-                topExpenses:       "border-red-500/20 hover:border-red-500/50",
-                netWorth:          "border-orange-500/20 hover:border-orange-500/50",
-                incomeVsExpense:   "border-purple-500/20 hover:border-purple-500/50",
-                monthlyAllocation: "border-purple-500/20 hover:border-purple-500/50",
+                incomeSources:       "border-green-500/20 hover:border-green-500/50",
+                topExpenses:         "border-red-500/20 hover:border-red-500/50",
+                netWorth:            "border-orange-500/20 hover:border-orange-500/50",
+                incomeVsExpense:     "border-purple-500/20 hover:border-purple-500/50",
+                monthlyAllocation:   "border-purple-500/20 hover:border-purple-500/50",
+                portfolioAllocation: "border-yellow-500/20 hover:border-yellow-500/50",
               };
 
               return (
