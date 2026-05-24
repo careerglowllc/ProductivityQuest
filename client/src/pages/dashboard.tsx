@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign, GripVertical } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect } from "react";
@@ -752,6 +752,48 @@ export default function Dashboard() {
 
   const topTasks = getTopTasks();
 
+  // ── Dashboard widget drag-to-reorder ────────────────────────────────────
+  type DashWidgetKey = "skills" | "schedule" | "tasks" | "finance";
+  const DEFAULT_DASH_ORDER: DashWidgetKey[] = ["skills", "schedule", "tasks", "finance"];
+  const [dashWidgetOrder, setDashWidgetOrder] = useState<DashWidgetKey[]>(() => {
+    try {
+      const saved = localStorage.getItem("dash-widget-order");
+      if (saved) {
+        const parsed = JSON.parse(saved) as DashWidgetKey[];
+        const valid = DEFAULT_DASH_ORDER.filter(k => parsed.includes(k));
+        const missing = DEFAULT_DASH_ORDER.filter(k => !parsed.includes(k));
+        return [...valid.map(k => parsed[parsed.indexOf(k)]), ...missing];
+      }
+    } catch {}
+    return DEFAULT_DASH_ORDER;
+  });
+  const [dashDragOverIdx, setDashDragOverIdx] = useState<number | null>(null);
+  const dashDragSrcIdx = useRef<number | null>(null);
+
+  const handleDashDragStart = (e: React.DragEvent, idx: number) => {
+    dashDragSrcIdx.current = idx;
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleDashDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDashDragOverIdx(idx);
+  };
+  const handleDashDrop = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dashDragSrcIdx.current === null || dashDragSrcIdx.current === idx) {
+      setDashDragOverIdx(null); return;
+    }
+    const next = [...dashWidgetOrder];
+    const [removed] = next.splice(dashDragSrcIdx.current, 1);
+    next.splice(idx, 0, removed);
+    setDashWidgetOrder(next);
+    try { localStorage.setItem("dash-widget-order", JSON.stringify(next)); } catch {}
+    dashDragSrcIdx.current = null;
+    setDashDragOverIdx(null);
+  };
+  const handleDashDragEnd = () => { dashDragSrcIdx.current = null; setDashDragOverIdx(null); };
+
   const getImportanceBadgeColor = (importance: string | null) => {
     switch (importance) {
       case 'Pareto': return 'bg-red-500 text-white';
@@ -762,6 +804,149 @@ export default function Dashboard() {
       case 'Low': return 'bg-gray-500 text-white';
       default: return 'bg-gray-400 text-white';
     }
+  };
+
+  // Render a dashboard widget by key — used for drag-to-reorder
+  const renderDashWidget = (key: DashWidgetKey, idx: number) => {
+    const isDraggingOver = dashDragOverIdx === idx && dashDragSrcIdx.current !== idx;
+    const dragHandleBar = (
+      <div
+        className="absolute top-1.5 right-2 flex items-center gap-0.5 text-yellow-600/40 hover:text-yellow-400/70 transition-colors cursor-grab active:cursor-grabbing select-none z-10"
+        title="Drag to reorder"
+      >
+        <GripVertical className="w-4 h-4" />
+        <GripVertical className="w-4 h-4 -ml-2.5" />
+      </div>
+    );
+
+    const wrapCard = (children: React.ReactNode, extraClass = "") => (
+      <div
+        className={`h-full p-1.5 relative ${extraClass}`}
+        draggable
+        onDragStart={e => handleDashDragStart(e, idx)}
+        onDragOver={e => handleDashDragOver(e, idx)}
+        onDrop={e => handleDashDrop(e, idx)}
+        onDragEnd={handleDashDragEnd}
+      >
+        {isDraggingOver && (
+          <div className="absolute inset-1.5 rounded-xl ring-2 ring-yellow-400/60 bg-yellow-400/5 pointer-events-none z-20 transition-all" />
+        )}
+        {children}
+      </div>
+    );
+
+    if (key === "skills") return wrapCard(
+      <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col relative">
+        {dragHandleBar}
+        <CardHeader className="border-b border-yellow-600/20 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
+            <Link href="/skills">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                View Details <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-2 pb-2 flex items-center justify-center flex-1 overflow-hidden min-h-0">
+          <Dialog>
+            <DialogTrigger asChild>
+              <div className="cursor-pointer relative group w-full h-full flex items-center justify-center">
+                <div className="w-full h-full max-w-[400px] max-h-[400px]">
+                  {skillsLoading ? (
+                    <div className="flex items-center justify-center h-full text-yellow-200/60">Loading skills...</div>
+                  ) : (
+                    <SpiderChart skills={safeSkills} />
+                  )}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
+                    <Maximize2 className="w-4 h-4" />
+                    <span className="text-sm">Click to enlarge</span>
+                  </div>
+                </div>
+              </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl bg-slate-800 border-2 border-yellow-600/40 text-yellow-100">
+              <DialogHeader>
+                <DialogTitle className="text-yellow-100 font-serif">Skills Overview</DialogTitle>
+              </DialogHeader>
+              {skillsLoading ? (
+                <div className="flex items-center justify-center h-[500px] text-yellow-200/60">Loading skills...</div>
+              ) : (
+                <SpiderChart skills={safeSkills} />
+              )}
+              <div className="mt-4 text-center">
+                <p className="text-sm text-yellow-200/80">Complete quests to level up your skills and expand your constellation</p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
+    );
+
+    if (key === "schedule") return wrapCard(
+      <div className="h-full relative">
+        {dragHandleBar}
+        <TodayCalendarWidget />
+      </div>
+    );
+
+    if (key === "tasks") return wrapCard(
+      <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col relative">
+        {dragHandleBar}
+        <CardHeader className="border-b border-yellow-600/20 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
+            <Link href="/tasks">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
+                View All <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6 flex-1 overflow-hidden">
+          {topTasks.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle className="w-12 h-12 text-yellow-400/50 mx-auto mb-3" />
+              <p className="text-yellow-200/70">No pending tasks! Great job! 🎉</p>
+            </div>
+          ) : (
+            <div className="space-y-3 h-full overflow-y-auto">
+              {topTasks.map((task: any, index: number) => (
+                <div key={task.id} className="flex items-center justify-between p-4 border-2 border-slate-600/40 rounded-lg hover:bg-slate-700/40 hover:border-yellow-500/40 transition-all backdrop-blur-sm">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-yellow-100 mb-1">{task.title}</h4>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {task.importance && <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>{task.importance}</Badge>}
+                        {task.duration && <div className="flex items-center text-xs text-yellow-200/60"><Clock className="w-3 h-3 mr-1" />{task.duration} min</div>}
+                        {task.goldValue && <div className="flex items-center text-xs text-yellow-400 font-semibold"><Coins className="w-3 h-3 mr-1" />{task.goldValue}</div>}
+                        {task.dueDate && <div className="flex items-center text-xs text-yellow-200/60"><Calendar className="w-3 h-3 mr-1" />{new Date(task.dueDate).toLocaleDateString()}</div>}
+                      </div>
+                    </div>
+                  </div>
+                  <Link href={`/tasks?taskId=${task.id}`}>
+                    <Button variant="outline" size="sm" className="border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">Details</Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+
+    // finance
+    return wrapCard(
+      <div className="h-full relative">
+        {dragHandleBar}
+        <FinanceWidget />
+      </div>
+    );
   };
 
   // Render the Active Questlines card (reusable between mobile and desktop layouts)
@@ -1220,72 +1405,16 @@ export default function Dashboard() {
                         direction="horizontal"
                         autoSaveId="dashboard-grid-top"
                       >
-                        {/* Top Left - Skills Overview */}
+                        {/* Top Left */}
                         <ResizablePanel defaultSize={50} minSize={20}>
-                          <div className="h-full p-1.5">
-                            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col">
-                              <CardHeader className="border-b border-yellow-600/20 pb-3 flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                  <CardTitle className="text-xl font-serif font-bold text-yellow-100">Your Skills Overview</CardTitle>
-                                  <Link href="/skills">
-                                    <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                                      View Details
-                                      <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                  </Link>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="pt-2 pb-2 flex items-center justify-center flex-1 overflow-hidden min-h-0">
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <div className="cursor-pointer relative group w-full h-full flex items-center justify-center">
-                                      <div className="w-full h-full max-w-[400px] max-h-[400px]">
-                                        {skillsLoading ? (
-                                          <div className="flex items-center justify-center h-full text-yellow-200/60">
-                                            Loading skills...
-                                          </div>
-                                        ) : (
-                                          <SpiderChart skills={safeSkills} />
-                                        )}
-                                      </div>
-                                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                        <div className="bg-slate-900/90 text-yellow-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-yellow-500/50">
-                                          <Maximize2 className="w-4 h-4" />
-                                          <span className="text-sm">Click to enlarge</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl bg-slate-800 border-2 border-yellow-600/40 text-yellow-100">
-                                    <DialogHeader>
-                                      <DialogTitle className="text-yellow-100 font-serif">Skills Overview</DialogTitle>
-                                    </DialogHeader>
-                                    {skillsLoading ? (
-                                      <div className="flex items-center justify-center h-[500px] text-yellow-200/60">
-                                        Loading skills...
-                                      </div>
-                                    ) : (
-                                      <SpiderChart skills={safeSkills} />
-                                    )}
-                                    <div className="mt-4 text-center">
-                                      <p className="text-sm text-yellow-200/80">
-                                        Complete quests to level up your skills and expand your constellation
-                                      </p>
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              </CardContent>
-                            </Card>
-                          </div>
+                          {renderDashWidget(dashWidgetOrder[0], 0)}
                         </ResizablePanel>
 
                         <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
 
-                        {/* Top Right - Today's Schedule */}
+                        {/* Top Right */}
                         <ResizablePanel defaultSize={50} minSize={20}>
-                          <div className="h-full p-1.5">
-                            <TodayCalendarWidget />
-                          </div>
+                          {renderDashWidget(dashWidgetOrder[1], 1)}
                         </ResizablePanel>
                       </ResizablePanelGroup>
                     </ResizablePanel>
@@ -1298,88 +1427,16 @@ export default function Dashboard() {
                         direction="horizontal"
                         autoSaveId="dashboard-grid-bottom"
                       >
-                        {/* Bottom Left - Top Priority Tasks */}
+                        {/* Bottom Left */}
                         <ResizablePanel defaultSize={50} minSize={20}>
-                          <div className="h-full p-1.5">
-                            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all h-full flex flex-col">
-                              <CardHeader className="border-b border-yellow-600/20 flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                  <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
-                                  <Link href="/tasks">
-                                    <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                                      View All
-                                      <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                  </Link>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="pt-6 flex-1 overflow-hidden">
-                                {topTasks.length === 0 ? (
-                                  <div className="text-center py-8">
-                                    <CheckCircle className="w-12 h-12 text-yellow-400/50 mx-auto mb-3" />
-                                    <p className="text-yellow-200/70">No pending tasks! Great job! 🎉</p>
-                                  </div>
-                                ) : (
-                                  <div className="space-y-3 h-full overflow-y-auto">
-                                    {topTasks.map((task: any, index: number) => (
-                                      <div
-                                        key={task.id}
-                                        className="flex items-center justify-between p-4 border-2 border-slate-600/40 rounded-lg hover:bg-slate-700/40 hover:border-yellow-500/40 transition-all backdrop-blur-sm"
-                                      >
-                                        <div className="flex items-center gap-4 flex-1">
-                                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg">
-                                            {index + 1}
-                                          </div>
-                                          <div className="flex-1">
-                                            <h4 className="font-semibold text-yellow-100 mb-1">{task.title}</h4>
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              {task.importance && (
-                                                <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>
-                                                  {task.importance}
-                                                </Badge>
-                                              )}
-                                              {task.duration && (
-                                                <div className="flex items-center text-xs text-yellow-200/60">
-                                                  <Clock className="w-3 h-3 mr-1" />
-                                                  {task.duration} min
-                                                </div>
-                                              )}
-                                              {task.goldValue && (
-                                                <div className="flex items-center text-xs text-yellow-400 font-semibold">
-                                                  <Coins className="w-3 h-3 mr-1" />
-                                                  {task.goldValue}
-                                                </div>
-                                              )}
-                                              {task.dueDate && (
-                                                <div className="flex items-center text-xs text-yellow-200/60">
-                                                  <Calendar className="w-3 h-3 mr-1" />
-                                                  {new Date(task.dueDate).toLocaleDateString()}
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <Link href={`/tasks?taskId=${task.id}`}>
-                                          <Button variant="outline" size="sm" className="border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                                            Details
-                                          </Button>
-                                        </Link>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          </div>
+                          {renderDashWidget(dashWidgetOrder[2], 2)}
                         </ResizablePanel>
 
                         <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
 
-                        {/* Bottom Right - Finance Widget */}
+                        {/* Bottom Right */}
                         <ResizablePanel defaultSize={50} minSize={20}>
-                          <div className="h-full p-1.5">
-                            <FinanceWidget />
-                          </div>
+                          {renderDashWidget(dashWidgetOrder[3], 3)}
                         </ResizablePanel>
                       </ResizablePanelGroup>
                     </ResizablePanel>
