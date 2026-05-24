@@ -841,16 +841,6 @@ export default function Finances() {
           </Card>
         </div>
 
-        {/* Status */}
-        <Alert className={`mb-6 bg-slate-800/60 border-2 ${statusBorder}`}>
-          <div className="flex items-center gap-3">
-            {statusIcon}
-            <AlertDescription className={`text-base font-semibold ${statusColor}`}>
-              {statusMessage}
-            </AlertDescription>
-          </div>
-        </Alert>
-
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
           <TabsList className="bg-slate-800/60 border border-purple-500/30 flex flex-wrap h-auto gap-1 p-1">
