@@ -429,7 +429,10 @@ export default function Finances() {
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
-  const overviewNetWorth = _totalBtcValue + _vanguardTotal + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+  // BTC wallets and Vanguard brokerage: apply 15% LTCG haircut in all net worth totals
+  const _btcAfterTax = _totalBtcValue * 0.85;
+  const _vanguardAfterTax = _vanguardTotal * 0.85;
+  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
@@ -815,8 +818,8 @@ export default function Finances() {
                             </div>
                             <div className="grid grid-cols-2 gap-2 pt-2">
                               {[
-                                { label: "Crypto (BTC)", value: _totalBtcValue, color: "text-yellow-300" },
-                                { label: "Index Funds", value: _vanguardTotal, color: "text-indigo-300" },
+                                { label: "Crypto (BTC, after tax)", value: _btcAfterTax, color: "text-yellow-300" },
+                                { label: "Index Funds (after tax)", value: _vanguardAfterTax, color: "text-indigo-300" },
                                 { label: "Roth IRA (IBIT)", value: _rothIraValue, color: "text-purple-300" },
                                 { label: "401k (VIIIX)", value: _k401Value, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
@@ -900,8 +903,8 @@ export default function Finances() {
                     </>
                   );
                   case "portfolioAllocation": {
-                    const _cryptoTotal = _totalBtcValue + _rothIraValue;
-                    const _indexTotal = _vanguardTotal + _k401Value + eTradeRsuValue;
+                    const _cryptoTotal = _btcAfterTax + _rothIraValue;
+                    const _indexTotal = _vanguardAfterTax + _k401Value + eTradeRsuValue;
                     const _domainTotal = velunaDomainValue;
                     const _vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
                     const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
@@ -1569,11 +1572,14 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              const investmentTotal = totalBtcValue + vanguardTotal + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+              // BTC wallets and Vanguard brokerage use after-tax (85%) values in totals
+              const btcAfterTax = totalBtcValue * 0.85;
+              const vanguardAfterTax = vanguardTotal * 0.85;
+              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
-              const cryptoTotal = totalBtcValue + rothIraValue; // BTC wallets + Roth IRA (IBIT = crypto ETF)
-              const indexFundsTotal = vanguardTotal + k401Value + eTradeRsuValue; // Vanguard + 401k VIIIX + Apple RSUs
+              const cryptoTotal = btcAfterTax + rothIraValue; // BTC wallets (after-tax) + Roth IRA (IBIT = crypto ETF)
+              const indexFundsTotal = vanguardAfterTax + k401Value + eTradeRsuValue; // Vanguard after-tax + 401k VIIIX + Apple RSUs
               const domainTotal = velunaDomainValue;
               const vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
               const pieData = [
@@ -1642,8 +1648,11 @@ export default function Finances() {
                             <p className="text-xs text-yellow-400 font-bold tracking-wide">₿ Bitcoin Wallet</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : btcPrice > 0 ? fmt(btcPrice) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : btcPrice > 0 ? fmt(btcValue * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
+                            {!isLoading && btcPrice > 0 && (
+                              <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
+                            )}
                           </div>
                           {btcData?.change24h != null && (
                             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${btcData.change24h >= 0 ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"}`}>
@@ -1651,9 +1660,15 @@ export default function Finances() {
                             </span>
                           )}
                         </div>
-                        <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
-                          <span>{btcHoldings} BTC</span>
-                          <span className="font-semibold text-yellow-300">{fmt(btcValue)}</span>
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
+                          <div className="flex justify-between text-slate-400">
+                            <span>{btcHoldings} BTC · gross value</span>
+                            <span className="font-semibold text-yellow-300">{fmt(btcValue)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-500">
+                            <span>Est. 15% LTCG tax</span>
+                            <span className="text-red-400">−{fmt(btcValue * 0.15)}</span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1666,14 +1681,23 @@ export default function Finances() {
                             <p className="text-xs text-orange-400 font-bold tracking-wide">🔵 Coinbase</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : coinbaseValue > 0 ? fmt(coinbaseValue) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : coinbaseValue > 0 ? fmt(coinbaseValue * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
+                            {!isLoading && coinbaseValue > 0 && (
+                              <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
+                            )}
                           </div>
                           <span className="text-[10px] text-orange-400 border border-orange-500/30 rounded px-1.5 py-0.5">BTC</span>
                         </div>
-                        <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
-                          <span>{coinbaseBtcHoldings} BTC</span>
-                          <span className="font-semibold text-orange-300">{fmt(coinbaseValue)}</span>
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
+                          <div className="flex justify-between text-slate-400">
+                            <span>{coinbaseBtcHoldings} BTC · gross value</span>
+                            <span className="font-semibold text-orange-300">{fmt(coinbaseValue)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-500">
+                            <span>Est. 15% LTCG tax</span>
+                            <span className="text-red-400">−{fmt(coinbaseValue * 0.15)}</span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1686,19 +1710,30 @@ export default function Finances() {
                             <p className="text-xs text-indigo-400 font-bold tracking-wide">🏦 Vanguard Brokerage</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : vanguardTotal > 0 ? fmt(vanguardTotal) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : vanguardTotal > 0 ? fmt(vanguardTotal * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
+                            {!isLoading && vanguardTotal > 0 && (
+                              <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
+                            )}
                           </div>
                           <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO</span>
                         </div>
-                        <div className="space-y-1 mt-2 pt-2 border-t border-slate-700/40">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-slate-400">VTSAX · {vtsaxHoldings} sh.</span>
-                            <span className="text-indigo-300 font-semibold">{fmt(vtsaxValue)}</span>
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
+                          <div className="flex justify-between text-slate-400">
+                            <span>Gross value</span>
+                            <span className="font-semibold text-indigo-300">{fmt(vanguardTotal)}</span>
                           </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-slate-400">VOO · {vooHoldings} sh.</span>
-                            <span className="text-indigo-300 font-semibold">{fmt(vooValue)}</span>
+                          <div className="flex justify-between text-slate-500">
+                            <span>Est. 15% LTCG tax</span>
+                            <span className="text-red-400">−{fmt(vanguardTotal * 0.15)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400 pt-0.5">
+                            <span>VTSAX · {vtsaxHoldings} sh.</span>
+                            <span className="text-indigo-300">{fmt(vtsaxValue)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>VOO · {vooHoldings} sh.</span>
+                            <span className="text-indigo-300">{fmt(vooValue)}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -2443,13 +2478,21 @@ export default function Finances() {
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
                             <span className="text-yellow-300">₿ Bitcoin (all wallets)</span>
-                            <span className="text-white font-semibold">{fmt(totalBtcValue)}</span>
+                            <span className="text-white font-semibold">{fmt(totalBtcValue * 0.85)}</span>
                           </div>
-                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                          <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
+                            <span>Gross value</span>
+                            <span>{fmt(totalBtcValue)}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-red-500/80 pl-3">
+                            <span>Est. 15% LTCG tax</span>
+                            <span>−{fmt(totalBtcValue * 0.15)}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
                             <span>Personal Wallet · {btcHoldings} BTC</span>
                             <span>{fmt(btcValue)}</span>
                           </div>
-                          <div className="flex justify-between text-xs text-slate-500 pl-3">
+                          <div className="flex justify-between text-[10px] text-slate-500 pl-3">
                             <span>Coinbase · {coinbaseBtcHoldings} BTC</span>
                             <span>{fmt(coinbaseValue)}</span>
                           </div>
@@ -2457,13 +2500,21 @@ export default function Finances() {
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
                             <span className="text-indigo-300">🏦 Vanguard Brokerage</span>
-                            <span className="text-white font-semibold">{fmt(vanguardTotal)}</span>
+                            <span className="text-white font-semibold">{fmt(vanguardTotal * 0.85)}</span>
                           </div>
-                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
+                          <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
+                            <span>Gross value</span>
+                            <span>{fmt(vanguardTotal)}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-red-500/80 pl-3">
+                            <span>Est. 15% LTCG tax</span>
+                            <span>−{fmt(vanguardTotal * 0.15)}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
                             <span>VTSAX {vtsaxHoldings} × {fmt(vtsaxPrice)}</span>
                             <span>{fmt(vtsaxValue)}</span>
                           </div>
-                          <div className="flex justify-between text-xs text-slate-500 pl-3">
+                          <div className="flex justify-between text-[10px] text-slate-500 pl-3">
                             <span>VOO {vooHoldings} × {fmt(vooPrice)}</span>
                             <span>{fmt(vooValue)}</span>
                           </div>
