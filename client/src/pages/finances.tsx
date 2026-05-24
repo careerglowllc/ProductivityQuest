@@ -128,7 +128,9 @@ export default function Finances() {
         const parsed = JSON.parse(saved) as string[];
         // Migrate old "allocation" key → insert "portfolioPie" + "nwSummary"
         const migrated = parsed.flatMap(k => k === "allocation" ? ["portfolioPie", "nwSummary"] : [k]) as NWWidgetKey[];
-        return migrated;
+        // Ensure all DEFAULT keys are present (handles saved orders missing new keys)
+        const missingKeys = DEFAULT_NW_ORDER.filter(k => !migrated.includes(k));
+        return [...migrated, ...missingKeys];
       }
     } catch {}
     return DEFAULT_NW_ORDER;
