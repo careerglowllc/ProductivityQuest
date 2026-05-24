@@ -119,21 +119,31 @@ export default function Finances() {
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   // NW tab widget visibility + order (persisted to server)
-  type NWWidgetKey = "assets" | "holdings" | "allocation";
-  const DEFAULT_NW_ORDER: NWWidgetKey[] = ["assets", "holdings", "allocation"];
+  type NWWidgetKey = "assets" | "holdings" | "portfolioPie" | "nwSummary";
+  const DEFAULT_NW_ORDER: NWWidgetKey[] = ["assets", "holdings", "portfolioPie", "nwSummary"];
   const [nwWidgetOrder, setNwWidgetOrder] = useState<NWWidgetKey[]>(() => {
     try {
       const saved = localStorage.getItem("nw-widget-order");
-      if (saved) return JSON.parse(saved) as NWWidgetKey[];
+      if (saved) {
+        const parsed = JSON.parse(saved) as string[];
+        // Migrate old "allocation" key → insert "portfolioPie" + "nwSummary"
+        const migrated = parsed.flatMap(k => k === "allocation" ? ["portfolioPie", "nwSummary"] : [k]) as NWWidgetKey[];
+        return migrated;
+      }
     } catch {}
     return DEFAULT_NW_ORDER;
   });
   const [nwWidgetVisible, setNwWidgetVisible] = useState<Record<NWWidgetKey, boolean>>(() => {
     try {
       const saved = localStorage.getItem("nw-widget-visible");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Migrate old "allocation" → both new keys
+        const alloc = parsed.allocation ?? true;
+        return { assets: parsed.assets ?? true, holdings: parsed.holdings ?? true, portfolioPie: parsed.portfolioPie ?? alloc, nwSummary: parsed.nwSummary ?? alloc };
+      }
     } catch {}
-    return { assets: true, holdings: true, allocation: true };
+    return { assets: true, holdings: true, portfolioPie: true, nwSummary: true };
   });
   const nwDragSrcIdx = useRef<number | null>(null);
   const [nwDragOverIdx, setNwDragOverIdx] = useState<number | null>(null);
@@ -1882,10 +1892,11 @@ export default function Finances() {
                 ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : "—";
 
-              const nwWidgetMeta: Record<NWWidgetKey, { label: string; dot: string }> = {
-                assets:     { label: "Asset Cards",          dot: "bg-yellow-400" },
-                holdings:   { label: "My Holdings",          dot: "bg-orange-400" },
-                allocation: { label: "Allocation & Summary", dot: "bg-purple-400" },
+              const nwWidgetMeta: Record<NWWidgetKey, { label: string; dot: string; border: string }> = {
+                assets:       { label: "Asset Cards",         dot: "bg-yellow-400",  border: "border-yellow-500/30 hover:border-yellow-500/60" },
+                holdings:     { label: "My Holdings",         dot: "bg-orange-400",  border: "border-orange-500/30 hover:border-orange-500/60" },
+                portfolioPie: { label: "Portfolio Allocation", dot: "bg-purple-400", border: "border-purple-500/30 hover:border-purple-500/60" },
+                nwSummary:    { label: "Net Worth Summary",    dot: "bg-green-400",  border: "border-green-500/30 hover:border-green-500/60" },
               };
               const toggleNwWidget = (key: NWWidgetKey) => {
                 setNwWidgetVisible(prev => {
@@ -2776,63 +2787,62 @@ export default function Finances() {
                     </CardContent>
                   </Card>
                 );
-                if (key === "allocation") return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="bg-slate-800/60 border-purple-500/20">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-purple-300 text-base">Portfolio Allocation</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {pieData.length > 0 ? (
-                          <>
-                          <ResponsiveContainer width="100%" height={220}>
-                            <RechartsPieChart>
-                              <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} innerRadius={45}
-                                dataKey="value" labelLine={false} label={false}>
-                                {pieData.map((d, i) => <Cell key={i} fill={d.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />)}
-                              </Pie>
-                              <Tooltip
-                                content={({ active, payload }) => {
-                                  if (!active || !payload?.length) return null;
-                                  const d = payload[0].payload;
-                                  return (
-                                    <div className="bg-slate-800 border border-purple-500/50 rounded-lg px-3 py-2 shadow-xl text-sm">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
-                                        <span className="text-white font-semibold">{d.name}</span>
-                                      </div>
-                                      <p className="text-slate-200">{fmt(d.value)}</p>
-                                      <p className="text-purple-300 font-bold">{d.pct.toFixed(1)}% of portfolio</p>
+                if (key === "portfolioPie") return (
+                  <>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-purple-300 text-base">Portfolio Allocation</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {pieData.length > 0 ? (
+                        <>
+                        <ResponsiveContainer width="100%" height={220}>
+                          <RechartsPieChart>
+                            <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} innerRadius={45}
+                              dataKey="value" labelLine={false} label={false}>
+                              {pieData.map((d, i) => <Cell key={i} fill={d.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />)}
+                            </Pie>
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (!active || !payload?.length) return null;
+                                const d = payload[0].payload;
+                                return (
+                                  <div className="bg-slate-800 border border-purple-500/50 rounded-lg px-3 py-2 shadow-xl text-sm">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                                      <span className="text-white font-semibold">{d.name}</span>
                                     </div>
-                                  );
-                                }}
-                              />
-                            </RechartsPieChart>
-                          </ResponsiveContainer>
-                          {/* Legend with percentages */}
-                          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-1">
-                            {pieData.map((d) => (
-                              <div key={d.name} className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
-                                <span className="text-xs text-slate-300">{d.name}</span>
-                                <span className="text-xs font-semibold" style={{ color: d.color }}>{d.pct.toFixed(1)}%</span>
-                              </div>
-                            ))}
-                          </div>
-                          </>
-                        ) : (
-                          <div className="flex items-center justify-center h-[240px] text-slate-500 text-sm">
-                            {isLoading ? "Loading prices…" : "Price data unavailable"}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-slate-800/60 border-green-500/20">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-green-300 text-base">Net Worth Summary</CardTitle>
-                        <CardDescription className="text-slate-400 text-xs">Live investment value</CardDescription>
-                      </CardHeader>
+                                    <p className="text-slate-200">{fmt(d.value)}</p>
+                                    <p className="text-purple-300 font-bold">{d.pct.toFixed(1)}% of portfolio</p>
+                                  </div>
+                                );
+                              }}
+                            />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-1">
+                          {pieData.map((d) => (
+                            <div key={d.name} className="flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                              <span className="text-xs text-slate-300">{d.name}</span>
+                              <span className="text-xs font-semibold" style={{ color: d.color }}>{d.pct.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-center h-[240px] text-slate-500 text-sm">
+                          {isLoading ? "Loading prices…" : "Price data unavailable"}
+                        </div>
+                      )}
+                    </CardContent>
+                  </>
+                );
+                if (key === "nwSummary") return (
+                  <>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-green-300 text-base">Net Worth Summary</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">Live investment value</CardDescription>
+                    </CardHeader>
                       <CardContent className="space-y-2">
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
@@ -2977,8 +2987,7 @@ export default function Finances() {
                         </div>
                         <p className="text-[11px] text-slate-500 pt-1">* Prices live from CoinGecko & Yahoo Finance. Holdings saved in browser.</p>
                       </CardContent>
-                    </Card>
-                  </div>
+                  </>
                 );
                 return null;
               };
@@ -3002,7 +3011,7 @@ export default function Finances() {
 
                   {/* Widget toggle bar */}
                   <div className="flex flex-wrap gap-2 pb-1">
-                    {(["assets", "holdings", "allocation"] as NWWidgetKey[]).map(k => (
+                    {(["assets", "holdings", "portfolioPie", "nwSummary"] as NWWidgetKey[]).map(k => (
                       <button key={k} onClick={() => toggleNwWidget(k)}
                         className={`flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-all border ${
                           nwWidgetVisible[k]
@@ -3016,18 +3025,36 @@ export default function Finances() {
                   </div>
 
                   {/* Widgets rendered in draggable order */}
-                  {nwWidgetOrder.map((key, idx) => (
-                    <div key={key}
-                      draggable
-                      onDragStart={e => handleNwDragStart(e, idx)}
-                      onDragOver={e => handleNwDragOver(e, idx)}
-                      onDrop={e => handleNwDrop(e, idx)}
-                      onDragEnd={handleNwDragEnd}
-                      className={`transition-opacity ${nwDragOverIdx === idx && nwDragSrcIdx.current !== idx ? "opacity-50" : "opacity-100"}`}
-                    >
-                      {nwRenderWidget(key)}
-                    </div>
-                  ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {nwWidgetOrder.filter(key => nwWidgetVisible[key]).map((key, idx) => {
+                      const isDraggingOver = nwDragOverIdx === idx && nwDragSrcIdx.current !== idx;
+                      const content = nwRenderWidget(key);
+                      if (!content) return null;
+                      // "assets" and "holdings" span full width
+                      const fullWidth = key === "assets" || key === "holdings";
+                      return (
+                        <div key={key}
+                          className={fullWidth ? "md:col-span-2" : ""}
+                          draggable
+                          onDragStart={e => handleNwDragStart(e, idx)}
+                          onDragOver={e => handleNwDragOver(e, idx)}
+                          onDrop={e => handleNwDrop(e, idx)}
+                          onDragEnd={handleNwDragEnd}
+                        >
+                          <div className={`rounded-xl border bg-slate-800/60 transition-all duration-150 ${nwWidgetMeta[key].border} ${isDraggingOver ? "ring-2 ring-orange-500/60 scale-[1.01]" : ""}`}>
+                            {/* Drag handle */}
+                            <div className="flex items-center justify-end px-3 pt-2 pb-0 cursor-grab active:cursor-grabbing select-none">
+                              <div className="flex items-center gap-1 text-slate-600 hover:text-slate-400 transition-colors">
+                                <GripVertical className="h-4 w-4" />
+                                <GripVertical className="h-4 w-4 -ml-2.5" />
+                              </div>
+                            </div>
+                            {content}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </>
               );
             })()}
