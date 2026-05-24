@@ -250,10 +250,10 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-checking") || "35000"); } catch { return 35000; }
   });
   const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "2500"); } catch { return 2500; }
+    try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "4500"); } catch { return 4500; }
   });
   const [velunaDomainPurchasePrice, setVelunaDomainPurchasePrice] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-veluna-domain-purchase") || "3200"); } catch { return 3200; }
+    try { return parseFloat(localStorage.getItem("nw-veluna-domain-purchase") || "4001.17"); } catch { return 4001.17; }
   });
   const [eTradeRsuValue, setETradeRsuValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-etrade-rsu") || "65000"); } catch { return 65000; }
