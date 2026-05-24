@@ -727,6 +727,7 @@ export default function Finances() {
       { name: "Wells Fargo Active Cash Visa Card", issuer: "Wells Fargo", type: "2% Cash Back", status: "active", notes: "" },
       { name: "Barclays View Mastercard ...3373", issuer: "Barclays", type: "Cash Back", status: "active", notes: "" },
       { name: "Bank of America Card", issuer: "Bank of America", type: "Product unspecified", status: "verify", notes: "Verify card product and current status" },
+      { name: "Optum HSA Debit Card **3290", issuer: "Optum Bank", type: "HSA Debit", status: "active", notes: "" },
     ];
     const ccRows: (string | number)[][] = [
       ["Credit Cards on File"],
@@ -3156,6 +3157,15 @@ export default function Finances() {
                       color: "border-rose-500/30 bg-rose-500/5",
                       badge: "text-rose-400 border-rose-500/30",
                       icon: "�",
+                    },
+                    {
+                      name: "Optum HSA Debit Card **3290",
+                      issuer: "Optum Bank",
+                      type: "HSA Debit",
+                      status: "active",
+                      color: "border-teal-500/30 bg-teal-500/5",
+                      badge: "text-green-400 border-green-500/30",
+                      icon: "🏥",
                     },
                   ].map(card => (
                     <div key={card.name} className={`rounded-lg border p-3 ${card.color}`}>
