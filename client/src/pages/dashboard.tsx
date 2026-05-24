@@ -195,80 +195,43 @@ function TodayCalendarWidget() {
 
 // Finance Widget Component
 function FinanceWidget() {
-  // Track container height to adapt layout
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(400);
-  
+
   useEffect(() => {
     if (!contentRef.current) return;
     const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContentHeight(entry.contentRect.height);
-      }
+      for (const entry of entries) setContentHeight(entry.contentRect.height);
     });
     observer.observe(contentRef.current);
     return () => observer.disconnect();
   }, []);
-  
-  // Only "Income" category is considered money coming in (green)
-  // All other categories are expenses (reddish)
-  const INCOME_CATEGORIES = ["Income"];
-  const EXPENSE_COLORS: Record<string, string> = {
-    "General": "#A78BFA", // purple-400
-    "Business": "#60A5FA", // blue-400
-    "Entertainment": "#F472B6", // pink-400
-    "Food": "#FBBF24", // amber-400
-    "Housing": "#F87171", // red-400
-    "Transportation": "#34D399", // emerald-400
-    "Phone": "#818CF8", // indigo-400
-    "Internet": "#2DD4BF", // teal-400
-    "Insurance": "#FB923C", // orange-400
-    "Credit Card": "#EF4444", // red-500
-    "Health (Non Insurance)": "#A3E635", // lime-400
-    "Toiletries": "#C084FC", // purple-400
-    "Charity": "#22D3EE", // cyan-400
-  };
-  const INCOME_COLOR = "#10B981"; // emerald-500
 
   const { data: financialItems = [] } = useQuery<FinancialItem[]>({
     queryKey: ["/api/finances"],
   });
 
-  // Calculate totals
-  const totalIncome = financialItems
-    .filter(item => INCOME_CATEGORIES.includes(item.category))
-    .reduce((sum, item) => sum + item.monthlyCost, 0);
+  const classifyItem = (cat: string) => {
+    const inc = ["Income", "Investment", "Side Income", "Freelance", "RSU", "ESPP", "HSA", "Dividend"];
+    const ret = ["Retirement", "401k", "Roth IRA", "IRA", "Pension"];
+    if (inc.some(k => cat.toLowerCase().includes(k.toLowerCase()))) return "income";
+    if (ret.some(k => cat.toLowerCase().includes(k.toLowerCase()))) return "retirement";
+    return "expense";
+  };
 
-  const totalExpenses = financialItems
-    .filter(item => !INCOME_CATEGORIES.includes(item.category))
-    .reduce((sum, item) => sum + item.monthlyCost, 0);
-
-  const netIncome = totalIncome - totalExpenses;
-  const savingsRate = totalIncome > 0 ? ((netIncome / totalIncome) * 100) : 0;
-
-  // Prepare pie chart data
-  const expensesByCategory = financialItems
-    .filter(item => !INCOME_CATEGORIES.includes(item.category))
-    .reduce((acc, item) => {
-      if (!acc[item.category]) {
-        acc[item.category] = 0;
-      }
-      acc[item.category] += item.monthlyCost;
-      return acc;
-    }, {} as Record<string, number>);
+  const totalIncome = financialItems.filter(i => classifyItem(i.category) === "income").reduce((s, i) => s + i.monthlyCost, 0);
+  const totalRetirement = financialItems.filter(i => classifyItem(i.category) === "retirement").reduce((s, i) => s + i.monthlyCost, 0);
+  const totalExpenses = financialItems.filter(i => classifyItem(i.category) === "expense").reduce((s, i) => s + i.monthlyCost, 0);
+  const netCashFlow = totalIncome - totalExpenses;
+  const savingsRate = totalIncome > 0 ? (netCashFlow / totalIncome) * 100 : 0;
 
   const pieData = [
-    { name: "Income", value: totalIncome, color: INCOME_COLOR },
-    ...Object.entries(expensesByCategory).map(([category, value]) => ({
-      name: category,
-      value,
-      color: EXPENSE_COLORS[category as keyof typeof EXPENSE_COLORS] || "#94A3B8"
-    }))
-  ].filter(item => item.value > 0);
+    { name: "Income & Investment", value: totalIncome, color: "#22C55E" },
+    { name: "Retirement Contributions", value: totalRetirement, color: "#FBBF24" },
+    { name: "Expenses", value: totalExpenses, color: "#EF4444" },
+  ].filter(d => d.value > 0);
 
-  const formatCurrency = (cents: number) => {
-    return `$${(cents / 100).toFixed(0)}`;
-  };
+  const fmt = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
   return (
     <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-emerald-500/30 hover:border-emerald-400/60 transition-all h-full shadow-lg shadow-emerald-500/10 flex flex-col">
@@ -281,7 +244,7 @@ function FinanceWidget() {
             <p className="text-xs text-emerald-200/60 mt-1">Monthly Income & Expenses</p>
           </div>
           <Link href="/finances">
-            <Button variant="outline" size="sm" className="flex items-center gap-2 border-emerald-500/50 bg-emerald-600/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 hover:shadow-md hover:shadow-emerald-500/20 transition-all">
+            <Button variant="outline" size="sm" className="flex items-center gap-2 border-emerald-500/50 bg-emerald-600/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 transition-all">
               View Details
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -297,70 +260,62 @@ function FinanceWidget() {
         ) : (
           <div className="h-full flex flex-col">
             <div className="relative flex-1 min-h-0">
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-green-500/5 rounded-lg blur-xl"></div>
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
+                    innerRadius="45%"
+                    outerRadius="70%"
                     labelLine={false}
                     label={false}
-                    outerRadius="70%"
-                    stroke="rgba(15, 23, 42, 0.8)"
+                    stroke="rgba(15,23,42,0.8)"
                     strokeWidth={2}
-                    fill="#8884d8"
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={entry.color}
-                        style={{
-                          filter: `drop-shadow(0 0 8px ${entry.color}40)`,
-                        }}
-                      />
+                      <Cell key={`cell-${index}`} fill={entry.color} style={{ filter: `drop-shadow(0 0 6px ${entry.color}40)` }} />
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
-                    contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                      border: '2px solid rgba(16, 185, 129, 0.3)',
-                      borderRadius: '12px',
-                      color: '#f1f5f9',
-                      boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
-                      backdropFilter: 'blur(8px)'
-                    }}
-                    labelStyle={{
-                      color: '#6ee7b7',
-                      fontWeight: 'bold'
-                    }}
+                    formatter={(value: number) => fmt(value)}
+                    contentStyle={{ backgroundColor: "rgba(15,23,42,0.95)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", color: "#f1f5f9" }}
+                    labelStyle={{ color: "#6ee7b7", fontWeight: "bold" }}
                   />
                   {contentHeight > 280 && (
-                    <Legend 
-                      wrapperStyle={{
-                        fontSize: '11px',
-                        paddingTop: '10px'
-                      }}
-                      iconType="circle"
-                      formatter={(value) => <span className="text-slate-300">{value}</span>}
+                    <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle"
+                      formatter={(value) => <span style={{ color: "#cbd5e1" }}>{value}</span>}
                     />
                   )}
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
             {contentHeight > 200 && (
-              <div className={`${contentHeight > 280 ? 'mt-4 space-y-3' : 'mt-2 space-y-1'} flex-shrink-0`}>
-                <div className={`flex justify-between items-center ${contentHeight > 280 ? 'p-3' : 'p-1.5 text-sm'} bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg border border-emerald-500/20`}>
-                  <span className="text-emerald-200/90 font-medium">Net Income:</span>
-                  <span className={`font-bold ${contentHeight > 280 ? 'text-lg' : 'text-sm'} ${netIncome >= 0 ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]'}`}>
-                    {formatCurrency(netIncome)}/mo
+              <div className={`${contentHeight > 280 ? "mt-3 space-y-2" : "mt-1 space-y-1"} flex-shrink-0`}>
+                <div className={`grid grid-cols-3 gap-2 text-center ${contentHeight > 280 ? "mt-2" : ""}`}>
+                  <div>
+                    <p className="text-[10px] text-slate-400">Income & Investment</p>
+                    <p className={`font-bold text-green-300 ${contentHeight > 280 ? "text-base" : "text-xs"}`}>{fmt(totalIncome)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400">Retirement</p>
+                    <p className={`font-bold text-yellow-300 ${contentHeight > 280 ? "text-base" : "text-xs"}`}>{fmt(totalRetirement)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400">Expenses</p>
+                    <p className={`font-bold text-red-300 ${contentHeight > 280 ? "text-base" : "text-xs"}`}>{fmt(totalExpenses)}</p>
+                  </div>
+                </div>
+                <div className={`flex justify-between items-center ${contentHeight > 280 ? "p-2.5" : "p-1.5 text-sm"} bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg border border-emerald-500/20`}>
+                  <span className="text-emerald-200/90 font-medium text-sm">Net Cash Flow</span>
+                  <span className={`font-bold ${contentHeight > 280 ? "text-base" : "text-sm"} ${netCashFlow >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {fmt(netCashFlow)}/mo
                   </span>
                 </div>
-                <div className={`flex justify-between items-center ${contentHeight > 280 ? 'p-3' : 'p-1.5 text-sm'} bg-gradient-to-r from-yellow-500/10 to-amber-500/10 rounded-lg border border-yellow-500/20`}>
-                  <span className="text-yellow-200/90 font-medium">Savings Rate:</span>
-                  <span className={`font-bold ${contentHeight > 280 ? 'text-lg' : 'text-sm'} text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]`}>{savingsRate.toFixed(1)}%</span>
+                <div className={`flex justify-between items-center ${contentHeight > 280 ? "p-2.5" : "p-1.5 text-sm"} bg-gradient-to-r from-yellow-500/10 to-amber-500/10 rounded-lg border border-yellow-500/20`}>
+                  <span className="text-yellow-200/90 font-medium text-sm">Savings Rate</span>
+                  <span className={`font-bold ${contentHeight > 280 ? "text-base" : "text-sm"} text-yellow-300`}>{savingsRate.toFixed(1)}%</span>
                 </div>
               </div>
             )}
