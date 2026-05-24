@@ -987,11 +987,11 @@ export default function Dashboard() {
         {/* Mobile: Second row of 4 */}
         {isMobile && (
         <div className="grid grid-cols-4 gap-2 mb-4">
-          <Link href="/npcs">
+          <Link href="/finances">
             <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-cyan-500/30 hover:border-cyan-400/60 group h-full">
               <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
-                <User className="w-6 h-6 mb-1 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
-                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">NPCs</h3>
+                <DollarSign className="w-6 h-6 mb-1 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">Finance</h3>
               </CardContent>
             </Card>
           </Link>
@@ -1014,12 +1014,24 @@ export default function Dashboard() {
             </Card>
           </Link>
 
-          <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group h-full">
-            <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
-              <Target className="w-6 h-6 mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
-              <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">More</h3>
-            </CardContent>
-          </Card>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group h-full">
+                <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                  <Target className="w-6 h-6 mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                  <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">More</h3>
+                </CardContent>
+              </Card>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-slate-800 border border-slate-600 text-yellow-100 z-50">
+              <DropdownMenuItem asChild className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
+                <Link href="/npcs" className="flex items-center gap-2 px-2 py-2">
+                  <User className="w-4 h-4 text-cyan-400" />
+                  <span className="font-serif text-sm">NPCs</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         )}
 
