@@ -252,6 +252,9 @@ export default function Finances() {
   const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "2500"); } catch { return 2500; }
   });
+  const [velunaDomainPurchasePrice, setVelunaDomainPurchasePrice] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-veluna-domain-purchase") || "3200"); } catch { return 3200; }
+  });
   const [eTradeRsuValue, setETradeRsuValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-etrade-rsu") || "65000"); } catch { return 65000; }
   });
@@ -432,7 +435,10 @@ export default function Finances() {
   // BTC wallets and Vanguard brokerage: apply 15% LTCG haircut in all net worth totals
   const _btcAfterTax = _totalBtcValue * 0.85;
   const _vanguardAfterTax = _vanguardTotal * 0.85;
-  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+  // Domain: only taxable gains above purchase price; currently at a loss so $0 tax
+  const _domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
+  const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
+  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
@@ -824,7 +830,7 @@ export default function Finances() {
                                 { label: "401k (VIIIX)", value: _k401Value, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
-                                { label: "veluna.com Domain", value: velunaDomainValue, color: "text-violet-300" },
+                                { label: "veluna.com Domain", value: _domainAfterTax, color: "text-violet-300" },
                                 { label: "E*Trade (Apple RSU)", value: eTradeRsuValue, color: "text-green-300" },
                                 { label: "Ford Explorer XLT", value: fordExplorerValue, color: "text-orange-300" },
                                 { label: "Kawasaki Ninja 300", value: kawasakiNinjaValue, color: "text-red-300" },
@@ -905,7 +911,7 @@ export default function Finances() {
                   case "portfolioAllocation": {
                     const _cryptoTotal = _btcAfterTax + _rothIraValue;
                     const _indexTotal = _vanguardAfterTax + _k401Value + eTradeRsuValue;
-                    const _domainTotal = velunaDomainValue;
+                    const _domainTotal = _domainAfterTax;
                     const _vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
                     const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
                     const _overviewPieData = [
@@ -1575,12 +1581,15 @@ export default function Finances() {
               // BTC wallets and Vanguard brokerage use after-tax (85%) values in totals
               const btcAfterTax = totalBtcValue * 0.85;
               const vanguardAfterTax = vanguardTotal * 0.85;
-              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraValue + k401Value + homeEquity + checkingBalance + velunaDomainValue + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+              // Domain: only gains above purchase price are taxed at 15%; loss = no tax
+              const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
+              const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
+              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraValue + k401Value + homeEquity + checkingBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
               const cryptoTotal = btcAfterTax + rothIraValue; // BTC wallets (after-tax) + Roth IRA (IBIT = crypto ETF)
               const indexFundsTotal = vanguardAfterTax + k401Value + eTradeRsuValue; // Vanguard after-tax + 401k VIIIX + Apple RSUs
-              const domainTotal = velunaDomainValue;
+              const domainTotal = domainAfterTax;
               const vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
@@ -1913,17 +1922,85 @@ export default function Finances() {
                     {/* veluna.com Domain */}
                     <Card className="bg-slate-800/60 border-violet-500/30">
                       <CardContent className="pt-4 pb-3 px-4">
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between mb-2">
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="text-xs text-violet-400 font-bold tracking-wide">🌐 veluna.com</p>
                               <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
                             </div>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Domain name — estimated value</p>
-                            <p className="text-2xl font-bold mt-0.5 text-white">${velunaDomainValue.toLocaleString()}</p>
+                            {(() => {
+                              const domainGain = velunaDomainValue - velunaDomainPurchasePrice;
+                              const domainTaxableGain = Math.max(0, domainGain);
+                              const domainCapGainsTax = domainTaxableGain * 0.15;
+                              const domainAfterTax = velunaDomainValue - domainCapGainsTax;
+                              return (
+                                <>
+                                  <p className={`text-2xl font-bold mt-0.5 ${domainAfterTax >= velunaDomainPurchasePrice ? "text-white" : "text-red-300"}`}>
+                                    ${Math.round(domainAfterTax).toLocaleString()}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">est. after-tax net proceeds</p>
+                                </>
+                              );
+                            })()}
                           </div>
                           <span className="text-[10px] border rounded px-1.5 py-0.5 text-violet-400 border-violet-500/30">domain</span>
                         </div>
+
+                        {/* Sale proceeds */}
+                        {(() => {
+                          const domainGain = velunaDomainValue - velunaDomainPurchasePrice;
+                          const domainTaxableGain = Math.max(0, domainGain);
+                          const domainCapGainsTax = domainTaxableGain * 0.15;
+                          const domainAfterTax = velunaDomainValue - domainCapGainsTax;
+                          return (
+                            <>
+                              <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Sale Proceeds</p>
+                                <div className="flex justify-between">
+                                  <span>Estimated sale price</span>
+                                  <span className="text-slate-300">${velunaDomainValue.toLocaleString()}</span>
+                                </div>
+                              </div>
+
+                              {/* Capital gains breakdown */}
+                              <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Capital Gains</p>
+                                <div className="flex justify-between">
+                                  <span>Purchase price</span>
+                                  <span>${velunaDomainPurchasePrice.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Raw gain / (loss)</span>
+                                  <span className={domainGain >= 0 ? "text-slate-300" : "text-emerald-400"}>
+                                    {domainGain >= 0 ? `$${Math.round(domainGain).toLocaleString()}` : `-$${Math.abs(Math.round(domainGain)).toLocaleString()}`}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Taxable gain</span>
+                                  <span className={domainTaxableGain > 0 ? "text-yellow-400" : "text-emerald-400"}>
+                                    ${Math.round(domainTaxableGain).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1">
+                                  <span className="text-slate-300">Est. cap gains tax (15%)</span>
+                                  <span className={domainCapGainsTax > 0 ? "text-red-400" : "text-emerald-400"}>
+                                    {domainCapGainsTax > 0 ? `-$${Math.round(domainCapGainsTax).toLocaleString()}` : "$0"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Final after-tax */}
+                              <div className="mt-2 pt-2 border-t border-slate-600/60">
+                                <div className="flex justify-between text-sm font-bold">
+                                  <span className="text-slate-200">After-tax net proceeds</span>
+                                  <span className={domainAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}>
+                                    ${Math.round(domainAfterTax).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </CardContent>
                     </Card>
 
@@ -2141,11 +2218,18 @@ export default function Finances() {
                             <p className="text-[10px] text-violet-400/70 uppercase tracking-widest font-semibold mb-3">🌐 Digital Assets</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <Label className="text-slate-300 text-xs mb-1 block">veluna.com — Estimated Domain Value ($)</Label>
+                                <Label className="text-slate-300 text-xs mb-1 block">veluna.com — Estimated Sale Value ($)</Label>
                                 <Input type="number" min="0" step="100" value={velunaDomainValue}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setVelunaDomainValue(v); try { localStorage.setItem("nw-veluna-domain", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                                 <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">veluna.com — Original Purchase Price ($)</Label>
+                                <Input type="number" min="0" step="100" value={velunaDomainPurchasePrice}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setVelunaDomainPurchasePrice(v); try { localStorage.setItem("nw-veluna-domain-purchase", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Used for cap gains calculation</p>
                               </div>
                             </div>
                           </div>
@@ -2562,10 +2646,21 @@ export default function Finances() {
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
                             <span className="text-violet-300">🌐 veluna.com</span>
-                            <span className="text-white font-semibold">${velunaDomainValue.toLocaleString()}</span>
+                            <span className="text-white font-semibold">
+                              ${Math.round(velunaDomainValue - Math.max(0, velunaDomainValue - velunaDomainPurchasePrice) * 0.15).toLocaleString()}
+                            </span>
                           </div>
-                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
-                            <span>Domain name · manual estimate · May 2026</span>
+                          <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
+                            <span>Est. sale value</span>
+                            <span>${velunaDomainValue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-slate-500 pl-3">
+                            <span>Purchase price</span>
+                            <span>${velunaDomainPurchasePrice.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-red-500/80 pl-3">
+                            <span>Est. 15% LTCG tax on gain</span>
+                            <span>−${Math.round(Math.max(0, velunaDomainValue - velunaDomainPurchasePrice) * 0.15).toLocaleString()}</span>
                           </div>
                         </div>
                         <div className="py-2 border-b border-slate-700/40">
