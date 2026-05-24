@@ -84,6 +84,7 @@ export default function Finances() {
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
+  const [iveView, setIveView] = useState<"summary" | "granular">("summary");
   // Overview widget visibility toggles
   const [overviewWidgets, setOverviewWidgets] = useState({
     incomeSources: true,
@@ -1226,77 +1227,159 @@ export default function Finances() {
           <TabsContent value="income-vs-expense" className="space-y-4">
             <Card className="bg-slate-800/60 border-green-500/20">
               <CardHeader>
-                <CardTitle className="text-green-300">Income + Investment vs Expenses</CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  🟢 Income &amp; Investment · 🟡 Retirement · 🔴 Expenses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={360}>
-                  <RechartsPieChart>
-                    <Pie data={incomeVsExpensePie} cx="50%" cy="50%" outerRadius={130} innerRadius={60}
-                      dataKey="value" labelLine={false} label={false}>
-                      {incomeVsExpensePie.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend formatter={(value) => <span className="text-slate-200 text-sm">{value}</span>} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700/50">
-                  <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3">
-                    <p className="text-xs text-green-400 font-semibold mb-2 flex items-center gap-1.5">
-                      <TrendingUp className="h-3.5 w-3.5" /> Income + Investment
-                    </p>
-                    {financialItems.filter(i => classifyItem(i.category) === "income")
-                      .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => (
-                        <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-green-500/10 last:border-0">
-                          <span className="text-slate-300 truncate mr-2">{i.item}</span>
-                          <span className="text-green-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
-                        </div>
-                      ))}
-                    <div className="flex justify-between text-xs pt-1.5 font-bold">
-                      <span className="text-green-300">Total</span>
-                      <span className="text-green-300">{formatCurrency(totalIncome)}</span>
-                    </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-green-300">Income + Investment vs Expenses</CardTitle>
+                    <CardDescription className="text-slate-400 text-xs mt-1">
+                      {iveView === "summary"
+                        ? "🟢 Income & Investment · 🟡 Retirement · 🔴 Expenses"
+                        : "All individual items broken down by category"}
+                    </CardDescription>
                   </div>
-                  <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3">
-                    <p className="text-xs text-yellow-400 font-semibold mb-2 flex items-center gap-1.5">
-                      <PiggyBank className="h-3.5 w-3.5" /> Retirement
-                    </p>
-                    {retirementItems.sort((a, b) => b.monthlyCost - a.monthlyCost).map(i => (
-                      <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-yellow-500/10 last:border-0">
-                        <span className="text-slate-300 truncate mr-2">{i.item}</span>
-                        <span className="text-yellow-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between text-xs pt-1.5 font-bold">
-                      <span className="text-yellow-300">Total</span>
-                      <span className="text-yellow-300">{formatCurrency(totalRetirement)}</span>
-                    </div>
-                  </div>
-                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
-                    <p className="text-xs text-red-400 font-semibold mb-2 flex items-center gap-1.5">
-                      <TrendingDown className="h-3.5 w-3.5" /> Top Expenses
-                    </p>
-                    {financialItems.filter(i => classifyItem(i.category) === "expense")
-                      .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .slice(0, 10)
-                      .map(i => (
-                        <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-red-500/10 last:border-0">
-                          <span className="text-slate-300 truncate mr-2">{i.item}</span>
-                          <span className="text-red-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
-                        </div>
-                      ))}
-                    <div className="flex justify-between text-xs pt-1.5 font-bold">
-                      <span className="text-red-300">Total</span>
-                      <span className="text-red-300">{formatCurrency(totalExpenses)}</span>
-                    </div>
+                  <div className="flex shrink-0 rounded-lg overflow-hidden border border-slate-600/60 text-xs">
+                    <button
+                      onClick={() => setIveView("summary")}
+                      className={`px-3 py-1.5 transition-colors ${iveView === "summary" ? "bg-green-600/50 text-green-200" : "bg-slate-700/40 text-slate-400 hover:text-slate-200"}`}
+                    >
+                      Summary
+                    </button>
+                    <button
+                      onClick={() => setIveView("granular")}
+                      className={`px-3 py-1.5 transition-colors border-l border-slate-600/60 ${iveView === "granular" ? "bg-green-600/50 text-green-200" : "bg-slate-700/40 text-slate-400 hover:text-slate-200"}`}
+                    >
+                      Granular
+                    </button>
                   </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                {iveView === "summary" ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={360}>
+                      <RechartsPieChart>
+                        <Pie data={incomeVsExpensePie} cx="50%" cy="50%" outerRadius={130} innerRadius={60}
+                          dataKey="value" labelLine={false} label={false}>
+                          {incomeVsExpensePie.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend formatter={(value) => <span className="text-slate-200 text-sm">{value}</span>} />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700/50">
+                      <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3">
+                        <p className="text-xs text-green-400 font-semibold mb-2 flex items-center gap-1.5">
+                          <TrendingUp className="h-3.5 w-3.5" /> Income + Investment
+                        </p>
+                        {financialItems.filter(i => classifyItem(i.category) === "income")
+                          .sort((a, b) => b.monthlyCost - a.monthlyCost)
+                          .map(i => (
+                            <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-green-500/10 last:border-0">
+                              <span className="text-slate-300 truncate mr-2">{i.item}</span>
+                              <span className="text-green-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
+                            </div>
+                          ))}
+                        <div className="flex justify-between text-xs pt-1.5 font-bold">
+                          <span className="text-green-300">Total</span>
+                          <span className="text-green-300">{formatCurrency(totalIncome)}</span>
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3">
+                        <p className="text-xs text-yellow-400 font-semibold mb-2 flex items-center gap-1.5">
+                          <PiggyBank className="h-3.5 w-3.5" /> Retirement
+                        </p>
+                        {retirementItems.sort((a, b) => b.monthlyCost - a.monthlyCost).map(i => (
+                          <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-yellow-500/10 last:border-0">
+                            <span className="text-slate-300 truncate mr-2">{i.item}</span>
+                            <span className="text-yellow-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-xs pt-1.5 font-bold">
+                          <span className="text-yellow-300">Total</span>
+                          <span className="text-yellow-300">{formatCurrency(totalRetirement)}</span>
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
+                        <p className="text-xs text-red-400 font-semibold mb-2 flex items-center gap-1.5">
+                          <TrendingDown className="h-3.5 w-3.5" /> Top Expenses
+                        </p>
+                        {financialItems.filter(i => classifyItem(i.category) === "expense")
+                          .sort((a, b) => b.monthlyCost - a.monthlyCost)
+                          .slice(0, 10)
+                          .map(i => (
+                            <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-red-500/10 last:border-0">
+                              <span className="text-slate-300 truncate mr-2">{i.item}</span>
+                              <span className="text-red-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
+                            </div>
+                          ))}
+                        <div className="flex justify-between text-xs pt-1.5 font-bold">
+                          <span className="text-red-300">Total</span>
+                          <span className="text-red-300">{formatCurrency(totalExpenses)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (() => {
+                  // Granular: every individual item as its own slice, colored by type
+                  const granularData = [
+                    ...financialItems.filter(i => classifyItem(i.category) === "income")
+                      .sort((a, b) => b.monthlyCost - a.monthlyCost)
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#22C55E", type: "income" as const })),
+                    ...financialItems.filter(i => classifyItem(i.category) === "retirement")
+                      .sort((a, b) => b.monthlyCost - a.monthlyCost)
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FBBF24", type: "retirement" as const })),
+                    ...financialItems.filter(i => classifyItem(i.category) === "expense")
+                      .sort((a, b) => b.monthlyCost - a.monthlyCost)
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "expense" as const })),
+                  ].filter(d => d.value > 0);
+                  const grandTotal = granularData.reduce((s, d) => s + d.value, 0);
+                  return (
+                    <>
+                      <ResponsiveContainer width="100%" height={380}>
+                        <RechartsPieChart>
+                          <Pie data={granularData} cx="50%" cy="50%" outerRadius={140} innerRadius={55}
+                            dataKey="value" labelLine={false} label={false}>
+                            {granularData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.25)" strokeWidth={1} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                            contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: "8px", fontSize: "12px" }}
+                          />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+
+                      <div className="mt-4 pt-4 border-t border-slate-700/50 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {(["income", "retirement", "expense"] as const).map(type => {
+                          const items = granularData.filter(d => d.type === type);
+                          const typeTotal = items.reduce((s, d) => s + d.value, 0);
+                          const typeColor = type === "income" ? "green" : type === "retirement" ? "yellow" : "red";
+                          const typeLabel = type === "income" ? "Income & Investment" : type === "retirement" ? "Retirement" : "Expenses";
+                          return (
+                            <div key={type} className={`rounded-lg bg-${typeColor}-500/10 border border-${typeColor}-500/20 p-3`}>
+                              <p className={`text-xs text-${typeColor}-400 font-semibold mb-2`}>{typeLabel}</p>
+                              {items.map(item => (
+                                <div key={item.name} className="flex items-center gap-1.5 py-0.5 border-b border-slate-700/30 last:border-0">
+                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                                  <span className="text-slate-300 text-xs truncate flex-1 mr-1">{item.name}</span>
+                                  <span className={`text-${typeColor}-300 text-xs shrink-0`}>{formatCurrency(item.value)}</span>
+                                  <span className="text-slate-500 text-[10px] shrink-0">({grandTotal > 0 ? ((item.value / grandTotal) * 100).toFixed(1) : 0}%)</span>
+                                </div>
+                              ))}
+                              <div className={`flex justify-between text-xs pt-1.5 font-bold text-${typeColor}-300`}>
+                                <span>Total</span>
+                                <span>{formatCurrency(typeTotal)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
