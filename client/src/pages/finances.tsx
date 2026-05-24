@@ -782,6 +782,18 @@ export default function Finances() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <Card className="bg-slate-800/60 border-orange-500/30">
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Bitcoin className="h-4 w-4 text-orange-400" />
+                <p className="text-xs text-slate-400">Net Worth</p>
+              </div>
+              <p className="text-2xl font-bold text-orange-300">
+                {nwIsLoading ? <span className="text-base text-slate-400">Loading…</span> : `$${overviewNetWorth.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">after-tax estimate</p>
+            </CardContent>
+          </Card>
           <Card className="bg-slate-800/60 border-green-500/30">
             <CardContent className="pt-4 pb-3 px-4">
               <div className="flex items-center gap-2 mb-1">
@@ -789,16 +801,6 @@ export default function Finances() {
                 <p className="text-xs text-slate-400">Income + Investment</p>
               </div>
               <p className="text-2xl font-bold text-green-300">{formatCurrency(totalIncome)}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-800/60 border-yellow-500/30">
-            <CardContent className="pt-4 pb-3 px-4">
-              <div className="flex items-center gap-2 mb-1">
-                <PiggyBank className="h-4 w-4 text-yellow-400" />
-                <p className="text-xs text-slate-400">Retirement</p>
-              </div>
-              <p className="text-2xl font-bold text-yellow-300">{formatCurrency(totalRetirement)}</p>
               <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
             </CardContent>
           </Card>
@@ -857,14 +859,14 @@ export default function Finances() {
             <TabsTrigger value="cashflow" className="data-[state=active]:bg-blue-600/40 text-xs px-3 py-1.5">
               <Wallet className="h-3.5 w-3.5 mr-1.5" />Cash Flow (W2 Only)
             </TabsTrigger>
-            <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
-              <List className="h-3.5 w-3.5 mr-1.5" />All Items
-            </TabsTrigger>
             <TabsTrigger value="credit-cards" className="data-[state=active]:bg-red-600/40 text-xs px-3 py-1.5">
               <CreditCard className="h-3.5 w-3.5 mr-1.5" />Credit Cards
             </TabsTrigger>
             <TabsTrigger value="accounts" className="data-[state=active]:bg-slate-600/60 text-xs px-3 py-1.5">
               <Building2 className="h-3.5 w-3.5 mr-1.5" />Accounts
+            </TabsTrigger>
+            <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
+              <List className="h-3.5 w-3.5 mr-1.5" />All Items
             </TabsTrigger>
           </TabsList>
 
