@@ -522,49 +522,242 @@ export default function Finances() {
     return "bg-red-500/15 text-red-300 border-red-500/20";
   };
 
-  const handleExport = () => {
-    const rows: string[][] = [];
-    rows.push(["Item", "Category", "Type", "Recur Type", "Monthly ($)", "Annual ($)"]);
+  const handleExport = async () => {
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    const $ = (cents: number) => parseFloat((cents / 100).toFixed(2));
+    const $v = (val: number) => parseFloat(val.toFixed(2));
+    const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-    const order: Array<"income" | "retirement" | "expense"> = ["income", "retirement", "expense"];
-    const labels: Record<string, string> = { income: "Income/Investment", retirement: "Retirement", expense: "Expense" };
+    // ── Sheet 1: Overview Summary ──────────────────────────────────────────
+    const overviewRows: (string | number)[][] = [
+      ["Financial Dashboard — Overview Summary"],
+      [`Exported: ${today}`],
+      [],
+      ["METRIC", "MONTHLY ($)", "ANNUAL ($)", "NOTES"],
+      ["Total Income & Investment", $(totalIncome), $(totalIncome * 12), "W2 salary + RSUs + ESPP + HSA"],
+      ["Retirement Contributions", $(totalRetirement), $(totalRetirement * 12), "401k + Roth IRA contributions"],
+      ["Total Expenses", $(totalExpenses), $(totalExpenses * 12), "All tracked expense categories"],
+      ["Net Cash Flow (Income − Expenses)", $(netCashFlow), $(netCashFlow * 12), "After expenses, before retirement"],
+      ["W2 Salary Only", $(w2Income), $(w2Income * 12), "Post-tax W2 salary"],
+      ["Non-W2 Income (RSUs, ESPP, etc.)", $(nonW2Income), $(nonW2Income * 12), ""],
+      ["Savings Rate", `${savingsRate.toFixed(1)}%`, "", "Net Cash Flow / Total Income"],
+      [],
+      ["NET WORTH SNAPSHOT (after-tax estimates)", "", "", ""],
+      ["BTC Wallet + Coinbase (after 15% LTCG)", $v(_btcAfterTax), "", `${btcHoldings + coinbaseBtcHoldings} BTC @ $${_btcPrice.toFixed(0)}/BTC`],
+      ["Vanguard Brokerage (after 15% LTCG)", $v(_vanguardAfterTax), "", `VTSAX ${vtsaxHoldings} sh + VOO ${vooHoldings} sh`],
+      ["Roth IRA — IBIT", $v(_rothIraValue), "", `${rothIraIbitHoldings} IBIT shares`],
+      ["Fidelity 401k — VIIIX", $v(_k401Value), "", `${k401Shares} VIIIX shares`],
+      ["BMO Checking", $v(checkingBalance), "", "Cash"],
+      ["Apple RSUs (E*Trade)", $v(eTradeRsuValue), "", "Vested shares"],
+      ["Real Estate (after costs & taxes)", $v(_homeAfterTaxNetCash), "", "2605 Plumbago Ct, Rocklin CA"],
+      ["Domain — veluna.com (after 15% LTCG)", $v(_domainAfterTax), "", `Sale $${velunaDomainValue} · Purchase $${velunaDomainPurchasePrice}`],
+      ["Ford Explorer", $v(fordExplorerValue), "", "Vehicle"],
+      ["Kawasaki Ninja 400", $v(kawasakiNinjaValue), "", "Vehicle"],
+      [],
+      ["TOTAL NET WORTH (after-tax)", $v(overviewNetWorth), "", ""],
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(overviewRows);
+    ws1["!cols"] = [{ wch: 44 }, { wch: 16 }, { wch: 16 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, ws1, "Overview");
 
-    for (const type of order) {
-      const group = financialItems.filter(i => classifyItem(i.category) === type)
+    // ── Sheet 2: Income vs Expense (all items) ─────────────────────────────
+    const typeLabels: Record<string, string> = { income: "Income / Investment", retirement: "Retirement", expense: "Expense" };
+    const iveRows: (string | number)[][] = [
+      ["Income vs Expense — All Items"],
+      [`Exported: ${today}`],
+      [],
+      ["ITEM NAME", "CATEGORY", "TYPE", "FREQUENCY", "MONTHLY ($)", "ANNUAL ($)"],
+    ];
+    for (const type of ["income", "retirement", "expense"] as const) {
+      const group = financialItems
+        .filter(i => classifyItem(i.category) === type)
         .sort((a, b) => b.monthlyCost - a.monthlyCost);
       if (!group.length) continue;
-      rows.push([]);
-      rows.push([`--- ${labels[type]} ---`, "", "", "", "", ""]);
-      for (const item of group) {
-        rows.push([
-          item.item, item.category, labels[type], item.recurType,
-          (item.monthlyCost / 100).toFixed(2),
-          ((item.monthlyCost * 12) / 100).toFixed(2),
-        ]);
+      iveRows.push([]);
+      iveRows.push([`── ${typeLabels[type].toUpperCase()} ──`, "", "", "", "", ""]);
+      for (const it of group) {
+        iveRows.push([it.item, it.category, typeLabels[type], it.recurType, $(it.monthlyCost), $(it.monthlyCost * 12)]);
       }
-      const groupTotal = group.reduce((s, i) => s + i.monthlyCost, 0);
-      rows.push([`${labels[type]} Subtotal`, "", "", "", (groupTotal / 100).toFixed(2), ((groupTotal * 12) / 100).toFixed(2)]);
+      const sub = group.reduce((s, i) => s + i.monthlyCost, 0);
+      iveRows.push([`${typeLabels[type]} Subtotal`, "", "", "", $(sub), $(sub * 12)]);
     }
+    iveRows.push([]);
+    iveRows.push(["GRAND TOTAL INCOME + INVESTMENT", "", "", "", $(totalIncome), $(totalIncome * 12)]);
+    iveRows.push(["GRAND TOTAL EXPENSES", "", "", "", $(totalExpenses), $(totalExpenses * 12)]);
+    iveRows.push(["NET CASH FLOW", "", "", "", $(netCashFlow), $(netCashFlow * 12)]);
+    const ws2 = XLSX.utils.aoa_to_sheet(iveRows);
+    ws2["!cols"] = [{ wch: 44 }, { wch: 24 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "Income vs Expense");
 
-    rows.push([]);
-    rows.push(["--- Summary ---", "", "", "", "", ""]);
-    rows.push(["Total Income + Investment", "", "", "", (totalIncome / 100).toFixed(2), (totalIncome * 12 / 100).toFixed(2)]);
-    rows.push(["Total Retirement", "", "", "", (totalRetirement / 100).toFixed(2), (totalRetirement * 12 / 100).toFixed(2)]);
-    rows.push(["Total Expenses", "", "", "", (totalExpenses / 100).toFixed(2), (totalExpenses * 12 / 100).toFixed(2)]);
-    rows.push(["Net Cash Flow (Income - Expenses)", "", "", "", (netCashFlow / 100).toFixed(2), (netCashFlow * 12 / 100).toFixed(2)]);
-    rows.push(["Savings Rate", "", "", "", `${savingsRate.toFixed(1)}%`, ""]);
+    // ── Sheet 3: Expense Breakdown by Category ─────────────────────────────
+    const expRows: (string | number)[][] = [
+      ["Expense Breakdown by Category"],
+      [`Exported: ${today}`],
+      [],
+      ["CATEGORY", "MONTHLY ($)", "ANNUAL ($)", "% OF TOTAL EXPENSES", "ITEMS IN CATEGORY"],
+    ];
+    for (const { name, value, pct } of expensePie) {
+      const count = financialItems.filter(i => i.category === name && classifyItem(i.category) === "expense").length;
+      expRows.push([name, $(value), $(value * 12), `${pct.toFixed(1)}%`, count]);
+    }
+    expRows.push([]);
+    expRows.push(["TOTAL EXPENSES", $(totalExpenses), $(totalExpenses * 12), "100%", financialItems.filter(i => classifyItem(i.category) === "expense").length]);
+    expRows.push([]);
+    expRows.push(["── Item Detail ──", "", "", "", ""]);
+    expRows.push(["ITEM NAME", "CATEGORY", "FREQUENCY", "MONTHLY ($)", "ANNUAL ($)"]);
+    for (const it of topExpenses) {
+      expRows.push([it.item, it.category, it.recurType, $(it.monthlyCost), $(it.monthlyCost * 12)]);
+    }
+    const ws3 = XLSX.utils.aoa_to_sheet(expRows);
+    ws3["!cols"] = [{ wch: 36 }, { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws3, "Expense Breakdown");
 
-    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `financial-dashboard-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast({ title: "Export downloaded!", description: `${financialItems.length} items exported to CSV` });
+    // ── Sheet 4: Net Worth — Full Detail ──────────────────────────────────
+    const nwRows: (string | number)[][] = [
+      ["Net Worth — Investment Holdings Detail"],
+      [`Exported: ${today}`],
+      [`Live prices from CoinGecko & Yahoo Finance`],
+      [],
+      ["── CRYPTO ──", "", "", "", "", "", ""],
+      ["ASSET", "TICKER", "SHARES / UNITS", "PRICE ($)", "GROSS VALUE ($)", "TAX RATE", "AFTER-TAX VALUE ($)"],
+      ["BTC Ledger Wallet", "BTC", btcHoldings, $v(_btcPrice), $v(_btcValue), "15% LTCG", $v(_btcValue * 0.85)],
+      ["BTC Coinbase", "BTC", coinbaseBtcHoldings, $v(_btcPrice), $v(_coinbaseValue), "15% LTCG", $v(_coinbaseValue * 0.85)],
+      ["BTC Total", "", btcHoldings + coinbaseBtcHoldings, $v(_btcPrice), $v(_totalBtcValue), "15% LTCG", $v(_btcAfterTax)],
+      [],
+      ["── VANGUARD BROKERAGE ──", "", "", "", "", "", ""],
+      ["ASSET", "TICKER", "SHARES", "PRICE ($)", "GROSS VALUE ($)", "TAX RATE", "AFTER-TAX VALUE ($)"],
+      ["Vanguard Total Stock Market", "VTSAX", vtsaxHoldings, $v(_vtsaxPrice), $v(_vtsaxValue), "15% LTCG", $v(_vtsaxValue * 0.85)],
+      ["Vanguard S&P 500 ETF", "VOO", vooHoldings, $v(_vooPrice), $v(_vooValue), "15% LTCG", $v(_vooValue * 0.85)],
+      ["Vanguard Brokerage Total", "", "", "", $v(_vanguardTotal), "15% LTCG", $v(_vanguardAfterTax)],
+      [],
+      ["── RETIREMENT ACCOUNTS ──", "", "", "", "", "", ""],
+      ["ASSET", "ACCOUNT", "SHARES", "PRICE ($)", "VALUE ($)", "TAX TREATMENT", ""],
+      ["iShares Bitcoin ETF", "Roth IRA (Vanguard)", rothIraIbitHoldings, $v(_ibitPrice), $v(_rothIraValue), "Tax-free (Roth)", ""],
+      ["VG Inst 500 Index", "Fidelity 401k", k401Shares, $v(_viiixPrice), $v(_k401Value), "Tax-deferred", ""],
+      [],
+      ["── DOMAIN NAMES ──", "", "", "", "", "", ""],
+      ["DOMAIN", "PURCHASE PRICE ($)", "EST. SALE PRICE ($)", "CAP GAIN ($)", "15% LTCG TAX ($)", "AFTER-TAX VALUE ($)", ""],
+      ["veluna.com", $v(velunaDomainPurchasePrice), $v(velunaDomainValue), $v(_domainCapGain), $v(_domainCapGain * 0.15), $v(_domainAfterTax), ""],
+      [],
+      ["── REAL ESTATE ──", "", "", "", "", "", ""],
+      ["PROPERTY", "EST. SALE PRICE ($)", "LOAN BALANCE ($)", "SELLING COSTS ($)", "NET BEFORE TAX ($)", "CAP GAINS TAX ($)", "AFTER-TAX NET ($)"],
+      ["2605 Plumbago Ct, Rocklin CA", $v(_homeSalePrice), $v(homeLoanBalance), $v(_homeTotalSellingCosts), $v(_homeNetCashAfterSale), $v(_homeCapGainsTax), $v(_homeAfterTaxNetCash)],
+      [],
+      ["── OTHER ASSETS ──", "", "", "", "", "", ""],
+      ["ASSET", "CATEGORY", "VALUE ($)", "", "", "", ""],
+      ["BMO Checking Account", "Cash", $v(checkingBalance), "", "", "", ""],
+      ["Apple RSUs (E*Trade)", "Equity Compensation", $v(eTradeRsuValue), "", "", "", ""],
+      ["Ford Explorer", "Vehicle", $v(fordExplorerValue), "", "", "", ""],
+      ["Kawasaki Ninja 400", "Vehicle", $v(kawasakiNinjaValue), "", "", "", ""],
+      [],
+      ["── TOTAL NET WORTH (AFTER-TAX) ──", "", "", "", "", "", $v(overviewNetWorth)],
+    ];
+    const ws4 = XLSX.utils.aoa_to_sheet(nwRows);
+    ws4["!cols"] = [{ wch: 36 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws4, "Net Worth");
+
+    // ── Sheet 5: Retirement ────────────────────────────────────────────────
+    const retRows: (string | number)[][] = [
+      ["Retirement Contributions & Accounts"],
+      [`Exported: ${today}`],
+      [],
+      ["── MONTHLY CONTRIBUTIONS ──"],
+      ["ITEM", "CATEGORY", "FREQUENCY", "MONTHLY ($)", "ANNUAL ($)"],
+    ];
+    for (const it of retirementItems) {
+      retRows.push([it.item, it.category, it.recurType, $(it.monthlyCost), $(it.monthlyCost * 12)]);
+    }
+    const retTotal = retirementItems.reduce((s, i) => s + i.monthlyCost, 0);
+    retRows.push(["Total Retirement Contributions", "", "", $(retTotal), $(retTotal * 12)]);
+    retRows.push([]);
+    retRows.push(["── ACCOUNT BALANCES ──"]);
+    retRows.push(["ACCOUNT", "INSTITUTION", "HOLDINGS", "CURRENT VALUE ($)", "TAX TYPE"]);
+    retRows.push(["Roth IRA", "Vanguard", `${rothIraIbitHoldings} IBIT shares`, $v(_rothIraValue), "Tax-free (Roth)"]);
+    retRows.push(["401k", "Fidelity (via Apple)", `${k401Shares} VIIIX shares`, $v(_k401Value), "Tax-deferred"]);
+    retRows.push(["Total Retirement Balance", "", "", $v(_rothIraValue + _k401Value), ""]);
+    const ws5 = XLSX.utils.aoa_to_sheet(retRows);
+    ws5["!cols"] = [{ wch: 40 }, { wch: 24 }, { wch: 30 }, { wch: 18 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws5, "Retirement");
+
+    // ── Sheet 6: Cashflow ──────────────────────────────────────────────────
+    const cfRows: (string | number)[][] = [
+      ["Monthly Cashflow Analysis"],
+      [`Exported: ${today}`],
+      [],
+      ["METRIC", "MONTHLY ($)", "ANNUAL ($)"],
+      ["W2 Salary (Post-Tax)", $(w2Income), $(w2Income * 12)],
+      ["Total Expenses", $(totalExpenses), $(totalExpenses * 12)],
+      ["Retirement Contributions", $(totalRetirement), $(totalRetirement * 12)],
+      ["Net Cashflow (W2 − Expenses)", $(cashflowNetRaw), $(cashflowNetRaw * 12)],
+      ["Non-W2 Income (RSUs, ESPP, etc.)", $(nonW2Income), $(nonW2Income * 12)],
+      [],
+      ["── EXPENSE DETAIL ──"],
+      ["ITEM", "CATEGORY", "FREQUENCY", "MONTHLY ($)", "ANNUAL ($)"],
+    ];
+    for (const it of topExpenses) {
+      cfRows.push([it.item, it.category, it.recurType, $(it.monthlyCost), $(it.monthlyCost * 12)]);
+    }
+    const ws6 = XLSX.utils.aoa_to_sheet(cfRows);
+    ws6["!cols"] = [{ wch: 44 }, { wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws6, "Cashflow");
+
+    // ── Sheet 7: Credit Cards ──────────────────────────────────────────────
+    const ccData = [
+      { name: "Citi Double Cash Card", issuer: "Citi", type: "2% Cash Back", status: "active", notes: "" },
+      { name: "Chase Sapphire Preferred®", issuer: "Chase", type: "Travel Rewards · Points", status: "active", notes: "" },
+      { name: "United Gateway℠ Card (MileagePlus)", issuer: "Chase", type: "Travel Miles · United", status: "active", notes: "" },
+      { name: "BMO Cash Back World Elite Mastercard", issuer: "BMO", type: "Cash Back", status: "active", notes: "" },
+      { name: "Chase Freedom Flex℠", issuer: "Chase", type: "5% Rotating + Cash Back", status: "active", notes: "" },
+      { name: "Citi Custom Cash℠ Card", issuer: "Citi", type: "5% Top Spend Category", status: "active", notes: "" },
+      { name: "Discover it® Cash Back", issuer: "Discover", type: "5% Rotating Categories", status: "active", notes: "" },
+      { name: "Wells Fargo Card", issuer: "Wells Fargo", type: "Product unspecified", status: "verify", notes: "Verify which WF card and confirm still active" },
+      { name: "Barclays Card", issuer: "Barclays", type: "Product unspecified", status: "verify", notes: "Uber Visa (Barclays) discontinued 2019 — verify" },
+      { name: "Bank of America Card", issuer: "Bank of America", type: "Product unspecified", status: "verify", notes: "Verify card product and current status" },
+    ];
+    const ccRows: (string | number)[][] = [
+      ["Credit Cards on File"],
+      [`Exported: ${today} · Last reviewed May 2026`],
+      [],
+      ["CARD NAME", "ISSUER", "REWARD TYPE", "STATUS", "NOTES / ACTION NEEDED"],
+      ...ccData.map(c => [c.name, c.issuer, c.type, c.status.toUpperCase(), c.notes]),
+    ];
+    const ws7 = XLSX.utils.aoa_to_sheet(ccRows);
+    ws7["!cols"] = [{ wch: 42 }, { wch: 18 }, { wch: 30 }, { wch: 12 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, ws7, "Credit Cards");
+
+    // ── Sheet 8: Accounts ─────────────────────────────────────────────────
+    const accData = [
+      { name: "Ledger Hardware Wallet", institution: "Ledger", detail: "Self-custody cold storage · BTC", category: "Crypto", status: "active", note: "" },
+      { name: "Coinbase", institution: "Coinbase", detail: "Exchange · BTC", category: "Crypto", status: "active", note: "" },
+      { name: "Vanguard Brokerage", institution: "Vanguard", detail: "Taxable · VTSAX, VOO", category: "Brokerage", status: "active", note: "" },
+      { name: "Vanguard Roth IRA", institution: "Vanguard", detail: "Roth IRA · IBIT", category: "Retirement", status: "active", note: "" },
+      { name: "E*Trade (Apple RSUs)", institution: "E*Trade / Morgan Stanley", detail: "Equity comp · Apple RSU vested shares", category: "Equity", status: "active", note: "" },
+      { name: "Fidelity 401k (Apple)", institution: "Fidelity", detail: "Employer 401k · VIIIX · via Apple", category: "Retirement", status: "active", note: "" },
+      { name: "BMO Checking Account", institution: "BMO", detail: "Primary checking · ···1711", category: "Banking", status: "active", note: "" },
+      { name: "Charles Schwab Checking", institution: "Charles Schwab", detail: "Checking · $0 balance", category: "Banking", status: "empty", note: "Kept open for travel ATM reimbursements" },
+      { name: "Chase", institution: "Chase", detail: "Sapphire Preferred · Freedom Flex · United Gateway", category: "Credit", status: "active", note: "" },
+      { name: "Citi", institution: "Citi", detail: "Custom Cash · Double Cash", category: "Credit", status: "active", note: "" },
+      { name: "Discover", institution: "Discover", detail: "Discover it® Cash Back", category: "Credit", status: "active", note: "" },
+      { name: "Wells Fargo", institution: "Wells Fargo", detail: "Credit card — product TBD", category: "Credit", status: "verify", note: "⚠️ Verify card and active status" },
+      { name: "Barclays", institution: "Barclays", detail: "Credit card — product TBD", category: "Credit", status: "verify", note: "⚠️ Uber Visa discontinued 2019 — verify" },
+      { name: "BMO", institution: "BMO", detail: "BMO Cash Back World Elite Mastercard", category: "Credit", status: "active", note: "" },
+    ];
+    const accRows: (string | number)[][] = [
+      ["All Financial Accounts"],
+      [`Exported: ${today}`],
+      [],
+      ["ACCOUNT NAME", "INSTITUTION", "DETAILS", "CATEGORY", "STATUS", "NOTES"],
+      ...accData.map(a => [a.name, a.institution, a.detail, a.category, a.status.toUpperCase(), a.note]),
+    ];
+    const ws8 = XLSX.utils.aoa_to_sheet(accRows);
+    ws8["!cols"] = [{ wch: 36 }, { wch: 24 }, { wch: 44 }, { wch: 14 }, { wch: 10 }, { wch: 44 }];
+    XLSX.utils.book_append_sheet(wb, ws8, "Accounts");
+
+    // ── Write & download ──────────────────────────────────────────────────
+    const filename = `financial-dashboard-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast({ title: "Export downloaded!", description: `8-sheet workbook saved as ${filename}` });
   };
 
   return (
@@ -583,7 +776,7 @@ export default function Finances() {
             className="shrink-0 mt-1 border-green-500/40 text-green-300 hover:bg-green-500/10 hover:text-green-200 hover:border-green-400/60 gap-2"
           >
             <Download className="h-4 w-4" />
-            Export CSV
+            Export Excel
           </Button>
         </div>
 
