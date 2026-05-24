@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2
+  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
@@ -798,7 +798,7 @@ export default function Finances() {
           <Card className="bg-slate-800/60 border-orange-500/30">
             <CardContent className="pt-4 pb-3 px-4">
               <div className="flex items-center gap-2 mb-1">
-                <Bitcoin className="h-4 w-4 text-orange-400" />
+                <Scale className="h-4 w-4 text-orange-400" />
                 <p className="text-xs text-slate-400">Net Worth</p>
               </div>
               <p className="text-2xl font-bold text-orange-300">
@@ -851,7 +851,7 @@ export default function Finances() {
               <PieChart className="h-3.5 w-3.5 mr-1.5" />Income vs Expenses
             </TabsTrigger>
             <TabsTrigger value="networth" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
-              <Bitcoin className="h-3.5 w-3.5 mr-1.5" />Net Worth
+              <Scale className="h-3.5 w-3.5 mr-1.5" />Net Worth
             </TabsTrigger>
             <TabsTrigger value="expense-breakdown" className="data-[state=active]:bg-red-600/40 text-xs px-3 py-1.5">
               <PieChart className="h-3.5 w-3.5 mr-1.5" />Expense Breakdown
@@ -1003,7 +1003,7 @@ export default function Finances() {
                     <>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-orange-300 text-base flex items-center gap-2">
-                          <Bitcoin className="h-4 w-4" /> Total Net Worth
+                          <Scale className="h-4 w-4" /> Total Net Worth
                         </CardTitle>
                         <CardDescription className="text-slate-400 text-xs">
                           Investments · Real Estate · Cash · live prices
@@ -2990,7 +2990,7 @@ export default function Finances() {
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <h2 className="text-lg font-bold text-orange-300 flex items-center gap-2">
-                        <Bitcoin className="h-5 w-5" /> Investment Net Worth
+                        <Scale className="h-5 w-5" /> Investment Net Worth
                       </h2>
                       <p className="text-xs text-slate-400">Live prices via CoinGecko & Yahoo Finance · auto-refreshes every 60s</p>
                     </div>
