@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,8 +92,13 @@ export default function Finances() {
     incomeVsExpense: true,
     monthlyAllocation: true,
   });
-  const toggleWidget = (key: keyof typeof overviewWidgets) =>
-    setOverviewWidgets(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggleWidget = (key: keyof typeof overviewWidgets) => {
+    setOverviewWidgets(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveWidgetPrefs({ overviewVisible: next });
+      return next;
+    });
+  };
   // Widget order for drag-and-drop (persisted)
   type WidgetKey = "incomeSources" | "topExpenses" | "netWorth" | "incomeVsExpense" | "monthlyAllocation";
   const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(() => {
@@ -105,6 +110,73 @@ export default function Finances() {
   });
   const dragSrcIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  // NW tab widget visibility + order (persisted to server)
+  type NWWidgetKey = "assets" | "holdings" | "allocation";
+  const DEFAULT_NW_ORDER: NWWidgetKey[] = ["assets", "holdings", "allocation"];
+  const [nwWidgetOrder, setNwWidgetOrder] = useState<NWWidgetKey[]>(() => {
+    try {
+      const saved = localStorage.getItem("nw-widget-order");
+      if (saved) return JSON.parse(saved) as NWWidgetKey[];
+    } catch {}
+    return DEFAULT_NW_ORDER;
+  });
+  const [nwWidgetVisible, setNwWidgetVisible] = useState<Record<NWWidgetKey, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("nw-widget-visible");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { assets: true, holdings: true, allocation: true };
+  });
+  const nwDragSrcIdx = useRef<number | null>(null);
+  const [nwDragOverIdx, setNwDragOverIdx] = useState<number | null>(null);
+
+  // Server-persisted widget preferences
+  const widgetPrefsDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { data: widgetPrefs } = useQuery<{
+    overviewOrder?: string[];
+    overviewVisible?: Record<string, boolean>;
+    nwOrder?: string[];
+    nwVisible?: Record<string, boolean>;
+  }>({
+    queryKey: ["/api/widget-preferences"],
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  // Apply server prefs once loaded (server wins over localStorage)
+  useEffect(() => {
+    if (!widgetPrefs) return;
+    if (widgetPrefs.overviewOrder?.length) {
+      setWidgetOrder(widgetPrefs.overviewOrder as WidgetKey[]);
+      try { localStorage.setItem("overview-widget-order", JSON.stringify(widgetPrefs.overviewOrder)); } catch {}
+    }
+    if (widgetPrefs.overviewVisible) {
+      setOverviewWidgets(prev => ({ ...prev, ...widgetPrefs.overviewVisible }));
+    }
+    if (widgetPrefs.nwOrder?.length) {
+      setNwWidgetOrder(widgetPrefs.nwOrder as NWWidgetKey[]);
+      try { localStorage.setItem("nw-widget-order", JSON.stringify(widgetPrefs.nwOrder)); } catch {}
+    }
+    if (widgetPrefs.nwVisible) {
+      setNwWidgetVisible(prev => ({ ...prev, ...widgetPrefs.nwVisible }));
+      try { localStorage.setItem("nw-widget-visible", JSON.stringify(widgetPrefs.nwVisible)); } catch {}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetPrefs]);
+
+  const saveWidgetPrefs = useCallback((patch: object) => {
+    if (widgetPrefsDebounce.current) clearTimeout(widgetPrefsDebounce.current);
+    widgetPrefsDebounce.current = setTimeout(() => {
+      fetch("/api/widget-preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(patch),
+      }).catch(() => {/* silent */});
+    }, 800);
+  }, []);
+
   // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
   const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
   const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
@@ -655,6 +727,7 @@ export default function Finances() {
                 next.splice(dstFullIdx, 0, srcKey);
                 setWidgetOrder(next);
                 try { localStorage.setItem("overview-widget-order", JSON.stringify(next)); } catch {}
+                saveWidgetPrefs({ overviewOrder: next });
                 dragSrcIdx.current = null;
                 setDragOverIdx(null);
               };
@@ -1433,24 +1506,47 @@ export default function Finances() {
                 ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : "—";
 
-              return (
-                <>
-                  {/* Header */}
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <h2 className="text-lg font-bold text-orange-300 flex items-center gap-2">
-                        <Bitcoin className="h-5 w-5" /> Investment Net Worth
-                      </h2>
-                      <p className="text-xs text-slate-400">Live prices via CoinGecko & Yahoo Finance · auto-refreshes every 60s</p>
-                    </div>
-                    <Button variant="outline" size="sm"
-                      onClick={() => { refetchBtc(); refetchVtsax(); refetchVoo(); refetchIbit(); }}
-                      className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 gap-1.5">
-                      <RefreshCw className="h-3.5 w-3.5" /> Refresh Prices
-                    </Button>
-                  </div>
+              const nwWidgetMeta: Record<NWWidgetKey, { label: string; dot: string }> = {
+                assets:     { label: "Asset Cards",          dot: "bg-yellow-400" },
+                holdings:   { label: "My Holdings",          dot: "bg-orange-400" },
+                allocation: { label: "Allocation & Summary", dot: "bg-purple-400" },
+              };
+              const toggleNwWidget = (key: NWWidgetKey) => {
+                setNwWidgetVisible(prev => {
+                  const next = { ...prev, [key]: !prev[key] };
+                  try { localStorage.setItem("nw-widget-visible", JSON.stringify(next)); } catch {}
+                  saveWidgetPrefs({ nwVisible: next });
+                  return next;
+                });
+              };
+              const handleNwDragStart = (e: React.DragEvent, idx: number) => {
+                nwDragSrcIdx.current = idx;
+                e.dataTransfer.effectAllowed = "move";
+              };
+              const handleNwDragOver = (e: React.DragEvent, idx: number) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setNwDragOverIdx(idx);
+              };
+              const handleNwDrop = (e: React.DragEvent, idx: number) => {
+                e.preventDefault();
+                if (nwDragSrcIdx.current === null || nwDragSrcIdx.current === idx) {
+                  setNwDragOverIdx(null); return;
+                }
+                const next = [...nwWidgetOrder];
+                const [removed] = next.splice(nwDragSrcIdx.current, 1);
+                next.splice(idx, 0, removed);
+                setNwWidgetOrder(next);
+                try { localStorage.setItem("nw-widget-order", JSON.stringify(next)); } catch {}
+                saveWidgetPrefs({ nwOrder: next });
+                nwDragSrcIdx.current = null;
+                setNwDragOverIdx(null);
+              };
+              const handleNwDragEnd = () => { nwDragSrcIdx.current = null; setNwDragOverIdx(null); };
 
-                  {/* Top-level asset cards: BTC Wallet + Coinbase + Vanguard + Roth IRA */}
+              const nwRenderWidget = (key: NWWidgetKey) => {
+                if (!nwWidgetVisible[key]) return null;
+                if (key === "assets") return (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Bitcoin — Personal Wallet */}
                     <Card className="bg-slate-800/60 border-yellow-500/30">
@@ -1761,8 +1857,8 @@ export default function Finances() {
                       </CardContent>
                     </Card>
                   </div>
-
-                  {/* Holdings editor */}
+                );
+                if (key === "holdings") return (
                   <Card className="bg-slate-800/60 border-orange-500/20">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
@@ -2199,8 +2295,8 @@ export default function Finances() {
                       )}
                     </CardContent>
                   </Card>
-
-                  {/* Pie + summary */}
+                );
+                if (key === "allocation") return (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card className="bg-slate-800/60 border-purple-500/20">
                       <CardHeader className="pb-2">
@@ -2376,6 +2472,55 @@ export default function Finances() {
                       </CardContent>
                     </Card>
                   </div>
+                );
+                return null;
+              };
+
+              return (
+                <>
+                  {/* Header — always visible */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h2 className="text-lg font-bold text-orange-300 flex items-center gap-2">
+                        <Bitcoin className="h-5 w-5" /> Investment Net Worth
+                      </h2>
+                      <p className="text-xs text-slate-400">Live prices via CoinGecko & Yahoo Finance · auto-refreshes every 60s</p>
+                    </div>
+                    <Button variant="outline" size="sm"
+                      onClick={() => { refetchBtc(); refetchVtsax(); refetchVoo(); refetchIbit(); }}
+                      className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 gap-1.5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Refresh Prices
+                    </Button>
+                  </div>
+
+                  {/* Widget toggle bar */}
+                  <div className="flex flex-wrap gap-2 pb-1">
+                    {(["assets", "holdings", "allocation"] as NWWidgetKey[]).map(k => (
+                      <button key={k} onClick={() => toggleNwWidget(k)}
+                        className={`flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-all border ${
+                          nwWidgetVisible[k]
+                            ? "border-orange-500/50 text-slate-200 bg-slate-700/60"
+                            : "border-slate-700/40 text-slate-500 bg-transparent line-through"
+                        }`}>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${nwWidgetMeta[k].dot} ${nwWidgetVisible[k] ? "opacity-100" : "opacity-30"}`} />
+                        {nwWidgetMeta[k].label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Widgets rendered in draggable order */}
+                  {nwWidgetOrder.map((key, idx) => (
+                    <div key={key}
+                      draggable
+                      onDragStart={e => handleNwDragStart(e, idx)}
+                      onDragOver={e => handleNwDragOver(e, idx)}
+                      onDrop={e => handleNwDrop(e, idx)}
+                      onDragEnd={handleNwDragEnd}
+                      className={`transition-opacity ${nwDragOverIdx === idx && nwDragSrcIdx.current !== idx ? "opacity-50" : "opacity-100"}`}
+                    >
+                      {nwRenderWidget(key)}
+                    </div>
+                  ))}
                 </>
               );
             })()}
