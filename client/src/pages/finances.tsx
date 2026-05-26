@@ -237,7 +237,7 @@ export default function Finances() {
     try { return localStorage.getItem("nw-home-address") || "2605 Plumbago Court, Rocklin, CA 95677"; } catch { return "2605 Plumbago Court, Rocklin, CA 95677"; }
   });
   const [homeEstValue, setHomeEstValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-value") || "635000"); } catch { return 635000; }
+    try { return parseFloat(localStorage.getItem("nw-home-value") || "655000"); } catch { return 655000; }
   });
   const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-loan") || "614000"); } catch { return 614000; }
