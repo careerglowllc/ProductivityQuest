@@ -3283,7 +3283,8 @@ export default function Finances() {
                     <CardContent>
                       {pieData.length > 0 ? (
                         <>
-                        <ResponsiveContainer width="100%" height={220}>
+                        <div style={{ width: "100%", minHeight: 220 }}>
+                        <ResponsiveContainer width="99%" height={220}>
                           <RechartsPieChart>
                             <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} innerRadius={45}
                               dataKey="value" labelLine={false} label={false}>
@@ -3307,6 +3308,7 @@ export default function Finances() {
                             />
                           </RechartsPieChart>
                         </ResponsiveContainer>
+                        </div>
                         <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-1">
                           {pieData.map((d) => (
                             <div key={d.name} className="flex items-center gap-1.5">
