@@ -237,7 +237,7 @@ export default function Finances() {
     try { return localStorage.getItem("nw-home-address") || "2605 Plumbago Court, Rocklin, CA 95677"; } catch { return "2605 Plumbago Court, Rocklin, CA 95677"; }
   });
   const [homeEstValue, setHomeEstValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-value") || "655000"); } catch { return 655000; }
+    try { return parseFloat(localStorage.getItem("nw-home-value") || "636000"); } catch { return 636000; }
   });
   const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-loan") || "614000"); } catch { return 614000; }
@@ -273,7 +273,7 @@ export default function Finances() {
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
   const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "4500"); } catch { return 4500; }
+    try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "4050"); } catch { return 4050; }
   });
   const [velunaDomainPurchasePrice, setVelunaDomainPurchasePrice] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-veluna-domain-purchase") || "4001.17"); } catch { return 4001.17; }
