@@ -1736,6 +1736,14 @@ export default function Finances() {
 
               return (
                 <>
+                  {/* Tax disclaimer */}
+                  <Alert className="bg-yellow-900/30 border-yellow-500/40">
+                    <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                    <AlertDescription className="text-yellow-200 text-xs leading-relaxed">
+                      <strong>Historical data (Sep 2019 – Mar 2026):</strong> These figures were manually entered from Credit Karma and reflect <em>gross</em> asset values — <strong>capital gains taxes have NOT been deducted</strong>. Depending on your bracket, realized gains on stocks, crypto, and ETFs could reduce these numbers by ~15–20% (long-term rate) or more. Starting from your live monthly snapshots going forward, values use after-tax estimates where applicable.
+                    </AlertDescription>
+                  </Alert>
+
                   {/* Summary cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <Card className="bg-slate-800/60 border-emerald-500/20">
