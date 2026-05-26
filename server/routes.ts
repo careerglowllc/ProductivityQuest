@@ -4822,6 +4822,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Net Worth snapshot routes
+  app.get("/api/nw-snapshots", requireAuth, async (req: any, res) => {
+    try {
+      const snapshots = await storage.getNwSnapshots(req.session.userId);
+      res.json(snapshots);
+    } catch (error: any) {
+      console.error("Error fetching NW snapshots:", error);
+      res.status(500).json({ error: "Failed to fetch snapshots" });
+    }
+  });
+
+  app.post("/api/nw-snapshots", requireAuth, async (req: any, res) => {
+    try {
+      const { month, totalValue, breakdown } = req.body;
+      if (!month || totalValue === undefined) {
+        return res.status(400).json({ error: "month and totalValue required" });
+      }
+      const snapshot = await storage.upsertNwSnapshot(
+        req.session.userId, month, Math.round(totalValue),
+        breakdown || {}
+      );
+      res.json(snapshot);
+    } catch (error: any) {
+      console.error("Error upserting NW snapshot:", error);
+      res.status(500).json({ error: "Failed to save snapshot" });
+    }
+  });
+
   // ── Market price proxy routes ─────────────────────────────
   // Bitcoin price via CoinGecko (free, no API key)
   app.get("/api/market/bitcoin", async (_req, res) => {

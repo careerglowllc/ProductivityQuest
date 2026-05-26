@@ -1,6 +1,6 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, nwSnapshots, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type NwSnapshot, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, isNull, inArray, gt, desc } from "drizzle-orm";
+import { eq, and, or, isNull, inArray, gt, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -1137,6 +1137,24 @@ export class DatabaseStorage implements IStorage {
       and(eq(financialItems.id, itemId), eq(financialItems.userId, userId))
     );
     return true;
+  }
+
+  // Net Worth snapshot operations
+  async getNwSnapshots(userId: string): Promise<NwSnapshot[]> {
+    return db.select().from(nwSnapshots)
+      .where(eq(nwSnapshots.userId, userId))
+      .orderBy(nwSnapshots.month);
+  }
+
+  async upsertNwSnapshot(userId: string, month: string, totalValue: number, breakdown: Record<string, number>): Promise<NwSnapshot> {
+    const [row] = await db.insert(nwSnapshots)
+      .values({ userId, month, totalValue, breakdown })
+      .onConflictDoUpdate({
+        target: [nwSnapshots.userId, nwSnapshots.month],
+        set: { totalValue, breakdown, updatedAt: sql`now()` },
+      })
+      .returning();
+    return row;
   }
 
   // ML Sorting operations

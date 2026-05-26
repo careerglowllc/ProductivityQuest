@@ -18,9 +18,9 @@ import {
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ReferenceLine, Area, AreaChart
 } from "recharts";
-import type { FinancialItem } from "@shared/schema";
+import type { FinancialItem, NwSnapshot } from "@shared/schema";
 
 const CATEGORIES = [
   "General", "Business", "Entertainment", "Food", "Housing", "Transportation",
@@ -87,7 +87,7 @@ export default function Finances() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -482,6 +482,35 @@ export default function Finances() {
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
   const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
+
+  // NW Snapshots — load history + auto-save current month once prices are ready
+  const { data: nwSnapshots = [], refetch: refetchSnapshots } = useQuery<NwSnapshot[]>({
+    queryKey: ["/api/nw-snapshots"],
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (nwIsLoading || overviewNetWorth === 0) return;
+    const month = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+    const breakdown: Record<string, number> = {
+      btc: Math.round(_btcAfterTax),
+      vanguard: Math.round(_vanguardAfterTax),
+      rothIra: Math.round(_rothIraValue),
+      k401: Math.round(_k401Value),
+      realEstate: Math.round(_homeAfterTaxNetCash),
+      cash: Math.round(checkingBalance + careerglowBalance),
+      domain: Math.round(_domainAfterTax),
+      etrade: Math.round(eTradeRsuValue),
+      vehicles: Math.round(fordExplorerValue + kawasakiNinjaValue),
+    };
+    fetch("/api/nw-snapshots", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ month, totalValue: Math.round(overviewNetWorth), breakdown }),
+    }).then(() => refetchSnapshots()).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nwIsLoading]);
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
   const W2_ITEM_NAME = "Post-Tax W2 Salary Income";
@@ -906,6 +935,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="accounts" className="data-[state=active]:bg-slate-600/60 text-xs px-3 py-1.5">
               <Building2 className="h-3.5 w-3.5 mr-1.5" />Accounts
+            </TabsTrigger>
+            <TabsTrigger value="nw-trend" className="data-[state=active]:bg-emerald-600/40 text-xs px-3 py-1.5">
+              <TrendingUp className="h-3.5 w-3.5 mr-1.5" />NW Over Time
             </TabsTrigger>
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
@@ -1664,6 +1696,197 @@ export default function Finances() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── Net Worth Over Time ───────────────────── */}
+          <TabsContent value="nw-trend" className="space-y-4">
+            {(() => {
+              const chartData = nwSnapshots.map(s => ({
+                month: s.month,
+                label: new Date(s.month + "-01").toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+                value: s.totalValue,
+                btc: (s.breakdown as any)?.btc ?? 0,
+                vanguard: (s.breakdown as any)?.vanguard ?? 0,
+                rothIra: (s.breakdown as any)?.rothIra ?? 0,
+                k401: (s.breakdown as any)?.k401 ?? 0,
+                realEstate: (s.breakdown as any)?.realEstate ?? 0,
+                cash: (s.breakdown as any)?.cash ?? 0,
+                etrade: (s.breakdown as any)?.etrade ?? 0,
+                domain: (s.breakdown as any)?.domain ?? 0,
+                vehicles: (s.breakdown as any)?.vehicles ?? 0,
+              }));
+
+              const latest = chartData[chartData.length - 1];
+              const prev = chartData[chartData.length - 2];
+              const monthChange = latest && prev ? latest.value - prev.value : null;
+              const allTimeHigh = chartData.reduce((m, d) => Math.max(m, d.value), 0);
+
+              const fmt = (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+              const BREAKDOWN_COLORS: Record<string, string> = {
+                btc: "#F59E0B", vanguard: "#6366F1", rothIra: "#10B981",
+                k401: "#14B8A6", realEstate: "#EC4899", cash: "#22D3EE",
+                etrade: "#22C55E", domain: "#8B5CF6", vehicles: "#F97316",
+              };
+              const BREAKDOWN_LABELS: Record<string, string> = {
+                btc: "BTC (after tax)", vanguard: "Vanguard (after tax)", rothIra: "Roth IRA",
+                k401: "401k (SSO)", realEstate: "Real Estate", cash: "Cash",
+                etrade: "E*Trade RSU", domain: "Domain", vehicles: "Vehicles",
+              };
+
+              return (
+                <>
+                  {/* Summary cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card className="bg-slate-800/60 border-emerald-500/20">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-emerald-300 text-sm">Current Net Worth</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold text-white">{fmt(overviewNetWorth)}</p>
+                        <p className="text-xs text-slate-400 mt-1">as of {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className={`bg-slate-800/60 border-${monthChange === null ? "slate" : monthChange >= 0 ? "green" : "red"}-500/20`}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className={`text-${monthChange === null ? "slate" : monthChange >= 0 ? "green" : "red"}-300 text-sm`}>Month-over-Month</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {monthChange === null
+                          ? <p className="text-slate-400 text-sm">Not enough data yet</p>
+                          : <>
+                              <p className={`text-2xl font-bold ${monthChange >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                {monthChange >= 0 ? "+" : ""}{fmt(monthChange)}
+                              </p>
+                              <p className="text-xs text-slate-400 mt-1">vs {prev?.label}</p>
+                            </>
+                        }
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/60 border-yellow-500/20">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-yellow-300 text-sm">All-Time High</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold text-yellow-400">{fmt(allTimeHigh)}</p>
+                        <p className="text-xs text-slate-400 mt-1">{chartData.find(d => d.value === allTimeHigh)?.label ?? "—"}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Main line chart */}
+                  <Card className="bg-slate-800/60 border-emerald-500/20">
+                    <CardHeader>
+                      <CardTitle className="text-emerald-300 text-sm flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />Net Worth Over Time
+                      </CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">After-tax estimated net worth — recorded once per month on page load</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {chartData.length === 0
+                        ? <p className="text-slate-400 text-sm text-center py-10">No data yet — your first snapshot will be saved automatically.</p>
+                        : chartData.length === 1
+                        ? (
+                          <div className="text-center py-10">
+                            <p className="text-white font-bold text-2xl">{fmt(chartData[0].value)}</p>
+                            <p className="text-slate-400 text-sm mt-1">First snapshot recorded — {chartData[0].label}</p>
+                            <p className="text-slate-500 text-xs mt-2">Chart will appear once you have 2+ months of data.</p>
+                          </div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height={320}>
+                            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="nwGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                              <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                              <YAxis
+                                tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
+                                tick={{ fill: "#94A3B8", fontSize: 10 }}
+                                width={60}
+                              />
+                              <Tooltip
+                                formatter={(v: any) => [`$${Number(v).toLocaleString("en-US")}`, "Net Worth"]}
+                                contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #059669", borderRadius: "8px" }}
+                                labelStyle={{ color: "#A7F3D0" }}
+                              />
+                              <Area
+                                type="monotone"
+                                dataKey="value"
+                                stroke="#10B981"
+                                strokeWidth={2.5}
+                                fill="url(#nwGradient)"
+                                dot={{ fill: "#10B981", r: 4 }}
+                                activeDot={{ r: 6, fill: "#34D399" }}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        )
+                      }
+                    </CardContent>
+                  </Card>
+
+                  {/* Stacked breakdown over time */}
+                  {chartData.length >= 2 && (
+                    <Card className="bg-slate-800/60 border-indigo-500/20">
+                      <CardHeader>
+                        <CardTitle className="text-indigo-300 text-sm">Breakdown Over Time</CardTitle>
+                        <CardDescription className="text-slate-400 text-xs">Composition of net worth by asset class each month</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                            <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                            <YAxis tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: "#94A3B8", fontSize: 10 }} width={60} />
+                            <Tooltip
+                              formatter={(v: any, name: string) => [`$${Number(v).toLocaleString("en-US")}`, BREAKDOWN_LABELS[name] ?? name]}
+                              contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #6366F1", borderRadius: "8px" }}
+                            />
+                            <Legend formatter={(name: string) => <span className="text-slate-300 text-xs">{BREAKDOWN_LABELS[name] ?? name}</span>} />
+                            {Object.keys(BREAKDOWN_COLORS).map(key => (
+                              <Bar key={key} dataKey={key} stackId="nw" fill={BREAKDOWN_COLORS[key]} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Raw data table */}
+                  {chartData.length > 0 && (
+                    <Card className="bg-slate-800/60 border-slate-500/20">
+                      <CardHeader>
+                        <CardTitle className="text-slate-300 text-sm">Monthly History</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          {[...chartData].reverse().map((d, i, arr) => {
+                            const prevVal = arr[i + 1]?.value ?? null;
+                            const delta = prevVal !== null ? d.value - prevVal : null;
+                            return (
+                              <div key={d.month} className="flex items-center justify-between bg-slate-700/40 rounded px-3 py-2 text-sm">
+                                <span className="text-slate-300 w-28">{d.label}</span>
+                                <span className="text-white font-semibold">{fmt(d.value)}</span>
+                                {delta !== null
+                                  ? <span className={`text-xs font-medium w-24 text-right ${delta >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                      {delta >= 0 ? "▲" : "▼"} {fmt(Math.abs(delta))}
+                                    </span>
+                                  : <span className="w-24 text-right text-slate-500 text-xs">—</span>
+                                }
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              );
+            })()}
           </TabsContent>
 
           {/* ── All Items Table ───────────────────────── */}

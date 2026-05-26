@@ -200,6 +200,17 @@ export const financialItems = pgTable("financial_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Net Worth monthly snapshots — one row per user per month, upserted each visit
+export const nwSnapshots = pgTable("nw_snapshots", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  month: varchar("month", { length: 7 }).notNull(), // "YYYY-MM" e.g. "2026-05"
+  totalValue: integer("total_value").notNull(),      // total after-tax NW in dollars (not cents)
+  breakdown: jsonb("breakdown").$type<Record<string, number>>().default({}), // { btc, vanguard, rothIra, ... }
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // ML Task Sorting training feedback table
 export const mlSortingFeedback = pgTable("ml_sorting_feedback", {
   id: serial("id").primaryKey(),
@@ -355,6 +366,8 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type ShopItem = typeof shopItems.$inferSelect;
 export type FinancialItem = typeof financialItems.$inferSelect;
 export type InsertFinancialItem = typeof financialItems.$inferInsert;
+export type NwSnapshot = typeof nwSnapshots.$inferSelect;
+export type InsertNwSnapshot = typeof nwSnapshots.$inferInsert;
 export type InsertShopItem = z.infer<typeof insertShopItemSchema>;
 export type UserProgress = typeof userProgress.$inferSelect;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
