@@ -2265,6 +2265,7 @@ export default function Finances() {
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : k401Value > 0 ? fmt(k401Value) : <span className="text-red-400 text-sm">Unavailable</span>}
+                            </p>
                           </div>
                           <span className="text-[10px] text-teal-400 border border-teal-500/30 rounded px-1.5 py-0.5">SSO</span>
                         </div>
