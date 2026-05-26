@@ -262,6 +262,8 @@ export default function Finances() {
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-checking") || "35000"); } catch { return 35000; }
   });
+  // CareerGlow LLC — Mercury business account (manual, May 2026)
+  const [careerglowBalance] = useState<number>(13348);
   const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "4500"); } catch { return 4500; }
   });
@@ -451,7 +453,7 @@ export default function Finances() {
   // Domain: only taxable gains above purchase price; currently at a loss so $0 tax
   const _domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
-  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
@@ -562,6 +564,7 @@ export default function Finances() {
       ["Roth IRA — IBIT", $v(_rothIraValue), "", `${rothIraIbitHoldings} IBIT shares`],
       ["Fidelity 401k — VIIIX", $v(_k401Value), "", `${k401Shares} VIIIX shares`],
       ["BMO Checking", $v(checkingBalance), "", "Cash"],
+      ["CareerGlow LLC (Mercury)", $v(careerglowBalance), "", "Business cash reserves"],
       ["Apple RSUs (E*Trade)", $v(eTradeRsuValue), "", "Vested shares"],
       ["Real Estate (after costs & taxes)", $v(_homeAfterTaxNetCash), "", "2605 Plumbago Ct, Rocklin CA"],
       ["Domain — veluna.com (after 15% LTCG)", $v(_domainAfterTax), "", `Sale $${velunaDomainValue} · Purchase $${velunaDomainPurchasePrice}`],
@@ -660,6 +663,7 @@ export default function Finances() {
       ["── OTHER ASSETS ──", "", "", "", "", "", ""],
       ["ASSET", "CATEGORY", "VALUE ($)", "", "", "", ""],
       ["BMO Checking Account", "Cash", $v(checkingBalance), "", "", "", ""],
+      ["CareerGlow LLC (Mercury)", "Business Cash", $v(careerglowBalance), "", "", "", ""],
       ["Apple RSUs (E*Trade)", "Equity Compensation", $v(eTradeRsuValue), "", "", "", ""],
       ["Ford Explorer", "Vehicle", $v(fordExplorerValue), "", "", "", ""],
       ["Kawasaki Ninja 400", "Vehicle", $v(kawasakiNinjaValue), "", "", "", ""],
@@ -749,6 +753,7 @@ export default function Finances() {
       { name: "E*Trade (Apple RSUs)", institution: "E*Trade / Morgan Stanley", detail: "Equity comp · Apple RSU vested shares", category: "Equity", status: "active", note: "" },
       { name: "Fidelity 401k (Apple)", institution: "Fidelity", detail: "Employer 401k · VIIIX · via Apple", category: "Retirement", status: "active", note: "" },
       { name: "BMO Checking Account", institution: "BMO", detail: "Primary checking · ···1711", category: "Banking", status: "active", note: "" },
+      { name: "Mercury (CareerGlow LLC)", institution: "Mercury", detail: "Business checking · CareerGlow LLC", category: "Banking", status: "active", note: "" },
       { name: "Charles Schwab Checking", institution: "Charles Schwab", detail: "Checking · $0 balance", category: "Banking", status: "empty", note: "Kept open for travel ATM reimbursements" },
       { name: "Chase", institution: "Chase", detail: "Sapphire Preferred · Freedom Flex · United Gateway", category: "Credit", status: "active", note: "" },
       { name: "Citi", institution: "Citi", detail: "Custom Cash · Double Cash", category: "Credit", status: "active", note: "" },
@@ -1029,6 +1034,7 @@ export default function Finances() {
                                 { label: "401k (VIIIX)", value: _k401Value, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
+                                { label: "CareerGlow LLC (Mercury)", value: careerglowBalance, color: "text-cyan-200" },
                                 { label: "veluna.com Domain", value: _domainAfterTax, color: "text-violet-300" },
                                 { label: "E*Trade (Apple RSU)", value: eTradeRsuValue, color: "text-green-300" },
                                 { label: "Ford Explorer XLT", value: fordExplorerValue, color: "text-orange-300" },
@@ -1112,11 +1118,11 @@ export default function Finances() {
                     const _indexTotal = _vanguardAfterTax + _k401Value + eTradeRsuValue;
                     const _domainTotal = _domainAfterTax;
                     const _vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
-                    const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
+                    const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + careerglowBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
                     const _overviewPieData = [
-                      { name: "Crypto",                value: Math.round(_cryptoTotal),         color: "#F59E0B" },
-                      { name: "Index Funds & Equity",  value: Math.round(_indexTotal),          color: "#6366F1" },
-                      { name: "Cash",                  value: Math.round(checkingBalance),      color: "#22D3EE" },
+                      { name: "Crypto",                value: Math.round(_cryptoTotal),                        color: "#F59E0B" },
+                      { name: "Index Funds & Equity",  value: Math.round(_indexTotal),                         color: "#6366F1" },
+                      { name: "Cash",                  value: Math.round(checkingBalance + careerglowBalance),  color: "#22D3EE" },
                       { name: "Domain Names",          value: Math.round(_domainTotal),         color: "#8B5CF6" },
                       { name: "Vehicle",               value: Math.round(_vehicleTotal),        color: "#F97316" },
                       ...(_homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(_homeAfterTaxNetCash), color: "#EC4899" }] : []),
@@ -1862,7 +1868,7 @@ export default function Finances() {
               // Domain: only gains above purchase price are taxed at 15%; loss = no tax
               const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
               const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
-              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraValue + k401Value + homeEquity + checkingBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraValue + k401Value + homeEquity + checkingBalance + careerglowBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
               const cryptoTotal = btcAfterTax + rothIraValue; // BTC wallets (after-tax) + Roth IRA (IBIT = crypto ETF)
@@ -1872,7 +1878,7 @@ export default function Finances() {
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
                 { name: "Index Funds & Equity", value: Math.round(indexFundsTotal), color: "#6366F1" },
-                { name: "Cash", value: Math.round(checkingBalance), color: "#22D3EE" },
+                { name: "Cash", value: Math.round(checkingBalance + careerglowBalance), color: "#22D3EE" },
                 { name: "Domain Names", value: Math.round(domainTotal), color: "#8B5CF6" },
                 { name: "Vehicle", value: Math.round(vehicleTotal), color: "#F97316" },
                 ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
@@ -2191,9 +2197,19 @@ export default function Finances() {
                               <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
                             </div>
                             <p className="text-[11px] text-slate-400 mt-0.5">BMO Checking Account ···1711</p>
-                            <p className="text-2xl font-bold mt-0.5 text-white">${checkingBalance.toLocaleString()}</p>
+                            <p className="text-2xl font-bold mt-0.5 text-white">${(checkingBalance + careerglowBalance).toLocaleString()}</p>
                           </div>
                           <span className="text-[10px] border rounded px-1.5 py-0.5 text-cyan-400 border-cyan-500/30">cash</span>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
+                          <div className="flex justify-between text-slate-400">
+                            <span>BMO Checking ···1711</span>
+                            <span>${checkingBalance.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>CareerGlow LLC (Mercury)</span>
+                            <span>${careerglowBalance.toLocaleString()}</span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -2915,10 +2931,15 @@ export default function Finances() {
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
                             <span className="text-cyan-300">💵 Cash</span>
-                            <span className="text-white font-semibold">${checkingBalance.toLocaleString()}</span>
+                            <span className="text-white font-semibold">${(checkingBalance + careerglowBalance).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
-                            <span>BMO Checking Account ···1711 · manual entry</span>
+                            <span>BMO Checking ···1711</span>
+                            <span>${checkingBalance.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500 pl-3">
+                            <span>CareerGlow LLC (Mercury)</span>
+                            <span>${careerglowBalance.toLocaleString()}</span>
                           </div>
                         </div>
                         <div className="py-2 border-b border-slate-700/40">
@@ -3295,6 +3316,16 @@ export default function Finances() {
                       color: "border-cyan-500/30 bg-cyan-500/5",
                       badge: "text-cyan-400 border-cyan-500/30",
                       icon: "💵",
+                    },
+                    {
+                      name: "Mercury (CareerGlow LLC)",
+                      institution: "Mercury",
+                      detail: "Business checking · CareerGlow LLC · $13,348 reserves",
+                      category: "checking",
+                      status: "active",
+                      color: "border-blue-500/30 bg-blue-500/5",
+                      badge: "text-blue-400 border-blue-500/30",
+                      icon: "🏢",
                     },
                     {
                       name: "Charles Schwab Checking",
