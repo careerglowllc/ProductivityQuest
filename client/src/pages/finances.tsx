@@ -223,7 +223,10 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-voo") || "240.676"); } catch { return 240.676; }
   });
   const [rothIraIbitHoldings, setRothIraIbitHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "69"); } catch { return 69; }
+    try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "697"); } catch { return 697; }
+  });
+  const [rothIraVtsaxHoldings, setRothIraVtsaxHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-roth-vtsax") || "146.857"); } catch { return 146.857; }
   });
   // 401k — VG INST 500 IDX (VIIIX) via employer plan
   // $117,112.75 current value ÷ $599.22/share (VIIIX, May 22 2026) ≈ 195.44 shares
@@ -457,7 +460,7 @@ export default function Finances() {
   const _totalBtcValue = _btcValue + _coinbaseValue;
   const _vtsaxValue = vtsaxHoldings * _vtsaxPrice;
   const _vooValue = vooHoldings * _vooPrice;
-  const _rothIraValue = rothIraIbitHoldings * _ibitPrice;
+  const _rothIraValue = (rothIraIbitHoldings * _ibitPrice) + (rothIraVtsaxHoldings * _vtsaxPrice);
   const _k401Value = k401Shares * _viiixPrice;
   const _vanguardTotal = _vtsaxValue + _vooValue;
   const _homeLivePrice = propertyData?.price ?? null;
@@ -587,7 +590,8 @@ export default function Finances() {
       ["NET WORTH SNAPSHOT (after-tax estimates)", "", "", ""],
       ["BTC Wallet + Coinbase (after 15% LTCG)", $v(_btcAfterTax), "", `${btcHoldings + coinbaseBtcHoldings} BTC @ $${_btcPrice.toFixed(0)}/BTC`],
       ["Vanguard Brokerage (after 15% LTCG)", $v(_vanguardAfterTax), "", `VTSAX ${vtsaxHoldings} sh + VOO ${vooHoldings} sh`],
-      ["Roth IRA — IBIT", $v(_rothIraValue), "", `${rothIraIbitHoldings} IBIT shares`],
+      ["Roth IRA — VTSAX", $v(rothIraVtsaxHoldings * _vtsaxPrice), "", `${rothIraVtsaxHoldings} VTSAX shares`],
+      ["Roth IRA — IBIT", $v(rothIraIbitHoldings * _ibitPrice), "", `${rothIraIbitHoldings} IBIT shares`],
       ["Fidelity 401k — VIIIX", $v(_k401Value), "", `${k401Shares} VIIIX shares`],
       ["BMO Checking", $v(checkingBalance), "", "Cash"],
       ["CareerGlow LLC (Mercury)", $v(careerglowBalance), "", "Business cash reserves"],
@@ -675,7 +679,8 @@ export default function Finances() {
       [],
       ["── RETIREMENT ACCOUNTS ──", "", "", "", "", "", ""],
       ["ASSET", "ACCOUNT", "SHARES", "PRICE ($)", "VALUE ($)", "TAX TREATMENT", ""],
-      ["iShares Bitcoin ETF", "Roth IRA (Vanguard)", rothIraIbitHoldings, $v(_ibitPrice), $v(_rothIraValue), "Tax-free (Roth)", ""],
+      ["Vanguard Total Stock Market Index", "Roth IRA (Vanguard)", rothIraVtsaxHoldings, $v(_vtsaxPrice), $v(rothIraVtsaxHoldings * _vtsaxPrice), "Tax-free (Roth)", ""],
+      ["iShares Bitcoin ETF", "Roth IRA (Vanguard)", rothIraIbitHoldings, $v(_ibitPrice), $v(rothIraIbitHoldings * _ibitPrice), "Tax-free (Roth)", ""],
       ["VG Inst 500 Index", "Fidelity 401k", k401Shares, $v(_viiixPrice), $v(_k401Value), "Tax-deferred", ""],
       [],
       ["── DOMAIN NAMES ──", "", "", "", "", "", ""],
@@ -716,7 +721,7 @@ export default function Finances() {
     retRows.push([]);
     retRows.push(["── ACCOUNT BALANCES ──"]);
     retRows.push(["ACCOUNT", "INSTITUTION", "HOLDINGS", "CURRENT VALUE ($)", "TAX TYPE"]);
-    retRows.push(["Roth IRA", "Vanguard", `${rothIraIbitHoldings} IBIT shares`, $v(_rothIraValue), "Tax-free (Roth)"]);
+    retRows.push(["Roth IRA", "Vanguard", `${rothIraVtsaxHoldings} VTSAX + ${rothIraIbitHoldings} IBIT`, $v(_rothIraValue), "Tax-free (Roth)"]);
     retRows.push(["401k", "Fidelity (via Apple)", `${k401Shares} VIIIX shares`, $v(_k401Value), "Tax-deferred"]);
     retRows.push(["Total Retirement Balance", "", "", $v(_rothIraValue + _k401Value), ""]);
     const ws5 = XLSX.utils.aoa_to_sheet(retRows);
@@ -775,7 +780,7 @@ export default function Finances() {
       { name: "Ledger Hardware Wallet", institution: "Ledger", detail: "Self-custody cold storage · BTC", category: "Crypto", status: "active", note: "" },
       { name: "Coinbase", institution: "Coinbase", detail: "Exchange · BTC", category: "Crypto", status: "active", note: "" },
       { name: "Vanguard Brokerage", institution: "Vanguard", detail: "Taxable · VTSAX, VOO", category: "Brokerage", status: "active", note: "" },
-      { name: "Vanguard Roth IRA", institution: "Vanguard", detail: "Roth IRA · IBIT", category: "Retirement", status: "active", note: "" },
+      { name: "Vanguard Roth IRA", institution: "Vanguard", detail: "Roth IRA · VTSAX + IBIT", category: "Retirement", status: "active", note: "" },
       { name: "E*Trade (Apple RSUs)", institution: "E*Trade / Morgan Stanley", detail: "Equity comp · Apple RSU vested shares", category: "Equity", status: "active", note: "" },
       { name: "Fidelity 401k (Apple)", institution: "Fidelity", detail: "Employer 401k · VIIIX · via Apple", category: "Retirement", status: "active", note: "" },
       { name: "BMO Checking Account", institution: "BMO", detail: "Primary checking · ···1711", category: "Banking", status: "active", note: "" },
@@ -1059,7 +1064,7 @@ export default function Finances() {
                               {[
                                 { label: "Crypto (BTC, after tax)", value: _btcAfterTax, color: "text-yellow-300" },
                                 { label: "Index Funds (after tax)", value: _vanguardAfterTax, color: "text-indigo-300" },
-                                { label: "Roth IRA (IBIT)", value: _rothIraValue, color: "text-purple-300" },
+                                { label: "Roth IRA (VTSAX + IBIT)", value: _rothIraValue, color: "text-purple-300" },
                                 { label: "401k (VIIIX)", value: _k401Value, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
@@ -1143,8 +1148,10 @@ export default function Finances() {
                     </>
                   );
                   case "portfolioAllocation": {
-                    const _cryptoTotal = _btcAfterTax + _rothIraValue;
-                    const _indexTotal = _vanguardAfterTax + _k401Value + eTradeRsuValue;
+                    const _rothIraIbitValue = rothIraIbitHoldings * _ibitPrice;
+                    const _rothIraVtsaxValue = rothIraVtsaxHoldings * _vtsaxPrice;
+                    const _cryptoTotal = _btcAfterTax + _rothIraIbitValue;
+                    const _indexTotal = _vanguardAfterTax + _k401Value + eTradeRsuValue + _rothIraVtsaxValue;
                     const _domainTotal = _domainAfterTax;
                     const _vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
                     const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + careerglowBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
@@ -2027,7 +2034,7 @@ export default function Finances() {
               const totalBtcValue = btcValue + coinbaseValue;
               const vtsaxValue = vtsaxHoldings * vtsaxPrice;
               const vooValue = vooHoldings * vooPrice;
-              const rothIraValue = rothIraIbitHoldings * ibitPrice;
+              const rothIraValue = (rothIraIbitHoldings * ibitPrice) + (rothIraVtsaxHoldings * vtsaxPrice);
               const k401Value = k401Shares * viiixPrice;
               const vanguardTotal = vtsaxValue + vooValue;
 
@@ -2062,8 +2069,8 @@ export default function Finances() {
               const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraValue + k401Value + homeEquity + checkingBalance + careerglowBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
-              const cryptoTotal = btcAfterTax + rothIraValue; // BTC wallets (after-tax) + Roth IRA (IBIT = crypto ETF)
-              const indexFundsTotal = vanguardAfterTax + k401Value + eTradeRsuValue; // Vanguard after-tax + 401k VIIIX + Apple RSUs
+              const cryptoTotal = btcAfterTax + (rothIraIbitHoldings * ibitPrice); // BTC wallets (after-tax) + Roth IRA IBIT (crypto ETF)
+              const indexFundsTotal = vanguardAfterTax + k401Value + eTradeRsuValue + (rothIraVtsaxHoldings * vtsaxPrice); // Vanguard after-tax + 401k VIIIX + Apple RSUs + Roth IRA VTSAX
               const domainTotal = domainAfterTax;
               const vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
               const pieData = [
@@ -2224,7 +2231,7 @@ export default function Finances() {
                       </CardContent>
                     </Card>
 
-                    {/* Roth IRA — IBIT */}
+                    {/* Roth IRA — VTSAX + IBIT */}
                     <Card className="bg-slate-800/60 border-emerald-500/30">
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
@@ -2235,11 +2242,17 @@ export default function Finances() {
                                 : rothIraValue > 0 ? fmt(rothIraValue) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
                           </div>
-                          <span className="text-[10px] text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">IBIT</span>
+                          <span className="text-[10px] text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">VTSAX + IBIT</span>
                         </div>
-                        <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
-                          <span>IBIT · {rothIraIbitHoldings} sh. · {fmt(ibitPrice)}/sh.</span>
-                          <span className="font-semibold text-emerald-300">{fmt(rothIraValue)}</span>
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
+                          <div className="flex justify-between text-slate-400">
+                            <span>VTSAX · {rothIraVtsaxHoldings} sh. · {fmt(vtsaxPrice)}/sh.</span>
+                            <span className="font-semibold text-emerald-300">{fmt(rothIraVtsaxHoldings * vtsaxPrice)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>IBIT · {rothIraIbitHoldings} sh. · {fmt(ibitPrice)}/sh.</span>
+                            <span className="font-semibold text-emerald-300">{fmt(rothIraIbitHoldings * ibitPrice)}</span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
