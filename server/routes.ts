@@ -4886,13 +4886,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Vanguard Institutional 500 Index (VIIIX) — used for 401k valuation
+  // Vanguard Institutional 500 Index (VIIIX) — kept for backwards compat
   app.get("/api/market/viiix", async (_req, res) => {
     try {
       res.json(await fetchYahooPrice("VIIIX"));
     } catch (error: any) {
       console.error("VIIIX price fetch error:", error);
       res.status(502).json({ error: "Failed to fetch VIIIX price", details: error.message });
+    }
+  });
+
+  // ProShares Ultra S&P500 (SSO) — used for 401k valuation
+  app.get("/api/market/sso", async (_req, res) => {
+    try {
+      res.json(await fetchYahooPrice("SSO"));
+    } catch (error: any) {
+      console.error("SSO price fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch SSO price", details: error.message });
     }
   });
 

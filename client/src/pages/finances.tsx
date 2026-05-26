@@ -228,10 +228,9 @@ export default function Finances() {
   const [rothIraVtsaxHoldings, setRothIraVtsaxHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-roth-vtsax") || "146.857"); } catch { return 146.857; }
   });
-  // 401k — VG INST 500 IDX (VIIIX) via employer plan
-  // $117,112.75 current value ÷ $599.22/share (VIIIX, May 22 2026) ≈ 195.44 shares
+  // 401k — ProShares Ultra S&P500 (SSO) via employer plan
   const [k401Shares, setK401Shares] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-401k-viiix") || "195.44"); } catch { return 195.44; }
+    try { return parseFloat(localStorage.getItem("nw-401k-sso") || "1734.032"); } catch { return 1734.032; }
   });
   // Real Estate — 2605 Plumbago Court (all defaults set for alexbaer321@gmail.com, May 2026)
   const [homeAddress, setHomeAddress] = useState<string>(() => {
@@ -355,9 +354,9 @@ export default function Finances() {
     retry: 2,
   });
 
-  // VIIIX (Vanguard Institutional 500 Index) — used for 401k valuation
+  // SSO (ProShares Ultra S&P500) — used for 401k valuation
   const { data: viiixData, isLoading: viiixLoading } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
-    queryKey: ["/api/market/viiix"],
+    queryKey: ["/api/market/sso"],
     staleTime: 60_000,
     retry: 2,
   });
@@ -592,7 +591,7 @@ export default function Finances() {
       ["Vanguard Brokerage (after 15% LTCG)", $v(_vanguardAfterTax), "", `VTSAX ${vtsaxHoldings} sh + VOO ${vooHoldings} sh`],
       ["Roth IRA — VTSAX", $v(rothIraVtsaxHoldings * _vtsaxPrice), "", `${rothIraVtsaxHoldings} VTSAX shares`],
       ["Roth IRA — IBIT", $v(rothIraIbitHoldings * _ibitPrice), "", `${rothIraIbitHoldings} IBIT shares`],
-      ["Fidelity 401k — VIIIX", $v(_k401Value), "", `${k401Shares} VIIIX shares`],
+      ["401k — SSO (ProShares Ultra S&P500)", $v(_k401Value), "", `${k401Shares} SSO shares`],
       ["BMO Checking", $v(checkingBalance), "", "Cash"],
       ["CareerGlow LLC (Mercury)", $v(careerglowBalance), "", "Business cash reserves"],
       ["Apple RSUs (E*Trade)", $v(eTradeRsuValue), "", "Vested shares"],
@@ -681,7 +680,7 @@ export default function Finances() {
       ["ASSET", "ACCOUNT", "SHARES", "PRICE ($)", "VALUE ($)", "TAX TREATMENT", ""],
       ["Vanguard Total Stock Market Index", "Roth IRA (Vanguard)", rothIraVtsaxHoldings, $v(_vtsaxPrice), $v(rothIraVtsaxHoldings * _vtsaxPrice), "Tax-free (Roth)", ""],
       ["iShares Bitcoin ETF", "Roth IRA (Vanguard)", rothIraIbitHoldings, $v(_ibitPrice), $v(rothIraIbitHoldings * _ibitPrice), "Tax-free (Roth)", ""],
-      ["VG Inst 500 Index", "Fidelity 401k", k401Shares, $v(_viiixPrice), $v(_k401Value), "Tax-deferred", ""],
+      ["ProShares Ultra S&P500", "401k", k401Shares, $v(_viiixPrice), $v(_k401Value), "Tax-deferred", ""],
       [],
       ["── DOMAIN NAMES ──", "", "", "", "", "", ""],
       ["DOMAIN", "PURCHASE PRICE ($)", "EST. SALE PRICE ($)", "CAP GAIN ($)", "15% LTCG TAX ($)", "AFTER-TAX VALUE ($)", ""],
@@ -722,7 +721,7 @@ export default function Finances() {
     retRows.push(["── ACCOUNT BALANCES ──"]);
     retRows.push(["ACCOUNT", "INSTITUTION", "HOLDINGS", "CURRENT VALUE ($)", "TAX TYPE"]);
     retRows.push(["Roth IRA", "Vanguard", `${rothIraVtsaxHoldings} VTSAX + ${rothIraIbitHoldings} IBIT`, $v(_rothIraValue), "Tax-free (Roth)"]);
-    retRows.push(["401k", "Fidelity (via Apple)", `${k401Shares} VIIIX shares`, $v(_k401Value), "Tax-deferred"]);
+    retRows.push(["401k", "Employer Plan", `${k401Shares} SSO shares`, $v(_k401Value), "Tax-deferred"]);
     retRows.push(["Total Retirement Balance", "", "", $v(_rothIraValue + _k401Value), ""]);
     const ws5 = XLSX.utils.aoa_to_sheet(retRows);
     ws5["!cols"] = [{ wch: 40 }, { wch: 24 }, { wch: 30 }, { wch: 18 }, { wch: 18 }];
@@ -1065,7 +1064,7 @@ export default function Finances() {
                                 { label: "Crypto (BTC, after tax)", value: _btcAfterTax, color: "text-yellow-300" },
                                 { label: "Index Funds (after tax)", value: _vanguardAfterTax, color: "text-indigo-300" },
                                 { label: "Roth IRA (VTSAX + IBIT)", value: _rothIraValue, color: "text-purple-300" },
-                                { label: "401k (VIIIX)", value: _k401Value, color: "text-teal-300" },
+                                { label: "401k (SSO)", value: _k401Value, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
                                 { label: "CareerGlow LLC (Mercury)", value: careerglowBalance, color: "text-cyan-200" },
@@ -2257,7 +2256,7 @@ export default function Finances() {
                       </CardContent>
                     </Card>
 
-                    {/* 401k — VG INST 500 IDX (VIIIX) */}
+                    {/* 401k — ProShares Ultra S&P500 (SSO) */}
                     <Card className="bg-slate-800/60 border-teal-500/30">
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
@@ -2266,12 +2265,11 @@ export default function Finances() {
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : k401Value > 0 ? fmt(k401Value) : <span className="text-red-400 text-sm">Unavailable</span>}
-                            </p>
                           </div>
-                          <span className="text-[10px] text-teal-400 border border-teal-500/30 rounded px-1.5 py-0.5">VIIIX</span>
+                          <span className="text-[10px] text-teal-400 border border-teal-500/30 rounded px-1.5 py-0.5">SSO</span>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
-                          <span>VIIIX · {k401Shares} sh. · {fmt(viiixPrice)}/sh.</span>
+                          <span>SSO · {k401Shares} sh. · {fmt(viiixPrice)}/sh.</span>
                           <span className="font-semibold text-teal-300">{fmt(k401Value)}</span>
                         </div>
                       </CardContent>
