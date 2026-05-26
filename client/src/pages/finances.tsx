@@ -1736,14 +1736,6 @@ export default function Finances() {
 
               return (
                 <>
-                  {/* Tax disclaimer */}
-                  <Alert className="bg-yellow-900/30 border-yellow-500/40">
-                    <AlertTriangle className="h-4 w-4 text-yellow-400" />
-                    <AlertDescription className="text-yellow-200 text-xs leading-relaxed">
-                      <strong>Historical data (Sep 2019 – Mar 2026):</strong> These figures were manually entered from Credit Karma and reflect <em>gross</em> asset values — <strong>capital gains taxes have NOT been deducted</strong>. Depending on your bracket, realized gains on stocks, crypto, and ETFs could reduce these numbers by ~15–20% (long-term rate) or more. Starting from your live monthly snapshots going forward, values use after-tax estimates where applicable.
-                    </AlertDescription>
-                  </Alert>
-
                   {/* Summary cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <Card className="bg-slate-800/60 border-emerald-500/20">
@@ -1820,6 +1812,59 @@ export default function Finances() {
                                 formatter={(v: any) => [`$${Number(v).toLocaleString("en-US")}`, "Net Worth"]}
                                 contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #059669", borderRadius: "8px" }}
                                 labelStyle={{ color: "#A7F3D0" }}
+                              />
+                              <ReferenceLine
+                                x="Mar 2026"
+                                stroke="#EAB308"
+                                strokeDasharray="5 4"
+                                strokeWidth={2}
+                                label={(props: any) => {
+                                  const { viewBox } = props;
+                                  const [hovered, setHovered] = useState(false);
+                                  return (
+                                    <g>
+                                      {/* Hover hit area + icon */}
+                                      <g
+                                        onMouseEnter={() => setHovered(true)}
+                                        onMouseLeave={() => setHovered(false)}
+                                        style={{ cursor: "pointer" }}
+                                      >
+                                        <circle cx={viewBox.x} cy={18} r={10} fill="#854D0E" stroke="#EAB308" strokeWidth={1.5} />
+                                        <text x={viewBox.x} y={23} textAnchor="middle" fontSize={11} fill="#FDE68A" fontWeight="bold">!</text>
+                                      </g>
+                                      {/* Tooltip popover */}
+                                      {hovered && (
+                                        <foreignObject
+                                          x={viewBox.x - 160}
+                                          y={32}
+                                          width={320}
+                                          height={130}
+                                          style={{ overflow: "visible" }}
+                                        >
+                                          <div
+                                            style={{
+                                              background: "#1E293B",
+                                              border: "1px solid #EAB308",
+                                              borderRadius: "8px",
+                                              padding: "10px 12px",
+                                              fontSize: "11px",
+                                              color: "#FDE68A",
+                                              lineHeight: "1.5",
+                                              boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+                                            }}
+                                          >
+                                            <strong style={{ color: "#FCD34D", display: "block", marginBottom: "4px" }}>
+                                              ⚠ Historical data cutoff — Mar 2026
+                                            </strong>
+                                            <span style={{ color: "#CBD5E1" }}>
+                                              Everything <em>before</em> this line was manually entered from <strong style={{ color: "#FDE68A" }}>Credit Karma</strong> — coarser granularity, no asset-class breakdown, and <strong style={{ color: "#FCA5A5" }}>capital gains taxes not deducted</strong> (~15–20% on realized stock/crypto gains). Live auto-snapshots with full breakdown begin here.
+                                            </span>
+                                          </div>
+                                        </foreignObject>
+                                      )}
+                                    </g>
+                                  );
+                                }}
                               />
                               <Area
                                 type="monotone"
