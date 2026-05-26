@@ -4783,7 +4783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/finances", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const { item, category, monthlyCost, recurType } = req.body;
+      const { item, category, tags, monthlyCost, recurType } = req.body;
 
       if (!item || !category || monthlyCost === undefined || !recurType) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -4793,6 +4793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         item,
         category,
+        tags: Array.isArray(tags) ? tags : [],
         monthlyCost,
         recurType
       });

@@ -192,7 +192,8 @@ export const financialItems = pgTable("financial_items", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
   item: text("item").notNull(),
-  category: text("category").notNull(), // General, Business, Entertainment, Food, Housing, etc.
+  category: text("category").notNull(), // Primary category: General, Business, Income, etc.
+  tags: jsonb("tags").$type<string[]>().default([]), // Additional category labels (e.g. ["Business", "Income"])
   monthlyCost: integer("monthly_cost").notNull(), // Store as cents to avoid floating point issues
   recurType: text("recur_type").notNull(), // Monthly, Yearly (Amortized), Biweekly (Summed Monthly), 2x a Year
   createdAt: timestamp("created_at").defaultNow(),

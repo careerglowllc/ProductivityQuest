@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale
+  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale, Briefcase
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
@@ -35,10 +35,16 @@ const RECUR_TYPES = [
 const INCOME_CATEGORIES = ["Income", "Investment"];
 const RETIREMENT_CATEGORIES = ["Retirement"];
 
-function classifyItem(category: string): "income" | "retirement" | "expense" {
+function classifyItem(category: string, tags?: string[] | null): "income" | "retirement" | "expense" {
   if (INCOME_CATEGORIES.includes(category)) return "income";
+  if (tags && INCOME_CATEGORIES.some(c => tags.includes(c))) return "income";
   if (RETIREMENT_CATEGORIES.includes(category)) return "retirement";
+  if (tags && RETIREMENT_CATEGORIES.some(c => tags.includes(c))) return "retirement";
   return "expense";
+}
+
+function isBusinessItem(item: { category: string; tags?: string[] | null }): boolean {
+  return item.category === "Business" || (Array.isArray(item.tags) && item.tags.includes("Business"));
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -81,7 +87,7 @@ export default function Finances() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -297,11 +303,30 @@ export default function Finances() {
     return "asc";
   });
 
-  const [newItem, setNewItem] = useState({ item: "", category: "", monthlyCost: "", recurType: "" });
+  const [newItem, setNewItem] = useState({ item: "", category: "", tags: [] as string[], monthlyCost: "", recurType: "" });
 
   const { data: financialItems = [] } = useQuery<FinancialItem[]>({
     queryKey: ["/api/finances"],
   });
+
+  // Auto-seed MailWisp Paid User Income if it doesn't exist yet
+  useEffect(() => {
+    if (financialItems.length > 0 && !financialItems.find(i => i.item === "MailWisp Paid User Income")) {
+      fetch("/api/finances", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          item: "MailWisp Paid User Income",
+          category: "Income",
+          tags: ["Business", "Income"],
+          monthlyCost: 100, // $1.00 in cents
+          recurType: "Monthly",
+        }),
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financialItems.length]);
 
   const { data: btcData, isLoading: btcLoading, refetch: refetchBtc } = useQuery<{ price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/bitcoin"],
@@ -348,7 +373,7 @@ export default function Finances() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { item: string; category: string; monthlyCost: number; recurType: string }) => {
+    mutationFn: async (data: { item: string; category: string; tags: string[]; monthlyCost: number; recurType: string }) => {
       const response = await fetch("/api/finances", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -360,7 +385,7 @@ export default function Finances() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/finances"] });
-      setNewItem({ item: "", category: "", monthlyCost: "", recurType: "" });
+      setNewItem({ item: "", category: "", tags: [], monthlyCost: "", recurType: "" });
       toast({ title: "Item added successfully" });
     },
     onError: () => toast({ title: "Failed to add item", variant: "destructive" }),
@@ -383,15 +408,15 @@ export default function Finances() {
   });
 
   const totalIncome = financialItems
-    .filter(i => classifyItem(i.category) === "income")
+    .filter(i => classifyItem(i.category, i.tags) === "income")
     .reduce((s, i) => s + i.monthlyCost, 0);
 
   const totalRetirement = financialItems
-    .filter(i => classifyItem(i.category) === "retirement")
+    .filter(i => classifyItem(i.category, i.tags) === "retirement")
     .reduce((s, i) => s + i.monthlyCost, 0);
 
   const totalExpenses = financialItems
-    .filter(i => classifyItem(i.category) === "expense")
+    .filter(i => classifyItem(i.category, i.tags) === "expense")
     .reduce((s, i) => s + i.monthlyCost, 0);
 
   const netCashFlow = totalIncome - totalExpenses;
@@ -473,11 +498,11 @@ export default function Finances() {
 
   // Expense items sorted for cashflow detail
   const topExpenses = financialItems
-    .filter(i => classifyItem(i.category) === "expense")
+    .filter(i => classifyItem(i.category, i.tags) === "expense")
     .sort((a, b) => b.monthlyCost - a.monthlyCost);
 
   const expenseByCategory = financialItems
-    .filter(i => classifyItem(i.category) === "expense")
+    .filter(i => classifyItem(i.category, i.tags) === "expense")
     .reduce((acc, i) => { acc[i.category] = (acc[i.category] || 0) + i.monthlyCost; return acc; }, {} as Record<string, number>);
 
   const totalExpForPct = Object.values(expenseByCategory).reduce((s, v) => s + v, 0);
@@ -490,10 +515,10 @@ export default function Finances() {
     }));
 
   const incomeByCategory = financialItems
-    .filter(i => classifyItem(i.category) === "income")
+    .filter(i => classifyItem(i.category, i.tags) === "income")
     .reduce((acc, i) => { acc[i.category] = (acc[i.category] || 0) + i.monthlyCost; return acc; }, {} as Record<string, number>);
 
-  const retirementItems = financialItems.filter(i => classifyItem(i.category) === "retirement");
+  const retirementItems = financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement");
 
   const handleSort = (field: "item" | "category" | "monthlyCost" | "recurType") => {
     const newDir = sortField === field && sortDirection === "asc" ? "desc" : "asc";
@@ -525,6 +550,7 @@ export default function Finances() {
     }
     createMutation.mutate({
       item: newItem.item, category: newItem.category,
+      tags: newItem.tags,
       monthlyCost: Math.round(parseFloat(newItem.monthlyCost) * 100),
       recurType: newItem.recurType,
     });
@@ -587,7 +613,7 @@ export default function Finances() {
     ];
     for (const type of ["income", "retirement", "expense"] as const) {
       const group = financialItems
-        .filter(i => classifyItem(i.category) === type)
+        .filter(i => classifyItem(i.category, i.tags) === type)
         .sort((a, b) => b.monthlyCost - a.monthlyCost);
       if (!group.length) continue;
       iveRows.push([]);
@@ -614,11 +640,11 @@ export default function Finances() {
       ["CATEGORY", "MONTHLY ($)", "ANNUAL ($)", "% OF TOTAL EXPENSES", "ITEMS IN CATEGORY"],
     ];
     for (const { name, value, pct } of expensePie) {
-      const count = financialItems.filter(i => i.category === name && classifyItem(i.category) === "expense").length;
+      const count = financialItems.filter(i => i.category === name && classifyItem(i.category, i.tags) === "expense").length;
       expRows.push([name, $(value), $(value * 12), `${pct.toFixed(1)}%`, count]);
     }
     expRows.push([]);
-    expRows.push(["TOTAL EXPENSES", $(totalExpenses), $(totalExpenses * 12), "100%", financialItems.filter(i => classifyItem(i.category) === "expense").length]);
+    expRows.push(["TOTAL EXPENSES", $(totalExpenses), $(totalExpenses * 12), "100%", financialItems.filter(i => classifyItem(i.category, i.tags) === "expense").length]);
     expRows.push([]);
     expRows.push(["── Item Detail ──", "", "", "", ""]);
     expRows.push(["ITEM NAME", "CATEGORY", "FREQUENCY", "MONTHLY ($)", "ANNUAL ($)"]);
@@ -855,6 +881,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="income-vs-expense" className="data-[state=active]:bg-green-600/40 text-xs px-3 py-1.5">
               <PieChart className="h-3.5 w-3.5 mr-1.5" />Income vs Expenses
+            </TabsTrigger>
+            <TabsTrigger value="business" className="data-[state=active]:bg-blue-600/40 text-xs px-3 py-1.5">
+              <Briefcase className="h-3.5 w-3.5 mr-1.5" />Business
             </TabsTrigger>
             <TabsTrigger value="networth" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
               <Scale className="h-3.5 w-3.5 mr-1.5" />Net Worth
@@ -1282,7 +1311,7 @@ export default function Finances() {
                         <p className="text-xs text-green-400 font-semibold mb-2 flex items-center gap-1.5">
                           <TrendingUp className="h-3.5 w-3.5" /> Income + Investment
                         </p>
-                        {financialItems.filter(i => classifyItem(i.category) === "income")
+                        {financialItems.filter(i => classifyItem(i.category, i.tags) === "income")
                           .sort((a, b) => b.monthlyCost - a.monthlyCost)
                           .map(i => (
                             <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-green-500/10 last:border-0">
@@ -1314,7 +1343,7 @@ export default function Finances() {
                         <p className="text-xs text-red-400 font-semibold mb-2 flex items-center gap-1.5">
                           <TrendingDown className="h-3.5 w-3.5" /> Top Expenses
                         </p>
-                        {financialItems.filter(i => classifyItem(i.category) === "expense")
+                        {financialItems.filter(i => classifyItem(i.category, i.tags) === "expense")
                           .sort((a, b) => b.monthlyCost - a.monthlyCost)
                           .slice(0, 10)
                           .map(i => (
@@ -1333,13 +1362,13 @@ export default function Finances() {
                 ) : (() => {
                   // Granular: every individual item as its own slice, colored by type
                   const granularData = [
-                    ...financialItems.filter(i => classifyItem(i.category) === "income")
+                    ...financialItems.filter(i => classifyItem(i.category, i.tags) === "income")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
                       .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#22C55E", type: "income" as const })),
-                    ...financialItems.filter(i => classifyItem(i.category) === "retirement")
+                    ...financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
                       .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FBBF24", type: "retirement" as const })),
-                    ...financialItems.filter(i => classifyItem(i.category) === "expense")
+                    ...financialItems.filter(i => classifyItem(i.category, i.tags) === "expense")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
                       .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "expense" as const })),
                   ].filter(d => d.value > 0);
@@ -1388,6 +1417,146 @@ export default function Finances() {
                 })()}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── Business Tab ─────────────────────────── */}
+          <TabsContent value="business" className="space-y-4">
+            {(() => {
+              const bizItems = financialItems.filter(isBusinessItem);
+              const bizIncome = bizItems.filter(i => classifyItem(i.category, i.tags) === "income").reduce((s, i) => s + i.monthlyCost, 0);
+              const bizExpenses = bizItems.filter(i => classifyItem(i.category, i.tags) === "expense").reduce((s, i) => s + i.monthlyCost, 0);
+              const bizNet = bizIncome - bizExpenses;
+              const bizExpByCategory = bizItems
+                .filter(i => classifyItem(i.category, i.tags) === "expense")
+                .reduce((acc, i) => { acc[i.category] = (acc[i.category] || 0) + i.monthlyCost; return acc; }, {} as Record<string, number>);
+              const bizExpPie = Object.entries(bizExpByCategory).map(([cat, val]) => ({
+                name: cat, value: val, color: CATEGORY_COLORS[cat] || "#94A3B8",
+              }));
+              return (
+                <>
+                  {/* Summary cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card className="bg-slate-800/60 border-green-500/20">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-green-300 text-sm flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4" />Business Income
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold text-green-400">{formatCurrency(bizIncome)}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatCurrency(bizIncome * 12)} / year</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/60 border-red-500/20">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-red-300 text-sm flex items-center gap-2">
+                          <TrendingDown className="h-4 w-4" />Business Expenses
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold text-red-400">{formatCurrency(bizExpenses)}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatCurrency(bizExpenses * 12)} / year</p>
+                      </CardContent>
+                    </Card>
+                    <Card className={`bg-slate-800/60 border-${bizNet >= 0 ? "blue" : "red"}-500/20`}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className={`text-${bizNet >= 0 ? "blue" : "red"}-300 text-sm flex items-center gap-2`}>
+                          <Briefcase className="h-4 w-4" />Net Business Cash
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className={`text-2xl font-bold text-${bizNet >= 0 ? "blue" : "red"}-400`}>{formatCurrency(bizNet)}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatCurrency(bizNet * 12)} / year</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Charts */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Income vs Expense bar */}
+                    <Card className="bg-slate-800/60 border-blue-500/20">
+                      <CardHeader>
+                        <CardTitle className="text-blue-300 text-sm">Business Income vs Expenses</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={220}>
+                          <BarChart data={[
+                            { name: "Income", value: bizIncome, fill: "#22C55E" },
+                            { name: "Expenses", value: bizExpenses, fill: "#EF4444" },
+                            { name: "Net", value: Math.abs(bizNet), fill: bizNet >= 0 ? "#3B82F6" : "#F97316" },
+                          ]}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="name" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                            <YAxis tickFormatter={v => `$${(v/100).toFixed(0)}`} tick={{ fill: "#94A3B8", fontSize: 10 }} />
+                            <Tooltip formatter={(v: any) => formatCurrency(v)} contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #7C3AED" }} />
+                            <Bar dataKey="value">
+                              {[{ fill: "#22C55E" }, { fill: "#EF4444" }, { fill: bizNet >= 0 ? "#3B82F6" : "#F97316" }].map((e, i) => (
+                                <Cell key={i} fill={e.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    {/* Expense breakdown pie */}
+                    {bizExpPie.length > 0 && (
+                      <Card className="bg-slate-800/60 border-blue-500/20">
+                        <CardHeader>
+                          <CardTitle className="text-blue-300 text-sm">Business Expense Categories</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={220}>
+                            <RechartsPieChart>
+                              <Pie data={bizExpPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                                {bizExpPie.map((e, i) => <Cell key={i} fill={e.color} />)}
+                              </Pie>
+                              <Tooltip formatter={(v: any) => formatCurrency(v)} contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #7C3AED" }} />
+                            </RechartsPieChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {/* Item list */}
+                  <Card className="bg-slate-800/60 border-blue-500/20">
+                    <CardHeader>
+                      <CardTitle className="text-blue-300 text-sm">Business Items ({bizItems.length})</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">Items tagged or categorized as Business</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {bizItems.length === 0 ? (
+                        <p className="text-slate-400 text-sm text-center py-6">No business items found. Add items with the "Business" category or tag.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {bizItems.map(item => (
+                            <div key={item.id} className="flex items-center justify-between bg-slate-700/40 rounded-lg px-3 py-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white text-sm font-medium truncate">{item.item}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <Badge className="text-xs px-1.5 py-0 bg-blue-500/20 text-blue-300 border-blue-500/30">{item.category}</Badge>
+                                  {Array.isArray(item.tags) && item.tags.filter(t => t !== item.category).map(tag => (
+                                    <Badge key={tag} className="text-xs px-1.5 py-0 bg-slate-600/60 text-slate-300 border-slate-500/30">{tag}</Badge>
+                                  ))}
+                                  <span className="text-slate-400 text-xs">{item.recurType}</span>
+                                </div>
+                              </div>
+                              <div className="text-right ml-3">
+                                <p className={`text-sm font-bold ${classifyItem(item.category, item.tags) === "income" ? "text-green-400" : "text-red-400"}`}>
+                                  {formatCurrency(item.monthlyCost)}/mo
+                                </p>
+                                <p className="text-xs text-slate-500">{formatCurrency(item.monthlyCost * 12)}/yr</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()}
           </TabsContent>
 
           {/* ── Expense Breakdown Pie ─────────────────── */}
@@ -1515,6 +1684,28 @@ export default function Finances() {
                     </Select>
                   </div>
                   <div>
+                    <Label className="text-slate-300 text-xs">Extra Tags</Label>
+                    <div className="flex flex-wrap gap-1 mt-1 min-h-[32px] bg-slate-900/50 border border-slate-600 rounded-md px-2 py-1">
+                      {["Business", "Income", "Investment", "Retirement"].map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setNewItem(prev => ({
+                            ...prev,
+                            tags: prev.tags.includes(tag) ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag],
+                          }))}
+                          className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
+                            newItem.tags.includes(tag)
+                              ? "bg-blue-600/50 text-blue-200 border-blue-500/60"
+                              : "bg-slate-700/50 text-slate-400 border-slate-600/50 hover:bg-slate-600/50"
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
                     <Label className="text-slate-300 text-xs">Monthly Cost ($)</Label>
                     <Input type="number" step="0.01" value={newItem.monthlyCost}
                       onChange={(e) => setNewItem({ ...newItem, monthlyCost: e.target.value })}
@@ -1583,19 +1774,19 @@ export default function Finances() {
                       label: "💚 Income & Investment",
                       colorClass: "text-green-300",
                       headerBg: "bg-green-500/10 border-green-500/20",
-                      items: searched.filter(i => classifyItem(i.category) === "income"),
+                      items: searched.filter(i => classifyItem(i.category, i.tags) === "income"),
                     },
                     {
                       label: "💛 Retirement",
                       colorClass: "text-yellow-300",
                       headerBg: "bg-yellow-500/10 border-yellow-500/20",
-                      items: searched.filter(i => classifyItem(i.category) === "retirement"),
+                      items: searched.filter(i => classifyItem(i.category, i.tags) === "retirement"),
                     },
                     {
                       label: "🔴 Expenses",
                       colorClass: "text-red-300",
                       headerBg: "bg-red-500/10 border-red-500/20",
-                      items: searched.filter(i => classifyItem(i.category) === "expense"),
+                      items: searched.filter(i => classifyItem(i.category, i.tags) === "expense"),
                     },
                   ].filter(g => g.items.length > 0);
 
