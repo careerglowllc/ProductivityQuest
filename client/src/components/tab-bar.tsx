@@ -40,7 +40,7 @@ export function TabBar() {
       icon: Calendar,
     },
     {
-      name: "Item Shop",
+      name: "Shop",
       path: "/shop",
       icon: ShoppingCart,
     },

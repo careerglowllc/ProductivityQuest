@@ -665,16 +665,21 @@ export default function Dashboard() {
       return [];
     }
     const incompleteTasks = (safeTasks as any[]).filter((task: any) => !task.completed);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use local midnight for "today" so comparisons are relative to the user's calendar day
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayTime = today.getTime();
     
-    // Helper to get days until due date
+    // Helper to get days until due date.
+    // dueDates are stored as midnight UTC ISO strings (e.g. "2026-05-29T00:00:00.000Z").
+    // We extract the UTC calendar date (Y/M/D) and build a local midnight Date so the
+    // displayed date matches what the user entered — avoids a -1 day shift in UTC-N zones.
     const getDaysUntilDue = (task: any) => {
       if (!task.dueDate) return Infinity;
-      const dueDate = new Date(task.dueDate);
-      dueDate.setHours(0, 0, 0, 0);
-      const diffTime = dueDate.getTime() - todayTime;
+      const d = new Date(task.dueDate);
+      // Treat stored date as a calendar date in UTC, then compare to local today
+      const dueLocal = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      const diffTime = dueLocal.getTime() - todayTime;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays;
     };
@@ -897,7 +902,7 @@ export default function Dashboard() {
         {dragHandleBar}
         <CardHeader className="border-b border-yellow-600/20 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
+            <CardTitle className="text-xl font-serif font-bold text-yellow-100">Top Priority Tasks</CardTitle>
             <Link href="/tasks">
               <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
                 View All <ArrowRight className="w-4 h-4" />
@@ -925,7 +930,7 @@ export default function Dashboard() {
                         {task.importance && <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>{task.importance}</Badge>}
                         {task.duration && <div className="flex items-center text-xs text-yellow-200/60"><Clock className="w-3 h-3 mr-1" />{task.duration} min</div>}
                         {task.goldValue && <div className="flex items-center text-xs text-yellow-400 font-semibold"><Coins className="w-3 h-3 mr-1" />{task.goldValue}</div>}
-                        {task.dueDate && <div className="flex items-center text-xs text-yellow-200/60"><Calendar className="w-3 h-3 mr-1" />{new Date(task.dueDate).toLocaleDateString()}</div>}
+                        {task.dueDate && <div className="flex items-center text-xs text-yellow-200/60"><Calendar className="w-3 h-3 mr-1" />{(() => { const d = new Date(task.dueDate); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(); })()}</div>}
                       </div>
                     </div>
                   </div>
@@ -1240,7 +1245,7 @@ export default function Dashboard() {
             <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30 hover:border-yellow-500/50 transition-all">
               <CardHeader className="border-b border-yellow-600/20">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl font-serif font-bold text-yellow-100">Today's Top Priorities</CardTitle>
+                  <CardTitle className="text-xl font-serif font-bold text-yellow-100">Top Priority Tasks</CardTitle>
                   <Link href="/tasks">
                     <Button variant="outline" size="sm" className="flex items-center gap-2 border-yellow-600/40 bg-slate-700/50 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
                       View All
@@ -1289,7 +1294,7 @@ export default function Dashboard() {
                               {task.dueDate && (
                                 <div className="flex items-center text-xs text-yellow-200/60">
                                   <Calendar className="w-3 h-3 mr-1" />
-                                  {new Date(task.dueDate).toLocaleDateString()}
+                                  {(() => { const d = new Date(task.dueDate); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(); })()}
                                 </div>
                               )}
                             </div>
