@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign, GripVertical } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import React from "react";
 import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -775,6 +775,38 @@ export default function Dashboard() {
   const [dashDragOverIdx, setDashDragOverIdx] = useState<number | null>(null);
   const dashDragSrcIdx = useRef<number | null>(null);
 
+  // Server-persisted dashboard widget preferences
+  const dashWidgetPrefsDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { data: dashWidgetPrefs } = useQuery<{ dashOrder?: string[] }>({
+    queryKey: ["/api/widget-preferences"],
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  // Apply server prefs once loaded (server wins over localStorage for order)
+  useEffect(() => {
+    if (!dashWidgetPrefs?.dashOrder?.length) return;
+    const order = dashWidgetPrefs.dashOrder as DashWidgetKey[];
+    const valid = DEFAULT_DASH_ORDER.filter(k => order.includes(k));
+    const missing = DEFAULT_DASH_ORDER.filter(k => !order.includes(k));
+    const merged = [...valid.map(k => order[order.indexOf(k)]), ...missing];
+    setDashWidgetOrder(merged);
+    try { localStorage.setItem("dash-widget-order", JSON.stringify(merged)); } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashWidgetPrefs]);
+
+  const saveDashWidgetPrefs = useCallback((order: DashWidgetKey[]) => {
+    if (dashWidgetPrefsDebounce.current) clearTimeout(dashWidgetPrefsDebounce.current);
+    dashWidgetPrefsDebounce.current = setTimeout(() => {
+      fetch("/api/widget-preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ dashOrder: order }),
+      }).catch(() => {/* silent */});
+    }, 800);
+  }, []);
+
   const handleDashDragStart = (e: React.DragEvent, idx: number) => {
     dashDragSrcIdx.current = idx;
     e.dataTransfer.effectAllowed = "move";
@@ -794,6 +826,7 @@ export default function Dashboard() {
     next.splice(idx, 0, removed);
     setDashWidgetOrder(next);
     try { localStorage.setItem("dash-widget-order", JSON.stringify(next)); } catch {}
+    saveDashWidgetPrefs(next);
     dashDragSrcIdx.current = null;
     setDashDragOverIdx(null);
   };

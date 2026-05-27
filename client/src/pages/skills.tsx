@@ -862,7 +862,7 @@ export default function Skills() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all bg-slate-800/30 border-2 border-emerald-600/30 text-emerald-300/80 hover:border-emerald-500/60 hover:text-emerald-200"
             >
               <TrendingUp className="h-4 w-4" />
-              <span className="font-semibold">Timeline</span>
+              <span className="font-semibold">Accomplishments</span>
             </a>
           </div>
           
