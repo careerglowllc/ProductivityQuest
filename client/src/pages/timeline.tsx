@@ -167,7 +167,7 @@ export default function TimelinePage() {
         <div className="absolute top-80 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{ animationDelay: "0.5s" }} />
       </div>
 
-      <div className={`relative max-w-4xl mx-auto ${isMobile ? "px-4 pt-4" : "px-6 pt-10"}`}>
+      <div className={`relative ${isMobile ? "max-w-4xl mx-auto px-4 pt-4" : viewMode === 'horizontal' ? "px-2 pt-10" : "max-w-4xl mx-auto px-6 pt-10"}`}>
 
         {/* Back link */}
         <Link href="/skills">
@@ -368,14 +368,13 @@ export default function TimelinePage() {
           for (let y = minYear; y <= maxYear; y++) allYears.push(y);
           const COL_W = 130; // px per year column
           const ROW_H = 52; // px per accomplishment row
-          const HEADER_H = 44;
-          const LABEL_W = 0; // no left label column — items are self-labeled inside bars
+          const FOOTER_H = 44; // year axis at bottom
 
           // Sort filtered accomplishments by year, then title
           const sorted = [...filtered].sort((a, b) => a.year !== b.year ? a.year - b.year : a.title.localeCompare(b.title));
 
           const totalW = allYears.length * COL_W;
-          const totalH = HEADER_H + sorted.length * ROW_H + 24;
+          const totalH = sorted.length * ROW_H + FOOTER_H + 16;
 
           return (
             <div className="rounded-2xl border border-violet-500/30 bg-slate-900/70 overflow-hidden shadow-2xl shadow-violet-900/20">
@@ -386,21 +385,11 @@ export default function TimelinePage() {
               </div>
 
               {/* Scrollable area */}
-              <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '70vh' }}>
+              <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '75vh' }}>
                 <div style={{ width: totalW, minHeight: totalH, position: 'relative' }}>
 
-                  {/* Year header row */}
-                  <div className="sticky top-0 z-20 flex bg-slate-900/95 border-b border-slate-700/60" style={{ width: totalW }}>
-                    {allYears.map(y => (
-                      <div key={y} className="flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-700/30 py-2" style={{ width: COL_W }}>
-                        <span className={`text-sm font-bold font-serif ${years.includes(y) ? 'text-yellow-300' : 'text-slate-600'}`}>{y}</span>
-                        {years.includes(y) && <div className="w-1 h-1 rounded-full bg-yellow-400 mt-1" />}
-                      </div>
-                    ))}
-                  </div>
-
                   {/* Column grid lines */}
-                  <div className="absolute top-0 bottom-0 left-0 pointer-events-none" style={{ width: totalW, top: HEADER_H }}>
+                  <div className="absolute inset-0 pointer-events-none" style={{ width: totalW }}>
                     {allYears.map((y, i) => (
                       <div key={y}
                         className={`absolute top-0 bottom-0 border-r ${years.includes(y) ? 'border-slate-600/30' : 'border-slate-800/30'}`}
@@ -410,7 +399,7 @@ export default function TimelinePage() {
                   </div>
 
                   {/* Accomplishment rows */}
-                  <div style={{ paddingTop: 8 }}>
+                  <div style={{ paddingTop: 8, paddingBottom: FOOTER_H }}>
                     {sorted.map((item, rowIdx) => {
                       const cat = CATEGORIES[item.category];
                       const startIdx = allYears.indexOf(item.year);
@@ -446,27 +435,28 @@ export default function TimelinePage() {
                             <div className="flex items-center gap-2 px-3 h-full" style={{ minHeight: ROW_H - 10 }}>
                               <span className="text-lg shrink-0 leading-none">{item.emoji}</span>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="text-white font-semibold text-xs leading-tight truncate" style={{ color: cat.color }}>{item.title}</p>
-                                  {item.yearEnd && (
-                                    <span className="text-[9px] rounded px-1.5 py-0.5 shrink-0" style={{ background: cat.color + '30', color: cat.color }}>
-                                      {item.year}–{item.yearEnd}
-                                    </span>
-                                  )}
-                                </div>
+                                <p className="font-semibold text-xs leading-tight truncate" style={{ color: cat.color }}>{item.title}</p>
                                 {isHovered && (
                                   <p className="text-slate-300 text-[11px] mt-1.5 leading-relaxed whitespace-normal pr-2">{item.detail}</p>
                                 )}
                               </div>
-                              <span className="text-[9px] shrink-0 rounded-full px-1.5 py-0.5 ml-auto" style={{ background: cat.color + '20', color: cat.color, border: `1px solid ${cat.color}40` }}>
-                                {cat.label}
-                              </span>
                             </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+
+                  {/* Year axis — sticky at bottom */}
+                  <div className="sticky bottom-0 z-20 flex bg-slate-900/95 border-t border-slate-700/60" style={{ width: totalW }}>
+                    {allYears.map(y => (
+                      <div key={y} className="flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-700/30 py-2" style={{ width: COL_W }}>
+                        <span className={`text-sm font-bold font-serif ${years.includes(y) ? 'text-yellow-300' : 'text-slate-600'}`}>{y}</span>
+                        {years.includes(y) && <div className="w-1 h-1 rounded-full bg-yellow-400 mt-1" />}
+                      </div>
+                    ))}
+                  </div>
+
                 </div>
               </div>
             </div>
