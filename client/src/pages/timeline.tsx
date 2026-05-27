@@ -75,6 +75,8 @@ export default function TimelinePage() {
     new Set(Object.keys(CATEGORIES) as AccomplishmentCategory[])
   );
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [showPerYear, setShowPerYear] = useState(true);
+  const [showCumulative, setShowCumulative] = useState(true);
 
   const years = Array.from(new Set(ACCOMPLISHMENTS.map(a => a.year))).sort((a, b) => a - b);
 
@@ -105,6 +107,16 @@ export default function TimelinePage() {
     total: ACCOMPLISHMENTS.filter(a => a.year === y).length,
   }));
   const maxCount = Math.max(...chartData.map(d => d.total), 1);
+
+  // Cumulative running totals
+  let runningFiltered = 0;
+  let runningTotal = 0;
+  const cumulativeData = years.map(y => {
+    runningFiltered += filtered.filter(a => a.year === y).length;
+    runningTotal += ACCOMPLISHMENTS.filter(a => a.year === y).length;
+    return { year: y, cumFiltered: runningFiltered, cumTotal: runningTotal };
+  });
+  const maxCumulative = Math.max(...cumulativeData.map(d => d.cumTotal), 1);
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? "pt-16" : "pt-2"} pb-24 relative overflow-hidden`}>
@@ -161,29 +173,86 @@ export default function TimelinePage() {
           })}
         </div>
 
-        {/* Bar chart */}
-        <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4 mb-10">
-          <p className="text-xs text-slate-400 mb-3 text-center">Accomplishments per year</p>
-          <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
-            {chartData.map(d => {
-              const BAR_MAX = 112;
-              const totalPx = Math.max(6, (d.total / maxCount) * BAR_MAX);
-              const fillPx = d.count === 0 ? 0 : Math.max(4, (d.count / maxCount) * BAR_MAX);
-              return (
-                <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                  <span className="text-[9px] text-emerald-400 font-bold leading-none mb-0.5">{d.count > 0 ? d.count : ""}</span>
-                  <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
-                    <div
-                      className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-500"
-                      style={{ height: fillPx }}
-                    />
-                  </div>
-                  <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
-                </div>
-              );
-            })}
-          </div>
+        {/* Chart toggle buttons */}
+        <div className="flex justify-center gap-2 mb-3">
+          <button
+            onClick={() => setShowPerYear(v => !v)}
+            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${
+              showPerYear
+                ? "bg-emerald-500/15 border-emerald-500/40 text-white"
+                : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showPerYear ? "#34D399" : "#475569" }} />
+            Per Year
+          </button>
+          <button
+            onClick={() => setShowCumulative(v => !v)}
+            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${
+              showCumulative
+                ? "bg-sky-500/15 border-sky-500/40 text-white"
+                : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showCumulative ? "#38BDF8" : "#475569" }} />
+            Cumulative
+          </button>
         </div>
+
+        {/* Per-year bar chart */}
+        {showPerYear && (
+          <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4 mb-3">
+            <p className="text-xs text-slate-400 mb-3 text-center">Accomplishments per year</p>
+            <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
+              {chartData.map(d => {
+                const BAR_MAX = 112;
+                const totalPx = Math.max(6, (d.total / maxCount) * BAR_MAX);
+                const fillPx = d.count === 0 ? 0 : Math.max(4, (d.count / maxCount) * BAR_MAX);
+                return (
+                  <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                    <span className="text-[9px] text-emerald-400 font-bold leading-none mb-0.5">{d.count > 0 ? d.count : ""}</span>
+                    <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
+                      <div
+                        className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-500"
+                        style={{ height: fillPx }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Cumulative bar chart */}
+        {showCumulative && (
+          <div className="rounded-xl border border-sky-500/20 bg-slate-800/50 p-4 mb-10">
+            <p className="text-xs text-slate-400 mb-3 text-center">Cumulative accomplishments over time</p>
+            <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
+              {cumulativeData.map(d => {
+                const BAR_MAX = 112;
+                const totalPx = Math.max(6, (d.cumTotal / maxCumulative) * BAR_MAX);
+                const fillPx = d.cumFiltered === 0 ? 0 : Math.max(4, (d.cumFiltered / maxCumulative) * BAR_MAX);
+                return (
+                  <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                    <span className="text-[9px] text-sky-400 font-bold leading-none mb-0.5">{d.cumFiltered > 0 ? d.cumFiltered : ""}</span>
+                    <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
+                      <div
+                        className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-sky-600 to-sky-400 transition-all duration-500"
+                        style={{ height: fillPx }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Spacer when both charts hidden */}
+        {!showPerYear && !showCumulative && <div className="mb-10" />}
 
         {/* Timeline */}
         <div className="relative">
