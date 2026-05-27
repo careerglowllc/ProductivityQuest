@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ export function TabBar() {
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const [questsMenuOpen, setQuestsMenuOpen] = useState(false);
+  const [skillsMenuOpen, setSkillsMenuOpen] = useState(false);
 
   const { data: progress = { goldTotal: 0 } } = useQuery({
     queryKey: ["/api/progress"],
@@ -164,22 +165,45 @@ export function TabBar() {
 
           {/* Skills - desktop only (not in mobile tabs) */}
           {(() => {
-            const isSkillsActive = location === "/skills";
+            const isSkillsActive = location === "/skills" || location === "/accomplishments";
             return (
-              <Link href="/skills">
-                <a
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                    isSkillsActive
-                      ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
-                      : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
-                  }`}
+              <DropdownMenu open={skillsMenuOpen} onOpenChange={setSkillsMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <div
+                    onMouseEnter={() => setSkillsMenuOpen(true)}
+                    onMouseLeave={() => setSkillsMenuOpen(false)}
+                  >
+                    <Link href="/skills">
+                      <a
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
+                          isSkillsActive
+                            ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
+                            : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
+                        }`}
+                      >
+                        <Sparkles className={`h-5 w-5 ${isSkillsActive ? "stroke-[2.5]" : ""}`} />
+                        <span className={`text-sm ${isSkillsActive ? "font-semibold" : "font-medium"}`}>Skills</span>
+                        <ChevronDown className="h-4 w-4 opacity-60" />
+                      </a>
+                    </Link>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="bg-slate-800 border-yellow-600/30"
+                  onMouseEnter={() => setSkillsMenuOpen(true)}
+                  onMouseLeave={() => setSkillsMenuOpen(false)}
                 >
-                  <Sparkles className={`h-5 w-5 ${isSkillsActive ? "stroke-[2.5]" : ""}`} />
-                  <span className={`text-sm ${isSkillsActive ? "font-semibold" : "font-medium"}`}>
-                    Skills
-                  </span>
-                </a>
-              </Link>
+                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                    <Link href="/accomplishments">
+                      <a className="flex items-center gap-2 w-full">
+                        <Trophy className="h-4 w-4 text-yellow-400" />
+                        Accomplishments
+                      </a>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             );
           })()}
         </div>
