@@ -345,11 +345,27 @@ export default function AccomplishmentsPage() {
           const allYears: number[] = [];
           for (let y = minYear; y <= maxYear; y++) allYears.push(y);
           const COL_W = 130;
-          const ROW_H = 52;
+          const ROW_H = 44;
           const HEADER_H = 40;
+          const ROW_PAD = 6; // vertical padding between rows
 
           const sorted = [...filtered].sort((a, b) => a.year !== b.year ? a.year - b.year : a.title.localeCompare(b.title));
           const totalW = allYears.length * COL_W;
+
+          // ── Greedy interval packing: assign each item a row index ──
+          type Packed = { item: Accomplishment; row: number; startIdx: number; endIdx: number };
+          const rowEnds: number[] = []; // tracks the endIdx of the last item in each row
+          const packed: Packed[] = sorted.map(item => {
+            const startIdx = allYears.indexOf(item.year);
+            const endIdx = allYears.indexOf(item.yearEnd ?? item.year);
+            // find first row where last item ended before this one starts
+            let row = rowEnds.findIndex(end => end < startIdx);
+            if (row === -1) { row = rowEnds.length; rowEnds.push(endIdx); }
+            else { rowEnds[row] = endIdx; }
+            return { item, row, startIdx, endIdx };
+          });
+          const numRows = rowEnds.length;
+          const gridH = numRows * (ROW_H + ROW_PAD) + ROW_PAD;
 
           const YearHeader = () => (
             <div className="flex" style={{ width: totalW }}>
@@ -357,9 +373,7 @@ export default function AccomplishmentsPage() {
                 const isCurrent = y === CURRENT_YEAR;
                 return (
                   <div key={y} className="flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-700/30 py-2 relative overflow-hidden" style={{ width: COL_W, height: HEADER_H }}>
-                    {isCurrent && (
-                      <div className="absolute inset-0 bg-gradient-to-b from-violet-500/20 to-transparent pointer-events-none" />
-                    )}
+                    {isCurrent && <div className="absolute inset-0 bg-gradient-to-b from-violet-500/20 to-transparent pointer-events-none" />}
                     <span className={`text-sm font-bold font-serif relative z-10 ${isCurrent ? 'text-violet-300' : years.includes(y) ? 'text-yellow-300' : 'text-slate-600'}`}>{y}</span>
                     {isCurrent ? <div className="w-4 h-0.5 rounded-full bg-violet-400 mt-1" /> : years.includes(y) ? <div className="w-1 h-1 rounded-full bg-yellow-400 mt-1" /> : null}
                   </div>
@@ -372,18 +386,13 @@ export default function AccomplishmentsPage() {
             <>
               {/* Detail modal */}
               {modalItem && (
-                <div
-                  className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-                  onClick={() => setModalItem(null)}
-                >
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setModalItem(null)}>
                   <div
                     className="relative max-w-lg w-full rounded-2xl border shadow-2xl p-6 bg-slate-900"
                     style={{ borderColor: CATEGORIES[modalItem.category].color + '50', boxShadow: `0 0 40px ${CATEGORIES[modalItem.category].color}20` }}
                     onClick={e => e.stopPropagation()}
                   >
-                    {/* Close */}
                     <button onClick={() => setModalItem(null)} className="absolute top-3 right-3 text-slate-500 hover:text-slate-200 text-lg leading-none">✕</button>
-                    {/* Emoji + title */}
                     <div className="flex items-start gap-4 mb-4">
                       <span className="text-4xl shrink-0">{modalItem.emoji}</span>
                       <div>
@@ -398,83 +407,77 @@ export default function AccomplishmentsPage() {
                         </div>
                       </div>
                     </div>
-                    {/* Divider */}
                     <div className="border-t border-slate-700/60 mb-4" />
-                    {/* Detail */}
                     <p className="text-slate-300 text-sm leading-relaxed">{modalItem.detail}</p>
                   </div>
                 </div>
               )}
 
               <div className="rounded-2xl border border-violet-500/30 bg-slate-900/70 overflow-hidden shadow-2xl shadow-violet-900/20">
-                {/* Hint */}
                 <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/40">
                   <p className="text-[11px] text-slate-400">Scroll right to explore all years · tap any bar for details</p>
                   <p className="text-[11px] text-violet-400 font-semibold">{filtered.length} accomplishments</p>
                 </div>
 
-                {/* Scrollable area */}
                 <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '75vh' }}>
                   <div style={{ width: totalW, position: 'relative' }}>
 
-                    {/* Year header — TOP (sticky) */}
+                    {/* TOP year header (sticky) */}
                     <div className="sticky top-0 z-20 bg-slate-900/95 border-b border-slate-700/60">
                       <YearHeader />
                     </div>
 
-                    {/* Current year column background highlight */}
-                    <div className="absolute inset-0 pointer-events-none" style={{ width: totalW, top: HEADER_H }}>
+                    {/* Packed grid */}
+                    <div style={{ position: 'relative', height: gridH }}>
+
+                      {/* Current year column highlight */}
                       {allYears.map((y, i) => y === CURRENT_YEAR ? (
-                        <div key={y} className="absolute top-0 bottom-0" style={{ left: i * COL_W, width: COL_W, background: 'linear-gradient(to bottom, rgba(139,92,246,0.07), transparent 60%)' }} />
+                        <div key={y} className="absolute top-0 bottom-0 pointer-events-none" style={{ left: i * COL_W, width: COL_W, background: 'linear-gradient(to bottom, rgba(139,92,246,0.07), transparent 80%)' }} />
                       ) : null)}
-                    </div>
 
-                    {/* Column grid lines */}
-                    <div className="absolute inset-0 pointer-events-none" style={{ width: totalW }}>
+                      {/* Column grid lines */}
                       {allYears.map((y, i) => (
-                        <div key={y}
-                          className={`absolute top-0 bottom-0 border-r ${years.includes(y) ? 'border-slate-600/30' : 'border-slate-800/30'}`}
-                          style={{ left: (i + 1) * COL_W - 1, width: 1 }}
-                        />
+                        <div key={y} className={`absolute top-0 bottom-0 border-r pointer-events-none ${years.includes(y) ? 'border-slate-600/25' : 'border-slate-800/20'}`} style={{ left: (i + 1) * COL_W - 1 }} />
                       ))}
-                    </div>
 
-                    {/* Accomplishment rows */}
-                    <div style={{ paddingTop: 8, paddingBottom: HEADER_H + 8 }}>
-                      {sorted.map((item, rowIdx) => {
+                      {/* Row stripe backgrounds */}
+                      {Array.from({ length: numRows }).map((_, r) => (
+                        <div key={r} className={`absolute left-0 right-0 ${r % 2 === 0 ? 'bg-slate-800/15' : ''}`}
+                          style={{ top: ROW_PAD + r * (ROW_H + ROW_PAD), height: ROW_H }} />
+                      ))}
+
+                      {/* Bars */}
+                      {packed.map(({ item, row, startIdx, endIdx }, idx) => {
                         const cat = CATEGORIES[item.category];
-                        const startIdx = allYears.indexOf(item.year);
-                        const endYear = item.yearEnd ?? item.year;
-                        const endIdx = allYears.indexOf(endYear);
                         const barLeft = startIdx * COL_W + 4;
                         const barWidth = (endIdx - startIdx + 1) * COL_W - 8;
-                        const hkey = `h-${rowIdx}`;
+                        const barTop = ROW_PAD + row * (ROW_H + ROW_PAD);
 
                         return (
-                          <div key={hkey} className="relative" style={{ height: ROW_H }}>
-                            <div className={`absolute inset-0 ${rowIdx % 2 === 0 ? 'bg-slate-800/20' : 'bg-transparent'}`} />
-                            <div
-                              className="absolute top-1/2 -translate-y-1/2 rounded-lg cursor-pointer transition-all duration-150 border select-none hover:scale-[1.02] hover:shadow-lg"
-                              style={{
-                                left: barLeft,
-                                width: barWidth,
-                                height: ROW_H - 10,
-                                background: cat.color + '22',
-                                borderColor: cat.color + '60',
-                              }}
-                              onClick={() => setModalItem(item)}
-                            >
-                              <div className="flex items-center gap-2 px-3 h-full">
-                                <span className="text-lg shrink-0 leading-none">{item.emoji}</span>
-                                <p className="font-semibold text-xs leading-tight truncate" style={{ color: cat.color }}>{item.title}</p>
-                              </div>
+                          <div
+                            key={idx}
+                            className="absolute rounded-lg cursor-pointer transition-all duration-150 border select-none hover:brightness-125 hover:shadow-lg"
+                            style={{
+                              left: barLeft,
+                              width: barWidth,
+                              top: barTop,
+                              height: ROW_H,
+                              background: cat.color + '22',
+                              borderColor: cat.color + '55',
+                              zIndex: 1,
+                            }}
+                            onClick={() => setModalItem(item)}
+                          >
+                            <div className="flex items-center gap-2 px-2 h-full overflow-hidden">
+                              <span className="text-base shrink-0 leading-none">{item.emoji}</span>
+                              <p className="font-semibold text-[11px] leading-tight truncate" style={{ color: cat.color }}>{item.title}</p>
                             </div>
                           </div>
                         );
                       })}
                     </div>
 
-                    {/* Year axis — BOTTOM (sticky) */}
+                    {/* BOTTOM year header (sticky) */}
                     <div className="sticky bottom-0 z-20 bg-slate-900/95 border-t border-slate-700/60">
                       <YearHeader />
                     </div>
