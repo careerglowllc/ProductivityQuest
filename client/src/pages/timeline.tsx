@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { TrendingUp, ArrowLeft } from "lucide-react";
+import { TrendingUp, ArrowLeft, Download } from "lucide-react";
 import { Link } from "wouter";
 
 type AccomplishmentCategory = "practical" | "mindset" | "life" | "adventure" | "career" | "health" | "relationships" | "financial";
@@ -36,9 +36,12 @@ const ACCOMPLISHMENTS: Accomplishment[] = [
   { year: 2022, title: "PRK Eye Surgery — Clarity Earned", detail: "Chose PRK over LASIK, dealt with the significant upfront pain, blurry weeks of recovery, and the anxiety of not knowing if it would fully work. Paid the cost to ditch contacts forever, improve vision, and eliminate under-eye wear from years of contact use. A calculated investment in long-term quality of life that required real courage to go through.", category: "health", emoji: "👁️" },
   { year: 2022, title: "Las Vegas — Supercars, Casinos & Heavy Weapons", detail: "A legendary trip. Drove a supercar for the first time — raw power and speed on a real track. Sat down at poker in a real famous Vegas casino and played the game for real. Then went fully off the rails at a shooting range: fired a sniper rifle, an assault rifle, and a minigun off a helicopter. The kind of day that sounds made up. (Double-check year.)", category: "adventure", emoji: "🎰" },
   { year: 2022, title: "Thailand — Reflection, Path & Transformation", detail: "A solo journey that cracked something open. Began the long arc from who I was to who I was becoming — still unfolding.", category: "adventure", emoji: "🌏" },
+  { year: 2022, title: "Rode an Elephant in Thailand", detail: "In Thailand, got up close and personal with elephants — and actually rode one. An ancient, surreal experience that felt completely removed from the modern world. Massive, gentle, impossibly strong creatures. A bucket-list moment that connects you to nature and to cultures that have lived alongside these animals for thousands of years. The kind of experience you can't replicate anywhere else.", category: "adventure", emoji: "🐘" },
+  { year: 2022, title: "War Room Boxing Sparring — Bravery & Brotherhood", detail: "Showed up to a War Room network event and stepped into the boxing ring to spar with brand-new strangers — with zero formal training. Real boxing, real contact, real vulnerability. The courage it took wasn't just physical — it was social. Choosing to be bad at something in front of people you just met, putting your body on the line, not hiding in comfort. The kind of move that builds real confidence: not because you won, but because you showed up and swung.", category: "health", emoji: "🥊" },
   { year: 2022, title: "Ireland & Europe Travels (First Time)", detail: "Explored castles, coastlines, and cultures far outside the American bubble. History became tangible.", category: "adventure", emoji: "🍀" },
   { year: 2023, title: "Started Wrestling", detail: "Added wrestling to the training mix — takedowns, clinch work, and the brutal conditioning that comes with it. A sport that demands full physical and mental commitment. (Double-check year.)", category: "health", emoji: "🤼" },
   { year: 2023, title: "Colombia — $30/Day Living & Real Life Adventures", detail: "Learned to live richly on very little. Survived the cop pull-over, hit-and-run chaos, and found beauty in the balance of danger and magic.", category: "adventure", emoji: "🌿" },
+  { year: 2023, title: "First Time in China — Disorienting, Eye-Opening, Unforgettable", detail: "Traveled to China for the first time and was immediately hit with the full force of how different a world it is. Nobody spoke English — navigated entirely alone through a system built for a billion people who didn't need to accommodate you. Tried weird foods, some of which were genuinely great and some deeply questionable. Saw the Chinese countryside — vast, quiet, agricultural, nothing like what Western media shows. Walked through major Chinese factories and got a firsthand look at where so much of the physical world actually gets made. An immersive reality check on just how big, complex, and self-contained Chinese civilization is. Left with more questions than answers — and a permanently expanded worldview. (Confirm year.)", category: "adventure", emoji: "🇨🇳" },
   { year: 2023, title: "Mexico Immersion", detail: "Culture, food, people and perspective. Another layer stripped off of Bay Area insularity.", category: "adventure", emoji: "🌮" },
   { year: 2023, title: "Japan Discovery", detail: "Experienced world-class quality of life, discipline, and food culture. Set a new benchmark for what civilization can look like.", category: "adventure", emoji: "🗾" },
   { year: 2023, title: "Learning to Sing with Joanna", detail: "Opened a creative and emotional channel I'd kept closed. Cut bad ties and found a freer, more expressive version of myself.", category: "relationships", emoji: "🎶" },
@@ -49,6 +52,7 @@ const ACCOMPLISHMENTS: Accomplishment[] = [
   { year: 2024, title: "Redding Family & Fourth of July Traditions", detail: "Discovered the magic of small-town American summers, firework sessions, and the Redding family. Moments that redefine 'home'.", category: "life", emoji: "🎆" },
   { year: 2024, title: "First Firework Session", detail: "Lit off fireworks for the first time. Simple, childlike joy — underrated milestone.", category: "life", emoji: "✨" },
   { year: 2024, title: "Puerto Rico — Island Living", detail: "Sun, culture, food and a different rhythm of life. Added another data point to the map of what 'good living' can mean.", category: "adventure", emoji: "🌊" },
+  { year: 2024, title: "Whitewater Rafting with Eamon, Deirdre & Artis — Coming Alive Socially", detail: "Went on a whitewater rafting trip with Eamon, Deirdre, and Artis — and something clicked. Felt genuinely engaged and alive in a way that had been rare. A moment of real connection, shared adrenaline, and group energy that started to crack through the walls of social isolation I'd built up. Laughing, reacting, being fully present with people instead of half-checked-out and guarded. A small but meaningful step out of the bubble and back toward a fuller social self. (Confirm year — likely 2024.)", category: "relationships", emoji: "🚣" },
   { year: 2024, title: "Varun's Engagement & Yuliya — Untethered Soul Glimpses", detail: "A moment of witnessing love, celebration, and the potential of presence. Sparked deeper reading and reflection on the untethered path.", category: "mindset", emoji: "🌸" },
   { year: 2024, title: "Religious & Philosophical Deep Dive (2024–2026)", detail: "Confronted the biggest questions — death, meaning, God, suffering. Built a real framework. Not just beliefs inherited but ones forged through reading, thinking and living.", category: "mindset", emoji: "🔭" },
   { year: 2024, title: "Hair Transplant & Physical Transformation", detail: "Made the call, went through the process, and saw it through. Confidence upgrade and proof that taking action beats rumination.", category: "health", emoji: "💇" },
@@ -72,6 +76,29 @@ const ACCOMPLISHMENTS: Accomplishment[] = [
   { year: 2026, title: "Gum & Bone Graft Surgery", detail: "Proactively addressed gum recession and jaw bone resorption with graft surgery — not because it was urgent, but because ignoring it meant compounding problems decades down the line. Another uncomfortable procedure chosen deliberately for long-term health and aesthetics. Thinking decades ahead and acting on it.", category: "health", emoji: "🦴" },
   { year: 2016, title: "Ireland & Europe — Early Travels", detail: "Explored more of Europe with fresh eyes and a richer context. Every trip builds on the last.", category: "adventure", emoji: "🏰" },
 ];
+
+function exportAccomplishmentsCSV(items: Accomplishment[]) {
+  const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+  const headers = ["Year", "Year End", "Title", "Category", "Category Label", "Emoji", "Detail", "Duration (years)", "Time Span"];
+  const rows = items
+    .slice()
+    .sort((a, b) => a.year !== b.year ? a.year - b.year : a.title.localeCompare(b.title))
+    .map(item => {
+      const yearEnd = item.yearEnd ?? item.year;
+      const duration = yearEnd - item.year + 1;
+      const timeSpan = item.yearEnd ? `${item.year}–${item.yearEnd}` : String(item.year);
+      const catLabel = CATEGORIES[item.category].label;
+      return [item.year, yearEnd, item.title, item.category, catLabel, item.emoji, item.detail, duration, timeSpan].map(v => escape(String(v))).join(",");
+    });
+  const csv = [headers.map(h => `"${h}"`).join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `accomplishments_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function TimelinePage() {
   const isMobile = useIsMobile();
@@ -154,6 +181,14 @@ export default function TimelinePage() {
           </div>
           <p className="text-slate-400 italic text-sm">A living record of growth — practical, mental, spiritual, and experiential</p>
           <p className="text-emerald-400/70 text-xs">{ACCOMPLISHMENTS.length} accomplishments across {years.length} years</p>
+          <div className="flex justify-center pt-1">
+            <button
+              onClick={() => exportAccomplishmentsCSV(ACCOMPLISHMENTS)}
+              className="inline-flex items-center gap-2 text-xs rounded-full px-4 py-2 border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-all"
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+          </div>
         </div>
 
         {/* Category filters */}
