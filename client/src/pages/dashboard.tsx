@@ -1309,18 +1309,10 @@ export default function Dashboard() {
             <FinanceWidget />
           </div>
         ) : (
-          /* Desktop: Full-page resizable layout - top section (quick actions + questlines) resizable against bottom grid */
-          <div style={{ height: 'calc(100vh - 100px)' }}>
-            <ResizablePanelGroup
-              direction="vertical"
-              autoSaveId="dashboard-outer-vertical"
-              className="h-full"
-            >
-              {/* Top Panel: Quick Actions + Active Questlines */}
-              <ResizablePanel defaultSize={22} minSize={8} maxSize={50}>
-                <div className="h-full overflow-y-auto pb-1">
-                  {/* Quick Actions Row */}
-                  <div className="grid grid-cols-8 gap-2 mb-3">
+          /* Desktop: Full-page resizable layout */
+          <div className="flex flex-col" style={{ height: 'calc(100vh - 100px)' }}>
+            {/* Quick Actions Row — fixed, never squashes */}
+            <div className="grid grid-cols-8 gap-2 mb-3 flex-shrink-0">
                     <Link href="/tasks">
                       <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-purple-500/30 hover:border-purple-400/60 group">
                         <CardContent className="p-3 text-center">
@@ -1384,21 +1376,19 @@ export default function Dashboard() {
                       </CardContent>
                     </Card>
                   </div>
-                  {/* Active Questlines */}
-                  {renderQuestlines('mb-1')}
-                </div>
-              </ResizablePanel>
 
-              <ResizableHandle className="bg-yellow-600/20 hover:bg-yellow-500/40 transition-colors data-[resize-handle-active]:bg-yellow-500/60" />
+            {/* Active Questlines — natural height, not compressed */}
+            <div className="flex-shrink-0 mb-3">
+              {renderQuestlines('mb-0')}
+            </div>
 
-              {/* Bottom Panel: 2×2 Resizable Widget Grid */}
-              <ResizablePanel defaultSize={78} minSize={40}>
-                <div className="h-full pt-1">
-                  <ResizablePanelGroup
-                    direction="vertical"
-                    autoSaveId="dashboard-grid-vertical"
-                    className="h-full rounded-lg"
-                  >
+            {/* Bottom Grid — takes remaining space */}
+            <div className="flex-1 min-h-0">
+              <ResizablePanelGroup
+                direction="vertical"
+                autoSaveId="dashboard-grid-vertical"
+                className="h-full rounded-lg"
+              >
                     {/* Top Row */}
                     <ResizablePanel defaultSize={50} minSize={25}>
                       <ResizablePanelGroup
@@ -1440,10 +1430,8 @@ export default function Dashboard() {
                         </ResizablePanel>
                       </ResizablePanelGroup>
                     </ResizablePanel>
-                  </ResizablePanelGroup>
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
+              </ResizablePanelGroup>
+            </div>
           </div>
         )}
       </div>
