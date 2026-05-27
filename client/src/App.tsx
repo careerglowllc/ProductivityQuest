@@ -28,6 +28,7 @@ import NPCsPage from "@/pages/npcs";
 import RecyclingBin from "@/pages/recycling-bin";
 import Profile from "@/pages/profile";
 import Finances from "@/pages/finances";
+import TimelinePage from "@/pages/timeline";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
@@ -82,6 +83,7 @@ function Router() {
             <Route path="/calendar" component={CalendarPage} />
             <Route path="/shop" component={Shop} />
             <Route path="/skills" component={Skills} />
+            <Route path="/timeline" component={TimelinePage} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/finances" component={Finances} />
