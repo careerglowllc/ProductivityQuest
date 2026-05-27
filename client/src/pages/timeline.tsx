@@ -16,7 +16,7 @@ const CATEGORIES: Record<AccomplishmentCategory, { label: string; color: string;
   financial:     { label: "Financial",          color: "#4ADE80", bg: "bg-green-500/15",    border: "border-green-500/40" },
 };
 
-type Accomplishment = { year: number; title: string; detail: string; category: AccomplishmentCategory; emoji: string };
+type Accomplishment = { year: number; yearEnd?: number; title: string; detail: string; category: AccomplishmentCategory; emoji: string };
 
 const ACCOMPLISHMENTS: Accomplishment[] = [
   { year: 2015, title: "First Time Surfing", detail: "Got in the water and tried surfing for the first time. Paddled out, caught some waves, wiped out plenty. A taste of ocean culture and a physical challenge that was equal parts humbling and fun.", category: "health", emoji: "🏄" },
@@ -32,15 +32,18 @@ const ACCOMPLISHMENTS: Accomplishment[] = [
   { year: 2021, title: "First Gun & Shooting Range — Fundamental Skill", detail: "Bought my first gun and went to the range. Learned firearm safety, handling, and marksmanship. A fundamental skill that connects to self-reliance, personal protection, and a part of American culture worth understanding firsthand. (Double-check year.)", category: "practical", emoji: "🎯" },
   { year: 2021, title: "Wim Hof Method", detail: "Adopted breathwork and cold exposure. Discovered what the body is capable of when the mind stops complaining.", category: "health", emoji: "🧊" },
   { year: 2021, title: "First Motorcycle — Kawasaki Ninja 300", detail: "Got my license, bought the bike, and learned to ride. Freedom, risk, and the open road became personal.", category: "practical", emoji: "🏍️" },
+  { year: 2022, title: "Started BJJ", detail: "Stepped onto the mats and began training Brazilian Jiu-Jitsu. Learned the fundamentals of grappling, submission defense, and positional control. A humbling and addictive art that rewards patience and persistence. (Double-check year.)", category: "health", emoji: "🥋" },
   { year: 2022, title: "PRK Eye Surgery — Clarity Earned", detail: "Chose PRK over LASIK, dealt with the significant upfront pain, blurry weeks of recovery, and the anxiety of not knowing if it would fully work. Paid the cost to ditch contacts forever, improve vision, and eliminate under-eye wear from years of contact use. A calculated investment in long-term quality of life that required real courage to go through.", category: "health", emoji: "👁️" },
   { year: 2022, title: "Las Vegas — Supercars, Casinos & Heavy Weapons", detail: "A legendary trip. Drove a supercar for the first time — raw power and speed on a real track. Sat down at poker in a real famous Vegas casino and played the game for real. Then went fully off the rails at a shooting range: fired a sniper rifle, an assault rifle, and a minigun off a helicopter. The kind of day that sounds made up. (Double-check year.)", category: "adventure", emoji: "🎰" },
   { year: 2022, title: "Thailand — Reflection, Path & Transformation", detail: "A solo journey that cracked something open. Began the long arc from who I was to who I was becoming — still unfolding.", category: "adventure", emoji: "🌏" },
   { year: 2022, title: "Ireland & Europe Travels (First Time)", detail: "Explored castles, coastlines, and cultures far outside the American bubble. History became tangible.", category: "adventure", emoji: "🍀" },
+  { year: 2023, title: "Started Wrestling", detail: "Added wrestling to the training mix — takedowns, clinch work, and the brutal conditioning that comes with it. A sport that demands full physical and mental commitment. (Double-check year.)", category: "health", emoji: "🤼" },
   { year: 2023, title: "Colombia — $30/Day Living & Real Life Adventures", detail: "Learned to live richly on very little. Survived the cop pull-over, hit-and-run chaos, and found beauty in the balance of danger and magic.", category: "adventure", emoji: "🌿" },
   { year: 2023, title: "Mexico Immersion", detail: "Culture, food, people and perspective. Another layer stripped off of Bay Area insularity.", category: "adventure", emoji: "🌮" },
   { year: 2023, title: "Japan Discovery", detail: "Experienced world-class quality of life, discipline, and food culture. Set a new benchmark for what civilization can look like.", category: "adventure", emoji: "🗾" },
   { year: 2023, title: "Learning to Sing with Joanna", detail: "Opened a creative and emotional channel I'd kept closed. Cut bad ties and found a freer, more expressive version of myself.", category: "relationships", emoji: "🎶" },
   { year: 2023, title: "First Real Relationship — Joanna", detail: "Learned how to love, be loved, communicate, and navigate real intimacy. Growth that can't come from any book.", category: "relationships", emoji: "❤️" },
+  { year: 2024, yearEnd: 2026, title: "Boxing Training (2024–2026)", detail: "Committed to boxing over multiple years — footwork, combinations, head movement, sparring. The sport that most directly builds aggression, precision, and mental toughness simultaneously. An ongoing physical investment. (Double-check year range.)", category: "health", emoji: "🥊" },
   { year: 2024, title: "Bought First Car — Dealerships, Loans & Adult Unlocks", detail: "Navigated the full car-buying experience for the first time — dealership negotiations, contracts, financing, taking out an auto loan, and learning the basics of car ownership. Figured out how loans actually work in practice, what to watch out for at dealerships, and what it means to own and maintain a vehicle. A major real-world adulting unlock. (Double-check year.)", category: "practical", emoji: "🚗" },
   { year: 2024, title: "GT Master's — Proactive CS Pivot & Timely Exit", detail: "Got into Georgia Tech's OMSCS through sheer proactivity. Recognized early that AI was making the degree obsolete and pivoted out before sinking years in. Dodged a major bullet and redirected toward business.", category: "career", emoji: "🧠" },
   { year: 2024, title: "Redding Family & Fourth of July Traditions", detail: "Discovered the magic of small-town American summers, firework sessions, and the Redding family. Moments that redefine 'home'.", category: "life", emoji: "🎆" },
@@ -77,7 +80,9 @@ export default function TimelinePage() {
   );
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showPerYear, setShowPerYear] = useState(true);
-  const [showCumulative, setShowCumulative] = useState(true);
+  const [showCumulative, setShowCumulative] = useState(false);
+  const [viewMode, setViewMode] = useState<'vertical' | 'horizontal'>('vertical');
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const years = Array.from(new Set(ACCOMPLISHMENTS.map(a => a.year))).sort((a, b) => a - b);
 
@@ -152,7 +157,7 @@ export default function TimelinePage() {
         </div>
 
         {/* Category filters */}
-        <div className="flex flex-wrap justify-center gap-2 mb-6">
+        <div className="flex flex-wrap justify-center gap-2 mb-5">
           {(Object.entries(CATEGORIES) as [AccomplishmentCategory, typeof CATEGORIES[AccomplishmentCategory]][]).map(([key, meta]) => {
             const isActive = activeCategories.has(key);
             const count = ACCOMPLISHMENTS.filter(a => a.category === key).length;
@@ -174,145 +179,258 @@ export default function TimelinePage() {
           })}
         </div>
 
-        {/* Chart toggle buttons */}
-        <div className="flex justify-center gap-2 mb-3">
-          <button
-            onClick={() => setShowPerYear(v => !v)}
-            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${
-              showPerYear
-                ? "bg-emerald-500/15 border-emerald-500/40 text-white"
-                : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showPerYear ? "#34D399" : "#475569" }} />
-            Per Year
-          </button>
-          <button
-            onClick={() => setShowCumulative(v => !v)}
-            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${
-              showCumulative
-                ? "bg-sky-500/15 border-sky-500/40 text-white"
-                : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showCumulative ? "#38BDF8" : "#475569" }} />
-            Cumulative
-          </button>
+        {/* View mode + chart toggles */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-5">
+          {/* View toggle */}
+          <div className="flex items-center rounded-full border border-slate-700/60 overflow-hidden">
+            <button
+              onClick={() => setViewMode('vertical')}
+              className={`px-4 py-1.5 text-xs font-semibold transition-all ${viewMode === 'vertical' ? 'bg-emerald-600 text-white' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'}`}
+            >
+              ↕ Vertical
+            </button>
+            <button
+              onClick={() => setViewMode('horizontal')}
+              className={`px-4 py-1.5 text-xs font-semibold transition-all ${viewMode === 'horizontal' ? 'bg-violet-600 text-white' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'}`}
+            >
+              ↔ Horizontal
+            </button>
+          </div>
+          {/* Chart toggles (only in vertical mode) */}
+          {viewMode === 'vertical' && (
+            <>
+              <button
+                onClick={() => setShowPerYear(v => !v)}
+                className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showPerYear ? "bg-emerald-500/15 border-emerald-500/40 text-white" : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"}`}
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showPerYear ? "#34D399" : "#475569" }} />
+                Per Year
+              </button>
+              <button
+                onClick={() => setShowCumulative(v => !v)}
+                className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showCumulative ? "bg-sky-500/15 border-sky-500/40 text-white" : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"}`}
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showCumulative ? "#38BDF8" : "#475569" }} />
+                Cumulative
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Per-year bar chart */}
-        {showPerYear && (
-          <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4 mb-3">
-            <p className="text-xs text-slate-400 mb-3 text-center">Accomplishments per year</p>
-            <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
-              {chartData.map(d => {
-                const BAR_MAX = 112;
-                const totalPx = Math.max(6, (d.total / maxCount) * BAR_MAX);
-                const fillPx = d.count === 0 ? 0 : Math.max(4, (d.count / maxCount) * BAR_MAX);
-                return (
-                  <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                    <span className="text-[9px] text-emerald-400 font-bold leading-none mb-0.5">{d.count > 0 ? d.count : ""}</span>
-                    <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
-                      <div
-                        className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-500"
-                        style={{ height: fillPx }}
-                      />
-                    </div>
-                    <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Cumulative bar chart */}
-        {showCumulative && (
-          <div className="rounded-xl border border-sky-500/20 bg-slate-800/50 p-4 mb-10">
-            <p className="text-xs text-slate-400 mb-3 text-center">Cumulative accomplishments over time</p>
-            <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
-              {cumulativeData.map(d => {
-                const BAR_MAX = 112;
-                const totalPx = Math.max(6, (d.cumTotal / maxCumulative) * BAR_MAX);
-                const fillPx = d.cumFiltered === 0 ? 0 : Math.max(4, (d.cumFiltered / maxCumulative) * BAR_MAX);
-                return (
-                  <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                    <span className="text-[9px] text-sky-400 font-bold leading-none mb-0.5">{d.cumFiltered > 0 ? d.cumFiltered : ""}</span>
-                    <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
-                      <div
-                        className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-sky-600 to-sky-400 transition-all duration-500"
-                        style={{ height: fillPx }}
-                      />
-                    </div>
-                    <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Spacer when both charts hidden */}
-        {!showPerYear && !showCumulative && <div className="mb-10" />}
-
-        {/* Timeline */}
-        <div className="relative">
-          {/* Vertical spine */}
-          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-500/70 via-yellow-500/40 to-violet-500/30" />
-
-          <div className="space-y-10 pl-16">
-            {byYear.map(({ year, items }) => (
-              <div key={year}>
-                {/* Year marker */}
-                <div className="flex items-center gap-4 mb-5 -ml-16">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 border-2 border-yellow-400/60 flex items-center justify-center shadow-lg shadow-yellow-900/30 shrink-0">
-                    <span className="text-slate-900 font-bold text-xs leading-none">{year}</span>
-                  </div>
-                  <div>
-                    <span className="text-yellow-200 font-bold text-xl font-serif">{year}</span>
-                    <span className="text-slate-500 text-xs ml-2">· {items.length} accomplishment{items.length !== 1 ? "s" : ""}</span>
-                  </div>
-                </div>
-
-                {/* Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {items.map((item, idx) => {
-                    const cat = CATEGORIES[item.category];
-                    const key = `${item.year}-${idx}`;
-                    const isExpanded = expandedItems.has(key);
+        {/* ── VERTICAL VIEW ── */}
+        {viewMode === 'vertical' && (
+          <>
+            {/* Per-year bar chart */}
+            {showPerYear && (
+              <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4 mb-3">
+                <p className="text-xs text-slate-400 mb-3 text-center">Accomplishments per year</p>
+                <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
+                  {chartData.map(d => {
+                    const BAR_MAX = 112;
+                    const totalPx = Math.max(6, (d.total / maxCount) * BAR_MAX);
+                    const fillPx = d.count === 0 ? 0 : Math.max(4, (d.count / maxCount) * BAR_MAX);
                     return (
-                      <div
-                        key={key}
-                        onClick={() => toggleExpand(key)}
-                        className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 ${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-lg`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="text-2xl shrink-0">{item.emoji}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-white font-semibold text-sm leading-snug">{item.title}</p>
-                              <span
-                                className="text-[9px] rounded-full px-2 py-0.5 shrink-0 mt-0.5"
-                                style={{ background: cat.color + "22", color: cat.color, border: `1px solid ${cat.color}50` }}
-                              >
-                                {cat.label}
-                              </span>
-                            </div>
-                            {isExpanded ? (
-                              <p className="text-slate-300 text-xs mt-2 leading-relaxed">{item.detail}</p>
-                            ) : (
-                              <p className="text-slate-500 text-[10px] mt-1">tap to expand</p>
-                            )}
-                          </div>
+                      <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                        <span className="text-[9px] text-emerald-400 font-bold leading-none mb-0.5">{d.count > 0 ? d.count : ""}</span>
+                        <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
+                          <div className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-500" style={{ height: fillPx }} />
                         </div>
+                        <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            )}
+
+            {/* Cumulative bar chart */}
+            {showCumulative && (
+              <div className="rounded-xl border border-sky-500/20 bg-slate-800/50 p-4 mb-3">
+                <p className="text-xs text-slate-400 mb-3 text-center">Cumulative accomplishments over time</p>
+                <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
+                  {cumulativeData.map(d => {
+                    const BAR_MAX = 112;
+                    const totalPx = Math.max(6, (d.cumTotal / maxCumulative) * BAR_MAX);
+                    const fillPx = d.cumFiltered === 0 ? 0 : Math.max(4, (d.cumFiltered / maxCumulative) * BAR_MAX);
+                    return (
+                      <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                        <span className="text-[9px] text-sky-400 font-bold leading-none mb-0.5">{d.cumFiltered > 0 ? d.cumFiltered : ""}</span>
+                        <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
+                          <div className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-sky-600 to-sky-400 transition-all duration-500" style={{ height: fillPx }} />
+                        </div>
+                        <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {(showPerYear || showCumulative) && <div className="mb-7" />}
+            {!showPerYear && !showCumulative && <div className="mb-3" />}
+
+            {/* Vertical Timeline */}
+            <div className="relative">
+              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-500/70 via-yellow-500/40 to-violet-500/30" />
+              <div className="space-y-10 pl-16">
+                {byYear.map(({ year, items }) => (
+                  <div key={year}>
+                    <div className="flex items-center gap-4 mb-5 -ml-16">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 border-2 border-yellow-400/60 flex items-center justify-center shadow-lg shadow-yellow-900/30 shrink-0">
+                        <span className="text-slate-900 font-bold text-xs leading-none">{year}</span>
+                      </div>
+                      <div>
+                        <span className="text-yellow-200 font-bold text-xl font-serif">{year}</span>
+                        <span className="text-slate-500 text-xs ml-2">· {items.length} accomplishment{items.length !== 1 ? "s" : ""}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {items.map((item, idx) => {
+                        const cat = CATEGORIES[item.category];
+                        const key = `${item.year}-${idx}`;
+                        const isExpanded = expandedItems.has(key);
+                        return (
+                          <div key={key} onClick={() => toggleExpand(key)}
+                            className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 ${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-lg`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="text-2xl shrink-0">{item.emoji}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-white font-semibold text-sm leading-snug">{item.title}</p>
+                                  <span className="text-[9px] rounded-full px-2 py-0.5 shrink-0 mt-0.5" style={{ background: cat.color + "22", color: cat.color, border: `1px solid ${cat.color}50` }}>
+                                    {cat.label}
+                                  </span>
+                                </div>
+                                {isExpanded ? (
+                                  <p className="text-slate-300 text-xs mt-2 leading-relaxed">{item.detail}</p>
+                                ) : (
+                                  <p className="text-slate-500 text-[10px] mt-1">tap to expand</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── HORIZONTAL GANTT VIEW ── */}
+        {viewMode === 'horizontal' && (() => {
+          const minYear = Math.min(...years);
+          const maxYear = Math.max(...years);
+          const allYears: number[] = [];
+          for (let y = minYear; y <= maxYear; y++) allYears.push(y);
+          const COL_W = 130; // px per year column
+          const ROW_H = 52; // px per accomplishment row
+          const HEADER_H = 44;
+          const LABEL_W = 0; // no left label column — items are self-labeled inside bars
+
+          // Sort filtered accomplishments by year, then title
+          const sorted = [...filtered].sort((a, b) => a.year !== b.year ? a.year - b.year : a.title.localeCompare(b.title));
+
+          const totalW = allYears.length * COL_W;
+          const totalH = HEADER_H + sorted.length * ROW_H + 24;
+
+          return (
+            <div className="rounded-2xl border border-violet-500/30 bg-slate-900/70 overflow-hidden shadow-2xl shadow-violet-900/20">
+              {/* Hint */}
+              <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/40">
+                <p className="text-[11px] text-slate-400">Scroll right to explore all years · tap any bar to expand</p>
+                <p className="text-[11px] text-violet-400 font-semibold">{filtered.length} accomplishments</p>
+              </div>
+
+              {/* Scrollable area */}
+              <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '70vh' }}>
+                <div style={{ width: totalW, minHeight: totalH, position: 'relative' }}>
+
+                  {/* Year header row */}
+                  <div className="sticky top-0 z-20 flex bg-slate-900/95 border-b border-slate-700/60" style={{ width: totalW }}>
+                    {allYears.map(y => (
+                      <div key={y} className="flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-700/30 py-2" style={{ width: COL_W }}>
+                        <span className={`text-sm font-bold font-serif ${years.includes(y) ? 'text-yellow-300' : 'text-slate-600'}`}>{y}</span>
+                        {years.includes(y) && <div className="w-1 h-1 rounded-full bg-yellow-400 mt-1" />}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Column grid lines */}
+                  <div className="absolute top-0 bottom-0 left-0 pointer-events-none" style={{ width: totalW, top: HEADER_H }}>
+                    {allYears.map((y, i) => (
+                      <div key={y}
+                        className={`absolute top-0 bottom-0 border-r ${years.includes(y) ? 'border-slate-600/30' : 'border-slate-800/30'}`}
+                        style={{ left: (i + 1) * COL_W - 1, width: 1 }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Accomplishment rows */}
+                  <div style={{ paddingTop: 8 }}>
+                    {sorted.map((item, rowIdx) => {
+                      const cat = CATEGORIES[item.category];
+                      const startIdx = allYears.indexOf(item.year);
+                      const endYear = item.yearEnd ?? item.year;
+                      const endIdx = allYears.indexOf(endYear);
+                      const barLeft = startIdx * COL_W + 4;
+                      const barWidth = (endIdx - startIdx + 1) * COL_W - 8;
+                      const hkey = `h-${rowIdx}`;
+                      const isHovered = hoveredItem === hkey;
+
+                      return (
+                        <div key={hkey} className="relative" style={{ height: ROW_H }}>
+                          {/* Row stripe */}
+                          <div className={`absolute inset-0 ${rowIdx % 2 === 0 ? 'bg-slate-800/20' : 'bg-transparent'}`} />
+
+                          {/* Bar */}
+                          <div
+                            className="absolute top-1/2 -translate-y-1/2 rounded-lg cursor-pointer transition-all duration-200 border select-none"
+                            style={{
+                              left: barLeft,
+                              width: barWidth,
+                              height: isHovered ? 'auto' : ROW_H - 10,
+                              minHeight: ROW_H - 10,
+                              background: cat.color + '22',
+                              borderColor: cat.color + '60',
+                              boxShadow: isHovered ? `0 0 16px ${cat.color}40` : 'none',
+                              zIndex: isHovered ? 10 : 1,
+                              top: isHovered ? 4 : undefined,
+                              transform: isHovered ? 'none' : undefined,
+                            }}
+                            onClick={() => setHoveredItem(isHovered ? null : hkey)}
+                          >
+                            <div className="flex items-center gap-2 px-3 h-full" style={{ minHeight: ROW_H - 10 }}>
+                              <span className="text-lg shrink-0 leading-none">{item.emoji}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-white font-semibold text-xs leading-tight truncate" style={{ color: cat.color }}>{item.title}</p>
+                                  {item.yearEnd && (
+                                    <span className="text-[9px] rounded px-1.5 py-0.5 shrink-0" style={{ background: cat.color + '30', color: cat.color }}>
+                                      {item.year}–{item.yearEnd}
+                                    </span>
+                                  )}
+                                </div>
+                                {isHovered && (
+                                  <p className="text-slate-300 text-[11px] mt-1.5 leading-relaxed whitespace-normal pr-2">{item.detail}</p>
+                                )}
+                              </div>
+                              <span className="text-[9px] shrink-0 rounded-full px-1.5 py-0.5 ml-auto" style={{ background: cat.color + '20', color: cat.color, border: `1px solid ${cat.color}40` }}>
+                                {cat.label}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Footer flourish */}
         <div className="mt-16 text-center text-slate-600 text-xs italic pb-4">
