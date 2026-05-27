@@ -164,21 +164,21 @@ export default function TimelinePage() {
         {/* Bar chart */}
         <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4 mb-10">
           <p className="text-xs text-slate-400 mb-3 text-center">Accomplishments per year</p>
-          <div className="flex items-end gap-1.5 h-32 px-2">
+          <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
             {chartData.map(d => {
-              const totalH = Math.max(6, (d.total / maxCount) * 100);
-              const fillH = d.count === 0 ? 0 : (d.count / d.total) * 100;
+              const BAR_MAX = 112;
+              const totalPx = Math.max(6, (d.total / maxCount) * BAR_MAX);
+              const fillPx = d.count === 0 ? 0 : Math.max(4, (d.count / maxCount) * BAR_MAX);
               return (
-                <div key={d.year} className="flex-1 flex flex-col items-center gap-0.5">
-                  <span className="text-[9px] text-emerald-400 font-bold">{d.count > 0 ? d.count : ""}</span>
-                  <div className="w-full relative" style={{ height: `${totalH}%` }}>
-                    <div className="absolute bottom-0 w-full rounded-t bg-slate-700/50 h-full" />
+                <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                  <span className="text-[9px] text-emerald-400 font-bold leading-none mb-0.5">{d.count > 0 ? d.count : ""}</span>
+                  <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
                     <div
-                      className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all"
-                      style={{ height: `${fillH}%` }}
+                      className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-500"
+                      style={{ height: fillPx }}
                     />
                   </div>
-                  <span className="text-[9px] text-slate-500">{d.year}</span>
+                  <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
                 </div>
               );
             })}
