@@ -19,6 +19,7 @@ const CATEGORIES: Record<AccomplishmentCategory, { label: string; color: string;
 type Accomplishment = { year: number; title: string; detail: string; category: AccomplishmentCategory; emoji: string };
 
 const ACCOMPLISHMENTS: Accomplishment[] = [
+  { year: 2015, title: "First Time Surfing", detail: "Got in the water and tried surfing for the first time. Paddled out, caught some waves, wiped out plenty. A taste of ocean culture and a physical challenge that was equal parts humbling and fun.", category: "health", emoji: "🏄" },
   { year: 2016, title: "Switched to Engineering", detail: "Made the pivotal career-path decision to pursue engineering — a leap of faith that set the whole journey in motion.", category: "career", emoji: "⚙️" },
   { year: 2016, title: "Self-Help Deep Dive (2016–2018)", detail: "Devoured the canon — Man's Search for Meaning, 7 Habits, and dozens more. Planted seeds of intentional living.", category: "mindset", emoji: "📚" },
             { year: 2019, title: "Military Decision — Scoped It, Chose My Path", detail: "Early in my career, seriously considered joining the military. Did a deep dive into the pros and cons — the structure, the culture, the tradeoffs. Ultimately made the right call to skip it and pursue my own path. But the research and self-reflection were valuable: I understood the military world, what it demands, what it offers, and why it wasn't right for me. A formative decision that clarified my values and direction.", category: "career", emoji: "🎖️" },
