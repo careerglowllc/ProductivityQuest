@@ -108,24 +108,14 @@ function exportAccomplishmentsCSV(items: Accomplishment[]) {
 
 export default function TimelinePage() {
   const isMobile = useIsMobile();
-  const [activeCategories, setActiveCategories] = useState<Set<AccomplishmentCategory>>(
-    new Set(Object.keys(CATEGORIES) as AccomplishmentCategory[])
-  );
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showPerYear, setShowPerYear] = useState(true);
   const [showCumulative, setShowCumulative] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(true);
   const [viewMode, setViewMode] = useState<'vertical' | 'horizontal'>('vertical');
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const years = Array.from(new Set(ACCOMPLISHMENTS.map(a => a.year))).sort((a, b) => a - b);
-
-  const toggleCategory = (cat: AccomplishmentCategory) => {
-    setActiveCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(cat)) { if (next.size > 1) next.delete(cat); } else next.add(cat);
-      return next;
-    });
-  };
 
   const toggleExpand = (key: string) => {
     setExpandedItems(prev => {
@@ -135,7 +125,7 @@ export default function TimelinePage() {
     });
   };
 
-  const filtered = ACCOMPLISHMENTS.filter(a => activeCategories.has(a.category));
+  const filtered = ACCOMPLISHMENTS;
   const byYear = years
     .map(y => ({ year: y, items: filtered.filter(a => a.year === y) }))
     .filter(g => g.items.length > 0);
@@ -197,49 +187,50 @@ export default function TimelinePage() {
           </div>
         </div>
 
-        {/* Category filters */}
-        <div className="max-w-4xl mx-auto flex flex-wrap justify-center gap-2 mb-5">
-          {(Object.entries(CATEGORIES) as [AccomplishmentCategory, typeof CATEGORIES[AccomplishmentCategory]][]).map(([key, meta]) => {
-            const isActive = activeCategories.has(key);
-            const count = ACCOMPLISHMENTS.filter(a => a.category === key).length;
-            return (
+        {/* ── Widget & View Controls ── */}
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-2 mb-6">
+          {/* Chart toggles */}
+          <button
+            onClick={() => setShowPerYear(v => !v)}
+            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showPerYear ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200" : "bg-slate-800/40 border-slate-700/40 text-slate-500"}`}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showPerYear ? "#34D399" : "#475569" }} />
+            📊 Per Year Chart
+          </button>
+          <button
+            onClick={() => setShowCumulative(v => !v)}
+            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showCumulative ? "bg-sky-500/15 border-sky-500/40 text-sky-200" : "bg-slate-800/40 border-slate-700/40 text-slate-500"}`}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showCumulative ? "#38BDF8" : "#475569" }} />
+            📈 Cumulative Chart
+          </button>
+          {/* Divider */}
+          <span className="text-slate-700 text-xs">|</span>
+          {/* Timeline toggle */}
+          <button
+            onClick={() => setShowTimeline(v => !v)}
+            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showTimeline ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-200" : "bg-slate-800/40 border-slate-700/40 text-slate-500"}`}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showTimeline ? "#FCD34D" : "#475569" }} />
+            🗓️ Timeline
+          </button>
+          {/* View toggle (only relevant when timeline visible) */}
+          {showTimeline && (
+            <div className="flex items-center rounded-full border border-slate-700/60 overflow-hidden">
               <button
-                key={key}
-                onClick={() => toggleCategory(key)}
-                className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${
-                  isActive
-                    ? `${meta.bg} ${meta.border} text-white`
-                    : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: isActive ? meta.color : "#475569" }} />
-                <span className="font-semibold">{meta.label}</span>
-                <span className="opacity-60">({count})</span>
-              </button>
-            );
-          })}
+                onClick={() => setViewMode('vertical')}
+                className={`px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'vertical' ? 'bg-emerald-600 text-white' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'}`}
+              >↕ Vertical</button>
+              <button
+                onClick={() => setViewMode('horizontal')}
+                className={`px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'horizontal' ? 'bg-violet-600 text-white' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'}`}
+              >↔ Horizontal</button>
+            </div>
+          )}
         </div>
 
-        {/* ── STATS WIDGET — always visible ── */}
+        {/* ── STATS WIDGET ── */}
         <div className="max-w-4xl mx-auto mb-6">
-          {/* Chart toggle buttons */}
-          <div className="flex justify-center gap-2 mb-3">
-            <button
-              onClick={() => setShowPerYear(v => !v)}
-              className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showPerYear ? "bg-emerald-500/15 border-emerald-500/40 text-white" : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"}`}
-            >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showPerYear ? "#34D399" : "#475569" }} />
-              Per Year
-            </button>
-            <button
-              onClick={() => setShowCumulative(v => !v)}
-              className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showCumulative ? "bg-sky-500/15 border-sky-500/40 text-white" : "bg-slate-800/40 border-slate-700/40 text-slate-500 line-through"}`}
-            >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showCumulative ? "#38BDF8" : "#475569" }} />
-              Cumulative
-            </button>
-          </div>
-
           {/* Per-year bar chart */}
           {showPerYear && (
             <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4 mb-3">
@@ -287,26 +278,8 @@ export default function TimelinePage() {
           )}
         </div>
 
-        {/* View mode toggle */}
-        <div className="flex justify-center mb-5">
-          <div className="flex items-center rounded-full border border-slate-700/60 overflow-hidden">
-            <button
-              onClick={() => setViewMode('vertical')}
-              className={`px-4 py-1.5 text-xs font-semibold transition-all ${viewMode === 'vertical' ? 'bg-emerald-600 text-white' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'}`}
-            >
-              ↕ Vertical
-            </button>
-            <button
-              onClick={() => setViewMode('horizontal')}
-              className={`px-4 py-1.5 text-xs font-semibold transition-all ${viewMode === 'horizontal' ? 'bg-violet-600 text-white' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'}`}
-            >
-              ↔ Horizontal
-            </button>
-          </div>
-        </div>
-
         {/* ── VERTICAL VIEW ── */}
-        {viewMode === 'vertical' && (
+        {showTimeline && viewMode === 'vertical' && (
           <>
             <div className="mb-3" />
 
@@ -362,7 +335,7 @@ export default function TimelinePage() {
         )}
 
         {/* ── HORIZONTAL GANTT VIEW ── */}
-        {viewMode === 'horizontal' && (() => {
+        {showTimeline && viewMode === 'horizontal' && (() => {
           const minYear = Math.min(...years);
           const maxYear = Math.max(...years);
           const allYears: number[] = [];
