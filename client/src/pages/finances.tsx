@@ -330,36 +330,51 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialItems.length]);
 
-  const { data: btcData, isLoading: btcLoading, refetch: refetchBtc } = useQuery<{ price: number; change24h: number | null; source: string }>({
+  const { data: btcData, isLoading: btcLoading, isError: btcError, refetch: refetchBtc } = useQuery<{ price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/bitcoin"],
     staleTime: 60_000,
     retry: 2,
   });
 
-  const { data: vtsaxData, isLoading: vtsaxLoading, refetch: refetchVtsax } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+  const { data: vtsaxData, isLoading: vtsaxLoading, isError: vtsaxError, refetch: refetchVtsax } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/vtsax"],
     staleTime: 60_000,
     retry: 2,
   });
 
-  const { data: vooData, isLoading: vooLoading, refetch: refetchVoo } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+  const { data: vooData, isLoading: vooLoading, isError: vooError, refetch: refetchVoo } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/voo"],
     staleTime: 60_000,
     retry: 2,
   });
 
-  const { data: ibitData, isLoading: ibitLoading, refetch: refetchIbit } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+  const { data: ibitData, isLoading: ibitLoading, isError: ibitError, refetch: refetchIbit } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/ibit"],
     staleTime: 60_000,
     retry: 2,
   });
 
   // SSO (ProShares Ultra S&P500) — used for 401k valuation
-  const { data: viiixData, isLoading: viiixLoading } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+  const { data: viiixData, isLoading: viiixLoading, isError: viiixError } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/sso"],
     staleTime: 60_000,
     retry: 2,
   });
+
+  // Cache last known prices in localStorage so we can fall back if live fetch fails
+  useEffect(() => { if (btcData?.price) localStorage.setItem("cache_btc_price", String(btcData.price)); }, [btcData]);
+  useEffect(() => { if (vtsaxData?.price) localStorage.setItem("cache_vtsax_price", String(vtsaxData.price)); }, [vtsaxData]);
+  useEffect(() => { if (vooData?.price) localStorage.setItem("cache_voo_price", String(vooData.price)); }, [vooData]);
+  useEffect(() => { if (ibitData?.price) localStorage.setItem("cache_ibit_price", String(ibitData.price)); }, [ibitData]);
+  useEffect(() => { if (viiixData?.price) localStorage.setItem("cache_viiix_price", String(viiixData.price)); }, [viiixData]);
+
+  const cachedBtcPrice = parseFloat(localStorage.getItem("cache_btc_price") ?? "0") || 0;
+  const cachedVtsaxPrice = parseFloat(localStorage.getItem("cache_vtsax_price") ?? "0") || 0;
+  const cachedVooPrice = parseFloat(localStorage.getItem("cache_voo_price") ?? "0") || 0;
+  const cachedIbitPrice = parseFloat(localStorage.getItem("cache_ibit_price") ?? "0") || 0;
+  const cachedViiixPrice = parseFloat(localStorage.getItem("cache_viiix_price") ?? "0") || 0;
+
+  const pricesUsingCache = (btcError && cachedBtcPrice > 0) || (vtsaxError && cachedVtsaxPrice > 0) || (vooError && cachedVooPrice > 0) || (ibitError && cachedIbitPrice > 0) || (viiixError && cachedViiixPrice > 0);
 
   // Live property valuation via Redfin — re-fetches every 6 hours; falls back to manual value on error
   const { data: propertyData } = useQuery<{ address: string; price: number; source: string; cached: boolean }>({
@@ -449,11 +464,11 @@ export default function Finances() {
   }));
 
   // ── Net Worth (component-level, shared between Overview & Net Worth tab) ──
-  const _btcPrice = btcData?.price ?? 0;
-  const _vtsaxPrice = vtsaxData?.price ?? 0;
-  const _vooPrice = vooData?.price ?? 0;
-  const _ibitPrice = ibitData?.price ?? 0;
-  const _viiixPrice = viiixData?.price ?? 0;
+  const _btcPrice = btcData?.price ?? cachedBtcPrice;
+  const _vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
+  const _vooPrice = vooData?.price ?? cachedVooPrice;
+  const _ibitPrice = ibitData?.price ?? cachedIbitPrice;
+  const _viiixPrice = viiixData?.price ?? cachedViiixPrice;
   const _btcValue = btcHoldings * _btcPrice;
   const _coinbaseValue = coinbaseBtcHoldings * _btcPrice;
   const _totalBtcValue = _btcValue + _coinbaseValue;
@@ -2298,11 +2313,11 @@ export default function Finances() {
           {/* ── Net Worth ────────────────────────────── */}
           <TabsContent value="networth" className="space-y-4">
             {(() => {
-              const btcPrice = btcData?.price ?? 0;
-              const vtsaxPrice = vtsaxData?.price ?? 0;
-              const vooPrice = vooData?.price ?? 0;
-              const ibitPrice = ibitData?.price ?? 0;
-              const viiixPrice = viiixData?.price ?? 0;
+              const btcPrice = btcData?.price ?? cachedBtcPrice;
+              const vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
+              const vooPrice = vooData?.price ?? cachedVooPrice;
+              const ibitPrice = ibitData?.price ?? cachedIbitPrice;
+              const viiixPrice = viiixData?.price ?? cachedViiixPrice;
 
               const btcValue = btcHoldings * btcPrice;
               const coinbaseValue = coinbaseBtcHoldings * btcPrice;
@@ -3495,7 +3510,13 @@ export default function Finances() {
                       <h2 className="text-lg font-bold text-orange-300 flex items-center gap-2">
                         <Scale className="h-5 w-5" /> Investment Net Worth
                       </h2>
-                      <p className="text-xs text-slate-400">Live prices via CoinGecko & Yahoo Finance · auto-refreshes every 60s</p>
+                      {pricesUsingCache ? (
+                        <p className="text-xs text-amber-400/80 flex items-center gap-1">
+                          <span>⚠️</span> Live prices unavailable · showing last fetched prices
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400">Live prices via CoinGecko & Yahoo Finance · auto-refreshes every 60s</p>
+                      )}
                     </div>
                     <Button variant="outline" size="sm"
                       onClick={() => { refetchBtc(); refetchVtsax(); refetchVoo(); refetchIbit(); }}
