@@ -583,6 +583,12 @@ export default function Skills() {
   const [skillToEditMilestones, setSkillToEditMilestones] = useState<UserSkill | null>(null);
   const [selectedMilestone, setSelectedMilestone] = useState<{id: string; title: string; x: number; y: number} | null>(null);
   const constellationScrollRef = useRef<HTMLDivElement>(null);
+  // Timeline state
+  type AccomplishmentCategory = "practical" | "mindset" | "life" | "adventure" | "career" | "health" | "relationships" | "financial";
+  const [timelineActiveCategories, setTimelineActiveCategories] = useState<Set<AccomplishmentCategory>>(
+    new Set(["practical","mindset","life","adventure","career","health","relationships","financial"] as AccomplishmentCategory[])
+  );
+  const [timelineExpandedItems, setTimelineExpandedItems] = useState<Set<string>>(new Set());
 
   // Auto-center constellation view on starting node when modal opens
   useEffect(() => {
@@ -1489,8 +1495,6 @@ export default function Skills() {
 
         {/* ── Accomplishments Timeline ─────────────────── */}
         {viewMode === 'timeline' && (() => {
-          type AccomplishmentCategory = "practical" | "mindset" | "life" | "adventure" | "career" | "health" | "relationships" | "financial";
-
           const CATEGORIES: Record<AccomplishmentCategory, { label: string; color: string; bg: string; border: string }> = {
             practical:     { label: "Practical Skills",   color: "#34D399", bg: "bg-emerald-500/15",  border: "border-emerald-500/40" },
             mindset:       { label: "Mindset & Spirit",   color: "#A78BFA", bg: "bg-violet-500/15",   border: "border-violet-500/40" },
@@ -1505,28 +1509,21 @@ export default function Skills() {
           type Accomplishment = { year: number; title: string; detail: string; category: AccomplishmentCategory; emoji: string };
 
           const accomplishments: Accomplishment[] = [
-            // 2016
             { year: 2016, title: "Switched to Engineering", detail: "Made the pivotal career-path decision to pursue engineering — a leap of faith that set the whole journey in motion.", category: "career", emoji: "⚙️" },
             { year: 2016, title: "Self-Help Deep Dive (2016–2018)", detail: "Devoured the canon — Man's Search for Meaning, 7 Habits, and dozens more. Planted seeds of intentional living.", category: "mindset", emoji: "📚" },
-            // 2019
             { year: 2019, title: "Military Service", detail: "Served and gained discipline, brotherhood, and a foundational worldview that everything else gets measured against.", category: "career", emoji: "🎖️" },
             { year: 2019, title: "Finance & FIRE Awakening (2019–2021)", detail: "Discovered Naval Ravikant, FIRE movement, and the real rules of money and wealth. Changed the way I see time and work forever.", category: "financial", emoji: "📈" },
-            // 2020
             { year: 2020, title: "Boston, College & Engineering Glory", detail: "4.0, Magna Cum Laude, dream job offer — after countless all-nighters, last-second cramming, and relentless grind. Won in the academic arena.", category: "career", emoji: "🎓" },
             { year: 2020, title: "Rock Climbing & Challenging Comfort Zone", detail: "Hit real rock walls with Karl, Ben and crew. Learned to trust the rope, face height, and push physical limits IRL.", category: "health", emoji: "🧗" },
-            // 2021
             { year: 2021, title: "Wim Hof Method", detail: "Adopted breathwork and cold exposure. Discovered what the body is capable of when the mind stops complaining.", category: "health", emoji: "🧊" },
             { year: 2021, title: "First Motorcycle — Kawasaki Ninja 300", detail: "Got my license, bought the bike, and learned to ride. Freedom, risk, and the open road became personal.", category: "practical", emoji: "🏍️" },
-            // 2022
             { year: 2022, title: "Thailand — Reflection, Path & Transformation", detail: "A solo journey that cracked something open. Began the long arc from who I was to who I was becoming — still unfolding.", category: "adventure", emoji: "🌏" },
-            { year: 2022, title: "Ireland & Europe Travels", detail: "Explored castles, coastlines, and cultures far outside the American bubble. History became tangible.", category: "adventure", emoji: "🍀" },
-            // 2023
+            { year: 2022, title: "Ireland & Europe Travels (First Time)", detail: "Explored castles, coastlines, and cultures far outside the American bubble. History became tangible.", category: "adventure", emoji: "🍀" },
             { year: 2023, title: "Colombia — $30/Day Living & Real Life Adventures", detail: "Learned to live richly on very little. Survived the cop pull-over, hit-and-run chaos, and found beauty in the balance of danger and magic.", category: "adventure", emoji: "🌿" },
             { year: 2023, title: "Mexico Immersion", detail: "Culture, food, people and perspective. Another layer stripped off of Bay Area insularity.", category: "adventure", emoji: "🌮" },
             { year: 2023, title: "Japan Discovery", detail: "Experienced world-class quality of life, discipline, and food culture. Set a new benchmark for what civilization can look like.", category: "adventure", emoji: "🗾" },
             { year: 2023, title: "Learning to Sing with Joanna", detail: "Opened a creative and emotional channel I'd kept closed. Cut bad ties and found a freer, more expressive version of myself.", category: "relationships", emoji: "🎶" },
             { year: 2023, title: "First Real Relationship — Joanna", detail: "Learned how to love, be loved, communicate, and navigate real intimacy. Growth that can't come from any book.", category: "relationships", emoji: "❤️" },
-            // 2024
             { year: 2024, title: "GT Master's — Proactive CS Pivot & Timely Exit", detail: "Got into Georgia Tech's OMSCS through sheer proactivity. Recognized early that AI was making the degree obsolete and pivoted out before sinking years in. Dodged a major bullet and redirected toward business.", category: "career", emoji: "🧠" },
             { year: 2024, title: "Redding Family & Fourth of July Traditions", detail: "Discovered the magic of small-town American summers, firework sessions, and the Redding family. Moments that redefine 'home'.", category: "life", emoji: "🎆" },
             { year: 2024, title: "First Firework Session", detail: "Lit off fireworks for the first time. Simple, childlike joy — underrated milestone.", category: "life", emoji: "✨" },
@@ -1535,7 +1532,6 @@ export default function Skills() {
             { year: 2024, title: "Religious & Philosophical Deep Dive (2024–2026)", detail: "Confronted the biggest questions — death, meaning, God, suffering. Built a real framework. Not just beliefs inherited but ones forged through reading, thinking and living.", category: "mindset", emoji: "🔭" },
             { year: 2024, title: "Hair Transplant & Physical Transformation", detail: "Made the call, went through the process, and saw it through. Confidence upgrade and proof that taking action beats rumination.", category: "health", emoji: "💇" },
             { year: 2024, title: "Working Through Family Trauma & Shell", detail: "Began actively detoxing from toxic family patterns. The unlearning is hard — but it's the most freeing work there is.", category: "mindset", emoji: "🌱" },
-            // 2025
             { year: 2025, title: "Learned to Change a Car Tire", detail: "No more waiting on the side of the road. Basic but empowering — the kind of self-reliance that matters when it counts.", category: "practical", emoji: "🔧" },
             { year: 2025, title: "Existential Peace — Masterpiece Essay", detail: "Addressed years of existential and religious anxiety. Synthesized a personal nihilism-meets-meaning framework and wrote it all down. Finally at peace with the big questions.", category: "mindset", emoji: "🕊️" },
             { year: 2025, title: "Bought First House — 2605 Plumbago Ct", detail: "Learned the entire homebuying process: offers, inspections, escrow, financing, refinancing. A massive adult unlock.", category: "life", emoji: "🏠" },
@@ -1543,32 +1539,27 @@ export default function Skills() {
             { year: 2025, title: "Got a Puppy — Unconditional Love Unlocked", detail: "Learned to care for a dog and discovered what unconditional love actually feels like in practice. Life is measurably better with a good dog.", category: "life", emoji: "🐶" },
             { year: 2025, title: "LLC — Founded, Ran & Learned the Business World", detail: "Started CareerGlow LLC, deployed real apps, studied marketing strategy, and gained deep insight into the CEO mindset. Found my calling.", category: "career", emoji: "🚀" },
             { year: 2025, title: "Disneyland LA — Fear Conquered", detail: "Faced and defeated roller coaster phobia. Rode every major ride at Disneyland and DCA. Childhood fears — done.", category: "health", emoji: "🎢" },
-            // 2026
             { year: 2026, title: "Learned to Change Car Oil", detail: "Added another practical self-reliance tool to the belt. Less dependency, more capability.", category: "practical", emoji: "🛢️" },
             { year: 2026, title: "Built a Gate", detail: "Designed and built a real gate from scratch. Hands, wood, tools — and a result that stands.", category: "practical", emoji: "🚪" },
             { year: 2026, title: "Learned Drywall", detail: "Patched, taped and finished drywall. The house teaches humility and competence in equal measure.", category: "practical", emoji: "🏗️" },
             { year: 2026, title: "Plastering, Painting & Spackling", detail: "Took walls from rough to smooth to painted. A satisfying arc of craft from damage to beauty.", category: "practical", emoji: "🖌️" },
             { year: 2026, title: "Got Ducks", detail: "Adopted ducks and gained a mindset shift: stop overthinking hard things and just be more active. Turns out ducks are delightful.", category: "life", emoji: "🦆" },
             { year: 2026, title: "Solved ED — For Good (Mostly)", detail: "Addressed and resolved a sensitive health issue that had lingered. An underrated life quality unlock that deserves to be logged.", category: "health", emoji: "💪" },
-            { year: 2026, title: "Ireland & Europe Travels", detail: "Explored more of Europe with fresh eyes and a richer context. Every trip builds on the last.", category: "adventure", emoji: "🏰" },
+            { year: 2026, title: "Ireland & Europe Travels (2026)", detail: "Explored more of Europe with fresh eyes and a richer context. Every trip builds on the last.", category: "adventure", emoji: "🏰" },
           ];
 
           const years = Array.from(new Set(accomplishments.map(a => a.year))).sort((a, b) => a - b);
-          const [activeCategories, setActiveCategories] = useState<Set<AccomplishmentCategory>>(new Set(Object.keys(CATEGORIES) as AccomplishmentCategory[]));
-          const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
           const toggleCategory = (cat: AccomplishmentCategory) => {
-            setActiveCategories(prev => {
+            setTimelineActiveCategories(prev => {
               const next = new Set(prev);
               if (next.has(cat)) { if (next.size > 1) next.delete(cat); } else next.add(cat);
               return next;
             });
           };
 
-          const filtered = accomplishments.filter(a => activeCategories.has(a.category));
+          const filtered = accomplishments.filter(a => timelineActiveCategories.has(a.category));
           const byYear = years.map(y => ({ year: y, items: filtered.filter(a => a.year === y) })).filter(g => g.items.length > 0);
-
-          // Chart data
           const chartData = years.map(y => ({
             year: y,
             count: filtered.filter(a => a.year === y).length,
@@ -1591,7 +1582,7 @@ export default function Skills() {
               {/* Category filters */}
               <div className="flex flex-wrap justify-center gap-2">
                 {(Object.entries(CATEGORIES) as [AccomplishmentCategory, typeof CATEGORIES[AccomplishmentCategory]][]).map(([key, meta]) => {
-                  const isActive = activeCategories.has(key);
+                  const isActive = timelineActiveCategories.has(key);
                   const count = accomplishments.filter(a => a.category === key).length;
                   return (
                     <button key={key} onClick={() => toggleCategory(key)}
@@ -1652,12 +1643,12 @@ export default function Skills() {
                         {items.map((item, idx) => {
                           const cat = CATEGORIES[item.category];
                           const key = `${item.year}-${idx}`;
-                          const isExpanded = expandedItems.has(key);
+                          const isExpanded = timelineExpandedItems.has(key);
                           return (
                             <div
                               key={key}
                               onClick={() => {
-                                setExpandedItems(prev => {
+                                setTimelineExpandedItems(prev => {
                                   const next = new Set(prev);
                                   if (next.has(key)) next.delete(key); else next.add(key);
                                   return next;
