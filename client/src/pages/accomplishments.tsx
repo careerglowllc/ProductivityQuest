@@ -116,6 +116,7 @@ export default function AccomplishmentsPage() {
   const [showTimeline, setShowTimeline] = useState(true);
   const [viewMode, setViewMode] = useState<'vertical' | 'horizontal'>('vertical');
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [modalItem, setModalItem] = useState<Accomplishment | null>(null);
 
   const years = Array.from(new Set(ACCOMPLISHMENTS.map(a => a.year))).sort((a, b) => a - b);
 
@@ -338,104 +339,150 @@ export default function AccomplishmentsPage() {
 
         {/* ── HORIZONTAL GANTT VIEW ── */}
         {showTimeline && viewMode === 'horizontal' && (() => {
+          const CURRENT_YEAR = 2026;
           const minYear = Math.min(...years);
           const maxYear = Math.max(...years);
           const allYears: number[] = [];
           for (let y = minYear; y <= maxYear; y++) allYears.push(y);
-          const COL_W = 130; // px per year column
-          const ROW_H = 52; // px per accomplishment row
-          const FOOTER_H = 44; // year axis at bottom
+          const COL_W = 130;
+          const ROW_H = 52;
+          const HEADER_H = 40;
 
-          // Sort filtered accomplishments by year, then title
           const sorted = [...filtered].sort((a, b) => a.year !== b.year ? a.year - b.year : a.title.localeCompare(b.title));
-
           const totalW = allYears.length * COL_W;
-          const totalH = sorted.length * ROW_H + FOOTER_H + 16;
+
+          const YearHeader = () => (
+            <div className="flex" style={{ width: totalW }}>
+              {allYears.map(y => {
+                const isCurrent = y === CURRENT_YEAR;
+                return (
+                  <div key={y} className="flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-700/30 py-2 relative overflow-hidden" style={{ width: COL_W, height: HEADER_H }}>
+                    {isCurrent && (
+                      <div className="absolute inset-0 bg-gradient-to-b from-violet-500/20 to-transparent pointer-events-none" />
+                    )}
+                    <span className={`text-sm font-bold font-serif relative z-10 ${isCurrent ? 'text-violet-300' : years.includes(y) ? 'text-yellow-300' : 'text-slate-600'}`}>{y}</span>
+                    {isCurrent ? <div className="w-4 h-0.5 rounded-full bg-violet-400 mt-1" /> : years.includes(y) ? <div className="w-1 h-1 rounded-full bg-yellow-400 mt-1" /> : null}
+                  </div>
+                );
+              })}
+            </div>
+          );
 
           return (
-            <div className="rounded-2xl border border-violet-500/30 bg-slate-900/70 overflow-hidden shadow-2xl shadow-violet-900/20">
-              {/* Hint */}
-              <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/40">
-                <p className="text-[11px] text-slate-400">Scroll right to explore all years · tap any bar to expand</p>
-                <p className="text-[11px] text-violet-400 font-semibold">{filtered.length} accomplishments</p>
-              </div>
-
-              {/* Scrollable area */}
-              <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '75vh' }}>
-                <div style={{ width: totalW, minHeight: totalH, position: 'relative' }}>
-
-                  {/* Column grid lines */}
-                  <div className="absolute inset-0 pointer-events-none" style={{ width: totalW }}>
-                    {allYears.map((y, i) => (
-                      <div key={y}
-                        className={`absolute top-0 bottom-0 border-r ${years.includes(y) ? 'border-slate-600/30' : 'border-slate-800/30'}`}
-                        style={{ left: (i + 1) * COL_W - 1, width: 1 }}
-                      />
-                    ))}
+            <>
+              {/* Detail modal */}
+              {modalItem && (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                  onClick={() => setModalItem(null)}
+                >
+                  <div
+                    className="relative max-w-lg w-full rounded-2xl border shadow-2xl p-6 bg-slate-900"
+                    style={{ borderColor: CATEGORIES[modalItem.category].color + '50', boxShadow: `0 0 40px ${CATEGORIES[modalItem.category].color}20` }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {/* Close */}
+                    <button onClick={() => setModalItem(null)} className="absolute top-3 right-3 text-slate-500 hover:text-slate-200 text-lg leading-none">✕</button>
+                    {/* Emoji + title */}
+                    <div className="flex items-start gap-4 mb-4">
+                      <span className="text-4xl shrink-0">{modalItem.emoji}</span>
+                      <div>
+                        <h2 className="text-white font-bold text-lg leading-snug">{modalItem.title}</h2>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-xs rounded-full px-2 py-0.5 font-semibold" style={{ background: CATEGORIES[modalItem.category].color + '25', color: CATEGORIES[modalItem.category].color, border: `1px solid ${CATEGORIES[modalItem.category].color}50` }}>
+                            {CATEGORIES[modalItem.category].label}
+                          </span>
+                          <span className="text-slate-500 text-xs font-serif font-bold">
+                            {modalItem.yearEnd ? `${modalItem.year}–${modalItem.yearEnd}` : modalItem.year}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Divider */}
+                    <div className="border-t border-slate-700/60 mb-4" />
+                    {/* Detail */}
+                    <p className="text-slate-300 text-sm leading-relaxed">{modalItem.detail}</p>
                   </div>
+                </div>
+              )}
 
-                  {/* Accomplishment rows */}
-                  <div style={{ paddingTop: 8, paddingBottom: FOOTER_H }}>
-                    {sorted.map((item, rowIdx) => {
-                      const cat = CATEGORIES[item.category];
-                      const startIdx = allYears.indexOf(item.year);
-                      const endYear = item.yearEnd ?? item.year;
-                      const endIdx = allYears.indexOf(endYear);
-                      const barLeft = startIdx * COL_W + 4;
-                      const barWidth = (endIdx - startIdx + 1) * COL_W - 8;
-                      const hkey = `h-${rowIdx}`;
-                      const isHovered = hoveredItem === hkey;
+              <div className="rounded-2xl border border-violet-500/30 bg-slate-900/70 overflow-hidden shadow-2xl shadow-violet-900/20">
+                {/* Hint */}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/40">
+                  <p className="text-[11px] text-slate-400">Scroll right to explore all years · tap any bar for details</p>
+                  <p className="text-[11px] text-violet-400 font-semibold">{filtered.length} accomplishments</p>
+                </div>
 
-                      return (
-                        <div key={hkey} className="relative" style={{ height: ROW_H }}>
-                          {/* Row stripe */}
-                          <div className={`absolute inset-0 ${rowIdx % 2 === 0 ? 'bg-slate-800/20' : 'bg-transparent'}`} />
+                {/* Scrollable area */}
+                <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '75vh' }}>
+                  <div style={{ width: totalW, position: 'relative' }}>
 
-                          {/* Bar */}
-                          <div
-                            className="absolute top-1/2 -translate-y-1/2 rounded-lg cursor-pointer transition-all duration-200 border select-none"
-                            style={{
-                              left: barLeft,
-                              width: barWidth,
-                              height: isHovered ? 'auto' : ROW_H - 10,
-                              minHeight: ROW_H - 10,
-                              background: cat.color + '22',
-                              borderColor: cat.color + '60',
-                              boxShadow: isHovered ? `0 0 16px ${cat.color}40` : 'none',
-                              zIndex: isHovered ? 10 : 1,
-                              top: isHovered ? 4 : undefined,
-                              transform: isHovered ? 'none' : undefined,
-                            }}
-                            onClick={() => setHoveredItem(isHovered ? null : hkey)}
-                          >
-                            <div className="flex items-center gap-2 px-3 h-full" style={{ minHeight: ROW_H - 10 }}>
-                              <span className="text-lg shrink-0 leading-none">{item.emoji}</span>
-                              <div className="flex-1 min-w-0">
+                    {/* Year header — TOP (sticky) */}
+                    <div className="sticky top-0 z-20 bg-slate-900/95 border-b border-slate-700/60">
+                      <YearHeader />
+                    </div>
+
+                    {/* Current year column background highlight */}
+                    <div className="absolute inset-0 pointer-events-none" style={{ width: totalW, top: HEADER_H }}>
+                      {allYears.map((y, i) => y === CURRENT_YEAR ? (
+                        <div key={y} className="absolute top-0 bottom-0" style={{ left: i * COL_W, width: COL_W, background: 'linear-gradient(to bottom, rgba(139,92,246,0.07), transparent 60%)' }} />
+                      ) : null)}
+                    </div>
+
+                    {/* Column grid lines */}
+                    <div className="absolute inset-0 pointer-events-none" style={{ width: totalW }}>
+                      {allYears.map((y, i) => (
+                        <div key={y}
+                          className={`absolute top-0 bottom-0 border-r ${years.includes(y) ? 'border-slate-600/30' : 'border-slate-800/30'}`}
+                          style={{ left: (i + 1) * COL_W - 1, width: 1 }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Accomplishment rows */}
+                    <div style={{ paddingTop: 8, paddingBottom: HEADER_H + 8 }}>
+                      {sorted.map((item, rowIdx) => {
+                        const cat = CATEGORIES[item.category];
+                        const startIdx = allYears.indexOf(item.year);
+                        const endYear = item.yearEnd ?? item.year;
+                        const endIdx = allYears.indexOf(endYear);
+                        const barLeft = startIdx * COL_W + 4;
+                        const barWidth = (endIdx - startIdx + 1) * COL_W - 8;
+                        const hkey = `h-${rowIdx}`;
+
+                        return (
+                          <div key={hkey} className="relative" style={{ height: ROW_H }}>
+                            <div className={`absolute inset-0 ${rowIdx % 2 === 0 ? 'bg-slate-800/20' : 'bg-transparent'}`} />
+                            <div
+                              className="absolute top-1/2 -translate-y-1/2 rounded-lg cursor-pointer transition-all duration-150 border select-none hover:scale-[1.02] hover:shadow-lg"
+                              style={{
+                                left: barLeft,
+                                width: barWidth,
+                                height: ROW_H - 10,
+                                background: cat.color + '22',
+                                borderColor: cat.color + '60',
+                              }}
+                              onClick={() => setModalItem(item)}
+                            >
+                              <div className="flex items-center gap-2 px-3 h-full">
+                                <span className="text-lg shrink-0 leading-none">{item.emoji}</span>
                                 <p className="font-semibold text-xs leading-tight truncate" style={{ color: cat.color }}>{item.title}</p>
-                                {isHovered && (
-                                  <p className="text-slate-300 text-[11px] mt-1.5 leading-relaxed whitespace-normal pr-2">{item.detail}</p>
-                                )}
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
 
-                  {/* Year axis — sticky at bottom */}
-                  <div className="sticky bottom-0 z-20 flex bg-slate-900/95 border-t border-slate-700/60" style={{ width: totalW }}>
-                    {allYears.map(y => (
-                      <div key={y} className="flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-700/30 py-2" style={{ width: COL_W }}>
-                        <span className={`text-sm font-bold font-serif ${years.includes(y) ? 'text-yellow-300' : 'text-slate-600'}`}>{y}</span>
-                        {years.includes(y) && <div className="w-1 h-1 rounded-full bg-yellow-400 mt-1" />}
-                      </div>
-                    ))}
-                  </div>
+                    {/* Year axis — BOTTOM (sticky) */}
+                    <div className="sticky bottom-0 z-20 bg-slate-900/95 border-t border-slate-700/60">
+                      <YearHeader />
+                    </div>
 
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           );
         })()}
 
