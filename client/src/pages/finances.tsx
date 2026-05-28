@@ -182,13 +182,45 @@ export default function Finances() {
     if (widgetPrefs.overviewVisible) {
       setOverviewWidgets(prev => ({ ...prev, ...widgetPrefs.overviewVisible }));
     }
+    let migratedOrder: NWWidgetKey[] | null = null;
+    let migratedVisible: Record<NWWidgetKey, boolean> | null = null;
     if (widgetPrefs.nwOrder?.length) {
-      setNwWidgetOrder(widgetPrefs.nwOrder as NWWidgetKey[]);
-      try { localStorage.setItem("nw-widget-order", JSON.stringify(widgetPrefs.nwOrder)); } catch {}
+      // Migrate old "allocation" key → ["portfolioPie", "nwSummary"] (same logic as localStorage init)
+      const rawOrder = widgetPrefs.nwOrder as string[];
+      const needsMigration = rawOrder.includes("allocation");
+      const migrated = rawOrder.flatMap(k => k === "allocation" ? ["portfolioPie", "nwSummary"] : [k]) as NWWidgetKey[];
+      const missingKeys = DEFAULT_NW_ORDER.filter(k => !migrated.includes(k));
+      const finalOrder = [...migrated, ...missingKeys];
+      setNwWidgetOrder(finalOrder);
+      try { localStorage.setItem("nw-widget-order", JSON.stringify(finalOrder)); } catch {}
+      if (needsMigration) migratedOrder = finalOrder;
     }
     if (widgetPrefs.nwVisible) {
-      setNwWidgetVisible(prev => ({ ...prev, ...widgetPrefs.nwVisible }));
-      try { localStorage.setItem("nw-widget-visible", JSON.stringify(widgetPrefs.nwVisible)); } catch {}
+      // Migrate old "allocation" key → spread its value to portfolioPie + nwSummary if missing
+      const rawVisible = widgetPrefs.nwVisible as Record<string, boolean>;
+      const needsMigration = "allocation" in rawVisible || !("portfolioPie" in rawVisible);
+      const allocValue = rawVisible.allocation ?? true;
+      const mv: Record<NWWidgetKey, boolean> = {
+        assets: rawVisible.assets ?? true,
+        holdings: rawVisible.holdings ?? true,
+        portfolioPie: rawVisible.portfolioPie ?? allocValue,
+        nwSummary: rawVisible.nwSummary ?? allocValue,
+      };
+      setNwWidgetVisible(prev => ({ ...prev, ...mv }));
+      try { localStorage.setItem("nw-widget-visible", JSON.stringify(mv)); } catch {}
+      if (needsMigration) migratedVisible = mv;
+    }
+    // Re-save to server if we migrated old "allocation" format → new split keys
+    if (migratedOrder || migratedVisible) {
+      const patch: Record<string, unknown> = {};
+      if (migratedOrder) patch.nwOrder = migratedOrder;
+      if (migratedVisible) patch.nwVisible = migratedVisible;
+      fetch("/api/widget-preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(patch),
+      }).catch(() => {/* silent */});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetPrefs]);
