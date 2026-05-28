@@ -111,8 +111,7 @@ function exportAccomplishmentsCSV(items: Accomplishment[]) {
 export default function AccomplishmentsPage() {
   const isMobile = useIsMobile();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [showPerYear, setShowPerYear] = useState(true);
-  const [showCumulative, setShowCumulative] = useState(false);
+  const [showChart, setShowChart] = useState(true);
   const [showTimeline, setShowTimeline] = useState(true);
   const [viewMode, setViewMode] = useState<'vertical' | 'horizontal'>('vertical');
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -192,20 +191,13 @@ export default function AccomplishmentsPage() {
 
         {/* ── Widget & View Controls ── */}
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-2 mb-6">
-          {/* Chart toggles */}
+          {/* Chart toggle */}
           <button
-            onClick={() => setShowPerYear(v => !v)}
-            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showPerYear ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200" : "bg-slate-800/40 border-slate-700/40 text-slate-500"}`}
+            onClick={() => setShowChart(v => !v)}
+            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showChart ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200" : "bg-slate-800/40 border-slate-700/40 text-slate-500"}`}
           >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showPerYear ? "#34D399" : "#475569" }} />
-            📊 Per Year Chart
-          </button>
-          <button
-            onClick={() => setShowCumulative(v => !v)}
-            className={`flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-all ${showCumulative ? "bg-sky-500/15 border-sky-500/40 text-sky-200" : "bg-slate-800/40 border-slate-700/40 text-slate-500"}`}
-          >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showCumulative ? "#38BDF8" : "#475569" }} />
-            📈 Cumulative Chart
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showChart ? "#34D399" : "#475569" }} />
+            📊 Stats Chart
           </button>
           {/* Divider */}
           <span className="text-slate-700 text-xs">|</span>
@@ -232,50 +224,75 @@ export default function AccomplishmentsPage() {
           )}
         </div>
 
-        {/* ── STATS WIDGET ── */}
+        {/* ── STATS WIDGET — combined stacked bar + cumulative line ── */}
         <div className="max-w-4xl mx-auto mb-6">
-          {/* Per-year bar chart */}
-          {showPerYear && (
-            <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4 mb-3">
-              <p className="text-xs text-slate-400 mb-3 text-center">Accomplishments per year</p>
-              <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
-                {chartData.map(d => {
-                  const BAR_MAX = 112;
-                  const totalPx = Math.max(6, (d.total / maxCount) * BAR_MAX);
-                  const fillPx = d.count === 0 ? 0 : Math.max(4, (d.count / maxCount) * BAR_MAX);
-                  return (
-                    <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                      <span className="text-[9px] text-emerald-400 font-bold leading-none mb-0.5">{d.count > 0 ? d.count : ""}</span>
-                      <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
-                        <div className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-500" style={{ height: fillPx }} />
-                      </div>
-                      <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
-                    </div>
-                  );
-                })}
+          {showChart && (
+            <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4">
+              <div className="flex items-center justify-between mb-3 px-1">
+                <p className="text-xs text-slate-400">Accomplishments per year <span className="text-slate-600">(bars)</span> + running total <span className="text-slate-600">(line)</span></p>
+                <p className="text-xs text-emerald-400 font-semibold">{ACCOMPLISHMENTS.length} total</p>
               </div>
-            </div>
-          )}
-
-          {/* Cumulative bar chart */}
-          {showCumulative && (
-            <div className="rounded-xl border border-sky-500/20 bg-slate-800/50 p-4">
-              <p className="text-xs text-slate-400 mb-3 text-center">Cumulative accomplishments over time</p>
-              <div className="flex items-end gap-1.5 px-2" style={{ height: 120 }}>
-                {cumulativeData.map(d => {
-                  const BAR_MAX = 112;
-                  const totalPx = Math.max(6, (d.cumTotal / maxCumulative) * BAR_MAX);
-                  const fillPx = d.cumFiltered === 0 ? 0 : Math.max(4, (d.cumFiltered / maxCumulative) * BAR_MAX);
-                  return (
-                    <div key={d.year} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                      <span className="text-[9px] text-sky-400 font-bold leading-none mb-0.5">{d.cumFiltered > 0 ? d.cumFiltered : ""}</span>
-                      <div className="w-full relative rounded-t overflow-hidden bg-slate-700/50" style={{ height: totalPx }}>
-                        <div className="absolute bottom-0 w-full rounded-t bg-gradient-to-t from-sky-600 to-sky-400 transition-all duration-500" style={{ height: fillPx }} />
+              {/* Chart */}
+              <div className="relative px-2" style={{ height: 130 }}>
+                {/* Bars */}
+                <div className="absolute inset-0 flex items-end gap-1.5 px-2 pb-5">
+                  {chartData.map((d, i) => {
+                    const BAR_MAX = 96;
+                    const perYearPx = Math.max(4, (d.total / maxCount) * BAR_MAX);
+                    const cum = cumulativeData[i];
+                    return (
+                      <div key={d.year} className="flex-1 flex flex-col items-center justify-end relative group">
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[10px] text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10 shadow-lg">
+                          <span className="text-emerald-400 font-bold">{d.total}</span> in {d.year} · <span className="text-sky-400 font-bold">{cum.cumTotal}</span> total
+                        </div>
+                        {/* Stacked bar: per-year count in emerald */}
+                        <div
+                          className="w-full rounded-t bg-gradient-to-t from-emerald-700 to-emerald-400 transition-all duration-500"
+                          style={{ height: perYearPx }}
+                        />
+                        <span className="text-[8px] text-slate-500 mt-0.5 leading-none">{d.year}</span>
                       </div>
-                      <span className="text-[9px] text-slate-500 mt-0.5">{d.year}</span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                {/* Cumulative line overlay */}
+                <svg className="absolute inset-0 w-full pointer-events-none" style={{ height: 125, paddingBottom: 20 }} preserveAspectRatio="none">
+                  {(() => {
+                    const n = cumulativeData.length;
+                    if (n < 2) return null;
+                    const pts = cumulativeData.map((d, i) => {
+                      const x = ((i + 0.5) / n) * 100;
+                      const y = 100 - (d.cumTotal / maxCumulative) * 80;
+                      return `${x},${y}`;
+                    });
+                    return (
+                      <>
+                        <polyline
+                          points={pts.join(" ")}
+                          fill="none"
+                          stroke="#38BDF8"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        {cumulativeData.map((d, i) => {
+                          const x = ((i + 0.5) / n) * 100;
+                          const y = 100 - (d.cumTotal / maxCumulative) * 80;
+                          return (
+                            <circle key={i} cx={`${x}%`} cy={`${y}%`} r="2.5" fill="#38BDF8" />
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </svg>
+              </div>
+              {/* Legend */}
+              <div className="flex items-center gap-4 justify-center mt-2">
+                <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" /><span className="text-[10px] text-slate-400">Per year</span></div>
+                <div className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-sky-400 inline-block rounded-full" /><span className="text-[10px] text-slate-400">Running total</span></div>
               </div>
             </div>
           )}

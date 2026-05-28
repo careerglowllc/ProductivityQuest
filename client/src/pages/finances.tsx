@@ -205,6 +205,22 @@ export default function Finances() {
     }, 800);
   }, []);
 
+  // One-time migration: force correct values as of May 27 2026
+  // ETrade RSU sold/cleared → $0; BMO checking received +$65,622 → $100,622
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260527";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-etrade-rsu", "0");
+        localStorage.setItem("nw-checking", "100622");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setETradeRsuValue(0);
+        setCheckingBalance(100622);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
   const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
   const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
@@ -266,9 +282,9 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
-  // Cash — checking account (manual, last updated May 2026)
+  // Cash — BMO checking account ending in 1711 (manual, updated May 27 2026: +$65,622)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "35000"); } catch { return 35000; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "100622"); } catch { return 100622; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
@@ -279,7 +295,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-veluna-domain-purchase") || "4001.17"); } catch { return 4001.17; }
   });
   const [eTradeRsuValue, setETradeRsuValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-etrade-rsu") || "65000"); } catch { return 65000; }
+    try { return parseFloat(localStorage.getItem("nw-etrade-rsu") || "0"); } catch { return 0; }
   });
   const [fordExplorerValue, setFordExplorerValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-ford-explorer") || "17000"); } catch { return 17000; }
