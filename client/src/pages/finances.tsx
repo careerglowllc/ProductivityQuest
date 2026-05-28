@@ -346,6 +346,26 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialItems.length]);
 
+  // Auto-seed Sperm Freeze Reprotech annual fee (amortized monthly) if it doesn't exist yet
+  useEffect(() => {
+    if (financialItems.length > 0 && !financialItems.find(i => i.item === "Sperm Freeze Reprotech")) {
+      fetch("/api/finances", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          item: "Sperm Freeze Reprotech",
+          category: "Health",
+          tags: ["Health", "Annual"],
+          monthlyCost: 3333, // $33.33/mo in cents — annual fee amortized monthly
+          recurType: "Annual",
+          notes: "Annual storage fee amortized monthly ($399.96/yr)",
+        }),
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financialItems.length]);
+
   const { data: btcData, isLoading: btcLoading, isError: btcError, refetch: refetchBtc } = useQuery<{ price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/bitcoin"],
     staleTime: 60_000,
