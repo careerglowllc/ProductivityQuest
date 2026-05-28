@@ -229,7 +229,7 @@ export default function AccomplishmentsPage() {
           {showChart && (
             <div className="rounded-xl border border-emerald-500/20 bg-slate-800/50 p-4">
               <div className="flex items-center justify-between mb-3 px-1">
-                <p className="text-xs text-slate-400">Accomplishments per year <span className="text-slate-600">(bars)</span> + running total <span className="text-slate-600">(line)</span></p>
+                <p className="text-xs text-slate-400">Accomplishments per year <span className="text-emerald-400">(green)</span> + running total <span className="text-yellow-400">(yellow)</span></p>
                 <p className="text-xs text-emerald-400 font-semibold">{ACCOMPLISHMENTS.length} total</p>
               </div>
               {/* Chart */}
@@ -238,61 +238,39 @@ export default function AccomplishmentsPage() {
                 <div className="absolute inset-0 flex items-end gap-1.5 px-2 pb-5">
                   {chartData.map((d, i) => {
                     const BAR_MAX = 96;
-                    const perYearPx = Math.max(4, (d.total / maxCount) * BAR_MAX);
                     const cum = cumulativeData[i];
+                    const prevCum = i === 0 ? 0 : cumulativeData[i - 1].cumTotal;
+                    // Total bar height = cumulative total scaled
+                    const totalPx = Math.max(4, (cum.cumTotal / maxCumulative) * BAR_MAX);
+                    // Green bottom segment = this year's new accomplishments
+                    const newPx = Math.max(2, (d.total / maxCumulative) * BAR_MAX);
+                    // Yellow top segment = all previous years
+                    const prevPx = Math.max(0, (prevCum / maxCumulative) * BAR_MAX);
                     return (
                       <div key={d.year} className="flex-1 flex flex-col items-center justify-end relative group">
                         {/* Tooltip */}
                         <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[10px] text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10 shadow-lg">
-                          <span className="text-emerald-400 font-bold">{d.total}</span> in {d.year} · <span className="text-sky-400 font-bold">{cum.cumTotal}</span> total
+                          <span className="text-emerald-400 font-bold">+{d.total}</span> in {d.year} · <span className="text-yellow-400 font-bold">{cum.cumTotal}</span> total
                         </div>
-                        {/* Stacked bar: per-year count in emerald */}
-                        <div
-                          className="w-full rounded-t bg-gradient-to-t from-emerald-700 to-emerald-400 transition-all duration-500"
-                          style={{ height: perYearPx }}
-                        />
+                        {/* Stacked bar */}
+                        <div className="w-full flex flex-col justify-end overflow-hidden rounded-t" style={{ height: totalPx }}>
+                          {/* Yellow top = previous years' cumulative */}
+                          {prevPx > 0 && (
+                            <div className="w-full bg-gradient-to-t from-yellow-600 to-yellow-400 transition-all duration-500" style={{ height: prevPx }} />
+                          )}
+                          {/* Green bottom = this year's new */}
+                          <div className="w-full bg-gradient-to-t from-emerald-700 to-emerald-400 transition-all duration-500" style={{ height: newPx }} />
+                        </div>
                         <span className="text-[8px] text-slate-500 mt-0.5 leading-none">{d.year}</span>
                       </div>
                     );
                   })}
                 </div>
-                {/* Cumulative line overlay */}
-                <svg className="absolute inset-0 w-full pointer-events-none" style={{ height: 125, paddingBottom: 20 }} preserveAspectRatio="none">
-                  {(() => {
-                    const n = cumulativeData.length;
-                    if (n < 2) return null;
-                    const pts = cumulativeData.map((d, i) => {
-                      const x = ((i + 0.5) / n) * 100;
-                      const y = 100 - (d.cumTotal / maxCumulative) * 80;
-                      return `${x},${y}`;
-                    });
-                    return (
-                      <>
-                        <polyline
-                          points={pts.join(" ")}
-                          fill="none"
-                          stroke="#38BDF8"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          vectorEffect="non-scaling-stroke"
-                        />
-                        {cumulativeData.map((d, i) => {
-                          const x = ((i + 0.5) / n) * 100;
-                          const y = 100 - (d.cumTotal / maxCumulative) * 80;
-                          return (
-                            <circle key={i} cx={`${x}%`} cy={`${y}%`} r="2.5" fill="#38BDF8" />
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-                </svg>
               </div>
               {/* Legend */}
               <div className="flex items-center gap-4 justify-center mt-2">
-                <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" /><span className="text-[10px] text-slate-400">Per year</span></div>
-                <div className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-sky-400 inline-block rounded-full" /><span className="text-[10px] text-slate-400">Running total</span></div>
+                <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" /><span className="text-[10px] text-slate-400">This year (new)</span></div>
+                <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-yellow-500 inline-block" /><span className="text-[10px] text-slate-400">All prior years (running total)</span></div>
               </div>
             </div>
           )}
