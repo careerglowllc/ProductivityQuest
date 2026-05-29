@@ -1600,6 +1600,7 @@ export default function Finances() {
           <TabsContent value="business" className="space-y-4">
             {(() => {
               const bizItems = financialItems.filter(isBusinessItem);
+              const bizItemsSorted = [...bizItems].sort((a, b) => b.monthlyCost - a.monthlyCost);
               const bizIncome = bizItems.filter(i => classifyItem(i.category, i.tags) === "income").reduce((s, i) => s + i.monthlyCost, 0);
               const bizExpenses = bizItems.filter(i => classifyItem(i.category, i.tags) === "expense").reduce((s, i) => s + i.monthlyCost, 0);
               const bizNet = bizIncome - bizExpenses;
@@ -1696,18 +1697,62 @@ export default function Finances() {
                     )}
                   </div>
 
+                  {/* Expense items stacked bar chart */}
+                  {(() => {
+                    const expenseItems = bizItemsSorted.filter(i => classifyItem(i.category, i.tags) === "expense");
+                    if (expenseItems.length === 0) return null;
+                    const BAR_COLORS = ["#EF4444","#F97316","#F59E0B","#EAB308","#84CC16","#22C55E","#14B8A6","#06B6D4","#3B82F6","#8B5CF6","#EC4899","#F43F5E","#A855F7","#6366F1","#10B981","#F87171","#FB923C","#FBBF24","#A3E635","#34D399"];
+                    const chartData = [{ name: "Monthly Expenses" as string }] as Record<string, string | number>[];
+                    expenseItems.forEach((item, i) => {
+                      chartData[0][item.item] = item.monthlyCost / 100;
+                    });
+                    return (
+                      <Card className="bg-slate-800/60 border-blue-500/20">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-blue-300 text-sm">Business Expenses Breakdown</CardTitle>
+                          <CardDescription className="text-slate-400 text-xs">Monthly cost per item — largest to smallest</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={120}>
+                            <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 0, top: 4, bottom: 4 }}>
+                              <XAxis type="number" hide />
+                              <YAxis type="category" dataKey="name" hide />
+                              <Tooltip
+                                formatter={(value: any, name: string) => [`$${Number(value).toFixed(2)}/mo`, name]}
+                                contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #3B82F6", borderRadius: 8, fontSize: 12 }}
+                              />
+                              {expenseItems.map((item, i) => (
+                                <Bar key={item.item} dataKey={item.item} stackId="a" fill={BAR_COLORS[i % BAR_COLORS.length]} radius={i === 0 ? [4,0,0,4] : i === expenseItems.length - 1 ? [0,4,4,0] : undefined} />
+                              ))}
+                            </BarChart>
+                          </ResponsiveContainer>
+                          {/* Legend */}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-slate-700/40">
+                            {expenseItems.map((item, i) => (
+                              <div key={item.item} className="flex items-center gap-1.5">
+                                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: BAR_COLORS[i % BAR_COLORS.length] }} />
+                                <span className="text-xs text-slate-300">{item.item}</span>
+                                <span className="text-xs font-semibold" style={{ color: BAR_COLORS[i % BAR_COLORS.length] }}>${(item.monthlyCost / 100).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
+
                   {/* Item list */}
                   <Card className="bg-slate-800/60 border-blue-500/20">
                     <CardHeader>
                       <CardTitle className="text-blue-300 text-sm">Business Items ({bizItems.length})</CardTitle>
-                      <CardDescription className="text-slate-400 text-xs">Items tagged or categorized as Business</CardDescription>
+                      <CardDescription className="text-slate-400 text-xs">Items tagged or categorized as Business · sorted by cost</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {bizItems.length === 0 ? (
+                      {bizItemsSorted.length === 0 ? (
                         <p className="text-slate-400 text-sm text-center py-6">No business items found. Add items with the "Business" category or tag.</p>
                       ) : (
                         <div className="space-y-2">
-                          {bizItems.map(item => (
+                          {bizItemsSorted.map(item => (
                             <div key={item.id} className="flex items-center justify-between bg-slate-700/40 rounded-lg px-3 py-2">
                               <div className="flex-1 min-w-0">
                                 <p className="text-white text-sm font-medium truncate">{item.item}</p>
