@@ -93,7 +93,7 @@ export function CalendarSyncModal({ isOpen, onClose, onSync, selectedTasksCount,
               Sync Now
             </Button>
           )}
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+          <Button variant="outline" className="flex-1 text-black" onClick={onClose}>
             {needsGoogleAuth ? 'Close' : 'Cancel'}
           </Button>
         </div>
