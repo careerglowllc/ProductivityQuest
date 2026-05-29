@@ -398,6 +398,26 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialItems.length]);
 
+  // Auto-seed Brilliant Pest Solutions monthly fee if it doesn't exist yet
+  useEffect(() => {
+    if (financialItems.length > 0 && !financialItems.find(i => i.item === "Brilliant Pest Solutions")) {
+      fetch("/api/finances", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          item: "Brilliant Pest Solutions",
+          category: "Home",
+          tags: ["Home", "Rental"],
+          monthlyCost: 5900, // $59.00/mo in cents
+          recurType: "Monthly",
+          notes: "Comprehensive pest control for Rocklin Rental House",
+        }),
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financialItems.length]);
+
   const { data: btcData, isLoading: btcLoading, isError: btcError, refetch: refetchBtc } = useQuery<{ price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/bitcoin"],
     staleTime: 60_000,
