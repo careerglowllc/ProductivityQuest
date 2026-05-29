@@ -253,6 +253,22 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: Roth IRA shares updated May 29 2026
+  // VTSAX 146.857 → 145.188; IBIT stays 697
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260529-roth";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-roth-vtsax", "145.188");
+        localStorage.setItem("nw-roth-ibit", "697");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setRothIraVtsaxHoldings(145.188);
+        setRothIraIbitHoldings(697);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
   const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
   const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
@@ -274,7 +290,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "697"); } catch { return 697; }
   });
   const [rothIraVtsaxHoldings, setRothIraVtsaxHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-roth-vtsax") || "146.857"); } catch { return 146.857; }
+    try { return parseFloat(localStorage.getItem("nw-roth-vtsax") || "145.188"); } catch { return 145.188; }
   });
   // 401k — ProShares Ultra S&P500 (SSO) via employer plan
   const [k401Shares, setK401Shares] = useState<number>(() => {
