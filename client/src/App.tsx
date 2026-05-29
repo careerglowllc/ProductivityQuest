@@ -32,6 +32,7 @@ import AccomplishmentsPage from "@/pages/accomplishments";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
+import CPAPPage from "@/pages/cpap";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -87,6 +88,7 @@ function Router() {
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/finances" component={Finances} />
+            <Route path="/cpap" component={CPAPPage} />
             <Route path="/profile" component={Profile} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/finances" component={SettingsFinancesPage} />
