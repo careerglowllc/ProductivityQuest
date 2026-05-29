@@ -434,6 +434,26 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialItems.length]);
 
+  // Auto-seed CASA Annual Audit fee if it doesn't exist yet
+  useEffect(() => {
+    if (financialItems.length > 0 && !financialItems.find(i => i.item === "CASA Annual Audit (TAC)")) {
+      fetch("/api/finances", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          item: "CASA Annual Audit (TAC)",
+          category: "Business",
+          tags: ["Business", "Annual"],
+          monthlyCost: 6000, // $60.00/mo in cents — $720/yr amortized monthly
+          recurType: "Annual",
+          notes: "Annual CASA audit via TAC — $720/yr amortized monthly",
+        }),
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financialItems.length]);
+
   const { data: btcData, isLoading: btcLoading, isError: btcError, refetch: refetchBtc } = useQuery<{ price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/bitcoin"],
     staleTime: 60_000,
