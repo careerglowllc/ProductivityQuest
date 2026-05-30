@@ -8,9 +8,9 @@ const GOAL_HOURS = 4;
 const GOAL_DAYS = 21;
 const STORAGE_KEY = "cpap-log-v1";
 
-// Tracking period: May 29 2026 → June 28 2026 (31 days)
+// Tracking period: May 29 2026 → Aug 26 2026 (90 days)
 const PERIOD_START = new Date("2026-05-29");
-const PERIOD_DAYS = 31;
+const PERIOD_DAYS = 90;
 
 function getDayKey(date: Date) {
   return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
@@ -166,7 +166,7 @@ export default function CPAPPage() {
     rows.push(["Goal Met", goalMet ? "Yes" : "No", "", "", "", "", "", "", ""].join(","));
     rows.push(["Total Hours", totalHours.toFixed(2), "", "", "", "", "", "", ""].join(","));
     rows.push(["Days Logged", daysLogged, "", "", "", "", "", "", ""].join(","));
-    rows.push(["Period", "May 29 – Jun 28 2026", "", "", "", "", "", "", ""].join(","));
+    rows.push(["Period", "May 29 – Aug 26 2026", "", "", "", "", "", "", ""].join(","));
 
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -188,7 +188,7 @@ export default function CPAPPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">CPAP Compliance Tracker</h1>
-            <p className="text-slate-400 text-sm">Goal: ≥{GOAL_HOURS}h/night · {GOAL_DAYS} qualifying days · May 29 – Jun 28, 2026</p>
+            <p className="text-slate-400 text-sm">Goal: ≥{GOAL_HOURS}h/night · {GOAL_DAYS} qualifying days · May 29 – Aug 26, 2026</p>
           </div>
           {goalMet && (
             <Badge className="ml-auto bg-green-500/20 text-green-300 border-green-500/40 text-sm px-3 py-1">
