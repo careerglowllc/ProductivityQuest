@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Activity, CheckCircle2, XCircle, Clock, Target, TrendingUp, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Activity, CheckCircle2, XCircle, Clock, Target, AlertCircle, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -130,6 +130,53 @@ export default function CPAPPage() {
     return h >= GOAL_HOURS ? "qualifying" : "partial";
   }
 
+  function exportCSV() {
+    const rows: string[] = [
+      ["Day #", "Date", "Day of Week", "Hours Logged (raw)", "Hours (decimal)", "Hours (formatted)", "Qualifies (≥4h)", "Status", "Notes"].join(","),
+    ];
+    days.forEach((d, i) => {
+      const key = getDayKey(d);
+      const entry = log[key];
+      const rawHours = entry?.hours || "";
+      const h = rawHours ? parseHours(rawHours) : null;
+      const hDecimal = h !== null ? h.toFixed(2) : "";
+      const hFormatted = h !== null ? formatHoursDisplay(h) : "";
+      const qualifies = h !== null ? (h >= GOAL_HOURS ? "Yes" : "No") : "";
+      const status = getDayStatus(d);
+      const statusLabel = status === "qualifying" ? "Qualifying" : status === "partial" ? "Partial" : status === "future" ? "Future" : "Not Logged";
+      const note = (entry?.note || "").replace(/,/g, ";").replace(/\n/g, " ");
+      rows.push([
+        i + 1,
+        key,
+        d.toLocaleDateString("en-US", { weekday: "long" }),
+        rawHours,
+        hDecimal,
+        hFormatted,
+        qualifies,
+        statusLabel,
+        `"${note}"`,
+      ].join(","));
+    });
+
+    // Summary footer
+    rows.push("");
+    rows.push(["Summary", "", "", "", "", "", "", "", ""].join(","));
+    rows.push(["Qualifying Days", qualifyingDays, "", "", "", "", "", "", ""].join(","));
+    rows.push(["Goal", GOAL_DAYS, "", "", "", "", "", "", ""].join(","));
+    rows.push(["Goal Met", goalMet ? "Yes" : "No", "", "", "", "", "", "", ""].join(","));
+    rows.push(["Total Hours", totalHours.toFixed(2), "", "", "", "", "", "", ""].join(","));
+    rows.push(["Days Logged", daysLogged, "", "", "", "", "", "", ""].join(","));
+    rows.push(["Period", "May 29 – Jun 28 2026", "", "", "", "", "", "", ""].join(","));
+
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cpap-log-${getDayKey(new Date())}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 pt-20 pb-10 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -148,6 +195,12 @@ export default function CPAPPage() {
               🎉 Goal Met!
             </Badge>
           )}
+          <button
+            onClick={exportCSV}
+            className={`${goalMet ? "" : "ml-auto"} flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700/60 border border-slate-600/60 hover:bg-slate-600/60 hover:border-cyan-500/50 text-slate-300 hover:text-cyan-300 text-sm font-medium transition-all`}
+          >
+            <Download className="h-4 w-4" /> Export CSV
+          </button>
         </div>
 
         {/* Summary cards */}
