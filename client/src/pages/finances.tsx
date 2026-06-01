@@ -44,7 +44,7 @@ function classifyItem(category: string, tags?: string[] | null): "income" | "ret
 }
 
 // ── FIRE COL Methodology Essays (file-level to avoid TSX parser issues) ──
-const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia", string> = {  thailand: [
+const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia" | "puertoRico", string> = {  thailand: [
     "These figures deliberately sit above the \"Chiang Mai for $1,200/mo\" blog posts you'll find everywhere. Those numbers assume you're eating street food every meal, living in a shared house on the outskirts, and speaking Thai well enough to negotiate. None of that is realistic for a Western expat retiring early.",
     "Here's how each line was built:",
     "Housing ($750/mo): A clean, modern 1-bedroom in Nimman Road or Santitham — Chiang Mai's expat-friendly zones with walkability, coworking access, and English-speaking neighbors. Budget places exist for $300–$400 but they tend to be older buildings with inconsistent water pressure, poor insulation from heat, and less secure access. Going slightly premium here is the right call — you're living in it every day.",
@@ -77,12 +77,24 @@ const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia", string> = { 
     "Visa + buffer ($180/mo): Colombia's Digital Nomad Visa allows 2-year stays and is straightforward. The Pensionado visa requires $750+/mo passive income (achievable at FIRE). Budget for visa processing fees ($300–$500), occasional US flights, and miscellaneous buffer.",
     "The real FIRE life here: Medellín is the highest-cost, highest-lifestyle option. You're much closer to the US culturally and geographically (5-hour direct flight to Miami). Spanish proficiency helps enormously — without it, you pay the gringo premium on everything and miss 80% of the social fabric. The security situation has improved dramatically since the cartel era — El Poblado is as safe as any US city — but petty theft awareness is still required. The payoff is a rich, Latin, social city where your dollar goes far relative to US equivalents and where the quality of life is genuinely exceptional. This is the destination for someone who wants to feel like they're living retirement, not just optimizing a spreadsheet.",
   ].join("\n\n"),
+  puertoRico: [
+    "San Juan is the wildcard on this list — technically US soil, USD everywhere, no passport required, and yet meaningfully cheaper than the US mainland. For someone who wants the Latin Caribbean lifestyle without surrendering US banking, brokerage accounts, or the ability to fly home in 3 hours, Puerto Rico is a serious contender. Act 60 (formerly Act 22) is also the most aggressive tax incentive available to US citizens abroad: 0% federal capital gains tax on gains accrued after becoming a bona fide resident. For someone retiring on a large investment portfolio, this alone can be worth six figures annually.",
+    "Housing ($1,200/mo): Condado, Miramar, or Old San Juan give you modern apartments, walkability, ocean proximity, and expat-friendly amenities. The higher-end buildings in Condado rival Miami Beach condos and can cost $2,000+/mo. $1,200 targets something clean, modern, and well-located — not rock-bottom, but not luxury either. Mid-range 1BR in a good building with AC and security.",
+    "Food ($600/mo): Puerto Rico is more expensive than SEA and Colombia. Imported goods from the mainland cost 20–30% more due to the Jones Act shipping premium. Local food (mofongo, lechón, tostones) is delicious and reasonably priced at $8–15/meal. A realistic mix of local restaurants, supermarket runs at Costco or Ralph's, and the occasional nice dinner runs $500–$700/mo.",
+    "Transportation ($150/mo): San Juan is very car-dependent outside Old San Juan / Condado. Uber works well but the city's public transit is limited. Budget for Uber usage, gas if you have a car, and occasional inter-island trips. No car is possible in Condado but inconvenient for much of the island.",
+    "Health insurance ($200/mo): Puerto Rico residents use the US healthcare system — this is a major advantage over all other destinations on this list. ACA marketplace plans are available, and as a US citizen you have full access to Medicare at 65. $200/mo assumes an ACA silver plan with a reasonable deductible for someone in their 30s.",
+    "Entertainment ($350/mo): San Juan has legitimate nightlife — La Placita on weekends is electric, Old San Juan has world-class restaurants and bars, and the beach culture is excellent. Weekend trips to Rincon (surf capital), El Yunque rainforest, or Vieques/Culebra (stunning outer islands) add up. $350/mo is moderate for an active lifestyle.",
+    "Utilities ($130/mo): Puerto Rico's electricity grid (LUMA) is notoriously unreliable and expensive — many residents invest in solar + battery backup (amortizable cost). AC is essential year-round. Budget $100–$150/mo for electricity; internet is decent at $50–$80/mo.",
+    "Visa / buffer ($0/mo — US territory): No visa required. No visa runs. No immigration bureaucracy. This is zero because you're a US citizen on US soil. Budget is reallocated to the higher cost of living.",
+    "Act 60 Tax Note: To qualify for 0% capital gains on Puerto Rico-sourced gains, you must be a bona fide resident (183+ days/yr), file PR taxes, make a $10,000 charitable contribution, and buy PR real estate within 2 years. The setup cost is real (~$5K–$15K in legal/accounting fees) but the annual tax savings on a $2M+ portfolio can be enormous. Consult a CPA specializing in Act 60 before relying on this.",
+    "The real FIRE life here: Puerto Rico is the highest-cost destination on this list but offers something the others can't — US soil. Your bank account stays the same, your healthcare system stays the same, Amazon Prime still delivers, and your family can visit without international flights. The island has genuine beauty (El Yunque, bioluminescent bays, beaches rivaling the Caribbean's best) and a rich Afro-Caribbean culture. The tradeoffs: higher cost of living, the Jones Act tax on goods, unreliable power grid, and ongoing economic/governance challenges. If you've built a large enough portfolio that Act 60 tax savings are meaningful and you value proximity to the US, San Juan belongs at the top of your list.",
+  ].join("\n\n"),
 };
 
 // ── FIRE Tier Cost Data (per location, per lifestyle tier) ──
 // Categories: rent, food, transport, health, entertainment, utilities, visa
 const FIRE_TIER_DATA: Record<
-  "thailand" | "vietnam" | "colombia",
+  "thailand" | "vietnam" | "colombia" | "puertoRico",
   Record<"lean" | "comfortable" | "cushy", { rent: number; food: number; transport: number; health: number; entertainment: number; utilities: number; visa: number }>
 > = {
   thailand: {
@@ -99,6 +111,11 @@ const FIRE_TIER_DATA: Record<
     lean:        { rent: 550, food: 330, transport: 75, health: 110, entertainment: 130, utilities: 65, visa: 100 },
     comfortable: { rent: 1000, food: 550, transport: 120, health: 150, entertainment: 300, utilities: 100, visa: 180 },
     cushy:       { rent: 1800, food: 1000, transport: 200, health: 300, entertainment: 600, utilities: 150, visa: 300 },
+  },
+  puertoRico: {
+    lean:        { rent: 900,  food: 450, transport: 100, health: 150, entertainment: 150, utilities: 100, visa: 0 },
+    comfortable: { rent: 1200, food: 600, transport: 150, health: 200, entertainment: 350, utilities: 130, visa: 0 },
+    cushy:       { rent: 2200, food: 1000, transport: 250, health: 350, entertainment: 700, utilities: 200, visa: 0 },
   },
 };
 
@@ -147,8 +164,8 @@ export default function Finances() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
-  const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia">("thailand");
-  const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | null>(null);
+  const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico">("thailand");
+  const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | null>(null);
   const [fireTier, setFireTier] = useState<"lean" | "comfortable" | "cushy">("comfortable");
   const [fireSwr, setFireSwr] = useState<number>(0.04);
   const [fireColInflation, setFireColInflation] = useState<number>(0.05);
@@ -1518,7 +1535,7 @@ export default function Finances() {
                     const _fgPct = Math.min((_fgLiquid / FIRE_GOAL_W) * 100, 100);
                     const _fgAge = 28 + _fgYrs;
                     const fmtG = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
-                    const locFlags: Record<string, string> = { thailand: "🇹🇭", vietnam: "🇻🇳", colombia: "🇨🇴" };
+                    const locFlags: Record<string, string> = { thailand: "🇹🇭", vietnam: "🇻🇳", colombia: "🇨🇴", puertoRico: "🇵🇷" };
                     return (
                       <>
                         <CardHeader className="pb-2">
@@ -2346,6 +2363,14 @@ export default function Finances() {
                       btnActive: "bg-yellow-600/50 border-yellow-400/60 text-yellow-200",
                       btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-yellow-500/40",
                       methodology: FIRE_METHODOLOGY.colombia,
+                    },
+                    {
+                      key: "puertoRico" as const,
+                      flag: "🇵🇷", name: "San Juan, Puerto Rico",
+                      color: "bg-slate-900 border-cyan-500/50", border: "border-cyan-500/50", accent: "text-cyan-300",
+                      btnActive: "bg-cyan-600/50 border-cyan-400/60 text-cyan-200",
+                      btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-cyan-500/40",
+                      methodology: FIRE_METHODOLOGY.puertoRico,
                     },
                   ] as const
                 ).map(loc => {
