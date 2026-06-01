@@ -169,6 +169,7 @@ export default function Finances() {
     incomeVsExpense: true,
     monthlyAllocation: true,
     portfolioAllocation: true,
+    fireGoal: true,
   });
   const toggleWidget = (key: keyof typeof overviewWidgets) => {
     setOverviewWidgets(prev => {
@@ -178,7 +179,7 @@ export default function Finances() {
     });
   };
   // Widget order for drag-and-drop (persisted)
-  type WidgetKey = "incomeSources" | "topExpenses" | "netWorth" | "incomeVsExpense" | "monthlyAllocation" | "portfolioAllocation";
+  type WidgetKey = "incomeSources" | "topExpenses" | "netWorth" | "incomeVsExpense" | "monthlyAllocation" | "portfolioAllocation" | "fireGoal";
   const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(() => {
     try {
       const saved = localStorage.getItem("overview-widget-order");
@@ -186,10 +187,11 @@ export default function Finances() {
         const parsed = JSON.parse(saved) as WidgetKey[];
         // ensure new key is included if upgrading from old saved order
         if (!parsed.includes("portfolioAllocation")) parsed.push("portfolioAllocation");
+        if (!parsed.includes("fireGoal")) parsed.push("fireGoal");
         return parsed;
       }
     } catch {}
-    return ["incomeSources", "topExpenses", "netWorth", "incomeVsExpense", "monthlyAllocation", "portfolioAllocation"];
+    return ["incomeSources", "topExpenses", "netWorth", "incomeVsExpense", "monthlyAllocation", "portfolioAllocation", "fireGoal"];
   });
   const dragSrcIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -246,6 +248,7 @@ export default function Finances() {
       const order = widgetPrefs.overviewOrder as WidgetKey[];
       // ensure portfolioAllocation is present if stored order predates this widget
       if (!order.includes("portfolioAllocation")) order.push("portfolioAllocation");
+      if (!order.includes("fireGoal")) order.push("fireGoal");
       setWidgetOrder(order);
       try { localStorage.setItem("overview-widget-order", JSON.stringify(order)); } catch {}
     }
@@ -1176,6 +1179,7 @@ export default function Finances() {
                   { key: "incomeVsExpense",    label: "Income vs Expense",      dot: "bg-purple-400" },
                   { key: "monthlyAllocation",  label: "Monthly Allocation",     dot: "bg-blue-400" },
                   { key: "portfolioAllocation",label: "Portfolio Allocation",   dot: "bg-yellow-400" },
+                  { key: "fireGoal",           label: "FIRE Goal",              dot: "bg-orange-400" },
                 ] as { key: keyof typeof overviewWidgets; label: string; dot: string }[]).map(({ key, label, dot }) => (
                   <button
                     key={key}
@@ -1202,6 +1206,7 @@ export default function Finances() {
                 incomeVsExpense:     { label: "Income vs Expense" },
                 monthlyAllocation:   { label: "Monthly Allocation", fullWidth: true },
                 portfolioAllocation: { label: "Portfolio Allocation" },
+                fireGoal:            { label: "FIRE Goal" },
               };
 
               const visibleKeys = widgetOrder.filter(k => overviewWidgets[k]);
@@ -1474,6 +1479,94 @@ export default function Finances() {
                       </>
                     );
                   }
+                  case "fireGoal": {
+                    // Inline FIRE computation (mirrors FIRE tab logic)
+                    const _fgRoth = _rothIraValue * 0.75;
+                    const _fg401k = _k401Value * 0.68;
+                    const _fgHsa = hsaBalance * 0.58;
+                    const _fgLiquid =
+                      _btcAfterTax + _vanguardAfterTax + _fgRoth + _fg401k +
+                      (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0) +
+                      checkingBalance + careerglowBalance + _fgHsa +
+                      _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+                    const _fgBuf = fireCurrencyBuffer + fireHealthcareBuffer + fireLifestyleBuffer;
+                    const _fgTierData = FIRE_TIER_DATA[fireLocationKey][fireTier];
+                    const _fgMonthlyBase = Object.values(_fgTierData).reduce((s, v) => s + v, 0);
+                    const _fgMonthlyToday = Math.round(_fgMonthlyBase * (1 + _fgBuf));
+                    const _fgAnnualToday = _fgMonthlyToday * 12;
+                    const _fgBaseGoal = _fgAnnualToday / fireSwr;
+                    // Pass-1 years
+                    const _fgInvestable = _btcAfterTax + _vanguardAfterTax + _fgRoth + _fg401k + eTradeRsuValue;
+                    const _fgHomeBase = Math.max(0, _homeAfterTaxNetCash);
+                    const _fgCashFixed = checkingBalance + careerglowBalance + _fgHsa + _domainAfterTax + fordExplorerValue + kawasakiNinjaValue;
+                    const _fgAnnualSavings = Math.max(0, cashflowNetRaw) * 12 + Math.min(totalRetirement * 12, 23_500) * 0.68;
+                    const fgFV = (n: number) =>
+                      _fgInvestable * Math.pow(1.08, n) +
+                      (_fgAnnualSavings > 0 ? _fgAnnualSavings * (Math.pow(1.08, n) - 1) / 0.08 : 0) +
+                      _fgHomeBase * Math.pow(1.04, n) + _fgCashFixed;
+                    let _fgYrs1 = 15;
+                    for (let n = 1; n <= 80; n++) { if (fgFV(n) >= _fgBaseGoal) { _fgYrs1 = n; break; } }
+                    const _fgInflatedAnnual = _fgAnnualToday * Math.pow(1 + fireColInflation, _fgYrs1);
+                    const _fgDrawdownYrs = Math.max(1, fireInheritanceAge - (28 + _fgYrs1));
+                    const FIRE_GOAL_W = fireInheritanceMode
+                      ? Math.round(_fgInflatedAnnual * (1 - Math.pow(1.07, -_fgDrawdownYrs)) / 0.07)
+                      : Math.round(_fgInflatedAnnual / fireSwr);
+                    // Final years using real goal
+                    let _fgYrs = 15;
+                    if (_fgLiquid >= FIRE_GOAL_W) { _fgYrs = 0; }
+                    else { for (let n = 1; n <= 80; n++) { if (fgFV(n) >= FIRE_GOAL_W) { _fgYrs = n; break; } } }
+                    const _fgPct = Math.min((_fgLiquid / FIRE_GOAL_W) * 100, 100);
+                    const _fgAge = 28 + _fgYrs;
+                    const fmtG = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
+                    const locFlags: Record<string, string> = { thailand: "🇹🇭", vietnam: "🇻🇳", colombia: "🇨🇴" };
+                    return (
+                      <>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-orange-300 text-base flex items-center gap-2">
+                            🔥 FIRE Goal
+                            {fireInheritanceMode && (
+                              <span className="text-[10px] bg-emerald-700/40 border border-emerald-500/40 rounded px-1.5 py-0.5 font-normal">💎 Inheritance</span>
+                            )}
+                          </CardTitle>
+                          <CardDescription className="text-slate-400 text-xs">
+                            {fireInheritanceMode ? `Drawdown to age ${fireInheritanceAge}` : `${(fireSwr * 100).toFixed(2)}% SWR`} · {fireTier} · {locFlags[fireLocationKey] ?? "🇹🇭"} {fireLocationKey}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-end gap-2 mb-2">
+                            <span className="text-3xl font-black text-orange-400">{_fgPct.toFixed(1)}%</span>
+                            <span className="text-slate-400 text-sm mb-1">of {fmtG(FIRE_GOAL_W)} goal</span>
+                          </div>
+                          <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden mb-3">
+                            <div className="h-3 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 transition-all duration-700"
+                              style={{ width: `${_fgPct}%` }} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-center">
+                            <div className="bg-slate-700/40 rounded-lg p-2">
+                              <p className="text-[10px] text-slate-400">Liquid NW Today</p>
+                              <p className="text-sm font-bold text-orange-300">{fmtG(_fgLiquid)}</p>
+                            </div>
+                            <div className="bg-slate-700/40 rounded-lg p-2">
+                              <p className="text-[10px] text-slate-400">FIRE Age</p>
+                              <p className="text-sm font-bold text-green-400">Age {_fgAge} ({2026 + _fgYrs})</p>
+                            </div>
+                            <div className="bg-slate-700/40 rounded-lg p-2">
+                              <p className="text-[10px] text-slate-400">Monthly @ Retirement</p>
+                              <p className="text-sm font-bold text-yellow-300">{fmtG(Math.round(_fgInflatedAnnual / 12))}/mo</p>
+                            </div>
+                            <div className="bg-slate-700/40 rounded-lg p-2">
+                              <p className="text-[10px] text-slate-400">Remaining</p>
+                              <p className="text-sm font-bold text-slate-200">{fmtG(Math.max(0, FIRE_GOAL_W - _fgLiquid))}</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setActiveTab("fire")}
+                            className="mt-3 w-full text-xs text-orange-300 border border-orange-500/30 rounded-lg py-1.5 hover:bg-orange-500/10 transition-colors">
+                            Open full FIRE analysis →
+                          </button>
+                        </CardContent>
+                      </>
+                    );
+                  }
                 }
               };
 
@@ -1484,6 +1577,7 @@ export default function Finances() {
                 incomeVsExpense:     "border-purple-500/20 hover:border-purple-500/50",
                 monthlyAllocation:   "border-purple-500/20 hover:border-purple-500/50",
                 portfolioAllocation: "border-yellow-500/20 hover:border-yellow-500/50",
+                fireGoal:            "border-orange-500/20 hover:border-orange-500/50",
               };
 
               return (
