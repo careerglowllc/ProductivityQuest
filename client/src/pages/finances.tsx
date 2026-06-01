@@ -87,7 +87,7 @@ export default function Finances() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -1081,6 +1081,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="nw-trend" className="data-[state=active]:bg-emerald-600/40 text-xs px-3 py-1.5">
               <TrendingUp className="h-3.5 w-3.5 mr-1.5" />NW Over Time
+            </TabsTrigger>
+            <TabsTrigger value="fire" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
+              🔥 FIRE Goal
             </TabsTrigger>
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
@@ -2131,9 +2134,330 @@ export default function Finances() {
             })()}
           </TabsContent>
 
+          {/* ── FIRE Goal ────────────────────────────── */}
+          <TabsContent value="fire" className="space-y-4">
+            {(() => {
+              // ── Liquid Net Worth (true "money in pocket" if you sold everything at 28) ──
+              // Roth IRA: ~25% haircut (10% penalty + income tax on gains; contributions already after-tax)
+              const _fireRothValue = _rothIraValue * 0.75;
+              // 401k: 32% haircut (10% early withdrawal penalty + ~22% federal income tax)
+              const _fire401kValue = _k401Value * 0.68;
+              // HSA used for non-medical before 65: 20% penalty + ~22% income tax = 42% haircut
+              const _fireHsaValue = hsaBalance * 0.58;
+              // Everything else is already after-tax
+              const _fireLiquidNW =
+                _btcAfterTax + _vanguardAfterTax + _fireRothValue + _fire401kValue +
+                (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0) +
+                checkingBalance + careerglowBalance + _fireHsaValue +
+                _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+
+              const FIRE_GOAL = 1_500_000;
+              const pct = Math.min((_fireLiquidNW / FIRE_GOAL) * 100, 100);
+
+              // ── Timeline projection ──
+              // Born Oct 1, 1997. Today = June 1, 2026 → age 28 (turns 29 in Oct 2026)
+              const BIRTH_YEAR = 1997;
+              const BIRTH_MONTH = 9; // 0-indexed Oct
+              const today = new Date(2026, 5, 1);
+              const ageYears = today.getFullYear() - BIRTH_YEAR - (today.getMonth() < BIRTH_MONTH ? 1 : 0);
+
+              const annualSavingsEstimate = netCashFlow * 12; // monthly net × 12
+              const r = 0.07; // 7% real avg annual return assumption
+              // FV(n) = P*(1+r)^n + C*((1+r)^n - 1)/r  ≥  FIRE_GOAL
+              let yearsToFire: number | null = null;
+              if (annualSavingsEstimate > 0 || _fireLiquidNW >= FIRE_GOAL) {
+                if (_fireLiquidNW >= FIRE_GOAL) {
+                  yearsToFire = 0;
+                } else {
+                  for (let n = 1; n <= 80; n++) {
+                    const fv = _fireLiquidNW * Math.pow(1 + r, n) + annualSavingsEstimate * (Math.pow(1 + r, n) - 1) / r;
+                    if (fv >= FIRE_GOAL) { yearsToFire = n; break; }
+                  }
+                }
+              }
+              const fireAge = yearsToFire !== null ? ageYears + yearsToFire : null;
+              const fireYear = yearsToFire !== null ? 2026 + yearsToFire : null;
+
+              // ── Location cost-of-living breakdowns ──
+              const locations = [
+                {
+                  flag: "🇹🇭", name: "Chiang Mai, Thailand",
+                  color: "from-orange-900/40 to-orange-800/20", border: "border-orange-500/30", accent: "text-orange-300",
+                  items: [
+                    { label: "Studio apartment (safe area)", mo: 400 },
+                    { label: "Food & groceries", mo: 200 },
+                    { label: "Transportation (scooter/grab)", mo: 50 },
+                    { label: "Health insurance", mo: 60 },
+                    { label: "Entertainment & social", mo: 100 },
+                    { label: "Utilities & internet", mo: 60 },
+                    { label: "Misc / buffer", mo: 80 },
+                  ],
+                },
+                {
+                  flag: "🇻🇳", name: "Da Nang, Vietnam",
+                  color: "from-red-900/40 to-red-800/20", border: "border-red-500/30", accent: "text-red-300",
+                  items: [
+                    { label: "Studio apartment (safe area)", mo: 350 },
+                    { label: "Food & groceries", mo: 180 },
+                    { label: "Transportation (scooter/grab)", mo: 40 },
+                    { label: "Health insurance", mo: 60 },
+                    { label: "Entertainment & social", mo: 80 },
+                    { label: "Utilities & internet", mo: 50 },
+                    { label: "Misc / buffer", mo: 70 },
+                  ],
+                },
+                {
+                  flag: "🇨🇴", name: "Medellín, Colombia",
+                  color: "from-yellow-900/40 to-yellow-800/20", border: "border-yellow-500/30", accent: "text-yellow-300",
+                  items: [
+                    { label: "Studio apartment (safe area)", mo: 550 },
+                    { label: "Food & groceries", mo: 280 },
+                    { label: "Transportation (Uber/metro)", mo: 60 },
+                    { label: "Health insurance", mo: 80 },
+                    { label: "Entertainment & social", mo: 160 },
+                    { label: "Utilities & internet", mo: 70 },
+                    { label: "Misc / buffer", mo: 100 },
+                  ],
+                },
+              ].map(loc => {
+                const monthlyTotal = loc.items.reduce((s, i) => s + i.mo, 0);
+                const annualTotal = monthlyTotal * 12;
+                const fireNeeded = annualTotal * 25; // 4% SWR
+                return { ...loc, monthlyTotal, annualTotal, fireNeeded };
+              });
+
+              // ── Projection chart data ──
+              const projectionData: { year: number; age: number; value: number; goal: number }[] = [];
+              for (let n = 0; n <= 25; n++) {
+                const fv = _fireLiquidNW * Math.pow(1 + r, n) + (annualSavingsEstimate > 0 ? annualSavingsEstimate * (Math.pow(1 + r, n) - 1) / r : 0);
+                projectionData.push({ year: 2026 + n, age: ageYears + n, value: Math.round(fv), goal: FIRE_GOAL });
+              }
+
+              const fmt = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
+
+              return (
+                <>
+                  {/* ── Header ── */}
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white flex items-center gap-2">🔥 FIRE Goal</h2>
+                      <p className="text-slate-400 text-sm mt-0.5">Financial Independence, Retire Early — your roadmap to $1.5M</p>
+                    </div>
+                  </div>
+
+                  {/* ── Liquid NW vs FIRE Goal ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card className="bg-slate-800/60 border-orange-500/30 sm:col-span-1">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-orange-300 text-sm">True Liquid Net Worth</CardTitle>
+                        <CardDescription className="text-slate-400 text-[11px]">If you cashed out everything today at age {ageYears} (after penalties & taxes)</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-white">{fmt(_fireLiquidNW)}</p>
+                        <div className="mt-3 space-y-1 text-[10px] text-slate-400">
+                          <div className="flex justify-between"><span>BTC (15% LTCG)</span><span>{fmt(_btcAfterTax)}</span></div>
+                          <div className="flex justify-between"><span>Vanguard (15% LTCG)</span><span>{fmt(_vanguardAfterTax)}</span></div>
+                          <div className="flex justify-between"><span>Roth IRA (25% early haircut)</span><span>{fmt(_fireRothValue)}</span></div>
+                          <div className="flex justify-between"><span>401k (32% early haircut)</span><span>{fmt(_fire401kValue)}</span></div>
+                          {_homeAfterTaxNetCash > 0 && <div className="flex justify-between"><span>Home equity (after sale costs)</span><span>{fmt(_homeAfterTaxNetCash)}</span></div>}
+                          <div className="flex justify-between"><span>Cash (checking + biz + HSA)</span><span>{fmt(checkingBalance + careerglowBalance + _fireHsaValue)}</span></div>
+                          <div className="flex justify-between"><span>E*Trade RSU</span><span>{fmt(eTradeRsuValue)}</span></div>
+                          <div className="flex justify-between"><span>Vehicles</span><span>{fmt(fordExplorerValue + kawasakiNinjaValue)}</span></div>
+                          <div className="flex justify-between"><span>veluna.com domain</span><span>{fmt(_domainAfterTax)}</span></div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-800/60 border-orange-500/30 sm:col-span-2">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-orange-300 text-sm">Progress to FIRE</CardTitle>
+                        <CardDescription className="text-slate-400 text-[11px]">$1,500,000 target · 4% safe withdrawal rate · {fmt(FIRE_GOAL * 0.04)}/yr passive income</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-end gap-2 mb-2">
+                          <span className="text-4xl font-black text-orange-400">{pct.toFixed(1)}%</span>
+                          <span className="text-slate-400 text-sm mb-1">of goal reached</span>
+                        </div>
+                        <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden mb-3">
+                          <div
+                            className="h-4 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 transition-all duration-700"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-400 mb-4">
+                          <span>{fmt(_fireLiquidNW)} liquid today</span>
+                          <span>{fmt(FIRE_GOAL - _fireLiquidNW)} remaining</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-slate-700/40 rounded-lg p-3">
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">Projected FIRE Age</p>
+                            {fireAge !== null
+                              ? <p className="text-2xl font-bold text-green-400 mt-0.5">{fireAge} <span className="text-sm font-normal text-slate-400">({fireYear})</span></p>
+                              : <p className="text-sm text-red-400 mt-1">Can't project — negative savings</p>
+                            }
+                            <p className="text-[10px] text-slate-500 mt-1">at 7% avg annual return</p>
+                          </div>
+                          <div className="bg-slate-700/40 rounded-lg p-3">
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">Years Until FIRE</p>
+                            {yearsToFire !== null
+                              ? <p className="text-2xl font-bold text-yellow-400 mt-0.5">{yearsToFire} <span className="text-sm font-normal text-slate-400">yrs</span></p>
+                              : <p className="text-sm text-red-400 mt-1">—</p>
+                            }
+                            <p className="text-[10px] text-slate-500 mt-1">saving {fmt(annualSavingsEstimate)}/yr</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 p-2 bg-slate-700/20 rounded-lg text-[10px] text-slate-500">
+                          <span className="text-slate-400 font-semibold">Assumptions: </span>
+                          Born Oct 1, 1997 · 7% real avg return (S&P 500 historical ~10%, minus ~3% inflation) · 4% safe withdrawal rate · Annual savings = current monthly net cash flow × 12 · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* ── Projection Chart ── */}
+                  <Card className="bg-slate-800/60 border-orange-500/20">
+                    <CardHeader>
+                      <CardTitle className="text-orange-300 text-sm flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />Liquid Net Worth Projection (7% avg annual return)
+                      </CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">Compound growth of liquid NW + {fmt(annualSavingsEstimate)}/yr savings · orange dashed line = $1.5M FIRE goal</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <AreaChart data={projectionData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="fireGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#F97316" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                          <XAxis dataKey="age" tickFormatter={(v: number) => `Age ${v}`} tick={{ fill: "#94A3B8", fontSize: 10 }} />
+                          <YAxis tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: "#94A3B8", fontSize: 10 }} width={60} />
+                          <Tooltip
+                            content={({ active, payload }: any) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0]?.payload;
+                              return (
+                                <div className="bg-slate-800 border border-orange-500/40 rounded-lg p-3 text-xs">
+                                  <p className="text-orange-300 font-bold mb-1">Age {d?.age} ({d?.year})</p>
+                                  <p className="text-white">Projected: {fmt(d?.value ?? 0)}</p>
+                                  <p className="text-orange-400">FIRE Goal: {fmt(FIRE_GOAL)}</p>
+                                  {d?.value >= FIRE_GOAL && <p className="text-green-400 mt-1">🎉 FIRE achieved!</p>}
+                                </div>
+                              );
+                            }}
+                          />
+                          <ReferenceLine y={FIRE_GOAL} stroke="#F97316" strokeDasharray="6 3" strokeWidth={2}
+                            label={{ value: "🔥 $1.5M FIRE", position: "insideTopRight", fill: "#F97316", fontSize: 10 }} />
+                          {fireAge !== null && (
+                            <ReferenceLine x={fireAge} stroke="#22C55E" strokeDasharray="4 3" strokeWidth={2}
+                              label={{ value: `✅ Age ${fireAge}`, position: "top", fill: "#22C55E", fontSize: 10 }} />
+                          )}
+                          <Area type="monotone" dataKey="value" stroke="#F97316" fill="url(#fireGradient)" strokeWidth={2} dot={false} name="Projected NW" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* ── Cost of Living Breakdown ── */}
+                  <div>
+                    <h3 className="text-white font-semibold text-sm mb-1 flex items-center gap-2">🌏 Early Retirement Abroad — Cost of Living</h3>
+                    <p className="text-slate-400 text-xs mb-4">
+                      Your $1.5M at 4% SWR = <span className="text-green-400 font-semibold">{fmt(FIRE_GOAL * 0.04)}/yr ({fmt(Math.round(FIRE_GOAL * 0.04 / 12))}/mo)</span> in passive income. Here's how far that goes in top FIRE destinations:
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {locations.map(loc => (
+                        <Card key={loc.name} className={`bg-gradient-to-b ${loc.color} ${loc.border} border`}>
+                          <CardHeader className="pb-2">
+                            <CardTitle className={`${loc.accent} text-base`}>{loc.flag} {loc.name}</CardTitle>
+                            <CardDescription className="text-slate-400 text-[11px]">Monthly budget for comfortable solo retirement</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-1.5 mb-3">
+                              {loc.items.map(item => (
+                                <div key={item.label} className="flex justify-between text-xs">
+                                  <span className="text-slate-300">{item.label}</span>
+                                  <span className="text-white font-medium">${item.mo}/mo</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="border-t border-slate-600/40 pt-2 space-y-1">
+                              <div className="flex justify-between text-sm font-bold">
+                                <span className={loc.accent}>Monthly Total</span>
+                                <span className="text-white">${loc.monthlyTotal.toLocaleString()}/mo</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-slate-400">
+                                <span>Annual spend</span>
+                                <span>${loc.annualTotal.toLocaleString()}/yr</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-slate-400">
+                                <span>FIRE number needed (25× rule)</span>
+                                <span>{fmt(loc.fireNeeded)}</span>
+                              </div>
+                              <div className="mt-2 p-2 bg-slate-800/60 rounded-lg space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-400">$1.5M sustains you</span>
+                                  <span className="text-green-400 font-bold">{(FIRE_GOAL / loc.annualTotal).toFixed(0)} years</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-400">Monthly surplus vs SWR</span>
+                                  <span className={`font-semibold ${Math.round(FIRE_GOAL * 0.04 / 12) - loc.monthlyTotal >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {Math.round(FIRE_GOAL * 0.04 / 12) - loc.monthlyTotal >= 0 ? "+" : ""}${(Math.round(FIRE_GOAL * 0.04 / 12) - loc.monthlyTotal).toLocaleString()}/mo
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Key milestones ── */}
+                  <Card className="bg-slate-800/60 border-slate-700/40">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-slate-300 text-sm">📍 Key FIRE Milestones</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {[
+                          { pctMile: 25, label: "First 25% — hardest part, building momentum", color: "text-red-400" },
+                          { pctMile: 50, label: "Half-FIRE — investment returns start doing the heavy lifting", color: "text-yellow-400" },
+                          { pctMile: 75, label: "Coast-FIRE — can slow savings and still hit goal via compounding", color: "text-blue-400" },
+                          { pctMile: 100, label: "Full FIRE — $1.5M, retire anywhere in the world 🎉", color: "text-green-400" },
+                        ].map(m => {
+                          const target = FIRE_GOAL * (m.pctMile / 100);
+                          const reached = _fireLiquidNW >= target;
+                          const milestone = projectionData.find(d => d.value >= target);
+                          return (
+                            <div key={m.pctMile} className={`flex items-center gap-3 p-2.5 rounded-lg ${reached ? "bg-green-900/20 border border-green-700/30" : "bg-slate-700/20"}`}>
+                              <span className="text-lg">{reached ? "✅" : "⏳"}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs font-semibold ${m.color}`}>{m.pctMile}% — {fmt(target)}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{m.label}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                {reached
+                                  ? <span className="text-green-400 text-xs font-bold">Reached!</span>
+                                  : milestone
+                                    ? <span className="text-slate-300 text-xs">~Age {milestone.age} ({milestone.year})</span>
+                                    : <span className="text-slate-500 text-xs">25+ yrs away</span>
+                                }
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()}
+          </TabsContent>
+
           {/* ── All Items Table ───────────────────────── */}
           <TabsContent value="table" className="space-y-4">
-            {/* Add New Item */}
             <Card className="bg-slate-800/60 border-purple-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-purple-300 text-base">Add New Item</CardTitle>
