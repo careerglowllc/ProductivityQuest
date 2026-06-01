@@ -2347,7 +2347,12 @@ export default function Finances() {
                 const inflatedAnnual = loc.annualToday * Math.pow(1 + FIRE_LOC_INFLATION, locYrs);
                 const inflatedMonthly = inflatedAnnual / 12;
                 const fireNeeded = Math.round(inflatedAnnual / fireSwr);
-                return { ...loc, monthlyTotal: loc.monthlyToday, annualTotal: loc.annualToday, fireNeeded, inflatedMonthly, inflatedAnnual, locYrs };
+                const locInheritanceDrawdownYrs = Math.max(1, fireInheritanceAge - (ageYears + locYrs));
+                const fireNeededInheritance = Math.round(
+                  inflatedAnnual * (1 - Math.pow(1 + R_RETIRE, -locInheritanceDrawdownYrs)) / R_RETIRE
+                );
+                const effectiveFireNeeded = fireInheritanceMode ? fireNeededInheritance : fireNeeded;
+                return { ...loc, monthlyTotal: loc.monthlyToday, annualTotal: loc.annualToday, fireNeeded, fireNeededInheritance, effectiveFireNeeded, inflatedMonthly, inflatedAnnual, locYrs, locInheritanceDrawdownYrs };
               });
               const selectedLoc = FIRE_LOCATIONS_COMPUTED.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS_COMPUTED[0];
 
@@ -2680,14 +2685,22 @@ export default function Finances() {
                             })}
                           </tr>
                           <tr className="font-bold bg-slate-700/30">
-                            <td className="py-2 text-white rounded-l">FIRE Goal ({(fireSwr * 100).toFixed(2)}% SWR)</td>
+                            <td className="py-2 text-white rounded-l">
+                              {fireInheritanceMode
+                                ? `💎 FIRE Goal (drawdown to age ${fireInheritanceAge})`
+                                : `FIRE Goal (${(fireSwr * 100).toFixed(2)}% SWR · ${(fireColInflation * 100).toFixed(0)}%/yr inflation)`}
+                            </td>
                             {(["lean","comfortable","cushy"] as const).map(t => {
                               const td = FIRE_TIER_DATA[fireLocationKey][t];
                               const base = Object.values(td).reduce((s, v) => s + v, 0);
                               const totalMo = Math.round(base * (1 + totalBuffer));
-                              // Use pass-1 years estimate for inflation
-                              const goal = Math.round((totalMo * 12 * Math.pow(1 + fireColInflation, 15)) / fireSwr);
-                              return <td key={t} className={`py-2 text-right ${t === "lean" ? "text-blue-300" : t === "comfortable" ? "text-orange-300" : "text-purple-300"}`}>{fmt(goal)}</td>;
+                              const totalAnnual = totalMo * 12;
+                              const yrsEstimate = yearsToFire ?? _fireYrsPass1;
+                              const inflatedForTier = totalAnnual * Math.pow(1 + fireColInflation, yrsEstimate);
+                              const goal = fireInheritanceMode
+                                ? Math.round(inflatedForTier * (1 - Math.pow(1 + R_RETIRE, -Math.max(1, fireInheritanceAge - (ageYears + yrsEstimate)))) / R_RETIRE)
+                                : Math.round(inflatedForTier / fireSwr);
+                              return <td key={t} className={`py-2 text-right ${t === "lean" ? "text-blue-300" : t === "comfortable" ? "text-orange-300" : "text-purple-300"} ${fireTier === t ? "font-black" : ""}`}>{fmt(goal)}</td>;
                             })}
                           </tr>
                         </tbody>
@@ -2698,32 +2711,62 @@ export default function Finances() {
                   {/* ── FIRE Target by WR Rate ── */}
                   <Card className="bg-slate-800/60 border-slate-600/40">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-slate-300 text-sm">🎯 FIRE Target by Withdrawal Rate × Tier — {selectedLoc.flag} Today's Costs</CardTitle>
-                      <CardDescription className="text-slate-400 text-xs">Based on today's monthly costs (no inflation), includes {(totalBuffer * 100).toFixed(0)}% buffer. Lower SWR = more conservative = larger target.</CardDescription>
+                      <CardTitle className="text-slate-300 text-sm">
+                        {fireInheritanceMode
+                          ? `💎 FIRE Target by Drawdown Years × Tier — ${selectedLoc.flag} Inheritance Mode`
+                          : `🎯 FIRE Target by Withdrawal Rate × Tier — ${selectedLoc.flag} Today's Costs`}
+                      </CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">
+                        {fireInheritanceMode
+                          ? `PV annuity at 7% return · ${(totalBuffer * 100).toFixed(0)}% buffer · inflated at ${(fireColInflation * 100).toFixed(0)}%/yr · inheritance arrives at age ${fireInheritanceAge}`
+                          : `Based on today's monthly costs (no inflation), includes ${(totalBuffer * 100).toFixed(0)}% buffer. Lower SWR = more conservative = larger target.`}
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-slate-700">
-                            <th className="text-left py-2 text-slate-400 font-medium">Withdrawal Rate</th>
+                            <th className="text-left py-2 text-slate-400 font-medium">
+                              {fireInheritanceMode ? "Drawdown Years" : "Withdrawal Rate"}
+                            </th>
                             <th className="text-right py-2 text-blue-300 font-semibold">🎒 Lean</th>
                             <th className="text-right py-2 text-orange-300 font-semibold">🏠 Comfortable</th>
                             <th className="text-right py-2 text-purple-300 font-semibold">✨ Cushy</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {[0.05, 0.045, 0.04, 0.035, 0.0325, 0.03].map(wr => (
-                            <tr key={wr} className={`border-b border-slate-800 hover:bg-slate-700/20 ${Math.abs(wr - fireSwr) < 0.0001 ? "bg-orange-900/20" : ""}`}>
-                              <td className={`py-1.5 ${Math.abs(wr - fireSwr) < 0.0001 ? "text-orange-300 font-bold" : "text-slate-300"}`}>{(wr * 100).toFixed(2)}% {Math.abs(wr - fireSwr) < 0.0001 ? "← current" : ""}</td>
-                              {(["lean","comfortable","cushy"] as const).map(t => {
-                                const td = FIRE_TIER_DATA[fireLocationKey][t];
-                                const moBase = Object.values(td).reduce((s, v) => s + v, 0);
-                                const moTotal = Math.round(moBase * (1 + totalBuffer));
-                                const goal = Math.round((moTotal * 12) / wr);
-                                return <td key={t} className={`py-1.5 text-right ${t === "lean" ? "text-blue-200" : t === "comfortable" ? "text-orange-200" : "text-purple-200"}`}>{fmt(goal)}</td>;
-                              })}
-                            </tr>
-                          ))}
+                          {fireInheritanceMode
+                            ? [5, 8, 10, 12, 15, 20].map(drawYrs => {
+                                const isCurrent = Math.abs(drawYrs - _inheritanceDrawdownYrs) <= 1;
+                                return (
+                                  <tr key={drawYrs} className={`border-b border-slate-800 hover:bg-slate-700/20 ${isCurrent ? "bg-emerald-900/20" : ""}`}>
+                                    <td className={`py-1.5 ${isCurrent ? "text-emerald-300 font-bold" : "text-slate-300"}`}>
+                                      {drawYrs} yrs {isCurrent ? "← current est." : ""}
+                                    </td>
+                                    {(["lean","comfortable","cushy"] as const).map(t => {
+                                      const td = FIRE_TIER_DATA[fireLocationKey][t];
+                                      const moBase = Object.values(td).reduce((s, v) => s + v, 0);
+                                      const moTotal = Math.round(moBase * (1 + totalBuffer));
+                                      const annualInflated = moTotal * 12 * Math.pow(1 + fireColInflation, yearsToFire ?? _fireYrsPass1);
+                                      const goal = Math.round(annualInflated * (1 - Math.pow(1 + R_RETIRE, -drawYrs)) / R_RETIRE);
+                                      return <td key={t} className={`py-1.5 text-right ${t === "lean" ? "text-blue-200" : t === "comfortable" ? "text-orange-200" : "text-purple-200"}`}>{fmt(goal)}</td>;
+                                    })}
+                                  </tr>
+                                );
+                              })
+                            : [0.05, 0.045, 0.04, 0.035, 0.0325, 0.03].map(wr => (
+                                <tr key={wr} className={`border-b border-slate-800 hover:bg-slate-700/20 ${Math.abs(wr - fireSwr) < 0.0001 ? "bg-orange-900/20" : ""}`}>
+                                  <td className={`py-1.5 ${Math.abs(wr - fireSwr) < 0.0001 ? "text-orange-300 font-bold" : "text-slate-300"}`}>{(wr * 100).toFixed(2)}% {Math.abs(wr - fireSwr) < 0.0001 ? "← current" : ""}</td>
+                                  {(["lean","comfortable","cushy"] as const).map(t => {
+                                    const td = FIRE_TIER_DATA[fireLocationKey][t];
+                                    const moBase = Object.values(td).reduce((s, v) => s + v, 0);
+                                    const moTotal = Math.round(moBase * (1 + totalBuffer));
+                                    const goal = Math.round((moTotal * 12) / wr);
+                                    return <td key={t} className={`py-1.5 text-right ${t === "lean" ? "text-blue-200" : t === "comfortable" ? "text-orange-200" : "text-purple-200"}`}>{fmt(goal)}</td>;
+                                  })}
+                                </tr>
+                              ))
+                          }
                         </tbody>
                       </table>
                     </CardContent>
@@ -2749,10 +2792,12 @@ export default function Finances() {
                         <tbody>
                           {[0, 5, 10, 15, 20, 25, 30].map(y => {
                             const base = selectedLoc.monthlyToday;
+                            const fireYr = yearsToFire ?? _fireYrsPass1;
+                            const isFireRow = y !== 0 && Math.abs(y - fireYr) < 3 && y <= fireYr + 2;
                             return (
-                              <tr key={y} className={`border-b border-slate-800 hover:bg-slate-700/20 ${y === selectedLoc.locYrs ? "bg-yellow-900/20" : ""}`}>
-                                <td className={`py-1.5 ${y === 0 ? "text-green-300 font-bold" : y === selectedLoc.locYrs ? "text-yellow-300 font-bold" : "text-slate-300"}`}>
-                                  {y === 0 ? "Today (2026)" : `+${y}yrs (${2026 + y})`} {y === selectedLoc.locYrs ? "← est. FIRE" : ""}
+                              <tr key={y} className={`border-b border-slate-800 hover:bg-slate-700/20 ${y === fireYr ? "bg-yellow-900/20" : ""}`}>
+                                <td className={`py-1.5 ${y === 0 ? "text-green-300 font-bold" : y === fireYr ? "text-yellow-300 font-bold" : isFireRow ? "text-yellow-200/60" : "text-slate-300"}`}>
+                                  {y === 0 ? "Today (2026)" : `+${y}yrs (${2026 + y})`} {y === fireYr ? "← est. FIRE" : ""}
                                 </td>
                                 {[0.03, 0.05, 0.07, 0.09].map(rate => (
                                   <td key={rate} className={`py-1.5 text-right ${Math.abs(rate - fireColInflation) < 0.001 ? "font-bold text-yellow-300" : "text-slate-200"}`}>
@@ -2768,20 +2813,24 @@ export default function Finances() {
                   </Card>
 
                   {/* ── Projection Chart ── */}
-                  <Card className="bg-slate-800/60 border-orange-500/20">
+                  <Card className={`bg-slate-800/60 ${fireInheritanceMode ? "border-emerald-500/30" : "border-orange-500/20"}`}>
                     <CardHeader>
-                      <CardTitle className="text-orange-300 text-sm flex items-center gap-2">
+                      <CardTitle className={`text-sm flex items-center gap-2 ${fireInheritanceMode ? "text-emerald-300" : "text-orange-300"}`}>
                         <TrendingUp className="h-4 w-4" />Liquid Net Worth Projection (8% investments · 4% home)
+                        {fireInheritanceMode && <span className="text-[10px] bg-emerald-700/40 border border-emerald-500/40 rounded px-1.5 py-0.5 font-normal">💎 Inheritance Mode</span>}
                       </CardTitle>
-                      <CardDescription className="text-slate-400 text-xs">Investments at 8%/yr · home equity at 4%/yr · adding {fmt(_fireAnnualSavings)}/yr W2 cash savings · dashed line = {fmt(FIRE_GOAL)} FIRE goal</CardDescription>
+                      <CardDescription className="text-slate-400 text-xs">
+                        Investments at 8%/yr · home equity at 4%/yr · adding {fmt(_fireAnnualSavings)}/yr W2 cash savings · dashed line = {fmt(FIRE_GOAL)} {fireInheritanceMode ? "drawdown target" : "FIRE goal"}
+                        {fireInheritanceMode && ` · green vertical = age ${fireInheritanceAge} inheritance (${fmt(_inheritanceNominal)} nominal)`}
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <ResponsiveContainer width="100%" height={280}>
                         <AreaChart data={projectionData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                           <defs>
                             <linearGradient id="fireGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#F97316" stopOpacity={0.4} />
-                              <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
+                              <stop offset="5%" stopColor={fireInheritanceMode ? "#10B981" : "#F97316"} stopOpacity={0.4} />
+                              <stop offset="95%" stopColor={fireInheritanceMode ? "#10B981" : "#F97316"} stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
@@ -2790,29 +2839,37 @@ export default function Finances() {
                             tickFormatter={(v: number) => v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `$${(v / 1_000).toFixed(0)}k` : `$${v}`}
                             tick={{ fill: "#94A3B8", fontSize: 10 }}
                             width={65}
-                            domain={[0, Math.max(FIRE_GOAL * 1.1, ...projectionData.map(d => d.value))]}
+                            domain={[0, Math.max(FIRE_GOAL * 1.1, ...(fireInheritanceMode ? [_inheritanceNominal * 0.5] : []), ...projectionData.map(d => d.value))]}
                           />
                           <Tooltip
                             content={({ active, payload }: any) => {
                               if (!active || !payload?.length) return null;
                               const d = payload[0]?.payload;
+                              const isFireAge = d?.age === fireAge;
+                              const isInheritAge = d?.age === fireInheritanceAge;
                               return (
-                                <div className="bg-slate-800 border border-orange-500/40 rounded-lg p-3 text-xs">
-                                  <p className="text-orange-300 font-bold mb-1">Age {d?.age} ({d?.year})</p>
-                                  <p className="text-white">Projected: {fmt(d?.value ?? 0)}</p>
-                                  <p className="text-orange-400">FIRE Goal: {fmt(FIRE_GOAL)}</p>
-                                  {d?.value >= FIRE_GOAL && <p className="text-green-400 mt-1">🎉 FIRE achieved!</p>}
+                                <div className={`bg-slate-800 border rounded-lg p-3 text-xs ${isInheritAge ? "border-emerald-500/60" : "border-orange-500/40"}`}>
+                                  <p className={`font-bold mb-1 ${isInheritAge ? "text-emerald-300" : "text-orange-300"}`}>Age {d?.age} ({d?.year})</p>
+                                  <p className="text-white">Projected NW: {fmt(d?.value ?? 0)}</p>
+                                  <p className={fireInheritanceMode ? "text-emerald-400" : "text-orange-400"}>{fireInheritanceMode ? "Drawdown" : "FIRE"} Target: {fmt(FIRE_GOAL)}</p>
+                                  {isFireAge && <p className="text-green-400 mt-1">🎉 {fireInheritanceMode ? "Drawdown starts!" : "FIRE achieved!"}</p>}
+                                  {fireInheritanceMode && isInheritAge && <p className="text-emerald-300 mt-1">💎 Inheritance arrives: {fmt(_inheritanceNominal)}</p>}
+                                  {d?.value >= FIRE_GOAL && !isFireAge && <p className="text-green-400 mt-1">✅ {fireInheritanceMode ? "Runway funded" : "FIRE achieved!"}</p>}
                                 </div>
                               );
                             }}
                           />
-                          <ReferenceLine y={FIRE_GOAL} stroke="#F97316" strokeDasharray="6 3" strokeWidth={2}
-                            label={{ value: `🔥 ${fmt(FIRE_GOAL)}`, position: "insideTopRight", fill: "#F97316", fontSize: 10 }} />
+                          <ReferenceLine y={FIRE_GOAL} stroke={fireInheritanceMode ? "#10B981" : "#F97316"} strokeDasharray="6 3" strokeWidth={2}
+                            label={{ value: `${fireInheritanceMode ? "💎" : "🔥"} ${fmt(FIRE_GOAL)}`, position: "insideTopRight", fill: fireInheritanceMode ? "#10B981" : "#F97316", fontSize: 10 }} />
                           {fireAge !== null && (
                             <ReferenceLine x={fireAge} stroke="#22C55E" strokeDasharray="4 3" strokeWidth={2}
                               label={{ value: `✅ Age ${fireAge}`, position: "top", fill: "#22C55E", fontSize: 10 }} />
                           )}
-                          <Area type="monotone" dataKey="value" stroke="#F97316" fill="url(#fireGradient)" strokeWidth={2} dot={false} name="Projected NW" />
+                          {fireInheritanceMode && (
+                            <ReferenceLine x={fireInheritanceAge} stroke="#6EE7B7" strokeDasharray="3 2" strokeWidth={2}
+                              label={{ value: `💎 Age ${fireInheritanceAge}`, position: "top", fill: "#6EE7B7", fontSize: 10 }} />
+                          )}
+                          <Area type="monotone" dataKey="value" stroke={fireInheritanceMode ? "#10B981" : "#F97316"} fill="url(#fireGradient)" strokeWidth={2} dot={false} name="Projected NW" />
                         </AreaChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -2822,7 +2879,7 @@ export default function Finances() {
                   <div>
                     <h3 className="text-white font-semibold text-sm mb-1 flex items-center gap-2">🌏 Early Retirement Abroad — Cost of Living Comparison</h3>
                     <p className="text-slate-400 text-xs mb-4">
-                      Click a destination above to set your FIRE goal. All figures use the {(fireSwr * 100).toFixed(2)}% safe withdrawal rule ({Math.round(1/fireSwr)}× annual spend) and include {(totalBuffer * 100).toFixed(0)}% buffer.
+                      Click a destination above to set your FIRE goal. All figures include {(totalBuffer * 100).toFixed(0)}% buffer · {(fireColInflation * 100).toFixed(0)}%/yr COL inflation · {fireInheritanceMode ? `💎 Drawdown to age ${fireInheritanceAge}` : `${(fireSwr * 100).toFixed(2)}% SWR (${Math.round(1/fireSwr)}× annual spend)`}.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {FIRE_LOCATIONS_COMPUTED.map(loc => (
@@ -2857,32 +2914,42 @@ export default function Finances() {
                                 <span>${loc.annualTotal.toLocaleString()}/yr</span>
                               </div>
                               <div className="flex justify-between text-xs text-yellow-300">
-                                <span>📈 At retirement ({loc.locYrs}yrs × 4%/yr)</span>
+                                <span>📈 At retirement ({loc.locYrs}yrs × {(fireColInflation * 100).toFixed(0)}%/yr)</span>
                                 <span>${Math.round(loc.inflatedMonthly).toLocaleString()}/mo</span>
                               </div>
                                 <div className="flex justify-between text-xs font-bold mt-1">
-                                <span className={loc.accent}>FIRE goal (inflated ÷ {(fireSwr * 100).toFixed(2)}% SWR)</span>
-                                <span className="text-white">{fmt(loc.fireNeeded)}</span>
+                                <span className={loc.accent}>
+                                  {fireInheritanceMode
+                                    ? `💎 FIRE goal (drawdown ${loc.locInheritanceDrawdownYrs}yrs to age ${fireInheritanceAge})`
+                                    : `FIRE goal (inflated ÷ ${(fireSwr * 100).toFixed(2)}% SWR)`}
+                                </span>
+                                <span className="text-white">{fmt(loc.effectiveFireNeeded)}</span>
                               </div>
                               <div className="mt-2 p-2 bg-black/30 rounded-lg space-y-1">
                                 <div className="flex justify-between text-xs">
                                   <span className="text-slate-400">Your liquid NW covers</span>
-                                  <span className={`font-bold ${_fireLiquidNW >= loc.fireNeeded ? "text-green-400" : "text-orange-400"}`}>
+                                  <span className={`font-bold ${_fireLiquidNW >= loc.effectiveFireNeeded ? "text-green-400" : "text-orange-400"}`}>
                                     {(_fireLiquidNW / loc.annualTotal).toFixed(1)} yrs of today's spend
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-slate-400">Progress to inflated goal</span>
-                                  <span className={`font-bold ${_fireLiquidNW >= loc.fireNeeded ? "text-green-400" : "text-slate-200"}`}>
-                                    {Math.min((_fireLiquidNW / loc.fireNeeded) * 100, 100).toFixed(1)}%
+                                  <span className="text-slate-400">Progress to {fireInheritanceMode ? "drawdown" : "inflated"} goal</span>
+                                  <span className={`font-bold ${_fireLiquidNW >= loc.effectiveFireNeeded ? "text-green-400" : "text-slate-200"}`}>
+                                    {Math.min((_fireLiquidNW / loc.effectiveFireNeeded) * 100, 100).toFixed(1)}%
                                   </span>
                                 </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-slate-400">SWR income vs inflated spend</span>
-                                  <span className={`font-semibold ${Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                    {Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "+" : ""}${(Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly)).toLocaleString()}/mo
-                                  </span>
-                                </div>
+                                {fireInheritanceMode
+                                  ? <div className="flex justify-between text-xs">
+                                      <span className="text-slate-400">Inheritance covers after age {fireInheritanceAge}</span>
+                                      <span className="text-emerald-300 font-semibold">{fmt(Math.round(_inheritanceNominal * fireSwr))}/yr</span>
+                                    </div>
+                                  : <div className="flex justify-between text-xs">
+                                      <span className="text-slate-400">SWR income vs inflated spend</span>
+                                      <span className={`font-semibold ${Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                        {Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "+" : ""}${(Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly)).toLocaleString()}/mo
+                                      </span>
+                                    </div>
+                                }
                               </div>
                             </div>
                             {/* Expandable methodology essay */}
@@ -2921,8 +2988,8 @@ export default function Finances() {
                         {[
                           { pctMile: 25, label: "First 25% — hardest part, building momentum", color: "text-red-400" },
                           { pctMile: 50, label: "Half-FIRE — investment returns start doing the heavy lifting", color: "text-yellow-400" },
-                          { pctMile: 75, label: "Coast-FIRE — can slow savings and still hit goal via compounding", color: "text-blue-400" },
-                          { pctMile: 100, label: "Full FIRE — $1.5M, retire anywhere in the world 🎉", color: "text-green-400" },
+                          { pctMile: 75, label: fireInheritanceMode ? "75% of runway funded — almost there" : "Coast-FIRE — can slow savings and still hit goal via compounding", color: "text-blue-400" },
+                          { pctMile: 100, label: fireInheritanceMode ? `Full drawdown runway funded — retire until age ${fireInheritanceAge}, then inheritance takes over 💎` : "Full FIRE — retire anywhere in the world 🎉", color: "text-green-400" },
                         ].map(m => {
                           const target = FIRE_GOAL * (m.pctMile / 100);
                           const reached = _fireLiquidNW >= target;
