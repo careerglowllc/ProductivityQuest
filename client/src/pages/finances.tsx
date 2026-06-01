@@ -88,6 +88,7 @@ export default function Finances() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
+  const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia">("thailand");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -2151,7 +2152,65 @@ export default function Finances() {
                 checkingBalance + careerglowBalance + _fireHsaValue +
                 _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
 
-              const FIRE_GOAL = 1_500_000;
+              const FIRE_LOCATIONS = [
+                {
+                  key: "thailand" as const,
+                  flag: "🇹🇭", name: "Chiang Mai, Thailand",
+                  color: "from-orange-900/40 to-orange-800/20", border: "border-orange-500/30", accent: "text-orange-300",
+                  btnActive: "bg-orange-600/50 border-orange-400/60 text-orange-200",
+                  btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-orange-500/40",
+                  items: [
+                    { label: "Studio apartment (safe area)", mo: 400 },
+                    { label: "Food & groceries", mo: 200 },
+                    { label: "Transportation (scooter/grab)", mo: 50 },
+                    { label: "Health insurance", mo: 60 },
+                    { label: "Entertainment & social", mo: 100 },
+                    { label: "Utilities & internet", mo: 60 },
+                    { label: "Misc / buffer", mo: 80 },
+                  ],
+                },
+                {
+                  key: "vietnam" as const,
+                  flag: "🇻🇳", name: "Da Nang, Vietnam",
+                  color: "from-red-900/40 to-red-800/20", border: "border-red-500/30", accent: "text-red-300",
+                  btnActive: "bg-red-600/50 border-red-400/60 text-red-200",
+                  btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-red-500/40",
+                  items: [
+                    { label: "Studio apartment (safe area)", mo: 350 },
+                    { label: "Food & groceries", mo: 180 },
+                    { label: "Transportation (scooter/grab)", mo: 40 },
+                    { label: "Health insurance", mo: 60 },
+                    { label: "Entertainment & social", mo: 80 },
+                    { label: "Utilities & internet", mo: 50 },
+                    { label: "Misc / buffer", mo: 70 },
+                  ],
+                },
+                {
+                  key: "colombia" as const,
+                  flag: "🇨🇴", name: "Medellín, Colombia",
+                  color: "from-yellow-900/40 to-yellow-800/20", border: "border-yellow-500/30", accent: "text-yellow-300",
+                  btnActive: "bg-yellow-600/50 border-yellow-400/60 text-yellow-200",
+                  btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-yellow-500/40",
+                  items: [
+                    { label: "Studio apartment (safe area)", mo: 550 },
+                    { label: "Food & groceries", mo: 280 },
+                    { label: "Transportation (Uber/metro)", mo: 60 },
+                    { label: "Health insurance", mo: 80 },
+                    { label: "Entertainment & social", mo: 160 },
+                    { label: "Utilities & internet", mo: 70 },
+                    { label: "Misc / buffer", mo: 100 },
+                  ],
+                },
+              ].map(loc => {
+                const monthlyTotal = loc.items.reduce((s, i) => s + i.mo, 0);
+                const annualTotal = monthlyTotal * 12;
+                const fireNeeded = annualTotal * 25; // 4% SWR
+                return { ...loc, monthlyTotal, annualTotal, fireNeeded };
+              });
+
+              const selectedLoc = FIRE_LOCATIONS.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS[0];
+              const FIRE_GOAL = selectedLoc.fireNeeded; // dynamic based on location!
+
               const pct = Math.min((_fireLiquidNW / FIRE_GOAL) * 100, 100);
 
               // ── Timeline projection ──
@@ -2203,54 +2262,6 @@ export default function Finances() {
               const fireAge = yearsToFire !== null ? ageYears + yearsToFire : null;
               const fireYear = yearsToFire !== null ? 2026 + yearsToFire : null;
 
-              // ── Location cost-of-living breakdowns ──
-              const locations = [
-                {
-                  flag: "🇹🇭", name: "Chiang Mai, Thailand",
-                  color: "from-orange-900/40 to-orange-800/20", border: "border-orange-500/30", accent: "text-orange-300",
-                  items: [
-                    { label: "Studio apartment (safe area)", mo: 400 },
-                    { label: "Food & groceries", mo: 200 },
-                    { label: "Transportation (scooter/grab)", mo: 50 },
-                    { label: "Health insurance", mo: 60 },
-                    { label: "Entertainment & social", mo: 100 },
-                    { label: "Utilities & internet", mo: 60 },
-                    { label: "Misc / buffer", mo: 80 },
-                  ],
-                },
-                {
-                  flag: "🇻🇳", name: "Da Nang, Vietnam",
-                  color: "from-red-900/40 to-red-800/20", border: "border-red-500/30", accent: "text-red-300",
-                  items: [
-                    { label: "Studio apartment (safe area)", mo: 350 },
-                    { label: "Food & groceries", mo: 180 },
-                    { label: "Transportation (scooter/grab)", mo: 40 },
-                    { label: "Health insurance", mo: 60 },
-                    { label: "Entertainment & social", mo: 80 },
-                    { label: "Utilities & internet", mo: 50 },
-                    { label: "Misc / buffer", mo: 70 },
-                  ],
-                },
-                {
-                  flag: "🇨🇴", name: "Medellín, Colombia",
-                  color: "from-yellow-900/40 to-yellow-800/20", border: "border-yellow-500/30", accent: "text-yellow-300",
-                  items: [
-                    { label: "Studio apartment (safe area)", mo: 550 },
-                    { label: "Food & groceries", mo: 280 },
-                    { label: "Transportation (Uber/metro)", mo: 60 },
-                    { label: "Health insurance", mo: 80 },
-                    { label: "Entertainment & social", mo: 160 },
-                    { label: "Utilities & internet", mo: 70 },
-                    { label: "Misc / buffer", mo: 100 },
-                  ],
-                },
-              ].map(loc => {
-                const monthlyTotal = loc.items.reduce((s, i) => s + i.mo, 0);
-                const annualTotal = monthlyTotal * 12;
-                const fireNeeded = annualTotal * 25; // 4% SWR
-                return { ...loc, monthlyTotal, annualTotal, fireNeeded };
-              });
-
               // ── Projection chart data ──
               const projectionData: { year: number; age: number; value: number; invest: number; home: number; goal: number }[] = [];
               for (let n = 0; n <= 30; n++) {
@@ -2271,11 +2282,40 @@ export default function Finances() {
 
               return (
                 <>
-                  {/* ── Header ── */}
-                  <div className="flex items-center gap-3">
+                  {/* ── Header + Location Selector ── */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                       <h2 className="text-2xl font-bold text-white flex items-center gap-2">🔥 FIRE Goal</h2>
-                      <p className="text-slate-400 text-sm mt-0.5">Financial Independence, Retire Early — your roadmap to $1.5M</p>
+                      <p className="text-slate-400 text-sm mt-0.5">Financial Independence, Retire Early — goal adjusts to your chosen retirement destination</p>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {FIRE_LOCATIONS.map(loc => (
+                        <button
+                          key={loc.key}
+                          onClick={() => setFireLocationKey(loc.key)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${fireLocationKey === loc.key ? loc.btnActive : loc.btnInactive}`}
+                        >
+                          <span>{loc.flag}</span>
+                          <span className="hidden sm:inline">{loc.name.split(",")[0]}</span>
+                          <span className="sm:hidden">{loc.name.split(",")[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Selected location goal banner ── */}
+                  <div className={`flex items-center justify-between bg-gradient-to-r ${selectedLoc.color} border ${selectedLoc.border} rounded-xl px-4 py-3`}>
+                    <div>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${selectedLoc.accent}`}>{selectedLoc.flag} {selectedLoc.name} — FIRE Target</p>
+                      <p className="text-white text-xl font-bold mt-0.5">{fmt(FIRE_GOAL)}</p>
+                      <p className="text-slate-400 text-[11px] mt-0.5">
+                        {fmt(selectedLoc.monthlyTotal)}/mo · {fmt(selectedLoc.annualTotal)}/yr spend · 25× rule (4% SWR)
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-slate-400 text-[10px] uppercase tracking-wide">Passive income at FIRE</p>
+                      <p className={`text-lg font-bold ${selectedLoc.accent}`}>{fmt(FIRE_GOAL * 0.04)}/yr</p>
+                      <p className="text-slate-500 text-[10px]">{fmt(Math.round(FIRE_GOAL * 0.04 / 12))}/mo</p>
                     </div>
                   </div>
 
@@ -2305,7 +2345,7 @@ export default function Finances() {
                     <Card className="bg-slate-800/60 border-orange-500/30 sm:col-span-2">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-orange-300 text-sm">Progress to FIRE</CardTitle>
-                        <CardDescription className="text-slate-400 text-[11px]">$1,500,000 target · 4% safe withdrawal rate · {fmt(FIRE_GOAL * 0.04)}/yr passive income</CardDescription>
+                        <CardDescription className="text-slate-400 text-[11px]">{fmt(FIRE_GOAL)} target · 4% SWR · {fmt(FIRE_GOAL * 0.04)}/yr passive income · {selectedLoc.flag} {selectedLoc.name}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-end gap-2 mb-2">
@@ -2401,15 +2441,22 @@ export default function Finances() {
 
                   {/* ── Cost of Living Breakdown ── */}
                   <div>
-                    <h3 className="text-white font-semibold text-sm mb-1 flex items-center gap-2">🌏 Early Retirement Abroad — Cost of Living</h3>
+                    <h3 className="text-white font-semibold text-sm mb-1 flex items-center gap-2">🌏 Early Retirement Abroad — Cost of Living Comparison</h3>
                     <p className="text-slate-400 text-xs mb-4">
-                      Your $1.5M at 4% SWR = <span className="text-green-400 font-semibold">{fmt(FIRE_GOAL * 0.04)}/yr ({fmt(Math.round(FIRE_GOAL * 0.04 / 12))}/mo)</span> in passive income. Here's how far that goes in top FIRE destinations:
+                      Click a destination above to set your FIRE goal. All figures use the 4% safe withdrawal rule (25× annual spend).
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {locations.map(loc => (
-                        <Card key={loc.name} className={`bg-gradient-to-b ${loc.color} ${loc.border} border`}>
+                      {FIRE_LOCATIONS.map(loc => (
+                        <Card
+                          key={loc.name}
+                          onClick={() => setFireLocationKey(loc.key)}
+                          className={`bg-gradient-to-b ${loc.color} border cursor-pointer transition-all ${fireLocationKey === loc.key ? `${loc.border} ring-2 ring-offset-1 ring-offset-slate-900 ring-current` : "border-slate-700/40 opacity-70 hover:opacity-90"}`}
+                        >
                           <CardHeader className="pb-2">
-                            <CardTitle className={`${loc.accent} text-base`}>{loc.flag} {loc.name}</CardTitle>
+                            <CardTitle className={`${loc.accent} text-base flex items-center justify-between`}>
+                              <span>{loc.flag} {loc.name}</span>
+                              {fireLocationKey === loc.key && <span className="text-[10px] bg-white/10 rounded px-1.5 py-0.5 font-normal">✓ Selected</span>}
+                            </CardTitle>
                             <CardDescription className="text-slate-400 text-[11px]">Monthly budget for comfortable solo retirement</CardDescription>
                           </CardHeader>
                           <CardContent>
@@ -2430,19 +2477,27 @@ export default function Finances() {
                                 <span>Annual spend</span>
                                 <span>${loc.annualTotal.toLocaleString()}/yr</span>
                               </div>
-                              <div className="flex justify-between text-xs text-slate-400">
-                                <span>FIRE number needed (25× rule)</span>
-                                <span>{fmt(loc.fireNeeded)}</span>
+                              <div className="flex justify-between text-xs font-semibold">
+                                <span className={loc.accent}>FIRE goal (25× rule)</span>
+                                <span className="text-white">{fmt(loc.fireNeeded)}</span>
                               </div>
                               <div className="mt-2 p-2 bg-slate-800/60 rounded-lg space-y-1">
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-slate-400">$1.5M sustains you</span>
-                                  <span className="text-green-400 font-bold">{(FIRE_GOAL / loc.annualTotal).toFixed(0)} years</span>
+                                  <span className="text-slate-400">Your liquid NW covers</span>
+                                  <span className={`font-bold ${_fireLiquidNW >= loc.fireNeeded ? "text-green-400" : "text-orange-400"}`}>
+                                    {(_fireLiquidNW / loc.annualTotal).toFixed(1)} yrs of spend
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-400">Progress to this goal</span>
+                                  <span className={`font-bold ${_fireLiquidNW >= loc.fireNeeded ? "text-green-400" : "text-slate-300"}`}>
+                                    {Math.min((_fireLiquidNW / loc.fireNeeded) * 100, 100).toFixed(1)}%
+                                  </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-slate-400">Monthly surplus vs SWR</span>
-                                  <span className={`font-semibold ${Math.round(FIRE_GOAL * 0.04 / 12) - loc.monthlyTotal >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                    {Math.round(FIRE_GOAL * 0.04 / 12) - loc.monthlyTotal >= 0 ? "+" : ""}${(Math.round(FIRE_GOAL * 0.04 / 12) - loc.monthlyTotal).toLocaleString()}/mo
+                                  <span className={`font-semibold ${Math.round(loc.fireNeeded * 0.04 / 12) - loc.monthlyTotal >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {Math.round(loc.fireNeeded * 0.04 / 12) - loc.monthlyTotal >= 0 ? "+" : ""}${(Math.round(loc.fireNeeded * 0.04 / 12) - loc.monthlyTotal).toLocaleString()}/mo
                                   </span>
                                 </div>
                               </div>
