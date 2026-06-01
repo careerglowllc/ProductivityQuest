@@ -3313,7 +3313,10 @@ export default function Finances() {
                             <TableBody>
                               {g.items.map((item) => (
                                 <TableRow key={item.id} className="border-slate-700/30 hover:bg-slate-700/20 group">
-                                  <TableCell className="text-white text-xs py-2 pl-4 font-medium">{item.item}</TableCell>
+                                  <TableCell className="text-white text-xs py-2 pl-4 font-medium">
+                                    {item.item}
+                                    {item.notes && <p className="text-[10px] text-slate-400 font-normal mt-0.5">{item.notes}</p>}
+                                  </TableCell>
                                   <TableCell className="py-2">
                                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${classifyBadge(item.category)}`}>
                                       {item.category}

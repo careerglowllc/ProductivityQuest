@@ -196,6 +196,7 @@ export const financialItems = pgTable("financial_items", {
   tags: jsonb("tags").$type<string[]>().default([]), // Additional category labels (e.g. ["Business", "Income"])
   monthlyCost: integer("monthly_cost").notNull(), // Store as cents to avoid floating point issues
   recurType: text("recur_type").notNull(), // Monthly, Yearly (Amortized), Biweekly (Summed Monthly), 2x a Year
+  notes: text("notes"), // Optional subtitle/description shown beneath item name
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
