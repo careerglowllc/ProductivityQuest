@@ -2756,7 +2756,10 @@ export default function Finances() {
                             {/* Inheritance Age */}
                             <div>
                               <div className="flex justify-between mb-1">
-                                <span className="text-xs text-slate-300">Inheritance Age</span>
+                                <div>
+                                  <span className="text-xs text-slate-300">Inheritance Age</span>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Parents age {73 + (fireInheritanceAge - 28)} at that time</p>
+                                </div>
                                 <span className="text-xs font-bold text-emerald-300">Age {fireInheritanceAge}</span>
                               </div>
                               <input
