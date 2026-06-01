@@ -44,7 +44,7 @@ function classifyItem(category: string, tags?: string[] | null): "income" | "ret
 }
 
 // ── FIRE COL Methodology Essays (file-level to avoid TSX parser issues) ──
-const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia" | "puertoRico", string> = {  thailand: [
+const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn", string> = {  thailand: [
     "These figures deliberately sit above the \"Chiang Mai for $1,200/mo\" blog posts you'll find everywhere. Those numbers assume you're eating street food every meal, living in a shared house on the outskirts, and speaking Thai well enough to negotiate. None of that is realistic for a Western expat retiring early.",
     "Here's how each line was built:",
     "Housing ($750/mo): A clean, modern 1-bedroom in Nimman Road or Santitham — Chiang Mai's expat-friendly zones with walkability, coworking access, and English-speaking neighbors. Budget places exist for $300–$400 but they tend to be older buildings with inconsistent water pressure, poor insulation from heat, and less secure access. Going slightly premium here is the right call — you're living in it every day.",
@@ -89,12 +89,36 @@ const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia" | "puertoRico
     "Act 60 Tax Note: To qualify for 0% capital gains on Puerto Rico-sourced gains, you must be a bona fide resident (183+ days/yr), file PR taxes, make a $10,000 charitable contribution, and buy PR real estate within 2 years. The setup cost is real (~$5K–$15K in legal/accounting fees) but the annual tax savings on a $2M+ portfolio can be enormous. Consult a CPA specializing in Act 60 before relying on this.",
     "The real FIRE life here: Puerto Rico is the highest-cost destination on this list but offers something the others can't — US soil. Your bank account stays the same, your healthcare system stays the same, Amazon Prime still delivers, and your family can visit without international flights. The island has genuine beauty (El Yunque, bioluminescent bays, beaches rivaling the Caribbean's best) and a rich Afro-Caribbean culture. The tradeoffs: higher cost of living, the Jones Act tax on goods, unreliable power grid, and ongoing economic/governance challenges. If you've built a large enough portfolio that Act 60 tax savings are meaningful and you value proximity to the US, San Juan belongs at the top of your list.",
   ].join("\n\n"),
+  austin: [
+    "Austin is the domestic FIRE option — no passport, no language barrier, no visa headaches, and a city that genuinely doesn't feel like you've retired to the middle of nowhere. It's expensive by FIRE standards (you will not be escaping the US cost of living here) but the tradeoff is full cultural immersion, a thriving tech/creative scene, and the ability to maintain US life without any of the logistics of living abroad. This is the scenario for someone who wants to FIRE domestically and stay connected.",
+    "Housing ($1,800/mo): Central Austin neighborhoods like South Congress, East Austin, Travis Heights, or Mueller get you a modern 1BR apartment in a walkable, vibrant area. The housing market cooled from its 2021–2022 peak but quality central apartments still run $1,600–$2,200/mo. Going to the suburbs (Cedar Park, Pflugerville, Round Rock) drops this to $1,200–$1,400 but adds car dependency and disconnects you from the Austin social fabric.",
+    "Food ($700/mo): Austin has world-class food — from the legendary BBQ (Franklin's, Terry Black's) to the booming restaurant scene on South Congress and East 6th. Groceries at HEB are reasonably priced by US standards. $700/mo reflects a realistic mix of home cooking and eating out 3–4x/week, not grinding on rice and beans.",
+    "Transportation ($250/mo): Austin is extremely car-dependent. You need a car. Budget $150–$200/mo for gas, insurance, and maintenance on a paid-off vehicle, plus Uber/Lyft for nights out. Public transit is limited and largely impractical for daily life outside Downtown.",
+    "Health insurance ($350/mo): This is the biggest cost difference from international retirement. ACA marketplace plans for a 30-something in Texas run $250–$500/mo depending on income, deductible choice, and subsidy eligibility. At FIRE, your taxable income may be low enough to qualify for significant ACA subsidies — Roth conversions and capital gains management matter a lot here. $350/mo assumes moderate subsidy eligibility.",
+    "Entertainment ($400/mo): Austin's entertainment ecosystem is exceptional — live music on 6th Street and Red River is everywhere, Formula 1 (Circuit of the Americas) runs every October, South by Southwest, ACL Festival, world-class hiking in Barton Creek Greenbelt and McKinney Falls. $400/mo is moderate for someone who actually engages with the city.",
+    "Utilities ($180/mo): Texas summers are brutal and ERCOT's deregulated grid creates electricity bill volatility. AC running June–September will push electricity to $150–$250/mo alone. Fiber internet is excellent and cheap ($60–$80/mo). Budget $180/mo as an average — expect higher in summer.",
+    "Visa / buffer ($0/mo — domestic): No visa. No immigration costs. This line goes to zero; the cost of living difference more than accounts for it.",
+    "Texas Tax Note: No state income tax is a genuine advantage. Long-term capital gains are taxed federally but not at the state level, which saves 5–13% compared to California, New York, or other high-tax states. Property taxes in Texas are notoriously high (1.8–2.5% annually) which matters if you buy real estate here — but as a renter at FIRE this doesn't apply directly.",
+    "The real FIRE life here: Austin is the most expensive option on this list but it's also the most 'normal' — you're retiring in the United States, in a major city, with all the infrastructure, culture, and social connectivity that entails. The cost is real: your FIRE number needs to be substantially higher than for international destinations. But if the thought of building a life abroad feels like a constraint rather than an adventure, Austin (or Texas generally) is the domestic answer. The city is growing fast — which means more amenities but also more traffic, higher prices, and a changing character. Lock in your lifestyle before the city prices you out further.",
+  ].join("\n\n"),
+  auburn: [
+    "Auburn, California is the sleeper pick — a small Gold Rush-era foothills town 35 miles northeast of Sacramento, sitting at 1,200ft elevation in the Sierra Nevada foothills. It's the kind of place that doesn't appear on any FIRE destination list, which is precisely what makes it interesting. Relatively affordable by California standards, surrounded by some of the best outdoor recreation in the continental US (Lake Tahoe 1hr, Yosemite 2.5hrs, Tahoe National Forest out your backdoor), and with a quaint historic downtown that punches above its weight. This is the option for someone who wants California lifestyle at a fraction of Bay Area or LA prices.",
+    "Housing ($1,600/mo): Auburn's rental market is thin but meaningfully cheaper than Sacramento ($1,400–$1,800 for a 1BR) and dramatically cheaper than the Bay Area. A 1BR apartment or small house in Auburn proper runs $1,400–$1,900/mo. The quality is generally older construction — Auburn doesn't have the luxury apartment stock of a major city. If you're open to a small house or a 2BR, your dollar goes further here than almost anywhere in California.",
+    "Food ($600/mo): Auburn has a handful of good local restaurants (Awful Annie's for breakfast is a local institution) but the grocery situation is Raley's/Safeway pricing — i.e., California supermarket prices, not cheap. Costco in Roseville (20min away) helps considerably. $600/mo reflects realistic California grocery costs plus occasional dining out. Sacramento's restaurant scene (35min away) expands your options dramatically.",
+    "Transportation ($300/mo): Auburn is not walkable for daily life — you need a car for groceries, errands, and most activities. I-80 puts you on Sacramento in 35 minutes or Tahoe in 60 minutes. Budget $200–$300/mo for gas, insurance, and maintenance. The scenic drive along Highway 49 through the Gold Rush towns (Nevada City, Grass Valley, Placerville) is free.",
+    "Health insurance ($350/mo): California ACA marketplace plans are competitive — Covered California has broad carrier participation. $350/mo is a reasonable estimate for a silver plan with modest subsidies; aggressive income management through Roth conversions can reduce this significantly. California also has Medi-Cal (Medicaid) with a relatively high income threshold if your taxable income is low enough.",
+    "Entertainment ($300/mo): This is where Auburn genuinely wins. Mountain biking and hiking in the American River Canyon (world-class trails literally in town), kayaking on the American River, skiing at Tahoe in winter, and proximity to everything California has to offer. $300/mo covers gear maintenance, ski day passes, and the inevitable spontaneous Tahoe weekend. The outdoor lifestyle here is exceptional and most of it costs nothing beyond gear.",
+    "Utilities ($160/mo): PG&E electricity rates in California are among the highest in the nation — $100–$180/mo depending on season. Winters in the foothills get cold enough to need heat; summers are hot enough to need AC (though milder than Sacramento's 105°F valley floor). Internet options are improving but fiber isn't universal in Auburn yet.",
+    "Visa / buffer ($0/mo — domestic): No visa. No immigration costs.",
+    "California Tax Note: This is the major headwind. California taxes all income (including capital gains) as ordinary income at rates up to 13.3%. For a FIRE portfolio generating significant realized gains, this is a meaningful hit compared to Texas (0%), Nevada (0%), or Puerto Rico (Act 60). At a $2M portfolio generating $80K/year in realized gains, California takes $8,000–$10,000/yr in state taxes that Texas would not. If you're on the edge of FIRE math, the CA state tax burden is worth modeling explicitly.",
+    "The real FIRE life here: Auburn is the answer for someone who wants California — the mountains, the climate, the proximity to world-class recreation — without the Bay Area or LA price tag. It's a small town (13,000 people) so the social scene is limited; you'll likely need to drive to Sacramento for concerts, events, and urban amenities. But if your FIRE life involves outdoor adventure more than nightlife, and you want to stay in the US within driving distance of some of the most beautiful terrain in the country, Auburn is a genuinely compelling option. The California tax burden is real but manageable with smart income planning.",
+  ].join("\n\n"),
 };
 
 // ── FIRE Tier Cost Data (per location, per lifestyle tier) ──
 // Categories: rent, food, transport, health, entertainment, utilities, visa
 const FIRE_TIER_DATA: Record<
-  "thailand" | "vietnam" | "colombia" | "puertoRico",
+  "thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn",
   Record<"lean" | "comfortable" | "cushy", { rent: number; food: number; transport: number; health: number; entertainment: number; utilities: number; visa: number }>
 > = {
   thailand: {
@@ -116,6 +140,16 @@ const FIRE_TIER_DATA: Record<
     lean:        { rent: 900,  food: 450, transport: 100, health: 150, entertainment: 150, utilities: 100, visa: 0 },
     comfortable: { rent: 1200, food: 600, transport: 150, health: 200, entertainment: 350, utilities: 130, visa: 0 },
     cushy:       { rent: 2200, food: 1000, transport: 250, health: 350, entertainment: 700, utilities: 200, visa: 0 },
+  },
+  austin: {
+    lean:        { rent: 1400, food: 500, transport: 180, health: 250, entertainment: 200, utilities: 140, visa: 0 },
+    comfortable: { rent: 1800, food: 700, transport: 250, health: 350, entertainment: 400, utilities: 180, visa: 0 },
+    cushy:       { rent: 3000, food: 1200, transport: 400, health: 500, entertainment: 800, utilities: 250, visa: 0 },
+  },
+  auburn: {
+    lean:        { rent: 1200, food: 450, transport: 200, health: 250, entertainment: 150, utilities: 130, visa: 0 },
+    comfortable: { rent: 1600, food: 600, transport: 300, health: 350, entertainment: 300, utilities: 160, visa: 0 },
+    cushy:       { rent: 2500, food: 1000, transport: 500, health: 500, entertainment: 600, utilities: 220, visa: 0 },
   },
 };
 
@@ -164,8 +198,8 @@ export default function Finances() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
-  const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico">("thailand");
-  const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | null>(null);
+  const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn">("thailand");
+  const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn" | null>(null);
   const [fireTier, setFireTier] = useState<"lean" | "comfortable" | "cushy">("comfortable");
   const [fireSwr, setFireSwr] = useState<number>(0.04);
   const [fireColInflation, setFireColInflation] = useState<number>(0.05);
@@ -1535,7 +1569,7 @@ export default function Finances() {
                     const _fgPct = Math.min((_fgLiquid / FIRE_GOAL_W) * 100, 100);
                     const _fgAge = 28 + _fgYrs;
                     const fmtG = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
-                    const locFlags: Record<string, string> = { thailand: "🇹🇭", vietnam: "🇻🇳", colombia: "🇨🇴", puertoRico: "🇵🇷" };
+                    const locFlags: Record<string, string> = { thailand: "🇹🇭", vietnam: "🇻🇳", colombia: "🇨🇴", puertoRico: "🇵🇷", austin: "🤠", auburn: "🏔️" };
                     return (
                       <>
                         <CardHeader className="pb-2">
@@ -2371,6 +2405,22 @@ export default function Finances() {
                       btnActive: "bg-cyan-600/50 border-cyan-400/60 text-cyan-200",
                       btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-cyan-500/40",
                       methodology: FIRE_METHODOLOGY.puertoRico,
+                    },
+                    {
+                      key: "austin" as const,
+                      flag: "🤠", name: "Austin, Texas",
+                      color: "bg-slate-900 border-orange-500/50", border: "border-orange-500/50", accent: "text-orange-300",
+                      btnActive: "bg-orange-600/50 border-orange-400/60 text-orange-200",
+                      btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-orange-500/40",
+                      methodology: FIRE_METHODOLOGY.austin,
+                    },
+                    {
+                      key: "auburn" as const,
+                      flag: "🏔️", name: "Auburn, California",
+                      color: "bg-slate-900 border-emerald-500/50", border: "border-emerald-500/50", accent: "text-emerald-300",
+                      btnActive: "bg-emerald-600/50 border-emerald-400/60 text-emerald-200",
+                      btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-emerald-500/40",
+                      methodology: FIRE_METHODOLOGY.auburn,
                     },
                   ] as const
                 ).map(loc => {
