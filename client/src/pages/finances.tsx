@@ -603,6 +603,9 @@ export default function Finances() {
   const _vooValue = vooHoldings * _vooPrice;
   const _rothIraValue = (rothIraIbitHoldings * _ibitPrice) + (rothIraVtsaxHoldings * _vtsaxPrice);
   const _k401Value = k401Shares * _viiixPrice;
+  // Early withdrawal haircuts (retiring before 55)
+  const _rothIraAfterPenalty = _rothIraValue * 0.75;
+  const _k401AfterPenalty = _k401Value * 0.68;
   const _vanguardTotal = _vtsaxValue + _vooValue;
   const _homeLivePrice = propertyData?.price ?? null;
   const _homeSalePrice = (_homeLivePrice !== null && _homeLivePrice > 0) ? _homeLivePrice : homeEstValue;
@@ -622,7 +625,7 @@ export default function Finances() {
   // Domain: only taxable gains above purchase price; currently at a loss so $0 tax
   const _domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
-  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraValue + _k401Value + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + hsaBalance + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + hsaBalance + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // NW Snapshots — load history + auto-save current month once prices are ready
@@ -637,8 +640,8 @@ export default function Finances() {
     const breakdown: Record<string, number> = {
       btc: Math.round(_btcAfterTax),
       vanguard: Math.round(_vanguardAfterTax),
-      rothIra: Math.round(_rothIraValue),
-      k401: Math.round(_k401Value),
+      rothIra: Math.round(_rothIraAfterPenalty),
+      k401: Math.round(_k401AfterPenalty),
       realEstate: Math.round(_homeAfterTaxNetCash),
       cash: Math.round(checkingBalance + careerglowBalance + hsaBalance),
       domain: Math.round(_domainAfterTax),
@@ -1242,8 +1245,8 @@ export default function Finances() {
                               {[
                                 { label: "Crypto (BTC, after tax)", value: _btcAfterTax, color: "text-yellow-300" },
                                 { label: "Index Funds (after tax)", value: _vanguardAfterTax, color: "text-indigo-300" },
-                                { label: "Roth IRA (VTSAX + IBIT)", value: _rothIraValue, color: "text-purple-300" },
-                                { label: "401k (SSO)", value: _k401Value, color: "text-teal-300" },
+                                { label: "Roth IRA (after penalty)", value: _rothIraAfterPenalty, color: "text-purple-300" },
+                                { label: "401k (after penalty)", value: _k401AfterPenalty, color: "text-teal-300" },
                                 { label: "Real Estate (after-tax)", value: _homeAfterTaxNetCash, color: "text-pink-300" },
                                 { label: "Checking", value: checkingBalance, color: "text-cyan-300" },
                                 { label: "CareerGlow LLC (Mercury)", value: careerglowBalance, color: "text-cyan-200" },
@@ -1329,8 +1332,8 @@ export default function Finances() {
                   case "portfolioAllocation": {
                     const _rothIraIbitValue = rothIraIbitHoldings * _ibitPrice;
                     const _rothIraVtsaxValue = rothIraVtsaxHoldings * _vtsaxPrice;
-                    const _cryptoTotal = _btcAfterTax + _rothIraIbitValue;
-                    const _indexTotal = _vanguardAfterTax + _k401Value + eTradeRsuValue + _rothIraVtsaxValue;
+                    const _cryptoTotal = _btcAfterTax + _rothIraIbitValue * 0.75;
+                    const _indexTotal = _vanguardAfterTax + _k401AfterPenalty + eTradeRsuValue + _rothIraVtsaxValue * 0.75;
                     const _domainTotal = _domainAfterTax;
                     const _vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
                     const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + careerglowBalance + hsaBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
@@ -2928,6 +2931,9 @@ export default function Finances() {
               const vooValue = vooHoldings * vooPrice;
               const rothIraValue = (rothIraIbitHoldings * ibitPrice) + (rothIraVtsaxHoldings * vtsaxPrice);
               const k401Value = k401Shares * viiixPrice;
+              // Early withdrawal haircuts (retiring before 55: 10% penalty + income tax on gains)
+              const rothIraAfterPenalty = rothIraValue * 0.75; // 25% haircut (10% penalty + ~15% income tax)
+              const k401AfterPenalty = k401Value * 0.68;       // 32% haircut (10% penalty + ~22% income tax)
               const vanguardTotal = vtsaxValue + vooValue;
 
               // Real estate — use live Redfin price when available, else fall back to manual
@@ -2958,11 +2964,11 @@ export default function Finances() {
               // Domain: only gains above purchase price are taxed at 15%; loss = no tax
               const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
               const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
-              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraValue + k401Value + homeEquity + checkingBalance + careerglowBalance + hsaBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraAfterPenalty + k401AfterPenalty + homeEquity + checkingBalance + careerglowBalance + hsaBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
-              const cryptoTotal = btcAfterTax + (rothIraIbitHoldings * ibitPrice); // BTC wallets (after-tax) + Roth IRA IBIT (crypto ETF)
-              const indexFundsTotal = vanguardAfterTax + k401Value + eTradeRsuValue + (rothIraVtsaxHoldings * vtsaxPrice); // Vanguard after-tax + 401k VIIIX + Apple RSUs + Roth IRA VTSAX
+              const cryptoTotal = btcAfterTax + (rothIraIbitHoldings * ibitPrice) * 0.75; // BTC wallets (after-tax) + Roth IRA IBIT (after 25% early withdrawal)
+              const indexFundsTotal = vanguardAfterTax + k401AfterPenalty + eTradeRsuValue + (rothIraVtsaxHoldings * vtsaxPrice) * 0.75; // Vanguard after-tax + 401k after penalty + Apple RSUs + Roth IRA VTSAX after penalty
               const domainTotal = domainAfterTax;
               const vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
               const pieData = [
@@ -3131,8 +3137,11 @@ export default function Finances() {
                             <p className="text-xs text-emerald-400 font-bold tracking-wide">🌿 Roth IRA</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : rothIraValue > 0 ? fmt(rothIraValue) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : rothIraAfterPenalty > 0 ? fmt(rothIraAfterPenalty) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
+                            {!isLoading && rothIraValue > 0 && (
+                              <p className="text-[10px] text-slate-500 mt-0.5">after ~25% early withdrawal penalty</p>
+                            )}
                           </div>
                           <span className="text-[10px] text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">VTSAX + IBIT</span>
                         </div>
@@ -3144,6 +3153,10 @@ export default function Finances() {
                           <div className="flex justify-between text-slate-400">
                             <span>IBIT · {rothIraIbitHoldings} sh. · {fmt(ibitPrice)}/sh.</span>
                             <span className="font-semibold text-emerald-300">{fmt(rothIraIbitHoldings * ibitPrice)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-500">
+                            <span>Est. 25% early withdrawal</span>
+                            <span className="text-red-400">−{fmt(rothIraValue * 0.25)}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -3157,14 +3170,23 @@ export default function Finances() {
                             <p className="text-xs text-teal-400 font-bold tracking-wide">🏦 401k</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : k401Value > 0 ? fmt(k401Value) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : k401AfterPenalty > 0 ? fmt(k401AfterPenalty) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
+                            {!isLoading && k401Value > 0 && (
+                              <p className="text-[10px] text-slate-500 mt-0.5">after ~32% early withdrawal penalty</p>
+                            )}
                           </div>
                           <span className="text-[10px] text-teal-400 border border-teal-500/30 rounded px-1.5 py-0.5">SSO</span>
                         </div>
-                        <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-700/40">
-                          <span>SSO · {k401Shares} sh. · {fmt(viiixPrice)}/sh.</span>
-                          <span className="font-semibold text-teal-300">{fmt(k401Value)}</span>
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
+                          <div className="flex justify-between text-slate-400">
+                            <span>SSO · {k401Shares} sh. · {fmt(viiixPrice)}/sh.</span>
+                            <span className="font-semibold text-teal-300">{fmt(k401Value)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-500">
+                            <span>Est. 32% early withdrawal</span>
+                            <span className="text-red-400">−{fmt(k401Value * 0.32)}</span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
