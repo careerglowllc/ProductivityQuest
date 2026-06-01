@@ -155,6 +155,9 @@ export default function Finances() {
   const [fireCurrencyBuffer, setFireCurrencyBuffer] = useState<number>(0.05);
   const [fireHealthcareBuffer, setFireHealthcareBuffer] = useState<number>(0.10);
   const [fireLifestyleBuffer, setFireLifestyleBuffer] = useState<number>(0.05);
+  const [fireInheritanceMode, setFireInheritanceMode] = useState<boolean>(false);
+  const [fireInheritanceAmount, setFireInheritanceAmount] = useState<number>(3_000_000);
+  const [fireInheritanceAge, setFireInheritanceAge] = useState<number>(48);
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -2301,9 +2304,27 @@ export default function Finances() {
               for (let n = 1; n <= 80; n++) {
                 if (fireFV(n) >= selectedLocBase.fireNeededBase) { _fireYrsPass1 = n; break; }
               }
-              // Step 3: inflate selected location's annual spend by 4%/yr for that many years
+              // Step 3: inflate selected location's annual spend to the projected retirement year
               const _selectedInflatedAnnual = selectedLocBase.annualToday * Math.pow(1 + FIRE_LOC_INFLATION, _fireYrsPass1);
-              const FIRE_GOAL = Math.round(_selectedInflatedAnnual / fireSwr);
+
+              // Step 4: Compute FIRE goal
+              // ── Standard mode: portfolio must sustain forever (÷ SWR)
+              // ── Inheritance mode: portfolio only needs to last until inheritanceAge,
+              //    at which point a $X inheritance (in today's dollars) takes over.
+              //    Goal = PV of spending annuity from FIRE date to inheritanceAge.
+              //    PV annuity = PMT × [1 − (1+r)^(−n)] / r
+              //    where PMT = inflated annual spend, r = R_INVEST, n = years FIRE→inheritance
+              const R_RETIRE = 0.07; // slightly conservative return assumption during drawdown phase
+              const _inheritanceDrawdownYrs = Math.max(1, fireInheritanceAge - (ageYears + _fireYrsPass1));
+              const _inheritancePvAnnuity = _inheritanceDrawdownYrs > 0
+                ? _selectedInflatedAnnual * (1 - Math.pow(1 + R_RETIRE, -_inheritanceDrawdownYrs)) / R_RETIRE
+                : _selectedInflatedAnnual;
+              // Inflate the inheritance to nominal dollars at inheritance age (3% general inflation)
+              const _inheritanceNominal = fireInheritanceAmount * Math.pow(1.03, fireInheritanceAge - ageYears);
+
+              const FIRE_GOAL = fireInheritanceMode
+                ? Math.round(_inheritancePvAnnuity)
+                : Math.round(_selectedInflatedAnnual / fireSwr);
 
               // Step 4: final yearsToFire using inflation-adjusted goal
               let yearsToFire: number | null = null;
@@ -2385,18 +2406,28 @@ export default function Finances() {
                   </div>
 
                   {/* ── Selected location goal banner ── */}
-                  <div className={`flex items-center justify-between bg-slate-900 border ${selectedLoc.border} rounded-xl px-4 py-3`}>
+                  <div className={`flex items-center justify-between bg-slate-900 border ${fireInheritanceMode ? "border-emerald-500/50" : selectedLoc.border} rounded-xl px-4 py-3`}>
                     <div>
-                      <p className={`text-xs font-semibold uppercase tracking-wide ${selectedLoc.accent}`}>{selectedLoc.flag} {selectedLoc.name} — {fireTier === "lean" ? "🎒 Lean" : fireTier === "comfortable" ? "🏠 Comfortable" : "✨ Cushy"} FIRE Target</p>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${fireInheritanceMode ? "text-emerald-300" : selectedLoc.accent}`}>
+                        {selectedLoc.flag} {selectedLoc.name} — {fireTier === "lean" ? "🎒 Lean" : fireTier === "comfortable" ? "🏠 Comfortable" : "✨ Cushy"} FIRE Target
+                        {fireInheritanceMode && <span className="ml-2 text-emerald-400">💎 Inheritance Mode</span>}
+                      </p>
                       <p className="text-white text-xl font-bold mt-0.5">{fmt(FIRE_GOAL)}</p>
                       <p className="text-slate-300 text-[11px] mt-0.5">
-                        Today: {fmt(selectedLoc.monthlyToday)}/mo → projected at retirement: <span className="text-yellow-300 font-semibold">{fmt(Math.round(selectedLoc.inflatedMonthly))}/mo</span> after {selectedLoc.locYrs}yrs of {(fireColInflation * 100).toFixed(0)}%/yr local inflation · <span className="text-orange-300">{(fireSwr * 100).toFixed(2)}% SWR</span> · buffers: {(totalBuffer * 100).toFixed(0)}%
+                        {fireInheritanceMode
+                          ? <>Portfolio drawdown only until age {fireInheritanceAge} · <span className="text-emerald-300 font-semibold">{_inheritanceDrawdownYrs}-yr spending runway</span> · then {fmt(_inheritanceNominal)} inheritance takes over · <span className="text-slate-400">vs {fmt(Math.round(_selectedInflatedAnnual / fireSwr))} standard goal</span></>
+                          : <>Today: {fmt(selectedLoc.monthlyToday)}/mo → projected at retirement: <span className="text-yellow-300 font-semibold">{fmt(Math.round(selectedLoc.inflatedMonthly))}/mo</span> after {selectedLoc.locYrs}yrs of {(fireColInflation * 100).toFixed(0)}%/yr local inflation · <span className="text-orange-300">{(fireSwr * 100).toFixed(2)}% SWR</span> · buffers: {(totalBuffer * 100).toFixed(0)}%</>
+                        }
                       </p>
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                      <p className="text-slate-400 text-[10px] uppercase tracking-wide">SWR at FIRE</p>
-                      <p className={`text-lg font-bold ${selectedLoc.accent}`}>{fmt(FIRE_GOAL * fireSwr)}/yr</p>
-                      <p className="text-slate-400 text-[10px]">{fmt(Math.round(FIRE_GOAL * fireSwr / 12))}/mo passive</p>
+                      <p className="text-slate-400 text-[10px] uppercase tracking-wide">{fireInheritanceMode ? "At Age " + fireInheritanceAge : "SWR at FIRE"}</p>
+                      <p className={`text-lg font-bold ${fireInheritanceMode ? "text-emerald-300" : selectedLoc.accent}`}>
+                        {fireInheritanceMode ? fmt(_inheritanceNominal) : fmt(FIRE_GOAL * fireSwr) + "/yr"}
+                      </p>
+                      <p className="text-slate-400 text-[10px]">
+                        {fireInheritanceMode ? "inheritance kicks in" : fmt(Math.round(FIRE_GOAL * fireSwr / 12)) + "/mo passive"}
+                      </p>
                     </div>
                   </div>
 
@@ -2463,30 +2494,46 @@ export default function Finances() {
                         </div>
                         <div className="mt-3 p-2 bg-slate-700/20 rounded-lg text-[10px] text-slate-500">
                           <span className="text-slate-400 font-semibold">Assumptions: </span>
-                          Born Oct 1, 1997 · Investments grow at <span className="text-slate-300">8%/yr nominal</span> · Home equity grows at <span className="text-slate-300">4%/yr</span> · Annual new savings = W2 net cash ({fmt(_fireAnnualDirectSavings)}/yr) + 401k capped at IRS 2026 limit × 68¢ ({fmt(_fireAnnualRetirementNet)}/yr) · <span className="text-yellow-300">Local costs inflated at {(fireColInflation * 100).toFixed(0)}%/yr</span> · Buffers: currency {(fireCurrencyBuffer * 100).toFixed(0)}% + healthcare {(fireHealthcareBuffer * 100).toFixed(0)}% + lifestyle {(fireLifestyleBuffer * 100).toFixed(0)}% = {(totalBuffer * 100).toFixed(0)}% total · FIRE goal = inflated annual spend ÷ {(fireSwr * 100).toFixed(2)}% SWR · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
+                          Born Oct 1, 1997 · Investments grow at <span className="text-slate-300">8%/yr nominal</span> · Home equity grows at <span className="text-slate-300">4%/yr</span> · Annual new savings = W2 net cash ({fmt(_fireAnnualDirectSavings)}/yr) + 401k capped at IRS 2026 limit × 68¢ ({fmt(_fireAnnualRetirementNet)}/yr) · <span className="text-yellow-300">Local costs inflated at {(fireColInflation * 100).toFixed(0)}%/yr</span> · Buffers: currency {(fireCurrencyBuffer * 100).toFixed(0)}% + healthcare {(fireHealthcareBuffer * 100).toFixed(0)}% + lifestyle {(fireLifestyleBuffer * 100).toFixed(0)}% = {(totalBuffer * 100).toFixed(0)}% total ·{" "}
+                          {fireInheritanceMode
+                            ? <><span className="text-emerald-300">Inheritance mode: drawdown {_inheritanceDrawdownYrs}yrs to age {fireInheritanceAge} at 7%/yr portfolio return, then ${(fireInheritanceAmount/1_000_000).toFixed(1)}M inheritance takes over</span></>
+                            : <>FIRE goal = inflated annual spend ÷ {(fireSwr * 100).toFixed(2)}% SWR</>
+                          } · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
                         </div>
                       </CardContent>
                     </Card>
                   </div>
 
                   {/* ── Advanced Assumptions Sliders ── */}
-                  <Card className="bg-slate-800/60 border-slate-600/40">
+                  <Card className={`bg-slate-800/60 border-slate-600/40 ${fireInheritanceMode ? "ring-1 ring-emerald-500/40" : ""}`}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-slate-300 text-sm">⚙️ Advanced Assumptions</CardTitle>
-                      <CardDescription className="text-slate-400 text-xs">Adjust parameters to see how your FIRE target changes</CardDescription>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-slate-300 text-sm">⚙️ Advanced Assumptions</CardTitle>
+                          <CardDescription className="text-slate-400 text-xs">Adjust parameters to see how your FIRE target changes</CardDescription>
+                        </div>
+                        {/* ── Inheritance toggle ── */}
+                        <button
+                          onClick={() => setFireInheritanceMode(m => !m)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${fireInheritanceMode ? "bg-emerald-700/50 border-emerald-500/60 text-emerald-200" : "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-slate-500/60"}`}
+                        >
+                          <span>{fireInheritanceMode ? "💎" : "🏦"}</span>
+                          <span>{fireInheritanceMode ? "Inheritance Mode ON" : "Without Inheritance"}</span>
+                        </button>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                         {[
-                          { label: "Safe Withdrawal Rate", value: fireSwr, set: setFireSwr, min: 0.025, max: 0.05, step: 0.0025, fmt: (v: number) => `${(v * 100).toFixed(2)}%`, color: "text-orange-300" },
-                          { label: "COL Inflation / yr", value: fireColInflation, set: setFireColInflation, min: 0, max: 0.10, step: 0.005, fmt: (v: number) => `${(v * 100).toFixed(1)}%`, color: "text-yellow-300" },
-                          { label: "Currency Buffer", value: fireCurrencyBuffer, set: setFireCurrencyBuffer, min: 0, max: 0.30, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-blue-300" },
-                          { label: "Healthcare Buffer", value: fireHealthcareBuffer, set: setFireHealthcareBuffer, min: 0, max: 0.50, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-green-300" },
-                          { label: "Lifestyle Buffer", value: fireLifestyleBuffer, set: setFireLifestyleBuffer, min: 0, max: 0.50, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-purple-300" },
+                          { label: "Safe Withdrawal Rate", value: fireSwr, set: setFireSwr, min: 0.025, max: 0.05, step: 0.0025, fmt: (v: number) => `${(v * 100).toFixed(2)}%`, color: "text-orange-300", disabled: fireInheritanceMode },
+                          { label: "COL Inflation / yr", value: fireColInflation, set: setFireColInflation, min: 0, max: 0.10, step: 0.005, fmt: (v: number) => `${(v * 100).toFixed(1)}%`, color: "text-yellow-300", disabled: false },
+                          { label: "Currency Buffer", value: fireCurrencyBuffer, set: setFireCurrencyBuffer, min: 0, max: 0.30, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-blue-300", disabled: false },
+                          { label: "Healthcare Buffer", value: fireHealthcareBuffer, set: setFireHealthcareBuffer, min: 0, max: 0.50, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-green-300", disabled: false },
+                          { label: "Lifestyle Buffer", value: fireLifestyleBuffer, set: setFireLifestyleBuffer, min: 0, max: 0.50, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-purple-300", disabled: false },
                         ].map(s => (
-                          <div key={s.label}>
+                          <div key={s.label} className={s.disabled ? "opacity-40 pointer-events-none" : ""}>
                             <div className="flex justify-between mb-1">
-                              <span className="text-xs text-slate-400">{s.label}</span>
+                              <span className="text-xs text-slate-400">{s.label}{s.disabled && " (N/A in inheritance mode)"}</span>
                               <span className={`text-xs font-bold ${s.color}`}>{s.fmt(s.value)}</span>
                             </div>
                             <input
@@ -2497,6 +2544,7 @@ export default function Finances() {
                               value={s.value}
                               onChange={e => s.set(parseFloat(e.target.value))}
                               className="w-full accent-orange-500"
+                              disabled={s.disabled}
                             />
                             <div className="flex justify-between text-[10px] text-slate-600 mt-0.5">
                               <span>{s.fmt(s.min)}</span>
@@ -2505,6 +2553,83 @@ export default function Finances() {
                           </div>
                         ))}
                       </div>
+
+                      {/* ── Inheritance Mode Panel ── */}
+                      {fireInheritanceMode && (
+                        <div className="mt-5 p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-xl">
+                          <p className="text-emerald-300 text-xs font-semibold mb-3 flex items-center gap-1.5">💎 Inheritance Mode — FIRE target is how much you need until age {fireInheritanceAge}</p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-4">
+                            {/* Inheritance Amount */}
+                            <div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-xs text-slate-300">Inheritance Amount (today's $)</span>
+                                <span className="text-xs font-bold text-emerald-300">${fireInheritanceAmount.toLocaleString()}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min={500_000}
+                                max={10_000_000}
+                                step={250_000}
+                                value={fireInheritanceAmount}
+                                onChange={e => setFireInheritanceAmount(parseFloat(e.target.value))}
+                                className="w-full accent-emerald-500"
+                              />
+                              <div className="flex justify-between text-[10px] text-slate-600 mt-0.5">
+                                <span>$500k</span><span>$10M</span>
+                              </div>
+                            </div>
+                            {/* Inheritance Age */}
+                            <div>
+                              <div className="flex justify-between mb-1">
+                                <span className="text-xs text-slate-300">Inheritance Age</span>
+                                <span className="text-xs font-bold text-emerald-300">Age {fireInheritanceAge}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min={35}
+                                max={65}
+                                step={1}
+                                value={fireInheritanceAge}
+                                onChange={e => setFireInheritanceAge(parseFloat(e.target.value))}
+                                className="w-full accent-emerald-500"
+                              />
+                              <div className="flex justify-between text-[10px] text-slate-600 mt-0.5">
+                                <span>35</span><span>65</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Inheritance math breakdown */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                            <div className="bg-emerald-900/30 rounded-lg p-2.5">
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wide">Drawdown period</p>
+                              <p className="text-lg font-bold text-emerald-300 mt-0.5">{_inheritanceDrawdownYrs} yrs</p>
+                              <p className="text-[10px] text-slate-500">from FIRE → age {fireInheritanceAge}</p>
+                            </div>
+                            <div className="bg-emerald-900/30 rounded-lg p-2.5">
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wide">FIRE target</p>
+                              <p className="text-lg font-bold text-white mt-0.5">{fmt(FIRE_GOAL)}</p>
+                              <p className="text-[10px] text-slate-500">PV of {_inheritanceDrawdownYrs}-yr annuity</p>
+                            </div>
+                            <div className="bg-emerald-900/30 rounded-lg p-2.5">
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wide">vs standard</p>
+                              <p className="text-lg font-bold text-green-400 mt-0.5">−{fmt(Math.round(_selectedInflatedAnnual / fireSwr) - FIRE_GOAL)}</p>
+                              <p className="text-[10px] text-slate-500">saved vs {(fireSwr*100).toFixed(2)}% SWR</p>
+                            </div>
+                            <div className="bg-emerald-900/30 rounded-lg p-2.5">
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wide">Inheritance @ {fireInheritanceAge}</p>
+                              <p className="text-lg font-bold text-emerald-300 mt-0.5">{fmt(_inheritanceNominal)}</p>
+                              <p className="text-[10px] text-slate-500">nominal ({fmt(fireInheritanceAmount)} today)</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 p-2 bg-slate-800/60 rounded-lg text-[10px] text-slate-400 leading-relaxed">
+                            <span className="text-emerald-300 font-semibold">Logic: </span>
+                            Instead of building a portfolio large enough to last forever (classic 4% rule), you only need enough to cover living expenses from your FIRE date until age {fireInheritanceAge} — at which point a <span className="text-emerald-300 font-semibold">${(fireInheritanceAmount / 1_000_000).toFixed(1)}M inheritance</span> (~{fmt(_inheritanceNominal)} in nominal dollars) takes over. Target = PV of a {_inheritanceDrawdownYrs}-year spending annuity at 7% portfolio return. After age {fireInheritanceAge}, the inheritance provides <span className="text-emerald-300">{fmt(Math.round(_inheritanceNominal * fireSwr))}/yr</span> at {(fireSwr * 100).toFixed(2)}% SWR — well above your projected {fmt(Math.round(selectedLoc.inflatedMonthly * 12))}/yr expenses.
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
