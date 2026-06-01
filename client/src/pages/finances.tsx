@@ -2161,18 +2161,39 @@ export default function Finances() {
               const today = new Date(2026, 5, 1);
               const ageYears = today.getFullYear() - BIRTH_YEAR - (today.getMonth() < BIRTH_MONTH ? 1 : 0);
 
-              const annualSavingsEstimate = netCashFlow * 12; // monthly net × 12
-              const r = 0.07; // 7% real avg annual return assumption
-              // FV(n) = P*(1+r)^n + C*((1+r)^n - 1)/r  ≥  FIRE_GOAL
+              // ── Annual savings: use ONLY actual W2 cash flow, NOT inflated investment income items ──
+              // cashflowNetRaw = w2Income - totalExpenses (already computed above, no RSUs/ESPP)
+              const _fireAnnualDirectSavings = Math.max(0, cashflowNetRaw) * 12;
+              // 401k contributions will face 32% early haircut when accessed
+              const _fireAnnualRetirementNet = Math.max(0, totalRetirement) * 12 * 0.68;
+              const _fireAnnualSavings = _fireAnnualDirectSavings + _fireAnnualRetirementNet;
+
+              // ── Split liquid NW into growth buckets ──
+              // Investable (grows at 8% nominal — index funds, BTC, equities; already haircut)
+              const _fireInvestable = _btcAfterTax + _vanguardAfterTax + _fireRothValue + _fire401kValue + eTradeRsuValue;
+              // Home equity grows at 4%/yr on underlying value, haircut recalculated at sale
+              // Simplification: grow the current after-tax equity at 4%/yr (close approximation)
+              const _fireHomeBase = Math.max(0, _homeAfterTaxNetCash);
+              // Cash / illiquid assets (checking, business, HSA, domain, vehicles) — no growth
+              const _fireCashFixed = checkingBalance + careerglowBalance + _fireHsaValue + _domainAfterTax + fordExplorerValue + kawasakiNinjaValue;
+
+              const R_INVEST = 0.08; // 8% nominal for investment portfolio
+              const R_HOME   = 0.04; // 4% home appreciation
+
+              // FV with per-bucket rates
+              const fireFV = (n: number) => {
+                const investFV = _fireInvestable * Math.pow(1 + R_INVEST, n) +
+                  (_fireAnnualSavings > 0 ? _fireAnnualSavings * (Math.pow(1 + R_INVEST, n) - 1) / R_INVEST : 0);
+                const homeFV = _fireHomeBase * Math.pow(1 + R_HOME, n);
+                return investFV + homeFV + _fireCashFixed;
+              };
+
               let yearsToFire: number | null = null;
-              if (annualSavingsEstimate > 0 || _fireLiquidNW >= FIRE_GOAL) {
-                if (_fireLiquidNW >= FIRE_GOAL) {
-                  yearsToFire = 0;
-                } else {
-                  for (let n = 1; n <= 80; n++) {
-                    const fv = _fireLiquidNW * Math.pow(1 + r, n) + annualSavingsEstimate * (Math.pow(1 + r, n) - 1) / r;
-                    if (fv >= FIRE_GOAL) { yearsToFire = n; break; }
-                  }
+              if (_fireLiquidNW >= FIRE_GOAL) {
+                yearsToFire = 0;
+              } else {
+                for (let n = 1; n <= 80; n++) {
+                  if (fireFV(n) >= FIRE_GOAL) { yearsToFire = n; break; }
                 }
               }
               const fireAge = yearsToFire !== null ? ageYears + yearsToFire : null;
@@ -2227,10 +2248,19 @@ export default function Finances() {
               });
 
               // ── Projection chart data ──
-              const projectionData: { year: number; age: number; value: number; goal: number }[] = [];
-              for (let n = 0; n <= 25; n++) {
-                const fv = _fireLiquidNW * Math.pow(1 + r, n) + (annualSavingsEstimate > 0 ? annualSavingsEstimate * (Math.pow(1 + r, n) - 1) / r : 0);
-                projectionData.push({ year: 2026 + n, age: ageYears + n, value: Math.round(fv), goal: FIRE_GOAL });
+              const projectionData: { year: number; age: number; value: number; invest: number; home: number; goal: number }[] = [];
+              for (let n = 0; n <= 30; n++) {
+                const investFV = _fireInvestable * Math.pow(1 + R_INVEST, n) +
+                  (_fireAnnualSavings > 0 ? _fireAnnualSavings * (Math.pow(1 + R_INVEST, n) - 1) / R_INVEST : 0);
+                const homeFV = _fireHomeBase * Math.pow(1 + R_HOME, n);
+                projectionData.push({
+                  year: 2026 + n,
+                  age: ageYears + n,
+                  value: Math.round(investFV + homeFV + _fireCashFixed),
+                  invest: Math.round(investFV),
+                  home: Math.round(homeFV),
+                  goal: FIRE_GOAL,
+                });
               }
 
               const fmt = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -2303,12 +2333,12 @@ export default function Finances() {
                               ? <p className="text-2xl font-bold text-yellow-400 mt-0.5">{yearsToFire} <span className="text-sm font-normal text-slate-400">yrs</span></p>
                               : <p className="text-sm text-red-400 mt-1">—</p>
                             }
-                            <p className="text-[10px] text-slate-500 mt-1">saving {fmt(annualSavingsEstimate)}/yr</p>
+                            <p className="text-[10px] text-slate-500 mt-1">W2 cash + 401k: {fmt(_fireAnnualSavings)}/yr</p>
                           </div>
                         </div>
                         <div className="mt-3 p-2 bg-slate-700/20 rounded-lg text-[10px] text-slate-500">
                           <span className="text-slate-400 font-semibold">Assumptions: </span>
-                          Born Oct 1, 1997 · 7% real avg return (S&P 500 historical ~10%, minus ~3% inflation) · 4% safe withdrawal rate · Annual savings = current monthly net cash flow × 12 · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
+                          Born Oct 1, 1997 · Investment portfolio (BTC, index funds, Roth IRA, 401k, RSUs) grows at <span className="text-slate-300">8%/yr nominal</span> · Home equity (Rocklin) grows at <span className="text-slate-300">4%/yr</span> · Annual savings = actual W2 net cash flow ({fmt(_fireAnnualDirectSavings)}/yr) + 401k contributions after 32% early haircut ({fmt(_fireAnnualRetirementNet)}/yr) · Cash/vehicles/domain stay flat · 4% SWR at retirement · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
                         </div>
                       </CardContent>
                     </Card>
@@ -2318,9 +2348,9 @@ export default function Finances() {
                   <Card className="bg-slate-800/60 border-orange-500/20">
                     <CardHeader>
                       <CardTitle className="text-orange-300 text-sm flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4" />Liquid Net Worth Projection (7% avg annual return)
+                        <TrendingUp className="h-4 w-4" />Liquid Net Worth Projection (8% investments · 4% home)
                       </CardTitle>
-                      <CardDescription className="text-slate-400 text-xs">Compound growth of liquid NW + {fmt(annualSavingsEstimate)}/yr savings · orange dashed line = $1.5M FIRE goal</CardDescription>
+                      <CardDescription className="text-slate-400 text-xs">Investments at 8%/yr · home equity at 4%/yr · adding {fmt(_fireAnnualSavings)}/yr W2 cash savings · orange line = $1.5M FIRE goal</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <ResponsiveContainer width="100%" height={280}>
