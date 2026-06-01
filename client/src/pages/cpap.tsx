@@ -9,11 +9,16 @@ const GOAL_DAYS = 21;
 const STORAGE_KEY = "cpap-log-v1";
 
 // Tracking period: May 29 2026 → Aug 26 2026 (90 days)
-const PERIOD_START = new Date("2026-05-29");
+// Use local-time constructor to avoid UTC offset shifting dates (e.g. PST = UTC-7)
+const PERIOD_START = new Date(2026, 4, 29); // May 29 2026 local midnight
 const PERIOD_DAYS = 90;
 
 function getDayKey(date: Date) {
-  return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  // Use local date parts to avoid UTC offset shifting the date string
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function getDayLabel(offset: number) {
