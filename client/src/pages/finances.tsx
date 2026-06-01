@@ -2161,11 +2161,15 @@ export default function Finances() {
               const today = new Date(2026, 5, 1);
               const ageYears = today.getFullYear() - BIRTH_YEAR - (today.getMonth() < BIRTH_MONTH ? 1 : 0);
 
-              // ── Annual savings: use ONLY actual W2 cash flow, NOT inflated investment income items ──
-              // cashflowNetRaw = w2Income - totalExpenses (already computed above, no RSUs/ESPP)
+              // ── Annual savings: ONLY real W2 net cash (after all expenses) ──
+              // cashflowNetRaw = w2Income (post-tax take-home) minus totalExpenses
+              // 401k contributions are pre-tax and already excluded from w2Income take-home;
+              // the 401k balance itself is already in _fireInvestable and grows at 8%/yr.
+              // totalRetirement is polluted by investment income items tagged "Retirement" → don't use it.
+              // IRS 2026 employee 401k limit = $23,500; cap there as a sanity floor contribution.
+              const _fireActual401kContrib = Math.min(totalRetirement * 12, 23_500); // annual, capped at IRS limit
               const _fireAnnualDirectSavings = Math.max(0, cashflowNetRaw) * 12;
-              // 401k contributions will face 32% early haircut when accessed
-              const _fireAnnualRetirementNet = Math.max(0, totalRetirement) * 12 * 0.68;
+              const _fireAnnualRetirementNet = _fireActual401kContrib * 0.68; // 32% early withdrawal haircut
               const _fireAnnualSavings = _fireAnnualDirectSavings + _fireAnnualRetirementNet;
 
               // ── Split liquid NW into growth buckets ──
@@ -2338,7 +2342,7 @@ export default function Finances() {
                         </div>
                         <div className="mt-3 p-2 bg-slate-700/20 rounded-lg text-[10px] text-slate-500">
                           <span className="text-slate-400 font-semibold">Assumptions: </span>
-                          Born Oct 1, 1997 · Investment portfolio (BTC, index funds, Roth IRA, 401k, RSUs) grows at <span className="text-slate-300">8%/yr nominal</span> · Home equity (Rocklin) grows at <span className="text-slate-300">4%/yr</span> · Annual savings = actual W2 net cash flow ({fmt(_fireAnnualDirectSavings)}/yr) + 401k contributions after 32% early haircut ({fmt(_fireAnnualRetirementNet)}/yr) · Cash/vehicles/domain stay flat · 4% SWR at retirement · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
+                          Born Oct 1, 1997 · Investment portfolio (BTC, index funds, Roth IRA, 401k, RSUs) grows at <span className="text-slate-300">8%/yr nominal</span> · Home equity (Rocklin) grows at <span className="text-slate-300">4%/yr</span> · Annual new savings = W2 net cash flow ({fmt(_fireAnnualDirectSavings)}/yr) + 401k contributions capped at IRS 2026 limit × 68¢ ({fmt(_fireAnnualRetirementNet)}/yr) · Cash/vehicles/domain stay flat · 4% SWR at retirement · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
                         </div>
                       </CardContent>
                     </Card>
@@ -2363,7 +2367,12 @@ export default function Finances() {
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
                           <XAxis dataKey="age" tickFormatter={(v: number) => `Age ${v}`} tick={{ fill: "#94A3B8", fontSize: 10 }} />
-                          <YAxis tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: "#94A3B8", fontSize: 10 }} width={60} />
+                          <YAxis
+                            tickFormatter={(v: number) => v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `$${(v / 1_000).toFixed(0)}k` : `$${v}`}
+                            tick={{ fill: "#94A3B8", fontSize: 10 }}
+                            width={65}
+                            domain={[0, Math.max(FIRE_GOAL * 1.1, ...projectionData.map(d => d.value))]}
+                          />
                           <Tooltip
                             content={({ active, payload }: any) => {
                               if (!active || !payload?.length) return null;
