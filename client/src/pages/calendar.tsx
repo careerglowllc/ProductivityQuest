@@ -475,7 +475,7 @@ export default function CalendarPage() {
   const PRIORITY_ORDER: Record<string, number> = {
     Pareto: 0, High: 1, "Med-High": 2, Medium: 3, "Med-Low": 4, Low: 5,
   };
-  const SORT_END_MINUTE = 21 * 60 + 30; // 9:30 PM = 1290
+  const SORT_END_MINUTE = 23 * 60; // 11:00 PM = 1380
   const EVENING_ROUTINE_MINUTE = 21 * 60; // 9:00 PM = 1260
 
   const handleSort = useCallback(() => {
@@ -542,8 +542,8 @@ export default function CalendarPage() {
     // Schedule function: find next available slot that doesn't overlap blocked intervals
     const scheduledBlocked = [...blocked]; // mutable copy — we add each placed task to this
 
-    const findSlot = (durationMin: number, afterMinute: number, beforeMinute: number): number | null => {
-      let cursor = Math.max(afterMinute, startCursor);
+    const findSlot = (durationMin: number, fromMinute: number, beforeMinute: number): number | null => {
+      let cursor = snap(fromMinute);
       while (cursor + durationMin <= beforeMinute) {
         const slotEnd = cursor + durationMin;
         // Check for conflicts with any blocked interval
@@ -554,7 +554,17 @@ export default function CalendarPage() {
         // Jump past the conflicting block
         cursor = snap(conflict.end);
       }
-      return null; // no room
+      return null; // no room before deadline
+    };
+
+    // Force-place as last resort: find the slot with fewest/least overlap after fromMinute
+    const forceSlot = (durationMin: number, fromMinute: number): number => {
+      // Try every 5-min slot from fromMinute to midnight, pick first that ends by midnight
+      let cursor = snap(fromMinute);
+      while (cursor + durationMin <= 24 * 60) {
+        return cursor; // just return the first available time regardless of overlap
+      }
+      return snap(fromMinute); // absolute fallback
     };
 
     // If there's an evening routine, block out its slot at 9 PM
@@ -568,19 +578,32 @@ export default function CalendarPage() {
       });
     }
 
-    // Place regular tasks
+    // Place regular tasks — advance cursor after each placement so tasks don't pile up at same time
     const updates: { ev: CalendarEvent; newStartMin: number }[] = [];
+    let cursor = startCursor;
 
     for (const ev of regularTasks) {
       const dur = Math.round(
         (new Date(ev.end).getTime() - new Date(ev.start).getTime()) / 60000
       ) || 30;
-      const slotStart = findSlot(dur, startCursor, SORT_END_MINUTE);
-      if (slotStart !== null) {
-        updates.push({ ev, newStartMin: slotStart });
-        scheduledBlocked.push({ start: slotStart, end: slotStart + dur });
+
+      // Try to find a clean non-overlapping slot from current cursor up to SORT_END_MINUTE
+      let slotStart = findSlot(dur, cursor, SORT_END_MINUTE);
+
+      if (slotStart === null) {
+        // No clean slot before 11 PM — try from startCursor ignoring cursor (earlier tasks may have freed up gaps)
+        slotStart = findSlot(dur, startCursor, SORT_END_MINUTE);
       }
-      // If no room, the task keeps its current time (skip)
+
+      if (slotStart === null) {
+        // Last resort: force-place after current cursor (allow overlap) so task is still moved to today
+        slotStart = forceSlot(dur, cursor);
+      }
+
+      updates.push({ ev, newStartMin: slotStart });
+      scheduledBlocked.push({ start: slotStart, end: slotStart + dur });
+      // Advance cursor to end of this placed task (so next task starts after it by default)
+      cursor = Math.max(cursor, slotStart + dur);
     }
 
     // Place evening routine at 9 PM
@@ -618,7 +641,7 @@ export default function CalendarPage() {
     setUndoAction(`Sorted ${updates.length} tasks`, doUndo);
     toast({
       title: `Sorted ${updates.length} task${updates.length > 1 ? "s" : ""}`,
-      description: "Tasks ordered by priority, placed after current time.",
+      description: "Tasks ordered by priority, placed after current time. Overlaps only if unavoidable.",
       duration: 10000,
       action: <ToastAction altText="Undo" onClick={() => { dismiss(); doUndo(); toast({ title: "Action undone", duration: 1000 }); }}>Undo</ToastAction>,
     });
