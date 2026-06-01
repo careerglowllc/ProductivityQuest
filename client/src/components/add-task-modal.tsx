@@ -21,10 +21,12 @@ const TASK_EMOJIS = [
   "📦","🎨","✏️","📚","🧠","💪","🤝","📞","✉️","🗓️","⏰","🔔","🎉","🌟","💰","🏦",
   "🔍","🧩","🎭","🎬","🎵","🎮","🏋️","🧘","🌱","🌍","🚗","✈️","🏠","🍽️","☕","🎁",
   "🛡️","⚡","🔑","🧪","🔬","📡","🤖","👁️","🦁","🐉","🌈","🎪","🏗️","📌","🗺️","💎",
+  "⚙️","🔩","🏭","🔨","⚒️","🪛","🪚","⛏️","🔗","🧱","🪝","🦾","🔋","🔌","🏚️","🛗",
 ];
 
 const EMOJI_CATEGORIES = [
   { label: "Work", emojis: ["📝","💼","💻","📱","🔧","🛠️","📊","📈","📦","🔍","📡","🤖","🖥️","⌨️","🖨️","💾","📁","📂","🗂️","📋","📌","📍","✂️","📏","📐","🔏","🔐","🔒","🔓","🔑","🗝️","🏗️","🏢","📠","📺","📷","📸","📹","🎞️","📽️","🎙️","📻"] },
+  { label: "Industrial", emojis: ["⚙️","🔩","🏭","🔨","⚒️","🛠️","🪛","🪚","⛏️","🔧","🔗","⛓️","🪝","🧱","🔋","🔌","💡","🪜","🧲","🗜️","🪤","🛢️","⚗️","🧪","🔬","🔭","📡","🤖","🦾","🦿","🚧","🏗️","🏚️","🏠","🏘️","🏛️","🏟️","🏬","🏭","🚜","🚛","🚚","🏎️","🚒","🚑","⚓","🪝","🧰","🪣","🗑️","⚠️","🔴","🟠","🟡","🟢"] },
   { label: "Goals", emojis: ["🎯","🚀","⭐","🏆","💡","🔥","💪","🌟","⚔️","🛡️","⚡","💎","🥇","🥈","🥉","🎖️","🏅","🎗️","🎀","👑","✨","🌠","🌌","🧭","🗺️","🏁","🚩","🎌","🏴","🔮","⚗️","🧬","🔬","🔭","🧪","🧫","💫","🌀","🎆","🎇"] },
   { label: "Social", emojis: ["🤝","📞","✉️","🎉","🎁","🎭","🎬","🎵","🎮","👁️","🦁","🐉","💬","💭","🗨️","🗯️","👋","🙌","👏","🤗","🥂","🍾","🎤","🎧","🎼","🎹","🥁","🎷","🎸","🎺","🎻","🪗","👥","👤","🧑‍🤝‍🧑","🫂","💌","📮","📯","📣","📢"] },
   { label: "Life", emojis: ["🏠","🚗","✈️","🍽️","☕","🌱","🌍","🧘","🏋️","🌈","🗓️","⏰","🏡","🛖","🏘️","🏰","🏯","🚂","🚢","🛸","🚁","⛵","🏄","🚴","🏇","⛷️","🤸","🧗","🎭","🎠","🎡","🎢","🌅","🌇","🌆","🏖️","🏕️","🌲","🌳","🌴","🌵","🌾","🍀","🌺","🌸","🌼","🌻","🍁","🍂","🍃","🌙","☀️","⛅","🌤️","🌦️","⛈️","❄️","🌊","🌋"] },
@@ -180,6 +182,20 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "🏊", keywords: "swim water pool exercise" },
   { emoji: "🚴", keywords: "bike cycle exercise commute" },
   { emoji: "⛳", keywords: "golf sport club" },
+  // Industrial / manufacturing / factory
+  { emoji: "⚙️", keywords: "gear settings cog machine industrial factory engineering" },
+  { emoji: "🔩", keywords: "bolt screw nut fastener hardware industrial" },
+  { emoji: "🏭", keywords: "factory industrial manufacturing plant production" },
+  { emoji: "🪛", keywords: "screwdriver tool repair fix" },
+  { emoji: "🪚", keywords: "saw cut wood carpentry tool" },
+  { emoji: "🪜", keywords: "ladder climb steps construction" },
+  { emoji: "🧲", keywords: "magnet attract pull industrial" },
+  { emoji: "🗜️", keywords: "clamp press vise mechanical tool" },
+  { emoji: "🛢️", keywords: "drum barrel oil industrial storage" },
+  { emoji: "🧰", keywords: "toolbox repair tools kit maintenance" },
+  { emoji: "🦾", keywords: "mechanical arm robot industrial prosthetic" },
+  { emoji: "🚧", keywords: "construction warning barrier work in progress" },
+  { emoji: "⚒️", keywords: "hammer pick mining tools construction" },
 ];
 
 
