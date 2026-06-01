@@ -43,6 +43,44 @@ function classifyItem(category: string, tags?: string[] | null): "income" | "ret
   return "expense";
 }
 
+// ── FIRE COL Methodology Essays (file-level to avoid TSX parser issues) ──
+const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia", string> = {
+  thailand: [
+    "These figures deliberately sit above the \"Chiang Mai for $1,200/mo\" blog posts you'll find everywhere. Those numbers assume you're eating street food every meal, living in a shared house on the outskirts, and speaking Thai well enough to negotiate. None of that is realistic for a Western expat retiring early.",
+    "Here's how each line was built:",
+    "Housing ($750/mo): A clean, modern 1-bedroom in Nimman Road or Santitham — Chiang Mai's expat-friendly zones with walkability, coworking access, and English-speaking neighbors. Budget places exist for $300–$400 but they tend to be older buildings with inconsistent water pressure, poor insulation from heat, and less secure access. Going slightly premium here is the right call — you're living in it every day.",
+    "Food ($500/mo): Street food is incredible and cheap (~$1–2/meal) but a balanced, sustainable diet means mixing in western breakfasts, imported goods from Rimping or Tops supermarket, and the occasional sit-down restaurant. $500 is realistic for someone who eats well, not extravagantly.",
+    "Transportation ($120/mo): A $1,500 scooter owned outright + gas + maintenance amortized, plus Grab/taxi for rainy days and airport runs. Chiang Mai is not walkable without a bike.",
+    "Health insurance ($150/mo): Non-negotiable. Local Thai public hospitals are functional but you'll want international coverage for evacuations, surgeries, or anything serious. BUPA Thailand or Cigna Global at a decent deductible runs $100–$200/mo for someone in their 30s.",
+    "Entertainment ($250/mo): Gym membership ($30–50), a few nights out, cafés (you'll spend many hours in them), weekend trips to Pai or Chiang Rai, and the occasional flight to Bangkok. Thailand makes this easy to spend without trying.",
+    "Utilities + internet ($100/mo): AC is expensive — running it 8+ hours/day in hot season will cost you. Fiber internet is excellent ($15–25/mo) but electricity can run $60–80/mo with AC use.",
+    "Visa + buffer ($230/mo): Thailand's Long Term Resident Visa ($10K/5yr = ~$167/mo amortized) or the Thailand Elite card removes the visa-run headache. Budget for 2–3 flights back to the US or neighboring countries per year, plus unexpected costs (medical copays, gear replacements, etc.).",
+    "The real FIRE life here: Chiang Mai is the undisputed king of digital nomad / early retiree living in Southeast Asia. Cost is low enough that your portfolio does the work effortlessly. Culture is rich, food is world-class, expat community is enormous, and northern Thailand has cooler temperatures than Bangkok. The tradeoff: it's landlocked, air quality deteriorates March–April (burning season), and you will feel the cultural distance from the West after a year or two. Plan for 1–2 annual US trips ($1,500–$3,000 each) built into this budget.",
+  ].join("\n\n"),
+  vietnam: [
+    "Da Nang is the most underrated FIRE destination on this list. It's a mid-sized coastal city with a beach you can literally walk to from your apartment, a lower cost of living than Hanoi or Ho Chi Minh City, decent expat infrastructure, and surprisingly good connectivity. These numbers are calibrated for comfortable expat living — not backpacker survival.",
+    "Housing ($700/mo): My Khe Beach area or An Thuong \"foreigner zone\" gives you modern apartments, walkability, and an English-speaking services bubble. Prices have risen 20–30% since COVID as remote workers discovered the city, so $500–$600/mo buys dated units. $700 gets you something genuinely nice with a potential beach view.",
+    "Food ($450/mo): Vietnamese food is extraordinary value — a full pho or banh mi meal runs $1.50–$3. But you won't eat local-only every day. Imported coffee, western grocery runs at Lotte Mart, and the growing restaurant scene in An Thuong will push costs up. $450 is honest.",
+    "Transportation ($100/mo): A scooter is essential — Da Nang is not a walking city outside the beach strip. Budget for gas, occasional maintenance, and Grab for nights out when you've had a few drinks.",
+    "Health insurance ($150/mo): Same logic as Thailand. Da Nang's hospitals have improved but you want evacuation coverage to Singapore or Bangkok for anything serious.",
+    "Entertainment ($220/mo): Beach days are free. But gym memberships, surfing lessons, weekend trips to Hoi An (30min away) or Hue (1.5hrs), and the consistent café culture will eat $150–$250/mo without feeling extravagant.",
+    "Utilities ($90/mo): Vietnam has some of the best fiber internet in Asia — fast and cheap. Electricity with AC runs similar to Thailand.",
+    "Visa + buffer ($190/mo): This is the weak point of Vietnam. The e-visa is 90 days max with extension uncertainty — Vietnam has not yet created a proper long-stay retirement visa. Budget for visa runs to Thailand or Laos ($100–$200/trip, 2–3x/year). Many expats use a visa agent service ($50–$100/round) to smooth this out. This budget accounts for that reality.",
+    "The real FIRE life here: Da Nang hits a rare sweet spot — cheap, beautiful, coastal, and not yet overrun. Hoi An is 30 minutes away and one of the most stunning towns in Asia. The food culture rivals anywhere in the world. The downside is the visa situation (manageable but annoying), a smaller expat scene than Chiang Mai, and occasional typhoon season disruption (October–December). Vietnam is also rapidly industrializing, which means costs will inflate faster than Thailand over your retirement horizon — hence the 4%/yr inflation buffer in these projections.",
+  ].join("\n\n"),
+  colombia: [
+    "Medellín is the most expensive destination on this list — and also the most culturally rich and geographically desirable for someone coming from the United States. The city's \"eternal spring\" climate (~72°F year-round at 5,000ft elevation), Latin culture, salsa scene, and world-class food make it feel genuinely alive in a way that SEA cities sometimes don't. These numbers account for the El Poblado / Laureles expat premium — living in those zones is meaningfully more expensive than Colombian averages, and that's deliberate.",
+    "Housing ($1,000/mo): El Poblado is Medellín's upscale expat neighborhood. Modern 1BR with doorman, gym, and rooftop pool runs $800–$1,200/mo. Laureles is slightly cheaper and more authentic. You could find cheaper in Envigado or Sabaneta ($600–$700) but as a solo expat, location safety is worth the premium. The $1,000 target is calibrated to get something genuinely nice without going full luxury.",
+    "Food ($550/mo): Colombia has excellent local food (bandeja paisa, arepas, empanadas) at $3–6/meal. But the expat restaurant scene in El Poblado is serious — dozens of world-class spots that you'll use regularly. Imported goods from Éxito or specialty stores cost more than US equivalents due to import taxes. $550 is honest for someone who cooks some meals, eats out regularly, and doesn't deprive themselves.",
+    "Transportation ($120/mo): Medellín has a surprisingly good metro + cable car system. Uber works perfectly (often cheaper than taxis). Budget $80–$120/mo for daily movement — you won't need a car.",
+    "Health insurance ($150/mo): Colombia actually has a strong domestic healthcare system — private clinics in El Poblado are genuinely good. But as a foreign national without Colombian residency-level coverage, international insurance is the right call for anything complex.",
+    "Entertainment ($300/mo): This is where Medellín stands out. The nightlife is world-class, the bar/club scene in El Poblado is intense, and the social environment (both expat and local) is extremely active. Weekend trips to Cartagena, the coffee region (Salento), or Santa Marta are easy and relatively cheap by US standards. $300/mo is moderate — many expats spend more.",
+    "Visa + buffer ($180/mo): Colombia's Digital Nomad Visa allows 2-year stays and is straightforward. The Pensionado visa requires $750+/mo passive income (achievable at FIRE). Budget for visa processing fees ($300–$500), occasional US flights, and miscellaneous buffer.",
+    "The real FIRE life here: Medellín is the highest-cost, highest-lifestyle option. You're much closer to the US culturally and geographically (5-hour direct flight to Miami). Spanish proficiency helps enormously — without it, you pay the gringo premium on everything and miss 80% of the social fabric. The security situation has improved dramatically since the cartel era — El Poblado is as safe as any US city — but petty theft awareness is still required. The payoff is a rich, Latin, social city where your dollar goes far relative to US equivalents and where the quality of life is genuinely exceptional. This is the destination for someone who wants to feel like they're living retirement, not just optimizing a spreadsheet.",
+  ].join("\n\n"),
+};
+
+
 function isBusinessItem(item: { category: string; tags?: string[] | null }): boolean {
   return item.category === "Business" || (Array.isArray(item.tags) && item.tags.includes("Business"));
 }
@@ -89,6 +127,7 @@ export default function Finances() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
   const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia">("thailand");
+  const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -2165,14 +2204,15 @@ export default function Finances() {
                   btnActive: "bg-orange-600/50 border-orange-400/60 text-orange-200",
                   btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-orange-500/40",
                   items: [
-                    { label: "Studio apt (safe, AC, expat area)", mo: 500 },
-                    { label: "Food & groceries (mix local/western)", mo: 300 },
-                    { label: "Transportation (scooter + Grab)", mo: 80 },
-                    { label: "International health insurance", mo: 80 },
-                    { label: "Entertainment, cafés & social", mo: 150 },
-                    { label: "Utilities & fast internet", mo: 80 },
-                    { label: "Misc / visa runs / buffer", mo: 110 },
+                    { label: "1BR apt (Nimman/Santitham, AC, secure building)", mo: 750 },
+                    { label: "Food & groceries (mix local/western/imported)", mo: 500 },
+                    { label: "Transportation (own scooter + Grab/taxi)", mo: 120 },
+                    { label: "International health insurance (decent plan)", mo: 150 },
+                    { label: "Entertainment, cafés, gym, social life", mo: 250 },
+                    { label: "Utilities, fiber internet, phone", mo: 100 },
+                    { label: "Visa (LTRV/Elite), trips out, buffer", mo: 230 },
                   ],
+                  methodology: FIRE_METHODOLOGY.thailand,
                 },
                 {
                   key: "vietnam" as const,
@@ -2181,14 +2221,15 @@ export default function Finances() {
                   btnActive: "bg-red-600/50 border-red-400/60 text-red-200",
                   btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-red-500/40",
                   items: [
-                    { label: "Studio apt (safe, AC, beach-side)", mo: 450 },
-                    { label: "Food & groceries (mix local/western)", mo: 250 },
-                    { label: "Transportation (scooter + Grab)", mo: 60 },
-                    { label: "International health insurance", mo: 80 },
-                    { label: "Entertainment, cafés & social", mo: 120 },
-                    { label: "Utilities & fast internet", mo: 70 },
-                    { label: "Misc / visa runs / buffer", mo: 100 },
+                    { label: "1BR apt (My Khe / An Thuong, ocean-adjacent)", mo: 700 },
+                    { label: "Food & groceries (mix local/western/imported)", mo: 450 },
+                    { label: "Transportation (scooter + Grab)", mo: 100 },
+                    { label: "International health insurance (decent plan)", mo: 150 },
+                    { label: "Entertainment, cafés, beach life, gym", mo: 220 },
+                    { label: "Utilities, fiber internet, phone", mo: 90 },
+                    { label: "Visa (e-visa + renewals), trips, buffer", mo: 190 },
                   ],
+                  methodology: FIRE_METHODOLOGY.vietnam,
                 },
                 {
                   key: "colombia" as const,
@@ -2197,14 +2238,15 @@ export default function Finances() {
                   btnActive: "bg-yellow-600/50 border-yellow-400/60 text-yellow-200",
                   btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-yellow-500/40",
                   items: [
-                    { label: "Studio apt (El Poblado / Laureles)", mo: 700 },
-                    { label: "Food & groceries (mix local/western)", mo: 350 },
-                    { label: "Transportation (Uber + metro)", mo: 80 },
-                    { label: "International health insurance", mo: 100 },
-                    { label: "Entertainment, cafés & social", mo: 200 },
-                    { label: "Utilities & fast internet", mo: 80 },
-                    { label: "Misc / travel / buffer", mo: 140 },
+                    { label: "1BR apt (El Poblado or Laureles, doorman bldg)", mo: 1000 },
+                    { label: "Food & groceries (mix local/western/restaurants)", mo: 550 },
+                    { label: "Transportation (Uber, metro, occasional taxi)", mo: 120 },
+                    { label: "International health insurance (decent plan)", mo: 150 },
+                    { label: "Entertainment, nightlife, cafés, gym, travel", mo: 300 },
+                    { label: "Utilities, fiber internet, phone", mo: 100 },
+                    { label: "Visa (digital nomad/pensionado), buffer", mo: 180 },
                   ],
+                  methodology: FIRE_METHODOLOGY.colombia,
                 },
               ].map(loc => {
                 const monthlyToday = loc.items.reduce((s, i) => s + i.mo, 0);
@@ -2466,7 +2508,7 @@ export default function Finances() {
                               <span>{loc.flag} {loc.name}</span>
                               {fireLocationKey === loc.key && <span className="text-[10px] bg-white/10 rounded px-1.5 py-0.5 font-normal">✓ Selected</span>}
                             </CardTitle>
-                            <CardDescription className="text-slate-400 text-[11px]">Comfortable solo retirement · today's USD prices</CardDescription>
+                            <CardDescription className="text-slate-400 text-[11px]">Upper-end expat budget · today's USD · no local discounts</CardDescription>
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-1.5 mb-3">
@@ -2515,6 +2557,26 @@ export default function Finances() {
                                 </div>
                               </div>
                             </div>
+                            {/* Expandable methodology essay */}
+                            <button
+                              onClick={e => { e.stopPropagation(); setFireColExpanded(fireColExpanded === loc.key ? null : loc.key); }}
+                              className={`mt-3 w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${fireColExpanded === loc.key ? "bg-slate-700/60 border-slate-500/50 text-slate-200" : "bg-slate-800/60 border-slate-700/40 text-slate-400 hover:text-slate-200 hover:border-slate-500/40"}`}
+                            >
+                              <span>📖 How these numbers were calculated</span>
+                              <span className="text-slate-500">{fireColExpanded === loc.key ? "▲ collapse" : "▼ expand"}</span>
+                            </button>
+                            {fireColExpanded === loc.key && (
+                              <div
+                                onClick={e => e.stopPropagation()}
+                                className="mt-2 p-3 bg-slate-800/80 border border-slate-600/40 rounded-lg text-[11px] text-slate-300 leading-relaxed space-y-2 max-h-96 overflow-y-auto"
+                              >
+                                {loc.methodology.split("\n\n").map((para, i) => (
+                                  <p key={i} className={para.startsWith("**") ? "text-slate-100 font-semibold" : "text-slate-300"}>
+                                    {para.replace(/\*\*(.*?)\*\*/g, "$1")}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
