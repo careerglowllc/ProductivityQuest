@@ -2152,98 +2152,84 @@ export default function Finances() {
                 checkingBalance + careerglowBalance + _fireHsaValue +
                 _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
 
-              const FIRE_LOCATIONS = [
+                const FIRE_LOC_INFLATION = 0.04; // 4%/yr local price growth (rapid industrialization buffer)
+
+                const FIRE_LOCATIONS = [
                 {
                   key: "thailand" as const,
                   flag: "🇹🇭", name: "Chiang Mai, Thailand",
-                  color: "from-orange-900/40 to-orange-800/20", border: "border-orange-500/30", accent: "text-orange-300",
+                  color: "bg-slate-900 border-orange-500/50", border: "border-orange-500/50", accent: "text-orange-300",
                   btnActive: "bg-orange-600/50 border-orange-400/60 text-orange-200",
                   btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-orange-500/40",
                   items: [
-                    { label: "Studio apartment (safe area)", mo: 400 },
-                    { label: "Food & groceries", mo: 200 },
-                    { label: "Transportation (scooter/grab)", mo: 50 },
-                    { label: "Health insurance", mo: 60 },
-                    { label: "Entertainment & social", mo: 100 },
-                    { label: "Utilities & internet", mo: 60 },
-                    { label: "Misc / buffer", mo: 80 },
+                    { label: "Studio apt (safe, AC, expat area)", mo: 500 },
+                    { label: "Food & groceries (mix local/western)", mo: 300 },
+                    { label: "Transportation (scooter + Grab)", mo: 80 },
+                    { label: "International health insurance", mo: 80 },
+                    { label: "Entertainment, cafés & social", mo: 150 },
+                    { label: "Utilities & fast internet", mo: 80 },
+                    { label: "Misc / visa runs / buffer", mo: 110 },
                   ],
                 },
                 {
                   key: "vietnam" as const,
                   flag: "🇻🇳", name: "Da Nang, Vietnam",
-                  color: "from-red-900/40 to-red-800/20", border: "border-red-500/30", accent: "text-red-300",
+                  color: "bg-slate-900 border-red-500/50", border: "border-red-500/50", accent: "text-red-300",
                   btnActive: "bg-red-600/50 border-red-400/60 text-red-200",
                   btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-red-500/40",
                   items: [
-                    { label: "Studio apartment (safe area)", mo: 350 },
-                    { label: "Food & groceries", mo: 180 },
-                    { label: "Transportation (scooter/grab)", mo: 40 },
-                    { label: "Health insurance", mo: 60 },
-                    { label: "Entertainment & social", mo: 80 },
-                    { label: "Utilities & internet", mo: 50 },
-                    { label: "Misc / buffer", mo: 70 },
+                    { label: "Studio apt (safe, AC, beach-side)", mo: 450 },
+                    { label: "Food & groceries (mix local/western)", mo: 250 },
+                    { label: "Transportation (scooter + Grab)", mo: 60 },
+                    { label: "International health insurance", mo: 80 },
+                    { label: "Entertainment, cafés & social", mo: 120 },
+                    { label: "Utilities & fast internet", mo: 70 },
+                    { label: "Misc / visa runs / buffer", mo: 100 },
                   ],
                 },
                 {
                   key: "colombia" as const,
                   flag: "🇨🇴", name: "Medellín, Colombia",
-                  color: "from-yellow-900/40 to-yellow-800/20", border: "border-yellow-500/30", accent: "text-yellow-300",
+                  color: "bg-slate-900 border-yellow-500/50", border: "border-yellow-500/50", accent: "text-yellow-300",
                   btnActive: "bg-yellow-600/50 border-yellow-400/60 text-yellow-200",
                   btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-yellow-500/40",
                   items: [
-                    { label: "Studio apartment (safe area)", mo: 550 },
-                    { label: "Food & groceries", mo: 280 },
-                    { label: "Transportation (Uber/metro)", mo: 60 },
-                    { label: "Health insurance", mo: 80 },
-                    { label: "Entertainment & social", mo: 160 },
-                    { label: "Utilities & internet", mo: 70 },
-                    { label: "Misc / buffer", mo: 100 },
+                    { label: "Studio apt (El Poblado / Laureles)", mo: 700 },
+                    { label: "Food & groceries (mix local/western)", mo: 350 },
+                    { label: "Transportation (Uber + metro)", mo: 80 },
+                    { label: "International health insurance", mo: 100 },
+                    { label: "Entertainment, cafés & social", mo: 200 },
+                    { label: "Utilities & fast internet", mo: 80 },
+                    { label: "Misc / travel / buffer", mo: 140 },
                   ],
                 },
               ].map(loc => {
-                const monthlyTotal = loc.items.reduce((s, i) => s + i.mo, 0);
-                const annualTotal = monthlyTotal * 12;
-                const fireNeeded = annualTotal * 25; // 4% SWR
-                return { ...loc, monthlyTotal, annualTotal, fireNeeded };
-              });
+                const monthlyToday = loc.items.reduce((s, i) => s + i.mo, 0);
+                const annualToday = monthlyToday * 12;
+                // First-pass FIRE goal (today's costs × 25) to estimate yearsToFire for inflation calc
+                const fireNeededBase = annualToday * 25;
+                return { ...loc, monthlyToday, annualToday, fireNeededBase };
+              });              const selectedLocBase = FIRE_LOCATIONS.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS[0];
 
-              const selectedLoc = FIRE_LOCATIONS.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS[0];
-              const FIRE_GOAL = selectedLoc.fireNeeded; // dynamic based on location!
-
-              const pct = Math.min((_fireLiquidNW / FIRE_GOAL) * 100, 100);
-
-              // ── Timeline projection ──
+              // ── Age calc ──
               // Born Oct 1, 1997. Today = June 1, 2026 → age 28 (turns 29 in Oct 2026)
               const BIRTH_YEAR = 1997;
               const BIRTH_MONTH = 9; // 0-indexed Oct
               const today = new Date(2026, 5, 1);
               const ageYears = today.getFullYear() - BIRTH_YEAR - (today.getMonth() < BIRTH_MONTH ? 1 : 0);
 
-              // ── Annual savings: ONLY real W2 net cash (after all expenses) ──
-              // cashflowNetRaw = w2Income (post-tax take-home) minus totalExpenses
-              // 401k contributions are pre-tax and already excluded from w2Income take-home;
-              // the 401k balance itself is already in _fireInvestable and grows at 8%/yr.
-              // totalRetirement is polluted by investment income items tagged "Retirement" → don't use it.
-              // IRS 2026 employee 401k limit = $23,500; cap there as a sanity floor contribution.
-              const _fireActual401kContrib = Math.min(totalRetirement * 12, 23_500); // annual, capped at IRS limit
+              // ── Inflation-adjusted FIRE goal (4%/yr local cost growth) ──
+              // Step 1: first-pass years to FIRE using today's cost base
+              const R_INVEST = 0.08;
+              const R_HOME   = 0.04;
+              const _fireActual401kContrib = Math.min(totalRetirement * 12, 23_500);
               const _fireAnnualDirectSavings = Math.max(0, cashflowNetRaw) * 12;
-              const _fireAnnualRetirementNet = _fireActual401kContrib * 0.68; // 32% early withdrawal haircut
+              const _fireAnnualRetirementNet = _fireActual401kContrib * 0.68;
               const _fireAnnualSavings = _fireAnnualDirectSavings + _fireAnnualRetirementNet;
-
-              // ── Split liquid NW into growth buckets ──
-              // Investable (grows at 8% nominal — index funds, BTC, equities; already haircut)
               const _fireInvestable = _btcAfterTax + _vanguardAfterTax + _fireRothValue + _fire401kValue + eTradeRsuValue;
-              // Home equity grows at 4%/yr on underlying value, haircut recalculated at sale
-              // Simplification: grow the current after-tax equity at 4%/yr (close approximation)
               const _fireHomeBase = Math.max(0, _homeAfterTaxNetCash);
-              // Cash / illiquid assets (checking, business, HSA, domain, vehicles) — no growth
               const _fireCashFixed = checkingBalance + careerglowBalance + _fireHsaValue + _domainAfterTax + fordExplorerValue + kawasakiNinjaValue;
 
-              const R_INVEST = 0.08; // 8% nominal for investment portfolio
-              const R_HOME   = 0.04; // 4% home appreciation
-
-              // FV with per-bucket rates
               const fireFV = (n: number) => {
                 const investFV = _fireInvestable * Math.pow(1 + R_INVEST, n) +
                   (_fireAnnualSavings > 0 ? _fireAnnualSavings * (Math.pow(1 + R_INVEST, n) - 1) / R_INVEST : 0);
@@ -2251,6 +2237,16 @@ export default function Finances() {
                 return investFV + homeFV + _fireCashFixed;
               };
 
+              // Step 2: estimate years using base goal, then inflate costs to that year
+              let _fireYrsPass1 = 15; // fallback
+              for (let n = 1; n <= 80; n++) {
+                if (fireFV(n) >= selectedLocBase.fireNeededBase) { _fireYrsPass1 = n; break; }
+              }
+              // Step 3: inflate selected location's annual spend by 4%/yr for that many years
+              const _selectedInflatedAnnual = selectedLocBase.annualToday * Math.pow(1 + FIRE_LOC_INFLATION, _fireYrsPass1);
+              const FIRE_GOAL = Math.round(_selectedInflatedAnnual * 25); // inflated 25× = the real target
+
+              // Step 4: final yearsToFire using inflation-adjusted goal
               let yearsToFire: number | null = null;
               if (_fireLiquidNW >= FIRE_GOAL) {
                 yearsToFire = 0;
@@ -2262,18 +2258,28 @@ export default function Finances() {
               const fireAge = yearsToFire !== null ? ageYears + yearsToFire : null;
               const fireYear = yearsToFire !== null ? 2026 + yearsToFire : null;
 
+              // Augment each location with inflation-adjusted figures (using their own pass-1 years)
+              const FIRE_LOCATIONS_COMPUTED = FIRE_LOCATIONS.map(loc => {
+                let locYrs = 15;
+                for (let n = 1; n <= 80; n++) {
+                  if (fireFV(n) >= loc.fireNeededBase) { locYrs = n; break; }
+                }
+                const inflatedAnnual = loc.annualToday * Math.pow(1 + FIRE_LOC_INFLATION, locYrs);
+                const inflatedMonthly = inflatedAnnual / 12;
+                const fireNeeded = Math.round(inflatedAnnual * 25);
+                return { ...loc, monthlyTotal: loc.monthlyToday, annualTotal: loc.annualToday, fireNeeded, inflatedMonthly, inflatedAnnual, locYrs };
+              });
+              const selectedLoc = FIRE_LOCATIONS_COMPUTED.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS_COMPUTED[0];
+
+              const pct = Math.min((_fireLiquidNW / FIRE_GOAL) * 100, 100);
+
               // ── Projection chart data ──
-              const projectionData: { year: number; age: number; value: number; invest: number; home: number; goal: number }[] = [];
+              const projectionData: { year: number; age: number; value: number; goal: number }[] = [];
               for (let n = 0; n <= 30; n++) {
-                const investFV = _fireInvestable * Math.pow(1 + R_INVEST, n) +
-                  (_fireAnnualSavings > 0 ? _fireAnnualSavings * (Math.pow(1 + R_INVEST, n) - 1) / R_INVEST : 0);
-                const homeFV = _fireHomeBase * Math.pow(1 + R_HOME, n);
                 projectionData.push({
                   year: 2026 + n,
                   age: ageYears + n,
-                  value: Math.round(investFV + homeFV + _fireCashFixed),
-                  invest: Math.round(investFV),
-                  home: Math.round(homeFV),
+                  value: Math.round(fireFV(n)),
                   goal: FIRE_GOAL,
                 });
               }
@@ -2304,18 +2310,18 @@ export default function Finances() {
                   </div>
 
                   {/* ── Selected location goal banner ── */}
-                  <div className={`flex items-center justify-between bg-gradient-to-r ${selectedLoc.color} border ${selectedLoc.border} rounded-xl px-4 py-3`}>
+                  <div className={`flex items-center justify-between bg-slate-900 border ${selectedLoc.border} rounded-xl px-4 py-3`}>
                     <div>
                       <p className={`text-xs font-semibold uppercase tracking-wide ${selectedLoc.accent}`}>{selectedLoc.flag} {selectedLoc.name} — FIRE Target</p>
                       <p className="text-white text-xl font-bold mt-0.5">{fmt(FIRE_GOAL)}</p>
-                      <p className="text-slate-400 text-[11px] mt-0.5">
-                        {fmt(selectedLoc.monthlyTotal)}/mo · {fmt(selectedLoc.annualTotal)}/yr spend · 25× rule (4% SWR)
+                      <p className="text-slate-300 text-[11px] mt-0.5">
+                        Today: {fmt(selectedLoc.monthlyTotal)}/mo → projected at retirement: <span className="text-yellow-300 font-semibold">{fmt(Math.round(selectedLoc.inflatedMonthly))}/mo</span> after {selectedLoc.locYrs}yrs of 4%/yr local inflation
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-slate-400 text-[10px] uppercase tracking-wide">Passive income at FIRE</p>
+                    <div className="text-right shrink-0 ml-4">
+                      <p className="text-slate-400 text-[10px] uppercase tracking-wide">SWR at FIRE</p>
                       <p className={`text-lg font-bold ${selectedLoc.accent}`}>{fmt(FIRE_GOAL * 0.04)}/yr</p>
-                      <p className="text-slate-500 text-[10px]">{fmt(Math.round(FIRE_GOAL * 0.04 / 12))}/mo</p>
+                      <p className="text-slate-400 text-[10px]">{fmt(Math.round(FIRE_GOAL * 0.04 / 12))}/mo passive</p>
                     </div>
                   </div>
 
@@ -2382,7 +2388,7 @@ export default function Finances() {
                         </div>
                         <div className="mt-3 p-2 bg-slate-700/20 rounded-lg text-[10px] text-slate-500">
                           <span className="text-slate-400 font-semibold">Assumptions: </span>
-                          Born Oct 1, 1997 · Investment portfolio (BTC, index funds, Roth IRA, 401k, RSUs) grows at <span className="text-slate-300">8%/yr nominal</span> · Home equity (Rocklin) grows at <span className="text-slate-300">4%/yr</span> · Annual new savings = W2 net cash flow ({fmt(_fireAnnualDirectSavings)}/yr) + 401k contributions capped at IRS 2026 limit × 68¢ ({fmt(_fireAnnualRetirementNet)}/yr) · Cash/vehicles/domain stay flat · 4% SWR at retirement · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
+                          Born Oct 1, 1997 · Investments grow at <span className="text-slate-300">8%/yr nominal</span> · Home equity grows at <span className="text-slate-300">4%/yr</span> · Annual new savings = W2 net cash ({fmt(_fireAnnualDirectSavings)}/yr) + 401k capped at IRS 2026 limit × 68¢ ({fmt(_fireAnnualRetirementNet)}/yr) · <span className="text-yellow-300">Local costs inflated at 4%/yr</span> to account for rapid industrialization — FIRE goal = inflated annual spend × 25 · 4% SWR · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
                         </div>
                       </CardContent>
                     </Card>
@@ -2446,58 +2452,62 @@ export default function Finances() {
                       Click a destination above to set your FIRE goal. All figures use the 4% safe withdrawal rule (25× annual spend).
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {FIRE_LOCATIONS.map(loc => (
+                      {FIRE_LOCATIONS_COMPUTED.map(loc => (
                         <Card
                           key={loc.name}
                           onClick={() => setFireLocationKey(loc.key)}
-                          className={`bg-gradient-to-b ${loc.color} border cursor-pointer transition-all ${fireLocationKey === loc.key ? `${loc.border} ring-2 ring-offset-1 ring-offset-slate-900 ring-current` : "border-slate-700/40 opacity-70 hover:opacity-90"}`}
+                          className={`${loc.color} border cursor-pointer transition-all ${fireLocationKey === loc.key ? `ring-2 ring-offset-1 ring-offset-slate-900` : "opacity-70 hover:opacity-90"}`}
                         >
                           <CardHeader className="pb-2">
                             <CardTitle className={`${loc.accent} text-base flex items-center justify-between`}>
                               <span>{loc.flag} {loc.name}</span>
                               {fireLocationKey === loc.key && <span className="text-[10px] bg-white/10 rounded px-1.5 py-0.5 font-normal">✓ Selected</span>}
                             </CardTitle>
-                            <CardDescription className="text-slate-400 text-[11px]">Monthly budget for comfortable solo retirement</CardDescription>
+                            <CardDescription className="text-slate-400 text-[11px]">Comfortable solo retirement · today's USD prices</CardDescription>
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-1.5 mb-3">
                               {loc.items.map(item => (
                                 <div key={item.label} className="flex justify-between text-xs">
-                                  <span className="text-slate-300">{item.label}</span>
+                                  <span className="text-slate-200">{item.label}</span>
                                   <span className="text-white font-medium">${item.mo}/mo</span>
                                 </div>
                               ))}
                             </div>
-                            <div className="border-t border-slate-600/40 pt-2 space-y-1">
+                            <div className="border-t border-slate-700/60 pt-2 space-y-1">
                               <div className="flex justify-between text-sm font-bold">
-                                <span className={loc.accent}>Monthly Total</span>
+                                <span className={loc.accent}>Today's Monthly Total</span>
                                 <span className="text-white">${loc.monthlyTotal.toLocaleString()}/mo</span>
                               </div>
-                              <div className="flex justify-between text-xs text-slate-400">
-                                <span>Annual spend</span>
+                              <div className="flex justify-between text-xs text-slate-300">
+                                <span>Annual spend (today)</span>
                                 <span>${loc.annualTotal.toLocaleString()}/yr</span>
                               </div>
-                              <div className="flex justify-between text-xs font-semibold">
-                                <span className={loc.accent}>FIRE goal (25× rule)</span>
+                              <div className="flex justify-between text-xs text-yellow-300">
+                                <span>📈 At retirement ({loc.locYrs}yrs × 4%/yr)</span>
+                                <span>${Math.round(loc.inflatedMonthly).toLocaleString()}/mo</span>
+                              </div>
+                              <div className="flex justify-between text-xs font-bold mt-1">
+                                <span className={loc.accent}>FIRE goal (inflated 25×)</span>
                                 <span className="text-white">{fmt(loc.fireNeeded)}</span>
                               </div>
-                              <div className="mt-2 p-2 bg-slate-800/60 rounded-lg space-y-1">
+                              <div className="mt-2 p-2 bg-black/30 rounded-lg space-y-1">
                                 <div className="flex justify-between text-xs">
                                   <span className="text-slate-400">Your liquid NW covers</span>
                                   <span className={`font-bold ${_fireLiquidNW >= loc.fireNeeded ? "text-green-400" : "text-orange-400"}`}>
-                                    {(_fireLiquidNW / loc.annualTotal).toFixed(1)} yrs of spend
+                                    {(_fireLiquidNW / loc.annualTotal).toFixed(1)} yrs of today's spend
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-slate-400">Progress to this goal</span>
-                                  <span className={`font-bold ${_fireLiquidNW >= loc.fireNeeded ? "text-green-400" : "text-slate-300"}`}>
+                                  <span className="text-slate-400">Progress to inflated goal</span>
+                                  <span className={`font-bold ${_fireLiquidNW >= loc.fireNeeded ? "text-green-400" : "text-slate-200"}`}>
                                     {Math.min((_fireLiquidNW / loc.fireNeeded) * 100, 100).toFixed(1)}%
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-slate-400">Monthly surplus vs SWR</span>
-                                  <span className={`font-semibold ${Math.round(loc.fireNeeded * 0.04 / 12) - loc.monthlyTotal >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                    {Math.round(loc.fireNeeded * 0.04 / 12) - loc.monthlyTotal >= 0 ? "+" : ""}${(Math.round(loc.fireNeeded * 0.04 / 12) - loc.monthlyTotal).toLocaleString()}/mo
+                                  <span className="text-slate-400">SWR income vs inflated spend</span>
+                                  <span className={`font-semibold ${Math.round(loc.fireNeeded * 0.04 / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {Math.round(loc.fireNeeded * 0.04 / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "+" : ""}${(Math.round(loc.fireNeeded * 0.04 / 12) - Math.round(loc.inflatedMonthly)).toLocaleString()}/mo
                                   </span>
                                 </div>
                               </div>
