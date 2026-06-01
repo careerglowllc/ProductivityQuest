@@ -209,6 +209,7 @@ export default function Finances() {
   const [fireInheritanceMode, setFireInheritanceMode] = useState<boolean>(false);
   const [fireInheritanceAmount, setFireInheritanceAmount] = useState<number>(3_000_000);
   const [fireInheritanceAge, setFireInheritanceAge] = useState<number>(48);
+  const [fgWidgetInheritance, setFgWidgetInheritance] = useState<boolean>(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -1559,7 +1560,7 @@ export default function Finances() {
                     for (let n = 1; n <= 80; n++) { if (fgFV(n) >= _fgBaseGoal) { _fgYrs1 = n; break; } }
                     const _fgInflatedAnnual = _fgAnnualToday * Math.pow(1 + fireColInflation, _fgYrs1);
                     const _fgDrawdownYrs = Math.max(1, fireInheritanceAge - (28 + _fgYrs1));
-                    const FIRE_GOAL_W = fireInheritanceMode
+                    const FIRE_GOAL_W = fgWidgetInheritance
                       ? Math.round(_fgInflatedAnnual * (1 - Math.pow(1.07, -_fgDrawdownYrs)) / 0.07)
                       : Math.round(_fgInflatedAnnual / fireSwr);
                     // Final years using real goal
@@ -1575,21 +1576,41 @@ export default function Finances() {
                         <CardHeader className="pb-2">
                           <CardTitle className="text-orange-300 text-base flex items-center gap-2">
                             🔥 FIRE Goal
-                            {fireInheritanceMode && (
-                              <span className="text-[10px] bg-emerald-700/40 border border-emerald-500/40 rounded px-1.5 py-0.5 font-normal">💎 Inheritance</span>
-                            )}
                           </CardTitle>
                           <CardDescription className="text-slate-400 text-xs">
-                            {fireInheritanceMode ? `Drawdown to age ${fireInheritanceAge}` : `${(fireSwr * 100).toFixed(2)}% SWR`} · {fireTier} · {locFlags[fireLocationKey] ?? "🇹🇭"} {fireLocationKey}
+                            {fgWidgetInheritance ? `Drawdown to age ${fireInheritanceAge}` : `${(fireSwr * 100).toFixed(2)}% SWR`} · {fireTier} · {locFlags[fireLocationKey] ?? "🇹🇭"} {fireLocationKey}
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
+                          {/* Inheritance toggle */}
+                          <div className="flex gap-1.5 mb-3">
+                            <button
+                              onClick={() => setFgWidgetInheritance(false)}
+                              className={`flex-1 text-[10px] py-1 rounded-md border transition-colors ${
+                                !fgWidgetInheritance
+                                  ? "bg-orange-500/20 border-orange-500/50 text-orange-300 font-semibold"
+                                  : "bg-transparent border-slate-700/50 text-slate-500 hover:border-slate-600"
+                              }`}
+                            >
+                              📈 Standard SWR
+                            </button>
+                            <button
+                              onClick={() => setFgWidgetInheritance(true)}
+                              className={`flex-1 text-[10px] py-1 rounded-md border transition-colors ${
+                                fgWidgetInheritance
+                                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-semibold"
+                                  : "bg-transparent border-slate-700/50 text-slate-500 hover:border-slate-600"
+                              }`}
+                            >
+                              💎 w/ Inheritance
+                            </button>
+                          </div>
                           <div className="flex items-end gap-2 mb-2">
                             <span className="text-3xl font-black text-orange-400">{_fgPct.toFixed(1)}%</span>
                             <span className="text-slate-400 text-sm mb-1">of {fmtG(FIRE_GOAL_W)} goal</span>
                           </div>
                           <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden mb-3">
-                            <div className="h-3 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 transition-all duration-700"
+                            <div className={`h-3 rounded-full transition-all duration-700 ${fgWidgetInheritance ? "bg-gradient-to-r from-emerald-500 to-teal-400" : "bg-gradient-to-r from-orange-500 to-yellow-400"}`}
                               style={{ width: `${_fgPct}%` }} />
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-center">
