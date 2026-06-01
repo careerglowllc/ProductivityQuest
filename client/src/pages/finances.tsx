@@ -44,8 +44,7 @@ function classifyItem(category: string, tags?: string[] | null): "income" | "ret
 }
 
 // ── FIRE COL Methodology Essays (file-level to avoid TSX parser issues) ──
-const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia", string> = {
-  thailand: [
+const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia", string> = {  thailand: [
     "These figures deliberately sit above the \"Chiang Mai for $1,200/mo\" blog posts you'll find everywhere. Those numbers assume you're eating street food every meal, living in a shared house on the outskirts, and speaking Thai well enough to negotiate. None of that is realistic for a Western expat retiring early.",
     "Here's how each line was built:",
     "Housing ($750/mo): A clean, modern 1-bedroom in Nimman Road or Santitham — Chiang Mai's expat-friendly zones with walkability, coworking access, and English-speaking neighbors. Budget places exist for $300–$400 but they tend to be older buildings with inconsistent water pressure, poor insulation from heat, and less secure access. Going slightly premium here is the right call — you're living in it every day.",
@@ -80,6 +79,28 @@ const FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia", string> = {
   ].join("\n\n"),
 };
 
+// ── FIRE Tier Cost Data (per location, per lifestyle tier) ──
+// Categories: rent, food, transport, health, entertainment, utilities, visa
+const FIRE_TIER_DATA: Record<
+  "thailand" | "vietnam" | "colombia",
+  Record<"lean" | "comfortable" | "cushy", { rent: number; food: number; transport: number; health: number; entertainment: number; utilities: number; visa: number }>
+> = {
+  thailand: {
+    lean:        { rent: 400, food: 280, transport: 75, health: 110, entertainment: 100, utilities: 65, visa: 100 },
+    comfortable: { rent: 750, food: 500, transport: 120, health: 150, entertainment: 250, utilities: 100, visa: 230 },
+    cushy:       { rent: 1500, food: 900, transport: 200, health: 300, entertainment: 450, utilities: 150, visa: 300 },
+  },
+  vietnam: {
+    lean:        { rent: 350, food: 260, transport: 70, health: 110, entertainment: 90, utilities: 60, visa: 100 },
+    comfortable: { rent: 700, food: 450, transport: 100, health: 150, entertainment: 220, utilities: 90, visa: 190 },
+    cushy:       { rent: 1200, food: 850, transport: 160, health: 280, entertainment: 400, utilities: 130, visa: 280 },
+  },
+  colombia: {
+    lean:        { rent: 550, food: 330, transport: 75, health: 110, entertainment: 130, utilities: 65, visa: 100 },
+    comfortable: { rent: 1000, food: 550, transport: 120, health: 150, entertainment: 300, utilities: 100, visa: 180 },
+    cushy:       { rent: 1800, food: 1000, transport: 200, health: 300, entertainment: 600, utilities: 150, visa: 300 },
+  },
+};
 
 function isBusinessItem(item: { category: string; tags?: string[] | null }): boolean {
   return item.category === "Business" || (Array.isArray(item.tags) && item.tags.includes("Business"));
@@ -128,6 +149,12 @@ export default function Finances() {
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
   const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia">("thailand");
   const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | null>(null);
+  const [fireTier, setFireTier] = useState<"lean" | "comfortable" | "cushy">("comfortable");
+  const [fireSwr, setFireSwr] = useState<number>(0.04);
+  const [fireColInflation, setFireColInflation] = useState<number>(0.05);
+  const [fireCurrencyBuffer, setFireCurrencyBuffer] = useState<number>(0.05);
+  const [fireHealthcareBuffer, setFireHealthcareBuffer] = useState<number>(0.10);
+  const [fireLifestyleBuffer, setFireLifestyleBuffer] = useState<number>(0.05);
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
@@ -2194,67 +2221,54 @@ export default function Finances() {
                 checkingBalance + careerglowBalance + _fireHsaValue +
                 _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
 
-                const FIRE_LOC_INFLATION = 0.04; // 4%/yr local price growth (rapid industrialization buffer)
+                const FIRE_LOC_INFLATION = fireColInflation;
+                const totalBuffer = fireCurrencyBuffer + fireHealthcareBuffer + fireLifestyleBuffer;
 
-                const FIRE_LOCATIONS = [
-                {
-                  key: "thailand" as const,
-                  flag: "🇹🇭", name: "Chiang Mai, Thailand",
-                  color: "bg-slate-900 border-orange-500/50", border: "border-orange-500/50", accent: "text-orange-300",
-                  btnActive: "bg-orange-600/50 border-orange-400/60 text-orange-200",
-                  btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-orange-500/40",
-                  items: [
-                    { label: "1BR apt (Nimman/Santitham, AC, secure building)", mo: 750 },
-                    { label: "Food & groceries (mix local/western/imported)", mo: 500 },
-                    { label: "Transportation (own scooter + Grab/taxi)", mo: 120 },
-                    { label: "International health insurance (decent plan)", mo: 150 },
-                    { label: "Entertainment, cafés, gym, social life", mo: 250 },
-                    { label: "Utilities, fiber internet, phone", mo: 100 },
-                    { label: "Visa (LTRV/Elite), trips out, buffer", mo: 230 },
-                  ],
-                  methodology: FIRE_METHODOLOGY.thailand,
-                },
-                {
-                  key: "vietnam" as const,
-                  flag: "🇻🇳", name: "Da Nang, Vietnam",
-                  color: "bg-slate-900 border-red-500/50", border: "border-red-500/50", accent: "text-red-300",
-                  btnActive: "bg-red-600/50 border-red-400/60 text-red-200",
-                  btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-red-500/40",
-                  items: [
-                    { label: "1BR apt (My Khe / An Thuong, ocean-adjacent)", mo: 700 },
-                    { label: "Food & groceries (mix local/western/imported)", mo: 450 },
-                    { label: "Transportation (scooter + Grab)", mo: 100 },
-                    { label: "International health insurance (decent plan)", mo: 150 },
-                    { label: "Entertainment, cafés, beach life, gym", mo: 220 },
-                    { label: "Utilities, fiber internet, phone", mo: 90 },
-                    { label: "Visa (e-visa + renewals), trips, buffer", mo: 190 },
-                  ],
-                  methodology: FIRE_METHODOLOGY.vietnam,
-                },
-                {
-                  key: "colombia" as const,
-                  flag: "🇨🇴", name: "Medellín, Colombia",
-                  color: "bg-slate-900 border-yellow-500/50", border: "border-yellow-500/50", accent: "text-yellow-300",
-                  btnActive: "bg-yellow-600/50 border-yellow-400/60 text-yellow-200",
-                  btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-yellow-500/40",
-                  items: [
-                    { label: "1BR apt (El Poblado or Laureles, doorman bldg)", mo: 1000 },
-                    { label: "Food & groceries (mix local/western/restaurants)", mo: 550 },
-                    { label: "Transportation (Uber, metro, occasional taxi)", mo: 120 },
-                    { label: "International health insurance (decent plan)", mo: 150 },
-                    { label: "Entertainment, nightlife, cafés, gym, travel", mo: 300 },
-                    { label: "Utilities, fiber internet, phone", mo: 100 },
-                    { label: "Visa (digital nomad/pensionado), buffer", mo: 180 },
-                  ],
-                  methodology: FIRE_METHODOLOGY.colombia,
-                },
-              ].map(loc => {
-                const monthlyToday = loc.items.reduce((s, i) => s + i.mo, 0);
-                const annualToday = monthlyToday * 12;
-                // First-pass FIRE goal (today's costs × 25) to estimate yearsToFire for inflation calc
-                const fireNeededBase = annualToday * 25;
-                return { ...loc, monthlyToday, annualToday, fireNeededBase };
-              });              const selectedLocBase = FIRE_LOCATIONS.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS[0];
+                const FIRE_LOCATIONS = (
+                  [
+                    {
+                      key: "thailand" as const,
+                      flag: "🇹🇭", name: "Chiang Mai, Thailand",
+                      color: "bg-slate-900 border-orange-500/50", border: "border-orange-500/50", accent: "text-orange-300",
+                      btnActive: "bg-orange-600/50 border-orange-400/60 text-orange-200",
+                      btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-orange-500/40",
+                      methodology: FIRE_METHODOLOGY.thailand,
+                    },
+                    {
+                      key: "vietnam" as const,
+                      flag: "🇻🇳", name: "Da Nang, Vietnam",
+                      color: "bg-slate-900 border-red-500/50", border: "border-red-500/50", accent: "text-red-300",
+                      btnActive: "bg-red-600/50 border-red-400/60 text-red-200",
+                      btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-red-500/40",
+                      methodology: FIRE_METHODOLOGY.vietnam,
+                    },
+                    {
+                      key: "colombia" as const,
+                      flag: "🇨🇴", name: "Medellín, Colombia",
+                      color: "bg-slate-900 border-yellow-500/50", border: "border-yellow-500/50", accent: "text-yellow-300",
+                      btnActive: "bg-yellow-600/50 border-yellow-400/60 text-yellow-200",
+                      btnInactive: "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-yellow-500/40",
+                      methodology: FIRE_METHODOLOGY.colombia,
+                    },
+                  ] as const
+                ).map(loc => {
+                  const tc = FIRE_TIER_DATA[loc.key][fireTier];
+                  const items = [
+                    { label: "Housing / Rent", mo: tc.rent },
+                    { label: "Food & groceries", mo: tc.food },
+                    { label: "Transportation", mo: tc.transport },
+                    { label: "Health insurance", mo: tc.health },
+                    { label: "Entertainment & social", mo: tc.entertainment },
+                    { label: "Utilities, internet, phone", mo: tc.utilities },
+                    { label: "Visa, travel buffer", mo: tc.visa },
+                  ];
+                  const monthlyBase = items.reduce((s, i) => s + i.mo, 0);
+                  const monthlyToday = Math.round(monthlyBase * (1 + totalBuffer));
+                  const annualToday = monthlyToday * 12;
+                  const fireNeededBase = annualToday / fireSwr;
+                  return { ...loc, items, monthlyToday, annualToday, fireNeededBase };
+                });
+                const selectedLocBase = FIRE_LOCATIONS.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS[0];
 
               // ── Age calc ──
               // Born Oct 1, 1997. Today = June 1, 2026 → age 28 (turns 29 in Oct 2026)
@@ -2289,7 +2303,7 @@ export default function Finances() {
               }
               // Step 3: inflate selected location's annual spend by 4%/yr for that many years
               const _selectedInflatedAnnual = selectedLocBase.annualToday * Math.pow(1 + FIRE_LOC_INFLATION, _fireYrsPass1);
-              const FIRE_GOAL = Math.round(_selectedInflatedAnnual * 25); // inflated 25× = the real target
+              const FIRE_GOAL = Math.round(_selectedInflatedAnnual / fireSwr);
 
               // Step 4: final yearsToFire using inflation-adjusted goal
               let yearsToFire: number | null = null;
@@ -2311,7 +2325,7 @@ export default function Finances() {
                 }
                 const inflatedAnnual = loc.annualToday * Math.pow(1 + FIRE_LOC_INFLATION, locYrs);
                 const inflatedMonthly = inflatedAnnual / 12;
-                const fireNeeded = Math.round(inflatedAnnual * 25);
+                const fireNeeded = Math.round(inflatedAnnual / fireSwr);
                 return { ...loc, monthlyTotal: loc.monthlyToday, annualTotal: loc.annualToday, fireNeeded, inflatedMonthly, inflatedAnnual, locYrs };
               });
               const selectedLoc = FIRE_LOCATIONS_COMPUTED.find(l => l.key === fireLocationKey) ?? FIRE_LOCATIONS_COMPUTED[0];
@@ -2333,40 +2347,56 @@ export default function Finances() {
 
               return (
                 <>
-                  {/* ── Header + Location Selector ── */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  {/* ── Header + Location + Tier Selector ── */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
                       <h2 className="text-2xl font-bold text-white flex items-center gap-2">🔥 FIRE Goal</h2>
-                      <p className="text-slate-400 text-sm mt-0.5">Financial Independence, Retire Early — goal adjusts to your chosen retirement destination</p>
+                      <p className="text-slate-400 text-sm mt-0.5">Financial Independence, Retire Early — goal adjusts to your chosen retirement destination and lifestyle tier</p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {FIRE_LOCATIONS.map(loc => (
-                        <button
-                          key={loc.key}
-                          onClick={() => setFireLocationKey(loc.key)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${fireLocationKey === loc.key ? loc.btnActive : loc.btnInactive}`}
-                        >
-                          <span>{loc.flag}</span>
-                          <span className="hidden sm:inline">{loc.name.split(",")[0]}</span>
-                          <span className="sm:hidden">{loc.name.split(",")[0]}</span>
-                        </button>
-                      ))}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        {FIRE_LOCATIONS.map(loc => (
+                          <button
+                            key={loc.key}
+                            onClick={() => setFireLocationKey(loc.key)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${fireLocationKey === loc.key ? loc.btnActive : loc.btnInactive}`}
+                          >
+                            <span>{loc.flag}</span>
+                            <span>{loc.name.split(",")[0]}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        {(["lean", "comfortable", "cushy"] as const).map(t => (
+                          <button
+                            key={t}
+                            onClick={() => setFireTier(t)}
+                            className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all capitalize ${fireTier === t
+                              ? t === "lean" ? "bg-blue-600/50 border-blue-400/60 text-blue-200"
+                                : t === "comfortable" ? "bg-orange-600/50 border-orange-400/60 text-orange-200"
+                                : "bg-purple-600/50 border-purple-400/60 text-purple-200"
+                              : "bg-slate-700/40 border-slate-600/40 text-slate-400 hover:border-slate-500/40"}`}
+                          >
+                            {t === "lean" ? "🎒 Lean" : t === "comfortable" ? "🏠 Comfortable" : "✨ Cushy"}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
                   {/* ── Selected location goal banner ── */}
                   <div className={`flex items-center justify-between bg-slate-900 border ${selectedLoc.border} rounded-xl px-4 py-3`}>
                     <div>
-                      <p className={`text-xs font-semibold uppercase tracking-wide ${selectedLoc.accent}`}>{selectedLoc.flag} {selectedLoc.name} — FIRE Target</p>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${selectedLoc.accent}`}>{selectedLoc.flag} {selectedLoc.name} — {fireTier === "lean" ? "🎒 Lean" : fireTier === "comfortable" ? "🏠 Comfortable" : "✨ Cushy"} FIRE Target</p>
                       <p className="text-white text-xl font-bold mt-0.5">{fmt(FIRE_GOAL)}</p>
                       <p className="text-slate-300 text-[11px] mt-0.5">
-                        Today: {fmt(selectedLoc.monthlyTotal)}/mo → projected at retirement: <span className="text-yellow-300 font-semibold">{fmt(Math.round(selectedLoc.inflatedMonthly))}/mo</span> after {selectedLoc.locYrs}yrs of 4%/yr local inflation
+                        Today: {fmt(selectedLoc.monthlyToday)}/mo → projected at retirement: <span className="text-yellow-300 font-semibold">{fmt(Math.round(selectedLoc.inflatedMonthly))}/mo</span> after {selectedLoc.locYrs}yrs of {(fireColInflation * 100).toFixed(0)}%/yr local inflation · <span className="text-orange-300">{(fireSwr * 100).toFixed(2)}% SWR</span> · buffers: {(totalBuffer * 100).toFixed(0)}%
                       </p>
                     </div>
                     <div className="text-right shrink-0 ml-4">
                       <p className="text-slate-400 text-[10px] uppercase tracking-wide">SWR at FIRE</p>
-                      <p className={`text-lg font-bold ${selectedLoc.accent}`}>{fmt(FIRE_GOAL * 0.04)}/yr</p>
-                      <p className="text-slate-400 text-[10px]">{fmt(Math.round(FIRE_GOAL * 0.04 / 12))}/mo passive</p>
+                      <p className={`text-lg font-bold ${selectedLoc.accent}`}>{fmt(FIRE_GOAL * fireSwr)}/yr</p>
+                      <p className="text-slate-400 text-[10px]">{fmt(Math.round(FIRE_GOAL * fireSwr / 12))}/mo passive</p>
                     </div>
                   </div>
 
@@ -2396,7 +2426,7 @@ export default function Finances() {
                     <Card className="bg-slate-800/60 border-orange-500/30 sm:col-span-2">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-orange-300 text-sm">Progress to FIRE</CardTitle>
-                        <CardDescription className="text-slate-400 text-[11px]">{fmt(FIRE_GOAL)} target · 4% SWR · {fmt(FIRE_GOAL * 0.04)}/yr passive income · {selectedLoc.flag} {selectedLoc.name}</CardDescription>
+                        <CardDescription className="text-slate-400 text-[11px]">{fmt(FIRE_GOAL)} target · {(fireSwr * 100).toFixed(2)}% SWR · {fmt(FIRE_GOAL * fireSwr)}/yr passive income · {selectedLoc.flag} {selectedLoc.name}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-end gap-2 mb-2">
@@ -2433,11 +2463,184 @@ export default function Finances() {
                         </div>
                         <div className="mt-3 p-2 bg-slate-700/20 rounded-lg text-[10px] text-slate-500">
                           <span className="text-slate-400 font-semibold">Assumptions: </span>
-                          Born Oct 1, 1997 · Investments grow at <span className="text-slate-300">8%/yr nominal</span> · Home equity grows at <span className="text-slate-300">4%/yr</span> · Annual new savings = W2 net cash ({fmt(_fireAnnualDirectSavings)}/yr) + 401k capped at IRS 2026 limit × 68¢ ({fmt(_fireAnnualRetirementNet)}/yr) · <span className="text-yellow-300">Local costs inflated at 4%/yr</span> to account for rapid industrialization — FIRE goal = inflated annual spend × 25 · 4% SWR · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
+                          Born Oct 1, 1997 · Investments grow at <span className="text-slate-300">8%/yr nominal</span> · Home equity grows at <span className="text-slate-300">4%/yr</span> · Annual new savings = W2 net cash ({fmt(_fireAnnualDirectSavings)}/yr) + 401k capped at IRS 2026 limit × 68¢ ({fmt(_fireAnnualRetirementNet)}/yr) · <span className="text-yellow-300">Local costs inflated at {(fireColInflation * 100).toFixed(0)}%/yr</span> · Buffers: currency {(fireCurrencyBuffer * 100).toFixed(0)}% + healthcare {(fireHealthcareBuffer * 100).toFixed(0)}% + lifestyle {(fireLifestyleBuffer * 100).toFixed(0)}% = {(totalBuffer * 100).toFixed(0)}% total · FIRE goal = inflated annual spend ÷ {(fireSwr * 100).toFixed(2)}% SWR · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
                         </div>
                       </CardContent>
                     </Card>
                   </div>
+
+                  {/* ── Advanced Assumptions Sliders ── */}
+                  <Card className="bg-slate-800/60 border-slate-600/40">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-slate-300 text-sm">⚙️ Advanced Assumptions</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">Adjust parameters to see how your FIRE target changes</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {[
+                          { label: "Safe Withdrawal Rate", value: fireSwr, set: setFireSwr, min: 0.025, max: 0.05, step: 0.0025, fmt: (v: number) => `${(v * 100).toFixed(2)}%`, color: "text-orange-300" },
+                          { label: "COL Inflation / yr", value: fireColInflation, set: setFireColInflation, min: 0, max: 0.10, step: 0.005, fmt: (v: number) => `${(v * 100).toFixed(1)}%`, color: "text-yellow-300" },
+                          { label: "Currency Buffer", value: fireCurrencyBuffer, set: setFireCurrencyBuffer, min: 0, max: 0.30, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-blue-300" },
+                          { label: "Healthcare Buffer", value: fireHealthcareBuffer, set: setFireHealthcareBuffer, min: 0, max: 0.50, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-green-300" },
+                          { label: "Lifestyle Buffer", value: fireLifestyleBuffer, set: setFireLifestyleBuffer, min: 0, max: 0.50, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}%`, color: "text-purple-300" },
+                        ].map(s => (
+                          <div key={s.label}>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs text-slate-400">{s.label}</span>
+                              <span className={`text-xs font-bold ${s.color}`}>{s.fmt(s.value)}</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={s.min}
+                              max={s.max}
+                              step={s.step}
+                              value={s.value}
+                              onChange={e => s.set(parseFloat(e.target.value))}
+                              className="w-full accent-orange-500"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-600 mt-0.5">
+                              <span>{s.fmt(s.min)}</span>
+                              <span>{s.fmt(s.max)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* ── Monthly COL by Tier Table ── */}
+                  <Card className="bg-slate-800/60 border-slate-600/40">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-slate-300 text-sm">📊 Monthly Budget by Lifestyle Tier — {selectedLoc.flag} {selectedLoc.name}</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">Before buffers. Total buffer: {(totalBuffer * 100).toFixed(0)}% added to base costs.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-700">
+                            <th className="text-left py-2 text-slate-400 font-medium">Category</th>
+                            <th className="text-right py-2 text-blue-300 font-semibold">🎒 Lean</th>
+                            <th className="text-right py-2 text-orange-300 font-semibold">🏠 Comfortable</th>
+                            <th className="text-right py-2 text-purple-300 font-semibold">✨ Cushy</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(["rent","food","transport","health","entertainment","utilities","visa"] as const).map(cat => {
+                            const labels: Record<string, string> = { rent: "Housing / Rent", food: "Food & Groceries", transport: "Transportation", health: "Health Insurance", entertainment: "Entertainment", utilities: "Utilities & Internet", visa: "Visa & Travel Buffer" };
+                            const td = FIRE_TIER_DATA[fireLocationKey];
+                            return (
+                              <tr key={cat} className="border-b border-slate-800 hover:bg-slate-700/20">
+                                <td className="py-1.5 text-slate-300">{labels[cat]}</td>
+                                <td className="py-1.5 text-right text-blue-200">${td.lean[cat].toLocaleString()}</td>
+                                <td className={`py-1.5 text-right font-semibold ${fireTier === "comfortable" ? "text-orange-300" : "text-orange-200"}`}>${td.comfortable[cat].toLocaleString()}</td>
+                                <td className="py-1.5 text-right text-purple-200">${td.cushy[cat].toLocaleString()}</td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="border-t-2 border-slate-600 font-bold">
+                            <td className="py-2 text-slate-200">Base Total / mo</td>
+                            {(["lean","comfortable","cushy"] as const).map(t => {
+                              const td = FIRE_TIER_DATA[fireLocationKey][t];
+                              const base = Object.values(td).reduce((s, v) => s + v, 0);
+                              return <td key={t} className={`py-2 text-right ${t === "lean" ? "text-blue-300" : t === "comfortable" ? "text-orange-300" : "text-purple-300"}`}>${base.toLocaleString()}</td>;
+                            })}
+                          </tr>
+                          <tr className="font-bold">
+                            <td className="py-2 text-slate-200">+{(totalBuffer * 100).toFixed(0)}% Buffers</td>
+                            {(["lean","comfortable","cushy"] as const).map(t => {
+                              const td = FIRE_TIER_DATA[fireLocationKey][t];
+                              const base = Object.values(td).reduce((s, v) => s + v, 0);
+                              const total = Math.round(base * (1 + totalBuffer));
+                              return <td key={t} className={`py-2 text-right ${t === "lean" ? "text-blue-300" : t === "comfortable" ? "text-orange-300" : "text-purple-300"} ${fireTier === t ? "underline decoration-dotted" : ""}`}>${total.toLocaleString()}</td>;
+                            })}
+                          </tr>
+                          <tr className="font-bold bg-slate-700/30">
+                            <td className="py-2 text-white rounded-l">FIRE Goal ({(fireSwr * 100).toFixed(2)}% SWR)</td>
+                            {(["lean","comfortable","cushy"] as const).map(t => {
+                              const td = FIRE_TIER_DATA[fireLocationKey][t];
+                              const base = Object.values(td).reduce((s, v) => s + v, 0);
+                              const totalMo = Math.round(base * (1 + totalBuffer));
+                              // Use pass-1 years estimate for inflation
+                              const goal = Math.round((totalMo * 12 * Math.pow(1 + fireColInflation, 15)) / fireSwr);
+                              return <td key={t} className={`py-2 text-right ${t === "lean" ? "text-blue-300" : t === "comfortable" ? "text-orange-300" : "text-purple-300"}`}>{fmt(goal)}</td>;
+                            })}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+
+                  {/* ── FIRE Target by WR Rate ── */}
+                  <Card className="bg-slate-800/60 border-slate-600/40">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-slate-300 text-sm">🎯 FIRE Target by Withdrawal Rate × Tier — {selectedLoc.flag} Today's Costs</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">Based on today's monthly costs (no inflation), includes {(totalBuffer * 100).toFixed(0)}% buffer. Lower SWR = more conservative = larger target.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-700">
+                            <th className="text-left py-2 text-slate-400 font-medium">Withdrawal Rate</th>
+                            <th className="text-right py-2 text-blue-300 font-semibold">🎒 Lean</th>
+                            <th className="text-right py-2 text-orange-300 font-semibold">🏠 Comfortable</th>
+                            <th className="text-right py-2 text-purple-300 font-semibold">✨ Cushy</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[0.05, 0.045, 0.04, 0.035, 0.0325, 0.03].map(wr => (
+                            <tr key={wr} className={`border-b border-slate-800 hover:bg-slate-700/20 ${Math.abs(wr - fireSwr) < 0.0001 ? "bg-orange-900/20" : ""}`}>
+                              <td className={`py-1.5 ${Math.abs(wr - fireSwr) < 0.0001 ? "text-orange-300 font-bold" : "text-slate-300"}`}>{(wr * 100).toFixed(2)}% {Math.abs(wr - fireSwr) < 0.0001 ? "← current" : ""}</td>
+                              {(["lean","comfortable","cushy"] as const).map(t => {
+                                const td = FIRE_TIER_DATA[fireLocationKey][t];
+                                const moBase = Object.values(td).reduce((s, v) => s + v, 0);
+                                const moTotal = Math.round(moBase * (1 + totalBuffer));
+                                const goal = Math.round((moTotal * 12) / wr);
+                                return <td key={t} className={`py-1.5 text-right ${t === "lean" ? "text-blue-200" : t === "comfortable" ? "text-orange-200" : "text-purple-200"}`}>{fmt(goal)}</td>;
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+
+                  {/* ── COL Inflation Scenarios Table ── */}
+                  <Card className="bg-slate-800/60 border-slate-600/40">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-slate-300 text-sm">📈 Monthly COL Over Time — {selectedLoc.flag} {selectedLoc.name} · {fireTier === "lean" ? "🎒 Lean" : fireTier === "comfortable" ? "🏠 Comfortable" : "✨ Cushy"} Tier</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">How much you'd actually spend per month at various inflation rates (with {(totalBuffer * 100).toFixed(0)}% buffer)</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-700">
+                            <th className="text-left py-2 text-slate-400 font-medium">Year</th>
+                            <th className="text-right py-2 text-slate-300 font-semibold">3% / yr</th>
+                            <th className="text-right py-2 text-yellow-300 font-semibold">5% / yr</th>
+                            <th className="text-right py-2 text-orange-300 font-semibold">7% / yr</th>
+                            <th className="text-right py-2 text-red-300 font-semibold">9% / yr</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[0, 5, 10, 15, 20, 25, 30].map(y => {
+                            const base = selectedLoc.monthlyToday;
+                            return (
+                              <tr key={y} className={`border-b border-slate-800 hover:bg-slate-700/20 ${y === selectedLoc.locYrs ? "bg-yellow-900/20" : ""}`}>
+                                <td className={`py-1.5 ${y === 0 ? "text-green-300 font-bold" : y === selectedLoc.locYrs ? "text-yellow-300 font-bold" : "text-slate-300"}`}>
+                                  {y === 0 ? "Today (2026)" : `+${y}yrs (${2026 + y})`} {y === selectedLoc.locYrs ? "← est. FIRE" : ""}
+                                </td>
+                                {[0.03, 0.05, 0.07, 0.09].map(rate => (
+                                  <td key={rate} className={`py-1.5 text-right ${Math.abs(rate - fireColInflation) < 0.001 ? "font-bold text-yellow-300" : "text-slate-200"}`}>
+                                    ${Math.round(base * Math.pow(1 + rate, y)).toLocaleString()}
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
 
                   {/* ── Projection Chart ── */}
                   <Card className="bg-slate-800/60 border-orange-500/20">
@@ -2445,7 +2648,7 @@ export default function Finances() {
                       <CardTitle className="text-orange-300 text-sm flex items-center gap-2">
                         <TrendingUp className="h-4 w-4" />Liquid Net Worth Projection (8% investments · 4% home)
                       </CardTitle>
-                      <CardDescription className="text-slate-400 text-xs">Investments at 8%/yr · home equity at 4%/yr · adding {fmt(_fireAnnualSavings)}/yr W2 cash savings · orange line = $1.5M FIRE goal</CardDescription>
+                      <CardDescription className="text-slate-400 text-xs">Investments at 8%/yr · home equity at 4%/yr · adding {fmt(_fireAnnualSavings)}/yr W2 cash savings · dashed line = {fmt(FIRE_GOAL)} FIRE goal</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <ResponsiveContainer width="100%" height={280}>
@@ -2479,7 +2682,7 @@ export default function Finances() {
                             }}
                           />
                           <ReferenceLine y={FIRE_GOAL} stroke="#F97316" strokeDasharray="6 3" strokeWidth={2}
-                            label={{ value: "🔥 $1.5M FIRE", position: "insideTopRight", fill: "#F97316", fontSize: 10 }} />
+                            label={{ value: `🔥 ${fmt(FIRE_GOAL)}`, position: "insideTopRight", fill: "#F97316", fontSize: 10 }} />
                           {fireAge !== null && (
                             <ReferenceLine x={fireAge} stroke="#22C55E" strokeDasharray="4 3" strokeWidth={2}
                               label={{ value: `✅ Age ${fireAge}`, position: "top", fill: "#22C55E", fontSize: 10 }} />
@@ -2494,7 +2697,7 @@ export default function Finances() {
                   <div>
                     <h3 className="text-white font-semibold text-sm mb-1 flex items-center gap-2">🌏 Early Retirement Abroad — Cost of Living Comparison</h3>
                     <p className="text-slate-400 text-xs mb-4">
-                      Click a destination above to set your FIRE goal. All figures use the 4% safe withdrawal rule (25× annual spend).
+                      Click a destination above to set your FIRE goal. All figures use the {(fireSwr * 100).toFixed(2)}% safe withdrawal rule ({Math.round(1/fireSwr)}× annual spend) and include {(totalBuffer * 100).toFixed(0)}% buffer.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {FIRE_LOCATIONS_COMPUTED.map(loc => (
@@ -2508,7 +2711,7 @@ export default function Finances() {
                               <span>{loc.flag} {loc.name}</span>
                               {fireLocationKey === loc.key && <span className="text-[10px] bg-white/10 rounded px-1.5 py-0.5 font-normal">✓ Selected</span>}
                             </CardTitle>
-                            <CardDescription className="text-slate-400 text-[11px]">Upper-end expat budget · today's USD · no local discounts</CardDescription>
+                            <CardDescription className="text-slate-400 text-[11px]">{fireTier === "lean" ? "🎒 Lean" : fireTier === "comfortable" ? "🏠 Comfortable" : "✨ Cushy"} tier · with {(totalBuffer * 100).toFixed(0)}% buffers · today's USD</CardDescription>
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-1.5 mb-3">
@@ -2532,8 +2735,8 @@ export default function Finances() {
                                 <span>📈 At retirement ({loc.locYrs}yrs × 4%/yr)</span>
                                 <span>${Math.round(loc.inflatedMonthly).toLocaleString()}/mo</span>
                               </div>
-                              <div className="flex justify-between text-xs font-bold mt-1">
-                                <span className={loc.accent}>FIRE goal (inflated 25×)</span>
+                                <div className="flex justify-between text-xs font-bold mt-1">
+                                <span className={loc.accent}>FIRE goal (inflated ÷ {(fireSwr * 100).toFixed(2)}% SWR)</span>
                                 <span className="text-white">{fmt(loc.fireNeeded)}</span>
                               </div>
                               <div className="mt-2 p-2 bg-black/30 rounded-lg space-y-1">
@@ -2551,8 +2754,8 @@ export default function Finances() {
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-slate-400">SWR income vs inflated spend</span>
-                                  <span className={`font-semibold ${Math.round(loc.fireNeeded * 0.04 / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                    {Math.round(loc.fireNeeded * 0.04 / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "+" : ""}${(Math.round(loc.fireNeeded * 0.04 / 12) - Math.round(loc.inflatedMonthly)).toLocaleString()}/mo
+                                  <span className={`font-semibold ${Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly) >= 0 ? "+" : ""}${(Math.round(loc.fireNeeded * fireSwr / 12) - Math.round(loc.inflatedMonthly)).toLocaleString()}/mo
                                   </span>
                                 </div>
                               </div>
