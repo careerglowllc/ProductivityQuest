@@ -754,3 +754,60 @@ This document outlines comprehensive test cases for the Finance tracking feature
 4. Add E2E test coverage for user flows
 5. Performance benchmark and optimize
 
+---
+
+## Financial Items — Notes Field (Added June 1, 2026)
+
+### Test Case N.1: Notes column in DB
+- **Steps:** `SELECT notes FROM financial_items LIMIT 5`
+- **Expected:** Column exists; most rows return `null`
+- **Status:** ✅ Pass / ❌ Fail
+
+### Test Case N.2: Notes render in subscriptions table
+- **Steps:** Open Finances → Table tab → find item with notes set
+- **Expected:** Dimmed subheader text appears below item name
+- **Status:** ✅ Pass / ❌ Fail
+
+### Test Case N.3: Items without notes show no extra space
+- **Steps:** Inspect items without notes in subscriptions table
+- **Expected:** No extra whitespace/empty element below name
+- **Status:** ✅ Pass / ❌ Fail
+
+---
+
+## FIRE Goal Overview Widget (Added June 1, 2026)
+
+> See **FIRE_GOAL_WIDGET_TEST_CASES.md** for full widget test coverage.
+
+### Test Case FGW.1: Widget present on Overview tab
+- **Steps:** Navigate to Finances → Overview tab
+- **Expected:** 🔥 FIRE Goal widget visible in widget grid
+- **Status:** ✅ Pass / ❌ Fail
+
+### Test Case FGW.2: Standard/Inheritance toggle functional
+- **Steps:** Click "💎 w/ Inheritance" button in widget
+- **Expected:** Goal amount decreases, bar turns green, subheader updates
+- **Status:** ✅ Pass / ❌ Fail
+
+### Test Case FGW.3: Deep-link to FIRE tab
+- **Steps:** Click "Open full FIRE analysis →" in widget
+- **Expected:** Active tab switches to FIRE tab
+- **Status:** ✅ Pass / ❌ Fail
+
+---
+
+## FIRE Locations — New Destinations (Added June 1, 2026)
+
+> See **FIRE_GOAL_WIDGET_TEST_CASES.md** Section 3 for full location test coverage.
+
+### Test Case LOC.1: All 6 locations present
+- **Steps:** Go to FIRE tab → check location buttons
+- **Expected:** Thailand, Vietnam, Colombia, Puerto Rico, Austin, Auburn all visible
+- **Status:** ✅ Pass / ❌ Fail
+
+### Test Case LOC.2: Domestic locations have $0 visa line
+- **Steps:** Select Austin or Auburn → check tier cost breakdown
+- **Expected:** Visa/travel line = $0
+- **Status:** ✅ Pass / ❌ Fail
+
+

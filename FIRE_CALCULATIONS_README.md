@@ -382,37 +382,83 @@ pct = min(_fireLiquidNW / FIRE_GOAL × 100, 100)
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `fireLocationKey` | `"thailand" \| "vietnam" \| "colombia"` | `"thailand"` | Selected retirement location |
-| `fireColExpanded` | `"thailand" \| "vietnam" \| "colombia" \| null` | `null` | Which COL card methodology essay is expanded |
+| `fireLocationKey` | `"thailand" \| "vietnam" \| "colombia" \| "puertoRico" \| "austin" \| "auburn"` | `"thailand"` | Selected retirement location |
+| `fireColExpanded` | same union \| `null` | `null` | Which COL card methodology essay is expanded |
 | `fireTier` | `"lean" \| "comfortable" \| "cushy"` | `"comfortable"` | Selected lifestyle tier |
 | `fireSwr` | `number` | `0.04` | Safe withdrawal rate (4%) |
 | `fireColInflation` | `number` | `0.05` | Local COL inflation rate (5%/yr) |
 | `fireCurrencyBuffer` | `number` | `0.05` | Currency risk buffer (5%) |
 | `fireHealthcareBuffer` | `number` | `0.10` | Healthcare cost buffer (10%) |
 | `fireLifestyleBuffer` | `number` | `0.05` | Lifestyle/misc buffer (5%) |
+| `fireInheritanceMode` | `boolean` | `false` | Drawdown-to-inheritance mode vs perpetual SWR |
+| `fireInheritanceAmount` | `number` | `3_000_000` | Expected inheritance amount (today's dollars) |
+| `fireInheritanceAge` | `number` | `48` | Your age when inheritance is received |
+| `fgWidgetInheritance` | `boolean` | `false` | Widget-local inheritance toggle (independent of FIRE tab) |
 
 ---
 
-## 15. File-Level Constants
+## 15. Retirement Locations
 
-These live outside the React component (at the top of `finances.tsx`) so they don't get re-created on every render:
+Six locations are supported. Each has 3 tiers × 7 cost categories.
+
+| Key | Display Name | Color Theme | Notes |
+|-----|-------------|-------------|-------|
+| `thailand` | Chiang Mai, Thailand 🇹🇭 | Orange | Default |
+| `vietnam` | Da Nang, Vietnam 🇻🇳 | Red | Visa run required |
+| `colombia` | Medellín, Colombia 🇨🇴 | Yellow | Spanish helps |
+| `puertoRico` | San Juan, Puerto Rico 🇵🇷 | Cyan | US soil, Act 60 tax benefit, $0 visa |
+| `austin` | Austin, Texas 🤠 | Orange | Domestic, no state income tax |
+| `auburn` | Auburn, California 🏔️ | Emerald | Domestic, CA 13.3% cap gains tax |
+
+### Domestic Locations (Austin & Auburn)
+- Visa line is `$0/mo` — no immigration costs
+- Health insurance uses ACA marketplace estimates
+- Full methodology essays cover tax implications, outdoor recreation, and cost-of-living realities
+
+### Puerto Rico (Act 60)
+- `visa: 0` — US territory, no immigration
+- Act 60 (formerly Act 22): 0% federal capital gains tax on gains accrued as PR resident
+- Requires 183+ days/yr residency, $10K charitable donation, PR real estate purchase within 2 years
+- Consult a CPA specializing in Act 60 — setup cost $5K–$15K
+
+---
+
+## 16. Inheritance Mode
+
+When `fireInheritanceMode = true`, the FIRE goal switches from a **perpetual portfolio** to a **time-limited drawdown**:
+
+```
+Standard:    FIRE_GOAL = inflatedAnnualSpend / SWR
+Inheritance: FIRE_GOAL = inflatedAnnualSpend × [1 − (1+r)^(−n)] / r
+```
+
+Where:
+- `r = 0.07` (conservative drawdown return assumption)
+- `n = max(1, fireInheritanceAge − fireAge)` — years from FIRE to inheritance
+- Portfolio only needs to last until inheritance arrives, not forever
+
+**Parents age subheader:** The inheritance age slider shows "Parents age X at that time" — calculated as `73 + (fireInheritanceAge - 28)` assuming parents are currently 73 and you are 28.
+
+---
+
+## 17. File-Level Constants
 
 ### `FIRE_METHODOLOGY`
 ```typescript
-FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia", string>
+FIRE_METHODOLOGY: Record<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn", string>
 ```
-Long-form essays explaining the methodology behind each location's cost estimates. Shown in the expandable "📖 How these numbers were calculated" section on each COL card.
+Long-form essays per location explaining cost methodology. Shown in expandable cards on the FIRE tab.
 
 ### `FIRE_TIER_DATA`
 ```typescript
 FIRE_TIER_DATA: Record<
-  "thailand" | "vietnam" | "colombia",
+  "thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn",
   Record<"lean" | "comfortable" | "cushy", {
     rent, food, transport, health, entertainment, utilities, visa
   }>
 >
 ```
-The authoritative source of all base monthly costs. 3 locations × 3 tiers × 7 categories = **63 data points**. All values in USD/month in today's dollars. Edit this object to update costs.
+Authoritative source of all base monthly costs. 6 locations × 3 tiers × 7 categories = **126 data points**. All values USD/month in today's dollars.
 
 ---
 
@@ -420,11 +466,13 @@ The authoritative source of all base monthly costs. 3 locations × 3 tiers × 7 
 
 | What to change | Where |
 |---------------|-------|
-| Base monthly costs for a tier/location | `FIRE_TIER_DATA` constant (~line 82 in finances.tsx) |
-| Methodology essays (expandable cards) | `FIRE_METHODOLOGY` constant (~line 25 in finances.tsx) |
+| Base monthly costs for a tier/location | `FIRE_TIER_DATA` constant (top of finances.tsx) |
+| Methodology essays | `FIRE_METHODOLOGY` constant (top of finances.tsx) |
+| Add a new location | Add key to both `FIRE_METHODOLOGY` and `FIRE_TIER_DATA`, add to `FIRE_LOCATIONS` array in IIFE, update state type union |
 | Default SWR | `useState<number>(0.04)` for `fireSwr` |
 | Default COL inflation | `useState<number>(0.05)` for `fireColInflation` |
 | Default buffers | `fireCurrencyBuffer (0.05)`, `fireHealthcareBuffer (0.10)`, `fireLifestyleBuffer (0.05)` |
+| Parents' current age (inheritance subheader) | Hardcoded `73` in the slider subheader JSX |
 | Investment growth rate | `R_INVEST = 0.08` inside the FIRE tab IIFE |
 | Home equity growth rate | `R_HOME = 0.04` inside the FIRE tab IIFE |
 | User's birth date | `BIRTH_YEAR = 1997`, `BIRTH_MONTH = 9` inside the FIRE tab IIFE |
