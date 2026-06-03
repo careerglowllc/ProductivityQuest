@@ -71,10 +71,58 @@ function formatHoursDisplay(h: number): string {
   return `${hrs}h ${mins}m`;
 }
 
+// ── UTC-key migration ─────────────────────────────────────────
+// Before commit 7e25f22, getDayKey used toISOString() (UTC). In PST (UTC-7),
+// entries saved in the evening could be keyed one day ahead (e.g. 10pm May 29 →
+// stored as "2026-05-30"). This migration shifts those keys back by 1 day so
+// the entries are visible again under the correct local-date keys.
+function migrateUtcKeys(raw: LogMap): LogMap {
+  const MIGRATION_KEY = "cpap-utc-migration-v1";
+  if (localStorage.getItem(MIGRATION_KEY)) return raw;
+
+  // Build set of valid period keys (local dates)
+  const validKeys = new Set<string>();
+  for (let i = 0; i < PERIOD_DAYS; i++) {
+    const d = new Date(PERIOD_START);
+    d.setDate(d.getDate() + i);
+    validKeys.add(getDayKey(d));
+  }
+
+  const migrated = { ...raw };
+  let changed = false;
+
+  for (const key of Object.keys(raw)) {
+    // If this key doesn't belong to any valid period date, it's likely a UTC-shifted key.
+    // Try shifting it back 1 day to recover the intended local date.
+    if (!validKeys.has(key)) {
+      const parts = key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (parts) {
+        const d = new Date(parseInt(parts[1]), parseInt(parts[2]) - 1, parseInt(parts[3]));
+        d.setDate(d.getDate() - 1); // shift back one day
+        const corrected = getDayKey(d);
+        if (validKeys.has(corrected) && !migrated[corrected]) {
+          migrated[corrected] = raw[key];
+          delete migrated[key];
+          changed = true;
+        }
+      }
+    }
+  }
+
+  if (changed) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated)); } catch {}
+  }
+  try { localStorage.setItem(MIGRATION_KEY, "1"); } catch {}
+  return migrated;
+}
+
 // ── Component ────────────────────────────────────────────────
 export default function CPAPPage() {
   const [log, setLog] = useState<LogMap>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+    try {
+      const raw: LogMap = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      return migrateUtcKeys(raw);
+    } catch { return {}; }
   });
   const [editing, setEditing] = useState<string | null>(null); // day key being edited
   const [inputVal, setInputVal] = useState("");
