@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -36,6 +36,7 @@ import CPAPPage from "@/pages/cpap";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
 
   // Handle API routes by redirecting to the backend
   if (window.location.pathname.startsWith('/api/')) {
@@ -55,8 +56,8 @@ function Router() {
   }
 
   const showTabBar = isAuthenticated && 
-    !window.location.pathname.startsWith('/login') && 
-    !window.location.pathname.startsWith('/register');
+    !location.startsWith('/login') && 
+    !location.startsWith('/register');
 
   return (
     <>
