@@ -765,7 +765,9 @@ export default function Finances() {
   // Domain: only taxable gains above purchase price; currently at a loss so $0 tax
   const _domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
-  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + hsaBalance + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+  // HSA: 20% early-withdrawal penalty + ~22% income tax = 42% haircut for non-medical use before 65
+  const _hsaAfterPenalty = hsaBalance * 0.58;
+  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // NW Snapshots — load history + auto-save current month once prices are ready
@@ -783,7 +785,7 @@ export default function Finances() {
       rothIra: Math.round(_rothIraAfterPenalty),
       k401: Math.round(_k401AfterPenalty),
       realEstate: Math.round(_homeAfterTaxNetCash),
-      cash: Math.round(checkingBalance + careerglowBalance + hsaBalance),
+      cash: Math.round(checkingBalance + careerglowBalance + _hsaAfterPenalty),
       domain: Math.round(_domainAfterTax),
       etrade: Math.round(eTradeRsuValue),
       vehicles: Math.round(fordExplorerValue + kawasakiNinjaValue),
@@ -2398,11 +2400,12 @@ export default function Finances() {
               // 401k: 32% haircut (10% early withdrawal penalty + ~22% federal income tax)
               const _fire401kValue = _k401Value * 0.68;
               // HSA used for non-medical before 65: 20% penalty + ~22% income tax = 42% haircut
-              const _fireHsaValue = hsaBalance * 0.58;
-              // Everything else is already after-tax
+              const _fireHsaValue = hsaBalance * 0.58; // same as _hsaAfterPenalty at component level
+              // Everything else is already after-tax.
+              // Home equity can be negative if underwater — that's real liability, not $0.
               const _fireLiquidNW =
                 _btcAfterTax + _vanguardAfterTax + _fireRothValue + _fire401kValue +
-                (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0) +
+                _homeAfterTaxNetCash +
                 checkingBalance + careerglowBalance + _fireHsaValue +
                 _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
 
@@ -2656,7 +2659,7 @@ export default function Finances() {
                           <div className="flex justify-between"><span>Vanguard (15% LTCG)</span><span>{fmt(_vanguardAfterTax)}</span></div>
                           <div className="flex justify-between"><span>Roth IRA (25% early haircut)</span><span>{fmt(_fireRothValue)}</span></div>
                           <div className="flex justify-between"><span>401k (32% early haircut)</span><span>{fmt(_fire401kValue)}</span></div>
-                          {_homeAfterTaxNetCash > 0 && <div className="flex justify-between"><span>Home equity (after sale costs)</span><span>{fmt(_homeAfterTaxNetCash)}</span></div>}
+                          {_homeAfterTaxNetCash !== 0 && <div className="flex justify-between"><span>Home equity (after sale costs){_homeAfterTaxNetCash < 0 ? " ⚠️" : ""}</span><span className={_homeAfterTaxNetCash < 0 ? "text-red-400" : ""}>{fmt(_homeAfterTaxNetCash)}</span></div>}
                           <div className="flex justify-between"><span>Cash (checking + biz + HSA)</span><span>{fmt(checkingBalance + careerglowBalance + _fireHsaValue)}</span></div>
                           <div className="flex justify-between"><span>E*Trade RSU</span><span>{fmt(eTradeRsuValue)}</span></div>
                           <div className="flex justify-between"><span>Vehicles</span><span>{fmt(fordExplorerValue + kawasakiNinjaValue)}</span></div>
