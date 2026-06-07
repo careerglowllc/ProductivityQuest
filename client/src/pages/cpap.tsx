@@ -158,6 +158,12 @@ export default function CPAPPage() {
   const daysLeft = days.filter(d => { const dd = new Date(d); dd.setHours(0,0,0,0); return dd >= today; }).length;
   const daysNeededStill = Math.max(0, GOAL_DAYS - qualifyingDays);
 
+  // Skip budget: total allowed misses = 30 - 22 = 8
+  const SKIPS_ALLOWED = PERIOD_DAYS - GOAL_DAYS;
+  const strictlyPastDays = days.filter(d => isPast(d)); // days strictly before today
+  const skipsUsed = strictlyPastDays.filter(d => getDayStatus(d) !== "qualifying").length;
+  const skipsRemaining = Math.max(0, SKIPS_ALLOWED - skipsUsed);
+
   function openEdit(key: string) {
     setEditing(key);
     setInputVal(log[key]?.hours || "");
@@ -310,6 +316,36 @@ export default function CPAPPage() {
                   : " — ⚠️ behind pace"}
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Skip Budget */}
+        <Card className={`bg-slate-800/60 ${skipsRemaining === 0 ? "border-red-500/50" : skipsRemaining <= 2 ? "border-red-500/30" : skipsRemaining <= 4 ? "border-yellow-500/30" : "border-green-500/20"}`}>
+          <CardContent className="pt-4 pb-4 px-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-slate-300 font-medium">⛔ Skip Budget</span>
+              <span className={`text-sm font-bold ${skipsRemaining === 0 ? "text-red-400" : skipsRemaining <= 2 ? "text-red-400" : skipsRemaining <= 4 ? "text-yellow-400" : "text-green-400"}`}>
+                {skipsRemaining} skip{skipsRemaining !== 1 ? "s" : ""} remaining
+              </span>
+            </div>
+            <div className="h-3 rounded-full bg-slate-700 overflow-hidden">
+              <div
+                className={`h-3 rounded-full transition-all duration-500 ${skipsRemaining === 0 ? "bg-red-600" : skipsRemaining <= 2 ? "bg-red-500" : skipsRemaining <= 4 ? "bg-yellow-500" : "bg-green-500"}`}
+                style={{ width: `${(skipsRemaining / SKIPS_ALLOWED) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-400 mt-1.5">
+              <span className="text-slate-300 font-medium">{skipsUsed}</span> of <span className="text-slate-300 font-medium">{SKIPS_ALLOWED}</span> allowed skips used
+              {" · "}
+              {skipsRemaining === 0
+                ? <span className="text-red-400 font-semibold">⛔ No skips left — must qualify every remaining night!</span>
+                : skipsRemaining <= 2
+                ? <span className="text-red-400 font-semibold">⚠️ Nearly out — use remaining skips carefully</span>
+                : skipsRemaining <= 4
+                ? <span className="text-yellow-400">Use cautiously — {skipsRemaining} day{skipsRemaining !== 1 ? "s" : ""} left to miss</span>
+                : <span className="text-green-400">{skipsRemaining} day{skipsRemaining !== 1 ? "s" : ""} you can still miss</span>
+              }
+            </p>
           </CardContent>
         </Card>
 
