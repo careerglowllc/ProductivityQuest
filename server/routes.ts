@@ -576,6 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         smartPrep: parseBoolean(r['Smart Prep']),
         delegationTask: parseBoolean(r['Delegation']),
         velin: parseBoolean(r['Velin']),
+        assignedTo: r['Assigned To']?.trim() || 'Alex',
         completed: false,
       })).filter(t => t.title);
 
@@ -640,7 +641,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'Apple',
         'Smart Prep',
         'Delegation',
-        'Velin'
+        'Velin',
+        'Assigned To'
       ];
       
       // Escape CSV field (handle quotes and commas)
@@ -680,7 +682,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         task.apple ? 'Yes' : 'No',
         task.smartPrep ? 'Yes' : 'No',
         task.delegationTask ? 'Yes' : 'No',
-        task.velin ? 'Yes' : 'No'
+        task.velin ? 'Yes' : 'No',
+        escapeCSV(task.assignedTo ?? 'Alex')
       ].join(','));
       
       // Combine header and rows

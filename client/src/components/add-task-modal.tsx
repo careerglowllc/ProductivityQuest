@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -246,6 +246,40 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [recurType, setRecurType] = useState<string>("one-time");
   const [businessWorkFilter, setBusinessWorkFilter] = useState<string>("General");
   const [campaign, setCampaign] = useState<string>("unassigned");
+  const [assignedTo, setAssignedTo] = useState<string>("Alex");
+  const [assigneeInput, setAssigneeInput] = useState<string>("Alex");
+  const [showAssigneeSuggestions, setShowAssigneeSuggestions] = useState(false);
+  const assigneeRef = useRef<HTMLDivElement>(null);
+
+  // Known assignee names — seed list, grows via localStorage
+  const SEED_ASSIGNEES = ["Alex"];
+  const getKnownAssignees = (): string[] => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("pq-known-assignees") || "[]");
+      const merged = Array.from(new Set([...SEED_ASSIGNEES, ...stored])) as string[];
+      return merged;
+    } catch { return SEED_ASSIGNEES; }
+  };
+  const saveAssignee = (name: string) => {
+    if (!name.trim()) return;
+    try {
+      const existing = getKnownAssignees();
+      if (!existing.includes(name.trim())) {
+        localStorage.setItem("pq-known-assignees", JSON.stringify([...existing, name.trim()]));
+      }
+    } catch {}
+  };
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (assigneeRef.current && !assigneeRef.current.contains(e.target as Node)) {
+        setShowAssigneeSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
   
   // Checkbox filters
   const [apple, setApple] = useState(false);
@@ -306,6 +340,8 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setRecurType("one-time");
     setBusinessWorkFilter("General");
     setCampaign("unassigned");
+    setAssignedTo("Alex");
+    setAssigneeInput("Alex");
     setApple(false);
     setSmartPrep(false);
     setDelegationTask(false);
@@ -361,10 +397,12 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       smartPrep,
       delegationTask,
       velin,
+      assignedTo: assignedTo.trim() || "Alex",
       completed: false,
       skillTags: [], // Initialize with empty array
     };
 
+    saveAssignee(assignedTo.trim() || "Alex");
     createTaskMutation.mutate(taskData);
   };
 
@@ -623,12 +661,58 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             </Select>
           </div>
 
+          {/* Assigned To */}
+          <div className="space-y-2">
+            <Label htmlFor="assignedTo" className="text-yellow-200">
+              Assigned To
+            </Label>
+            <div className="relative" ref={assigneeRef}>
+              <Input
+                id="assignedTo"
+                value={assigneeInput}
+                onChange={(e) => {
+                  setAssigneeInput(e.target.value);
+                  setAssignedTo(e.target.value);
+                  setShowAssigneeSuggestions(true);
+                }}
+                onFocus={() => setShowAssigneeSuggestions(true)}
+                placeholder="e.g. Alex"
+                className="bg-slate-800/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40"
+              />
+              {showAssigneeSuggestions && (
+                <div className="absolute z-50 top-full mt-1 w-full bg-slate-800 border border-yellow-600/30 rounded-md shadow-lg overflow-hidden">
+                  {getKnownAssignees()
+                    .filter(n => n.toLowerCase().includes(assigneeInput.toLowerCase()))
+                    .map(name => (
+                      <button
+                        key={name}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); setAssignedTo(name); setAssigneeInput(name); setShowAssigneeSuggestions(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-yellow-600/20 transition-colors ${assignedTo === name ? "bg-yellow-600/20 text-yellow-200" : "text-slate-200"}`}
+                      >
+                        👤 {name}
+                      </button>
+                    ))
+                  }
+                  {assigneeInput.trim() && !getKnownAssignees().includes(assigneeInput.trim()) && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); setAssignedTo(assigneeInput.trim()); setShowAssigneeSuggestions(false); }}
+                      className="w-full text-left px-3 py-2 text-sm text-yellow-400 hover:bg-yellow-600/20 transition-colors border-t border-slate-700"
+                    >
+                      ➕ Add "{assigneeInput.trim()}" as new assignee
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Campaign */}
           <div className="space-y-2">
             <Label htmlFor="campaign" className="text-yellow-200">
               Questline
-            </Label>
-            <Select value={campaign} onValueChange={setCampaign}>
+            </Label>            <Select value={campaign} onValueChange={setCampaign}>
               <SelectTrigger className="bg-slate-800/50 border-yellow-600/30 text-yellow-100">
                 <SelectValue />
               </SelectTrigger>

@@ -1108,3 +1108,67 @@ curl -X POST http://localhost:5001/api/tasks \
 ---
 
 **End of Test Cases**
+
+---
+
+## Assigned To Field — Added June 8, 2026
+
+### AT-1: Default value
+- **Steps:** Open "Create New Quest" modal
+- **Expected:** "Assigned To" field pre-filled with "Alex"
+
+### AT-2: Autocomplete dropdown shows known names
+- **Steps:** Click into "Assigned To" field → dropdown appears
+- **Expected:** Dropdown lists "Alex" (and any previously saved names)
+
+### AT-3: Type new name
+- **Steps:** Clear field, type "Jordan" → click "➕ Add 'Jordan' as new assignee"
+- **Expected:** Field shows "Jordan"; on submit, task saved with `assignedTo = "Jordan"`
+
+### AT-4: New name persisted to localStorage
+- **Steps:** Create task with assignedTo = "Jordan"; reopen modal
+- **Expected:** "Jordan" appears in the dropdown suggestions
+
+### AT-5: Select existing name from dropdown
+- **Steps:** Click field → click "Alex" from suggestions
+- **Expected:** Field shows "Alex"
+
+### AT-6: Empty assignee defaults to Alex
+- **Steps:** Clear the field, submit
+- **Expected:** Task saved with `assignedTo = "Alex"`
+
+### AT-7: CSV export includes Assigned To column
+- **Steps:** Export tasks as CSV
+- **Expected:** Final column is "Assigned To" with each task's assignee value
+
+### AT-8: CSV import reads Assigned To column
+- **Steps:** Import CSV file with column "Assigned To" = "Taylor"
+- **Expected:** Imported task has `assignedTo = "Taylor"`
+
+### AT-9: CSV import missing column defaults to Alex
+- **Steps:** Import CSV without "Assigned To" column
+- **Expected:** Tasks imported with `assignedTo = "Alex"`
+
+### AT-10: Assignee filter — single user (Alex only)
+- **Steps:** All tasks assigned to Alex; view filter bar
+- **Expected:** "👤 Assignee" dropdown does NOT appear (only shows when 2+ assignees)
+
+### AT-11: Assignee filter — multiple users
+- **Steps:** Have tasks assigned to "Alex" and "Jordan"; view filter bar
+- **Expected:** "👤 Assignee" dropdown appears; options show "Alex (N)", "Jordan (N)"
+
+### AT-12: Filter by assignee
+- **Steps:** Click "👤 Jordan" in assignee filter
+- **Expected:** Only tasks with `assignedTo = "Jordan"` shown
+
+### AT-13: Non-Alex assignee badge on task card
+- **Steps:** View task card for task assigned to "Jordan"
+- **Expected:** Indigo "👤 Jordan" badge shown; Alex tasks show no badge
+
+### AT-14: Edit assignee in task detail modal
+- **Steps:** Open task detail → click "Assigned To" field → change to "Taylor" → click away
+- **Expected:** Task updated in DB; "Taylor" saved to known assignees in localStorage
+
+### AT-15: Existing tasks retain Alex default
+- **Steps:** View tasks that existed before this feature was added
+- **Expected:** All show `assignedTo = "Alex"` (DB migration backfilled)

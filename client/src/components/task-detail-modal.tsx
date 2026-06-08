@@ -280,6 +280,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
         campaign: '👑 Campaign',
         questlineId: '⚔️ Questline',
         emoji: '😀 Emoji',
+        assignedTo: '👤 Assigned To',
       };
       toast({
         title: `${fieldLabels[variables.field] || variables.field} Updated`,
@@ -888,6 +889,32 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                   <SelectItem value="MW">🏢 MW</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Assigned To */}
+            <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-indigo-600/20`}>
+              <div className="flex items-center gap-2 text-indigo-400">
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>👤</span>
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Assigned To</span>
+              </div>
+              <input
+                type="text"
+                defaultValue={task.assignedTo ?? "Alex"}
+                onBlur={(e) => {
+                  const val = e.target.value.trim() || "Alex";
+                  if (val !== (task.assignedTo ?? "Alex")) {
+                    updateFieldMutation.mutate({ field: 'assignedTo', value: val });
+                    // Save to known assignees
+                    try {
+                      const stored = JSON.parse(localStorage.getItem("pq-known-assignees") || "[]");
+                      if (!stored.includes(val)) {
+                        localStorage.setItem("pq-known-assignees", JSON.stringify([...stored, val]));
+                      }
+                    } catch {}
+                  }
+                }}
+                className={`${isMobile ? 'w-full' : 'w-[140px]'} bg-slate-900/50 border border-indigo-600/30 rounded-md text-yellow-100 h-8 text-xs px-2 focus:outline-none focus:border-indigo-400`}
+              />
             </div>
 
             {/* Kanban Stage */}

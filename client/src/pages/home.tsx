@@ -27,7 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 
-type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw";
+type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | `assignee-${string}`;
 type BusinessFilterType = "Apple" | "General" | "MW";
 type SortType = "due-date" | "importance";
 type ViewType = "list" | "grid";
@@ -51,8 +51,8 @@ export default function Home() {
   // Load saved filter preference from localStorage, default to 'all'
   const [activeFilter, setActiveFilter] = useState<FilterType>(() => {
     const savedFilter = localStorage.getItem('tasksFilter');
-    const validFilters: FilterType[] = ["all", "due-today", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw"];
-    if (savedFilter && validFilters.includes(savedFilter as FilterType)) {
+    const staticFilters = ["all", "due-today", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw"];
+    if (savedFilter && (staticFilters.includes(savedFilter) || savedFilter.startsWith("assignee-"))) {
       return savedFilter as FilterType;
     }
     return "all";
@@ -1483,11 +1483,19 @@ export default function Home() {
       ).length,
       businessMW: activeTasks.filter((task: any) => 
         task.businessWorkFilter === "MW"
-      ).length
+      ).length,
+      // Assignee counts: build a map of name → count
+      byAssignee: activeTasks.reduce((acc: Record<string, number>, task: any) => {
+        const name = task.assignedTo ?? "Alex";
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
     };
   };
 
   const filterCounts = getFilterCounts();
+  // Sorted list of unique assignees for the filter UI
+  const assigneeList = Object.entries(filterCounts.byAssignee as Record<string, number>).sort((a, b) => b[1] - a[1]);
 
   // Filter tasks based on active filter and search query
   const getFilteredTasks = () => {
@@ -1573,6 +1581,13 @@ export default function Home() {
         );
       
       default:
+        // assignee-* filter
+        if (activeFilter.startsWith("assignee-")) {
+          const name = activeFilter.slice("assignee-".length);
+          return activeTasks.filter((task: any) =>
+            (task.assignedTo ?? "Alex").toLowerCase() === name.toLowerCase()
+          );
+        }
         return activeTasks;
     }
   };
@@ -2211,6 +2226,49 @@ export default function Home() {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
+                  {/* Assignee filter — only show when 2+ assignees */}
+                  {assigneeList.length >= 2 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant={activeFilter.startsWith("assignee-") ? "default" : "outline"}
+                          size="sm"
+                          className={`h-[22px] px-2 text-[10px] ${
+                            activeFilter.startsWith("assignee-")
+                              ? "bg-indigo-600/50 border-indigo-400/60 text-indigo-200"
+                              : "bg-slate-800/80 border-slate-600/40 text-slate-400 hover:border-indigo-500/40"
+                          }`}
+                        >
+                          👤 {activeFilter.startsWith("assignee-")
+                            ? `${activeFilter.slice("assignee-".length)} (${filterCounts.byAssignee[activeFilter.slice("assignee-".length)] ?? 0})`
+                            : `Assignee (${filterCounts.all})`
+                          }
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                        <DropdownMenuItem
+                          onClick={() => setActiveFilter("all")}
+                          className={`cursor-pointer ${activeFilter === "all" ? "bg-yellow-600/20 text-yellow-200" : "text-slate-300 hover:bg-slate-700/80"}`}
+                        >
+                          👥 All ({filterCounts.all})
+                        </DropdownMenuItem>
+                        {assigneeList.map(([name, count]) => (
+                          <DropdownMenuItem
+                            key={name}
+                            onClick={() => setActiveFilter(`assignee-${name}` as FilterType)}
+                            className={`cursor-pointer ${
+                              activeFilter === `assignee-${name}`
+                                ? "bg-indigo-600/20 text-indigo-200"
+                                : "text-slate-300 hover:bg-slate-700/80"
+                            }`}
+                          >
+                            👤 {name} ({count as number})
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+
                   {/* Row 1 right side: All/None + Sort + Grid toggle */}
                   <div className="ml-auto flex items-center gap-1">
                     {sortedTasks.length > 0 && (
@@ -2390,6 +2448,41 @@ export default function Home() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+
+                  {/* Assignee filter — mobile/compact, show when 2+ assignees */}
+                  {assigneeList.length >= 2 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Badge
+                          variant={activeFilter.startsWith("assignee-") ? "default" : "outline"}
+                          className={`cursor-pointer ${
+                            activeFilter.startsWith("assignee-")
+                              ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border-indigo-400"
+                              : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                          }`}
+                        >
+                          👤 {activeFilter.startsWith("assignee-") ? activeFilter.slice("assignee-".length) : "Assignee"}
+                        </Badge>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                        <DropdownMenuItem
+                          onClick={() => setActiveFilter("all")}
+                          className={`cursor-pointer ${activeFilter === "all" ? "bg-yellow-600/20 text-yellow-200" : "text-slate-300 hover:bg-slate-700/80"}`}
+                        >
+                          👥 All ({filterCounts.all})
+                        </DropdownMenuItem>
+                        {assigneeList.map(([name, count]) => (
+                          <DropdownMenuItem
+                            key={name}
+                            onClick={() => setActiveFilter(`assignee-${name}` as FilterType)}
+                            className={`cursor-pointer ${activeFilter === `assignee-${name}` ? "bg-indigo-600/20 text-indigo-200" : "text-slate-300 hover:bg-slate-700/80"}`}
+                          >
+                            👤 {name} ({count as number})
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
                 
                 <div className="flex gap-2 items-center">

@@ -96,6 +96,7 @@ export const tasks = pgTable("tasks", {
   questlineOrder: integer("questline_order"), // Order within the questline (1-based)
   parentTaskId: integer("parent_task_id"), // FK to parent task for subtask nesting (null = top-level)
   indentLevel: integer("indent_level").default(0), // 0 = top-level stage, 1-4 = nested subtask depth
+  assignedTo: text("assigned_to").default("Alex"), // Person assigned to this quest
 });
 
 // Questlines — multi-stage quest chains. Each stage is a regular task with questlineId set.

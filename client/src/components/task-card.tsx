@@ -60,6 +60,7 @@ interface TaskCardProps {
     skillTags?: string[];
     emoji?: string;
     questlineId?: number | null;
+    assignedTo?: string;
   };
   onSelect: (taskId: number, selected: boolean) => void;
   isSelected: boolean;
@@ -655,6 +656,11 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                   {task.velin && (
                     <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
                       Velin
+                    </Badge>
+                  )}
+                  {task.assignedTo && task.assignedTo !== "Alex" && (
+                    <Badge variant="outline" className="text-xs bg-indigo-900/40 text-indigo-200 border-indigo-600/40">
+                      👤 {task.assignedTo}
                     </Badge>
                   )}
                 </div>
