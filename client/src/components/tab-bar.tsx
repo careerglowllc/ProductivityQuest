@@ -1,16 +1,18 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Activity } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Activity, Sun, Moon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Settings, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useTheme } from "@/contexts/theme-context";
 
 export function TabBar() {
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const [questsMenuOpen, setQuestsMenuOpen] = useState(false);
   const [skillsMenuOpen, setSkillsMenuOpen] = useState(false);
 
@@ -54,7 +56,7 @@ export function TabBar() {
   // Mobile: bottom navigation (dark theme)
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-yellow-600/30 safe-area-inset-bottom z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-yellow-600/30 safe-area-inset-bottom z-50 light:bg-white light:border-slate-200">
         <nav className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -77,6 +79,14 @@ export function TabBar() {
               </Link>
             );
           })}
+          {/* Theme toggle in mobile bar */}
+          <button
+            onClick={toggleTheme}
+            className="flex flex-col items-center justify-center flex-1 h-full text-yellow-200/60 hover:text-yellow-200 transition-colors"
+          >
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            <span className="text-[10px] mt-0.5 font-medium">{isDark ? "Light" : "Dark"}</span>
+          </button>
         </nav>
       </div>
     );
@@ -243,6 +253,20 @@ export function TabBar() {
             <Coins className="h-4 w-4 text-yellow-400" />
             <span className="font-bold text-yellow-100 text-sm">{(progress as any)?.goldTotal || 0}</span>
           </div>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="flex items-center justify-center w-8 h-8 rounded-full border transition-all
+              dark:bg-slate-800/60 dark:border-yellow-600/30 dark:hover:bg-slate-700/60 dark:hover:border-yellow-500/50
+              light-mode:bg-slate-200 light-mode:border-slate-300 light-mode:hover:bg-slate-300"
+          >
+            {isDark
+              ? <Sun className="h-4 w-4 text-yellow-300" />
+              : <Moon className="h-4 w-4 text-slate-600" />
+            }
+          </button>
 
           {/* User Dropdown */}
           <DropdownMenu>
