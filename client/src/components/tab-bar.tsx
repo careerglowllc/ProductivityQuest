@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Activity, Sun, Moon } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Activity, Sun, Moon, Monitor } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -12,9 +12,13 @@ export function TabBar() {
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { preference, cycleTheme, isDark } = useTheme();
   const [questsMenuOpen, setQuestsMenuOpen] = useState(false);
   const [skillsMenuOpen, setSkillsMenuOpen] = useState(false);
+
+  // Icon + label for the current theme preference (light → dark → auto)
+  const ThemeIcon = preference === "light" ? Sun : preference === "dark" ? Moon : Monitor;
+  const themeLabel = preference === "light" ? "Light" : preference === "dark" ? "Dark" : "Auto";
 
   const { data: progress = { goldTotal: 0 } } = useQuery({
     queryKey: ["/api/progress"],
@@ -79,13 +83,13 @@ export function TabBar() {
               </Link>
             );
           })}
-          {/* Theme toggle in mobile bar */}
+          {/* Theme toggle in mobile bar (cycles light → dark → auto) */}
           <button
-            onClick={toggleTheme}
+            onClick={cycleTheme}
             className="flex flex-col items-center justify-center flex-1 h-full text-yellow-200/60 hover:text-yellow-200 transition-colors"
           >
-            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            <span className="text-[10px] mt-0.5 font-medium">{isDark ? "Light" : "Dark"}</span>
+            <ThemeIcon className="h-5 w-5" />
+            <span className="text-[10px] mt-0.5 font-medium">{themeLabel}</span>
           </button>
         </nav>
       </div>
@@ -254,18 +258,14 @@ export function TabBar() {
             <span className="font-bold text-yellow-100 text-sm">{(progress as any)?.goldTotal || 0}</span>
           </div>
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle (cycles light → dark → auto) */}
           <button
-            onClick={toggleTheme}
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            onClick={cycleTheme}
+            title={`Theme: ${themeLabel} — click to change`}
             className="flex items-center justify-center w-8 h-8 rounded-full border transition-all
-              dark:bg-slate-800/60 dark:border-yellow-600/30 dark:hover:bg-slate-700/60 dark:hover:border-yellow-500/50
-              light-mode:bg-slate-200 light-mode:border-slate-300 light-mode:hover:bg-slate-300"
+              bg-slate-800/60 border-yellow-600/30 hover:bg-slate-700/60 hover:border-yellow-500/50"
           >
-            {isDark
-              ? <Sun className="h-4 w-4 text-yellow-300" />
-              : <Moon className="h-4 w-4 text-slate-600" />
-            }
+            <ThemeIcon className={`h-4 w-4 ${isDark ? "text-yellow-300" : "text-slate-600"}`} />
           </button>
 
           {/* User Dropdown */}

@@ -164,13 +164,15 @@
   }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   LIGHT MODE OVERRIDES
-   Applied when <html class="light"> is set via theme toggle
-   Overrides hardcoded Tailwind slate-* colors throughout the app
-────────────────────────────────────────────────────────────── */
+/* ═════════════════════════════════════════════════════════════
+   LIGHT MODE — comprehensive overrides
+   Applied when <html class="light"> is set by the theme system.
+   The app uses hardcoded Tailwind slate/indigo/purple colors and
+   gradients, so we remap them here to industry-standard light tones.
+   Backgrounds: near-white. Text: near-black. Muted: slate-500/600.
+══════════════════════════════════════════════════════════════ */
 html.light {
-  /* CSS variable overrides for shadcn components */
+  /* shadcn CSS variables for ui/* components */
   --background: hsl(210, 40%, 98%);
   --foreground: hsl(222, 47%, 11%);
   --muted: hsl(210, 40%, 93%);
@@ -192,81 +194,177 @@ html.light {
   --ring: hsl(222, 47%, 11%);
 }
 
-/* Page backgrounds */
-html.light .min-h-screen,
-html.light .min-h-screen.bg-slate-950,
-html.light [class*="bg-slate-950"],
-html.light [class*="bg-slate-900"] {
+/* ── Page backgrounds ──
+   ANY full-page wrapper (always has min-h-screen) → force light.
+   This is simpler and 100% reliable vs. matching specific gradient combos. */
+html.light .min-h-screen {
   background-color: #f8fafc !important;
+  background-image: none !important;
 }
 
-/* Navigation bars */
-html.light .fixed.top-0,
-html.light [class*="bg-slate-900\/95"] {
-  background-color: rgba(255,255,255,0.97) !important;
-  border-color: rgba(203,213,225,0.8) !important;
+/* Strip dark gradient CSS variables so if background-image somehow survives
+   it still renders light colors. Covers from-slate-900/950 combos. */
+html.light [class*="from-slate-9"] {
+  --tw-gradient-from: #f8fafc !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(248,250,252,0)) !important;
+}
+html.light [class*="via-slate-8"],
+html.light [class*="via-slate-9"],
+html.light [class*="via-purple-9"] {
+  --tw-gradient-via: #f1f5f9 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to, rgba(241,245,249,0)) !important;
+}
+html.light [class*="to-indigo-9"],
+html.light [class*="to-slate-9"] {
+  --tw-gradient-to: #ffffff !important;
+}
+
+/* Solid dark page backgrounds */
+html.light .bg-slate-950 {
+  background-color: #f8fafc !important;
+  background-image: none !important;
+}
+
+/* ── bg-gray-900 (calendar uses this for internal panels / headers) ── */
+html.light [class*="bg-gray-900"] {
+  background-color: #ffffff !important;
+}
+
+/* ── Top navigation bar (fixed) ── */
+html.light .fixed.top-0 {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  border-color: rgba(203, 213, 225, 0.9) !important;
   backdrop-filter: blur(12px);
 }
 
+/* ── Sticky section headers (home page QuestList header, calendar day row, etc.) ── */
+html.light .sticky {
+  background-color: rgba(248, 250, 252, 0.97) !important;
+}
+html.light .sticky[class*="border-b"] {
+  border-color: rgba(203, 213, 225, 0.8) !important;
+}
+
+/* ── Bottom nav bar (mobile) ── */
 html.light .fixed.bottom-0 {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
 }
 
-/* Cards and panels */
-html.light [class*="bg-slate-800"],
-html.light [class*="bg-slate-800\/"] {
+/* ── Cards / panels (solid + translucent) ── */
+html.light [class*="bg-slate-800"] {
+  background-color: #ffffff !important;
+}
+html.light [class*="bg-slate-700"] {
+  background-color: #f1f5f9 !important;
+}
+html.light [class*="bg-slate-900\/"] {
+  background-color: #f8fafc !important;
+}
+/* Card gradients (purple/indigo tinted) → plain white in light mode */
+html.light [class*="from-purple-900"],
+html.light [class*="to-indigo-900"],
+html.light [class*="from-indigo-900"] {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+html.light [class*="from-slate-600"][class*="to-slate-700"] {
+  background-image: linear-gradient(to bottom, #e2e8f0, #cbd5e1) !important;
+}
+
+/* Solid purple / indigo dark backgrounds → white */
+html.light [class*="bg-purple-900"],
+html.light [class*="bg-purple-800"] {
+  background-color: #ffffff !important;
+}
+html.light [class*="bg-indigo-900"],
+html.light [class*="bg-indigo-800"] {
   background-color: #ffffff !important;
 }
 
-html.light [class*="bg-slate-700"],
-html.light [class*="bg-slate-700\/"] {
-  background-color: #f1f5f9 !important;
-}
-
-html.light [class*="bg-slate-900\/"],
-html.light [class*="bg-slate-900"] {
-  background-color: #f8fafc !important;
-}
-
-/* Text colors */
+/* ── Text colors ── */
+html.light [class*="text-white"],
 html.light [class*="text-slate-100"],
-html.light [class*="text-slate-200"],
-html.light [class*="text-white"] {
+html.light [class*="text-slate-200"] {
   color: #0f172a !important;
 }
-
 html.light [class*="text-slate-300"],
 html.light [class*="text-slate-400"] {
   color: #475569 !important;
 }
-
-html.light [class*="text-slate-500"] {
+html.light [class*="text-slate-500"],
+html.light [class*="text-slate-600"] {
   color: #64748b !important;
 }
-
+/* Yellow accent text → near-black (strongest readable without blue tint) */
 html.light [class*="text-yellow-100"],
 html.light [class*="text-yellow-200"] {
-  color: #1e293b !important;
+  color: #111827 !important;
 }
-
 html.light [class*="text-yellow-300"],
 html.light [class*="text-yellow-400"] {
   color: #b45309 !important;
 }
 
-/* Borders */
+/* Very-light colored text: invisible on white → darkened to visible shade of same hue */
+html.light [class*="text-purple-100"],
+html.light [class*="text-purple-200"] {
+  color: #5b21b6 !important; /* purple-800 */
+}
+html.light [class*="text-purple-300"] {
+  color: #6d28d9 !important; /* purple-700 */
+}
+html.light [class*="text-blue-100"],
+html.light [class*="text-blue-200"] {
+  color: #1e40af !important; /* blue-800 */
+}
+html.light [class*="text-blue-300"] {
+  color: #1d4ed8 !important; /* blue-700 */
+}
+html.light [class*="text-cyan-100"],
+html.light [class*="text-cyan-200"] {
+  color: #0e7490 !important; /* cyan-700 */
+}
+html.light [class*="text-cyan-300"] {
+  color: #0891b2 !important; /* cyan-600 */
+}
+html.light [class*="text-green-100"],
+html.light [class*="text-green-200"] {
+  color: #15803d !important; /* green-700 */
+}
+html.light [class*="text-red-100"],
+html.light [class*="text-red-200"] {
+  color: #b91c1c !important; /* red-700 */
+}
+html.light [class*="text-orange-100"],
+html.light [class*="text-orange-200"] {
+  color: #c2410c !important; /* orange-700 */
+}
+html.light [class*="text-pink-100"],
+html.light [class*="text-pink-200"] {
+  color: #be185d !important; /* pink-700 */
+}
+html.light [class*="text-teal-100"],
+html.light [class*="text-teal-200"] {
+  color: #0f766e !important; /* teal-700 */
+}
+html.light [class*="text-emerald-100"],
+html.light [class*="text-emerald-200"] {
+  color: #047857 !important; /* emerald-700 */
+}
+
+/* ── Borders ── */
+html.light [class*="border-slate-600"],
 html.light [class*="border-slate-700"],
 html.light [class*="border-slate-800"] {
   border-color: #e2e8f0 !important;
 }
-
 html.light [class*="border-yellow-600\/"],
 html.light [class*="border-yellow-500\/"] {
-  border-color: rgba(180,83,9,0.35) !important;
+  border-color: rgba(180, 83, 9, 0.3) !important;
 }
 
-/* Inputs and form fields */
+/* ── Form fields ── */
 html.light input,
 html.light textarea,
 html.light select {
@@ -274,84 +372,47 @@ html.light select {
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
-
 html.light input::placeholder,
 html.light textarea::placeholder {
   color: #94a3b8 !important;
 }
 
-/* Dropdown menus */
-html.light [class*="bg-slate-800"][role="menu"],
-html.light [class*="bg-slate-800"][role="listbox"],
-html.light [data-radix-popper-content-wrapper] [class*="bg-slate-800"] {
+/* ── Dropdown / popover / dialog surfaces ── */
+html.light [data-radix-popper-content-wrapper] [class*="bg-slate-800"],
+html.light [role="menu"],
+html.light [role="listbox"] {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
 }
-
-html.light [class*="hover:bg-slate-700"]:hover {
+html.light [class*="hover\:bg-slate-700"]:hover,
+html.light [class*="focus\:bg-slate-700"]:focus {
   background-color: #f1f5f9 !important;
 }
-
-/* Badges */
-html.light [class*="bg-slate-700\/40"],
-html.light [class*="bg-slate-800\/60"],
-html.light [class*="bg-slate-800\/50"] {
-  background-color: #f1f5f9 !important;
-}
-
-/* Gold / coin displays */
-html.light [class*="bg-yellow-600\/30"] {
-  background-color: rgba(245,158,11,0.15) !important;
-}
-
-/* Progress bars and charts */
-html.light [class*="bg-slate-700"] {
-  background-color: #e2e8f0 !important;
-}
-
-/* Scrollbars */
-html.light ::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-html.light ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-}
-html.light ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* iOS safe area bottom strip */
-html.light::after {
-  background-color: #f8fafc !important;
-}
-
-/* Active nav items in light mode */
-html.light [class*="from-yellow-600\/40"] {
-  background: linear-gradient(to right, rgba(180,83,9,0.15), rgba(180,83,9,0.1)) !important;
-}
-
-html.light [class*="text-yellow-100"] a,
-html.light nav a {
-  color: #1e293b !important;
-}
-
-html.light nav [class*="text-yellow-200\/70"] {
-  color: #64748b !important;
-}
-
-/* Finance/FIRE page specific */
-html.light [class*="bg-orange-950"],
-html.light [class*="bg-orange-900"] {
-  background-color: #fff7ed !important;
-}
-
-/* Dialog/Modal overlays */
-html.light [role="dialog"] [class*="bg-slate-900"],
-html.light [role="dialog"] [class*="bg-slate-800"] {
-  background-color: #ffffff !important;
-}
-
 html.light [role="dialog"] {
   color: #0f172a !important;
 }
+
+/* ── Gold / coin pill ── */
+html.light [class*="bg-yellow-600\/30"] {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+/* ── Active nav item highlight ── */
+html.light [class*="from-yellow-600\/40"][class*="to-yellow-500\/40"] {
+  background-image: linear-gradient(to right, rgba(180, 83, 9, 0.12), rgba(180, 83, 9, 0.08)) !important;
+}
+
+/* Keep colored action buttons readable (green/blue/cyan/red gradients
+   and the yellow CTA buttons keep white text — leave them alone). */
+html.light [class*="from-yellow-600"][class*="to-yellow-500"]:not([class*="\/40"]) {
+  color: #1e293b !important;
+}
+
+/* ── Scrollbars ── */
+html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
+html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── iOS safe-area strip ── */
+html.light::after { background-color: #ffffff !important; }

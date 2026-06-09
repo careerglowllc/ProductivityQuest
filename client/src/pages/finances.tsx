@@ -2359,7 +2359,8 @@ export default function Finances() {
                   )}
 
                   {/* Raw data table */}
-                  {chartData.length > 0 && (
+                  {chartData.length > 0 && (lsof -ti :8081 | xargs kill -9 2>/dev/null; npx expo start --clear
+
                     <Card className="bg-slate-800/60 border-slate-500/20">
                       <CardHeader>
                         <CardTitle className="text-slate-300 text-sm">Monthly History</CardTitle>

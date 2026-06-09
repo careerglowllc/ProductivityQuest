@@ -6,6 +6,24 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0f172a" />
+    <!-- Apply saved theme before paint to avoid a flash of the wrong theme -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("pq-theme-preference") || localStorage.getItem("pq-theme") || "dark";
+          var resolved = pref;
+          if (pref === "auto") {
+            resolved = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          var root = document.documentElement;
+          root.classList.add(resolved === "light" ? "light" : "dark");
+          root.style.colorScheme = resolved;
+          if (resolved === "light") {
+            document.documentElement.style.backgroundColor = "#f8fafc";
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body style="background-color: #0f172a;">
     <div id="root"></div>
