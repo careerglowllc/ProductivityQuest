@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/contexts/theme-context";
 import { 
   Trophy, 
   Target, 
@@ -16,8 +17,9 @@ import {
 } from "lucide-react";
 
 export default function GettingStarted() {
+  const { isDark } = useTheme();
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 py-12 px-4">
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} py-12 px-4`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>

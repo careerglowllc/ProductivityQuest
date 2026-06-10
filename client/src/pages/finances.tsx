@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
@@ -197,6 +198,7 @@ export default function Finances() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
   const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn">("thailand");
   const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn" | null>(null);
@@ -1128,7 +1130,7 @@ export default function Finances() {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? "pt-16" : ""} pb-24`}>
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? "pt-16" : ""} pb-24`}>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
@@ -2359,8 +2361,7 @@ export default function Finances() {
                   )}
 
                   {/* Raw data table */}
-                  {chartData.length > 0 && (lsof -ti :8081 | xargs kill -9 2>/dev/null; npx expo start --clear
-
+                  {chartData.length > 0 && (
                     <Card className="bg-slate-800/60 border-slate-500/20">
                       <CardHeader>
                         <CardTitle className="text-slate-300 text-sm">Monthly History</CardTitle>

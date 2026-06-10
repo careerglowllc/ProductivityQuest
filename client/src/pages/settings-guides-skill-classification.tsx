@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Brain, Sparkles, Target, TrendingUp, CheckCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
 
 export default function SkillClassificationGuidePage() {
+  const { isDark } = useTheme();
   const isMobile = useIsMobile();
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>

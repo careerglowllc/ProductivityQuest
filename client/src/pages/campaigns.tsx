@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X, GripVertical } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/contexts/theme-context";
 import { apiRequest } from "@/lib/queryClient";
 import { AddQuestlineModal } from "@/components/add-questline-modal";
 import { EditQuestlineModal } from "@/components/edit-questline-modal";
@@ -42,6 +43,7 @@ interface QuestlineData {
 
 export default function CampaignsPage() {
   const isMobile = useIsMobile();
+  const { isDark } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -87,7 +89,7 @@ export default function CampaignsPage() {
   const completed = questlines.filter((q) => q.completed);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 ${isMobile ? "pb-20 px-2 pt-1" : "pt-20 px-4"}`}>
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" : "bg-gray-50"} ${isMobile ? "pb-20 px-2 pt-1" : "pt-20 px-4"}`}>
       <div className={`max-w-6xl mx-auto ${isMobile ? "py-3" : "py-8"}`}>
         {/* Page Header */}
         <div className={isMobile ? "mb-3" : "mb-8"}>

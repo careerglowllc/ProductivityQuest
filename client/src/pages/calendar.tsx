@@ -14,6 +14,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -237,6 +238,7 @@ function getEventsForDate(events: CalendarEvent[], date: Date): CalendarEvent[] 
 
 export default function CalendarPage() {
   const isMobile = useIsMobile();
+  const { isDark } = useTheme();
   const queryClient = useQueryClient();
   const { toast, dismiss } = useToast();
 
@@ -788,7 +790,7 @@ export default function CalendarPage() {
 
   return (
     <div
-      className={`bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 ${isMobile ? "fixed inset-0 overflow-hidden" : "min-h-screen pt-24 pb-8 px-8"}`}
+      className={`${isDark ? "bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900" : "bg-gray-50"} ${isMobile ? "fixed inset-0 overflow-hidden" : "min-h-screen pt-24 pb-8 px-8"}`}
       style={isMobile ? { top: "env(safe-area-inset-top, 0px)", bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" } : undefined}
     >
       <div className={isMobile ? "h-full flex flex-col" : "max-w-7xl mx-auto"}>

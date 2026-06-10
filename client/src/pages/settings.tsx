@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, DollarSign } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
 
 export default function SettingsPage() {
+  const { isDark } = useTheme();
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950">
+      <div className={`flex items-center justify-center min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"}`}>
         <div className="text-center">
           <p className="text-lg text-yellow-200/80 mb-4">Please log in to access settings</p>
           <Button 

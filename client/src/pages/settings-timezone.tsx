@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, invalidateCalendarEvents } from "@/lib/queryClient";
+import { useTheme } from "@/contexts/theme-context";
 
 // Timezone options
 const TIMEZONES = [
@@ -25,6 +26,7 @@ const TIMEZONES = [
 ];
 
 export default function TimezoneSettingsPage() {
+  const { isDark } = useTheme();
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -85,7 +87,7 @@ export default function TimezoneSettingsPage() {
   const hasChanges = selectedTimezone !== currentTimezone;
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>

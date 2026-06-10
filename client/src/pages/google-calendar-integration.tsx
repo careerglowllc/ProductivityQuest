@@ -12,8 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, ArrowLeft, Calendar, Key, ExternalLink, Copy, AlertCircle, Loader2, RefreshCw, Download, Trash2, Link as LinkIcon } from "lucide-react";
 import type { UserSettings } from "@/../../shared/schema";
+import { useTheme } from "@/contexts/theme-context";
 
 export default function GoogleCalendarIntegration() {
+  const { isDark } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [clientId, setClientId] = useState("");
@@ -245,7 +247,7 @@ export default function GoogleCalendarIntegration() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center pb-20">
+      <div className={`min-h-screen ${isDark ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" : "bg-gray-50"} flex items-center justify-center pb-20`}>
         <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     );

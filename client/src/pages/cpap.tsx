@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTheme } from "@/contexts/theme-context";
 import { Activity, CheckCircle2, XCircle, Clock, Target, AlertCircle, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +120,7 @@ function migrateUtcKeys(raw: LogMap): LogMap {
 
 // ── Component ────────────────────────────────────────────────
 export default function CPAPPage() {
+  const { isDark } = useTheme();
   const [log, setLog] = useState<LogMap>(() => {
     try {
       const raw: LogMap = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -238,7 +240,7 @@ export default function CPAPPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 pt-20 pb-10 px-4">
+    <div className={`min-h-screen ${isDark ? "bg-slate-950" : "bg-gray-50"} pt-20 pb-10 px-4`}>
       <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Header */}

@@ -10,8 +10,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { CheckCircle, ArrowLeft, Calendar, AlertCircle, Loader2, Link as LinkIcon, ExternalLink, Settings as SettingsIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { UserSettings } from "@/../../shared/schema";
+import { useTheme } from "@/contexts/theme-context";
 
 export default function GoogleCalendar() {
+  const { isDark } = useTheme();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [hasGoogleAuth, setHasGoogleAuth] = useState(false);
@@ -117,7 +119,7 @@ export default function GoogleCalendar() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center pb-20">
+      <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} flex items-center justify-center pb-20`}>
         <Loader2 className="h-8 w-8 animate-spin text-yellow-400" />
       </div>
     );

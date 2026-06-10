@@ -11,6 +11,7 @@ import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles, Pencil } from "lucid
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useTheme } from "@/contexts/theme-context";
 
 // Common emojis for shop items
 const EMOJI_OPTIONS = [
@@ -32,6 +33,7 @@ const EMOJI_OPTIONS = [
 ];
 
 export default function Shop() {
+  const { isDark } = useTheme();
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
@@ -279,7 +281,7 @@ export default function Shop() {
   const selectedItem = shopItems.find((item: any) => item.id === selectedItemId);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative`}>
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? 'pt-16' : ''} pb-24 relative`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>

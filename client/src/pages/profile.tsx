@@ -6,8 +6,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
 
 export default function Profile() {
+  const { isDark } = useTheme();
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -27,7 +29,7 @@ export default function Profile() {
   // Profile sub-view
   if (showProfile) {
     return (
-      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${isMobile ? 'pt-6 pb-24 px-4' : 'pt-8 pb-24 px-6'}`}>
+      <div className={`min-h-screen ${isDark ? "bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" : "bg-gray-50"} ${isMobile ? 'pt-6 pb-24 px-4' : 'pt-8 pb-24 px-6'}`}>
         <div className="max-w-2xl mx-auto">
           {/* Back button */}
           <Button

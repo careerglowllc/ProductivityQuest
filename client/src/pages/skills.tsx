@@ -57,6 +57,7 @@ import { useState, useRef, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import type { LucideIcon } from "lucide-react";
+import { useTheme } from "@/contexts/theme-context";
 
 const skillDescriptions = {
   Craftsman: {
@@ -514,6 +515,7 @@ const defaultSkillIcons: Record<string, any> = {
 };
 
 export default function Skills() {
+  const { isDark } = useTheme();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -785,7 +787,7 @@ export default function Skills() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center">
+      <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} flex items-center justify-center`}>
         <div className="text-yellow-200 text-xl">Loading skills...</div>
       </div>
     );

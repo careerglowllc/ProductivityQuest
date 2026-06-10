@@ -15,6 +15,7 @@ import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/sche
 import { getSkillIcon } from "@/lib/skillIcons";
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { useTheme } from "@/contexts/theme-context";
 
 // Default skill icon mapping for backward compatibility
 const skillIcons: Record<string, any> = {
@@ -599,8 +600,7 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  
-  // State for expanded campaigns
+  const { isDark } = useTheme();
   const [expandedCampaigns, setExpandedCampaigns] = useState<{ [key: string]: boolean }>({});
   
   // Fetch questlines from API (same source as questlines/campaigns page)
@@ -1109,7 +1109,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>

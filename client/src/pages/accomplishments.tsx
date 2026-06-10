@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
 import { TrendingUp, ArrowLeft, Download } from "lucide-react";
 import { Link } from "wouter";
 
@@ -113,6 +114,7 @@ function exportAccomplishmentsCSV(items: Accomplishment[]) {
 
 export default function AccomplishmentsPage() {
   const isMobile = useIsMobile();
+  const { isDark } = useTheme();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showChart, setShowChart] = useState(true);
   const [showTimeline, setShowTimeline] = useState(true);
@@ -153,7 +155,7 @@ export default function AccomplishmentsPage() {
   const maxCumulative = Math.max(...cumulativeData.map(d => d.cumTotal), 1);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? "pt-16" : "pt-2"} pb-24 relative overflow-hidden`}>
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? "pt-16" : "pt-2"} pb-24 relative overflow-hidden`}>
       {/* Subtle starfield */}
       <div className="absolute inset-0 opacity-20 pointer-events-none">
         <div className="absolute top-10 left-16 w-1 h-1 bg-emerald-200 rounded-full animate-pulse" />

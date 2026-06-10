@@ -26,6 +26,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
+import { useTheme } from "@/contexts/theme-context";
 
 type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | `assignee-${string}`;
 type BusinessFilterType = "Apple" | "General" | "MW";
@@ -34,6 +35,7 @@ type ViewType = "list" | "grid";
 
 export default function Home() {
   const [location] = useLocation();
+  const { isDark } = useTheme();
   const queryClient = useQueryClient();
   const [showItemShop, setShowItemShop] = useState(false);
   const [showCalendarSync, setShowCalendarSync] = useState(false);
@@ -1774,7 +1776,7 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16 relative'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
+    <div className={`${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16 relative'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
       {/* Starfield Background Effect - hidden on mobile for layout reliability */}
       {!isMobile && (
       <div className="absolute inset-0 opacity-30 pointer-events-none">

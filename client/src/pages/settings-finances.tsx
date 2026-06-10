@@ -13,6 +13,7 @@ import { Trash2, Plus, AlertCircle, CheckCircle, AlertTriangle, ChevronLeft, Dol
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import type { FinancialItem } from "@shared/schema";
 import { Link } from "wouter";
+import { useTheme } from "@/contexts/theme-context";
 
 const CATEGORIES = [
   "General",
@@ -63,6 +64,7 @@ const EXPENSE_COLORS: Record<string, string> = {
 const INCOME_COLOR = "#22C55E";
 
 export default function SettingsFinances() {
+  const { isDark } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -197,7 +199,7 @@ export default function SettingsFinances() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 pb-24">
+    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} pb-24`}>
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         {/* Header with back button */}
         <div className="mb-6 flex items-center gap-3">

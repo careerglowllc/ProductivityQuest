@@ -11,6 +11,7 @@ import { Trash2, RotateCcw, AlertTriangle, CheckCircle, ArrowLeft, CheckSquare, 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { useTheme } from "@/contexts/theme-context";
 
 type RecycledTask = {
   id: number;
@@ -27,6 +28,7 @@ type RecycledTask = {
 };
 
 export default function RecyclingBin() {
+  const { isDark } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState<"all" | "completed" | "deleted">("all");
@@ -246,7 +248,7 @@ export default function RecyclingBin() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+      <div className={`min-h-screen ${isDark ? "bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" : "bg-gray-50"} p-4`}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center text-yellow-100 py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto"></div>
