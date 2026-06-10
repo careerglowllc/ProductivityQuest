@@ -396,6 +396,22 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: June 10 2026
+  // BMO checking −$5,000 → $90,622; Coinbase BTC +0.07852256 → 0.22045202
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260610";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-checking", "90622");
+        localStorage.setItem("nw-coinbase-btc", "0.22045202");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setCheckingBalance(90622);
+        setCoinbaseBtcHoldings(0.22045202);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: Roth IRA shares updated May 29 2026
   // VTSAX 146.857 → 145.188; IBIT stays 697
   useEffect(() => {
@@ -421,7 +437,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-btc") || "1"); } catch { return 1; }
   });
   const [coinbaseBtcHoldings, setCoinbaseBtcHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-coinbase-btc") || "0.14192946"); } catch { return 0.14192946; }
+    try { return parseFloat(localStorage.getItem("nw-coinbase-btc") || "0.22045202"); } catch { return 0.22045202; }
   });
   const [vtsaxHoldings, setVtsaxHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-vtsax") || "146.857"); } catch { return 146.857; }
@@ -473,9 +489,9 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
-  // Cash — BMO checking account ending in 1711 (manual, updated June 2, 2026: −$5,000 → $95,622)
+  // Cash — BMO checking account ending in 1711 (manual, updated June 10, 2026: −$5,000 → $90,622)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "95622"); } catch { return 95622; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "90622"); } catch { return 90622; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
