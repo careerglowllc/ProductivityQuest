@@ -2889,19 +2889,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (task.scheduledTime) {
           const scheduled = new Date(task.scheduledTime);
           const due = new Date(task.dueDate!);
-          
-          // Fix previously bad scheduledTime values that were set to midnight UTC
-          // (which shows as previous day in US timezones, e.g. midnight UTC = 4pm PST previous day)
+
           const isAtMidnightUTC = scheduled.getUTCHours() === 0 && scheduled.getUTCMinutes() === 0 && scheduled.getUTCSeconds() === 0;
+          const dateChanged = scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
+            scheduled.getUTCMonth() !== due.getUTCMonth() ||
+            scheduled.getUTCDate() !== due.getUTCDate();
+
           if (isAtMidnightUTC) {
-            // This was likely set from a raw dueDate — fix it to 9 AM local (17:00 UTC)
-            scheduledTime = new Date(Date.UTC(scheduled.getUTCFullYear(), scheduled.getUTCMonth(), scheduled.getUTCDate(), 17, 0, 0));
-            console.log(`📅 [CALENDAR SYNC] Task ${task.id} fixing midnight UTC scheduledTime: ${scheduled.toISOString()} → ${scheduledTime.toISOString()}`);
-          } else if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
-              scheduled.getUTCMonth() !== due.getUTCMonth() ||
-              scheduled.getUTCDate() !== due.getUTCDate()) {
-            // Compare dates (year/month/day) to detect if dueDate moved
-            // Preserve the time-of-day from the old scheduledTime, but shift to new dueDate's day
+            // scheduledTime was derived from a raw dueDate (midnight UTC).
+            // Always anchor to the CURRENT dueDate so that if dueDate was moved to a
+            // later date the Google Calendar event moves with it.
+            scheduledTime = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate(), 17, 0, 0));
+            console.log(`📅 [CALENDAR SYNC] Task ${task.id} fixing midnight UTC → due date 17:00 UTC: ${scheduled.toISOString()} → ${scheduledTime.toISOString()}`);
+          } else if (dateChanged) {
+            // Due date moved to a different day — preserve time-of-day but shift to new date
             const newScheduled = new Date(due);
             newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
             scheduledTime = newScheduled;
