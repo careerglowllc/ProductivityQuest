@@ -736,6 +736,7 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "🔌", keywords: ["plug", "electric", "power", "outlet", "charge", "connect"] },
   { emoji: "🔋", keywords: ["battery", "power", "energy", "charge", "low", "full"] },
   { emoji: "📻", keywords: ["radio", "music", "listen", "broadcast", "news", "fm"] },
+  { emoji: "📺", keywords: ["television", "tv", "watch", "screen", "entertainment", "home"] },
   { emoji: "🧲", keywords: ["magnet", "attract", "magnetic", "pull"] },
 
   // House & Garden
@@ -873,6 +874,10 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "🪒", keywords: ["razor", "scrape", "shave", "chore", "household", "blade", "wallpaper"] },
   { emoji: "🪞", keywords: ["mirror", "clean", "wipe", "chore", "household", "glass", "polish"] },
   { emoji: "🧯", keywords: ["extinguisher", "fire", "safety", "chore", "household", "check", "maintain"] },
+  { emoji: "📺", keywords: ["television", "tv", "watch", "screen", "entertainment", "home", "chore"] },
+  { emoji: "📻", keywords: ["radio", "listen", "music", "home", "household", "entertainment"] },
+  { emoji: "🧦", keywords: ["socks", "laundry", "clothes", "wash", "chore", "household", "fold"] },
+  { emoji: "👔", keywords: ["shirt", "dress shirt", "laundry", "clothes", "iron", "chore", "household"] },
   { emoji: "🏠", keywords: ["house", "home", "chore", "household", "maintenance", "property"] },
   { emoji: "🏡", keywords: ["house", "garden", "yard", "chore", "household", "lawn", "curb appeal"] },
   { emoji: "🏗️", keywords: ["construction", "build", "renovation", "chore", "household", "project", "remodel"] },
