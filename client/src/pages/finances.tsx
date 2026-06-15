@@ -489,9 +489,9 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
-  // Cash — BMO checking account ending in 1711 (manual, updated June 10, 2026: −$5,000 → $90,622)
+  // Cash — BMO checking account ending in 1711 (manual, updated June 15, 2026: −$7,000 → $83,622)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "90622"); } catch { return 90622; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "83622"); } catch { return 83622; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
