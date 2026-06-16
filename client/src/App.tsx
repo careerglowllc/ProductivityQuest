@@ -34,6 +34,7 @@ import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 import CPAPPage from "@/pages/cpap";
+import AppearanceSettingsPage from "@/pages/settings-appearance";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -102,6 +103,7 @@ function Router() {
             <Route path="/settings/guides" component={SettingsGuidesPage} />
             <Route path="/settings/guides/skill-classification" component={SkillClassificationGuidePage} />
             <Route path="/settings/guides/measure-what-matters" component={MeasureWhatMattersGuidePage} />
+            <Route path="/settings/appearance" component={AppearanceSettingsPage} />
             <Route path="/recycling-bin" component={RecyclingBin} />
             <Route path="/getting-started" component={GettingStarted} />
             {/* 404 for authenticated users only */}

@@ -93,7 +93,6 @@ export default function SettingsPage() {
       icon: Palette,
       path: "/settings/appearance",
       color: "from-pink-500 to-pink-600",
-      disabled: true,
     },
   ];
 

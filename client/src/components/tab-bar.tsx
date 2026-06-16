@@ -83,14 +83,6 @@ export function TabBar() {
               </Link>
             );
           })}
-          {/* Theme toggle in mobile bar (cycles light → dark → auto) */}
-          <button
-            onClick={cycleTheme}
-            className="flex flex-col items-center justify-center flex-1 h-full text-yellow-200/60 hover:text-yellow-200 transition-colors"
-          >
-            <ThemeIcon className="h-5 w-5" />
-            <span className="text-[10px] mt-0.5 font-medium">{themeLabel}</span>
-          </button>
         </nav>
       </div>
     );
