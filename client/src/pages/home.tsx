@@ -2572,18 +2572,18 @@ export default function Home() {
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
               <div className={`fixed ${isMobile ? 'bottom-[calc(4rem+env(safe-area-inset-bottom))]' : 'bottom-20'} left-0 right-0 z-40 ${isMobile ? 'px-2 pb-1' : 'px-4 pb-4'}`}>
-                <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-2' : 'p-4'} bg-blue-900/95 backdrop-blur-md border-2 border-blue-500/60 shadow-2xl`}>
+                <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-2' : 'p-4'} ${isDark ? 'bg-blue-900/95 border-2 border-blue-500/60' : 'bg-white border-2 border-blue-400/50 shadow-xl'} backdrop-blur-md shadow-2xl`}>
                   {isMobile ? (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-200 font-medium">
+                        <span className={`text-xs font-medium ${isDark ? 'text-blue-200' : 'text-blue-700'}`}>
                           {selectedTasks.size} selected
                         </span>
                         <Button
                           onClick={() => setSelectedTasks(new Set())}
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 text-blue-300 hover:text-white"
+                          className={`h-6 w-6 p-0 ${isDark ? 'text-blue-300 hover:text-white' : 'text-blue-500 hover:text-blue-900'}`}
                         >
                           <X className="w-4 h-4" />
                         </Button>
@@ -2744,7 +2744,7 @@ export default function Home() {
                   ) : (
                     <div className="relative flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-blue-200 font-medium">
+                        <span className={`font-medium ${isDark ? 'text-blue-200' : 'text-blue-700'}`}>
                           {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
                         </span>
                       </div>
@@ -2768,7 +2768,7 @@ export default function Home() {
                         <Button 
                           onClick={() => setShowCalendarSync(true)}
                           variant="outline"
-                          className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200"
+                          className={`${isDark ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200' : 'border-emerald-500 text-emerald-700 hover:bg-emerald-50'}`}
                         >
                           <Calendar className="w-4 h-4 mr-2" />
                           Sync to Calendar
@@ -2776,7 +2776,7 @@ export default function Home() {
                         <Button 
                           onClick={handleRemoveFromCalendar}
                           variant="outline"
-                          className="border-slate-500/40 text-slate-300 hover:bg-slate-600/20 hover:text-slate-200"
+                          className={`${isDark ? 'border-slate-500/40 text-slate-300 hover:bg-slate-600/20 hover:text-slate-200' : 'border-slate-400 text-slate-600 hover:bg-slate-50'}`}
                         >
                           <CalendarDays className="w-4 h-4 mr-2" />
                           Remove from Calendar
@@ -2784,7 +2784,7 @@ export default function Home() {
                         <Button 
                           onClick={handleRemoveAllFromCalendar}
                           variant="outline"
-                          className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                          className={`${isDark ? 'border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200' : 'border-red-400 text-red-600 hover:bg-red-50'}`}
                         >
                           <CalendarDays className="w-4 h-4 mr-2" />
                           Clear ALL from Calendar
@@ -2792,7 +2792,7 @@ export default function Home() {
                         <Button 
                           onClick={handleDeleteSelected}
                           variant="outline"
-                          className="border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200"
+                          className={`${isDark ? 'border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200' : 'border-orange-400 text-orange-600 hover:bg-orange-50'}`}
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete Selected
@@ -2800,7 +2800,7 @@ export default function Home() {
                         <Button 
                           onClick={handleAppendToNotion}
                           variant="outline"
-                          className="border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200"
+                          className={`${isDark ? 'border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200' : 'border-green-500 text-green-700 hover:bg-green-50'}`}
                         >
                           <Upload className="w-4 h-4 mr-2" />
                           Append to Notion
@@ -2808,7 +2808,7 @@ export default function Home() {
                         <Button 
                           onClick={handleDeleteFromNotion}
                           variant="outline"
-                          className="border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200"
+                          className={`${isDark ? 'border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200' : 'border-red-400 text-red-600 hover:bg-red-50'}`}
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete from Notion
@@ -2816,7 +2816,7 @@ export default function Home() {
                         <Button 
                           onClick={handleCategorizeSkill}
                           variant="outline"
-                          className="border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200"
+                          className={`${isDark ? 'border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200' : 'border-purple-400 text-purple-700 hover:bg-purple-50'}`}
                           disabled={selectedTasks.size === 0}
                         >
                           <Tag className="w-4 h-4 mr-2" />
@@ -2826,7 +2826,7 @@ export default function Home() {
                           <PopoverTrigger asChild>
                             <Button 
                               variant="outline"
-                              className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 hover:text-cyan-200"
+                              className={`${isDark ? 'border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 hover:text-cyan-200' : 'border-cyan-500 text-cyan-700 hover:bg-cyan-50'}`}
                               disabled={selectedTasks.size === 0}
                             >
                               <CalendarDays className="w-4 h-4 mr-2" />
@@ -2851,7 +2851,7 @@ export default function Home() {
                           <DropdownMenuTrigger asChild>
                             <Button 
                               variant="outline"
-                              className="border-amber-500/40 text-amber-300 hover:bg-amber-600/20 hover:text-amber-200"
+                              className={`${isDark ? 'border-amber-500/40 text-amber-300 hover:bg-amber-600/20 hover:text-amber-200' : 'border-amber-500 text-amber-700 hover:bg-amber-50'}`}
                               disabled={selectedTasks.size === 0}
                             >
                               <ArrowRight className="w-4 h-4 mr-2" />

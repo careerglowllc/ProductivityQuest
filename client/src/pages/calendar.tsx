@@ -794,13 +794,13 @@ export default function CalendarPage() {
       style={isMobile ? { top: "env(safe-area-inset-top, 0px)", bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" } : undefined}
     >
       <div className={isMobile ? "h-full flex flex-col" : "max-w-7xl mx-auto"}>
-        <div className={isMobile ? "flex-1 flex flex-col min-h-0" : "bg-gray-900/60 border border-purple-500/20 rounded-xl p-4"}>
+        <div className={isMobile ? "flex-1 flex flex-col min-h-0" : `${isDark ? "bg-gray-900/60 border border-purple-500/20" : "bg-white border border-purple-300/40 shadow-sm"} rounded-xl p-4`}>
           {/* Top bar */}
           <div className={`flex items-center justify-between ${isMobile ? "px-2 pt-1.5 pb-1" : "mb-4"} flex-shrink-0`}>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10"><ChevronLeft className="w-4 h-4" /></Button>
-              <span className={`font-bold ${isMobile ? "text-sm" : "text-lg"} text-white min-w-0`}>{titleStr}</span>
-              <Button variant="ghost" size="sm" onClick={() => navigate(1)} className="h-7 w-7 p-0 text-purple-300 hover:bg-purple-500/10"><ChevronRight className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="h-7 w-7 p-0 text-purple-500 hover:bg-purple-500/10"><ChevronLeft className="w-4 h-4" /></Button>
+              <span className={`font-bold ${isMobile ? "text-sm" : "text-lg"} ${isDark ? "text-white" : "text-gray-900"} min-w-0`}>{titleStr}</span>
+              <Button variant="ghost" size="sm" onClick={() => navigate(1)} className="h-7 w-7 p-0 text-purple-500 hover:bg-purple-500/10"><ChevronRight className="w-4 h-4" /></Button>
             </div>
             <div className="flex items-center gap-1">
               {!isViewingToday && <Button size="sm" onClick={goToToday} className={`${isMobile ? "h-7 px-2 text-xs" : "h-8 px-3 text-sm"} bg-purple-600 hover:bg-purple-500`}>Today</Button>}
@@ -828,9 +828,9 @@ export default function CalendarPage() {
           </div>
 
           {/* View switcher */}
-          <div className={`flex gap-0 bg-gray-800/60 ${isMobile ? "mx-2 p-0.5 rounded-md mb-1" : "p-1 rounded-lg mb-4 max-w-md"} border border-purple-500/20 flex-shrink-0`}>
+          <div className={`flex gap-0 ${isDark ? "bg-gray-800/60 border-purple-500/20" : "bg-gray-100 border-gray-200"} ${isMobile ? "mx-2 p-0.5 rounded-md mb-1" : "p-1 rounded-lg mb-4 max-w-md"} border flex-shrink-0`}>
             {(["day", "3day", "week", "month"] as ViewMode[]).map((v) => (
-              <button key={v} onClick={() => setView(v)} className={`flex-1 ${isMobile ? "py-0.5 text-[11px]" : "py-1.5 text-sm"} rounded font-medium transition-colors ${view === v ? "bg-purple-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-700/50"}`}>
+              <button key={v} onClick={() => setView(v)} className={`flex-1 ${isMobile ? "py-0.5 text-[11px]" : "py-1.5 text-sm"} rounded font-medium transition-colors ${view === v ? "bg-purple-600 text-white" : isDark ? "text-gray-400 hover:text-white hover:bg-gray-700/50" : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/70"}`}>
                 {v === "3day" ? "3 Day" : v.charAt(0).toUpperCase() + v.slice(1)}
               </button>
             ))}
@@ -839,11 +839,11 @@ export default function CalendarPage() {
           {isLoading && <div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400" /></div>}
 
           {!isLoading && view === "month" && (
-            <MonthView year={year} month={month} allEvents={allEvents} today={today} isMobile={isMobile} onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd} onDayClick={(d) => { setCurrentDate(d); setView("day"); }} onEventClick={setSelectedEvent} />
+            <MonthView year={year} month={month} allEvents={allEvents} today={today} isMobile={isMobile} isDark={isDark} onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd} onDayClick={(d) => { setCurrentDate(d); setView("day"); }} onEventClick={setSelectedEvent} />
           )}
           {!isLoading && view !== "month" && (
             <TimeGridView
-              dates={viewDates} allEvents={allEvents} today={today} isMobile={isMobile} scrollRef={scrollRef}
+              dates={viewDates} allEvents={allEvents} today={today} isMobile={isMobile} isDark={isDark} scrollRef={scrollRef}
               drag={drag}
               resizeEventId={resizeEventId}
               onSwipeStart={onSwipeStart} onSwipeEnd={onSwipeEnd}
@@ -948,6 +948,7 @@ interface TimeGridViewProps {
   allEvents: CalendarEvent[];
   today: Date;
   isMobile: boolean;
+  isDark: boolean;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   drag: DragState | null;
   resizeEventId: string | null;
@@ -961,23 +962,23 @@ interface TimeGridViewProps {
   onEmptyTap: (date: Date, minute: number) => void;
 }
 
-function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resizeEventId, onSwipeStart, onSwipeEnd, onEventTap, onDragStart, onDragUpdate, onDragEnd, onDragCancel, onEmptyTap }: TimeGridViewProps) {
+function TimeGridView({ dates, allEvents, today, isMobile, isDark, scrollRef, drag, resizeEventId, onSwipeStart, onSwipeEnd, onEventTap, onDragStart, onDragUpdate, onDragEnd, onDragCancel, onEmptyTap }: TimeGridViewProps) {
   const numCols = dates.length;
   const timeLabelWidth = isMobile ? (numCols > 3 ? 28 : 36) : 56;
 
   return (
     <div ref={scrollRef as React.RefObject<HTMLDivElement>} className="flex-1 min-h-0 overflow-auto relative" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
       {/* Sticky day headers */}
-      <div className="sticky top-0 z-20 flex bg-gray-900/95 backdrop-blur-sm border-b border-purple-500/20">
+      <div className={`sticky top-0 z-20 flex ${isDark ? "bg-gray-900/95" : "bg-white/95"} backdrop-blur-sm border-b ${isDark ? "border-purple-500/20" : "border-gray-200"}`}>
         <div style={{ width: timeLabelWidth, flexShrink: 0 }} />
         {dates.map((date, i) => {
           const isToday = sameDay(date, today);
           return (
-            <div key={i} className={`flex-1 text-center py-1 border-l border-purple-500/10 ${isToday ? "border-b-2 border-b-purple-400" : ""}`}>
-              <div className={`text-[10px] font-semibold ${isToday ? "text-purple-400" : "text-gray-400"}`}>
+            <div key={i} className={`flex-1 text-center py-1 border-l ${isDark ? "border-purple-500/10" : "border-gray-100"} ${isToday ? `border-b-2 ${isDark ? "border-b-purple-400" : "border-b-purple-500"}` : ""}`}>
+              <div className={`text-[10px] font-semibold ${isToday ? "text-purple-500" : isDark ? "text-gray-400" : "text-gray-500"}`}>
                 {isMobile && numCols > 3 ? DAY_NAMES_NARROW[date.getDay()] : DAY_NAMES_SHORT[date.getDay()]}
               </div>
-              <div className={`text-sm font-bold ${isToday ? "text-purple-300" : "text-white"}`}>{date.getDate()}</div>
+              <div className={`text-sm font-bold ${isToday ? (isDark ? "text-purple-300" : "text-purple-600") : isDark ? "text-white" : "text-gray-900"}`}>{date.getDate()}</div>
             </div>
           );
         })}
@@ -988,9 +989,9 @@ function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resi
         const hasAnyAllDay = dates.some((d) => getEventsForDate(allEvents, d).some((ev) => ev.allDay));
         if (!hasAnyAllDay) return null;
         return (
-          <div className="flex border-b border-purple-500/20 bg-gray-900/80">
+          <div className={`flex border-b ${isDark ? "border-purple-500/20 bg-gray-900/80" : "border-gray-200 bg-gray-50"}`}>
             <div style={{ width: timeLabelWidth, flexShrink: 0 }} className="flex items-center justify-end pr-1">
-              <span className="text-[9px] text-gray-500">all-day</span>
+              <span className={`text-[9px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>all-day</span>
             </div>
             {dates.map((date, i) => {
               const dayAllDay = getEventsForDate(allEvents, date).filter((ev) => ev.allDay);
@@ -1017,7 +1018,7 @@ function TimeGridView({ dates, allEvents, today, isMobile, scrollRef, drag, resi
       <div className="flex relative" style={{ height: TOTAL_HEIGHT }}>
         <div style={{ width: timeLabelWidth, flexShrink: 0 }} className="relative">
           {Array.from({ length: 24 }, (_, h) => (
-            <div key={h} className="absolute right-1 text-gray-500" style={{ top: h * HOUR_HEIGHT - 6, fontSize: isMobile ? (numCols > 3 ? 8 : 9) : 11 }}>
+            <div key={h} className={`absolute right-1 ${isDark ? "text-gray-500" : "text-gray-400"}`} style={{ top: h * HOUR_HEIGHT - 6, fontSize: isMobile ? (numCols > 3 ? 8 : 9) : 11 }}>
               {isMobile ? formatHourCompact(h) : formatHour(h)}
             </div>
           ))}
@@ -1048,9 +1049,10 @@ interface MonthViewProps {
   year: number; month: number; allEvents: CalendarEvent[]; today: Date; isMobile: boolean;
   onSwipeStart: (e: React.TouchEvent) => void; onSwipeEnd: (e: React.TouchEvent) => void;
   onDayClick: (date: Date) => void; onEventClick: (ev: CalendarEvent) => void;
+  isDark: boolean;
 }
 
-function MonthView({ year, month, allEvents, today, isMobile, onSwipeStart, onSwipeEnd, onDayClick, onEventClick }: MonthViewProps) {
+function MonthView({ year, month, allEvents, today, isMobile, isDark, onSwipeStart, onSwipeEnd, onDayClick, onEventClick }: MonthViewProps) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDow = firstDay.getDay();
@@ -1059,14 +1061,14 @@ function MonthView({ year, month, allEvents, today, isMobile, onSwipeStart, onSw
 
   return (
     <div className="flex-1 min-h-0 overflow-auto flex flex-col" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
-      <div className="grid grid-cols-7 border-b border-purple-500/20 flex-shrink-0">
+      <div className={`grid grid-cols-7 border-b ${isDark ? "border-purple-500/20" : "border-gray-200"} flex-shrink-0`}>
         {DAY_NAMES_SHORT.map((d) => (
-          <div key={d} className="text-center py-1 text-[10px] font-semibold text-gray-400">{isMobile ? d[0] : d}</div>
+          <div key={d} className={`text-center py-1 text-[10px] font-semibold ${isDark ? "text-gray-400" : "text-gray-500"}`}>{isMobile ? d[0] : d}</div>
         ))}
       </div>
       <div className="flex-1 grid" style={{ gridTemplateRows: `repeat(${weeks}, 1fr)` }}>
         {Array.from({ length: weeks }, (_, w) => (
-          <div key={w} className="grid grid-cols-7 border-b border-purple-500/10">
+          <div key={w} className={`grid grid-cols-7 border-b ${isDark ? "border-purple-500/10" : "border-gray-100"}`}>
             {Array.from({ length: 7 }, (__, dow) => {
               const dayNum = w * 7 + dow - startDow + 1;
               const isValid = dayNum >= 1 && dayNum <= totalDays;
@@ -1075,14 +1077,14 @@ function MonthView({ year, month, allEvents, today, isMobile, onSwipeStart, onSw
               const dayEvents = date ? getEventsForDate(allEvents, date) : [];
               const maxShow = isMobile ? 2 : 4;
               return (
-                <div key={dow} className={`min-h-0 p-0.5 border-r border-purple-500/5 overflow-hidden ${isValid ? "cursor-pointer" : "bg-gray-900/30"}`} onClick={() => date && onDayClick(date)}>
+                <div key={dow} className={`min-h-0 p-0.5 border-r ${isDark ? "border-purple-500/5" : "border-gray-100"} overflow-hidden ${isValid ? "cursor-pointer" : isDark ? "bg-gray-900/30" : "bg-gray-50/70"}`} onClick={() => date && onDayClick(date)}>
                   {isValid && (<>
-                    <div className={`text-xs font-semibold text-center mb-0.5 ${isToday ? "bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center mx-auto text-[10px]" : "text-gray-300"}`}>{dayNum}</div>
+                    <div className={`text-xs font-semibold text-center mb-0.5 ${isToday ? "bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center mx-auto text-[10px]" : isDark ? "text-gray-300" : "text-gray-700"}`}>{dayNum}</div>
                     <div className="space-y-px">
                       {dayEvents.slice(0, maxShow).map((ev) => (
                         <div key={ev.id} className="truncate rounded-sm px-0.5 text-[9px] leading-tight text-white" style={{ backgroundColor: eventColor(ev) + "80" }} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}>{ev.title}</div>
                       ))}
-                      {dayEvents.length > maxShow && <div className="text-[8px] text-gray-400 text-center">+{dayEvents.length - maxShow} more</div>}
+                      {dayEvents.length > maxShow && <div className={`text-[8px] ${isDark ? "text-gray-400" : "text-gray-400"} text-center`}>+{dayEvents.length - maxShow} more</div>}
                     </div>
                   </>)}
                 </div>
