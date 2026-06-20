@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
 import { TaskDetailModal } from "./task-detail-modal";
 import { SkillAdjustmentModal } from "./skill-adjustment-modal";
 import { EmojiPicker } from "./emoji-picker";
@@ -74,6 +75,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
   const [showSkillModal, setShowSkillModal] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { isDark } = useTheme();
   
   // Double-tap / double-click detection
   const lastTapTimeRef = useRef<number>(0);
@@ -216,14 +218,28 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
       <>
         <Card 
           className={cn(
-            "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative h-full cursor-pointer",
+            "backdrop-blur-md border-2 transition-all relative h-full cursor-pointer",
+            isDark ? "bg-slate-800/40" : "bg-white",
             isSelected 
-              ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
-              : cn(getImportanceBorder(task.importance), "hover:brightness-110"),
+              ? isDark
+                ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
+                : "border-purple-500 bg-purple-50 ring-2 ring-purple-400/60 shadow-md shadow-purple-200"
+              : isDark
+                ? cn(getImportanceBorder(task.importance), "hover:brightness-110")
+                : cn(getImportanceBorder(task.importance), "hover:bg-gray-50"),
             task.completed && "opacity-60"
           )}
           onClick={handleCardClick}
         >
+          {/* Selection indicator */}
+          {isSelected && (
+            <div className={cn(
+              "absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full flex items-center justify-center",
+              isDark ? "bg-yellow-400 text-slate-900" : "bg-purple-600 text-white"
+            )}>
+              <CheckCircle className="w-3.5 h-3.5" />
+            </div>
+          )}
           <CardContent className="p-3 flex flex-col gap-2">
             <div className="flex flex-col gap-2">
               {/* Title with emoji */}
@@ -365,11 +381,17 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
       <>
         <Card 
           className={cn(
-            "bg-slate-800/40 backdrop-blur-md border transition-all relative cursor-pointer shadow-sm",
+            "backdrop-blur-md border transition-all relative cursor-pointer shadow-sm",
+            isDark ? "bg-slate-800/40" : "bg-white",
             isSelected 
-              ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
-              : getImportanceBorder(task.importance),
-            !isSelected && "hover:brightness-110",
+              ? isDark
+                ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
+                : "border-purple-500 bg-purple-50 ring-2 ring-purple-400/60 shadow-md shadow-purple-200"
+              : isDark
+                ? getImportanceBorder(task.importance)
+                : getImportanceBorder(task.importance),
+            !isSelected && isDark && "hover:brightness-110",
+            !isSelected && !isDark && "hover:bg-gray-50",
             task.completed && "opacity-50"
           )}
           onClick={handleCardClick}
@@ -514,10 +536,15 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
     <>
       <Card 
         className={cn(
-          "bg-slate-800/40 backdrop-blur-md border-2 transition-all relative cursor-pointer",
+          "backdrop-blur-md border-2 transition-all relative cursor-pointer",
+          isDark ? "bg-slate-800/40" : "bg-white",
           isSelected 
-            ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
-            : cn(getImportanceBorder(task.importance), "hover:brightness-110"),
+            ? isDark
+              ? cn(getImportanceBorderSelected(task.importance), "bg-slate-700/50")
+              : "border-purple-500 bg-purple-50 ring-2 ring-purple-400/60 shadow-lg shadow-purple-200"
+            : isDark
+              ? cn(getImportanceBorder(task.importance), "hover:brightness-110")
+              : cn(getImportanceBorder(task.importance), "hover:bg-gray-50"),
           task.completed && "opacity-60"
         )}
         onClick={handleCardClick}
