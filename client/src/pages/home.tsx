@@ -2833,7 +2833,7 @@ export default function Home() {
                               Reschedule
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 bg-slate-900 border-yellow-600/30" align="end" side="top">
+                          <PopoverContent className={`w-auto p-0 ${isDark ? 'bg-slate-900 border-yellow-600/30' : 'bg-white border-gray-200'}`} align="end" side="top">
                             <CalendarPicker
                               mode="single"
                               selected={undefined}
@@ -2919,7 +2919,7 @@ export default function Home() {
               <>
                 <div className="fixed inset-0 z-[70] bg-black/50" onClick={() => setShowReschedulePopover(false)} />
                 <div className="fixed inset-0 z-[71] flex items-center justify-center p-4" onClick={() => setShowReschedulePopover(false)}>
-                  <div className="bg-slate-900 border border-yellow-600/30 rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                  <div className={`${isDark ? 'bg-slate-900 border border-yellow-600/30' : 'bg-white border border-gray-200'} rounded-xl shadow-2xl overflow-hidden`} onClick={(e) => e.stopPropagation()}>
                     <CalendarPicker
                       mode="single"
                       selected={undefined}
@@ -2931,12 +2931,12 @@ export default function Home() {
                       initialFocus
                       className="rounded-md border-0"
                     />
-                    <div className="p-2 border-t border-slate-700">
+                    <div className={`p-2 border-t ${isDark ? 'border-slate-700' : 'border-gray-200'}`}>
                       <Button 
                         onClick={() => setShowReschedulePopover(false)}
                         variant="ghost"
                         size="sm"
-                        className="w-full text-slate-400 hover:text-white text-xs"
+                        className={`w-full text-xs ${isDark ? 'text-slate-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                       >
                         Cancel
                       </Button>
