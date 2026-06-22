@@ -887,6 +887,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                   <SelectItem value="General">💼 General</SelectItem>
                   <SelectItem value="Apple">🍎 Apple</SelectItem>
                   <SelectItem value="MW">🏢 MW</SelectItem>
+                  <SelectItem value="GPR">🏗️ GPR</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -28,6 +28,7 @@ const EMOJI_CATEGORIES = [
   { label: "Work", emojis: ["📝","💼","💻","📱","🔧","🛠️","📊","📈","📦","🔍","📡","🤖","🖥️","⌨️","🖨️","💾","📁","📂","🗂️","📋","📌","📍","✂️","📏","📐","🔏","🔐","🔒","🔓","🔑","🗝️","🏗️","🏢","📠","📺","📷","📸","📹","🎞️","📽️","🎙️","📻"] },
   { label: "Industrial", emojis: ["⚙️","🔩","🏭","🔨","⚒️","🛠️","🪛","🪚","⛏️","🔧","🔗","⛓️","🪝","🧱","🔋","🔌","💡","🪜","🧲","🗜️","🪤","🛢️","⚗️","🧪","🔬","🔭","📡","🤖","🦾","🦿","🚧","🏗️","🏚️","🏠","🏘️","🏛️","🏟️","🏬","🏭","🚜","🚛","🚚","🏎️","🚒","🚑","⚓","🪝","🧰","🪣","🗑️","⚠️","🔴","🟠","🟡","🟢"] },
   { label: "Goals", emojis: ["🎯","🚀","⭐","🏆","💡","🔥","💪","🌟","⚔️","🛡️","⚡","💎","🥇","🥈","🥉","🎖️","🏅","🎗️","🎀","👑","✨","🌠","🌌","🧭","🗺️","🏁","🚩","🎌","🏴","🔮","⚗️","🧬","🔬","🔭","🧪","🧫","💫","🌀","🎆","🎇"] },
+  { label: "Spooky", emojis: ["💀","☠️","👻","🎃","😈","👿","👹","👺","🤡","🤖","👽","👾","🧟","🧟‍♂️","🧟‍♀️","🧛","🧛‍♂️","🧙","🧙‍♂️","🧌","🧞","🦇","🕷️","🕸️","🦂","🐍","🐀","🦉","🐺","⚰️","⚱️","🪦","🔮","🧿","🗡️","⚔️","🛡️","🩸","🦴","🥀","🌑","🌕","🕯️","🌫️","🍄","⛓️","🔥","🌪️"] },
   { label: "Social", emojis: ["🤝","📞","✉️","🎉","🎁","🎭","🎬","🎵","🎮","👁️","🦁","🐉","💬","💭","🗨️","🗯️","👋","🙌","👏","🤗","🥂","🍾","🎤","🎧","🎼","🎹","🥁","🎷","🎸","🎺","🎻","🪗","👥","👤","🧑‍🤝‍🧑","🫂","💌","📮","📯","📣","📢"] },
   { label: "Life", emojis: ["🏠","🚗","✈️","🍽️","☕","🌱","🌍","🧘","🏋️","🌈","🗓️","⏰","🏡","🛖","🏘️","🏰","🏯","🚂","🚢","🛸","🚁","⛵","🏄","🚴","🏇","⛷️","🤸","🧗","🎭","🎠","🎡","🎢","🌅","🌇","🌆","🏖️","🏕️","🌲","🌳","🌴","🌵","🌾","🍀","🌺","🌸","🌼","🌻","🍁","🍂","🍃","🌙","☀️","⛅","🌤️","🌦️","⛈️","❄️","🌊","🌋"] },
   { label: "Health", emojis: ["🏥","💊","💉","🩺","🩻","🩹","🧬","🩸","🩼","🦽","🦼","🧪","🔬","🧫","❤️","🧡","💛","💚","💙","💜","🖤","🤍","❤️‍🔥","💓","💗","💖","💝","�","🫀","🫁","🧠","🦷","🦴","�️","👅","👂","👃","�","�","🦾","�","👋","�️","✋","�","👌","✌️","�","�","�","💪","🏃","🚶","�","�","🥗","🥤","🍎","�","💆","💇","🛁","🚿","🪥","🧼","🏋️","🧘"] },
@@ -291,6 +292,37 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "📯", keywords: "postal horn announce mail post" },
   { emoji: "📣", keywords: "megaphone announce office broadcast" },
   { emoji: "📢", keywords: "loudspeaker announce broadcast office" },
+  // Spooky / Horror
+  { emoji: "💀", keywords: "skull death dead skeleton spooky danger scary" },
+  { emoji: "☠️", keywords: "skull crossbones death poison danger spooky pirate" },
+  { emoji: "👻", keywords: "ghost spooky halloween boo spirit scary" },
+  { emoji: "🎃", keywords: "pumpkin jack lantern halloween spooky fall" },
+  { emoji: "😈", keywords: "devil evil horns naughty spooky demon" },
+  { emoji: "👿", keywords: "devil angry evil horns mad spooky demon imp" },
+  { emoji: "👹", keywords: "ogre monster demon japanese spooky scary" },
+  { emoji: "👺", keywords: "goblin monster tengu mask japanese spooky" },
+  { emoji: "🤡", keywords: "clown creepy circus scary funny spooky" },
+  { emoji: "👽", keywords: "alien ufo space extraterrestrial spooky" },
+  { emoji: "👾", keywords: "monster alien space invader game creature spooky" },
+  { emoji: "🧟", keywords: "zombie undead monster halloween spooky scary walking dead" },
+  { emoji: "🧛", keywords: "vampire dracula bite blood spooky halloween" },
+  { emoji: "🧙", keywords: "wizard witch mage magic spell fantasy" },
+  { emoji: "🧌", keywords: "troll monster creature fantasy spooky ugly" },
+  { emoji: "🧞", keywords: "genie wish magic lamp spirit djinn fantasy" },
+  { emoji: "🦇", keywords: "bat night halloween fly cave spooky" },
+  { emoji: "🕷️", keywords: "spider web creepy bug spooky halloween" },
+  { emoji: "🕸️", keywords: "spider web cobweb creepy spooky halloween dusty" },
+  { emoji: "🦂", keywords: "scorpion sting venom danger desert" },
+  { emoji: "🐍", keywords: "snake serpent reptile slither danger" },
+  { emoji: "⚰️", keywords: "coffin casket death funeral grave spooky halloween" },
+  { emoji: "🪦", keywords: "headstone tombstone grave gravestone rip death cemetery spooky" },
+  { emoji: "🦴", keywords: "bone skeleton skull dead anatomy spooky" },
+  { emoji: "🩸", keywords: "blood drop red gore spooky horror" },
+  { emoji: "🥀", keywords: "wilted flower dead rose sad dying" },
+  { emoji: "🌑", keywords: "new moon dark night black spooky" },
+  { emoji: "🕯️", keywords: "candle flame light wax prayer spooky" },
+  { emoji: "🔮", keywords: "crystal ball magic fortune future mystic spooky" },
+  { emoji: "🧿", keywords: "evil eye nazar amulet protection charm" },
 ];
 
 
@@ -728,6 +760,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                 <SelectItem value="General">General</SelectItem>
                 <SelectItem value="Apple">Apple</SelectItem>
                 <SelectItem value="MW">MW</SelectItem>
+                <SelectItem value="GPR">GPR</SelectItem>
               </SelectContent>
             </Select>
           </div>

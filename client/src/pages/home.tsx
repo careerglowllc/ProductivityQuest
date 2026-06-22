@@ -28,8 +28,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 
-type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | `assignee-${string}`;
-type BusinessFilterType = "Apple" | "General" | "MW";
+type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `assignee-${string}`;
+type BusinessFilterType = "Apple" | "General" | "MW" | "GPR";
 type SortType = "due-date" | "importance";
 type ViewType = "list" | "grid";
 
@@ -53,7 +53,7 @@ export default function Home() {
   // Load saved filter preference from localStorage, default to 'all'
   const [activeFilter, setActiveFilter] = useState<FilterType>(() => {
     const savedFilter = localStorage.getItem('tasksFilter');
-    const staticFilters = ["all", "due-today", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw"];
+    const staticFilters = ["all", "due-today", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw", "business-gpr"];
     if (savedFilter && (staticFilters.includes(savedFilter) || savedFilter.startsWith("assignee-"))) {
       return savedFilter as FilterType;
     }
@@ -1486,6 +1486,9 @@ export default function Home() {
       businessMW: activeTasks.filter((task: any) => 
         task.businessWorkFilter === "MW"
       ).length,
+      businessGPR: activeTasks.filter((task: any) => 
+        task.businessWorkFilter === "GPR"
+      ).length,
       // Assignee counts: build a map of name → count
       byAssignee: activeTasks.reduce((acc: Record<string, number>, task: any) => {
         const name = task.assignedTo ?? "Alex";
@@ -1580,6 +1583,11 @@ export default function Home() {
       case "business-mw":
         return activeTasks.filter((task: any) => 
           task.businessWorkFilter === "MW"
+        );
+      
+      case "business-gpr":
+        return activeTasks.filter((task: any) => 
+          task.businessWorkFilter === "GPR"
         );
       
       default:
@@ -2190,7 +2198,8 @@ export default function Home() {
                         💼 Business ({
                           filterCounts.businessApple + 
                           filterCounts.businessGeneral + 
-                          filterCounts.businessMW
+                          filterCounts.businessMW + 
+                          filterCounts.businessGPR
                         })
                       </Badge>
                     </DropdownMenuTrigger>
@@ -2224,6 +2233,16 @@ export default function Home() {
                         }`}
                       >
                         MW ({filterCounts.businessMW})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-gpr")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-gpr" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        🏗️ GPR ({filterCounts.businessGPR})
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -2413,7 +2432,8 @@ export default function Home() {
                         💼 Business ({
                           filterCounts.businessApple + 
                           filterCounts.businessGeneral + 
-                          filterCounts.businessMW
+                          filterCounts.businessMW + 
+                          filterCounts.businessGPR
                         })
                       </Badge>
                     </DropdownMenuTrigger>
@@ -2447,6 +2467,16 @@ export default function Home() {
                         }`}
                       >
                         MW ({filterCounts.businessMW})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setActiveFilter("business-gpr")}
+                        className={`cursor-pointer ${
+                          activeFilter === "business-gpr" 
+                            ? "bg-yellow-600/20 text-yellow-200" 
+                            : "text-slate-300 hover:bg-slate-700/80"
+                        }`}
+                      >
+                        🏗️ GPR ({filterCounts.businessGPR})
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
