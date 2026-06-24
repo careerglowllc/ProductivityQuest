@@ -15,6 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { calculateGoldValue } from "@/lib/goldCalculation";
+import { AttachmentArea } from "@/components/attachment-area";
+import type { QuestAttachment } from "@/lib/attachments";
 
 const TASK_EMOJIS = [
   "📝","⚔️","🎯","🚀","💡","🔥","⭐","🏆","💼","📱","💻","🌐","📊","📈","🔧","🛠️",
@@ -29,6 +31,7 @@ const EMOJI_CATEGORIES = [
   { label: "Industrial", emojis: ["⚙️","🔩","🏭","🔨","⚒️","🛠️","🪛","🪚","⛏️","🔧","🔗","⛓️","🪝","🧱","🔋","🔌","💡","🪜","🧲","🗜️","🪤","🛢️","⚗️","🧪","🔬","🔭","📡","🤖","🦾","🦿","🚧","🏗️","🏚️","🏠","🏘️","🏛️","🏟️","🏬","🏭","🚜","🚛","🚚","🏎️","🚒","🚑","⚓","🪝","🧰","🪣","🗑️","⚠️","🔴","🟠","🟡","🟢"] },
   { label: "Goals", emojis: ["🎯","🚀","⭐","🏆","💡","🔥","💪","🌟","⚔️","🛡️","⚡","💎","🥇","🥈","🥉","🎖️","🏅","🎗️","🎀","👑","✨","🌠","🌌","🧭","🗺️","🏁","🚩","🎌","🏴","🔮","⚗️","🧬","🔬","🔭","🧪","🧫","💫","🌀","🎆","🎇"] },
   { label: "Spooky", emojis: ["💀","☠️","👻","🎃","😈","👿","👹","👺","🤡","🤖","👽","👾","🧟","🧟‍♂️","🧟‍♀️","🧛","🧛‍♂️","🧙","🧙‍♂️","🧌","🧞","🦇","🕷️","🕸️","🦂","🐍","🐀","🦉","🐺","⚰️","⚱️","🪦","🔮","🧿","🗡️","⚔️","🛡️","🩸","🦴","🥀","🌑","🌕","🕯️","🌫️","🍄","⛓️","🔥","🌪️"] },
+  { label: "Appearance", emojis: ["💇","💇‍♂️","💇‍♀️","💈","🪮","💆","💆‍♂️","💆‍♀️","🧖","🪒","💅","💄","🪞","🧴","🧼","🧑","👨","👩","🧔","🧔‍♂️","👱‍♂️","👱‍♀️","👨‍🦰","👩‍🦰","👨‍🦱","👩‍🦱","👨‍🦳","👩‍🦳","👨‍🦲","👩‍🦲","🧑‍🦰","🧑‍🦱","🧑‍🦳","🧑‍🦲","😀","🙂","😎","🤳","👤","🕶️","👓","🧢","🎩","👒","👔","👗","👠","💍"] },
   { label: "Social", emojis: ["🤝","📞","✉️","🎉","🎁","🎭","🎬","🎵","🎮","👁️","🦁","🐉","💬","💭","🗨️","🗯️","👋","🙌","👏","🤗","🥂","🍾","🎤","🎧","🎼","🎹","🥁","🎷","🎸","🎺","🎻","🪗","👥","👤","🧑‍🤝‍🧑","🫂","💌","📮","📯","📣","📢"] },
   { label: "Life", emojis: ["🏠","🚗","✈️","🍽️","☕","🌱","🌍","🧘","🏋️","🌈","🗓️","⏰","🏡","🛖","🏘️","🏰","🏯","🚂","🚢","🛸","🚁","⛵","🏄","🚴","🏇","⛷️","🤸","🧗","🎭","🎠","🎡","🎢","🌅","🌇","🌆","🏖️","🏕️","🌲","🌳","🌴","🌵","🌾","🍀","🌺","🌸","🌼","🌻","🍁","🍂","🍃","🌙","☀️","⛅","🌤️","🌦️","⛈️","❄️","🌊","🌋"] },
   { label: "Health", emojis: ["🏥","💊","💉","🩺","🩻","🩹","🧬","🩸","🩼","🦽","🦼","🧪","🔬","🧫","❤️","🧡","💛","💚","💙","💜","🖤","🤍","❤️‍🔥","💓","💗","💖","💝","�","🫀","🫁","🧠","🦷","🦴","�️","👅","👂","👃","�","�","🦾","�","👋","�️","✋","�","👌","✌️","�","�","�","💪","🏃","🚶","�","�","🥗","🥤","🍎","�","💆","💇","🛁","🚿","🪥","🧼","🏋️","🧘"] },
@@ -323,6 +326,34 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "🕯️", keywords: "candle flame light wax prayer spooky" },
   { emoji: "🔮", keywords: "crystal ball magic fortune future mystic spooky" },
   { emoji: "🧿", keywords: "evil eye nazar amulet protection charm" },
+  // Appearance / People / Hair / Grooming
+  { emoji: "💇", keywords: "haircut hair hairstyle hairdo wig salon barber cut grooming trim style appearance look" },
+  { emoji: "💇‍♂️", keywords: "man male guy haircut hair hairstyle wig barber cut grooming trim style appearance" },
+  { emoji: "💇‍♀️", keywords: "woman female haircut hair hairstyle wig salon cut grooming trim style appearance" },
+  { emoji: "💈", keywords: "barber barbershop pole haircut hair hairstyle shave grooming salon appearance" },
+  { emoji: "🪮", keywords: "comb hair hairstyle wig detangle brush grooming style afro pick appearance" },
+  { emoji: "🪒", keywords: "razor shave shaving grooming beard face hair blade appearance" },
+  { emoji: "💆", keywords: "massage face spa facial skincare self care relax grooming appearance" },
+  { emoji: "🧖", keywords: "sauna spa steam self care relax face skincare grooming appearance" },
+  { emoji: "💅", keywords: "nails manicure polish beauty salon self care grooming appearance" },
+  { emoji: "💄", keywords: "lipstick makeup beauty cosmetics face glam grooming appearance" },
+  { emoji: "🪞", keywords: "mirror reflection look face beauty grooming vanity appearance check" },
+  { emoji: "🧑", keywords: "person human adult face people someone gender neutral" },
+  { emoji: "👨", keywords: "man male guy person human face dude adult" },
+  { emoji: "👩", keywords: "woman female lady person human face adult" },
+  { emoji: "🧔", keywords: "man beard bearded face facial hair male person human" },
+  { emoji: "👱", keywords: "blond blonde hair person face man woman human" },
+  { emoji: "👨‍🦰", keywords: "man red hair ginger redhead face male human hairstyle" },
+  { emoji: "👩‍🦰", keywords: "woman red hair ginger redhead face female human hairstyle" },
+  { emoji: "👨‍🦱", keywords: "man curly hair face male human hairstyle" },
+  { emoji: "👩‍🦱", keywords: "woman curly hair face female human hairstyle" },
+  { emoji: "👨‍🦳", keywords: "man white gray hair senior face male human hairstyle" },
+  { emoji: "👨‍🦲", keywords: "man bald no hair face male human shaved" },
+  { emoji: "🙂", keywords: "face smile slight happy person human" },
+  { emoji: "🤳", keywords: "selfie phone photo face self picture appearance" },
+  { emoji: "👤", keywords: "silhouette person human user profile face anonymous" },
+  { emoji: "👓", keywords: "glasses spectacles eyewear face look appearance" },
+  { emoji: "🕶️", keywords: "sunglasses shades cool face look appearance" },
 ];
 
 
@@ -342,6 +373,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [emojiSearch, setEmojiSearch] = useState("");
   const [description, setDescription] = useState("");
+  const [attachments, setAttachments] = useState<QuestAttachment[]>([]);
   const [duration, setDuration] = useState<string>("30");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [importance, setImportance] = useState<string>("Medium");
@@ -435,6 +467,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setTitle("");
     setTaskEmoji("📝");
     setDescription("");
+    setAttachments([]);
     setDuration("30");
     // goldValue is auto-calculated, no need to reset
     setDueDate(undefined);
@@ -488,6 +521,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       emoji: taskEmoji,
       description: description.trim(),
       details: description.trim(),
+      attachments,
       duration: durationNum,
       goldValue, // Use auto-calculated value
       dueDate: dueDate ? dueDate.toISOString() : null,
@@ -608,14 +642,16 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             <Label htmlFor="description" className="text-yellow-200">
               Description <span className="text-red-400">*</span>
             </Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this quest..."
-              className="bg-slate-800/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40 min-h-[100px]"
-              maxLength={2000}
-            />
+            <AttachmentArea attachments={attachments} onChange={setAttachments}>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe this quest..."
+                className="bg-slate-800/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40 min-h-[100px] pr-10"
+                maxLength={2000}
+              />
+            </AttachmentArea>
             <p className="text-xs text-yellow-400/60">{description.length}/2000 characters</p>
           </div>
 

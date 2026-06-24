@@ -412,6 +412,23 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: June 23 2026
+  // BMO checking −$7,000 → $76,622; Coinbase BTC +0.109339 → 0.32979102
+  // Forces values on all devices (supersedes the June 15 default-only checking update).
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260623";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-checking", "76622");
+        localStorage.setItem("nw-coinbase-btc", "0.32979102");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setCheckingBalance(76622);
+        setCoinbaseBtcHoldings(0.32979102);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: Roth IRA shares updated May 29 2026
   // VTSAX 146.857 → 145.188; IBIT stays 697
   useEffect(() => {
@@ -437,7 +454,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-btc") || "1"); } catch { return 1; }
   });
   const [coinbaseBtcHoldings, setCoinbaseBtcHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-coinbase-btc") || "0.22045202"); } catch { return 0.22045202; }
+    try { return parseFloat(localStorage.getItem("nw-coinbase-btc") || "0.32979102"); } catch { return 0.32979102; }
   });
   const [vtsaxHoldings, setVtsaxHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-vtsax") || "146.857"); } catch { return 146.857; }
@@ -489,9 +506,9 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
-  // Cash — BMO checking account ending in 1711 (manual, updated June 15, 2026: −$7,000 → $83,622)
+  // Cash — BMO checking account ending in 1711 (manual, updated June 23, 2026: −$7,000 → $76,622)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "83622"); } catch { return 83622; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "76622"); } catch { return 76622; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);

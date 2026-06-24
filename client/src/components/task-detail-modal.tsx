@@ -30,6 +30,8 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AttachmentArea } from "@/components/attachment-area";
+import type { QuestAttachment } from "@/lib/attachments";
 
 interface TaskDetailModalProps {
   task: any;
@@ -44,6 +46,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
   const [detailsValue, setDetailsValue] = useState(task?.details || task?.description || "");
   const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [attachmentsValue, setAttachmentsValue] = useState<QuestAttachment[]>(task?.attachments || []);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task?.title || "");
   const [showFullDetails, setShowFullDetails] = useState(false);
@@ -84,6 +87,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     if (!isEditingTitle) {
       setTitleValue(task?.title || "");
     }
+    setAttachmentsValue(task?.attachments || []);
     setDurationInput(task?.duration?.toString() || "30");
     // Only reset editing state when switching to a different task
   }, [task?.id]);
@@ -210,6 +214,35 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     detailsTimeoutRef.current = setTimeout(() => {
       updateDetailsMutation.mutate(value);
     }, 800);
+  };
+
+  const updateAttachmentsMutation = useMutation({
+    mutationFn: async (next: QuestAttachment[]) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ attachments: next }),
+      });
+      if (!response.ok) throw new Error('Failed to update attachments');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to save attachment',
+        description: error?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Add/remove media are discrete actions — persist immediately (no debounce).
+  const handleAttachmentsChange = (next: QuestAttachment[]) => {
+    setAttachmentsValue(next);
+    updateAttachmentsMutation.mutate(next);
   };
 
   const updateTitleMutation = useMutation({
@@ -593,12 +626,17 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               </div>
             </div>
 
+            <AttachmentArea
+              attachments={attachmentsValue}
+              onChange={handleAttachmentsChange}
+              showHint={isEditingDetails}
+            >
             {isEditingDetails ? (
               <Textarea
                 value={detailsValue}
                 onChange={(e) => handleDetailsChange(e.target.value)}
                 placeholder="Add details..."
-                className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none focus:border-yellow-500/50 focus:ring-yellow-500/20 ${isMobile ? 'p-2.5 min-h-[200px] text-sm' : 'p-3 min-h-[260px]'}`}
+                className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 placeholder:text-yellow-200/30 resize-none focus:border-yellow-500/50 focus:ring-yellow-500/20 ${isMobile ? 'py-2.5 pl-2.5 pr-10 min-h-[200px] text-sm' : 'py-3 pl-3 pr-10 min-h-[260px]'}`}
                 rows={isMobile ? 8 : 10}
                 autoFocus
               />
@@ -610,7 +648,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                     if (!detailsValue) setIsEditingDetails(true);
                   }}
                   className={`text-yellow-200/80 bg-slate-800/50 rounded-lg border border-yellow-600/20 whitespace-pre-wrap break-words overflow-hidden ${
-                    isMobile ? 'p-2.5 text-sm' : 'p-3'
+                    isMobile ? 'py-2.5 pl-2.5 pr-10 text-sm' : 'py-3 pl-3 pr-10'
                   } ${!detailsValue ? 'text-yellow-200/30 cursor-text' : ''}`}
                   style={{
                     maxHeight: isMobile ? '200px' : '260px',
@@ -631,6 +669,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                 )}
               </div>
             )}
+            </AttachmentArea>
           </div>
 
           {/* Full Details Popup Modal */}

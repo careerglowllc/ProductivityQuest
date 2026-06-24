@@ -67,6 +67,12 @@ export async function runStartupMigrations() {
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS widget_preferences JSONB DEFAULT '{}'
     `;
+
+    // Migration: Add attachments column to tasks (inline base64 images/videos in the description)
+    await sql`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'
+    `;
     
     console.log('✅ Startup migrations completed successfully');
   } catch (error) {
