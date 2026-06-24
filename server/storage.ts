@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, nwSnapshots, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type NwSnapshot, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, nwSnapshots, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, userKv, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type NwSnapshot, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, isNull, inArray, gt, desc, sql } from "drizzle-orm";
 
@@ -94,6 +94,10 @@ export interface IStorage {
   updateQuestline(userId: string, id: number, updates: Partial<Questline>): Promise<Questline | undefined>;
   deleteQuestline(userId: string, id: number): Promise<boolean>;
   getQuestlineTasks(userId: string, questlineId: number): Promise<Task[]>;
+
+  // Per-user key-value store (finance "nw-*", CPAP "cpap-*", NPC rolodex "npcs-*")
+  getUserData(userId: string): Promise<Record<string, string>>;
+  setUserData(userId: string, updates: Record<string, string>, deletes?: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1278,6 +1282,36 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(tasks)
       .where(and(eq(tasks.userId, userId), eq(tasks.questlineId, questlineId)))
       .orderBy(tasks.questlineOrder);
+  }
+
+  // ── Per-user key-value store ────────────────────────────────────────
+  // Backs client features that previously persisted only to browser localStorage
+  // (finance / net-worth "nw-*", CPAP log "cpap-*", NPC rolodex "npcs-*"). Every query is
+  // scoped to the authenticated userId, so one user can never read or write another's data.
+
+  async getUserData(userId: string): Promise<Record<string, string>> {
+    const rows = await db.select().from(userKv).where(eq(userKv.userId, userId));
+    const out: Record<string, string> = {};
+    for (const row of rows) out[row.key] = row.value ?? "";
+    return out;
+  }
+
+  async setUserData(userId: string, updates: Record<string, string>, deletes: string[] = []): Promise<void> {
+    // Upsert each provided key (insert, or update the value on conflict of the
+    // (user_id, key) unique index).
+    for (const [key, value] of Object.entries(updates ?? {})) {
+      await db.insert(userKv)
+        .values({ userId, key, value: value ?? "", updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: [userKv.userId, userKv.key],
+          set: { value: value ?? "", updatedAt: new Date() },
+        });
+    }
+    // Remove any keys the client explicitly cleared.
+    if (deletes && deletes.length > 0) {
+      await db.delete(userKv)
+        .where(and(eq(userKv.userId, userId), inArray(userKv.key, deletes)));
+    }
   }
 }
 

@@ -1,5 +1,7 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
+import { useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
+import { installStorageSync, hydrateUserData, resetUserDataSync } from "@/lib/synced-storage";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,9 +38,32 @@ import NotFound from "@/pages/not-found";
 import CPAPPage from "@/pages/cpap";
 import AppearanceSettingsPage from "@/pages/settings-appearance";
 
+// Patch localStorage → server sync as early as possible, before any page mounts and writes
+// to a synced key (finance "nw-*", CPAP "cpap-*", NPC rolodex "npcs-*").
+installStorageSync();
+
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
+
+  // Once authenticated, pull this user's server-stored data into localStorage BEFORE the
+  // synced pages (Finances / CPAP / NPCs) mount, so they always render the latest
+  // cross-device state. Always resolves — on failure we fall back to cached localStorage.
+  const [userDataReady, setUserDataReady] = useState(false);
+  useEffect(() => {
+    if (isAuthenticated) {
+      let cancelled = false;
+      hydrateUserData().finally(() => {
+        if (!cancelled) setUserDataReady(true);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    // Logged out: reset so the next user starts clean.
+    resetUserDataSync();
+    setUserDataReady(false);
+  }, [isAuthenticated]);
 
   // Handle API routes by redirecting to the backend
   if (window.location.pathname.startsWith('/api/')) {
@@ -52,6 +77,19 @@ function Router() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Hold the authenticated app until this user's server data has hydrated into localStorage,
+  // so Finances / CPAP / NPCs render the latest cross-device values rather than stale cache.
+  if (isAuthenticated && !userDataReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Syncing your data...</p>
         </div>
       </div>
     );

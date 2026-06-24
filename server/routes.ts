@@ -483,6 +483,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Per-user key-value store ───────────────────────────────────────────────
+  // Generic, namespaced storage for client features whose data used to live only in the
+  // browser's localStorage: finance / net-worth inputs ("nw-*"), the CPAP compliance log
+  // ("cpap-*"), and the NPC rolodex ("npcs-*"). Every endpoint is gated by requireAuth and
+  // scoped to req.session.userId, so a user can only ever read or write their OWN data.
+
+  // Only these key prefixes may be synced — prevents the client from stuffing arbitrary,
+  // unrelated data into the store.
+  const SYNCED_KEY_PREFIXES = ['nw-', 'cpap-', 'npcs-'];
+  const isSyncableKey = (k: unknown): k is string =>
+    typeof k === 'string' && k.length > 0 && k.length <= 256 &&
+    SYNCED_KEY_PREFIXES.some(p => k.startsWith(p));
+
+  app.get('/api/user-data', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const data = await storage.getUserData(userId);
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      res.status(500).json({ error: 'Failed to fetch user data' });
+    }
+  });
+
+  app.put('/api/user-data', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { updates, deletes } = req.body ?? {};
+
+      // Validate + filter to syncable keys and string values only.
+      const safeUpdates: Record<string, string> = {};
+      if (updates && typeof updates === 'object') {
+        for (const [k, v] of Object.entries(updates)) {
+          if (isSyncableKey(k) && typeof v === 'string' && v.length <= 200000) {
+            safeUpdates[k] = v;
+          }
+        }
+      }
+      const safeDeletes: string[] = Array.isArray(deletes)
+        ? deletes.filter(isSyncableKey)
+        : [];
+
+      await storage.setUserData(userId, safeUpdates, safeDeletes);
+      res.json({ ok: true, saved: Object.keys(safeUpdates).length, deleted: safeDeletes.length });
+    } catch (error) {
+      console.error('Error saving user data:', error);
+      res.status(500).json({ error: 'Failed to save user data' });
+    }
+  });
+
   // Timezone settings endpoint
   app.get('/api/settings', requireAuth, async (req: any, res) => {
     try {

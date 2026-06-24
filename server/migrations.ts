@@ -73,6 +73,25 @@ export async function runStartupMigrations() {
       ALTER TABLE tasks
       ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'
     `;
+
+    // Migration: Create per-user key-value store. Backs the finance/net-worth inputs ("nw-*"),
+    // CPAP log ("cpap-*"), and NPC rolodex ("npcs-*") that previously lived only in browser
+    // localStorage — now persisted server-side, synced across devices, and scoped per user.
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_kv (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL REFERENCES users(id),
+        key TEXT NOT NULL,
+        value TEXT NOT NULL DEFAULT '',
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS "IDX_user_kv_user" ON user_kv (user_id)
+    `;
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_user_kv_user_key" ON user_kv (user_id, key)
+    `;
     
     console.log('✅ Startup migrations completed successfully');
   } catch (error) {

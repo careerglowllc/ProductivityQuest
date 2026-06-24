@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Helper for timestamp with timezone
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
@@ -115,6 +115,27 @@ export const questlines = pgTable("questlines", {
   createdAt: timestamptz("created_at").defaultNow(),
   updatedAt: timestamptz("updated_at").defaultNow(),
 });
+
+// Per-user key-value store. Backs client features whose data previously lived only in the
+// browser's localStorage — net-worth / finance inputs ("nw-*"), the CPAP compliance log
+// ("cpap-*"), and the NPC rolodex ("npcs-*"). Persisting it here means that data is stored
+// on our servers, syncs across web + iOS, survives deploys, and stays scoped to (and only
+// readable by) the authenticated user. Values are stored as text (JSON-encoded by the client
+// where needed) under the original localStorage key.
+export const userKv = pgTable(
+  "user_kv",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id").notNull().references(() => users.id),
+    key: text("key").notNull(),
+    value: text("value").notNull().default(""),
+    updatedAt: timestamptz("updated_at").defaultNow(),
+  },
+  (table) => [
+    index("IDX_user_kv_user").on(table.userId),
+    uniqueIndex("UQ_user_kv_user_key").on(table.userId, table.key),
+  ],
+);
 
 export const shopItems = pgTable("shop_items", {
   id: serial("id").primaryKey(),
@@ -388,3 +409,6 @@ export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 export type Questline = typeof questlines.$inferSelect;
 export type InsertQuestline = z.infer<typeof insertQuestlineSchema>;
+
+export type UserKv = typeof userKv.$inferSelect;
+export type InsertUserKv = typeof userKv.$inferInsert;
