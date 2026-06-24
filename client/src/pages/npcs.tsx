@@ -1,115 +1,520 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Star, MessageCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Users,
+  UserPlus,
+  Search,
+  Phone,
+  MapPin,
+  Briefcase,
+  Heart,
+  Pencil,
+  Trash2,
+  Sparkles,
+} from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 
+// ── Constants ───────────────────────────────────────────────
+const STORAGE_KEY = "npcs-v1";
+const SEED_KEY = "npcs-seed-daniela-v1";
+
+// Relationship categories with accent colors
+const CATEGORIES = [
+  "Dating",
+  "Friend",
+  "Professional",
+  "Family",
+  "Mentor",
+  "Acquaintance",
+  "Other",
+] as const;
+type Category = (typeof CATEGORIES)[number];
+
+const CATEGORY_STYLES: Record<string, string> = {
+  Dating: "bg-pink-500/20 text-pink-200 border-pink-500/40",
+  Friend: "bg-green-500/20 text-green-200 border-green-500/40",
+  Professional: "bg-blue-500/20 text-blue-200 border-blue-500/40",
+  Family: "bg-amber-500/20 text-amber-200 border-amber-500/40",
+  Mentor: "bg-purple-500/20 text-purple-200 border-purple-500/40",
+  Acquaintance: "bg-slate-500/20 text-slate-200 border-slate-500/40",
+  Other: "bg-cyan-500/20 text-cyan-200 border-cyan-500/40",
+};
+
+// ── Types ────────────────────────────────────────────────────
+type NPC = {
+  id: string;
+  name: string;
+  phone?: string;
+  occupation?: string;
+  location?: string;
+  howWeMet?: string;
+  category?: Category;
+  notes?: string;
+  createdAt: string;
+};
+
+// ── Helpers ──────────────────────────────────────────────────
+function newId() {
+  return `npc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Format a 10-digit US phone as (408) 470-8553; leave other formats untouched
+function formatPhone(raw?: string) {
+  if (!raw) return "";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return raw;
+}
+
+function telHref(raw?: string) {
+  if (!raw) return "";
+  return `tel:${raw.replace(/[^\d+]/g, "")}`;
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+const DANIELA: NPC = {
+  id: "npc-daniela-dibono",
+  name: "Daniela Dibono",
+  phone: "4084708553",
+  occupation: "Associate Marriage & Family Therapist",
+  location: "San Jose, CA",
+  howWeMet: "Hinge (dating app)",
+  category: "Dating",
+  notes: "",
+  createdAt: "2026-06-24T00:00:00.000Z",
+};
+
+const EMPTY_FORM: NPC = {
+  id: "",
+  name: "",
+  phone: "",
+  occupation: "",
+  location: "",
+  howWeMet: "",
+  category: "Friend",
+  notes: "",
+  createdAt: "",
+};
+
+// ── Component ────────────────────────────────────────────────
 export default function NPCsPage() {
   const { isDark } = useTheme();
   const isMobile = useIsMobile();
 
+  const [contacts, setContacts] = useState<NPC[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState<NPC>(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // One-time seed: add Daniela Dibono as the first contact
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SEED_KEY)) {
+        setContacts((prev) => {
+          if (prev.some((c) => c.id === DANIELA.id)) return prev;
+          return [DANIELA, ...prev];
+        });
+        localStorage.setItem(SEED_KEY, "1");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
+    } catch {}
+  }, [contacts]);
+
+  const filtered = contacts
+    .filter((c) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return [c.name, c.occupation, c.location, c.howWeMet, c.category, c.notes, c.phone]
+        .filter(Boolean)
+        .some((v) => (v as string).toLowerCase().includes(q));
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  function openAdd() {
+    setForm({ ...EMPTY_FORM });
+    setEditingId(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(c: NPC) {
+    setForm({ ...c });
+    setEditingId(c.id);
+    setDialogOpen(true);
+  }
+
+  function saveContact() {
+    const name = form.name.trim();
+    if (!name) return;
+    if (editingId) {
+      setContacts((prev) =>
+        prev.map((c) => (c.id === editingId ? { ...form, name } : c))
+      );
+    } else {
+      setContacts((prev) => [
+        { ...form, name, id: newId(), createdAt: new Date().toISOString() },
+        ...prev,
+      ]);
+    }
+    setDialogOpen(false);
+    setEditingId(null);
+  }
+
+  function deleteContact(id: string) {
+    setContacts((prev) => prev.filter((c) => c.id !== id));
+    setConfirmDeleteId(null);
+  }
+
   return (
-    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? 'pt-16' : ''} pb-24 relative overflow-hidden`}>
+    <div
+      className={`min-h-screen ${
+        isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"
+      } ${!isMobile ? "pt-16" : ""} pb-24 relative overflow-hidden`}
+    >
       {/* Starfield Background Effect */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
-        <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
+        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{ animationDelay: "1s" }}></div>
+        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{ animationDelay: "2s" }}></div>
+        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{ animationDelay: "0.5s" }}></div>
+        <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{ animationDelay: "1.5s" }}></div>
       </div>
 
       <div className="container mx-auto px-4 py-8 relative z-10">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="flex items-center justify-center gap-3 mb-2">
               <Users className="h-10 w-10 text-blue-400" />
               <h1 className="text-4xl font-serif font-bold text-yellow-100">NPCs</h1>
             </div>
-            <p className="text-yellow-200/70 text-lg">Your Network & Relationships Rolodex</p>
+            <p className="text-yellow-200/70 text-lg">Your Network &amp; Relationships Rolodex</p>
           </div>
 
-          {/* Coming Soon Card */}
-          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-blue-600/40">
-            <CardHeader className="border-b border-blue-600/30">
-              <CardTitle className="text-2xl font-serif text-blue-100 flex items-center gap-2">
-                <Star className="h-6 w-6 text-blue-400" />
-                Coming Soon
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8">
-              <div className="space-y-6">
-                <div className="text-center">
-                  <UserPlus className="h-24 w-24 text-blue-400/40 mx-auto mb-6" />
-                  <h3 className="text-xl font-serif font-bold text-blue-100 mb-3">
-                    Your Personal Rolodex
-                  </h3>
-                  <p className="text-blue-200/70 mb-6 max-w-xl mx-auto">
-                    This feature will help you manage and nurture your network of friends, 
-                    professional contacts, mentors, and relationships. Stay tuned for:
-                  </p>
-                </div>
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, role, location, how you met…"
+                className="pl-9 bg-slate-800/60 border-blue-600/30 text-blue-50 placeholder:text-slate-500"
+              />
+            </div>
+            <Button
+              onClick={openAdd}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold shrink-0"
+            >
+              <UserPlus className="h-4 w-4 mr-1.5" /> Add Contact
+            </Button>
+          </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4">
+          {/* Count */}
+          <p className="text-blue-300/60 text-sm mb-3">
+            {filtered.length} {filtered.length === 1 ? "contact" : "contacts"}
+            {search.trim() && ` matching “${search.trim()}”`}
+          </p>
+
+          {/* Contact grid */}
+          {filtered.length === 0 ? (
+            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-blue-600/40">
+              <CardContent className="p-12 text-center">
+                <UserPlus className="h-16 w-16 text-blue-400/40 mx-auto mb-4" />
+                <h3 className="text-lg font-serif font-bold text-blue-100 mb-1">
+                  {search.trim() ? "No matches" : "Your rolodex is empty"}
+                </h3>
+                <p className="text-blue-300/70 text-sm mb-5">
+                  {search.trim()
+                    ? "Try a different search term."
+                    : "Add your first contact to start building your network."}
+                </p>
+                {!search.trim() && (
+                  <Button onClick={openAdd} className="bg-blue-600 hover:bg-blue-500 text-white">
+                    <UserPlus className="h-4 w-4 mr-1.5" /> Add Contact
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {filtered.map((c) => (
+                <Card
+                  key={c.id}
+                  className="bg-slate-800/60 backdrop-blur-md border border-blue-600/30 hover:border-blue-500/60 transition-colors group"
+                >
+                  <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <MessageCircle className="h-5 w-5 text-blue-400 mt-1 flex-shrink-0" />
-                      <div>
-                        <h4 className="text-blue-100 font-semibold mb-1">Contact Management</h4>
-                        <p className="text-blue-300/70 text-sm">
-                          Track important details, last contact, and relationship notes
-                        </p>
+                      {/* Avatar */}
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500/40 to-purple-500/40 border border-blue-400/40 flex items-center justify-center shrink-0">
+                        <span className="text-blue-100 font-bold text-sm">{initials(c.name)}</span>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-blue-50 font-semibold truncate">{c.name}</h3>
+                            {c.category && (
+                              <span
+                                className={`inline-block mt-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                                  CATEGORY_STYLES[c.category] || CATEGORY_STYLES.Other
+                                }`}
+                              >
+                                {c.category}
+                              </span>
+                            )}
+                          </div>
+                          {/* Actions */}
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <button
+                              onClick={() => openEdit(c)}
+                              className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-blue-300"
+                              title="Edit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(c.id)}
+                              className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-red-400"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Details */}
+                        <div className="mt-2 space-y-1.5 text-sm">
+                          {c.occupation && (
+                            <p className="flex items-center gap-2 text-slate-300">
+                              <Briefcase className="h-3.5 w-3.5 text-blue-400/70 shrink-0" />
+                              <span className="truncate">{c.occupation}</span>
+                            </p>
+                          )}
+                          {c.location && (
+                            <p className="flex items-center gap-2 text-slate-300">
+                              <MapPin className="h-3.5 w-3.5 text-blue-400/70 shrink-0" />
+                              <span className="truncate">{c.location}</span>
+                            </p>
+                          )}
+                          {c.phone && (
+                            <a
+                              href={telHref(c.phone)}
+                              className="flex items-center gap-2 text-cyan-300 hover:text-cyan-200 hover:underline w-fit"
+                            >
+                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                              <span>{formatPhone(c.phone)}</span>
+                            </a>
+                          )}
+                          {c.howWeMet && (
+                            <p className="flex items-center gap-2 text-slate-400">
+                              <Heart className="h-3.5 w-3.5 text-pink-400/70 shrink-0" />
+                              <span className="truncate">Met via {c.howWeMet}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        {c.notes && (
+                          <p className="mt-2 text-xs text-slate-400 bg-slate-900/40 rounded-lg px-2.5 py-1.5 whitespace-pre-wrap">
+                            {c.notes}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <Users className="h-5 w-5 text-blue-400 mt-1 flex-shrink-0" />
-                      <div>
-                        <h4 className="text-blue-100 font-semibold mb-1">Relationship Levels</h4>
-                        <p className="text-blue-300/70 text-sm">
-                          Track connection strength and relationship categories
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <Star className="h-5 w-5 text-blue-400 mt-1 flex-shrink-0" />
-                      <div>
-                        <h4 className="text-blue-100 font-semibold mb-1">Reminders</h4>
-                        <p className="text-blue-300/70 text-sm">
-                          Get nudged to reach out and maintain connections
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <MessageCircle className="h-5 w-5 text-blue-400 mt-1 flex-shrink-0" />
-                      <div>
-                        <h4 className="text-blue-100 font-semibold mb-1">Interaction History</h4>
-                        <p className="text-blue-300/70 text-sm">
-                          Log conversations, meetings, and important moments
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-center pt-4">
-                  <p className="text-blue-300/60 text-sm italic">
-                    Feature currently in development...
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Add / Edit dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="bg-slate-900 border border-blue-600/40 text-blue-50 max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-blue-100 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-blue-400" />
+              {editingId ? "Edit Contact" : "New Contact"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-blue-200/80 text-xs">Name *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Full name"
+                className="bg-slate-800 border-slate-700 text-blue-50 mt-1"
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-blue-200/80 text-xs">Phone</Label>
+                <Input
+                  value={form.phone || ""}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="(408) 470-8553"
+                  className="bg-slate-800 border-slate-700 text-blue-50 mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-blue-200/80 text-xs">Category</Label>
+                <Select
+                  value={form.category}
+                  onValueChange={(v) => setForm((f) => ({ ...f, category: v as Category }))}
+                >
+                  <SelectTrigger className="bg-slate-800 border-slate-700 text-blue-50 mt-1">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-700 text-blue-50">
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-blue-200/80 text-xs">Occupation</Label>
+              <Input
+                value={form.occupation || ""}
+                onChange={(e) => setForm((f) => ({ ...f, occupation: e.target.value }))}
+                placeholder="e.g. Associate Marriage & Family Therapist"
+                className="bg-slate-800 border-slate-700 text-blue-50 mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-blue-200/80 text-xs">Location</Label>
+              <Input
+                value={form.location || ""}
+                onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+                placeholder="e.g. San Jose, CA"
+                className="bg-slate-800 border-slate-700 text-blue-50 mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-blue-200/80 text-xs">How we met</Label>
+              <Input
+                value={form.howWeMet || ""}
+                onChange={(e) => setForm((f) => ({ ...f, howWeMet: e.target.value }))}
+                placeholder="e.g. Hinge (dating app)"
+                className="bg-slate-800 border-slate-700 text-blue-50 mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-blue-200/80 text-xs">Notes</Label>
+              <Textarea
+                value={form.notes || ""}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Anything worth remembering…"
+                className="bg-slate-800 border-slate-700 text-blue-50 mt-1 min-h-[80px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setDialogOpen(false)}
+              className="text-slate-300 hover:text-white hover:bg-slate-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={saveContact}
+              disabled={!form.name.trim()}
+              className="bg-blue-600 hover:bg-blue-500 text-white"
+            >
+              {editingId ? "Save Changes" : "Add Contact"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm dialog */}
+      <Dialog open={!!confirmDeleteId} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
+        <DialogContent className="bg-slate-900 border border-red-600/40 text-blue-50 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-red-200">Delete contact?</DialogTitle>
+          </DialogHeader>
+          <p className="text-slate-300 text-sm">
+            This will permanently remove{" "}
+            <span className="font-semibold text-white">
+              {contacts.find((c) => c.id === confirmDeleteId)?.name}
+            </span>{" "}
+            from your rolodex.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmDeleteId(null)}
+              className="text-slate-300 hover:text-white hover:bg-slate-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => confirmDeleteId && deleteContact(confirmDeleteId)}
+              className="bg-red-600 hover:bg-red-500 text-white"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
