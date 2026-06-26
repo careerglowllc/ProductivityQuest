@@ -214,6 +214,8 @@ export default function Finances() {
   const [fgWidgetInheritance, setFgWidgetInheritance] = useState<boolean>(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
+  const [expenseBreakdownSearch, setExpenseBreakdownSearch] = useState<string>("");
+  const [expenseBreakdownCat, setExpenseBreakdownCat] = useState<string>("All");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
   // Overview widget visibility toggles
   const [overviewWidgets, setOverviewWidgets] = useState({
@@ -2152,6 +2154,117 @@ export default function Finances() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* ── Master List: All Expense Items (full breakdown) ── */}
+            <Card className="bg-slate-800/60 border-red-500/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <CardTitle className="text-red-300 text-base">All Expense Items</CardTitle>
+                    <CardDescription className="text-slate-400 text-xs">
+                      Full breakdown grouped by category · largest first
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Input
+                      placeholder="Search expenses…"
+                      value={expenseBreakdownSearch}
+                      onChange={(e) => setExpenseBreakdownSearch(e.target.value)}
+                      className="bg-slate-900/50 border-slate-600 text-white h-8 text-xs w-44 placeholder:text-slate-500"
+                    />
+                    <Filter className="h-3.5 w-3.5 text-slate-400" />
+                    <Select value={expenseBreakdownCat} onValueChange={setExpenseBreakdownCat}>
+                      <SelectTrigger className="bg-slate-900/50 border-slate-600 text-white h-8 text-xs w-44">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        <SelectItem value="All">All Categories</SelectItem>
+                        {expensePie.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 pb-0">
+                {(() => {
+                  const q = expenseBreakdownSearch.trim().toLowerCase();
+                  const matches = topExpenses.filter(i =>
+                    (expenseBreakdownCat === "All" || i.category === expenseBreakdownCat) &&
+                    (q === "" || i.item.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))
+                  );
+
+                  // Group by category, sorted by category total desc
+                  const byCat = matches.reduce((acc, i) => {
+                    if (!acc[i.category]) acc[i.category] = [];
+                    acc[i.category].push(i);
+                    return acc;
+                  }, {} as Record<string, typeof matches>);
+
+                  const catGroups = Object.entries(byCat)
+                    .map(([cat, items]) => ({
+                      cat,
+                      items: [...items].sort((a, b) => b.monthlyCost - a.monthlyCost),
+                      total: items.reduce((s, i) => s + i.monthlyCost, 0),
+                      color: CATEGORY_COLORS[cat] || "#94A3B8",
+                    }))
+                    .sort((a, b) => b.total - a.total);
+
+                  const shownTotal = matches.reduce((s, i) => s + i.monthlyCost, 0);
+
+                  if (catGroups.length === 0) {
+                    return (
+                      <div className="px-4 py-8 text-center text-slate-500 text-sm">
+                        No expense items match your filters.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="divide-y divide-slate-700/30">
+                      {catGroups.map(g => {
+                        const pct = totalExpenses > 0 ? (g.total / totalExpenses) * 100 : 0;
+                        return (
+                          <div key={g.cat} className="mb-0">
+                            {/* Category header */}
+                            <div className="flex items-center justify-between gap-2 px-4 py-2 border-y border-slate-700/60 bg-slate-900/30">
+                              <span className="flex items-center gap-2 text-xs font-bold tracking-wide text-slate-200 min-w-0">
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                                <span className="truncate">{g.cat}</span>
+                                <span className="text-slate-500 font-normal shrink-0">({pct.toFixed(1)}%)</span>
+                              </span>
+                              <span className="text-xs font-semibold text-red-300 text-right shrink-0">
+                                {g.items.length} {g.items.length === 1 ? "item" : "items"} · {formatCurrency(g.total)}/mo · {formatCurrency(g.total * 12)}/yr
+                              </span>
+                            </div>
+                            {/* Items */}
+                            <div className="divide-y divide-slate-700/20">
+                              {g.items.map(item => (
+                                <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-slate-700/20">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-white text-xs font-medium">{item.item}</p>
+                                    {item.notes && <p className="text-[10px] text-slate-400 mt-0.5">{item.notes}</p>}
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{item.recurType}</p>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-red-300 text-xs font-semibold tabular-nums">{formatCurrency(item.monthlyCost)}/mo</p>
+                                    <p className="text-red-200/60 text-[10px] tabular-nums">{formatCurrency(item.monthlyCost * 12)}/yr</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* Footer total */}
+                      <div className="px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 bg-slate-900/40 text-xs">
+                        <span className="text-slate-400">{matches.length} {matches.length === 1 ? "item" : "items"} shown</span>
+                        <span className="text-red-300 font-bold">Total: {formatCurrency(shownTotal)}/mo · {formatCurrency(shownTotal * 12)}/yr</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
