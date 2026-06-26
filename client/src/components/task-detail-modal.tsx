@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { EmojiPicker } from "./emoji-picker";
 import { 
   Calendar, 
@@ -23,7 +24,9 @@ import {
   Edit2,
   Check,
   X,
-  Target
+  Target,
+  SlidersHorizontal,
+  Keyboard
 } from "lucide-react";
 import { format } from "date-fns";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -44,6 +47,15 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
+  const [durationValue, setDurationValue] = useState<number>(task?.duration || 30);
+  const [durationMode, setDurationMode] = useState<"slider" | "manual">(() => {
+    try {
+      const saved = localStorage.getItem("quest-duration-edit-mode");
+      return saved === "manual" ? "manual" : "slider";
+    } catch {
+      return "slider";
+    }
+  });
   const [detailsValue, setDetailsValue] = useState(task?.details || task?.description || "");
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [attachmentsValue, setAttachmentsValue] = useState<QuestAttachment[]>(task?.attachments || []);
@@ -89,8 +101,18 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     }
     setAttachmentsValue(task?.attachments || []);
     setDurationInput(task?.duration?.toString() || "30");
+    setDurationValue(task?.duration || 30);
     // Only reset editing state when switching to a different task
   }, [task?.id]);
+
+  // Persist the user's preferred duration entry mode (slider vs manual)
+  useEffect(() => {
+    try {
+      localStorage.setItem("quest-duration-edit-mode", durationMode);
+    } catch {
+      // ignore storage failures (private mode, etc.)
+    }
+  }, [durationMode]);
 
   // When modal closes, reset editing state
   useEffect(() => {
@@ -175,7 +197,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
   });
 
   const handleDurationSave = () => {
-    const duration = parseInt(durationInput);
+    const duration = durationMode === "slider" ? durationValue : parseInt(durationInput);
     if (isNaN(duration) || duration <= 0) {
       toast({
         title: "Invalid Duration",
@@ -189,7 +211,24 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
   const handleDurationCancel = () => {
     setDurationInput(task?.duration?.toString() || "30");
+    setDurationValue(task?.duration || 30);
     setIsEditingDuration(false);
+  };
+
+  const handleDurationEditOpen = () => {
+    setDurationInput(task?.duration?.toString() || "30");
+    setDurationValue(task?.duration || 30);
+    setIsEditingDuration(true);
+  };
+
+  // Friendly label like "45 min", "1 hr", "1 hr 30 min"
+  const formatDurationLabel = (mins: number) => {
+    if (!mins || mins <= 0) return "0 min";
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    if (hours === 0) return `${minutes} min`;
+    if (minutes === 0) return `${hours} hr`;
+    return `${hours} hr ${minutes} min`;
   };
 
   const updateDetailsMutation = useMutation({
@@ -732,49 +771,123 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
 
             {/* Duration */}
             <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
-              <div className="flex items-center gap-2 text-yellow-400 mb-2">
-                <Clock className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Duration</span>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 text-yellow-400">
+                  <Clock className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Duration</span>
+                </div>
+                {isEditingDuration && (
+                  <div className="flex items-center rounded-md border border-yellow-600/30 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setDurationMode("slider")}
+                      className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors ${durationMode === 'slider' ? 'bg-yellow-500/20 text-yellow-200' : 'text-yellow-200/50 hover:text-yellow-200/80'}`}
+                      title="Drag to set duration"
+                    >
+                      <SlidersHorizontal className="w-3 h-3" />
+                      Slider
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDurationMode("manual")}
+                      className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors ${durationMode === 'manual' ? 'bg-yellow-500/20 text-yellow-200' : 'text-yellow-200/50 hover:text-yellow-200/80'}`}
+                      title="Type an exact duration"
+                    >
+                      <Keyboard className="w-3 h-3" />
+                      Manual
+                    </button>
+                  </div>
+                )}
               </div>
               {isEditingDuration ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={durationInput}
-                    onChange={(e) => setDurationInput(e.target.value)}
-                    className="h-8 bg-slate-900/50 border-yellow-600/30 text-yellow-100 flex-1"
-                    min="1"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleDurationSave();
-                      if (e.key === 'Escape') handleDurationCancel();
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-green-600/20 text-green-400 hover:text-green-300"
-                    onClick={handleDurationSave}
-                  >
-                    <Check className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-red-600/20 text-red-400 hover:text-red-300"
-                    onClick={handleDurationCancel}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+                <div className="space-y-3">
+                  {durationMode === 'slider' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-2xl font-bold text-yellow-100">{formatDurationLabel(durationValue)}</span>
+                        <span className="text-xs text-yellow-200/50">{durationValue} min</span>
+                      </div>
+                      <Slider
+                        value={[durationValue]}
+                        min={5}
+                        max={Math.max(240, Math.ceil(durationValue / 5) * 5)}
+                        step={5}
+                        onValueChange={(v) => {
+                          setDurationValue(v[0]);
+                          setDurationInput(String(v[0]));
+                        }}
+                        className="py-2 [&>span:first-child]:bg-yellow-900/40 [&>span:first-child>span]:bg-yellow-500 [&_[role=slider]]:border-yellow-400 [&_[role=slider]]:bg-yellow-950"
+                      />
+                      <div className="flex items-center justify-between text-[10px] text-yellow-200/40">
+                        <span>5 min</span>
+                        <span>2 hr</span>
+                        <span>{formatDurationLabel(Math.max(240, Math.ceil(durationValue / 5) * 5))}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-1">
+                        {[15, 30, 45, 60].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => {
+                              setDurationValue(preset);
+                              setDurationInput(String(preset));
+                            }}
+                            className={`flex-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${durationValue === preset ? 'border-yellow-500/60 bg-yellow-500/20 text-yellow-100' : 'border-yellow-600/20 text-yellow-200/60 hover:bg-yellow-600/10'}`}
+                          >
+                            {formatDurationLabel(preset)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      value={durationInput}
+                      onChange={(e) => {
+                        setDurationInput(e.target.value);
+                        const parsed = parseInt(e.target.value);
+                        if (!isNaN(parsed)) setDurationValue(parsed);
+                      }}
+                      className="h-9 bg-slate-900/50 border-yellow-600/30 text-yellow-100"
+                      min="1"
+                      step="5"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleDurationSave();
+                        if (e.key === 'Escape') handleDurationCancel();
+                      }}
+                    />
+                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-3 hover:bg-red-600/20 text-red-400 hover:text-red-300"
+                      onClick={handleDurationCancel}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-3 hover:bg-green-600/20 text-green-400 hover:text-green-300"
+                      onClick={handleDurationSave}
+                      disabled={updateDurationMutation.isPending}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Save
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <p className="text-yellow-100 flex-1">{task.duration} minutes</p>
+                  <p className="text-yellow-100 flex-1">{formatDurationLabel(task.duration)}</p>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0 hover:bg-yellow-600/20 text-yellow-400 hover:text-yellow-300"
-                    onClick={() => setIsEditingDuration(true)}
+                    onClick={handleDurationEditOpen}
                   >
                     <Edit2 className="w-4 h-4" />
                   </Button>
