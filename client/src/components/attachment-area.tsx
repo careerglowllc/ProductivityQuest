@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from "react";
-import { Paperclip, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Paperclip, X, Maximize2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -43,6 +44,8 @@ export function AttachmentArea({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  // The attachment currently shown full-screen in the lightbox (null = closed).
+  const [lightbox, setLightbox] = useState<QuestAttachment | null>(null);
   // Track drag enter/leave depth so the overlay doesn't flicker over child nodes.
   const dragDepth = useRef(0);
 
@@ -129,6 +132,27 @@ export function AttachmentArea({
     [attachments, onChange],
   );
 
+  // While the lightbox is open: close on Escape and lock body scroll.
+  // The keydown listener runs in the capture phase and stops propagation so a
+  // parent Radix Dialog (e.g. the task detail modal) doesn't also close.
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setLightbox(null);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [lightbox]);
+
   return (
     <div className={cn("space-y-2", className)}>
       <div
@@ -193,12 +217,24 @@ export function AttachmentArea({
               className="group relative overflow-hidden rounded-md border border-yellow-600/30 bg-slate-950/60"
             >
               {att.type === "image" ? (
-                <img
-                  src={att.dataUrl}
-                  alt={att.name}
-                  className="h-32 w-full object-contain"
-                  loading="lazy"
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightbox(att)}
+                  title="Click to view full image"
+                  aria-label={`View ${att.name}`}
+                  className="relative block h-32 w-full cursor-zoom-in"
+                >
+                  <img
+                    src={att.dataUrl}
+                    alt={att.name}
+                    className="h-32 w-full object-contain"
+                    loading="lazy"
+                  />
+                  {/* Hover hint — appears on desktop hover to signal click-to-expand */}
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 opacity-0 transition-all group-hover:bg-slate-950/30 group-hover:opacity-100">
+                    <Maximize2 className="h-5 w-5 text-white drop-shadow-lg" />
+                  </span>
+                </button>
               ) : (
                 <video src={att.dataUrl} controls preload="metadata" className="h-32 w-full bg-black object-contain" />
               )}
@@ -206,10 +242,13 @@ export function AttachmentArea({
               {!disabled && (
                 <button
                   type="button"
-                  onClick={() => removeAttachment(att.id)}
-                  title="Remove"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeAttachment(att.id);
+                  }}
+                  title="Remove attachment"
                   aria-label={`Remove ${att.name}`}
-                  className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/80 text-yellow-200 opacity-80 transition-opacity hover:bg-red-600/80 hover:text-white group-hover:opacity-100"
+                  className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/80 text-yellow-200 shadow-sm transition-all hover:bg-red-600/90 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -223,6 +262,68 @@ export function AttachmentArea({
           ))}
         </div>
       )}
+
+      {/* Full-screen lightbox — portaled to <body> so it overlays everything.
+          Pointer/click propagation is stopped so a parent Radix Dialog stays open. */}
+      {lightbox &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[200] flex flex-col bg-black/90 backdrop-blur-sm"
+            onClick={() => setLightbox(null)}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {/* Top bar: filename + download + close */}
+            <div className="flex items-center justify-between gap-2 px-4 py-3 text-white">
+              <span className="truncate text-sm font-medium">{lightbox.name}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <a
+                  href={lightbox.dataUrl}
+                  download={lightbox.name}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Download"
+                  aria-label="Download"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                >
+                  <Download className="h-4 w-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setLightbox(null)}
+                  title="Close"
+                  aria-label="Close"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Media — click on the media itself does NOT close the lightbox */}
+            <div className="flex flex-1 items-center justify-center overflow-auto p-4 pt-0">
+              {lightbox.type === "image" ? (
+                <img
+                  src={lightbox.dataUrl}
+                  alt={lightbox.name}
+                  className="max-h-full max-w-full object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <video
+                  src={lightbox.dataUrl}
+                  controls
+                  autoPlay
+                  className="max-h-full max-w-full"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )}
+            </div>
+
+            <p className="pb-3 text-center text-[11px] text-white/40">
+              Click anywhere or press Esc to close
+            </p>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
