@@ -88,7 +88,11 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "🍽️", keywords: "food eat meal restaurant" },
   { emoji: "☕", keywords: "coffee morning drink" },
   { emoji: "🌱", keywords: "grow plant nature garden" },
-  { emoji: "🌍", keywords: "earth world global" },
+  { emoji: "�", keywords: "leaf leaves foliage rake yard garden fall autumn nature greenery" },
+  { emoji: "🌿", keywords: "herb plant foliage greenery nature green sprig" },
+  { emoji: "🍂", keywords: "leaves fall autumn rake yard cleanup garden" },
+  { emoji: "🌳", keywords: "tree nature forest yard outdoor green" },
+  { emoji: "�🌍", keywords: "earth world global" },
   { emoji: "🧘", keywords: "meditation yoga relax mindful" },
   { emoji: "🏋️", keywords: "gym lift weight exercise" },
   { emoji: "🌈", keywords: "rainbow color diversity" },
@@ -792,6 +796,9 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                 <SelectItem value="quarterly">� Quarterly</SelectItem>
                 <SelectItem value="every 6 months">📅 Every 6 Months</SelectItem>
                 <SelectItem value="yearly">📅 Yearly</SelectItem>
+                <SelectItem value="every 2 years">🗓️ Every 2 Years</SelectItem>
+                <SelectItem value="every 3 years">🗓️ Every 3 Years</SelectItem>
+                <SelectItem value="every 5 years">🗓️ Every 5 Years</SelectItem>
               </SelectContent>
             </Select>
           </div>

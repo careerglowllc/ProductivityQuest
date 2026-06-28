@@ -217,7 +217,7 @@ export default function NotionIntegration() {
                   <li>• <strong>Due</strong> (Date) - When it's due</li>
                   <li>• <strong>Importance</strong> (Select) - Options: Pareto, High, Med-High, Medium, Med-Low, Low</li>
                   <li>• <strong>Kanban - Stage</strong> (Status) - Options: Not Started, In Progress, Incubate, Done</li>
-                  <li>• <strong>Recur Type</strong> (Select) - Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly</li>
+                  <li>• <strong>Recur Type</strong> (Select) - Options: one-time, daily, every other day, 2x week, 3x week, weekly, 2x month, monthly, every 2 months, quarterly, every 6 months, yearly, every 2 years, every 3 years, every 5 years</li>
                 </ul>
                 <p className="text-xs text-yellow-600 mt-2">⚠️ Property names and options must match exactly (case-sensitive)</p>
               </div>

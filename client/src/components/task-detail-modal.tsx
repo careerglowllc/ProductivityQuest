@@ -1119,6 +1119,9 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
                   <SelectItem value="quarterly">📅 Quarterly</SelectItem>
                   <SelectItem value="every 6 months">📅 Every 6 Months</SelectItem>
                   <SelectItem value="yearly">📅 Yearly</SelectItem>
+                  <SelectItem value="every 2 years">🗓️ Every 2 Years</SelectItem>
+                  <SelectItem value="every 3 years">🗓️ Every 3 Years</SelectItem>
+                  <SelectItem value="every 5 years">🗓️ Every 5 Years</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -411,6 +411,15 @@ export class DatabaseStorage implements IStorage {
       case 'yearly':
         nextDate.setFullYear(nextDate.getFullYear() + 1);
         break;
+      case 'every 2 years':
+        nextDate.setFullYear(nextDate.getFullYear() + 2);
+        break;
+      case 'every 3 years':
+        nextDate.setFullYear(nextDate.getFullYear() + 3);
+        break;
+      case 'every 5 years':
+        nextDate.setFullYear(nextDate.getFullYear() + 5);
+        break;
       default:
         // Default to next day if unknown recur type
         nextDate.setDate(nextDate.getDate() + 1);
