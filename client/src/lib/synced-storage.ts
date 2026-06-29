@@ -22,7 +22,7 @@ import { apiRequest } from "./queryClient";
 
 // Only keys with these prefixes are synced. Must stay in sync with the server-side
 // whitelist in routes.ts (SYNCED_KEY_PREFIXES).
-const SYNCED_PREFIXES = ["nw-", "cpap-", "npcs-"];
+const SYNCED_PREFIXES = ["nw-", "cpap-", "npcs-", "journal-"];
 const isSynced = (key: string) => SYNCED_PREFIXES.some((p) => key.startsWith(p));
 
 // Capture the native implementations up-front so our hydrate path and internal writes

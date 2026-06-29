@@ -52,6 +52,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "Finances", path: "/finances", icon: DollarSign, color: "green", description: "Income & expenses" },
       { name: "CPAP", path: "/cpap", icon: Activity, color: "cyan", description: "Sleep therapy tracker" },
       { name: "NPCs", path: "/npcs", icon: Users, color: "blue", description: "People rolodex" },
+      { name: "Journal", path: "/journal", icon: BookOpen, color: "orange", description: "Essays & reflections" },
     ],
   },
   {

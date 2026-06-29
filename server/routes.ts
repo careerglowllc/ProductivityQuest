@@ -491,7 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Only these key prefixes may be synced — prevents the client from stuffing arbitrary,
   // unrelated data into the store.
-  const SYNCED_KEY_PREFIXES = ['nw-', 'cpap-', 'npcs-'];
+  const SYNCED_KEY_PREFIXES = ['nw-', 'cpap-', 'npcs-', 'journal-'];
   const isSyncableKey = (k: unknown): k is string =>
     typeof k === 'string' && k.length > 0 && k.length <= 256 &&
     SYNCED_KEY_PREFIXES.some(p => k.startsWith(p));

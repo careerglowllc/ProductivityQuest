@@ -28,6 +28,7 @@ import MeasureWhatMattersGuidePage from "@/pages/settings-guides-measure-what-ma
 import SettingsFinancesPage from "@/pages/settings-finances";
 import GettingStarted from "@/pages/getting-started";
 import NPCsPage from "@/pages/npcs";
+import JournalPage from "@/pages/journal";
 import RecyclingBin from "@/pages/recycling-bin";
 import Finances from "@/pages/finances";
 import AccomplishmentsPage from "@/pages/accomplishments";
@@ -37,9 +38,6 @@ import NotFound from "@/pages/not-found";
 import CPAPPage from "@/pages/cpap";
 import AppearanceSettingsPage from "@/pages/settings-appearance";
 import MorePage from "@/pages/more";
-
-// Patch localStorage → server sync as early as possible, before any page mounts and writes
-// to a synced key (finance "nw-*", CPAP "cpap-*", NPC rolodex "npcs-*").
 installStorageSync();
 
 function Router() {
@@ -129,6 +127,7 @@ function Router() {
             <Route path="/accomplishments" component={AccomplishmentsPage} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
+            <Route path="/journal" component={JournalPage} />
             <Route path="/finances" component={Finances} />
             <Route path="/cpap" component={CPAPPage} />
             <Route path="/settings" component={SettingsPage} />
