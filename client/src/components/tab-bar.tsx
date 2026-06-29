@@ -222,17 +222,11 @@ export function TabBar() {
             </a>
           </Link>
 
-          {/* Journal - written essays */}
+          {/* Journal - written essays (generic nav button, no active fill) */}
           <Link href="/journal">
-            <a
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                location === "/journal"
-                  ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
-                  : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
-              }`}
-            >
-              <BookOpen className={`h-5 w-5 ${location === "/journal" ? "stroke-[2.5]" : ""}`} />
-              <span className={`text-sm ${location === "/journal" ? "font-semibold" : "font-medium"}`}>Journal</span>
+            <a className="flex items-center gap-2 px-6 py-2 rounded-lg transition-all text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent">
+              <BookOpen className="h-5 w-5" />
+              <span className="text-sm font-medium">Journal</span>
             </a>
           </Link>
         </div>
