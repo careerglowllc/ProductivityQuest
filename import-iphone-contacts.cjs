@@ -101,18 +101,23 @@ function parseCsv(text) {
   }
   if (cell || row.length) { row.push(cell); rows.push(row); }
   if (!rows.length) return [];
-  const headers = rows[0].map((h) => h.trim().toLowerCase());
+  // Skip any preamble (e.g. LinkedIn "Notes:" blurb) — header is first row with First/Last or Name
+  const hIdx = rows.findIndex((r) => r.map((h) => h.trim().toLowerCase()).some((h) => h === 'first name' || h === 'name'));
+  const headerRow = hIdx >= 0 ? hIdx : 0;
+  const headers = rows[headerRow].map((h) => h.trim().toLowerCase());
   const col = (...names) => headers.findIndex((h) => names.some((n) => h === n || h.includes(n)));
-  const iFirst = col('first name', 'first'), iLast = col('last name', 'last');
-  const iName = col('name'), iPhone = col('mobile', 'phone', 'cell'), iEmail = col('email');
-  const iCo = col('company', 'organization', 'occupation', 'title'), iLoc = col('location', 'city'), iNotes = col('notes');
-  return rows.slice(1).map((r) => ({
-    name: (iName >= 0 ? r[iName] : [r[iFirst], r[iLast]].filter(Boolean).join(' ')).trim(),
+  const exact = (...names) => headers.findIndex((h) => names.some((n) => h === n));
+  const iFirst = exact('first name'), iLast = exact('last name');
+  const iName = exact('name', 'full name', 'display name'), iPhone = col('mobile', 'phone', 'cell'), iEmail = col('email');
+  const iCo = exact('company', 'organization'), iPos = col('position', 'occupation', 'title');
+  const iLoc = col('location', 'city'), iNotes = exact('notes', 'note'), iUrl = col('url', 'profile');
+  return rows.slice(headerRow + 1).map((r) => ({
+    name: (iFirst >= 0 ? [r[iFirst], r[iLast]].filter(Boolean).join(' ') : (iName >= 0 ? r[iName] : '')).trim(),
     phone: iPhone >= 0 ? r[iPhone] : '',
     email: iEmail >= 0 ? r[iEmail] : '',
-    occupation: iCo >= 0 ? r[iCo] : '',
-    location: iLoc >= 0 ? r[iLoc] : '',
-    notes: iNotes >= 0 ? r[iNotes] : '',
+    occupation: iPos >= 0 ? r[iPos] : (iCo >= 0 ? r[iCo] : ''),
+    location: iPos >= 0 && iCo >= 0 ? r[iCo] : (iLoc >= 0 ? r[iLoc] : ''),
+    notes: [iNotes >= 0 ? r[iNotes] : '', iUrl >= 0 ? r[iUrl] : ''].filter(Boolean).join(' '),
   })).filter((c) => c.name);
 }
 
@@ -150,7 +155,7 @@ async function main() {
       existing.push({
         id: `npc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name: c.name, phone: c.phone || '', occupation: c.occupation || '', location: c.location || '',
-        howWeMet: '', category: 'Acquaintance', notes: c.notes || '', tags: [SOURCE_TAG],
+        howWeMet: '', category: SOURCE_TAG === 'linkedin' ? 'Professional' : 'Acquaintance', notes: c.notes || '', tags: [SOURCE_TAG],
         createdAt: now, updatedAt: now,
       });
       added++;
