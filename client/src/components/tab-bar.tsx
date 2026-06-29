@@ -208,6 +208,14 @@ export function TabBar() {
             );
           })()}
 
+          {/* Journal - written essays (generic nav button, no active fill) */}
+          <Link href="/journal">
+            <a className="flex items-center gap-2 px-6 py-2 rounded-lg transition-all text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent">
+              <BookOpen className="h-5 w-5" />
+              <span className="text-sm font-medium">Journal</span>
+            </a>
+          </Link>
+
           {/* All - jump to the More hub (every page in one place) */}
           <Link href="/more">
             <a
@@ -219,14 +227,6 @@ export function TabBar() {
             >
               <Compass className={`h-5 w-5 ${location === "/more" ? "stroke-[2.5]" : ""}`} />
               <span className={`text-sm ${location === "/more" ? "font-semibold" : "font-medium"}`}>All</span>
-            </a>
-          </Link>
-
-          {/* Journal - written essays (generic nav button, no active fill) */}
-          <Link href="/journal">
-            <a className="flex items-center gap-2 px-6 py-2 rounded-lg transition-all text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent">
-              <BookOpen className="h-5 w-5" />
-              <span className="text-sm font-medium">Journal</span>
             </a>
           </Link>
         </div>
