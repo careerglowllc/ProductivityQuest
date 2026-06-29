@@ -37,6 +37,7 @@ import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 import CPAPPage from "@/pages/cpap";
 import AppearanceSettingsPage from "@/pages/settings-appearance";
+import MorePage from "@/pages/more";
 
 // Patch localStorage → server sync as early as possible, before any page mounts and writes
 // to a synced key (finance "nw-*", CPAP "cpap-*", NPC rolodex "npcs-*").
@@ -121,6 +122,7 @@ function Router() {
               {() => <Redirect to="/dashboard" />}
             </Route>
             <Route path="/dashboard" component={Dashboard} />
+            <Route path="/more" component={MorePage} />
             <Route path="/tasks" component={Tasks} />
             <Route path="/calendar" component={CalendarPage} />
             <Route path="/shop" component={Shop} />

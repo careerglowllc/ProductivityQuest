@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Activity, Sun, Moon, Monitor } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -224,17 +224,7 @@ export function TabBar() {
             </a>
           </Link>
 
-          {/* CPAP Button */}
-          <Link href="/cpap">
-            <a className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
-              location === "/cpap"
-                ? "bg-cyan-600/40 border-cyan-400/60 text-cyan-100"
-                : "bg-cyan-600/20 border-cyan-500/40 hover:bg-cyan-600/30 hover:border-cyan-400/50 text-cyan-200"
-            }`}>
-              <Activity className="h-5 w-5 text-cyan-300" />
-              <span className="text-sm font-semibold">CPAP</span>
-            </a>
-          </Link>
+          {/* CPAP moved into the More hub (dashboard → More) to declutter the top nav */}
 
           {/* NPCs Button */}
           <Link href="/npcs">

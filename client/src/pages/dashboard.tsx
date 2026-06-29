@@ -1192,24 +1192,14 @@ export default function Dashboard() {
             </Card>
           </Link>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group h-full">
-                <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
-                  <Target className="w-6 h-6 mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
-                  <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">More</h3>
-                </CardContent>
-              </Card>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-slate-800 border border-slate-600 text-yellow-100 z-50">
-              <DropdownMenuItem asChild className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
-                <Link href="/npcs" className="flex items-center gap-2 px-2 py-2">
-                  <User className="w-4 h-4 text-cyan-400" />
-                  <span className="font-serif text-sm">NPCs</span>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Link href="/more">
+            <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group h-full">
+              <CardContent className="p-2 text-center flex flex-col items-center justify-center h-full">
+                <Target className="w-6 h-6 mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                <h3 className="text-[10px] leading-tight text-yellow-100 font-serif">More</h3>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
         )}
 
@@ -1407,12 +1397,14 @@ export default function Dashboard() {
                         </CardContent>
                       </Card>
                     </Link>
-                    <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group">
-                      <CardContent className="p-3 text-center">
-                        <Target className="w-6 h-6 mx-auto mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
-                        <h3 className="text-xs font-medium text-yellow-100 font-serif">More</h3>
-                      </CardContent>
-                    </Card>
+                    <Link href="/more">
+                      <Card className="hover:shadow-xl transition-all cursor-pointer bg-slate-800/60 backdrop-blur-md border-2 border-gray-500/30 hover:border-gray-400/60 group">
+                        <CardContent className="p-3 text-center">
+                          <Target className="w-6 h-6 mx-auto mb-1 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                          <h3 className="text-xs font-medium text-yellow-100 font-serif">More</h3>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   </div>
 
             {/* Active Questlines — natural height, not compressed */}
