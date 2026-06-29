@@ -30,6 +30,9 @@ import {
   Trash2,
   Sparkles,
   Clock,
+  HelpCircle,
+  Linkedin,
+  Smartphone,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -163,6 +166,7 @@ export default function NPCsPage() {
   const [form, setForm] = useState<NPC>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // One-time seed: add Daniela Dibono as the first contact
   useEffect(() => {
@@ -263,6 +267,12 @@ export default function NPCsPage() {
               <h1 className="text-4xl font-serif font-bold text-yellow-100">NPCs</h1>
             </div>
             <p className="text-yellow-200/70 text-lg">Your Network &amp; Relationships Rolodex</p>
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="mt-3 inline-flex items-center gap-1.5 text-sm text-blue-300 hover:text-blue-200 hover:underline mx-auto"
+            >
+              <HelpCircle className="h-4 w-4" /> How to add contacts
+            </button>
           </div>
 
           {/* Toolbar */}
@@ -584,6 +594,74 @@ export default function NPCsPage() {
               className="bg-red-600 hover:bg-red-500 text-white"
             >
               <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* How to add contacts help dialog */}
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="bg-slate-900 border border-blue-600/40 text-blue-50 max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-blue-100 flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-blue-400" />
+              How to add contacts
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2 text-sm">
+            <p className="text-slate-300">
+              Add contacts one-by-one with <span className="text-blue-200 font-medium">Add Contact</span>, or
+              bulk-import an exported file. Imported contacts get a source tag (
+              <span className="text-emerald-300">phone</span> /{" "}
+              <span className="text-sky-300">linkedin</span>) so you can tell them apart later.
+            </p>
+
+            {/* LinkedIn */}
+            <div className="rounded-lg border border-sky-600/30 bg-sky-950/30 p-3">
+              <h4 className="flex items-center gap-2 font-semibold text-sky-200 mb-2">
+                <Linkedin className="h-4 w-4" /> From LinkedIn (1st-degree connections)
+              </h4>
+              <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                <li>Click your <strong>Me</strong> icon at top of the LinkedIn homepage.</li>
+                <li>Select <strong>Settings &amp; Privacy</strong>.</li>
+                <li>Click <strong>Data privacy</strong> on the left.</li>
+                <li>Under “How LinkedIn uses your data,” click <strong>Get a copy of your data</strong>.</li>
+                <li>Check <strong>Download larger data archive</strong> (includes connections) → <strong>Request archive</strong>.</li>
+                <li>You’ll get an email link within 24 hours.</li>
+                <li>Unzip and open <strong>Connections.csv</strong> — that’s your file.</li>
+              </ol>
+            </div>
+
+            {/* iPhone */}
+            <div className="rounded-lg border border-emerald-600/30 bg-emerald-950/30 p-3">
+              <h4 className="flex items-center gap-2 font-semibold text-emerald-200 mb-2">
+                <Smartphone className="h-4 w-4" /> From iPhone
+              </h4>
+              <p className="text-slate-300 mb-1.5 font-medium">Fastest — a phone app:</p>
+              <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                <li>Install <strong>Export Contacts</strong> (or Export Contacts by Covve) from the App Store.</li>
+                <li>Open it and allow contacts access.</li>
+                <li>Tap <strong>Export to CSV</strong> (some apps say “Export to Excel/CSV”).</li>
+                <li>Save to your phone or share via email / AirDrop.</li>
+              </ol>
+              <p className="text-slate-400 mt-2 text-xs">
+                Free alt: export iCloud contacts as a vCard (.vcf) on a computer, then convert to CSV.
+              </p>
+            </div>
+
+            <p className="text-slate-400 text-xs">
+              Once you have a CSV/VCF, send it over and it’ll be merged into your rolodex —
+              de-duped by name + phone and stamped with today’s date.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setHelpOpen(false)}
+              className="bg-blue-600 hover:bg-blue-500 text-white"
+            >
+              Got it
             </Button>
           </DialogFooter>
         </DialogContent>
