@@ -906,6 +906,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updateData = insertTaskSchema.partial().parse(bodyData);
+
+      // When dueDate is moved to a different day but scheduledTime was NOT explicitly
+      // provided (e.g. "move overdue to today" / reschedule), shift the existing
+      // scheduledTime to the new dueDate's day so the app calendar position and the
+      // Google Calendar event follow the new date instead of staying on the old day.
+      if (updateData.dueDate && (updateData as any).scheduledTime === undefined) {
+        const existing = await storage.getTask(id, userId);
+        if (existing?.scheduledTime) {
+          const scheduled = new Date(existing.scheduledTime);
+          const due = new Date(updateData.dueDate as any);
+          const dateChanged =
+            scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
+            scheduled.getUTCMonth() !== due.getUTCMonth() ||
+            scheduled.getUTCDate() !== due.getUTCDate();
+          if (dateChanged) {
+            const isAtMidnightUTC = scheduled.getUTCHours() === 0 && scheduled.getUTCMinutes() === 0 && scheduled.getUTCSeconds() === 0;
+            const newScheduled = new Date(due);
+            if (isAtMidnightUTC) {
+              // Legacy midnight value — normalize to 9 AM local (17:00 UTC) on the new day
+              newScheduled.setUTCHours(17, 0, 0, 0);
+            } else {
+              // Preserve the existing time-of-day, just move to the new day
+              newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
+            }
+            (updateData as any).scheduledTime = newScheduled;
+            console.log(`📅 [PATCH TASK] dueDate moved — shifting scheduledTime to new day: ${scheduled.toISOString()} → ${newScheduled.toISOString()}`);
+          }
+        }
+      }
+
       console.log(`📅 [PATCH TASK] Updating task ${id} with:`, JSON.stringify(updateData, (key, value) => {
         // Handle Date objects for logging
         if (value instanceof Date) return value.toISOString();
@@ -1190,25 +1220,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // If scheduledTime exists but dueDate has changed to a different day,
         // move scheduledTime to the new dueDate (preserving time-of-day)
+        // scheduledTime is the source of truth for the task's calendar position.
+        // Respect an existing (non-midnight) scheduledTime so a previously moved task
+        // isn't snapped back to its dueDate. Only derive from dueDate when scheduledTime
+        // is missing or is a legacy midnight-UTC value copied from a raw dueDate.
         let scheduledTime: Date;
         if (task.scheduledTime) {
           const scheduled = new Date(task.scheduledTime);
-          const due = new Date(task.dueDate);
-          
+
           // Fix previously bad scheduledTime values that were set to midnight UTC
           const isAtMidnightUTC = scheduled.getUTCHours() === 0 && scheduled.getUTCMinutes() === 0 && scheduled.getUTCSeconds() === 0;
           if (isAtMidnightUTC) {
-            // This was likely set from a raw dueDate — fix it to 9 AM local (17:00 UTC)
+            // This was likely set from a raw dueDate — fix it to 9 AM local (17:00 UTC) on its own day
             scheduledTime = new Date(Date.UTC(scheduled.getUTCFullYear(), scheduled.getUTCMonth(), scheduled.getUTCDate(), 17, 0, 0));
-          } else if (scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
-              scheduled.getUTCMonth() !== due.getUTCMonth() ||
-              scheduled.getUTCDate() !== due.getUTCDate()) {
-            // Compare dates (year/month/day) to detect if dueDate moved
-            // Preserve the time-of-day from the old scheduledTime, but shift to new dueDate's day
-            const newScheduled = new Date(due);
-            newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
-            scheduledTime = newScheduled;
           } else {
+            // Honor the user's chosen schedule (e.g. dragged/moved on the calendar)
             scheduledTime = scheduled;
           }
         } else {
@@ -2933,32 +2959,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First, set scheduledTime and calendarColor on all tasks being synced
       // This ensures they appear correctly in the app calendar
       for (const task of tasksToSync) {
-        // If scheduledTime exists but dueDate has changed to a different day,
-        // move scheduledTime to the new dueDate (preserving time-of-day)
+        // scheduledTime is the source of truth for where the task sits on the calendar.
+        // Respect it as-is so the Google Calendar event lands on the LATEST date the user
+        // moved the task to. Only derive from dueDate when scheduledTime is missing or is a
+        // legacy midnight-UTC value (which was copied straight from a raw dueDate).
         let scheduledTime: Date;
         if (task.scheduledTime) {
           const scheduled = new Date(task.scheduledTime);
-          const due = new Date(task.dueDate!);
-
           const isAtMidnightUTC = scheduled.getUTCHours() === 0 && scheduled.getUTCMinutes() === 0 && scheduled.getUTCSeconds() === 0;
-          const dateChanged = scheduled.getUTCFullYear() !== due.getUTCFullYear() ||
-            scheduled.getUTCMonth() !== due.getUTCMonth() ||
-            scheduled.getUTCDate() !== due.getUTCDate();
 
           if (isAtMidnightUTC) {
-            // scheduledTime was derived from a raw dueDate (midnight UTC).
-            // Always anchor to the CURRENT dueDate so that if dueDate was moved to a
-            // later date the Google Calendar event moves with it.
+            // Legacy/raw value — normalize to 9 AM (17:00 UTC) on the current dueDate's day
+            const due = new Date(task.dueDate!);
             scheduledTime = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate(), 17, 0, 0));
             console.log(`📅 [CALENDAR SYNC] Task ${task.id} fixing midnight UTC → due date 17:00 UTC: ${scheduled.toISOString()} → ${scheduledTime.toISOString()}`);
-          } else if (dateChanged) {
-            // Due date moved to a different day — preserve time-of-day but shift to new date
-            const newScheduled = new Date(due);
-            newScheduled.setUTCHours(scheduled.getUTCHours(), scheduled.getUTCMinutes(), scheduled.getUTCSeconds(), 0);
-            scheduledTime = newScheduled;
-            console.log(`📅 [CALENDAR SYNC] Task ${task.id} dueDate moved: scheduledTime ${scheduled.toISOString()} → ${newScheduled.toISOString()}`);
           } else {
+            // Honor the user's chosen schedule (e.g. dragged/moved to today on the calendar)
             scheduledTime = scheduled;
+            console.log(`📅 [CALENDAR SYNC] Task ${task.id} keeping scheduledTime ${scheduled.toISOString()}`);
           }
         } else {
           // dueDate is stored as midnight UTC (e.g. 2026-02-27T00:00:00Z)
