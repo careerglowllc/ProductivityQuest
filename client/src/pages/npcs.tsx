@@ -29,6 +29,7 @@ import {
   Pencil,
   Trash2,
   Sparkles,
+  Clock,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -69,12 +70,30 @@ type NPC = {
   howWeMet?: string;
   category?: Category;
   notes?: string;
+  tags?: string[]; // source labels e.g. "phone", "linkedin"
   createdAt: string;
+  updatedAt?: string; // last modified (added/edited/imported) — helps dedupe old vs new
 };
+
+// Accent colors for source tags
+const TAG_STYLES: Record<string, string> = {
+  phone: "bg-emerald-500/20 text-emerald-200 border-emerald-500/40",
+  linkedin: "bg-sky-500/20 text-sky-200 border-sky-500/40",
+};
+const tagStyle = (t: string) =>
+  TAG_STYLES[t.toLowerCase()] || "bg-slate-500/20 text-slate-200 border-slate-500/40";
 
 // ── Helpers ──────────────────────────────────────────────────
 function newId() {
   return `npc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Short, friendly date like "Jun 28, 2026" — empty for missing/invalid
+function fmtDate(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 // Format a 10-digit US phone as (408) 470-8553; leave other formats untouched
@@ -123,6 +142,7 @@ const EMPTY_FORM: NPC = {
   howWeMet: "",
   category: "Friend",
   notes: "",
+  tags: [],
   createdAt: "",
 };
 
@@ -158,6 +178,15 @@ export default function NPCsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time backfill: ensure every contact has an updatedAt (default to createdAt)
+  useEffect(() => {
+    setContacts((prev) => {
+      if (prev.every((c) => c.updatedAt)) return prev;
+      return prev.map((c) => (c.updatedAt ? c : { ...c, updatedAt: c.createdAt }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Persist on change
   useEffect(() => {
     try {
@@ -169,7 +198,7 @@ export default function NPCsPage() {
     .filter((c) => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
-      return [c.name, c.occupation, c.location, c.howWeMet, c.category, c.notes, c.phone]
+      return [c.name, c.occupation, c.location, c.howWeMet, c.category, c.notes, c.phone, ...(c.tags || [])]
         .filter(Boolean)
         .some((v) => (v as string).toLowerCase().includes(q));
     })
@@ -190,13 +219,14 @@ export default function NPCsPage() {
   function saveContact() {
     const name = form.name.trim();
     if (!name) return;
+    const now = new Date().toISOString();
     if (editingId) {
       setContacts((prev) =>
-        prev.map((c) => (c.id === editingId ? { ...form, name } : c))
+        prev.map((c) => (c.id === editingId ? { ...form, name, updatedAt: now } : c))
       );
     } else {
       setContacts((prev) => [
-        { ...form, name, id: newId(), createdAt: new Date().toISOString() },
+        { ...form, name, id: newId(), createdAt: now, updatedAt: now },
         ...prev,
       ]);
     }
@@ -298,15 +328,25 @@ export default function NPCsPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <h3 className="text-blue-50 font-semibold truncate">{c.name}</h3>
-                            {c.category && (
-                              <span
-                                className={`inline-block mt-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                                  CATEGORY_STYLES[c.category] || CATEGORY_STYLES.Other
-                                }`}
-                              >
-                                {c.category}
-                              </span>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                              {c.category && (
+                                <span
+                                  className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                                    CATEGORY_STYLES[c.category] || CATEGORY_STYLES.Other
+                                  }`}
+                                >
+                                  {c.category}
+                                </span>
+                              )}
+                              {(c.tags || []).map((t) => (
+                                <span
+                                  key={t}
+                                  className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full border ${tagStyle(t)}`}
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                           {/* Actions */}
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -362,6 +402,21 @@ export default function NPCsPage() {
                           <p className="mt-2 text-xs text-slate-400 bg-slate-900/40 rounded-lg px-2.5 py-1.5 whitespace-pre-wrap">
                             {c.notes}
                           </p>
+                        )}
+
+                        {(c.createdAt || c.updatedAt) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                            {c.createdAt && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> Added {fmtDate(c.createdAt)}
+                              </span>
+                            )}
+                            {c.updatedAt && c.updatedAt !== c.createdAt && (
+                              <span className="flex items-center gap-1">
+                                <Pencil className="h-3 w-3" /> Updated {fmtDate(c.updatedAt)}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -451,6 +506,24 @@ export default function NPCsPage() {
                 value={form.howWeMet || ""}
                 onChange={(e) => setForm((f) => ({ ...f, howWeMet: e.target.value }))}
                 placeholder="e.g. Hinge (dating app)"
+                className="bg-slate-800 border-slate-700 text-blue-50 mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-blue-200/80 text-xs">Tags (source)</Label>
+              <Input
+                value={(form.tags || []).join(", ")}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    tags: e.target.value
+                      .split(",")
+                      .map((t) => t.trim())
+                      .filter(Boolean),
+                  }))
+                }
+                placeholder="e.g. phone, linkedin"
                 className="bg-slate-800 border-slate-700 text-blue-50 mt-1"
               />
             </div>

@@ -1,0 +1,6 @@
+# Never commit dropped contact files — they're personal data, import-only.
+*.vcf
+*.csv
+*.xlsx
+*.xls
+!README.md
