@@ -43,12 +43,35 @@ function findImportFile() {
   if (FORCED_FILE) return path.resolve(__dirname, FORCED_FILE);
   const dir = path.join(__dirname, 'import-data');
   if (!fs.existsSync(dir)) return null;
-  const f = fs.readdirSync(dir).find((n) => /\.(vcf|csv)$/i.test(n));
+  const f = fs.readdirSync(dir).find((n) => /\.(vcf|csv|xlsx|xls)$/i.test(n));
   return f ? path.join(dir, f) : null;
 }
 
 const digits = (s) => (s || '').replace(/\D/g, '');
 const last7 = (s) => digits(s).slice(-7);
+
+// --- XLSX parser (handles Apple/iPhone export column names) ---
+function parseXlsx(file) {
+  const x = require('xlsx');
+  const wb = x.readFile(file);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = x.utils.sheet_to_json(ws, { defval: '' });
+  return rows.map((r) => {
+    const g = (k) => String(r[k] ?? '').trim();
+    const name = [g('First Name'), g('Last Name')].filter(Boolean).join(' ').trim();
+    const phone = g('Phone Number (Mobile)') || g('Phone Number (Phone Number)') || g('Phone Number (Home)') || g('Phone Number (Work)');
+    const city = g('City (Home Address)') || g('City (Work Address)');
+    const state = g('State (Home Address)') || g('State (Work Address)');
+    return {
+      name,
+      phone,
+      email: g('Email (Email)') || g('Email (Home)'),
+      occupation: g('Company'),
+      location: [city, state].filter(Boolean).join(', '),
+      notes: g('Note'),
+    };
+  }).filter((c) => c.name);
+}
 
 // --- vCard parser ---
 function parseVcf(text) {
@@ -100,8 +123,9 @@ async function main() {
   const file = findImportFile();
   if (!file) { console.error('❌ No .vcf/.csv in import-data/. Drop your export there first.'); process.exit(1); }
   console.log(`📄 Reading: ${path.relative(__dirname, file)}`);
-  const text = fs.readFileSync(file, 'utf8');
-  const parsed = /\.vcf$/i.test(file) ? parseVcf(text) : parseCsv(text);
+  const parsed = /\.xlsx?$/i.test(file)
+    ? parseXlsx(file)
+    : (/\.vcf$/i.test(file) ? parseVcf(fs.readFileSync(file, 'utf8')) : parseCsv(fs.readFileSync(file, 'utf8')));
   console.log(`   Parsed ${parsed.length} contacts. Tagging "${SOURCE_TAG}".`);
   if (!parsed.length) { console.error('❌ No contacts parsed.'); process.exit(1); }
 
