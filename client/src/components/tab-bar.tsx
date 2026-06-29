@@ -50,11 +50,6 @@ export function TabBar() {
       path: "/shop",
       icon: ShoppingCart,
     },
-    {
-      name: "Settings",
-      path: "/profile",
-      icon: Settings,
-    },
   ];
 
   // Mobile: bottom navigation (dark theme)

@@ -29,7 +29,6 @@ import SettingsFinancesPage from "@/pages/settings-finances";
 import GettingStarted from "@/pages/getting-started";
 import NPCsPage from "@/pages/npcs";
 import RecyclingBin from "@/pages/recycling-bin";
-import Profile from "@/pages/profile";
 import Finances from "@/pages/finances";
 import AccomplishmentsPage from "@/pages/accomplishments";
 import ForgotPassword from "@/pages/forgot-password";
@@ -132,7 +131,6 @@ function Router() {
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/finances" component={Finances} />
             <Route path="/cpap" component={CPAPPage} />
-            <Route path="/profile" component={Profile} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/finances" component={SettingsFinancesPage} />
             <Route path="/settings/notion" component={NotionIntegration} />

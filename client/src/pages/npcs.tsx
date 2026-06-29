@@ -33,6 +33,7 @@ import {
   HelpCircle,
   Linkedin,
   Smartphone,
+  Download,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -243,6 +244,32 @@ export default function NPCsPage() {
     setConfirmDeleteId(null);
   }
 
+  function exportCSV() {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const headers = [
+      "Name", "Phone", "Occupation", "Location", "How We Met",
+      "Category", "Tags", "Notes", "Date Added", "Last Modified",
+    ];
+    const rows = contacts
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c) =>
+        [
+          c.name, c.phone, c.occupation, c.location, c.howWeMet,
+          c.category, (c.tags || []).join("; "), c.notes,
+          fmtDate(c.createdAt), fmtDate(c.updatedAt),
+        ].map(esc).join(",")
+      );
+    const csv = [headers.map(esc).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `npcs_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div
       className={`min-h-screen ${
@@ -291,6 +318,14 @@ export default function NPCsPage() {
               className="bg-blue-600 hover:bg-blue-500 text-white font-semibold shrink-0"
             >
               <UserPlus className="h-4 w-4 mr-1.5" /> Add Contact
+            </Button>
+            <Button
+              onClick={exportCSV}
+              disabled={contacts.length === 0}
+              variant="outline"
+              className="bg-emerald-700/40 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/30 hover:text-emerald-100 hover:border-emerald-500/60 shrink-0"
+            >
+              <Download className="h-4 w-4 mr-1.5" /> Export CSV
             </Button>
           </div>
 
