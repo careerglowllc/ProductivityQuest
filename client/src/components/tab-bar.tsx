@@ -224,7 +224,7 @@ export function TabBar() {
         </div>
 
         {/* Gold and User Info - Right */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           {/* Finances Button */}
           <Link href="/finances">
             <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600/30 border-2 border-green-500/50 hover:bg-green-600/40 hover:border-green-400/60 transition-all">
