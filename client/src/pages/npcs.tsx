@@ -163,6 +163,7 @@ export default function NPCsPage() {
     }
   });
   const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState<"all" | "phone" | "linkedin">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<NPC>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -200,6 +201,7 @@ export default function NPCsPage() {
   }, [contacts]);
 
   const filtered = contacts
+    .filter((c) => tagFilter === "all" || (c.tags || []).includes(tagFilter))
     .filter((c) => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
@@ -327,6 +329,31 @@ export default function NPCsPage() {
             >
               <Download className="h-4 w-4 mr-1.5" /> Export CSV
             </Button>
+          </div>
+
+          {/* Source filter chips */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {([
+              { key: "all", label: "All", count: contacts.length },
+              { key: "phone", label: "Phone", count: contacts.filter((c) => (c.tags || []).includes("phone")).length },
+              { key: "linkedin", label: "LinkedIn", count: contacts.filter((c) => (c.tags || []).includes("linkedin")).length },
+            ] as const).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setTagFilter(f.key)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  tagFilter === f.key
+                    ? f.key === "phone"
+                      ? "bg-emerald-500/30 text-emerald-100 border-emerald-400/60"
+                      : f.key === "linkedin"
+                      ? "bg-sky-500/30 text-sky-100 border-sky-400/60"
+                      : "bg-blue-500/30 text-blue-100 border-blue-400/60"
+                    : "bg-slate-800/60 text-slate-300 border-slate-600/40 hover:border-blue-500/50 hover:text-blue-100"
+                }`}
+              >
+                {f.label} <span className="opacity-60">({f.count})</span>
+              </button>
+            ))}
           </div>
 
           {/* Count */}
