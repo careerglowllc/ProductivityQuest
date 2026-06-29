@@ -12,12 +12,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
   BookOpen,
   Plus,
   Search,
   Pencil,
   Trash2,
   FileText,
+  Download,
+  FileSpreadsheet,
+  FileType,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -58,6 +69,74 @@ function snippet(s: string, n = 140) {
   return t.length > n ? t.slice(0, n) + "…" : t;
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const stamp = () => new Date().toISOString().slice(0, 10);
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// CSV — one row per essay
+function exportCSV(essays: Essay[]) {
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const headers = ["Title", "Body", "Words", "Date Added", "Last Modified"];
+  const rows = essays.map((e) =>
+    [e.title, e.body, wordCount(e.body), fmtDate(e.createdAt), fmtDate(e.updatedAt)].map(esc).join(",")
+  );
+  const csv = [headers.map(esc).join(","), ...rows].join("\n");
+  downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8;" }), `journal_${stamp()}.csv`);
+}
+
+// Word — HTML wrapped as .doc (opens natively in Word / Pages / Google Docs)
+function exportWord(essays: Essay[]) {
+  const body = essays
+    .map(
+      (e) => `
+      <h1 style="font-family:Georgia,serif;color:#1a1a1a;">${escapeHtml(e.title)}</h1>
+      <p style="color:#666;font-size:11px;">${wordCount(e.body)} words · Updated ${fmtDate(e.updatedAt)}</p>
+      <div style="font-family:Calibri,sans-serif;font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(e.body)}</div>
+      <hr style="margin:24px 0;border:none;border-top:1px solid #ccc;" />`
+    )
+    .join("");
+  const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Journal</title></head><body>${body}</body></html>`;
+  downloadBlob(new Blob([html], { type: "application/msword" }), `journal_${stamp()}.doc`);
+}
+
+// PDF — true client-side document (jsPDF, lazy-loaded)
+async function exportPDF(essays: Essay[]) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const margin = 56;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const maxW = pageW - margin * 2;
+  let y = margin;
+
+  essays.forEach((e, idx) => {
+    if (idx > 0) { doc.addPage(); y = margin; }
+    doc.setFont("times", "bold").setFontSize(20);
+    doc.splitTextToSize(e.title || "Untitled", maxW).forEach((line: string) => {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(line, margin, y); y += 26;
+    });
+    doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(120);
+    doc.text(`${wordCount(e.body)} words · Updated ${fmtDate(e.updatedAt)}`, margin, y);
+    y += 22;
+    doc.setFontSize(12).setTextColor(20);
+    doc.splitTextToSize(e.body || "", maxW).forEach((line: string) => {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(line, margin, y); y += 16;
+    });
+  });
+  doc.save(`journal_${stamp()}.pdf`);
+}
+
 // ── Component ────────────────────────────────────────────────
 export default function JournalPage() {
   const { isDark } = useTheme();
@@ -75,6 +154,7 @@ export default function JournalPage() {
   const [form, setForm] = useState<Essay>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Persist on change
   useEffect(() => {
@@ -90,6 +170,33 @@ export default function JournalPage() {
       return [e.title, e.body].filter(Boolean).some((v) => v.toLowerCase().includes(q));
     })
     .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
+  const allSelected = filtered.length > 0 && filtered.every((e) => selected.has(e.id));
+  const someSelected = selected.size > 0;
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) =>
+      allSelected ? new Set() : new Set(filtered.map((e) => e.id))
+    );
+  }
+
+  // Export the selected essays, or all filtered if none are selected.
+  function handleExport(kind: "csv" | "pdf" | "word") {
+    const target = someSelected ? filtered.filter((e) => selected.has(e.id)) : filtered;
+    if (target.length === 0) return;
+    if (kind === "csv") exportCSV(target);
+    else if (kind === "word") exportWord(target);
+    else void exportPDF(target);
+  }
 
   function openAdd() {
     setForm({ ...EMPTY });
@@ -154,13 +261,52 @@ export default function JournalPage() {
             >
               <Plus className="h-4 w-4 mr-1.5" /> New Essay
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={filtered.length === 0}
+                  className="bg-slate-800/60 border-amber-600/40 text-amber-200 hover:bg-amber-600/20 hover:text-amber-100 hover:border-amber-500/60 shrink-0"
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Export{someSelected ? ` (${selected.size})` : ""}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-slate-800 border-amber-600/30 text-amber-50">
+                <DropdownMenuItem onClick={() => handleExport("csv")} className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
+                  <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-400" /> Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("pdf")} className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
+                  <FileText className="h-4 w-4 mr-2 text-red-400" /> Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("word")} className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
+                  <FileType className="h-4 w-4 mr-2 text-blue-400" /> Export as Word
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          {/* Count */}
-          <p className="text-amber-300/60 text-sm mb-3">
-            {filtered.length} {filtered.length === 1 ? "essay" : "essays"}
-            {search.trim() && ` matching “${search.trim()}”`}
-          </p>
+          {/* Count + select all */}
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-amber-300/60 text-sm">
+              {filtered.length} {filtered.length === 1 ? "essay" : "essays"}
+              {someSelected && ` · ${selected.size} selected`}
+              {search.trim() && ` matching “${search.trim()}”`}
+            </p>
+            {filtered.length > 0 && (
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center gap-1.5 text-xs text-amber-300/80 hover:text-amber-100 transition-colors"
+              >
+                {allSelected ? (
+                  <CheckSquare className="h-4 w-4 text-amber-400" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                {allSelected ? "Deselect all" : "Select all"}
+              </button>
+            )}
+          </div>
 
           {/* Grid */}
           {filtered.length === 0 ? (
@@ -187,12 +333,29 @@ export default function JournalPage() {
               {filtered.map((e) => (
                 <Card
                   key={e.id}
-                  className="bg-slate-800/60 backdrop-blur-md border border-amber-600/30 hover:border-amber-500/60 transition-colors group cursor-pointer"
+                  className={`bg-slate-800/60 backdrop-blur-md border transition-colors group cursor-pointer ${
+                    selected.has(e.id)
+                      ? "border-amber-500/70 ring-1 ring-amber-500/40"
+                      : "border-amber-600/30 hover:border-amber-500/60"
+                  }`}
                   onClick={() => openEdit(e)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-amber-50 font-semibold font-serif truncate">{e.title}</h3>
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <button
+                          onClick={(ev) => { ev.stopPropagation(); toggleSelect(e.id); }}
+                          className="mt-0.5 shrink-0 text-slate-400 hover:text-amber-300"
+                          title={selected.has(e.id) ? "Deselect" : "Select"}
+                        >
+                          {selected.has(e.id) ? (
+                            <CheckSquare className="h-4 w-4 text-amber-400" />
+                          ) : (
+                            <Square className="h-4 w-4" />
+                          )}
+                        </button>
+                        <h3 className="text-amber-50 font-semibold font-serif truncate">{e.title}</h3>
+                      </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <button
                           onClick={(ev) => { ev.stopPropagation(); openEdit(e); }}
