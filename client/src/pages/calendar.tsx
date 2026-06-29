@@ -480,7 +480,7 @@ export default function CalendarPage() {
   const SORT_END_MINUTE = 23 * 60; // 11:00 PM = 1380
   const EVENING_ROUTINE_MINUTE = 21 * 60; // 9:00 PM = 1260
 
-  const handleSort = useCallback(() => {
+  const handleSort = useCallback((opts?: { auto?: boolean }) => {
     // Work with the current view's first date (for day view) or today
     const targetDate = view === "day" ? new Date(currentDate) : new Date();
     const dayEvents = getEventsForDate(allEvents, targetDate);
@@ -497,7 +497,7 @@ export default function CalendarPage() {
     }
 
     if (movable.length === 0) {
-      toast({ title: "Nothing to sort", description: "No unscheduled tasks on this day." });
+      if (!opts?.auto) toast({ title: "Nothing to sort", description: "No unscheduled tasks on this day." });
       return;
     }
 
@@ -642,12 +642,37 @@ export default function CalendarPage() {
 
     setUndoAction(`Sorted ${updates.length} tasks`, doUndo);
     toast({
-      title: `Sorted ${updates.length} task${updates.length > 1 ? "s" : ""}`,
-      description: "Tasks ordered by priority, placed after current time. Overlaps only if unavoidable.",
+      title: `${opts?.auto ? "Auto-sorted" : "Sorted"} ${updates.length} task${updates.length > 1 ? "s" : ""}`,
+      description: opts?.auto
+        ? "Synced tasks were ordered by priority on today's schedule."
+        : "Tasks ordered by priority, placed after current time. Overlaps only if unavoidable.",
       duration: 10000,
       action: <ToastAction altText="Undo" onClick={() => { dismiss(); doUndo(); toast({ title: "Action undone", duration: 1000 }); }}>Undo</ToastAction>,
     });
   }, [allEvents, currentDate, view, toast, dismiss, optimisticUpdateEvent, updateTaskSchedule, setUndoAction]);
+
+  // Auto-apply the priority sort once after a Calendar sync. The Quests page sets the
+  // "pq-autosort-after-sync" flag when a sync completes; when the calendar next loads with
+  // events ready, we run the same sort the manual button uses (silent if nothing to sort).
+  const lastAutoSortTsRef = useRef<number>(0);
+  useEffect(() => {
+    if (isLoading) return; // wait until events are loaded
+    let flag: string | null = null;
+    try { flag = localStorage.getItem("pq-autosort-after-sync"); } catch {}
+    if (!flag) return;
+    const ts = parseInt(flag, 10);
+    // Ignore stale (>5 min) or already-handled signals
+    if (Number.isNaN(ts) || Date.now() - ts > 5 * 60 * 1000) {
+      try { localStorage.removeItem("pq-autosort-after-sync"); } catch {}
+      return;
+    }
+    if (ts <= lastAutoSortTsRef.current) return;
+    lastAutoSortTsRef.current = ts;
+    try { localStorage.removeItem("pq-autosort-after-sync"); } catch {}
+    // Defer so allEvents/state are fully settled before sorting
+    const t = setTimeout(() => handleSort({ auto: true }), 400);
+    return () => clearTimeout(t);
+  }, [isLoading, allEvents, handleSort]);
 
   const commitDrag = useCallback((ds: DragState) => {
     const ev = ds.event;
@@ -816,7 +841,7 @@ export default function CalendarPage() {
               </Button>
               {!isMobile && <Link href="/settings/google-calendar"><Button variant="ghost" size="sm" className="h-8 px-2 text-purple-300"><Settings className="w-4 h-4" /></Button></Link>}
               {view !== "month" && (
-                <Button size="sm" variant="ghost" onClick={handleSort} disabled={isSorting} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} text-purple-300 hover:text-purple-100 hover:bg-purple-500/10`} title="Sort tasks by priority">
+                <Button size="sm" variant="ghost" onClick={() => handleSort()} disabled={isSorting} className={`${isMobile ? "h-7 w-7 p-0" : "h-8 px-2"} text-purple-300 hover:text-purple-100 hover:bg-purple-500/10`} title="Sort tasks by priority">
                   <ArrowUpDown className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                 </Button>
               )}

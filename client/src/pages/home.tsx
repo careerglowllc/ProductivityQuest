@@ -1414,6 +1414,9 @@ export default function Home() {
         await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
         // Also refresh calendar events so the calendar page shows the newly synced tasks
         invalidateCalendarEvents(queryClient);
+        // Signal the calendar page to auto-apply the "sort by priority" feature on the
+        // freshly-synced tasks the next time it loads.
+        try { localStorage.setItem("pq-autosort-after-sync", Date.now().toString()); } catch {}
       } catch (error: any) {
         const errorData = error.response?.data || {};
         
