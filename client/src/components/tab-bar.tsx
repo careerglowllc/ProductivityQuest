@@ -52,12 +52,43 @@ export function TabBar() {
     },
   ];
 
+  // Mobile bottom nav: Dashboard, Quests, Calendar, Settings, All.
+  // Shop is dropped here (still reachable from Dashboard / the More hub); Settings
+  // and All point at the same destinations they do in the web nav (/settings, /more).
+  const mobileTabs = [
+    {
+      name: "Dashboard",
+      path: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      name: "Quests",
+      path: "/tasks",
+      icon: CheckSquare,
+    },
+    {
+      name: "Calendar",
+      path: "/calendar",
+      icon: Calendar,
+    },
+    {
+      name: "Settings",
+      path: "/settings",
+      icon: Settings,
+    },
+    {
+      name: "All",
+      path: "/more",
+      icon: Compass,
+    },
+  ];
+
   // Mobile: bottom navigation (dark theme)
   if (isMobile) {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-yellow-600/30 safe-area-inset-bottom z-50 light:bg-white light:border-slate-200">
         <nav className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
-          {tabs.map((tab) => {
+          {mobileTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = location === tab.path;
             
