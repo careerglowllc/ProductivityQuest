@@ -14,7 +14,7 @@ export function TabBar() {
   const { user } = useAuth();
   const { preference, cycleTheme, isDark } = useTheme();
   const [questsMenuOpen, setQuestsMenuOpen] = useState(false);
-  const [skillsMenuOpen, setSkillsMenuOpen] = useState(false);
+  const [journalMenuOpen, setJournalMenuOpen] = useState(false);
 
   // Icon + label for the current theme preference (light → dark → auto)
   const ThemeIcon = preference === "light" ? Sun : preference === "dark" ? Moon : Monitor;
@@ -197,24 +197,43 @@ export function TabBar() {
 
           {/* Skills - desktop only (not in mobile tabs) */}
           {(() => {
-            const isSkillsActive = location === "/skills" || location === "/accomplishments";
+            const isSkillsActive = location === "/skills";
             return (
-              <DropdownMenu open={skillsMenuOpen} onOpenChange={setSkillsMenuOpen}>
+              <Link href="/skills">
+                <a
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
+                    isSkillsActive
+                      ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
+                      : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
+                  }`}
+                >
+                  <Sparkles className={`h-5 w-5 ${isSkillsActive ? "stroke-[2.5]" : ""}`} />
+                  <span className={`text-sm ${isSkillsActive ? "font-semibold" : "font-medium"}`}>Skills</span>
+                </a>
+              </Link>
+            );
+          })()}
+
+          {/* Journal - written essays + Accomplishments submenu */}
+          {(() => {
+            const isJournalActive = location === "/journal" || location === "/accomplishments";
+            return (
+              <DropdownMenu open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <div
-                    onMouseEnter={() => setSkillsMenuOpen(true)}
-                    onMouseLeave={() => setSkillsMenuOpen(false)}
+                    onMouseEnter={() => setJournalMenuOpen(true)}
+                    onMouseLeave={() => setJournalMenuOpen(false)}
                   >
-                    <Link href="/skills">
+                    <Link href="/journal">
                       <a
                         className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                          isSkillsActive
+                          isJournalActive
                             ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
                             : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
                         }`}
                       >
-                        <Sparkles className={`h-5 w-5 ${isSkillsActive ? "stroke-[2.5]" : ""}`} />
-                        <span className={`text-sm ${isSkillsActive ? "font-semibold" : "font-medium"}`}>Skills</span>
+                        <BookOpen className={`h-5 w-5 ${isJournalActive ? "stroke-[2.5]" : ""}`} />
+                        <span className={`text-sm ${isJournalActive ? "font-semibold" : "font-medium"}`}>Journal</span>
                         <ChevronDown className="h-4 w-4 opacity-60" />
                       </a>
                     </Link>
@@ -223,8 +242,8 @@ export function TabBar() {
                 <DropdownMenuContent
                   align="start"
                   className="bg-slate-800 border-yellow-600/30"
-                  onMouseEnter={() => setSkillsMenuOpen(true)}
-                  onMouseLeave={() => setSkillsMenuOpen(false)}
+                  onMouseEnter={() => setJournalMenuOpen(true)}
+                  onMouseLeave={() => setJournalMenuOpen(false)}
                 >
                   <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
                     <Link href="/accomplishments">
@@ -238,14 +257,6 @@ export function TabBar() {
               </DropdownMenu>
             );
           })()}
-
-          {/* Journal - written essays (generic nav button, no active fill) */}
-          <Link href="/journal">
-            <a className="flex items-center gap-2 px-6 py-2 rounded-lg transition-all text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent">
-              <BookOpen className="h-5 w-5" />
-              <span className="text-sm font-medium">Journal</span>
-            </a>
-          </Link>
 
           {/* All - jump to the More hub (every page in one place) */}
           <Link href="/more">

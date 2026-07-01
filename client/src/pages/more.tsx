@@ -42,7 +42,6 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
     title: "Progress",
     links: [
       { name: "Skills", path: "/skills", icon: Sparkles, color: "blue", description: "Skill constellation" },
-      { name: "Accomplishments", path: "/accomplishments", icon: Trophy, color: "yellow", description: "Milestones reached" },
       { name: "Shop", path: "/shop", icon: ShoppingCart, color: "green", description: "Spend your gold" },
     ],
   },
@@ -53,6 +52,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "CPAP", path: "/cpap", icon: Activity, color: "cyan", description: "Sleep therapy tracker" },
       { name: "NPCs", path: "/npcs", icon: Users, color: "blue", description: "People rolodex" },
       { name: "Journal", path: "/journal", icon: BookOpen, color: "orange", description: "Essays & reflections" },
+      { name: "Accomplishments", path: "/accomplishments", icon: Trophy, color: "yellow", description: "Milestones reached" },
     ],
   },
   {
