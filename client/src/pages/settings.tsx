@@ -32,7 +32,7 @@ export default function SettingsPage() {
       title: "Finances",
       description: "Track your income and expenses with visual insights",
       icon: DollarSign,
-      path: "/settings/finances",
+      path: "/finances",
       color: "from-green-500 to-emerald-600",
     },
     {
