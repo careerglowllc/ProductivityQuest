@@ -603,8 +603,8 @@ export default function Finances() {
         credentials: "include",
         body: JSON.stringify({
           item: "Brilliant Pest Solutions",
-          category: "Home",
-          tags: ["Home", "Rental"],
+          category: "Housing",
+          tags: ["Housing", "Rental"],
           monthlyCost: 5900, // $59.00/mo in cents
           recurType: "Monthly",
           notes: "Comprehensive pest control for Rocklin Rental House",
