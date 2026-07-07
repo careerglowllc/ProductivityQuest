@@ -431,6 +431,20 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: July 7 2026
+  // BMO checking → $80,756. Forces the value on all devices.
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260707";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-checking", "80756");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setCheckingBalance(80756);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: Roth IRA shares updated May 29 2026
   // VTSAX 146.857 → 145.188; IBIT stays 697
   useEffect(() => {
@@ -508,9 +522,9 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
-  // Cash — BMO checking account ending in 1711 (manual, updated June 23, 2026: −$7,000 → $76,622)
+  // Cash — BMO checking account ending in 1711 (manual, updated July 7, 2026: → $80,756)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "76622"); } catch { return 76622; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "80756"); } catch { return 80756; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
