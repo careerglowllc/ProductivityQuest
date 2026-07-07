@@ -451,6 +451,58 @@ export default function Home() {
     }
   };
 
+  // Undo a "remove from calendar" — restores each task's scheduledTime (app calendar)
+  // and, for tasks that had a Google event, re-syncs to recreate it (best-effort).
+  const undoRemoveFromCalendar = (
+    removedItems: Array<{ id: number; scheduledTime: string | null; hadGoogleEvent: boolean }>
+  ) => {
+    if (!removedItems.length) return;
+
+    toast({
+      title: "Restoring to Calendar...",
+      description: `Adding ${removedItems.length} task${removedItems.length > 1 ? 's' : ''} back to your calendar...`,
+    });
+
+    enqueueCalendarOp(async () => {
+      try {
+        // Restore each task's scheduledTime so it reappears on the app calendar
+        await Promise.all(
+          removedItems.map((it) =>
+            it.scheduledTime
+              ? apiRequest("PATCH", `/api/tasks/${it.id}`, { scheduledTime: it.scheduledTime })
+              : Promise.resolve()
+          )
+        );
+
+        // Best-effort: recreate Google Calendar events for tasks that had one.
+        // (Silent — the in-app calendar is already restored regardless of Google.)
+        const googleIds = removedItems.filter((it) => it.hadGoogleEvent).map((it) => it.id);
+        if (googleIds.length > 0) {
+          try {
+            await apiRequest("POST", "/api/calendar/sync", { selectedTasks: googleIds });
+          } catch {
+            /* ignore — app calendar restore already succeeded */
+          }
+        }
+
+        toast({
+          title: "✓ Restored to Calendar",
+          description: `${removedItems.length} task${removedItems.length > 1 ? 's' : ''} added back to your calendar.`,
+        });
+
+        await refetchTasks();
+        invalidateCalendarEvents(queryClient);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to restore some tasks to the calendar.",
+          variant: "destructive",
+        });
+        refetchTasks();
+      }
+    });
+  };
+
   // Remove selected tasks from calendar (keeps quests)
   const handleRemoveFromCalendar = () => {
     if (selectedTasks.size === 0) return;
@@ -468,6 +520,13 @@ export default function Home() {
       });
       return;
     }
+
+    // Capture schedule data BEFORE unscheduling so the action can be undone
+    const removedItems = tasksWithSchedule.map((t: any) => ({
+      id: t.id,
+      scheduledTime: t.scheduledTime || null,
+      hadGoogleEvent: !!t.googleEventId,
+    }));
 
     // Clear selection immediately (optimistic)
     setSelectedTasks(new Set());
@@ -494,6 +553,12 @@ export default function Home() {
         toast({
           title: "✓ Removed from Calendar",
           description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar. Quests are still available here.`,
+          duration: 15000,
+          action: (
+            <ToastAction altText="Undo remove from calendar" onClick={() => undoRemoveFromCalendar(removedItems)}>
+              Undo
+            </ToastAction>
+          ),
         });
 
         await refetchTasks();
@@ -525,6 +590,13 @@ export default function Home() {
     // Clear selection
     setSelectedTasks(new Set());
 
+    // Capture schedule data BEFORE clearing so the action can be undone
+    const removedItems = allScheduledTasks.map((t: any) => ({
+      id: t.id,
+      scheduledTime: t.scheduledTime || null,
+      hadGoogleEvent: !!t.googleEventId,
+    }));
+
     toast({
       title: "Clearing Calendar...",
       description: `Removing ${allScheduledTasks.length} task${allScheduledTasks.length > 1 ? 's' : ''} from calendar...`,
@@ -547,6 +619,12 @@ export default function Home() {
         toast({
           title: "✓ Calendar Cleared",
           description: `${successCount} task${successCount > 1 ? 's' : ''} removed from calendar.`,
+          duration: 15000,
+          action: (
+            <ToastAction altText="Undo clear calendar" onClick={() => undoRemoveFromCalendar(removedItems)}>
+              Undo
+            </ToastAction>
+          ),
         });
 
         await refetchTasks();
