@@ -634,9 +634,9 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialItems.length]);
 
-  // Remove Hushed if it exists (cancelled June 2026)
+  // Remove Hushed (alt phone line) if it exists (cancelled June 2026)
   useEffect(() => {
-    const hushed = financialItems.find(i => i.item === "Hushed");
+    const hushed = financialItems.find(i => i.item.toLowerCase().includes("hushed"));
     if (hushed) {
       fetch(`/api/finances/${hushed.id}`, {
         method: "DELETE",
