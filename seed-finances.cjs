@@ -6,7 +6,7 @@ const { neon } = require('@neondatabase/serverless');
 
 const FINANCE_DATA = [
   { item: "Spotify", category: "Entertainment", monthlyCost: 1300, recurType: "Monthly" },
-  { item: "Gas (1480 miles/mo, $6.30/gal, 24.5mpg)", category: "Transportation", monthlyCost: 33000, recurType: "Monthly" },
+  { item: "Gas (1480 miles/mo, $5.20/gal, 24.5mpg)", category: "Transportation", monthlyCost: 31412, recurType: "Monthly" },
   { item: "Charity (Giving What We Can/Effective Altruism)", category: "Charity", monthlyCost: 500, recurType: "Monthly" },
   { item: "Charity (Wikipedia)", category: "Charity", monthlyCost: 960, recurType: "Monthly" },
   { item: "Amazon Prime Personal", category: "General", monthlyCost: 1166, recurType: "Yearly (Amortized)" },
@@ -59,7 +59,7 @@ const FINANCE_DATA = [
   { item: "MailWisp Render Web Service Standard", category: "Business", monthlyCost: 2500, recurType: "Monthly" },
   { item: "Render Deploy CareerGlow CGMain App (paused - $0)", category: "Business", monthlyCost: 0, recurType: "Monthly" },
   { item: "Tello alexbaer321 Backup Phone Number", category: "General", monthlyCost: 600, recurType: "Monthly" },
-  { item: "Render Web Service InboxFlicker Landing Page", category: "Business", monthlyCost: 700, recurType: "Monthly" },
+  { item: "Render Web Service MailWisp Landing Page", category: "Business", monthlyCost: 700, recurType: "Monthly" },
   { item: "UHC PPO Health Insurance", category: "Insurance", monthlyCost: 8008, recurType: "Biweekly (Summed Monthly)" },
   { item: "MailWisp Instagram Verified Checkmark", category: "Business", monthlyCost: 1500, recurType: "Monthly" },
   { item: "iCloud 2TB Storage", category: "General", monthlyCost: 1000, recurType: "Monthly" },
