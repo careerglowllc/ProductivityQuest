@@ -15,6 +15,7 @@ import {
   Settings,
   Compass,
   BookOpen,
+  Dumbbell,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -53,6 +54,8 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "NPCs", path: "/npcs", icon: Users, color: "blue", description: "People rolodex" },
       { name: "Journal", path: "/journal", icon: BookOpen, color: "orange", description: "Essays & reflections" },
       { name: "Accomplishments", path: "/accomplishments", icon: Trophy, color: "yellow", description: "Milestones reached" },
+      { name: "Explore", path: "/explore", icon: Compass, color: "cyan", description: "Places & travel" },
+      { name: "Fitness", path: "/fitness", icon: Dumbbell, color: "pink", description: "Calories & lifting" },
     ],
   },
   {

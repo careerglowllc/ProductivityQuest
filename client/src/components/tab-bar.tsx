@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, Dumbbell } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -216,7 +216,7 @@ export function TabBar() {
 
           {/* Journal - written essays + Accomplishments submenu */}
           {(() => {
-            const isJournalActive = location === "/journal" || location === "/accomplishments";
+            const isJournalActive = location === "/journal" || location === "/accomplishments" || location === "/explore" || location === "/fitness";
             return (
               <DropdownMenu open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -250,6 +250,22 @@ export function TabBar() {
                       <a className="flex items-center gap-2 w-full">
                         <Trophy className="h-4 w-4 text-yellow-400" />
                         Accomplishments
+                      </a>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                    <Link href="/explore">
+                      <a className="flex items-center gap-2 w-full">
+                        <Compass className="h-4 w-4 text-sky-400" />
+                        Explore
+                      </a>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                    <Link href="/fitness">
+                      <a className="flex items-center gap-2 w-full">
+                        <Dumbbell className="h-4 w-4 text-emerald-400" />
+                        Fitness
                       </a>
                     </Link>
                   </DropdownMenuItem>
