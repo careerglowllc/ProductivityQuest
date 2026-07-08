@@ -54,7 +54,6 @@ const FINANCE_DATA = [
   { item: "CareerGlow Northwest Registered Agent Renewal", category: "Business", monthlyCost: 1041, recurType: "Yearly (Amortized)" },
   { item: "CG: AWS Testimonial Info Storage", category: "Business", monthlyCost: 100, recurType: "Monthly" },
   { item: "ProductivityQuest Render Service (CareerGlow)", category: "Business", monthlyCost: 700, recurType: "Monthly" },
-  { item: "alexanderbaer.com and alexbaer.com Squarespace Renewal", category: "General", monthlyCost: 250, recurType: "Yearly (Amortized)" },
   { item: "MailWisp Render Web Service Standard", category: "Business", monthlyCost: 2500, recurType: "Monthly" },
   { item: "Render Deploy CareerGlow CGMain App (paused - $0)", category: "Business", monthlyCost: 0, recurType: "Monthly" },
   { item: "Tello alexbaer321 Backup Phone Number", category: "General", monthlyCost: 600, recurType: "Monthly" },
