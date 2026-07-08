@@ -445,6 +445,23 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: July 8 2026
+  // BMO checking −$6,000 → $74,756; Coinbase BTC +0.093834 → 0.42362502
+  // Forces values on all devices.
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260708";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-checking", "74756");
+        localStorage.setItem("nw-coinbase-btc", "0.42362502");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setCheckingBalance(74756);
+        setCoinbaseBtcHoldings(0.42362502);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: Roth IRA shares updated May 29 2026
   // VTSAX 146.857 → 145.188; IBIT stays 697
   useEffect(() => {
@@ -470,7 +487,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-btc") || "1"); } catch { return 1; }
   });
   const [coinbaseBtcHoldings, setCoinbaseBtcHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-coinbase-btc") || "0.32979102"); } catch { return 0.32979102; }
+    try { return parseFloat(localStorage.getItem("nw-coinbase-btc") || "0.42362502"); } catch { return 0.42362502; }
   });
   const [vtsaxHoldings, setVtsaxHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-vtsax") || "146.857"); } catch { return 146.857; }
@@ -524,7 +541,7 @@ export default function Finances() {
   });
   // Cash — BMO checking account ending in 1711 (manual, updated July 7, 2026: → $80,756)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "80756"); } catch { return 80756; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "74756"); } catch { return 74756; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
