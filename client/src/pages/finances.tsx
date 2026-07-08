@@ -462,6 +462,24 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: July 8 2026 (transfer)
+  // Moved $5,000 from BMO checking → Vanguard settlement/money market fund (VMFXX).
+  // BMO checking $74,756 −$5,000 → $69,756; Vanguard settlement +$5,000 → $5,000.
+  // Net worth unchanged (cash transfer). Forces values on all devices.
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260708-vanguard";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-checking", "69756");
+        localStorage.setItem("nw-vanguard-settlement", "5000");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setCheckingBalance(69756);
+        setVanguardSettlement(5000);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: Roth IRA shares updated May 29 2026
   // VTSAX 146.857 → 145.188; IBIT stays 697
   useEffect(() => {
@@ -494,6 +512,10 @@ export default function Finances() {
   });
   const [vooHoldings, setVooHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-voo") || "240.676"); } catch { return 240.676; }
+  });
+  // Vanguard settlement / money market fund (VMFXX) — cash held in the brokerage, no LTCG haircut
+  const [vanguardSettlement, setVanguardSettlement] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-vanguard-settlement") || "5000"); } catch { return 5000; }
   });
   const [rothIraIbitHoldings, setRothIraIbitHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "697"); } catch { return 697; }
@@ -541,7 +563,7 @@ export default function Finances() {
   });
   // Cash — BMO checking account ending in 1711 (manual, updated July 7, 2026: → $80,756)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "74756"); } catch { return 74756; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "69756"); } catch { return 69756; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
@@ -861,7 +883,8 @@ export default function Finances() {
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
   // BTC wallets and Vanguard brokerage: apply 15% LTCG haircut in all net worth totals
   const _btcAfterTax = _totalBtcValue * 0.85;
-  const _vanguardAfterTax = _vanguardTotal * 0.85;
+  // Settlement/money market (VMFXX) is cash — no LTCG haircut; add at face value.
+  const _vanguardAfterTax = _vanguardTotal * 0.85 + vanguardSettlement;
   // Domain: only taxable gains above purchase price; currently at a loss so $0 tax
   const _domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
@@ -1004,7 +1027,7 @@ export default function Finances() {
       [],
       ["NET WORTH SNAPSHOT (after-tax estimates)", "", "", ""],
       ["BTC Wallet + Coinbase (after 15% LTCG)", $v(_btcAfterTax), "", `${btcHoldings + coinbaseBtcHoldings} BTC @ $${_btcPrice.toFixed(0)}/BTC`],
-      ["Vanguard Brokerage (after 15% LTCG)", $v(_vanguardAfterTax), "", `VTSAX ${vtsaxHoldings} sh + VOO ${vooHoldings} sh`],
+      ["Vanguard Brokerage (after 15% LTCG)", $v(_vanguardAfterTax), "", `VTSAX ${vtsaxHoldings} sh + VOO ${vooHoldings} sh + $${vanguardSettlement.toLocaleString()} settlement`],
       ["Roth IRA — VTSAX", $v(rothIraVtsaxHoldings * _vtsaxPrice), "", `${rothIraVtsaxHoldings} VTSAX shares`],
       ["Roth IRA — IBIT", $v(rothIraIbitHoldings * _ibitPrice), "", `${rothIraIbitHoldings} IBIT shares`],
       ["401k — SSO (ProShares Ultra S&P500)", $v(_k401Value), "", `${k401Shares} SSO shares`],
@@ -1091,7 +1114,8 @@ export default function Finances() {
       ["ASSET", "TICKER", "SHARES", "PRICE ($)", "GROSS VALUE ($)", "TAX RATE", "AFTER-TAX VALUE ($)"],
       ["Vanguard Total Stock Market", "VTSAX", vtsaxHoldings, $v(_vtsaxPrice), $v(_vtsaxValue), "15% LTCG", $v(_vtsaxValue * 0.85)],
       ["Vanguard S&P 500 ETF", "VOO", vooHoldings, $v(_vooPrice), $v(_vooValue), "15% LTCG", $v(_vooValue * 0.85)],
-      ["Vanguard Brokerage Total", "", "", "", $v(_vanguardTotal), "15% LTCG", $v(_vanguardAfterTax)],
+      ["Vanguard Settlement / Money Market", "VMFXX", "", "", $v(vanguardSettlement), "Cash (no tax)", $v(vanguardSettlement)],
+      ["Vanguard Brokerage Total", "", "", "", $v(_vanguardTotal + vanguardSettlement), "15% LTCG*", $v(_vanguardAfterTax)],
       [],
       ["── RETIREMENT ACCOUNTS ──", "", "", "", "", "", ""],
       ["ASSET", "ACCOUNT", "SHARES", "PRICE ($)", "VALUE ($)", "TAX TREATMENT", ""],
@@ -1196,7 +1220,7 @@ export default function Finances() {
     const accData = [
       { name: "Ledger Hardware Wallet", institution: "Ledger", detail: "Self-custody cold storage · BTC", category: "Crypto", status: "active", note: "" },
       { name: "Coinbase", institution: "Coinbase", detail: "Exchange · BTC", category: "Crypto", status: "active", note: "" },
-      { name: "Vanguard Brokerage", institution: "Vanguard", detail: "Taxable · VTSAX, VOO", category: "Brokerage", status: "active", note: "" },
+      { name: "Vanguard Brokerage", institution: "Vanguard", detail: "Taxable · VTSAX, VOO, VMFXX", category: "Brokerage", status: "active", note: "" },
       { name: "Vanguard Roth IRA", institution: "Vanguard", detail: "Roth IRA · VTSAX + IBIT", category: "Retirement", status: "active", note: "" },
       { name: "E*Trade (Apple RSUs)", institution: "E*Trade / Morgan Stanley", detail: "Equity comp · Apple RSU vested shares", category: "Equity", status: "active", note: "" },
       { name: "Fidelity 401k (Apple)", institution: "Fidelity", detail: "Employer 401k · VIIIX · via Apple", category: "Retirement", status: "active", note: "" },
@@ -3843,7 +3867,8 @@ export default function Finances() {
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
               // BTC wallets and Vanguard brokerage use after-tax (85%) values in totals
               const btcAfterTax = totalBtcValue * 0.85;
-              const vanguardAfterTax = vanguardTotal * 0.85;
+              // Settlement/money market (VMFXX) is cash — no LTCG haircut; add at face value.
+              const vanguardAfterTax = vanguardTotal * 0.85 + vanguardSettlement;
               // Domain: only gains above purchase price are taxed at 15%; loss = no tax
               const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
               const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
@@ -3983,13 +4008,13 @@ export default function Finances() {
                             <p className="text-xs text-indigo-400 font-bold tracking-wide">🏦 Vanguard Brokerage</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : vanguardTotal > 0 ? fmt(vanguardTotal * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : vanguardTotal > 0 ? fmt(vanguardTotal * 0.85 + vanguardSettlement) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
                             {!isLoading && vanguardTotal > 0 && (
                               <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
                             )}
                           </div>
-                          <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO</span>
+                          <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO + VMFXX</span>
                         </div>
                         <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
                           <div className="flex justify-between text-slate-400">
@@ -4008,6 +4033,12 @@ export default function Finances() {
                             <span>VOO · {vooHoldings} sh.</span>
                             <span className="text-indigo-300">{fmt(vooValue)}</span>
                           </div>
+                          {vanguardSettlement > 0 && (
+                            <div className="flex justify-between text-slate-400">
+                              <span>Settlement · VMFXX <span className="text-[9px] text-slate-500">(cash, untaxed)</span></span>
+                              <span className="text-indigo-300">{fmt(vanguardSettlement)}</span>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -4397,6 +4428,12 @@ export default function Finances() {
                               className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                           </div>
                           <div>
+                            <Label className="text-slate-300 text-xs mb-1 block">Settlement / Money Market $ (VMFXX)</Label>
+                            <Input type="number" min="0" step="0.01" value={vanguardSettlement}
+                              onChange={e => { const v = parseFloat(e.target.value)||0; setVanguardSettlement(v); try { localStorage.setItem("nw-vanguard-settlement", String(v)); } catch {} }}
+                              className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                          </div>
+                          <div>
                             <Label className="text-slate-300 text-xs mb-1 block">IBIT shares (Roth IRA)</Label>
                             <Input type="number" min="0" step="0.001" value={rothIraIbitHoldings}
                               onChange={e => { const v = parseFloat(e.target.value)||0; setRothIraIbitHoldings(v); try { localStorage.setItem("nw-roth-ibit", String(v)); } catch {} }}
@@ -4711,9 +4748,9 @@ export default function Finances() {
                                 <div className="flex items-center justify-between mb-2">
                                   <div>
                                     <p className="text-xs text-indigo-400 font-semibold">Vanguard Brokerage</p>
-                                    <p className="text-[10px] text-slate-500 mt-0.5">Taxable brokerage · Stocks</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">Taxable · Stocks + settlement</p>
                                   </div>
-                                  <p className="text-sm font-bold text-indigo-300">{vtsaxPrice > 0 || vooPrice > 0 ? `$${Math.round(vanguardTotal).toLocaleString()}` : "—"}</p>
+                                  <p className="text-sm font-bold text-indigo-300">{vtsaxPrice > 0 || vooPrice > 0 ? `$${Math.round(vanguardTotal + vanguardSettlement).toLocaleString()}` : "—"}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="rounded-md bg-indigo-500/10 p-2 text-center">
@@ -4727,6 +4764,12 @@ export default function Finances() {
                                     <p className="text-[10px] text-slate-500 mt-0.5">{vooHoldings} sh.</p>
                                   </div>
                                 </div>
+                                {vanguardSettlement > 0 && (
+                                  <div className="mt-2 rounded-md bg-indigo-500/10 p-2 flex items-center justify-between">
+                                    <p className="text-[10px] text-indigo-400">Settlement · VMFXX <span className="text-slate-500">(cash)</span></p>
+                                    <p className="text-sm font-bold text-indigo-300">${Math.round(vanguardSettlement).toLocaleString()}</p>
+                                  </div>
+                                )}
                               </div>
                               {/* Roth IRA */}
                               <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-3 flex items-center justify-between">
@@ -4885,7 +4928,7 @@ export default function Finances() {
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
                             <span className="text-indigo-300">🏦 Vanguard Brokerage</span>
-                            <span className="text-white font-semibold">{fmt(vanguardTotal * 0.85)}</span>
+                            <span className="text-white font-semibold">{fmt(vanguardTotal * 0.85 + vanguardSettlement)}</span>
                           </div>
                           <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
                             <span>Gross value</span>
@@ -4903,6 +4946,12 @@ export default function Finances() {
                             <span>VOO {vooHoldings} × {fmt(vooPrice)}</span>
                             <span>{fmt(vooValue)}</span>
                           </div>
+                          {vanguardSettlement > 0 && (
+                            <div className="flex justify-between text-[10px] text-slate-500 pl-3">
+                              <span>Settlement · VMFXX (cash)</span>
+                              <span>{fmt(vanguardSettlement)}</span>
+                            </div>
+                          )}
                         </div>
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
@@ -5280,7 +5329,7 @@ export default function Finances() {
                     {
                       name: "Vanguard Brokerage",
                       institution: "Vanguard",
-                      detail: "Taxable brokerage · VTSAX, VOO",
+                      detail: "Taxable brokerage · VTSAX, VOO, VMFXX",
                       category: "brokerage",
                       status: "active",
                       color: "border-indigo-500/30 bg-indigo-500/5",
