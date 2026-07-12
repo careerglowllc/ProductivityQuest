@@ -68,7 +68,7 @@ const FINANCE_DATA = [
   { item: "Canva Pro (admin@mycareerglow)", category: "Business", monthlyCost: 1500, recurType: "Monthly" },
   { item: "15 Squarespace Domains (CareerGlow LLC)", category: "Business", monthlyCost: 2550, recurType: "Yearly (Amortized)" },
   { item: "Supplements (magnesium, glycine, calcium, liver, K2)", category: "Food", monthlyCost: 2315, recurType: "Monthly" },
-  { item: "FasTrak Tolls (Sacramento commuting)", category: "Transportation", monthlyCost: 2500, recurType: "Monthly" },
+
   { item: "Wave Accounting Premium Tier", category: "Business", monthlyCost: 1900, recurType: "Monthly" },
   { item: "NordVPN Dedicated IP", category: "General", monthlyCost: 899, recurType: "Monthly" },
   { item: "Hushed Alt Phone Line", category: "General", monthlyCost: 500, recurType: "Monthly" },
