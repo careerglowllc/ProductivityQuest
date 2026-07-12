@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
@@ -392,6 +393,25 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState<QuestAttachment[]>([]);
   const [duration, setDuration] = useState<string>("30");
+
+  // Duration slider helpers
+  // Snap points in minutes: 5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240+
+  const DURATION_SNAPS = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240];
+  const formatDuration = (min: number): string => {
+    if (min < 60) return `${min} min`;
+    if (min === 60) return "1 hr";
+    if (min < 120) return `1 hr ${min - 60} min`;
+    if (min === 120) return "2 hrs";
+    if (min < 180) return `2 hrs ${min - 120} min`;
+    if (min === 180) return "3 hrs";
+    if (min < 240) return `3 hrs ${min - 180} min`;
+    return "4+ hrs";
+  };
+  // Slider index (0–11) maps to DURATION_SNAPS
+  const durationIndex = DURATION_SNAPS.indexOf(parseInt(duration)) === -1
+    ? DURATION_SNAPS.findIndex(s => s >= parseInt(duration)) || 4
+    : DURATION_SNAPS.indexOf(parseInt(duration));
+  const setDurationByIndex = (idx: number) => setDuration(String(DURATION_SNAPS[Math.max(0, Math.min(idx, DURATION_SNAPS.length - 1))]));
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [importance, setImportance] = useState<string>("Medium");
   const [kanbanStage, setKanbanStage] = useState<string>("To Do");
@@ -512,10 +532,10 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       return;
     }
 
-    if (!description.trim()) {
+    if (!dueDate) {
       toast({
-        title: "Description Required",
-        description: "Please enter a quest description.",
+        title: "Due Date Required",
+        description: "Please select a due date for this quest.",
         variant: "destructive",
       });
       return;
@@ -657,7 +677,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description" className="text-yellow-200">
-              Description <span className="text-red-400">*</span>
+              Description <span className="text-yellow-400/50 text-xs">(optional)</span>
             </Label>
             <AttachmentArea attachments={attachments} onChange={setAttachments}>
               <Textarea
@@ -672,56 +692,64 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             <p className="text-xs text-yellow-400/60">{description.length}/2000 characters</p>
           </div>
 
-          {/* Duration and Gold Value */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="duration" className="text-yellow-200">
-                Duration (minutes) <span className="text-red-400">*</span>
-              </Label>
-              <Input
-                id="duration"
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="30"
-                min="1"
-                className="bg-slate-800/50 border-yellow-600/30 text-yellow-100"
+          {/* Duration — Slider */}
+          <div className="space-y-3">
+            <Label className="text-yellow-200">
+              Duration <span className="text-red-400">*</span>
+            </Label>
+            <div className="flex items-center gap-4 px-1">
+              <span className="text-xs text-yellow-400/60 w-10 shrink-0">5 min</span>
+              <Slider
+                min={0}
+                max={DURATION_SNAPS.length - 1}
+                step={1}
+                value={[durationIndex]}
+                onValueChange={([val]) => setDurationByIndex(val)}
+                className="flex-1"
               />
+              <span className="text-xs text-yellow-400/60 w-12 shrink-0 text-right">4+ hrs</span>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="goldValue" className="text-yellow-200 flex items-center gap-2">
-                Gold Reward
-                <span className="text-xs text-yellow-400/60">(Auto-calculated)</span>
-              </Label>
-              <Input
-                id="goldValue"
-                type="number"
-                value={goldValue}
-                readOnly
-                disabled
-                className="bg-slate-800/30 border-yellow-600/20 text-yellow-300 cursor-not-allowed"
-              />
-              <p className="text-xs text-yellow-400/60">
-                Based on duration ({duration} min) and importance ({importance})
-              </p>
+            <div className="text-center">
+              <span className="inline-block bg-yellow-600/20 border border-yellow-600/40 rounded-full px-4 py-1 text-yellow-200 font-semibold text-sm">
+                ⏱ {formatDuration(parseInt(duration))}
+              </span>
             </div>
           </div>
 
+          {/* Gold Value (auto-calculated) */}
+          <div className="space-y-2">
+            <Label htmlFor="goldValue" className="text-yellow-200 flex items-center gap-2">
+              Gold Reward
+              <span className="text-xs text-yellow-400/60">(Auto-calculated)</span>
+            </Label>
+            <Input
+              id="goldValue"
+              type="number"
+              value={goldValue}
+              readOnly
+              disabled
+              className="bg-slate-800/30 border-yellow-600/20 text-yellow-300 cursor-not-allowed"
+            />
+            <p className="text-xs text-yellow-400/60">
+              Based on duration ({duration} min) and importance ({importance})
+            </p>
+          </div>
+
+
           {/* Due Date */}
           <div className="space-y-2">
-            <Label className="text-yellow-200">Due Date</Label>
+            <Label className="text-yellow-200">Due Date <span className="text-red-400">*</span></Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal bg-slate-800/50 border-yellow-600/30 text-yellow-100 hover:bg-slate-700/50 hover:text-yellow-100",
-                    !dueDate && "text-yellow-400/60"
+                    !dueDate && "text-red-400/80 border-red-500/40"
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dueDate ? format(dueDate, "PPP") : <span>Pick a date (optional)</span>}
+                  {dueDate ? format(dueDate, "PPP") : <span>Pick a date (required)</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 bg-slate-800 border-yellow-600/40">
