@@ -6,7 +6,7 @@ const { neon } = require('@neondatabase/serverless');
 
 const FINANCE_DATA = [
   { item: "Spotify", category: "Entertainment", monthlyCost: 1300, recurType: "Monthly" },
-  { item: "Gas (1480 miles/mo, $5.20/gal, 24.5mpg)", category: "Transportation", monthlyCost: 31412, recurType: "Monthly" },
+  { item: "Gas placeholder while in bay", category: "Transportation", monthlyCost: 5000, recurType: "Monthly" },
   { item: "Charity (Giving What We Can/Effective Altruism)", category: "Charity", monthlyCost: 500, recurType: "Monthly" },
   { item: "Charity (Wikipedia)", category: "Charity", monthlyCost: 960, recurType: "Monthly" },
   { item: "Amazon Prime Personal", category: "General", monthlyCost: 1166, recurType: "Yearly (Amortized)" },
@@ -42,7 +42,7 @@ const FINANCE_DATA = [
   { item: "Nord Dedicated IP (Astound IP flagged by PayPal/QB)", category: "Internet", monthlyCost: 899, recurType: "Monthly" },
   { item: "CareerGlow iPostal Green Plan", category: "Business", monthlyCost: 1500, recurType: "Monthly" },
   { item: "CareerGlow ZenBusiness Annual Fee (Registered Agent)", category: "Business", monthlyCost: 1658, recurType: "Yearly (Amortized)" },
-  { item: "Car Wear and Tear Amortized (Explorer)", category: "Transportation", monthlyCost: 30000, recurType: "Monthly" },
+  { item: "Car Wear and Tear Amortized (Explorer)", category: "Transportation", monthlyCost: 4800, recurType: "Monthly" },
   { item: "Google Workspace Business (Admin CareerGlow)", category: "Business", monthlyCost: 700, recurType: "Monthly" },
   { item: "Rocklin House Sewer Utility Bill", category: "Housing", monthlyCost: 4000, recurType: "Monthly" },
   { item: "MyCareerglow Tello Phone Number", category: "Business", monthlyCost: 964, recurType: "Monthly" },
@@ -76,7 +76,8 @@ const FINANCE_DATA = [
   { item: "Costco Gold Membership", category: "Food", monthlyCost: 542, recurType: "Yearly (Amortized)" },
   { item: "Seedance 2.0 Standard Subscription", category: "Business", monthlyCost: 5000, recurType: "Monthly" },
   { item: "Netflix (Ads Version)", category: "Entertainment", monthlyCost: 899, recurType: "Monthly" },
-  { item: "Rocklin House Rental Income", category: "Income", monthlyCost: 350000, recurType: "Monthly" },
+  { item: "HBO Max (Basic with Ads)", category: "Entertainment", monthlyCost: 1099, recurType: "Monthly" },
+  // Rocklin House Rental Income removed per request
   { item: "Roth IRA Contribution", category: "Retirement", monthlyCost: 62500, recurType: "Yearly (Amortized)" },
 ];
 

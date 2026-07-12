@@ -300,6 +300,11 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "👨‍⚖️", keywords: ["man", "judge", "law", "court", "justice", "legal"] },
   { emoji: "👩‍⚖️", keywords: ["woman", "judge", "law", "court", "justice", "legal"] },
 
+  // Legal / Justice / Law
+  { emoji: "⚖️", keywords: ["scale", "scales", "justice", "law", "fair", "balance"] },
+  { emoji: "🏛️", keywords: ["court", "building", "gov", "government", "law", "judiciary", "justice"] },
+  { emoji: "🧾", keywords: ["document", "legal", "paper", "receipt", "contract", "agreement", "law"] },
+
   // Funnel / Filter
   { emoji: "🫗", keywords: ["funnel", "pour", "pouring", "liquid", "filter", "spill"] },
   { emoji: "🔻", keywords: ["funnel", "triangle", "red", "down", "filter", "sort", "point"] },
