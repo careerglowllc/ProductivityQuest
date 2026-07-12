@@ -33,6 +33,7 @@ const FINANCE_DATA = [
   { item: "Mortgage/PMI/Property Tax Payment", category: "Housing", monthlyCost: 446714, recurType: "Monthly" },
   { item: "CareerGlow LLC CA State Franchise Annual Tax", category: "Business", monthlyCost: 6700, recurType: "Yearly (Amortized)" },
   { item: "Rocklin Water Utility Bill (PCWA)", category: "Housing", monthlyCost: 11526, recurType: "Monthly" },
+  { item: "Rocklin House Solar Panel Routine Cleaning", category: "Housing", monthlyCost: 2677, recurType: "Yearly (Amortized)" },
   { item: "Astound Internet Bill", category: "Housing", monthlyCost: 6500, recurType: "Monthly" },
   { item: "Apple Employee Stock Purchase Plan (ESPP)", category: "Income", monthlyCost: 121722, recurType: "Biweekly (Summed Monthly)" },
   { item: "NordVPN Annual", category: "General", monthlyCost: 500, recurType: "Yearly (Amortized)" },
