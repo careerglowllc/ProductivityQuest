@@ -333,7 +333,8 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
   if (!Array.isArray(skills) || skills.length === 0) {
     return null;
   }
-  
+
+  const [hoveredSkillIndex, setHoveredSkillIndex] = React.useState<number | null>(null);
   // Calculate max chart value: highest skill level + 10, capped at 99
   const highestSkillLevel = Math.max(...skills.map(s => s.level), 0);
   const chartMax = Math.min(highestSkillLevel + 10, 99);
@@ -566,7 +567,7 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
                 height={iconSize}
               >
                 <div className="flex items-center justify-center w-full h-full">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500/90 to-yellow-600/90 border border-yellow-400/80 flex items-center justify-center shadow-lg shadow-yellow-500/20">
+                  <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500/90 to-yellow-600/90 border flex items-center justify-center shadow-lg shadow-yellow-500/20 transition-all duration-150 ${hoveredSkillIndex === i ? "border-white scale-110 shadow-white/30" : "border-yellow-400/80"}`}>
                     <SkillIcon className="w-4 h-4 text-slate-900" strokeWidth={2.5} />
                   </div>
                 </div>
@@ -585,6 +586,18 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
                   </span>
                 </div>
               </foreignObject>
+
+              {/* Transparent hit target for hover */}
+              <rect
+                x={labelPoint.x - iconSize / 2 - 4}
+                y={labelPoint.y - iconSize / 2 - 16}
+                width={iconSize + 8}
+                height={iconSize + 8}
+                fill="transparent"
+                style={{ cursor: "pointer" }}
+                onMouseEnter={() => setHoveredSkillIndex(i)}
+                onMouseLeave={() => setHoveredSkillIndex(null)}
+              />
             </g>
           );
         })}
@@ -592,6 +605,27 @@ function SpiderChart({ skills }: { skills: UserSkill[] }) {
         {/* Center star */}
         <circle cx={center} cy={center} r="3" fill="rgb(250, 204, 21)" filter="url(#nodeGlow)" />
         <circle cx={center} cy={center} r="1.5" fill="white" opacity="0.8" />
+
+        {/* Hover tooltip */}
+        {hoveredSkillIndex !== null && (() => {
+          const skill = skills[hoveredSkillIndex];
+          const labelPoint = getPoint(hoveredSkillIndex, chartMax + 3);
+          const tooltipW = 110;
+          const tooltipH = 36;
+          // Clamp tooltip so it stays inside the SVG
+          const tx = Math.min(Math.max(labelPoint.x - tooltipW / 2, 4), size - tooltipW - 4);
+          const ty = labelPoint.y - tooltipH - 14 < 4
+            ? labelPoint.y + 24
+            : labelPoint.y - tooltipH - 14;
+          return (
+            <foreignObject x={tx} y={ty} width={tooltipW} height={tooltipH} style={{ pointerEvents: "none" }}>
+              <div className="flex flex-col items-center justify-center h-full bg-slate-900/95 border border-yellow-500/60 rounded-lg px-2 py-1 shadow-lg shadow-black/60">
+                <span className="text-[11px] font-bold text-yellow-200 leading-tight">{skill.skillName}</span>
+                <span className="text-[10px] text-yellow-400/80 leading-tight">Level {skill.level}</span>
+              </div>
+            </foreignObject>
+          );
+        })()}
       </svg>
     </div>
   );
