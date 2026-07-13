@@ -40,6 +40,7 @@ const FINANCE_DATA = [
   { item: "ChatGPT Pro (alexbaerclean account)", category: "General", monthlyCost: 2000, recurType: "Monthly" },
   { item: "Veluna.com Domain Renewal", category: "General", monthlyCost: 183, recurType: "Yearly (Amortized)" },
   { item: "Rocklin House Garbage Bin Rentals/Pickup", category: "Housing", monthlyCost: 3400, recurType: "Monthly" },
+  { item: "Rocklin Shed Affirm Financed (ends Jan 14 2027)", category: "Housing", monthlyCost: 102700, recurType: "Monthly" },
   { item: "Nord Dedicated IP (Astound IP flagged by PayPal/QB)", category: "Internet", monthlyCost: 899, recurType: "Monthly" },
   { item: "CareerGlow iPostal Green Plan", category: "Business", monthlyCost: 1500, recurType: "Monthly" },
   { item: "CareerGlow ZenBusiness Annual Fee (Registered Agent)", category: "Business", monthlyCost: 1658, recurType: "Yearly (Amortized)" },
