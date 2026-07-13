@@ -825,7 +825,7 @@ export default function Finances() {
     .filter(i => classifyItem(i.category, i.tags) === "expense")
     .reduce((s, i) => s + i.monthlyCost, 0);
 
-  const netCashFlow = totalIncome - totalExpenses;
+  const netCashFlow = totalIncome - totalExpenses - totalRetirement;
   const savingsRate = totalIncome > 0 ? (netCashFlow / totalIncome) * 100 : 0;
 
   let statusBorder = "border-yellow-500/50";
@@ -1020,7 +1020,7 @@ export default function Finances() {
       ["Total Income & Investment", $(totalIncome), $(totalIncome * 12), "W2 salary + RSUs + ESPP + HSA"],
       ["Retirement Contributions", $(totalRetirement), $(totalRetirement * 12), "401k + Roth IRA contributions"],
       ["Total Expenses", $(totalExpenses), $(totalExpenses * 12), "All tracked expense categories"],
-      ["Net Cash Flow (Income − Expenses)", $(netCashFlow), $(netCashFlow * 12), "After expenses, before retirement"],
+      ["Net Cash Flow (after expenses & retirement)", $(netCashFlow), $(netCashFlow * 12), "Income − Expenses − Retirement"],
       ["W2 Salary Only", $(w2Income), $(w2Income * 12), "Post-tax W2 salary"],
       ["Non-W2 Income (RSUs, ESPP, etc.)", $(nonW2Income), $(nonW2Income * 12), ""],
       ["Savings Rate", `${savingsRate.toFixed(1)}%`, "", "Net Cash Flow / Total Income"],
@@ -1314,7 +1314,7 @@ export default function Finances() {
               <p className={`text-2xl font-bold ${netCashFlow >= 0 ? "text-green-300" : "text-red-300"}`}>
                 {formatCurrency(netCashFlow)}
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">{savingsRate.toFixed(1)}% savings rate</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{savingsRate.toFixed(1)}% rate · after expenses & retirement</p>
             </CardContent>
           </Card>
         </div>
