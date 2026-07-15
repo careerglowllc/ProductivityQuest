@@ -40,6 +40,7 @@ export default function Home() {
   const [showItemShop, setShowItemShop] = useState(false);
   const [showCalendarSync, setShowCalendarSync] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [syncErrorModal, setSyncErrorModal] = useState<{ failCount: number } | null>(null);
   const [showAddQuestline, setShowAddQuestline] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [treeModalQuestlineId, setTreeModalQuestlineId] = useState<number | null>(null);
@@ -1475,6 +1476,8 @@ export default function Home() {
         }
         if (result.exportFailed > 0) {
           description += description ? `, ${result.exportFailed} failed` : `${result.exportFailed} exports failed`;
+          // Show a dedicated error modal so the user can navigate to fix it
+          setSyncErrorModal({ failCount: result.exportFailed });
         }
         if (result.imported > 0) {
           description += description ? `, ${result.imported} tasks updated from calendar` : `${result.imported} tasks updated from calendar`;
@@ -3446,6 +3449,52 @@ export default function Home() {
         open={showAddTask}
         onOpenChange={setShowAddTask}
       />
+
+      {/* Calendar Sync Error Modal */}
+      <Dialog open={!!syncErrorModal} onOpenChange={(open) => { if (!open) setSyncErrorModal(null); }}>
+        <DialogContent className="max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 border-2 border-red-500/50 text-white p-0 overflow-hidden">
+          <div className="flex flex-col">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-red-500/30">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center">
+                <span className="text-xl">⚠️</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-red-200">Calendar Sync Issue</h2>
+                <p className="text-xs text-red-400/80">
+                  {syncErrorModal?.failCount} task{syncErrorModal?.failCount !== 1 ? "s" : ""} failed to export
+                </p>
+              </div>
+            </div>
+            {/* Body */}
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-sm text-slate-200 leading-relaxed">
+                Some tasks couldn't be synced to Google Calendar. This usually happens when the Google Calendar connection has expired or needs to be re-authorized.
+              </p>
+              <div className="bg-slate-800/60 border border-slate-600/40 rounded-lg px-4 py-3 text-xs text-slate-400 space-y-1">
+                <p className="font-semibold text-slate-300">Try these steps:</p>
+                <p>1. Go to the Google Calendar settings page</p>
+                <p>2. Disconnect and reconnect your Google account</p>
+                <p>3. Run the sync again</p>
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="flex flex-col gap-2 px-6 pb-6">
+              <a href="/settings/google-calendar" onClick={() => setSyncErrorModal(null)}>
+                <button className="w-full py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-semibold text-sm transition-all shadow-lg shadow-red-900/30">
+                  🔗 Go to Google Calendar Settings
+                </button>
+              </a>
+              <button
+                onClick={() => setSyncErrorModal(null)}
+                className="w-full py-2 rounded-lg border border-slate-600/50 text-slate-400 hover:text-slate-200 hover:border-slate-500/70 text-sm transition-all"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Questline Modal */}
       <AddQuestlineModal
