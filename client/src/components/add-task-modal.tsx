@@ -613,14 +613,14 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/40 text-yellow-100">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/40 text-yellow-100 overflow-hidden p-0">
+        <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0 border-b border-yellow-600/20">
           <DialogTitle className="text-2xl font-serif text-yellow-100">
             Create New Quest
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title" className="text-yellow-200">
@@ -942,15 +942,12 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </div>{/* end scrollable body */}
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-yellow-600/20 bg-slate-900/60">
           <Button
             variant="outline"
-            onClick={() => {
-              resetForm();
-              onOpenChange(false);
-            }}
+            onClick={() => onOpenChange(false)}
             className="border-yellow-600/40 text-yellow-200 hover:bg-slate-700/50"
           >
             Cancel
