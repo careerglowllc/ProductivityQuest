@@ -613,8 +613,8 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/40 text-yellow-100 overflow-hidden p-0 [&>div:first-of-type]:hidden"
-        style={{ display: 'flex', flexDirection: 'column' }}
+      <DialogContent className="max-w-3xl h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/40 text-yellow-100 overflow-hidden p-0"
+        style={{ display: 'flex', flexDirection: 'column', height: '90vh' }}
       >
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0 border-b border-yellow-600/20">
           <DialogTitle className="text-2xl font-serif text-yellow-100">
@@ -622,7 +622,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-6">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title" className="text-yellow-200">
@@ -946,18 +946,12 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           </div>
         </div>{/* end scrollable body */}
 
-        <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-yellow-600/20 bg-slate-900/60">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="border-yellow-600/40 text-yellow-200 hover:bg-slate-700/50"
-          >
-            Cancel
-          </Button>
+        {/* Pinned footer — always visible */}
+        <div className="flex-shrink-0 flex flex-col gap-2 px-6 py-4 border-t border-yellow-600/20 bg-slate-900/80">
           <Button
             onClick={handleSubmit}
             disabled={createTaskMutation.isPending}
-            className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 font-semibold"
+            className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 font-semibold"
           >
             {createTaskMutation.isPending ? (
               <>
@@ -968,7 +962,14 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
               "Create Quest"
             )}
           </Button>
-        </DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="w-full border-yellow-600/40 text-yellow-200 hover:bg-slate-700/50"
+          >
+            Cancel
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
