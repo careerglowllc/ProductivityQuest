@@ -613,7 +613,9 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/40 text-yellow-100 overflow-hidden p-0">
+      <DialogContent className="max-w-3xl h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/40 text-yellow-100 overflow-hidden p-0 [&>div:first-of-type]:hidden"
+        style={{ display: 'flex', flexDirection: 'column' }}
+      >
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0 border-b border-yellow-600/20">
           <DialogTitle className="text-2xl font-serif text-yellow-100">
             Create New Quest
