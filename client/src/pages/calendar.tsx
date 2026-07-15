@@ -816,18 +816,18 @@ export default function CalendarPage() {
   return (
     <div
       className={`${isDark ? "bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900" : "bg-gray-50"} ${isMobile ? "fixed inset-0 overflow-hidden" : "min-h-screen pt-24 pb-8 px-8"}`}
-      style={isMobile ? { top: "env(safe-area-inset-top, 0px)", bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" } : undefined}
+      style={isMobile ? { top: "env(safe-area-inset-top, 0px)", bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))", left: 0, right: 0, overflowX: "hidden" } : undefined}
     >
-      <div className={isMobile ? "h-full flex flex-col" : "max-w-7xl mx-auto"}>
-        <div className={isMobile ? "flex-1 flex flex-col min-h-0" : `${isDark ? "bg-gray-900/60 border border-purple-500/20" : "bg-white border border-purple-300/40 shadow-sm"} rounded-xl p-4`}>
+      <div className={isMobile ? "h-full flex flex-col w-full min-w-0 overflow-x-hidden" : "max-w-7xl mx-auto"}>
+        <div className={isMobile ? "flex-1 flex flex-col min-h-0 w-full min-w-0" : `${isDark ? "bg-gray-900/60 border border-purple-500/20" : "bg-white border border-purple-300/40 shadow-sm"} rounded-xl p-4`}>
           {/* Top bar */}
-          <div className={`flex items-center justify-between ${isMobile ? "px-2 pt-1.5 pb-1" : "mb-4"} flex-shrink-0`}>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="h-7 w-7 p-0 text-purple-500 hover:bg-purple-500/10"><ChevronLeft className="w-4 h-4" /></Button>
-              <span className={`font-bold ${isMobile ? "text-sm" : "text-lg"} ${isDark ? "text-white" : "text-gray-900"} min-w-0`}>{titleStr}</span>
-              <Button variant="ghost" size="sm" onClick={() => navigate(1)} className="h-7 w-7 p-0 text-purple-500 hover:bg-purple-500/10"><ChevronRight className="w-4 h-4" /></Button>
+          <div className={`flex items-center justify-between ${isMobile ? "px-2 pt-1.5 pb-1" : "mb-4"} flex-shrink-0 w-full min-w-0`}>
+            <div className="flex items-center gap-1 min-w-0 flex-shrink overflow-hidden">
+              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="h-7 w-7 p-0 flex-shrink-0 text-purple-500 hover:bg-purple-500/10"><ChevronLeft className="w-4 h-4" /></Button>
+              <span className={`font-bold truncate ${isMobile ? "text-sm" : "text-lg"} ${isDark ? "text-white" : "text-gray-900"} min-w-0`}>{titleStr}</span>
+              <Button variant="ghost" size="sm" onClick={() => navigate(1)} className="h-7 w-7 p-0 flex-shrink-0 text-purple-500 hover:bg-purple-500/10"><ChevronRight className="w-4 h-4" /></Button>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               {!isViewingToday && <Button size="sm" onClick={goToToday} className={`${isMobile ? "h-7 px-2 text-xs" : "h-8 px-3 text-sm"} bg-purple-600 hover:bg-purple-500`}>Today</Button>}
               <Button
                 size="sm"
@@ -853,7 +853,7 @@ export default function CalendarPage() {
           </div>
 
           {/* View switcher */}
-          <div className={`flex gap-0 ${isDark ? "bg-gray-800/60 border-purple-500/20" : "bg-gray-100 border-gray-200"} ${isMobile ? "mx-2 p-0.5 rounded-md mb-1" : "p-1 rounded-lg mb-4 max-w-md"} border flex-shrink-0`}>
+          <div className={`flex gap-0 ${isDark ? "bg-gray-800/60 border-purple-500/20" : "bg-gray-100 border-gray-200"} ${isMobile ? "mx-2 p-0.5 rounded-md mb-1 w-[calc(100%-1rem)]" : "p-1 rounded-lg mb-4 max-w-md"} border flex-shrink-0 overflow-hidden`}>
             {(["day", "3day", "week", "month"] as ViewMode[]).map((v) => (
               <button key={v} onClick={() => setView(v)} className={`flex-1 ${isMobile ? "py-0.5 text-[11px]" : "py-1.5 text-sm"} rounded font-medium transition-colors ${view === v ? "bg-purple-600 text-white" : isDark ? "text-gray-400 hover:text-white hover:bg-gray-700/50" : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/70"}`}>
                 {v === "3day" ? "3 Day" : v.charAt(0).toUpperCase() + v.slice(1)}
