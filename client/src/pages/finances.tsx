@@ -480,6 +480,19 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: Trial by Fire movie investment — $5,000 principal (July 2026)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260718-trial-by-fire";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-trial-by-fire", "5000");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setTrialByFireInvestment(5000);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: Roth IRA shares updated May 29 2026
   // VTSAX 146.857 → 145.188; IBIT stays 697
   useEffect(() => {
@@ -516,6 +529,10 @@ export default function Finances() {
   // Vanguard settlement / money market fund (VMFXX) — cash held in the brokerage, no LTCG haircut
   const [vanguardSettlement, setVanguardSettlement] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-vanguard-settlement") || "5000"); } catch { return 5000; }
+  });
+  // Trial by Fire movie investment — $5,000 principal; return amount unknown/TBD
+  const [trialByFireInvestment, setTrialByFireInvestment] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-trial-by-fire") || "5000"); } catch { return 5000; }
   });
   const [rothIraIbitHoldings, setRothIraIbitHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-roth-ibit") || "697"); } catch { return 697; }
@@ -890,7 +907,7 @@ export default function Finances() {
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
   // HSA: 20% early-withdrawal penalty + ~22% income tax = 42% haircut for non-medical use before 65
   const _hsaAfterPenalty = hsaBalance * 0.58;
-  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue + trialByFireInvestment;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
   // NW Snapshots — load history + auto-save current month once prices are ready
@@ -1115,6 +1132,7 @@ export default function Finances() {
       ["Vanguard Total Stock Market", "VTSAX", vtsaxHoldings, $v(_vtsaxPrice), $v(_vtsaxValue), "15% LTCG", $v(_vtsaxValue * 0.85)],
       ["Vanguard S&P 500 ETF", "VOO", vooHoldings, $v(_vooPrice), $v(_vooValue), "15% LTCG", $v(_vooValue * 0.85)],
       ["Vanguard Settlement / Money Market", "VMFXX", "", "", $v(vanguardSettlement), "Cash (no tax)", $v(vanguardSettlement)],
+      ["Trial by Fire (Movie Investment)", "—", "", "", $v(trialByFireInvestment), "Principal only · return TBD", $v(trialByFireInvestment)],
       ["Vanguard Brokerage Total", "", "", "", $v(_vanguardTotal + vanguardSettlement), "15% LTCG*", $v(_vanguardAfterTax)],
       [],
       ["── RETIREMENT ACCOUNTS ──", "", "", "", "", "", ""],
@@ -4037,6 +4055,12 @@ export default function Finances() {
                             <div className="flex justify-between text-slate-400">
                               <span>Settlement · VMFXX <span className="text-[9px] text-slate-500">(cash, untaxed)</span></span>
                               <span className="text-indigo-300">{fmt(vanguardSettlement)}</span>
+                            </div>
+                          )}
+                          {trialByFireInvestment > 0 && (
+                            <div className="flex justify-between text-slate-400 border-t border-slate-700/50 pt-1 mt-1">
+                              <span>🎬 Trial by Fire (film inv.) <span className="text-[9px] text-slate-500">principal · return TBD</span></span>
+                              <span className="text-indigo-300">{fmt(trialByFireInvestment)}</span>
                             </div>
                           )}
                         </div>
