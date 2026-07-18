@@ -493,6 +493,19 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: BMO checking 1711 updated to $40,000 (July 18 2026)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260718-checking-40k";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-checking", "40000");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setCheckingBalance(40000);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: Roth IRA shares updated May 29 2026
   // VTSAX 146.857 → 145.188; IBIT stays 697
   useEffect(() => {
@@ -580,7 +593,7 @@ export default function Finances() {
   });
   // Cash — BMO checking account ending in 1711 (manual, updated July 7, 2026: → $80,756)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-checking") || "69756"); } catch { return 69756; }
+    try { return parseFloat(localStorage.getItem("nw-checking") || "40000"); } catch { return 40000; }
   });
   // CareerGlow LLC — Mercury business account (manual, May 2026)
   const [careerglowBalance] = useState<number>(13348);
