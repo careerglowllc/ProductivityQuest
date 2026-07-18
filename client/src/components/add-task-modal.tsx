@@ -30,6 +30,7 @@ const TASK_EMOJIS = [
 
 const EMOJI_CATEGORIES = [
   { label: "Work", emojis: ["📝","💼","💻","📱","🔧","🛠️","📊","📈","📦","🔍","📡","🤖","🖥️","⌨️","🖨️","💾","📁","📂","🗂️","📋","📌","📍","✂️","📏","📐","🔏","🔐","🔒","🔓","🔑","🗝️","🏗️","🏢","📠","📺","📷","📸","📹","🎞️","📽️","🎙️","📻"] },
+  { label: "Internet & Web", emojis: ["🌐","🔗","📡","🛜","📶","🖥️","💻","📱","⌨️","🖱️","🖨️","💾","💿","📀","🔌","🔋","📲","📤","📥","📨","📧","📬","🔏","🔐","🔒","🔓","🛡️","🤖","⚙️","🔧","🪝","🧩","🔑","🗝️","📊","📈","📉","🗃️","☁️","🌩️","⚡","🚀","🎯","📣","📢","💬","🗨️","🗯️","💭","🧵","🔔","🔕"] },
   { label: "Industrial", emojis: ["⚙️","🔩","🏭","🔨","⚒️","🛠️","🪛","🪚","⛏️","🔧","🔗","⛓️","🪝","🧱","🔋","🔌","💡","🪜","🧲","🗜️","🪤","🛢️","⚗️","🧪","🔬","🔭","📡","🤖","🦾","🦿","🚧","🏗️","🏚️","🏠","🏘️","🏛️","🏟️","🏬","🏭","🚜","🚛","🚚","🏎️","🚒","🚑","⚓","🪝","🧰","🪣","🗑️","⚠️","🔴","🟠","🟡","🟢"] },
   { label: "Energy", emojis: ["🔆","☀️","🌞","⚡","🔋","🪫","🔌","💡","🔦","🕯️","🌬️","💨","🌊","💧","🏭","🛢️","⛽","🔥","♻️","🌍","🌡️","🧯","⚙️","🧲"] },
   { label: "Goals", emojis: ["🎯","🚀","⭐","🏆","💡","🔥","💪","🌟","⚔️","🛡️","⚡","💎","🥇","🥈","🥉","🎖️","🏅","🎗️","🎀","👑","✨","🌠","🌌","🧭","🗺️","🏁","🚩","🎌","🏴","🔮","⚗️","🧬","🔬","🔭","🧪","🧫","💫","🌀","🎆","🎇"] },
@@ -150,6 +151,22 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "🪄", keywords: "magic wand trick performance" },
   { emoji: "🎩", keywords: "top hat magic fancy performance" },
   { emoji: "🧿", keywords: "evil eye amulet mystical" },
+  // Internet & Web
+  { emoji: "🌐", keywords: "internet web website globe online network browser world" },
+  { emoji: "🔗", keywords: "link url chain connect web hyperlink" },
+  { emoji: "🛜", keywords: "wifi wireless internet signal online network" },
+  { emoji: "📶", keywords: "signal bars wifi internet mobile network strength" },
+  { emoji: "☁️", keywords: "cloud computing server hosting online storage aws" },
+  { emoji: "🌩️", keywords: "cloud thunderstorm server outage internet" },
+  { emoji: "📡", keywords: "satellite antenna signal broadcast internet network" },
+  { emoji: "📲", keywords: "mobile phone tap online notification app" },
+  { emoji: "📤", keywords: "upload send outbox share online" },
+  { emoji: "📥", keywords: "download inbox receive online import" },
+  { emoji: "🖱️", keywords: "mouse cursor click web browser online" },
+  { emoji: "🧩", keywords: "plugin extension module integration web app" },
+  { emoji: "💬", keywords: "chat message comment online social web" },
+  { emoji: "🗨️", keywords: "speech bubble comment reply online forum" },
+  { emoji: "🔔", keywords: "notification bell alert online subscribe" },
   // Furniture & Home
   { emoji: "🛋️", keywords: "sofa couch furniture living room sit" },
   { emoji: "🪑", keywords: "chair seat furniture sit" },
