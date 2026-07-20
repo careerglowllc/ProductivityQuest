@@ -493,6 +493,19 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: VSUSX — 60.0572 shares added to Vanguard brokerage (July 2026)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260720-vsusx";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-vsusx", "60.0572");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setVsusxHoldings(60.0572);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: BMO checking 1711 updated to $40,000 (July 18 2026)
   useEffect(() => {
     try {
@@ -538,6 +551,9 @@ export default function Finances() {
   });
   const [vooHoldings, setVooHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-voo") || "240.676"); } catch { return 240.676; }
+  });
+  const [vsusxHoldings, setVsusxHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-vsusx") || "60.0572"); } catch { return 60.0572; }
   });
   // Vanguard settlement / money market fund (VMFXX) — cash held in the brokerage, no LTCG haircut
   const [vanguardSettlement, setVanguardSettlement] = useState<number>(() => {
@@ -767,6 +783,12 @@ export default function Finances() {
     retry: 2,
   });
 
+  const { data: vsusxData, isLoading: vsusxLoading, isError: vsusxError } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+    queryKey: ["/api/market/vsusx"],
+    staleTime: 60_000,
+    retry: 2,
+  });
+
   const { data: ibitData, isLoading: ibitLoading, isError: ibitError, refetch: refetchIbit } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
     queryKey: ["/api/market/ibit"],
     staleTime: 60_000,
@@ -784,16 +806,18 @@ export default function Finances() {
   useEffect(() => { if (btcData?.price) localStorage.setItem("cache_btc_price", String(btcData.price)); }, [btcData]);
   useEffect(() => { if (vtsaxData?.price) localStorage.setItem("cache_vtsax_price", String(vtsaxData.price)); }, [vtsaxData]);
   useEffect(() => { if (vooData?.price) localStorage.setItem("cache_voo_price", String(vooData.price)); }, [vooData]);
+  useEffect(() => { if (vsusxData?.price) localStorage.setItem("cache_vsusx_price", String(vsusxData.price)); }, [vsusxData]);
   useEffect(() => { if (ibitData?.price) localStorage.setItem("cache_ibit_price", String(ibitData.price)); }, [ibitData]);
   useEffect(() => { if (viiixData?.price) localStorage.setItem("cache_viiix_price", String(viiixData.price)); }, [viiixData]);
 
   const cachedBtcPrice = parseFloat(localStorage.getItem("cache_btc_price") ?? "0") || 0;
   const cachedVtsaxPrice = parseFloat(localStorage.getItem("cache_vtsax_price") ?? "0") || 0;
   const cachedVooPrice = parseFloat(localStorage.getItem("cache_voo_price") ?? "0") || 0;
+  const cachedVsusxPrice = parseFloat(localStorage.getItem("cache_vsusx_price") ?? "0") || 0;
   const cachedIbitPrice = parseFloat(localStorage.getItem("cache_ibit_price") ?? "0") || 0;
   const cachedViiixPrice = parseFloat(localStorage.getItem("cache_viiix_price") ?? "0") || 0;
 
-  const pricesUsingCache = (btcError && cachedBtcPrice > 0) || (vtsaxError && cachedVtsaxPrice > 0) || (vooError && cachedVooPrice > 0) || (ibitError && cachedIbitPrice > 0) || (viiixError && cachedViiixPrice > 0);
+  const pricesUsingCache = (btcError && cachedBtcPrice > 0) || (vtsaxError && cachedVtsaxPrice > 0) || (vooError && cachedVooPrice > 0) || (vsusxError && cachedVsusxPrice > 0) || (ibitError && cachedIbitPrice > 0) || (viiixError && cachedViiixPrice > 0);
 
   // Live property valuation via Redfin — re-fetches every 6 hours; falls back to manual value on error
   const { data: propertyData } = useQuery<{ address: string; price: number; source: string; cached: boolean }>({
@@ -886,6 +910,7 @@ export default function Finances() {
   const _btcPrice = btcData?.price ?? cachedBtcPrice;
   const _vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
   const _vooPrice = vooData?.price ?? cachedVooPrice;
+  const _vsusxPrice = vsusxData?.price ?? cachedVsusxPrice;
   const _ibitPrice = ibitData?.price ?? cachedIbitPrice;
   const _viiixPrice = viiixData?.price ?? cachedViiixPrice;
   const _btcValue = btcHoldings * _btcPrice;
@@ -893,12 +918,13 @@ export default function Finances() {
   const _totalBtcValue = _btcValue + _coinbaseValue;
   const _vtsaxValue = vtsaxHoldings * _vtsaxPrice;
   const _vooValue = vooHoldings * _vooPrice;
+  const _vsusxValue = vsusxHoldings * _vsusxPrice;
   const _rothIraValue = (rothIraIbitHoldings * _ibitPrice) + (rothIraVtsaxHoldings * _vtsaxPrice);
   const _k401Value = k401Shares * _viiixPrice;
   // Early withdrawal haircuts (retiring before 55)
   const _rothIraAfterPenalty = _rothIraValue * 0.75;
   const _k401AfterPenalty = _k401Value * 0.68;
-  const _vanguardTotal = _vtsaxValue + _vooValue;
+  const _vanguardTotal = _vtsaxValue + _vooValue + _vsusxValue;
   const _homeLivePrice = propertyData?.price ?? null;
   const _homeSalePrice = (_homeLivePrice !== null && _homeLivePrice > 0) ? _homeLivePrice : homeEstValue;
   const _HOME_TRANSFER_TAX_RATE = 0.0022;
@@ -921,7 +947,7 @@ export default function Finances() {
   // HSA: 20% early-withdrawal penalty + ~22% income tax = 42% haircut for non-medical use before 65
   const _hsaAfterPenalty = hsaBalance * 0.58;
   const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue + trialByFireInvestment;
-  const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
+  const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || vsusxLoading || ibitLoading || viiixLoading;
 
   // NW Snapshots — load history + auto-save current month once prices are ready
   const { data: nwSnapshots = [], refetch: refetchSnapshots } = useQuery<NwSnapshot[]>({
@@ -1144,8 +1170,8 @@ export default function Finances() {
       ["ASSET", "TICKER", "SHARES", "PRICE ($)", "GROSS VALUE ($)", "TAX RATE", "AFTER-TAX VALUE ($)"],
       ["Vanguard Total Stock Market", "VTSAX", vtsaxHoldings, $v(_vtsaxPrice), $v(_vtsaxValue), "15% LTCG", $v(_vtsaxValue * 0.85)],
       ["Vanguard S&P 500 ETF", "VOO", vooHoldings, $v(_vooPrice), $v(_vooValue), "15% LTCG", $v(_vooValue * 0.85)],
+      ["Vanguard Extended Market Index", "VSUSX", vsusxHoldings, $v(_vsusxPrice), $v(_vsusxValue), "15% LTCG", $v(_vsusxValue * 0.85)],
       ["Vanguard Settlement / Money Market", "VMFXX", "", "", $v(vanguardSettlement), "Cash (no tax)", $v(vanguardSettlement)],
-      ["Trial by Fire (Movie Investment)", "—", "", "", $v(trialByFireInvestment), "Principal only · return TBD", $v(trialByFireInvestment)],
       ["Vanguard Brokerage Total", "", "", "", $v(_vanguardTotal + vanguardSettlement), "15% LTCG*", $v(_vanguardAfterTax)],
       [],
       ["── RETIREMENT ACCOUNTS ──", "", "", "", "", "", ""],
@@ -1170,6 +1196,7 @@ export default function Finances() {
       ["Apple RSUs (E*Trade)", "Equity Compensation", $v(eTradeRsuValue), "", "", "", ""],
       ["Ford Explorer", "Vehicle", $v(fordExplorerValue), "", "", "", ""],
       ["Kawasaki Ninja 400", "Vehicle", $v(kawasakiNinjaValue), "", "", "", ""],
+      ["Trial by Fire (Movie Investment)", "Alternative Investment", $v(trialByFireInvestment), "", "", "", ""],
       [],
       ["── TOTAL NET WORTH (AFTER-TAX) ──", "", "", "", "", "", $v(overviewNetWorth)],
     ];
@@ -3859,6 +3886,7 @@ export default function Finances() {
               const btcPrice = btcData?.price ?? cachedBtcPrice;
               const vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
               const vooPrice = vooData?.price ?? cachedVooPrice;
+              const vsusxPrice = vsusxData?.price ?? cachedVsusxPrice;
               const ibitPrice = ibitData?.price ?? cachedIbitPrice;
               const viiixPrice = viiixData?.price ?? cachedViiixPrice;
 
@@ -3867,12 +3895,13 @@ export default function Finances() {
               const totalBtcValue = btcValue + coinbaseValue;
               const vtsaxValue = vtsaxHoldings * vtsaxPrice;
               const vooValue = vooHoldings * vooPrice;
+              const vsusxValue = vsusxHoldings * vsusxPrice;
               const rothIraValue = (rothIraIbitHoldings * ibitPrice) + (rothIraVtsaxHoldings * vtsaxPrice);
               const k401Value = k401Shares * viiixPrice;
               // Early withdrawal haircuts (retiring before 55: 10% penalty + income tax on gains)
               const rothIraAfterPenalty = rothIraValue * 0.75; // 25% haircut (10% penalty + ~15% income tax)
               const k401AfterPenalty = k401Value * 0.68;       // 32% haircut (10% penalty + ~22% income tax)
-              const vanguardTotal = vtsaxValue + vooValue;
+              const vanguardTotal = vtsaxValue + vooValue + vsusxValue;
 
               // Real estate — use live Redfin price when available, else fall back to manual
               const homeLivePrice = propertyData?.price ?? null;
@@ -4045,7 +4074,7 @@ export default function Finances() {
                               <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
                             )}
                           </div>
-                          <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO + VMFXX</span>
+                          <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO + VSUSX + VMFXX</span>
                         </div>
                         <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
                           <div className="flex justify-between text-slate-400">
@@ -4064,21 +4093,41 @@ export default function Finances() {
                             <span>VOO · {vooHoldings} sh.</span>
                             <span className="text-indigo-300">{fmt(vooValue)}</span>
                           </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>VSUSX · {vsusxHoldings} sh.</span>
+                            <span className="text-indigo-300">{fmt(vsusxValue)}</span>
+                          </div>
                           {vanguardSettlement > 0 && (
                             <div className="flex justify-between text-slate-400">
                               <span>Settlement · VMFXX <span className="text-[9px] text-slate-500">(cash, untaxed)</span></span>
                               <span className="text-indigo-300">{fmt(vanguardSettlement)}</span>
                             </div>
                           )}
-                          {trialByFireInvestment > 0 && (
-                            <div className="flex justify-between text-slate-400 border-t border-slate-700/50 pt-1 mt-1">
-                              <span>🎬 Trial by Fire (film inv.) <span className="text-[9px] text-slate-500">principal · return TBD</span></span>
-                              <span className="text-indigo-300">{fmt(trialByFireInvestment)}</span>
-                            </div>
-                          )}
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Trial by Fire — Alternative Investment */}
+                    {trialByFireInvestment > 0 && (
+                      <Card className="bg-slate-800/60 border-amber-500/30">
+                        <CardContent className="pt-4 pb-3 px-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <p className="text-xs text-amber-400 font-bold tracking-wide">🎬 Alternative Investments</p>
+                              <p className="text-2xl font-bold text-white mt-0.5">{fmt(trialByFireInvestment)}</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">principal · return TBD</p>
+                            </div>
+                            <span className="text-[10px] text-amber-400 border border-amber-500/30 rounded px-1.5 py-0.5">Film</span>
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
+                            <div className="flex justify-between text-slate-400">
+                              <span>Trial by Fire (movie investment)</span>
+                              <span className="text-amber-300">{fmt(trialByFireInvestment)}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
 
                     {/* Roth IRA — VTSAX + IBIT */}
                     <Card className="bg-slate-800/60 border-emerald-500/30">
