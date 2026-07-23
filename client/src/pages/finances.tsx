@@ -506,6 +506,20 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: Vanguard settlement (VMFXX) zeroed out (July 20 2026)
+  // The $5,000 was deployed — settlement balance is now $0.
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260720-settlement-zero";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-vanguard-settlement", "0");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setVanguardSettlement(0);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: BMO checking 1711 updated to $40,000 (July 18 2026)
   useEffect(() => {
     try {
@@ -557,7 +571,7 @@ export default function Finances() {
   });
   // Vanguard settlement / money market fund (VMFXX) — cash held in the brokerage, no LTCG haircut
   const [vanguardSettlement, setVanguardSettlement] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-vanguard-settlement") || "5000"); } catch { return 5000; }
+    try { return parseFloat(localStorage.getItem("nw-vanguard-settlement") || "0"); } catch { return 0; }
   });
   // Trial by Fire movie investment — $5,000 principal; return amount unknown/TBD
   const [trialByFireInvestment, setTrialByFireInvestment] = useState<number>(() => {

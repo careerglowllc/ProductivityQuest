@@ -1025,7 +1025,7 @@ function TimeGridView({ dates, allEvents, today, isMobile, isDark, scrollRef, dr
                   {dayAllDay.map((ev) => (
                     <div
                       key={ev.id}
-                      className="truncate rounded-sm px-1 py-0.5 text-[10px] leading-tight text-white cursor-pointer hover:brightness-110"
+                      className={`truncate rounded-sm px-1 py-0.5 text-[10px] leading-tight cursor-pointer hover:brightness-110 ${isDark ? "text-white" : "text-gray-800"}`}
                       style={{ backgroundColor: eventColor(ev) + "80" }}
                       onClick={() => onEventTap(ev)}
                     >
@@ -1053,7 +1053,7 @@ function TimeGridView({ dates, allEvents, today, isMobile, isDark, scrollRef, dr
           const timedEvents = getEventsForDate(allEvents, date).filter((ev) => !ev.allDay);
           return (
             <DayColumn key={`${date.toISOString()}-${colIdx}`} date={date} events={timedEvents}
-              isToday={sameDay(date, today)} isMobile={isMobile} numCols={numCols}
+              isToday={sameDay(date, today)} isMobile={isMobile} numCols={numCols} isDark={isDark}
               drag={drag} resizeEventId={resizeEventId}
               onEventTap={onEventTap} onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onDragCancel={onDragCancel}
               onEmptyTap={(minute) => onEmptyTap(date, minute)} />
@@ -1107,7 +1107,7 @@ function MonthView({ year, month, allEvents, today, isMobile, isDark, onSwipeSta
                     <div className={`text-xs font-semibold text-center mb-0.5 ${isToday ? "bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center mx-auto text-[10px]" : isDark ? "text-gray-300" : "text-gray-700"}`}>{dayNum}</div>
                     <div className="space-y-px">
                       {dayEvents.slice(0, maxShow).map((ev) => (
-                        <div key={ev.id} className="truncate rounded-sm px-0.5 text-[9px] leading-tight text-white" style={{ backgroundColor: eventColor(ev) + "80" }} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}>{ev.title}</div>
+                        <div key={ev.id} className={`truncate rounded-sm px-0.5 text-[9px] leading-tight ${isDark ? "text-white" : "text-gray-800"}`} style={{ backgroundColor: eventColor(ev) + "80" }} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}>{ev.title}</div>
                       ))}
                       {dayEvents.length > maxShow && <div className={`text-[8px] ${isDark ? "text-gray-400" : "text-gray-400"} text-center`}>+{dayEvents.length - maxShow} more</div>}
                     </div>
@@ -1130,6 +1130,7 @@ interface DayColumnProps {
   date: Date; events: CalendarEvent[]; isToday: boolean; isMobile: boolean; numCols: number;
   drag: DragState | null;
   resizeEventId: string | null;
+  isDark: boolean;
   onEventTap: (ev: CalendarEvent, pos?: { x: number; y: number }) => void;
   onDragStart: (ds: DragState) => void;
   onDragUpdate: (minute: number) => void;
@@ -1139,7 +1140,7 @@ interface DayColumnProps {
 }
 
 const DayColumn = React.memo(function DayColumn({
-  date, events, isToday, isMobile, numCols, drag, resizeEventId,
+  date, events, isToday, isMobile, numCols, drag, resizeEventId, isDark,
   onEventTap, onDragStart, onDragUpdate, onDragEnd, onDragCancel, onEmptyTap,
 }: DayColumnProps) {
   const colRef = useRef<HTMLDivElement>(null);
@@ -1681,18 +1682,18 @@ const DayColumn = React.memo(function DayColumn({
             <div className="px-2 py-0.5 h-full flex flex-col justify-start overflow-hidden" style={{ paddingTop: isInResizeMode ? 6 : 2 }}>
               <div className="flex items-center gap-1 min-w-0">
                 {ev.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
-                <span className={`${visHeight > 25 ? "text-xs" : "text-[10px]"} font-semibold truncate ${ev.completed ? "line-through text-gray-400" : "text-white"}`}>{ev.title}</span>
+                <span className={`${visHeight > 25 ? "text-xs" : "text-[10px]"} font-semibold truncate ${ev.completed ? "line-through text-gray-400" : isDark ? "text-white" : "text-gray-800"}`}>{ev.title}</span>
               </div>
               {visHeight > 30 && (
-                <span className="text-[10px] text-white/60 truncate">
+                <span className={`text-[10px] truncate ${isDark ? "text-white/60" : "text-gray-600"}`}>
                   {formatTime(start)}{visHeight > 45 && ` \u2013 ${formatTime(end)}`}
                 </span>
               )}
               {visHeight > 55 && ev.campaign && (
-                <span className="text-[9px] text-white/40 truncate mt-0.5">{ev.campaign}</span>
+                <span className={`text-[9px] truncate mt-0.5 ${isDark ? "text-white/40" : "text-gray-500"}`}>{ev.campaign}</span>
               )}
               {visHeight > 55 && ev.source === "google" && ev.calendarName && (
-                <span className="text-[9px] text-white/40 truncate">{ev.calendarName}</span>
+                <span className={`text-[9px] truncate ${isDark ? "text-white/40" : "text-gray-500"}`}>{ev.calendarName}</span>
               )}
             </div>
 
