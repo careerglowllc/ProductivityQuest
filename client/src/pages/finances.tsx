@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -194,12 +195,212 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+// ── Real Estate ROI Calculator ──────────────────────────────────────────────
+function RealEstateROICalculator({
+  purchasePrice,
+  currentValue,
+  loanBalance,
+  monthlyHousingCost,
+  pendingCosts,
+  monthsOwned,
+  totalExpensesMonthly,
+}: {
+  purchasePrice: number;
+  currentValue: number;
+  loanBalance: number;
+  monthlyHousingCost: number;
+  pendingCosts: number;
+  monthsOwned: number;
+  totalExpensesMonthly: number;
+}) {
+  const [annualAppreciation, setAnnualAppreciation] = useState(4);       // % annual home value appreciation
+  const [holdYears, setHoldYears] = useState(10);                        // years to hold before selling
+  const [monthlyRent, setMonthlyRent] = useState(2800);                  // rental income if rented
+  const [vacancyRate, setVacancyRate] = useState(5);                     // % vacancy
+  const [annualMaintenancePct, setAnnualMaintenancePct] = useState(1.5); // % of home value / yr
+  const [includeRental, setIncludeRental] = useState(false);
+
+  const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+
+  // Projected sale price after holdYears of appreciation
+  const projectedSalePrice = currentValue * Math.pow(1 + annualAppreciation / 100, holdYears);
+
+  // Projected loan balance reduction (simple estimate: assume current paydown rate)
+  // Already ~(purchasePrice - loanBalance) paid down over monthsOwned months
+  const monthlyPrincipal = monthsOwned > 0 ? (purchasePrice - loanBalance) / monthsOwned : 500;
+  const projectedLoanBalance = Math.max(0, loanBalance - monthlyPrincipal * holdYears * 12);
+
+  // Selling costs at projected sale
+  const projectedAgentFee = projectedSalePrice * 0.06;
+  const projectedTransferTax = projectedSalePrice * 0.0022;
+  const projectedTotalSellCosts = projectedAgentFee + projectedTransferTax;
+  const projectedNetPreTax = projectedSalePrice - projectedLoanBalance - projectedTotalSellCosts;
+
+  // Cap gains tax on projected sale
+  const projectedGain = projectedSalePrice - projectedTotalSellCosts - purchasePrice;
+  const projectedTaxableGain = Math.max(0, projectedGain - 250000);
+  const projectedCapTax = projectedTaxableGain * 0.2432; // 15% fed + 9.32% CA
+  const projectedAfterTax = projectedNetPreTax - projectedCapTax - pendingCosts;
+
+  // Holding costs over the period
+  const annualMaintenance = (currentValue * annualMaintenancePct) / 100;
+  const totalHoldingCost = monthlyHousingCost * holdYears * 12 + annualMaintenance * holdYears + pendingCosts;
+
+  // Rental scenario
+  const effectiveRent = monthlyRent * (1 - vacancyRate / 100);
+  const annualRentalIncome = effectiveRent * 12;
+  const annualRentalExpenses = monthlyHousingCost * 12 + annualMaintenance;
+  const annualNOI = annualRentalIncome - annualRentalExpenses;
+  const capRate = currentValue > 0 ? (annualNOI / currentValue) * 100 : 0;
+  const totalRentalIncomeHold = effectiveRent * holdYears * 12;
+  const totalRentalProfit = totalRentalIncomeHold + projectedAfterTax - totalHoldingCost;
+
+  // Simple appreciation ROI (no rental)
+  const appreciationROI = purchasePrice > 0
+    ? ((projectedAfterTax - (purchasePrice - loanBalance)) / (purchasePrice - loanBalance)) * 100
+    : 0;
+
+  const annualROI = holdYears > 0 ? appreciationROI / holdYears : 0;
+
+  const SliderRow = ({
+    label, value, min, max, step, unit, onChange, color = "text-pink-300",
+  }: {
+    label: string; value: number; min: number; max: number; step: number; unit: string;
+    onChange: (v: number) => void; color?: string;
+  }) => (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-slate-400">{label}</span>
+        <span className={`font-semibold ${color}`}>{unit === "%" ? `${value}%` : unit === "yr" ? `${value} yrs` : `$${value.toLocaleString()}`}</span>
+      </div>
+      <Slider
+        min={min} max={max} step={step} value={[value]}
+        onValueChange={([v]) => onChange(v)}
+        className="[&_.thumb]:border-pink-500 [&_.range]:bg-pink-500"
+      />
+      <div className="flex justify-between text-[10px] text-slate-600">
+        <span>{unit === "%" ? `${min}%` : unit === "yr" ? `${min}yr` : `$${min.toLocaleString()}`}</span>
+        <span>{unit === "%" ? `${max}%` : unit === "yr" ? `${max}yr` : `$${max.toLocaleString()}`}</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Controls */}
+      <div className="space-y-4">
+        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Projection Controls</p>
+        <SliderRow label="Annual home appreciation" value={annualAppreciation} min={0} max={12} step={0.5} unit="%" onChange={setAnnualAppreciation} />
+        <SliderRow label="Hold period" value={holdYears} min={1} max={30} step={1} unit="yr" onChange={setHoldYears} />
+        <SliderRow label="Annual maintenance (% of value)" value={annualMaintenancePct} min={0.5} max={4} step={0.25} unit="%" onChange={setAnnualMaintenancePct} />
+
+        <div className="border-t border-slate-700/40 pt-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Rental Scenario</p>
+            <button
+              onClick={() => setIncludeRental(r => !r)}
+              className={`text-[10px] px-2 py-0.5 rounded border font-medium transition-colors ${includeRental ? "bg-pink-600/30 border-pink-500/40 text-pink-300" : "bg-slate-700/40 border-slate-600 text-slate-400"}`}
+            >
+              {includeRental ? "On" : "Off"}
+            </button>
+          </div>
+          {includeRental && (
+            <>
+              <SliderRow label="Monthly rent income" value={monthlyRent} min={500} max={6000} step={50} unit="$" onChange={setMonthlyRent} />
+              <SliderRow label="Vacancy rate" value={vacancyRate} min={0} max={20} step={1} unit="%" onChange={setVacancyRate} />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Results */}
+      <div className="space-y-3">
+        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Projected Results — {holdYears} yr hold</p>
+
+        {/* Sale projection */}
+        <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-slate-700/40">
+          <p className="text-[10px] text-pink-400/80 font-semibold uppercase tracking-wider mb-1.5">Sale Projection</p>
+          <div className="flex justify-between text-slate-400">
+            <span>Projected sale price</span>
+            <span className="text-emerald-300">{fmt(projectedSalePrice)}</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Projected loan balance</span>
+            <span className="text-red-400">−{fmt(projectedLoanBalance)}</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Selling costs + pending</span>
+            <span className="text-red-400">−{fmt(projectedTotalSellCosts + pendingCosts)}</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Est. cap gains tax</span>
+            <span className="text-red-400">−{fmt(projectedCapTax)}</span>
+          </div>
+          <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1">
+            <span className="text-slate-200">After-tax net proceeds</span>
+            <span className={projectedAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(projectedAfterTax)}</span>
+          </div>
+        </div>
+
+        {/* ROI metrics */}
+        <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-slate-700/40">
+          <p className="text-[10px] text-pink-400/80 font-semibold uppercase tracking-wider mb-1.5">Return Metrics</p>
+          <div className="flex justify-between text-slate-400">
+            <span>Total holding costs ({holdYears} yrs)</span>
+            <span className="text-red-400">−{fmt(totalHoldingCost)}</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Appreciation gain</span>
+            <span className="text-emerald-300">+{fmt(projectedSalePrice - currentValue)}</span>
+          </div>
+          <div className="flex justify-between font-semibold text-sm border-t border-slate-700/30 pt-1">
+            <span className="text-slate-200">Total ROI</span>
+            <span className={appreciationROI >= 0 ? "text-emerald-300" : "text-red-300"}>{fmtPct(appreciationROI)}</span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Annualized ROI</span>
+            <span className={annualROI >= 0 ? "text-emerald-400" : "text-red-400"}>{fmtPct(annualROI)}/yr</span>
+          </div>
+        </div>
+
+        {/* Rental metrics */}
+        {includeRental && (
+          <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-amber-700/30">
+            <p className="text-[10px] text-amber-400/80 font-semibold uppercase tracking-wider mb-1.5">Rental Metrics</p>
+            <div className="flex justify-between text-slate-400">
+              <span>Effective monthly rent</span>
+              <span className="text-emerald-300">{fmt(effectiveRent)}/mo</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Annual housing expenses</span>
+              <span className="text-red-400">−{fmt(annualRentalExpenses)}/yr</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Net Operating Income</span>
+              <span className={annualNOI >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(annualNOI)}/yr</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Cap Rate</span>
+              <span className={capRate >= 4 ? "text-emerald-300" : capRate >= 2 ? "text-yellow-300" : "text-red-300"}>{fmtPct(capRate)}</span>
+            </div>
+            <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1">
+              <span className="text-slate-200">Total rental profit ({holdYears} yrs)</span>
+              <span className={totalRentalProfit >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(totalRentalProfit)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Finances() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire" | "real-estate">("overview");
   const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn">("thailand");
   const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn" | null>(null);
   const [fireTier, setFireTier] = useState<"lean" | "comfortable" | "cushy">("comfortable");
@@ -621,6 +822,12 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
+  // Pending home improvement costs (July 2026) — deducted from net worth as real outlays
+  const homeShedCost = 6158;    // new shed — final cost
+  const homeFloorCost = 35000;  // floor molding & replacement — tentative cost (not yet final)
+  const homeRoofFixCost = 500;  // small roof fix — final cost
+  const homeFumeHoodCost = 1300; // fume hood install — final cost
+  const homePendingCosts = homeShedCost + homeFloorCost + homeRoofFixCost + homeFumeHoodCost;
   // Cash — BMO checking account ending in 1711 (manual, updated July 7, 2026: → $80,756)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-checking") || "40000"); } catch { return 40000; }
@@ -950,7 +1157,7 @@ export default function Finances() {
   const _homeRawGain = _homeSalePrice - _homeTotalSellingCosts - _homeAdjustedBasis;
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
-  const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
+  const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax - homePendingCosts;
   // BTC wallets and Vanguard brokerage: apply 15% LTCG haircut in all net worth totals
   const _btcAfterTax = _totalBtcValue * 0.85;
   // Settlement/money market (VMFXX) is cash — no LTCG haircut; add at face value.
@@ -1426,6 +1633,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="fire" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
               🔥 FIRE Goal
+            </TabsTrigger>
+            <TabsTrigger value="real-estate" className="data-[state=active]:bg-pink-600/40 text-xs px-3 py-1.5">
+              🏠 Real Estate
             </TabsTrigger>
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
@@ -3539,6 +3749,247 @@ export default function Finances() {
             })()}
           </TabsContent>
 
+          {/* ── Real Estate ───────────────────────────── */}
+          <TabsContent value="real-estate" className="space-y-4">
+            {(() => {
+              // ── Derived values (mirrors net worth card logic) ──────────────────────
+              const reLivePrice = propertyData?.price ?? null;
+              const rePriceIsLive = reLivePrice !== null && reLivePrice > 0;
+              const reSalePrice = rePriceIsLive ? reLivePrice : homeEstValue;
+              const reAgentCommission = reSalePrice * (homeSellerFee / 100);
+              const reTransferTax = reSalePrice * 0.0022;
+              const reTotalSellingCosts = reAgentCommission + reTransferTax + homeOtherCosts;
+              const reNetCashPreTax = reSalePrice - homeLoanBalance - reTotalSellingCosts;
+              const reAdjBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
+              const reRawGain = reSalePrice - reTotalSellingCosts - reAdjBasis;
+              const reTaxableGain = Math.max(0, reRawGain - homePrimaryExclusion);
+              const reCapGainsTax = reTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
+              const reAfterTax = reNetCashPreTax - reCapGainsTax - homePendingCosts;
+              const reEquityRaw = reSalePrice - homeLoanBalance; // gross equity before costs/tax
+
+              // ── Housing category monthly costs from finance items ──────────────────
+              const housingItems = financialItems.filter(i =>
+                i.category === "Housing" || (i.tags ?? []).includes("Housing")
+              );
+              const monthlyHousingCost = housingItems.reduce((s, i) => s + i.monthlyCost, 0);
+              // Mortgage/PITI is the big one — isolate it for the breakdown
+              const mortgageItem = financialItems.find(i =>
+                i.item.toLowerCase().includes("mortgage") || i.item.toLowerCase().includes("piti")
+              );
+              const monthlyMortgage = mortgageItem ? mortgageItem.monthlyCost : 446714; // cents
+              const monthlyNonMortgageHousing = monthlyHousingCost - monthlyMortgage;
+
+              // Purchase date: May 2025 → calculate months owned
+              const purchaseDate = new Date(2025, 4, 1); // May 2025
+              const now = new Date();
+              const monthsOwned = Math.max(1,
+                (now.getFullYear() - purchaseDate.getFullYear()) * 12 +
+                (now.getMonth() - purchaseDate.getMonth())
+              );
+              const yearsOwned = (monthsOwned / 12).toFixed(1);
+
+              // 30-year mortgage total remaining (assume 30yr term, started May 2025)
+              const loanTermMonths = 360;
+              const monthsElapsed = monthsOwned;
+              const monthsRemaining = Math.max(0, loanTermMonths - monthsElapsed);
+
+              // Lifetime cost so far = months owned × total monthly housing
+              const lifetimeSoFar = monthsOwned * (monthlyHousingCost / 100);
+              // Projected full lifetime cost = (total monthly housing × 360 months) + pending costs
+              const projectedLifetime = (monthlyHousingCost / 100) * loanTermMonths + homePendingCosts;
+
+              // ── ROI Calculator state (local via useState-like inline) ──────────────
+              // We can't use hooks here, so we use outer state for sliders defined below
+              return (
+                <div className="space-y-4">
+
+                  {/* ── Row 1: KPI Cards ── */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* Current Market Value */}
+                    <Card className="bg-slate-800/60 border-pink-500/30">
+                      <CardContent className="pt-3 pb-3 px-4">
+                        <p className="text-[10px] text-pink-400 font-bold uppercase tracking-wide mb-1">
+                          {rePriceIsLive ? "● Live Value" : "Est. Market Value"}
+                        </p>
+                        <p className="text-xl font-bold text-white">${Math.round(reSalePrice).toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">2605 Plumbago Ct</p>
+                      </CardContent>
+                    </Card>
+                    {/* Gross Equity */}
+                    <Card className="bg-slate-800/60 border-pink-500/30">
+                      <CardContent className="pt-3 pb-3 px-4">
+                        <p className="text-[10px] text-pink-400 font-bold uppercase tracking-wide mb-1">Gross Equity</p>
+                        <p className={`text-xl font-bold ${reEquityRaw >= 0 ? "text-white" : "text-red-300"}`}>
+                          {reEquityRaw >= 0 ? `$${Math.round(reEquityRaw).toLocaleString()}` : `-$${Math.abs(Math.round(reEquityRaw)).toLocaleString()}`}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">value − loan</p>
+                      </CardContent>
+                    </Card>
+                    {/* After-tax net */}
+                    <Card className="bg-slate-800/60 border-pink-500/30">
+                      <CardContent className="pt-3 pb-3 px-4">
+                        <p className="text-[10px] text-pink-400 font-bold uppercase tracking-wide mb-1">After-Tax Net</p>
+                        <p className={`text-xl font-bold ${reAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                          {reAfterTax >= 0 ? `$${Math.round(reAfterTax).toLocaleString()}` : `-$${Math.abs(Math.round(reAfterTax)).toLocaleString()}`}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">after costs, tax & pending</p>
+                      </CardContent>
+                    </Card>
+                    {/* Monthly housing burn */}
+                    <Card className="bg-slate-800/60 border-pink-500/30">
+                      <CardContent className="pt-3 pb-3 px-4">
+                        <p className="text-[10px] text-pink-400 font-bold uppercase tracking-wide mb-1">Monthly Housing</p>
+                        <p className="text-xl font-bold text-white">${Math.round(monthlyHousingCost / 100).toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">mortgage + utilities + more</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* ── Row 2: Net Value Breakdown + Lifetime Cost ── */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    {/* Net Value Breakdown */}
+                    <Card className="bg-slate-800/60 border-pink-500/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-pink-300 text-sm">📊 Net Value Breakdown</CardTitle>
+                        <CardDescription className="text-slate-400 text-xs">If sold today</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-1.5 text-xs">
+                        <div className="flex justify-between text-slate-400">
+                          <span className="flex items-center gap-1">{rePriceIsLive ? "Redfin live price" : "Manual estimate"}
+                            {rePriceIsLive && <span className="text-[9px] text-emerald-400 border border-emerald-600/40 rounded px-1">live</span>}
+                          </span>
+                          <span className="text-white">${Math.round(reSalePrice).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Remaining loan balance</span>
+                          <span className="text-red-400">−${homeLoanBalance.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Agent commission ({homeSellerFee}%)</span>
+                          <span className="text-red-400">−${Math.round(reAgentCommission).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Transfer tax (0.22%)</span>
+                          <span className="text-red-400">−${Math.round(reTransferTax).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400 border-t border-slate-700/30 pt-1">
+                          <span>Net cash (pre-tax)</span>
+                          <span className={reNetCashPreTax >= 0 ? "text-slate-200" : "text-red-400"}>
+                            {reNetCashPreTax >= 0 ? `$${Math.round(reNetCashPreTax).toLocaleString()}` : `-$${Math.abs(Math.round(reNetCashPreTax)).toLocaleString()}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Est. cap gains tax ({(homeFedCapGainsRate + homeCaCapGainsRate).toFixed(1)}%)</span>
+                          <span className="text-red-400">−${Math.round(reCapGainsTax).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span className="flex items-center gap-1">Pending costs
+                            <span className="text-[9px] bg-amber-900/50 text-amber-400 px-1 py-0.5 rounded">incl. tentative</span>
+                          </span>
+                          <span className="text-red-400">−${homePendingCosts.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between font-bold border-t border-slate-600/60 pt-1.5 mt-1">
+                          <span className="text-slate-200">After-tax net cash</span>
+                          <span className={reAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}>
+                            {reAfterTax >= 0 ? `$${Math.round(reAfterTax).toLocaleString()}` : `-$${Math.abs(Math.round(reAfterTax)).toLocaleString()}`}
+                          </span>
+                        </div>
+                        {/* Visual equity bar */}
+                        <div className="mt-3">
+                          <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                            <span>Equity / Value ratio</span>
+                            <span>{reSalePrice > 0 ? ((reEquityRaw / reSalePrice) * 100).toFixed(1) : 0}%</span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-pink-500 to-rose-400 rounded-full"
+                              style={{ width: `${Math.max(0, Math.min(100, (reEquityRaw / reSalePrice) * 100))}%` }}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Lifetime Cost */}
+                    <Card className="bg-slate-800/60 border-pink-500/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-pink-300 text-sm">🏗️ Lifetime Cost of Ownership</CardTitle>
+                        <CardDescription className="text-slate-400 text-xs">Owned {yearsOwned} yrs · {monthsOwned} months · 30-yr loan</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-1.5 text-xs">
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Monthly Housing Costs</p>
+                        {housingItems.map(item => (
+                          <div key={item.id} className="flex justify-between text-slate-400">
+                            <span className="truncate max-w-[65%]">{item.item}</span>
+                            <span>${Math.round(item.monthlyCost / 100).toLocaleString()}/mo</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1 text-slate-300">
+                          <span>Total monthly housing</span>
+                          <span>${Math.round(monthlyHousingCost / 100).toLocaleString()}/mo</span>
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-3 mb-1">Cumulative Totals</p>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Spent so far ({monthsOwned} mo)</span>
+                          <span className="text-amber-300">${Math.round(lifetimeSoFar).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Pending home improvements</span>
+                          <span className="text-amber-300">${homePendingCosts.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Projected full 30-yr total</span>
+                          <span className="text-red-400">${Math.round(projectedLifetime).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between font-bold border-t border-slate-600/60 pt-1.5 mt-1">
+                          <span className="text-slate-200">Remaining months on loan</span>
+                          <span className="text-slate-300">{monthsRemaining} mo ({(monthsRemaining / 12).toFixed(1)} yrs)</span>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="mt-3">
+                          <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                            <span>Loan payoff progress</span>
+                            <span>{((monthsElapsed / loanTermMonths) * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-pink-600 to-rose-500 rounded-full"
+                              style={{ width: `${(monthsElapsed / loanTermMonths) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* ── Row 3: ROI Calculator ── */}
+                  <Card className="bg-slate-800/60 border-pink-500/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-pink-300 text-sm">📈 ROI &amp; Rental Calculator</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">
+                        Adjust sliders to project returns — uses your live expense data
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <RealEstateROICalculator
+                        purchasePrice={homePurchasePrice}
+                        currentValue={reSalePrice}
+                        loanBalance={homeLoanBalance}
+                        monthlyHousingCost={monthlyHousingCost / 100}
+                        pendingCosts={homePendingCosts}
+                        monthsOwned={monthsOwned}
+                        totalExpensesMonthly={totalExpenses / 100}
+                      />
+                    </CardContent>
+                  </Card>
+
+                </div>
+              );
+            })()}
+          </TabsContent>
+
           {/* ── All Items Table ───────────────────────── */}
           <TabsContent value="table" className="space-y-4">
             <Card className="bg-slate-800/60 border-purple-500/30">
@@ -3934,7 +4385,7 @@ export default function Finances() {
               const homeRawGain = homeSalePrice - homeTotalSellingCosts - homeAdjustedBasis;
               const homeTaxableGain = Math.max(0, homeRawGain - homePrimaryExclusion);
               const homeCapGainsTax = homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
-              const homeAfterTaxNetCash = homeNetCashAfterSale - homeCapGainsTax;
+              const homeAfterTaxNetCash = homeNetCashAfterSale - homeCapGainsTax - homePendingCosts;
               // homeEquity = after-tax net cash proceeds (used throughout for net worth)
               const homeEquity = homeAfterTaxNetCash;
 
@@ -4302,6 +4753,39 @@ export default function Finances() {
                             <span className={homeCapGainsTax > 0 ? "text-red-400" : "text-emerald-400"}>
                               {homeCapGainsTax > 0 ? `-$${Math.round(homeCapGainsTax).toLocaleString()}` : "$0"}
                             </span>
+                          </div>
+                        </div>
+
+                        {/* Pending home improvement costs */}
+                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Pending Property Costs</p>
+                          <div className="flex justify-between">
+                            <span className="flex items-center gap-1">New shed
+                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
+                            </span>
+                            <span className="text-red-400">-$6,158</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="flex items-center gap-1">Floor molding &amp; replacement
+                              <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
+                            </span>
+                            <span className="text-red-400">-$35,000</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="flex items-center gap-1">Small roof fix
+                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
+                            </span>
+                            <span className="text-red-400">-$500</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="flex items-center gap-1">Fume hood install
+                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
+                            </span>
+                            <span className="text-red-400">-$1,300</span>
+                          </div>
+                          <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1">
+                            <span className="text-slate-300">Total pending costs</span>
+                            <span className="text-red-400">-${homePendingCosts.toLocaleString()}</span>
                           </div>
                         </div>
 
