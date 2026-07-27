@@ -4977,6 +4977,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/market/vxus", async (_req, res) => {
+    try {
+      res.json(await fetchYahooPrice("VXUS"));
+    } catch (error: any) {
+      console.error("VXUS price fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch VXUS price", details: error.message });
+    }
+  });
+
   app.get("/api/market/ibit", async (_req, res) => {
     try {
       res.json(await fetchYahooPrice("IBIT"));

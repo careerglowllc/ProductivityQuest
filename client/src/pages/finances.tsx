@@ -203,7 +203,7 @@ function RealEstateROICalculator({
   monthlyHousingCost,
   pendingCosts,
   monthsOwned,
-  totalExpensesMonthly,
+  totalExpensesMonthly: _totalExpensesMonthly,
 }: {
   purchasePrice: number;
   currentValue: number;
@@ -213,41 +213,78 @@ function RealEstateROICalculator({
   monthsOwned: number;
   totalExpensesMonthly: number;
 }) {
-  const [annualAppreciation, setAnnualAppreciation] = useState(4);       // % annual home value appreciation
-  const [holdYears, setHoldYears] = useState(10);                        // years to hold before selling
-  const [monthlyRent, setMonthlyRent] = useState(2800);                  // rental income if rented
-  const [vacancyRate, setVacancyRate] = useState(5);                     // % vacancy
-  const [annualMaintenancePct, setAnnualMaintenancePct] = useState(1.5); // % of home value / yr
+  const [annualAppreciation, setAnnualAppreciation] = useState(4);        // % annual home appreciation
+  const [holdYears, setHoldYears] = useState(10);                         // years to hold before selling
+  const [annualMaintenancePct, setAnnualMaintenancePct] = useState(1.5);  // % of home value / yr
+  const [rentAlternative, setRentAlternative] = useState(2800);           // what you'd pay in rent instead
+  const [spAnnualReturn, setSpAnnualReturn] = useState(10);               // S&P 500 annual return assumption
   const [includeRental, setIncludeRental] = useState(false);
+  const [monthlyRent, setMonthlyRent] = useState(2800);                   // rental income if rented out
+  const [vacancyRate, setVacancyRate] = useState(5);                      // % vacancy
 
   const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
-  const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+  const fmtPct = (n: number, d = 1) => `${n.toFixed(d)}%`;
 
-  // Projected sale price after holdYears of appreciation
-  const projectedSalePrice = currentValue * Math.pow(1 + annualAppreciation / 100, holdYears);
-
-  // Projected loan balance reduction (simple estimate: assume current paydown rate)
-  // Already ~(purchasePrice - loanBalance) paid down over monthsOwned months
+  // ── Down payment estimate ───────────────────────────────────────────────
+  // Infer original loan: current balance + principal paid so far
   const monthlyPrincipal = monthsOwned > 0 ? (purchasePrice - loanBalance) / monthsOwned : 500;
-  const projectedLoanBalance = Math.max(0, loanBalance - monthlyPrincipal * holdYears * 12);
+  const originalLoan = loanBalance + monthlyPrincipal * monthsOwned;
+  const downPayment = Math.max(0, purchasePrice - originalLoan);
 
-  // Selling costs at projected sale
+  // ── Projected sale ──────────────────────────────────────────────────────
+  const projectedSalePrice = currentValue * Math.pow(1 + annualAppreciation / 100, holdYears);
+  const projectedLoanBalance = Math.max(0, loanBalance - monthlyPrincipal * holdYears * 12);
   const projectedAgentFee = projectedSalePrice * 0.06;
   const projectedTransferTax = projectedSalePrice * 0.0022;
   const projectedTotalSellCosts = projectedAgentFee + projectedTransferTax;
   const projectedNetPreTax = projectedSalePrice - projectedLoanBalance - projectedTotalSellCosts;
-
-  // Cap gains tax on projected sale
   const projectedGain = projectedSalePrice - projectedTotalSellCosts - purchasePrice;
   const projectedTaxableGain = Math.max(0, projectedGain - 250000);
   const projectedCapTax = projectedTaxableGain * 0.2432; // 15% fed + 9.32% CA
   const projectedAfterTax = projectedNetPreTax - projectedCapTax - pendingCosts;
 
-  // Holding costs over the period
+  // ── Holding costs ───────────────────────────────────────────────────────
   const annualMaintenance = (currentValue * annualMaintenancePct) / 100;
+  // Total cash you'll have paid out of pocket over the hold period
   const totalHoldingCost = monthlyHousingCost * holdYears * 12 + annualMaintenance * holdYears + pendingCosts;
+  const totalCashInvested = downPayment + totalHoldingCost;
 
-  // Rental scenario
+  // ── Corrected ROI ───────────────────────────────────────────────────────
+  // Net gain = what you walk away with minus everything you put in
+  const netGain = projectedAfterTax - totalCashInvested;
+  // Total ROI based on total cash invested (not just down payment)
+  const totalROI = totalCashInvested > 0 ? (netGain / totalCashInvested) * 100 : 0;
+  // CAGR (compound annual growth rate) — correct annualized return
+  const cagr = totalCashInvested > 0 && holdYears > 0 && projectedAfterTax > 0
+    ? (Math.pow(projectedAfterTax / totalCashInvested, 1 / holdYears) - 1) * 100
+    : 0;
+
+  // ── S&P 500 comparison ──────────────────────────────────────────────────
+  // Scenario: invest downPayment upfront + invest (monthlyHousingCost - rent) each month
+  // Positive monthly savings = you're spending MORE on housing than rent → that surplus could go to S&P
+  // Negative monthly savings = rent > housing (unlikely but possible) → you have less to invest
+  const monthlySavingsVsRent = monthlyHousingCost - rentAlternative; // extra cash cost of owning vs renting
+  const spMonthlyRate = Math.pow(1 + spAnnualReturn / 100, 1 / 12) - 1;
+  const nMonths = holdYears * 12;
+  // FV of lump sum (down payment) + FV of monthly contributions (cost differential)
+  // When monthlySavingsVsRent > 0, owning costs more → the "savings" side invests less vs renting scenario
+  // In the renting scenario: invest downPayment + monthlySavingsVsRent each month
+  const spFV_lumpSum = downPayment * Math.pow(1 + spMonthlyRate, nMonths);
+  const spFV_monthly = spMonthlyRate > 0
+    ? monthlySavingsVsRent * ((Math.pow(1 + spMonthlyRate, nMonths) - 1) / spMonthlyRate)
+    : monthlySavingsVsRent * nMonths;
+  const spFinalValue = spFV_lumpSum + spFV_monthly;
+  const spTotalCashIn = downPayment + rentAlternative * nMonths; // total spent in renting scenario (rent payments)
+  const spNetGain = spFinalValue - spTotalCashIn;
+  const spTotalROI = spTotalCashIn > 0 ? (spNetGain / spTotalCashIn) * 100 : 0;
+  const spCAGR = spTotalCashIn > 0 && holdYears > 0 && spFinalValue > 0
+    ? (Math.pow(spFinalValue / spTotalCashIn, 1 / holdYears) - 1) * 100
+    : 0;
+
+  const homeWins = projectedAfterTax >= spFinalValue;
+  const margin = Math.abs(projectedAfterTax - spFinalValue);
+
+  // ── Rental scenario ─────────────────────────────────────────────────────
   const effectiveRent = monthlyRent * (1 - vacancyRate / 100);
   const annualRentalIncome = effectiveRent * 12;
   const annualRentalExpenses = monthlyHousingCost * 12 + annualMaintenance;
@@ -255,13 +292,6 @@ function RealEstateROICalculator({
   const capRate = currentValue > 0 ? (annualNOI / currentValue) * 100 : 0;
   const totalRentalIncomeHold = effectiveRent * holdYears * 12;
   const totalRentalProfit = totalRentalIncomeHold + projectedAfterTax - totalHoldingCost;
-
-  // Simple appreciation ROI (no rental)
-  const appreciationROI = purchasePrice > 0
-    ? ((projectedAfterTax - (purchasePrice - loanBalance)) / (purchasePrice - loanBalance)) * 100
-    : 0;
-
-  const annualROI = holdYears > 0 ? appreciationROI / holdYears : 0;
 
   const SliderRow = ({
     label, value, min, max, step, unit, onChange, color = "text-pink-300",
@@ -272,13 +302,11 @@ function RealEstateROICalculator({
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
         <span className="text-slate-400">{label}</span>
-        <span className={`font-semibold ${color}`}>{unit === "%" ? `${value}%` : unit === "yr" ? `${value} yrs` : `$${value.toLocaleString()}`}</span>
+        <span className={`font-semibold ${color}`}>
+          {unit === "%" ? `${value}%` : unit === "yr" ? `${value} yrs` : `$${value.toLocaleString()}/mo`}
+        </span>
       </div>
-      <Slider
-        min={min} max={max} step={step} value={[value]}
-        onValueChange={([v]) => onChange(v)}
-        className="[&_.thumb]:border-pink-500 [&_.range]:bg-pink-500"
-      />
+      <Slider min={min} max={max} step={step} value={[value]} onValueChange={([v]) => onChange(v)} />
       <div className="flex justify-between text-[10px] text-slate-600">
         <span>{unit === "%" ? `${min}%` : unit === "yr" ? `${min}yr` : `$${min.toLocaleString()}`}</span>
         <span>{unit === "%" ? `${max}%` : unit === "yr" ? `${max}yr` : `$${max.toLocaleString()}`}</span>
@@ -287,109 +315,212 @@ function RealEstateROICalculator({
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Controls */}
-      <div className="space-y-4">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Projection Controls</p>
-        <SliderRow label="Annual home appreciation" value={annualAppreciation} min={0} max={12} step={0.5} unit="%" onChange={setAnnualAppreciation} />
-        <SliderRow label="Hold period" value={holdYears} min={1} max={30} step={1} unit="yr" onChange={setHoldYears} />
-        <SliderRow label="Annual maintenance (% of value)" value={annualMaintenancePct} min={0.5} max={4} step={0.25} unit="%" onChange={setAnnualMaintenancePct} />
+    <div className="space-y-6">
+      {/* ── Controls + Sale + ROI ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Controls */}
+        <div className="space-y-4">
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Projection Controls</p>
+          <SliderRow label="Annual home appreciation" value={annualAppreciation} min={0} max={12} step={0.5} unit="%" onChange={setAnnualAppreciation} />
+          <SliderRow label="Hold period" value={holdYears} min={1} max={30} step={1} unit="yr" onChange={setHoldYears} />
+          <SliderRow label="Annual maintenance (% of value)" value={annualMaintenancePct} min={0.5} max={4} step={0.25} unit="%" onChange={setAnnualMaintenancePct} />
 
-        <div className="border-t border-slate-700/40 pt-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Rental Scenario</p>
-            <button
-              onClick={() => setIncludeRental(r => !r)}
-              className={`text-[10px] px-2 py-0.5 rounded border font-medium transition-colors ${includeRental ? "bg-pink-600/30 border-pink-500/40 text-pink-300" : "bg-slate-700/40 border-slate-600 text-slate-400"}`}
-            >
-              {includeRental ? "On" : "Off"}
-            </button>
+          <div className="border-t border-slate-700/40 pt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Rental Scenario</p>
+              <button onClick={() => setIncludeRental(r => !r)}
+                className={`text-[10px] px-2 py-0.5 rounded border font-medium transition-colors ${includeRental ? "bg-pink-600/30 border-pink-500/40 text-pink-300" : "bg-slate-700/40 border-slate-600 text-slate-400"}`}>
+                {includeRental ? "On" : "Off"}
+              </button>
+            </div>
+            {includeRental && (
+              <>
+                <SliderRow label="Monthly rent income" value={monthlyRent} min={500} max={6000} step={50} unit="$" onChange={setMonthlyRent} />
+                <SliderRow label="Vacancy rate" value={vacancyRate} min={0} max={20} step={1} unit="%" onChange={setVacancyRate} />
+              </>
+            )}
           </div>
+        </div>
+
+        {/* Sale projection + ROI */}
+        <div className="space-y-3">
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Projected Results — {holdYears} yr hold</p>
+
+          <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-slate-700/40">
+            <p className="text-[10px] text-pink-400/80 font-semibold uppercase tracking-wider mb-1.5">Sale Projection</p>
+            <div className="flex justify-between text-slate-400">
+              <span>Projected sale price</span>
+              <span className="text-emerald-300">{fmt(projectedSalePrice)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Projected loan balance</span>
+              <span className="text-red-400">−{fmt(projectedLoanBalance)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Selling costs + pending</span>
+              <span className="text-red-400">−{fmt(projectedTotalSellCosts + pendingCosts)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Est. cap gains tax</span>
+              <span className="text-red-400">−{fmt(projectedCapTax)}</span>
+            </div>
+            <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1">
+              <span className="text-slate-200">After-tax net proceeds</span>
+              <span className={projectedAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(projectedAfterTax)}</span>
+            </div>
+          </div>
+
+          <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-slate-700/40">
+            <p className="text-[10px] text-pink-400/80 font-semibold uppercase tracking-wider mb-1.5">Return Metrics</p>
+            <div className="flex justify-between text-slate-400">
+              <span className="flex items-center gap-1">
+                Down payment (est.)
+                <span className="text-[9px] text-slate-600">inferred from loan paydown</span>
+              </span>
+              <span>{fmt(downPayment)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Total holding costs ({holdYears} yrs)</span>
+              <span className="text-red-400">−{fmt(totalHoldingCost)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400 border-t border-slate-700/20 pt-1">
+              <span className="font-medium">Total cash invested</span>
+              <span>{fmt(totalCashInvested)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Appreciation gain</span>
+              <span className="text-emerald-300">+{fmt(projectedSalePrice - currentValue)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Net gain / (loss)</span>
+              <span className={netGain >= 0 ? "text-emerald-300" : "text-red-400"}>{netGain >= 0 ? "+" : ""}{fmt(netGain)}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-sm border-t border-slate-700/30 pt-1">
+              <span className="text-slate-200">Total ROI</span>
+              <span className={totalROI >= 0 ? "text-emerald-300" : "text-red-300"}>{fmtPct(totalROI)}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span className="flex items-center gap-1">
+                CAGR (annualized)
+                <span className="text-[9px] text-slate-600">compound annual</span>
+              </span>
+              <span className={cagr >= 0 ? "text-emerald-400" : "text-red-400"}>{fmtPct(cagr)}/yr</span>
+            </div>
+          </div>
+
           {includeRental && (
-            <>
-              <SliderRow label="Monthly rent income" value={monthlyRent} min={500} max={6000} step={50} unit="$" onChange={setMonthlyRent} />
-              <SliderRow label="Vacancy rate" value={vacancyRate} min={0} max={20} step={1} unit="%" onChange={setVacancyRate} />
-            </>
+            <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-amber-700/30">
+              <p className="text-[10px] text-amber-400/80 font-semibold uppercase tracking-wider mb-1.5">Rental Metrics</p>
+              <div className="flex justify-between text-slate-400">
+                <span>Effective monthly rent</span>
+                <span className="text-emerald-300">{fmt(effectiveRent)}/mo</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Annual housing expenses</span>
+                <span className="text-red-400">−{fmt(annualRentalExpenses)}/yr</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Net Operating Income</span>
+                <span className={annualNOI >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(annualNOI)}/yr</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Cap Rate</span>
+                <span className={capRate >= 4 ? "text-emerald-300" : capRate >= 2 ? "text-yellow-300" : "text-red-300"}>{fmtPct(capRate)}</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1">
+                <span className="text-slate-200">Total rental profit ({holdYears} yrs)</span>
+                <span className={totalRentalProfit >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(totalRentalProfit)}</span>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Results */}
-      <div className="space-y-3">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Projected Results — {holdYears} yr hold</p>
+      {/* ── S&P 500 Comparison ── */}
+      <div className="border-t border-slate-700/40 pt-4">
+        <div className="flex items-center gap-2 mb-3">
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider">🆚 S&amp;P 500 Comparison</p>
+          <span className="text-[9px] text-slate-600">— what if you rented &amp; invested the difference instead?</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <SliderRow label="Monthly rent (alternative scenario)" value={rentAlternative} min={500} max={6000} step={50} unit="$" onChange={setRentAlternative} color="text-blue-300" />
+          <SliderRow label="S&P 500 annual return assumption" value={spAnnualReturn} min={4} max={15} step={0.5} unit="%" onChange={setSpAnnualReturn} color="text-blue-300" />
+        </div>
 
-        {/* Sale projection */}
-        <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-slate-700/40">
-          <p className="text-[10px] text-pink-400/80 font-semibold uppercase tracking-wider mb-1.5">Sale Projection</p>
-          <div className="flex justify-between text-slate-400">
-            <span>Projected sale price</span>
-            <span className="text-emerald-300">{fmt(projectedSalePrice)}</span>
+        {/* Side-by-side comparison */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Home */}
+          <div className={`bg-slate-900/50 rounded-lg p-4 border-2 ${homeWins ? "border-pink-500/50" : "border-slate-700/40"}`}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold text-pink-300">🏠 Own the House</p>
+              {homeWins && <span className="text-[10px] bg-pink-600/30 text-pink-300 border border-pink-500/40 rounded px-1.5 py-0.5 font-semibold">WINNER</span>}
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between text-slate-400">
+                <span>Total cash invested</span>
+                <span>{fmt(totalCashInvested)}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>After-tax sale proceeds</span>
+                <span className="text-emerald-300">{fmt(projectedAfterTax)}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Net gain / (loss)</span>
+                <span className={netGain >= 0 ? "text-emerald-300" : "text-red-400"}>{netGain >= 0 ? "+" : ""}{fmt(netGain)}</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1.5 text-sm">
+                <span className="text-slate-200">End portfolio value</span>
+                <span className={projectedAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(projectedAfterTax)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 text-[10px]">
+                <span>CAGR on cash invested</span>
+                <span className={cagr >= 0 ? "text-emerald-500" : "text-red-500"}>{fmtPct(cagr)}/yr</span>
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Projected loan balance</span>
-            <span className="text-red-400">−{fmt(projectedLoanBalance)}</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Selling costs + pending</span>
-            <span className="text-red-400">−{fmt(projectedTotalSellCosts + pendingCosts)}</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Est. cap gains tax</span>
-            <span className="text-red-400">−{fmt(projectedCapTax)}</span>
-          </div>
-          <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1">
-            <span className="text-slate-200">After-tax net proceeds</span>
-            <span className={projectedAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(projectedAfterTax)}</span>
+
+          {/* S&P 500 */}
+          <div className={`bg-slate-900/50 rounded-lg p-4 border-2 ${!homeWins ? "border-blue-500/50" : "border-slate-700/40"}`}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold text-blue-300">📈 Rent + Invest in S&amp;P 500</p>
+              {!homeWins && <span className="text-[10px] bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded px-1.5 py-0.5 font-semibold">WINNER</span>}
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between text-slate-400">
+                <span>Down pmt invested upfront</span>
+                <span>{fmt(downPayment)}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Monthly extra vs rent</span>
+                <span className={monthlySavingsVsRent >= 0 ? "text-red-400" : "text-emerald-400"}>
+                  {monthlySavingsVsRent >= 0 ? `+${fmt(monthlySavingsVsRent)}/mo` : `${fmt(monthlySavingsVsRent)}/mo`}
+                  <span className="text-slate-600 ml-1">{monthlySavingsVsRent >= 0 ? "invested" : "saved"}</span>
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Assumed S&P return</span>
+                <span className="text-blue-300">{fmtPct(spAnnualReturn)}/yr</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1.5 text-sm">
+                <span className="text-slate-200">End portfolio value</span>
+                <span className={spFinalValue >= 0 ? "text-blue-300" : "text-red-300"}>{fmt(spFinalValue)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 text-[10px]">
+                <span>CAGR on cash invested</span>
+                <span className={spCAGR >= 0 ? "text-blue-400" : "text-red-500"}>{fmtPct(spCAGR)}/yr</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* ROI metrics */}
-        <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-slate-700/40">
-          <p className="text-[10px] text-pink-400/80 font-semibold uppercase tracking-wider mb-1.5">Return Metrics</p>
-          <div className="flex justify-between text-slate-400">
-            <span>Total holding costs ({holdYears} yrs)</span>
-            <span className="text-red-400">−{fmt(totalHoldingCost)}</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Appreciation gain</span>
-            <span className="text-emerald-300">+{fmt(projectedSalePrice - currentValue)}</span>
-          </div>
-          <div className="flex justify-between font-semibold text-sm border-t border-slate-700/30 pt-1">
-            <span className="text-slate-200">Total ROI</span>
-            <span className={appreciationROI >= 0 ? "text-emerald-300" : "text-red-300"}>{fmtPct(appreciationROI)}</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Annualized ROI</span>
-            <span className={annualROI >= 0 ? "text-emerald-400" : "text-red-400"}>{fmtPct(annualROI)}/yr</span>
-          </div>
+        {/* Winner callout */}
+        <div className={`mt-3 rounded-lg p-3 border text-sm font-semibold flex items-center justify-between ${homeWins ? "bg-pink-900/20 border-pink-500/30 text-pink-200" : "bg-blue-900/20 border-blue-500/30 text-blue-200"}`}>
+          <span>{homeWins ? "🏠 House comes out ahead" : "📈 S&P 500 comes out ahead"} over {holdYears} yrs</span>
+          <span className={homeWins ? "text-pink-300" : "text-blue-300"}>by {fmt(margin)}</span>
         </div>
-
-        {/* Rental metrics */}
-        {includeRental && (
-          <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-amber-700/30">
-            <p className="text-[10px] text-amber-400/80 font-semibold uppercase tracking-wider mb-1.5">Rental Metrics</p>
-            <div className="flex justify-between text-slate-400">
-              <span>Effective monthly rent</span>
-              <span className="text-emerald-300">{fmt(effectiveRent)}/mo</span>
-            </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Annual housing expenses</span>
-              <span className="text-red-400">−{fmt(annualRentalExpenses)}/yr</span>
-            </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Net Operating Income</span>
-              <span className={annualNOI >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(annualNOI)}/yr</span>
-            </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Cap Rate</span>
-              <span className={capRate >= 4 ? "text-emerald-300" : capRate >= 2 ? "text-yellow-300" : "text-red-300"}>{fmtPct(capRate)}</span>
-            </div>
-            <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1">
-              <span className="text-slate-200">Total rental profit ({holdYears} yrs)</span>
-              <span className={totalRentalProfit >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(totalRentalProfit)}</span>
-            </div>
-          </div>
-        )}
+        <p className="text-[10px] text-slate-600 mt-1.5">
+          Assumes {fmtPct(annualAppreciation)}/yr home appreciation · {fmtPct(spAnnualReturn)}/yr S&P return · ${rentAlternative.toLocaleString()}/mo rent alternative · {fmtPct(annualMaintenancePct)} maintenance
+        </p>
       </div>
     </div>
   );
@@ -694,14 +825,17 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // One-time migration: VSUSX — 60.0572 shares added to Vanguard brokerage (July 2026)
+  // One-time migration: VXUS — 60.057 shares added to Vanguard brokerage (July 2026)
+  // Replaces previous VSUSX entry; ticker corrected to VXUS (Vanguard Total International Stock ETF)
   useEffect(() => {
     try {
-      const MIGRATION_KEY = "nw-migration-20260720-vsusx";
+      const MIGRATION_KEY = "nw-migration-20260727-vxus";
       if (!localStorage.getItem(MIGRATION_KEY)) {
-        localStorage.setItem("nw-vsusx", "60.0572");
+        localStorage.setItem("nw-vxus", "60.057");
+        localStorage.removeItem("nw-vsusx");
+        localStorage.removeItem("cache_vsusx_price");
         localStorage.setItem(MIGRATION_KEY, "1");
-        setVsusxHoldings(60.0572);
+        setVxusHoldings(60.057);
       }
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -767,8 +901,8 @@ export default function Finances() {
   const [vooHoldings, setVooHoldings] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-voo") || "240.676"); } catch { return 240.676; }
   });
-  const [vsusxHoldings, setVsusxHoldings] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-vsusx") || "60.0572"); } catch { return 60.0572; }
+  const [vxusHoldings, setVxusHoldings] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-vxus") || "60.057"); } catch { return 60.057; }
   });
   // Vanguard settlement / money market fund (VMFXX) — cash held in the brokerage, no LTCG haircut
   const [vanguardSettlement, setVanguardSettlement] = useState<number>(() => {
@@ -1004,8 +1138,8 @@ export default function Finances() {
     retry: 2,
   });
 
-  const { data: vsusxData, isLoading: vsusxLoading, isError: vsusxError } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
-    queryKey: ["/api/market/vsusx"],
+  const { data: vxusData, isLoading: vxusLoading, isError: vxusError } = useQuery<{ symbol: string; price: number; change24h: number | null; source: string }>({
+    queryKey: ["/api/market/vxus"],
     staleTime: 60_000,
     retry: 2,
   });
@@ -1027,18 +1161,18 @@ export default function Finances() {
   useEffect(() => { if (btcData?.price) localStorage.setItem("cache_btc_price", String(btcData.price)); }, [btcData]);
   useEffect(() => { if (vtsaxData?.price) localStorage.setItem("cache_vtsax_price", String(vtsaxData.price)); }, [vtsaxData]);
   useEffect(() => { if (vooData?.price) localStorage.setItem("cache_voo_price", String(vooData.price)); }, [vooData]);
-  useEffect(() => { if (vsusxData?.price) localStorage.setItem("cache_vsusx_price", String(vsusxData.price)); }, [vsusxData]);
+  useEffect(() => { if (vxusData?.price) localStorage.setItem("cache_vxus_price", String(vxusData.price)); }, [vxusData]);
   useEffect(() => { if (ibitData?.price) localStorage.setItem("cache_ibit_price", String(ibitData.price)); }, [ibitData]);
   useEffect(() => { if (viiixData?.price) localStorage.setItem("cache_viiix_price", String(viiixData.price)); }, [viiixData]);
 
   const cachedBtcPrice = parseFloat(localStorage.getItem("cache_btc_price") ?? "0") || 0;
   const cachedVtsaxPrice = parseFloat(localStorage.getItem("cache_vtsax_price") ?? "0") || 0;
   const cachedVooPrice = parseFloat(localStorage.getItem("cache_voo_price") ?? "0") || 0;
-  const cachedVsusxPrice = parseFloat(localStorage.getItem("cache_vsusx_price") ?? "0") || 0;
+  const cachedVxusPrice = parseFloat(localStorage.getItem("cache_vxus_price") ?? "0") || 0;
   const cachedIbitPrice = parseFloat(localStorage.getItem("cache_ibit_price") ?? "0") || 0;
   const cachedViiixPrice = parseFloat(localStorage.getItem("cache_viiix_price") ?? "0") || 0;
 
-  const pricesUsingCache = (btcError && cachedBtcPrice > 0) || (vtsaxError && cachedVtsaxPrice > 0) || (vooError && cachedVooPrice > 0) || (vsusxError && cachedVsusxPrice > 0) || (ibitError && cachedIbitPrice > 0) || (viiixError && cachedViiixPrice > 0);
+  const pricesUsingCache = (btcError && cachedBtcPrice > 0) || (vtsaxError && cachedVtsaxPrice > 0) || (vooError && cachedVooPrice > 0) || (vxusError && cachedVxusPrice > 0) || (ibitError && cachedIbitPrice > 0) || (viiixError && cachedViiixPrice > 0);
 
   // Live property valuation via Redfin — re-fetches every 6 hours; falls back to manual value on error
   const { data: propertyData } = useQuery<{ address: string; price: number; source: string; cached: boolean }>({
@@ -1131,7 +1265,7 @@ export default function Finances() {
   const _btcPrice = btcData?.price ?? cachedBtcPrice;
   const _vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
   const _vooPrice = vooData?.price ?? cachedVooPrice;
-  const _vsusxPrice = vsusxData?.price ?? cachedVsusxPrice;
+  const _vxusPrice = vxusData?.price ?? cachedVxusPrice;
   const _ibitPrice = ibitData?.price ?? cachedIbitPrice;
   const _viiixPrice = viiixData?.price ?? cachedViiixPrice;
   const _btcValue = btcHoldings * _btcPrice;
@@ -1139,13 +1273,13 @@ export default function Finances() {
   const _totalBtcValue = _btcValue + _coinbaseValue;
   const _vtsaxValue = vtsaxHoldings * _vtsaxPrice;
   const _vooValue = vooHoldings * _vooPrice;
-  const _vsusxValue = vsusxHoldings * _vsusxPrice;
+  const _vxusValue = vxusHoldings * _vxusPrice;
   const _rothIraValue = (rothIraIbitHoldings * _ibitPrice) + (rothIraVtsaxHoldings * _vtsaxPrice);
   const _k401Value = k401Shares * _viiixPrice;
   // Early withdrawal haircuts (retiring before 55)
   const _rothIraAfterPenalty = _rothIraValue * 0.75;
   const _k401AfterPenalty = _k401Value * 0.68;
-  const _vanguardTotal = _vtsaxValue + _vooValue + _vsusxValue;
+  const _vanguardTotal = _vtsaxValue + _vooValue + _vxusValue;
   const _homeLivePrice = propertyData?.price ?? null;
   const _homeSalePrice = (_homeLivePrice !== null && _homeLivePrice > 0) ? _homeLivePrice : homeEstValue;
   const _HOME_TRANSFER_TAX_RATE = 0.0022;
@@ -1168,7 +1302,7 @@ export default function Finances() {
   // HSA: 20% early-withdrawal penalty + ~22% income tax = 42% haircut for non-medical use before 65
   const _hsaAfterPenalty = hsaBalance * 0.58;
   const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue + trialByFireInvestment;
-  const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || vsusxLoading || ibitLoading || viiixLoading;
+  const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || vxusLoading || ibitLoading || viiixLoading;
 
   // NW Snapshots — load history + auto-save current month once prices are ready
   const { data: nwSnapshots = [], refetch: refetchSnapshots } = useQuery<NwSnapshot[]>({
@@ -1391,7 +1525,7 @@ export default function Finances() {
       ["ASSET", "TICKER", "SHARES", "PRICE ($)", "GROSS VALUE ($)", "TAX RATE", "AFTER-TAX VALUE ($)"],
       ["Vanguard Total Stock Market", "VTSAX", vtsaxHoldings, $v(_vtsaxPrice), $v(_vtsaxValue), "15% LTCG", $v(_vtsaxValue * 0.85)],
       ["Vanguard S&P 500 ETF", "VOO", vooHoldings, $v(_vooPrice), $v(_vooValue), "15% LTCG", $v(_vooValue * 0.85)],
-      ["Vanguard Extended Market Index", "VSUSX", vsusxHoldings, $v(_vsusxPrice), $v(_vsusxValue), "15% LTCG", $v(_vsusxValue * 0.85)],
+      ["Vanguard Total International Stock ETF", "VXUS", vxusHoldings, $v(_vxusPrice), $v(_vxusValue), "15% LTCG", $v(_vxusValue * 0.85)],
       ["Vanguard Settlement / Money Market", "VMFXX", "", "", $v(vanguardSettlement), "Cash (no tax)", $v(vanguardSettlement)],
       ["Vanguard Brokerage Total", "", "", "", $v(_vanguardTotal + vanguardSettlement), "15% LTCG*", $v(_vanguardAfterTax)],
       [],
@@ -4351,7 +4485,7 @@ export default function Finances() {
               const btcPrice = btcData?.price ?? cachedBtcPrice;
               const vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
               const vooPrice = vooData?.price ?? cachedVooPrice;
-              const vsusxPrice = vsusxData?.price ?? cachedVsusxPrice;
+              const vsusxPrice = vxusData?.price ?? cachedVxusPrice;  // alias kept for local scope compat
               const ibitPrice = ibitData?.price ?? cachedIbitPrice;
               const viiixPrice = viiixData?.price ?? cachedViiixPrice;
 
@@ -4360,7 +4494,7 @@ export default function Finances() {
               const totalBtcValue = btcValue + coinbaseValue;
               const vtsaxValue = vtsaxHoldings * vtsaxPrice;
               const vooValue = vooHoldings * vooPrice;
-              const vsusxValue = vsusxHoldings * vsusxPrice;
+              const vsusxValue = vxusHoldings * vsusxPrice;  // VXUS holdings
               const rothIraValue = (rothIraIbitHoldings * ibitPrice) + (rothIraVtsaxHoldings * vtsaxPrice);
               const k401Value = k401Shares * viiixPrice;
               // Early withdrawal haircuts (retiring before 55: 10% penalty + income tax on gains)
@@ -4539,7 +4673,7 @@ export default function Finances() {
                               <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
                             )}
                           </div>
-                          <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO + VSUSX + VMFXX</span>
+                          <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO + VXUS + VMFXX</span>
                         </div>
                         <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs">
                           <div className="flex justify-between text-slate-400">
@@ -4559,7 +4693,7 @@ export default function Finances() {
                             <span className="text-indigo-300">{fmt(vooValue)}</span>
                           </div>
                           <div className="flex justify-between text-slate-400">
-                            <span>VSUSX · {vsusxHoldings} sh.</span>
+                            <span>VXUS · {vxusHoldings} sh.</span>
                             <span className="text-indigo-300">{fmt(vsusxValue)}</span>
                           </div>
                           {vanguardSettlement > 0 && (
