@@ -14,23 +14,37 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+// UK constituent nations — separate higher-res layer so we can highlight England/Scotland/Wales/NI individually
+const UK_GEO_URL = "https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/administrative/countries.json";
 
 // Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
 // IMPORTANT: only countries in this table will ever show as "visited" on the map.
-// This prevents disputed territories / unrecognized states from spuriously matching.
+// GBR (826) intentionally NOT listed — UK is rendered via the separate UK nations layer instead.
 const NUMERIC_TO_ALPHA3: Record<string, string> = {
   "484": "MEX", "528": "NLD", "56": "BEL", "372": "IRL", "276": "DEU",
   "392": "JPN", "156": "CHN", "704": "VNM", "764": "THA", "170": "COL",
-  "616": "POL", "620": "PRT", "724": "ESP", "826": "GBR", "250": "FRA",
+  "616": "POL", "620": "PRT", "724": "ESP", "250": "FRA",
   "380": "ITA", "203": "CZE", "344": "HKG", "630": "PRI",
   "376": "ISR", "158": "TWN", "840": "USA",
 };
 
-// All visited country ISO codes (HAW = Hawaii, tracked as own region)
+// UK nation code from feature properties (martinjc dataset uses CTRY*CD codes)
+function getUKNationISO(properties: any): string | null {
+  const code = properties?.CTRY23CD || properties?.CTRY22CD || properties?.CTRY19CD || properties?.CTRY13CD || "";
+  if (code.startsWith("E")) return "ENG";
+  if (code.startsWith("S")) return "SCT";
+  if (code.startsWith("W")) return "WLS";
+  if (code.startsWith("N")) return "NIR";
+  return null;
+}
+
+// All visited country ISO codes
 const SEED_ISOS = [
   "MEX","NLD","BEL","IRL","DEU","JPN","CHN","VNM","THA","COL",
-  "POL","PRT","ESP","GBR","FRA","ITA","CZE","HKG","PRI",
+  "POL","PRT","ESP","FRA","ITA","CZE","HKG","PRI",
   "ISR","TWN","HAW",
+  // UK nations (replacing GBR)
+  "ENG","NIR","SCT","WLS",
 ];
 
 // Display names
@@ -38,9 +52,10 @@ const ISO_NAMES: Record<string, string> = {
   MEX: "Mexico", NLD: "Netherlands", BEL: "Belgium", IRL: "Ireland",
   DEU: "Germany", JPN: "Japan", CHN: "China", VNM: "Vietnam",
   THA: "Thailand", COL: "Colombia", POL: "Poland", PRT: "Portugal",
-  ESP: "Spain", GBR: "United Kingdom", FRA: "France", ITA: "Italy",
+  ESP: "Spain", FRA: "France", ITA: "Italy",
   CZE: "Czechia", HKG: "Hong Kong", PRI: "Puerto Rico",
   ISR: "Israel", TWN: "Taiwan", HAW: "Hawaii 🌺",
+  ENG: "England 🏴󠁧󠁢󠁥󠁮󠁧󠁿", SCT: "Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿", WLS: "Wales 🏴󠁧󠁢󠁷󠁬󠁳󠁿", NIR: "Northern Ireland",
 };
 
 // Seeded visit dates (v2 migration)
@@ -66,7 +81,9 @@ const SEED_DATES: Record<string, string> = {
   NLD: "2016",
   ESP: "2016",
   FRA: "2016",
-  GBR: "2016",
+  // UK nations
+  ENG: "2016",
+  NIR: "2016",
 };
 
 // Seeded city data (v3 migration)
@@ -92,7 +109,8 @@ const SEED_CITIES: Record<string, string[]> = {
   NLD: ["Amsterdam"],
   ESP: ["Madrid", "Barcelona"],
   FRA: ["Paris"],
-  GBR: ["London"],
+  ENG: ["London"],
+  NIR: ["Belfast"],
 };
 
 interface CountryEntry {
@@ -173,17 +191,47 @@ export default function CountriesVisitedPage() {
       updates["country-__v3"] = "1";
     }
 
-    if (Object.keys(updates).length > 0) saveMutation.mutate({ updates });
+    // v4 migration: replace GBR with individual UK nations
+    if (!kvData["country-__v4"]) {
+      // Seed England (visited 2016, London)
+      if (!kvData["country-ENG"]) {
+        updates["country-ENG"] = JSON.stringify({ visitedAt: "2016", cities: ["London"], highlights: [], lowlights: [], lessons: [] });
+      }
+      // Seed Northern Ireland (visited 2016, Belfast)
+      if (!kvData["country-NIR"]) {
+        updates["country-NIR"] = JSON.stringify({ visitedAt: "2016", cities: ["Belfast"], highlights: [], lowlights: [], lessons: [] });
+      }
+      // Seed Scotland and Wales as empty (not visited)
+      if (!kvData["country-SCT"]) {
+        updates["country-SCT"] = JSON.stringify(EMPTY_ENTRY());
+      }
+      if (!kvData["country-WLS"]) {
+        updates["country-WLS"] = JSON.stringify(EMPTY_ENTRY());
+      }
+      updates["country-__v4"] = "1";
+    }
+
+    if (Object.keys(updates).length > 0) {
+      saveMutation.mutate({
+        updates,
+        deletes: !kvData["country-__v4"] ? ["country-GBR"] : undefined,
+      });
+    }
   }, [isSuccess, kvData]);
 
   // Parse visited countries (exclude internal migration keys)
+  // A country counts as "visited" only if it has a visitedAt date or at least one city
   const visitedMap: Record<string, CountryEntry> = {};
   for (const [k, v] of Object.entries(kvData)) {
     if (k.startsWith("country-") && !k.startsWith("country-__")) {
       try { visitedMap[k.slice(8)] = JSON.parse(v); } catch {}
     }
   }
-  const visitedIsos = Object.keys(visitedMap);
+  // For count display: only entries that have actual visit data
+  const visitedIsos = Object.keys(visitedMap).filter(iso => {
+    const e = visitedMap[iso];
+    return e.visitedAt || (e.cities && e.cities.length > 0);
+  });
 
   // Hover tooltip state
   const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null);
@@ -344,6 +392,54 @@ export default function CountriesVisitedPage() {
                           fill: visited ? "#0EA5E9" : "#1e3a5f",
                           outline: "none",
                         },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
+            {/* UK Nations layer — overlays England/Scotland/Wales/NI as separate clickable regions */}
+            <Geographies geography={UK_GEO_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
+                  const iso = getUKNationISO(geo.properties);
+                  if (!iso) return null;
+                  const name = ISO_NAMES[iso] ?? iso;
+                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                    && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                  const isSelected = selected?.iso === iso;
+                  return (
+                    <Geography
+                      key={geo.rsmKey ?? iso}
+                      geography={geo}
+                      onClick={() => openCountry(iso, name)}
+                      onMouseEnter={(e: any) => {
+                        const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                        setTooltip({
+                          name,
+                          x: svgRect ? e.clientX - svgRect.left : 0,
+                          y: svgRect ? e.clientY - svgRect.top : 0,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{
+                        default: {
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.6,
+                          outline: "none",
+                          cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                        },
+                        hover: {
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
                       }}
                     />
                   );
