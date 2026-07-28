@@ -49,6 +49,7 @@ interface Stage {
   /** If set, this new item will be nested under an existing task with this ID */
   existingParentId?: number | null;
   dueDate: string;
+  emoji: string;
 }
 
 function createEmptyStage(indentLevel = 0, existingParentId: number | null = null): Stage {
@@ -64,6 +65,7 @@ function createEmptyStage(indentLevel = 0, existingParentId: number | null = nul
     indentLevel,
     existingParentId,
     dueDate: "",
+    emoji: "",
   };
 }
 
@@ -81,6 +83,7 @@ function buildTree(stages: Stage[]): any[] {
       businessWorkFilter: stage.businessWorkFilter,
       campaign: stage.campaign,
       dueDate: stage.dueDate || null,
+      emoji: stage.emoji || null,
       children: [],
     };
 
@@ -991,6 +994,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(stage.indentLevel)}`}>
                               {getDepthLabel(stage.indentLevel).charAt(0)}{siblingNum}
                             </span>
+                            {stage.emoji && <span className="shrink-0 text-sm">{stage.emoji}</span>}
                             <span className="flex-1 text-sm text-yellow-100 truncate">
                               {stage.title || (
                                 <span className="text-purple-400/40 italic">
@@ -1080,18 +1084,52 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
 
                           {stage.expanded && (
                             <div className="px-3 pb-3 pt-1 space-y-3 border-t border-purple-500/15">
+                              {/* Emoji + Title row */}
                               <div className="space-y-1">
                                 <Label className="text-purple-200 text-xs">
                                   {getDepthLabel(stage.indentLevel)} Title <span className="text-red-400">*</span>
                                 </Label>
-                                <Input
-                                  value={stage.title}
-                                  onChange={(e) => updateStage(stage.id, { title: e.target.value })}
-                                  onFocus={scrollInputIntoView}
-                                  placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
-                                  className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
-                                  maxLength={200}
-                                />
+                                <div className="flex gap-2 items-center">
+                                  {/* Emoji picker button */}
+                                  <div className="relative shrink-0">
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const el = document.getElementById(`ep-${stage.id}`);
+                                        if (el) el.classList.toggle("hidden");
+                                      }}
+                                      className="w-10 h-9 rounded-lg bg-slate-800/80 border border-purple-500/30 flex items-center justify-center text-lg hover:border-purple-400/60 transition-colors relative"
+                                      title="Pick emoji"
+                                    >
+                                      {stage.emoji || "➕"}
+                                    </button>
+                                    <div id={`ep-${stage.id}`} className="hidden absolute left-0 top-full mt-1 z-[70] bg-slate-800 border border-purple-500/40 rounded-lg p-2 grid grid-cols-8 gap-1 shadow-xl max-h-48 overflow-y-auto w-[280px]">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); updateStage(stage.id, { emoji: "" }); document.getElementById(`ep-${stage.id}`)?.classList.add("hidden"); }}
+                                        className="w-9 h-9 rounded flex items-center justify-center text-xs text-slate-400 hover:bg-purple-600/30 transition-colors col-span-2"
+                                      >None</button>
+                                      {QUESTLINE_ICONS.map((em) => (
+                                        <button
+                                          key={em}
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); updateStage(stage.id, { emoji: em }); document.getElementById(`ep-${stage.id}`)?.classList.add("hidden"); }}
+                                          className={`w-9 h-9 rounded flex items-center justify-center text-lg hover:bg-purple-600/30 transition-colors ${stage.emoji === em ? "bg-purple-600/40 ring-1 ring-purple-400" : ""}`}
+                                        >{em}</button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <Input
+                                    value={stage.title}
+                                    onChange={(e) => updateStage(stage.id, { title: e.target.value })}
+                                    onFocus={scrollInputIntoView}
+                                    placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
+                                    className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm flex-1"
+                                    maxLength={200}
+                                  />
+                                </div>
                               </div>
 
                               <div className="space-y-1">

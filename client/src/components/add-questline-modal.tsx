@@ -47,7 +47,8 @@ interface Stage {
   businessWorkFilter: string;
   campaign: string;
   expanded: boolean;
-  indentLevel: number; // 0 = top-level stage, 1-4 = nested depth
+  indentLevel: number;
+  emoji: string;
 }
 
 function createEmptyStage(indentLevel = 0): Stage {
@@ -62,6 +63,7 @@ function createEmptyStage(indentLevel = 0): Stage {
     campaign: "unassigned",
     expanded: true,
     indentLevel,
+    emoji: "",
   };
 }
 
@@ -80,6 +82,7 @@ function buildTree(stages: Stage[]): any[] {
       businessWorkFilter: stage.businessWorkFilter,
       campaign: stage.campaign,
       dueDate: stage.dueDate || null,
+      emoji: stage.emoji || null,
       children: [],
     };
 
@@ -511,6 +514,8 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                         {getDepthLabel(stage.indentLevel).charAt(0)}{siblingNum}
                       </span>
 
+                      {stage.emoji && <span className="shrink-0 text-sm">{stage.emoji}</span>}
+
                       <span className="flex-1 text-sm text-yellow-100 truncate">
                         {stage.title || <span className="text-purple-400/40 italic">Untitled {getDepthLabel(stage.indentLevel).toLowerCase()}</span>}
                       </span>
@@ -578,19 +583,51 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                     {/* Stage body — collapsible */}
                     {stage.expanded && (
                       <div className="px-3 pb-3 pt-1 space-y-3 border-t border-purple-500/15">
-                        {/* Title */}
+                        {/* Emoji + Title */}
                         <div className="space-y-1">
                           <Label className="text-purple-200 text-xs">
                             {getDepthLabel(stage.indentLevel)} Title <span className="text-red-400">*</span>
                           </Label>
-                          <Input
-                            value={stage.title}
-                            onChange={(e) => updateStage(stage.id, { title: e.target.value })}
-                            onFocus={scrollInputIntoView}
-                            placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
-                            className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
-                            maxLength={200}
-                          />
+                          <div className="flex gap-2 items-center">
+                            {/* Emoji picker */}
+                            <div className="relative shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const el = document.getElementById(`ep-add-${stage.id}`);
+                                  if (el) el.classList.toggle("hidden");
+                                }}
+                                className="w-10 h-9 rounded-lg bg-slate-800/80 border border-purple-500/30 flex items-center justify-center text-lg hover:border-purple-400/60 transition-colors"
+                                title="Pick emoji"
+                              >
+                                {stage.emoji || "➕"}
+                              </button>
+                              <div id={`ep-add-${stage.id}`} className="hidden absolute left-0 top-full mt-1 z-[70] bg-slate-800 border border-purple-500/40 rounded-lg p-2 grid grid-cols-8 gap-1 shadow-xl max-h-48 overflow-y-auto w-[280px]">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); updateStage(stage.id, { emoji: "" }); document.getElementById(`ep-add-${stage.id}`)?.classList.add("hidden"); }}
+                                  className="w-9 h-9 rounded flex items-center justify-center text-xs text-slate-400 hover:bg-purple-600/30 col-span-2"
+                                >None</button>
+                                {QUESTLINE_ICONS.map((em) => (
+                                  <button
+                                    key={em}
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); updateStage(stage.id, { emoji: em }); document.getElementById(`ep-add-${stage.id}`)?.classList.add("hidden"); }}
+                                    className={`w-9 h-9 rounded flex items-center justify-center text-lg hover:bg-purple-600/30 transition-colors ${stage.emoji === em ? "bg-purple-600/40 ring-1 ring-purple-400" : ""}`}
+                                  >{em}</button>
+                                ))}
+                              </div>
+                            </div>
+                            <Input
+                              value={stage.title}
+                              onChange={(e) => updateStage(stage.id, { title: e.target.value })}
+                              onFocus={scrollInputIntoView}
+                              placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
+                              className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm flex-1"
+                              maxLength={200}
+                            />
+                          </div>
                         </div>
 
                         {/* Due Date + Duration side by side */}
