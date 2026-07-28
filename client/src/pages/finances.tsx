@@ -274,11 +274,26 @@ function RealEstateROICalculator({
   // When monthlySavingsVsRent > 0, owning costs more → the "savings" side invests less vs renting scenario
   // In the renting scenario: invest downPayment + monthlySavingsVsRent each month
   const spFV_lumpSum = downPayment * Math.pow(1 + spMonthlyRate, nMonths);
-  const spFV_monthly = spMonthlyRate > 0
-    ? monthlySavingsVsRent * ((Math.pow(1 + spMonthlyRate, nMonths) - 1) / spMonthlyRate)
-    : monthlySavingsVsRent * nMonths;
+  // Rent compounds annually — compute FV of each year's monthly cost-differential contributions
+  const spFV_monthly = (() => {
+    let fv = 0;
+    for (let yr = 0; yr < holdYears; yr++) {
+      const rentThisYear = rentAlternative * Math.pow(1 + annualRentIncrease / 100, yr);
+      const monthlySavings = monthlyHousingCost - rentThisYear;
+      const monthsRemaining = (holdYears - yr) * 12;
+      const fvFactor = spMonthlyRate > 0
+        ? (Math.pow(1 + spMonthlyRate, monthsRemaining) - 1) / spMonthlyRate
+        : monthsRemaining;
+      fv += monthlySavings * fvFactor;
+    }
+    return fv;
+  })();
   const spFinalValue = spFV_lumpSum + spFV_monthly;
-  const spTotalCashIn = downPayment + rentAlternative * nMonths; // total spent in renting scenario (rent payments)
+  // Total rent paid (compounded) in renting scenario
+  const spTotalRentPaid = Array.from({ length: holdYears }, (_, yr) =>
+    rentAlternative * Math.pow(1 + annualRentIncrease / 100, yr) * 12
+  ).reduce((s, v) => s + v, 0);
+  const spTotalCashIn = downPayment + spTotalRentPaid;
   const spNetGain = spFinalValue - spTotalCashIn;
   const spTotalROI = spTotalCashIn > 0 ? (spNetGain / spTotalCashIn) * 100 : 0;
   const spCAGR = spTotalCashIn > 0 && holdYears > 0 && spFinalValue > 0
@@ -467,6 +482,7 @@ function RealEstateROICalculator({
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <SliderRow label="Monthly rent (alternative scenario)" value={rentAlternative} min={500} max={6000} step={50} unit="$" onChange={setRentAlternative} color="text-blue-300" />
+          <SliderRow label="Annual rent increase (alt. scenario)" value={annualRentIncrease} min={0} max={10} step={0.5} unit="%" onChange={setAnnualRentIncrease} color="text-blue-300" />
           <SliderRow label="S&P 500 annual return assumption" value={spAnnualReturn} min={4} max={15} step={0.5} unit="%" onChange={setSpAnnualReturn} color="text-blue-300" />
         </div>
 
@@ -542,7 +558,7 @@ function RealEstateROICalculator({
           <span className={homeWins ? "text-pink-300" : "text-blue-300"}>by {fmt(margin)}</span>
         </div>
         <p className="text-[10px] text-slate-600 mt-1.5">
-          Assumes {fmtPct(annualAppreciation)}/yr home appreciation · {fmtPct(spAnnualReturn)}/yr S&P return · ${rentAlternative.toLocaleString()}/mo rent alternative · {fmtPct(annualMaintenancePct)} maintenance
+          Assumes {fmtPct(annualAppreciation)}/yr home appreciation · {fmtPct(spAnnualReturn)}/yr S&P return · ${rentAlternative.toLocaleString()}/mo rent (+{fmtPct(annualRentIncrease)}/yr) · {fmtPct(annualMaintenancePct)} maintenance
         </p>
       </div>
     </div>
