@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CornerDownRight, CheckCircle2, Circle, Clock } from "lucide-react";
+import { CornerDownRight, CheckCircle2, Circle, Clock, Eye } from "lucide-react";
 
 interface QuestlineTask {
   id: number;
@@ -29,6 +29,7 @@ interface QuestlineTreeModalProps {
   onOpenChange: (open: boolean) => void;
   questline: QuestlineData | null;
   focusTaskId: number | null;
+  onViewTask?: (taskId: number) => void;
 }
 
 const depthColors: Record<number, { border: string; bg: string; text: string; badge: string }> = {
@@ -53,7 +54,7 @@ function formatDuration(mins?: number | null) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId }: QuestlineTreeModalProps) {
+export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId, onViewTask }: QuestlineTreeModalProps) {
   if (!questline) return null;
 
   // Sort tasks by questlineOrder
@@ -153,6 +154,16 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId 
                     <span>🪙 {task.goldValue}</span>
                     {task.importance && task.importance !== "Medium" && (
                       <span className="text-yellow-400/50">{task.importance}</span>
+                    )}
+                    {onViewTask && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
+                        className="ml-auto flex items-center gap-1 text-[10px] text-purple-400/60 hover:text-purple-300 transition-colors px-1.5 py-0.5 rounded hover:bg-purple-500/10"
+                        title="View full task"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>View</span>
+                      </button>
                     )}
                   </div>
                 </div>

@@ -3163,6 +3163,11 @@ export default function Home() {
         onOpenChange={(open) => { if (!open) { setTreeModalQuestlineId(null); setTreeModalFocusTaskId(null); } }}
         questline={treeModalQuestlineId ? questlineById.get(treeModalQuestlineId) ?? null : null}
         focusTaskId={treeModalFocusTaskId}
+        onViewTask={(taskId) => {
+          setTreeModalQuestlineId(null);
+          setTreeModalFocusTaskId(null);
+          setDetailTaskId(taskId);
+        }}
       />
 
       <ItemShopModal
