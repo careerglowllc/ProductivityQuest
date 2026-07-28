@@ -733,6 +733,11 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                   <span className="flex-1 text-sm text-yellow-100/90 truncate min-w-0">
                                     {stage.title || <span className="text-purple-400/40 italic">Untitled…</span>}
                                   </span>
+                                  {stage.dueDate && (
+                                    <span className="text-[10px] text-purple-300/70 shrink-0 hidden sm:block">
+                                      📅 {stage.dueDate}
+                                    </span>
+                                  )}
                                   <span className="text-[11px] text-yellow-400/50 shrink-0">
                                     🪙 {calculateGoldValue(stage.importance, parseInt(stage.duration) || 30)}
                                   </span>
@@ -875,6 +880,11 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                 </span>
                               )}
                             </span>
+                            {stage.dueDate && (
+                              <span className="text-[10px] text-purple-300/70 shrink-0 hidden sm:block">
+                                📅 {stage.dueDate}
+                              </span>
+                            )}
                             <span className="text-xs text-yellow-400/60 shrink-0">
                               🪙 {calculateGoldValue(stage.importance, parseInt(stage.duration) || 30)}
                             </span>

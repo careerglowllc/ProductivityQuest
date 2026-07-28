@@ -515,6 +515,12 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                         {stage.title || <span className="text-purple-400/40 italic">Untitled {getDepthLabel(stage.indentLevel).toLowerCase()}</span>}
                       </span>
 
+                      {stage.dueDate && (
+                        <span className="text-[10px] text-purple-300/70 shrink-0 hidden sm:block">
+                          📅 {stage.dueDate}
+                        </span>
+                      )}
+
                       <span className="text-xs text-yellow-400/60 shrink-0">
                         🪙 {calculateGoldValue(stage.importance, parseInt(stage.duration) || 30)}
                       </span>
@@ -585,7 +591,32 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                             className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
                             maxLength={200}
                           />
-                      </div>
+                        </div>
+
+                        {/* Due Date + Duration side by side */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-purple-200 text-xs">📅 Due Date</Label>
+                            <Input
+                              type="date"
+                              value={stage.dueDate}
+                              onChange={(e) => updateStage(stage.id, { dueDate: e.target.value })}
+                              onFocus={scrollInputIntoView}
+                              className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm [color-scheme:dark]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-purple-200 text-xs">Duration (min)</Label>
+                            <Input
+                              type="number"
+                              value={stage.duration}
+                              onChange={(e) => updateStage(stage.id, { duration: e.target.value })}
+                              onFocus={scrollInputIntoView}
+                              min="1"
+                              className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm"
+                            />
+                          </div>
+                        </div>
 
                       {/* Description */}
                       <div className="space-y-1">
@@ -600,47 +631,22 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                         />
                       </div>
 
-                      {/* Due Date */}
+                      {/* Importance row */}
                       <div className="space-y-1">
-                        <Label className="text-purple-200 text-xs">Due Date</Label>
-                        <Input
-                          type="date"
-                          value={stage.dueDate}
-                          onChange={(e) => updateStage(stage.id, { dueDate: e.target.value })}
-                          onFocus={scrollInputIntoView}
-                          className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm [color-scheme:dark]"
-                        />
-                      </div>
-
-                      {/* Duration + Importance row */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-purple-200 text-xs">Duration (min)</Label>
-                          <Input
-                            type="number"
-                            value={stage.duration}
-                            onChange={(e) => updateStage(stage.id, { duration: e.target.value })}
-                            onFocus={scrollInputIntoView}
-                            min="1"
-                            className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
                           <Label className="text-purple-200 text-xs">Importance</Label>
                           <Select value={stage.importance} onValueChange={(v) => updateStage(stage.id, { importance: v })}>
                             <SelectTrigger className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-800 border-purple-500/40">
-                              <SelectItem value="Pareto">� Pareto</SelectItem>
-                              <SelectItem value="High">� High</SelectItem>
+                              <SelectItem value="Pareto">⭐ Pareto</SelectItem>
+                              <SelectItem value="High">🔴 High</SelectItem>
                               <SelectItem value="Med-High">🟠 Med-High</SelectItem>
-                              <SelectItem value="Medium">� Medium</SelectItem>
-                              <SelectItem value="Med-Low">� Med-Low</SelectItem>
-                              <SelectItem value="Low">� Low</SelectItem>
+                              <SelectItem value="Medium">🟡 Medium</SelectItem>
+                              <SelectItem value="Med-Low">🟢 Med-Low</SelectItem>
+                              <SelectItem value="Low">⚪ Low</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
                       </div>
 
                       {/* Work Filter + Campaign row */}
