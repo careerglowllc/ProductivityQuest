@@ -480,7 +480,7 @@ function RealEstateROICalculator({
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">🆚 S&amp;P 500 Comparison</p>
           <span className="text-[9px] text-slate-600">— what if you rented &amp; invested the difference instead?</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <SliderRow label="Monthly rent (alternative scenario)" value={rentAlternative} min={500} max={6000} step={50} unit="$" onChange={setRentAlternative} color="text-blue-300" />
           <SliderRow label="Annual rent increase (alt. scenario)" value={annualRentIncrease} min={0} max={10} step={0.5} unit="%" onChange={setAnnualRentIncrease} color="text-blue-300" />
           <SliderRow label="S&P 500 annual return assumption" value={spAnnualReturn} min={4} max={15} step={0.5} unit="%" onChange={setSpAnnualReturn} color="text-blue-300" />
