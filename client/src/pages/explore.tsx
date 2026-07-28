@@ -102,10 +102,11 @@ export default function ExplorePage() {
         <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
           {CATEGORIES.map((cat) => {
             const Icon = CATEGORY_ICONS[cat.key] ?? Globe;
-            return (
+            const isCountries = cat.key === "countries";
+            const CardContent = (
               <div
                 key={cat.key}
-                className={`rounded-2xl border ${cat.border} ${cat.bg} p-5 transition-all hover:scale-[1.02] cursor-default`}
+                className={`rounded-2xl border ${cat.border} ${cat.bg} p-5 transition-all hover:scale-[1.02] ${isCountries ? "cursor-pointer" : "cursor-default"}`}
               >
                 <div className="flex items-center gap-3 mb-2">
                   <div className={`flex items-center justify-center h-11 w-11 rounded-xl bg-slate-900/40 ${cat.iconColor}`}>
@@ -119,15 +120,22 @@ export default function ExplorePage() {
                 </div>
                 <p className="text-sm text-slate-400 leading-relaxed">{cat.description}</p>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xs text-slate-500">No entries yet</span>
+                  <span className="text-xs text-slate-500">{isCountries ? "Tap to explore" : "No entries yet"}</span>
                   <span
                     className="text-[10px] uppercase tracking-wide rounded-full px-2.5 py-1 border"
                     style={{ color: cat.color, borderColor: `${cat.color}55` }}
                   >
-                    Coming soon
+                    {isCountries ? "Open →" : "Coming soon"}
                   </span>
                 </div>
               </div>
+            );
+            return isCountries ? (
+              <Link key={cat.key} href="/countries-visited">
+                <a>{CardContent}</a>
+              </Link>
+            ) : (
+              <div key={cat.key}>{CardContent}</div>
             );
           })}
         </div>

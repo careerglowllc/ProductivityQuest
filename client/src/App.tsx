@@ -32,6 +32,7 @@ import RecyclingBin from "@/pages/recycling-bin";
 import Finances from "@/pages/finances";
 import AccomplishmentsPage from "@/pages/accomplishments";
 import ExplorePage from "@/pages/explore";
+import CountriesVisitedPage from "@/pages/countries-visited";
 import FitnessPage from "@/pages/fitness";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
@@ -127,6 +128,7 @@ function Router() {
             <Route path="/skills" component={Skills} />
             <Route path="/accomplishments" component={AccomplishmentsPage} />
             <Route path="/explore" component={ExplorePage} />
+            <Route path="/countries-visited" component={CountriesVisitedPage} />
             <Route path="/fitness" component={FitnessPage} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
