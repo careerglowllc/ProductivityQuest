@@ -15,19 +15,44 @@ import { apiRequest } from "@/lib/queryClient";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-// Pre-seed: ISO A3 codes for visited countries
+// All visited country ISO codes (HAW = Hawaii, tracked as own region)
 const SEED_ISOS = [
   "MEX","NLD","BEL","IRL","DEU","JPN","CHN","VNM","THA","COL",
   "POL","PRT","ESP","GBR","FRA","ITA","CZE","HKG","PRI",
+  "ISR","TWN","HAW",
 ];
 
-// Display names for chips/seeding
+// Display names
 const ISO_NAMES: Record<string, string> = {
   MEX: "Mexico", NLD: "Netherlands", BEL: "Belgium", IRL: "Ireland",
   DEU: "Germany", JPN: "Japan", CHN: "China", VNM: "Vietnam",
   THA: "Thailand", COL: "Colombia", POL: "Poland", PRT: "Portugal",
   ESP: "Spain", GBR: "United Kingdom", FRA: "France", ITA: "Italy",
   CZE: "Czechia", HKG: "Hong Kong", PRI: "Puerto Rico",
+  ISR: "Israel", TWN: "Taiwan", HAW: "Hawaii 🌺",
+};
+
+// Seeded visit dates (v2 migration)
+const SEED_DATES: Record<string, string> = {
+  MEX: "2024",
+  CHN: "2023, 2024, 2025",
+  HKG: "2024, 2025",
+  ISR: "2024",
+  TWN: "2022",
+  JPN: "2023",
+  VNM: "2022, 2025",
+  PRT: "2023",
+  CZE: "2023",
+  POL: "2023",
+  THA: "2022",
+  HAW: "2024",
+  PRI: "2024",
+  COL: "2024, 2025, 2026",
+  IRL: "2016",
+  ITA: "2016",
+  DEU: "2016",
+  BEL: "2016",
+  NLD: "2016",
 };
 
 interface CountryEntry {
@@ -67,24 +92,40 @@ export default function CountriesVisitedPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user-data"] }),
   });
 
-  // One-time seed: populate visited countries if none exist yet
+  // Seeding / migration
   useEffect(() => {
     if (!isSuccess || seededRef.current) return;
     seededRef.current = true;
-    const existingKeys = Object.keys(kvData).filter(k => k.startsWith("country-"));
-    if (existingKeys.length === 0) {
-      const updates: Record<string, string> = {};
-      for (const iso of SEED_ISOS) {
+    const updates: Record<string, string> = {};
+
+    // Always ensure all SEED_ISOS exist as entries
+    for (const iso of SEED_ISOS) {
+      if (!kvData[storageKey(iso)]) {
         updates[storageKey(iso)] = JSON.stringify(EMPTY_ENTRY());
       }
-      saveMutation.mutate({ updates });
     }
+
+    // v2 migration: apply known dates if not already applied
+    if (!kvData["country-__v2"]) {
+      for (const [iso, date] of Object.entries(SEED_DATES)) {
+        const existing: CountryEntry = kvData[storageKey(iso)]
+          ? JSON.parse(kvData[storageKey(iso)])
+          : EMPTY_ENTRY();
+        // Only set if visitedAt is blank
+        if (!existing.visitedAt) {
+          updates[storageKey(iso)] = JSON.stringify({ ...existing, visitedAt: date });
+        }
+      }
+      updates["country-__v2"] = "1";
+    }
+
+    if (Object.keys(updates).length > 0) saveMutation.mutate({ updates });
   }, [isSuccess, kvData]);
 
-  // Parse visited countries
+  // Parse visited countries (exclude internal migration keys)
   const visitedMap: Record<string, CountryEntry> = {};
   for (const [k, v] of Object.entries(kvData)) {
-    if (k.startsWith("country-")) {
+    if (k.startsWith("country-") && !k.startsWith("country-__")) {
       try { visitedMap[k.slice(8)] = JSON.parse(v); } catch {}
     }
   }
