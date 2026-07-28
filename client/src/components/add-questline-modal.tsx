@@ -658,12 +658,13 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                       {/* Description */}
                       <div className="space-y-1">
                         <Label className="text-purple-200 text-xs">Description</Label>
-                        <Input
+                        <Textarea
                           value={stage.description}
                           onChange={(e) => updateStage(stage.id, { description: e.target.value })}
                           onFocus={scrollInputIntoView}
-                          placeholder="Brief description..."
-                          className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
+                          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) e.preventDefault(); }}
+                          placeholder="Brief description... (Shift+Enter for new line)"
+                          className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 text-sm min-h-[60px] resize-none"
                           maxLength={500}
                         />
                       </div>
