@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical, MoreVertical, HelpCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical, MoreVertical, HelpCircle, Edit2, Check } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
 const QUESTLINE_ICONS = [
@@ -322,6 +322,55 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
       toast({ title: "Failed to remove quest", variant: "destructive" });
     },
   });
+
+  // Inline edit state for existing tasks
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [inlineEdit, setInlineEdit] = useState<{
+    title: string; description: string; dueDate: string;
+    duration: string; importance: string; emoji: string;
+  } | null>(null);
+
+  const openInlineEdit = (task: any) => {
+    setEditingTaskId(task.id);
+    setInlineEdit({
+      title: task.title || "",
+      description: task.description || "",
+      dueDate: task.dueDate ? (task.dueDate.split("T")[0] ?? "") : "",
+      duration: String(task.duration || 30),
+      importance: task.importance || "Medium",
+      emoji: task.emoji || "",
+    });
+  };
+
+  const patchTaskMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) =>
+      apiRequest("PATCH", `/api/tasks/${id}`, data),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setOrderedTasks(prev => prev.map(t => t.id === id ? { ...t, ...inlineEdit, dueDate: inlineEdit?.dueDate ? `${inlineEdit.dueDate}T00:00:00.000Z` : null, duration: parseInt(inlineEdit?.duration || "30"), goldValue: calculateGoldValue(inlineEdit?.importance || "Medium", parseInt(inlineEdit?.duration || "30")) } : t));
+      setEditingTaskId(null);
+      setInlineEdit(null);
+      toast({ title: "✅ Saved", description: "Quest updated." });
+    },
+    onError: () => toast({ title: "Failed to save", variant: "destructive" }),
+  });
+
+  const saveInlineEdit = (taskId: number) => {
+    if (!inlineEdit) return;
+    patchTaskMutation.mutate({
+      id: taskId,
+      data: {
+        title: inlineEdit.title.trim(),
+        description: inlineEdit.description,
+        dueDate: inlineEdit.dueDate ? new Date(inlineEdit.dueDate + "T12:00:00").toISOString() : null,
+        duration: parseInt(inlineEdit.duration) || 30,
+        importance: inlineEdit.importance,
+        emoji: inlineEdit.emoji || null,
+        goldValue: calculateGoldValue(inlineEdit.importance, parseInt(inlineEdit.duration) || 30),
+      },
+    });
+  };
 
   const saveQuestlineMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -831,7 +880,102 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                               <CornerDownRight className="w-2.5 h-2.5" />+ {childLabel}
                             </button>
                           )}
+
+                          {/* Edit button */}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); editingTaskId === task.id ? (setEditingTaskId(null), setInlineEdit(null)) : openInlineEdit(task); }}
+                            className={`p-1 rounded shrink-0 transition-colors ${editingTaskId === task.id ? "text-yellow-400 bg-yellow-500/20" : "text-purple-400/50 hover:text-purple-200 hover:bg-purple-500/20"}`}
+                            title="Edit this item"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
+
+                        {/* Inline edit panel */}
+                        {editingTaskId === task.id && inlineEdit && (
+                          <div className="mx-2 mb-2 mt-0.5 rounded-lg border border-purple-500/30 bg-slate-900/60 p-3 space-y-2.5"
+                            style={{ marginLeft: `${indent * 16 + 8}px` }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Emoji + Title */}
+                            <div className="space-y-1">
+                              <Label className="text-purple-200 text-xs">{getDepthLabel(indent)} Title <span className="text-red-400">*</span></Label>
+                              <div className="flex gap-2">
+                                <div className="relative shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => { const el = document.getElementById(`iep-${task.id}`); if (el) el.classList.toggle("hidden"); }}
+                                    className="w-9 h-9 rounded-lg bg-slate-800/80 border border-purple-500/30 flex items-center justify-center text-base hover:border-purple-400/60"
+                                  >{inlineEdit.emoji || "➕"}</button>
+                                  <div id={`iep-${task.id}`} className="hidden absolute left-0 top-full mt-1 z-[80] bg-slate-800 border border-purple-500/40 rounded-lg p-2 grid grid-cols-8 gap-1 shadow-2xl max-h-40 overflow-y-auto w-[260px]">
+                                    <button type="button" onClick={() => { setInlineEdit({ ...inlineEdit, emoji: "" }); document.getElementById(`iep-${task.id}`)?.classList.add("hidden"); }}
+                                      className="w-8 h-8 rounded text-xs text-slate-400 hover:bg-purple-600/30 col-span-2">None</button>
+                                    {QUESTLINE_ICONS.map(em => (
+                                      <button key={em} type="button"
+                                        onClick={() => { setInlineEdit({ ...inlineEdit, emoji: em }); document.getElementById(`iep-${task.id}`)?.classList.add("hidden"); }}
+                                        className={`w-8 h-8 rounded text-base flex items-center justify-center hover:bg-purple-600/30 ${inlineEdit.emoji === em ? "bg-purple-600/40 ring-1 ring-purple-400" : ""}`}
+                                      >{em}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <Input value={inlineEdit.title} onChange={e => setInlineEdit({ ...inlineEdit, title: e.target.value })}
+                                  onFocus={scrollInputIntoView} placeholder="Title..." maxLength={200}
+                                  className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm flex-1" />
+                              </div>
+                            </div>
+
+                            {/* Due Date + Duration */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-purple-200 text-xs">📅 Due Date</Label>
+                                <Input type="date" value={inlineEdit.dueDate} onChange={e => setInlineEdit({ ...inlineEdit, dueDate: e.target.value })}
+                                  onFocus={scrollInputIntoView} className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-8 text-sm [color-scheme:dark]" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-purple-200 text-xs">Duration (min)</Label>
+                                <Input type="number" value={inlineEdit.duration} min="1"
+                                  onChange={e => setInlineEdit({ ...inlineEdit, duration: e.target.value })}
+                                  onFocus={scrollInputIntoView} className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-8 text-sm" />
+                              </div>
+                            </div>
+
+                            {/* Importance */}
+                            <div className="space-y-1">
+                              <Label className="text-purple-200 text-xs">Importance</Label>
+                              <Select value={inlineEdit.importance} onValueChange={v => setInlineEdit({ ...inlineEdit, importance: v })}>
+                                <SelectTrigger className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-8 text-sm"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-slate-800 border-purple-500/40">
+                                  <SelectItem value="Pareto">⭐ Pareto</SelectItem>
+                                  <SelectItem value="High">🔴 High</SelectItem>
+                                  <SelectItem value="Med-High">🟠 Med-High</SelectItem>
+                                  <SelectItem value="Medium">🟡 Medium</SelectItem>
+                                  <SelectItem value="Med-Low">🟢 Med-Low</SelectItem>
+                                  <SelectItem value="Low">⚪ Low</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Description */}
+                            <div className="space-y-1">
+                              <Label className="text-purple-200 text-xs">Description</Label>
+                              <Textarea value={inlineEdit.description} onChange={e => setInlineEdit({ ...inlineEdit, description: e.target.value })}
+                                onFocus={scrollInputIntoView}
+                                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) e.preventDefault(); }}
+                                placeholder="Description... (Shift+Enter for new line)"
+                                className="bg-slate-800/50 border-purple-500/30 text-yellow-100 text-sm min-h-[56px] resize-none" maxLength={500} />
+                            </div>
+
+                            <div className="flex gap-2 pt-1">
+                              <Button size="sm" onClick={() => saveInlineEdit(task.id)} disabled={patchTaskMutation.isPending}
+                                className="flex-1 bg-purple-600 hover:bg-purple-500 text-white h-8 text-xs">
+                                <Check className="w-3.5 h-3.5 mr-1" /> Save
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => { setEditingTaskId(null); setInlineEdit(null); }}
+                                className="border-slate-600 text-slate-300 h-8 text-xs">Cancel</Button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Pending new items under this existing task */}
                         {pending.length > 0 && (
