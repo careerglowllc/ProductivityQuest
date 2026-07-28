@@ -279,19 +279,16 @@ function RealEstateROICalculator({
     : 0;
 
   // ── S&P 500 comparison ──────────────────────────────────────────────────
-  // Scenario: skip buying this property; invest the freed-up capital in S&P instead.
+  // This is a rental property calculator. The alternative to owning this rental
+  // is to invest those same dollars in S&P 500:
   //
-  // Lump at t=0: down payment + all one-time costs (avoided by not buying)
+  //   Lump at t=0 : down payment + one-time costs (what you'd keep if you didn't buy)
+  //   Monthly     : net cash outflow = housing costs − rental income each year
+  //                 (the money you'd no longer have to subsidize the property)
+  //                 If rental income > housing costs, monthly contribution = $0
   //
-  // Monthly offset depends on mode:
-  //   Personal home  (rental=off): housing cost - what you'd pay in rent anyway
-  //                                Only the *extra* vs renting goes into S&P
-  //   Rental property(rental=on):  housing cost - rental income from tenants
-  //                                Net subsidy you'd avoid by not owning the rental
-  //
-  // Annuity formula: 12 payments per year, then grow that year-end lump to holdYears
-  //   FV_yr = monthlyContrib * ((1+r)^12 - 1) / r           ← FV at end of year yr
-  //   then  * (1+r)^((holdYears - yr - 1) * 12)             ← grow to final year
+  // Annuity: 12 payments/yr grown to end of hold period
+  //   FV_yr = contrib * ((1+r)^12 - 1) / r    → grown by (1+r)^((holdYears-yr-1)*12)
   //
   const spLumpInvested = downPayment + pendingCosts;
   const spMonthlyRate = Math.pow(1 + spAnnualReturn / 100, 1 / 12) - 1;
@@ -302,15 +299,13 @@ function RealEstateROICalculator({
   const spFV_monthly = (() => {
     let fv = 0;
     for (let yr = 0; yr < holdYears; yr++) {
-      const offsetYr = includeRental
-        ? effectiveRentEarly * Math.pow(1 + annualRentIncrease / 100, yr)  // rental income
-        : rentAlternative * Math.pow(1 + annualRentIncrease / 100, yr);    // rent you'd pay elsewhere
-      const monthlyContrib = Math.max(0, monthlyHousingCost + annualMaintenance / 12 - offsetYr);
-      // FV of 12 monthly payments at end of year yr
+      const rentalYr = includeRental
+        ? effectiveRentEarly * Math.pow(1 + annualRentIncrease / 100, yr)
+        : 0;
+      const monthlyContrib = Math.max(0, monthlyHousingCost + annualMaintenance / 12 - rentalYr);
       const fvEndOfYear = spMonthlyRate > 0
         ? monthlyContrib * (Math.pow(1 + spMonthlyRate, 12) - 1) / spMonthlyRate
         : monthlyContrib * 12;
-      // Grow that lump from end of year yr to end of hold period
       const growth = Math.pow(1 + spMonthlyRate, (holdYears - yr - 1) * 12);
       fv += fvEndOfYear * growth;
     }
@@ -319,20 +314,20 @@ function RealEstateROICalculator({
 
   const spFinalValue = spFV_lumpSum + spFV_monthly;
 
-  // Year-1 monthly contribution (for display)
-  const yr1Offset = includeRental ? effectiveRentEarly : rentAlternative;
-  const netMonthlyOutflowYr1 = Math.max(0, monthlyHousingCost + annualMaintenance / 12 - yr1Offset);
+  // Year-1 monthly net outflow (for display)
+  const yr1RentalOffset = includeRental ? effectiveRentEarly : 0;
+  const netMonthlyOutflowYr1 = Math.max(0, monthlyHousingCost + annualMaintenance / 12 - yr1RentalOffset);
+  const yr1CashFlow = (monthlyHousingCost + annualMaintenance / 12) - yr1RentalOffset;
 
   // Total nominal cash invested in S&P scenario
   const spTotalCashIn = spLumpInvested + Array.from({ length: holdYears }, (_, yr) => {
-    const offsetYr = includeRental
+    const rentalYr = includeRental
       ? effectiveRentEarly * Math.pow(1 + annualRentIncrease / 100, yr)
-      : rentAlternative * Math.pow(1 + annualRentIncrease / 100, yr);
-    return Math.max(0, monthlyHousingCost + annualMaintenance / 12 - offsetYr) * 12;
+      : 0;
+    return Math.max(0, monthlyHousingCost + annualMaintenance / 12 - rentalYr) * 12;
   }).reduce((s, v) => s + v, 0);
 
   const spNetGain = spFinalValue - spTotalCashIn;
-  const spTotalROI = spTotalCashIn > 0 ? (spNetGain / spTotalCashIn) * 100 : 0;
   const spCAGR = spTotalCashIn > 0 && holdYears > 0 && spFinalValue > 0
     ? (Math.pow(spFinalValue / spTotalCashIn, 1 / holdYears) - 1) * 100
     : 0;
@@ -512,24 +507,18 @@ function RealEstateROICalculator({
       <div className="border-t border-slate-700/40 pt-4">
         <div className="flex items-center gap-2 mb-3">
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">🆚 S&amp;P 500 Comparison</p>
-          <span className="text-[9px] text-slate-600">— what if you invested those same dollars in S&amp;P 500 instead?</span>
+          <span className="text-[9px] text-slate-600">— what if you put this capital in S&amp;P 500 instead of buying the rental?</span>
         </div>
-        <div className={`grid grid-cols-1 ${!includeRental ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4 mb-4`}>
-          {!includeRental && (
-            <SliderRow label="Rent alternative (what you'd pay/mo)" value={rentAlternative} min={500} max={6000} step={50} unit="$" onChange={setRentAlternative} color="text-blue-300" />
-          )}
-          {!includeRental && (
-            <SliderRow label="Annual rent increase (alt. scenario)" value={annualRentIncrease} min={0} max={10} step={0.5} unit="%" onChange={setAnnualRentIncrease} color="text-blue-300" />
-          )}
+        <div className="mb-4 max-w-sm">
           <SliderRow label="S&P 500 annual return assumption" value={spAnnualReturn} min={4} max={15} step={0.5} unit="%" onChange={setSpAnnualReturn} color="text-blue-300" />
         </div>
 
         {/* Side-by-side comparison */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Home / Rental */}
+          {/* Rental Property */}
           <div className={`bg-slate-900/50 rounded-lg p-4 border-2 ${homeWins ? "border-pink-500/50" : "border-slate-700/40"}`}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-pink-300">🏠 {includeRental ? "Rental Property" : "Own the House"}</p>
+              <p className="text-sm font-bold text-pink-300">🏠 Own Rental Property</p>
               {homeWins && <span className="text-[10px] bg-pink-600/30 text-pink-300 border border-pink-500/40 rounded px-1.5 py-0.5 font-semibold">WINNER</span>}
             </div>
             <div className="space-y-1.5 text-xs">
@@ -570,16 +559,27 @@ function RealEstateROICalculator({
             </div>
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-400">
-                <span>Down pmt + one-time costs</span>
+                <span>Down pmt + one-time costs (lump sum)</span>
                 <span>{fmt(spLumpInvested)}</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>{includeRental ? "Net monthly subsidy → S&P" : "Extra vs renting → S&P (yr 1)"}</span>
-                <span className={netMonthlyOutflowYr1 > 0 ? "text-amber-400" : "text-emerald-400"}>
-                  {netMonthlyOutflowYr1 > 0 ? `${fmt(netMonthlyOutflowYr1)}/mo` : "Cash-flow positive ✓"}
-                  {netMonthlyOutflowYr1 > 0 && <span className="text-slate-600 ml-1">invested</span>}
+                <span>
+                  {yr1CashFlow <= 0
+                    ? "Cash-flow positive — no monthly top-up"
+                    : `Net monthly outflow → S&P (yr 1)`}
+                </span>
+                <span className={yr1CashFlow <= 0 ? "text-emerald-400" : "text-amber-400"}>
+                  {yr1CashFlow <= 0
+                    ? `${fmt(Math.abs(yr1CashFlow))}/mo surplus`
+                    : `${fmt(netMonthlyOutflowYr1)}/mo invested`}
                 </span>
               </div>
+              {includeRental && yr1CashFlow > 0 && (
+                <div className="flex justify-between text-slate-500 text-[10px]">
+                  <span>Housing cost − rental income = outflow</span>
+                  <span>{fmt(monthlyHousingCost + annualMaintenance / 12)}/mo − {fmt(yr1RentalOffset)}/mo</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-400">
                 <span>Assumed S&P return</span>
                 <span className="text-blue-300">{fmtPct(spAnnualReturn)}/yr</span>
@@ -602,11 +602,11 @@ function RealEstateROICalculator({
 
         {/* Winner callout */}
         <div className={`mt-3 rounded-lg p-3 border text-sm font-semibold flex items-center justify-between ${homeWins ? "bg-pink-900/20 border-pink-500/30 text-pink-200" : "bg-blue-900/20 border-blue-500/30 text-blue-200"}`}>
-          <span>{homeWins ? "🏠 Real estate comes out ahead" : "📈 S&P 500 comes out ahead"} over {holdYears} yrs</span>
+          <span>{homeWins ? "🏠 Rental property comes out ahead" : "📈 S&P 500 comes out ahead"} over {holdYears} yrs</span>
           <span className={homeWins ? "text-pink-300" : "text-blue-300"}>by {fmt(margin)}</span>
         </div>
         <p className="text-[10px] text-slate-600 mt-1.5">
-          S&P scenario: {fmt(spLumpInvested)} lump sum upfront · then {fmt(netMonthlyOutflowYr1)}/mo yr-1 ({includeRental ? `housing net of ${fmt(yr1Offset)}/mo rental income` : `housing minus ${fmt(rentAlternative)}/mo rent alt.`}, compounding {fmtPct(annualRentIncrease)}/yr) · {fmtPct(spAnnualReturn)}/yr S&P return
+          S&P: {fmt(spLumpInvested)} lump sum · +{fmt(netMonthlyOutflowYr1)}/mo net outflow yr-1{includeRental ? ` (after ${fmt(yr1RentalOffset)}/mo rental income, +${fmtPct(annualRentIncrease)}/yr)` : " (no rental income offset)"} · {fmtPct(spAnnualReturn)}/yr return
         </p>
       </div>
     </div>
