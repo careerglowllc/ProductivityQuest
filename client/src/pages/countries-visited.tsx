@@ -684,12 +684,54 @@ export default function CountriesVisitedPage() {
           </div>
         )}
 
-        {/* Zoom controls */}
-        <div className="absolute bottom-3 right-3 flex flex-col gap-1">
-          <button onClick={() => setPosition(p => ({ ...p, zoom: Math.min(p.zoom * 1.5, 8) }))}
-            className="w-8 h-8 bg-slate-800/90 border border-slate-600 text-white rounded flex items-center justify-center text-lg hover:bg-slate-700">+</button>
-          <button onClick={() => setPosition(p => ({ ...p, zoom: Math.max(p.zoom / 1.5, 0.8) }))}
-            className="w-8 h-8 bg-slate-800/90 border border-slate-600 text-white rounded flex items-center justify-center text-lg hover:bg-slate-700">−</button>
+        {/* Map controls — top right: zoom + pan */}
+        <div className="absolute top-3 right-3 flex flex-col items-center gap-1 z-10 select-none">
+          {/* Zoom in */}
+          <button
+            onClick={() => setPosition(p => ({ ...p, zoom: Math.min(p.zoom * 1.5, 8) }))}
+            className="w-9 h-9 bg-slate-800/95 border border-slate-600 text-white rounded-lg flex items-center justify-center text-xl font-bold hover:bg-slate-700 active:scale-95 shadow-lg transition-colors"
+            title="Zoom in"
+          >+</button>
+          {/* Zoom out */}
+          <button
+            onClick={() => setPosition(p => ({ ...p, zoom: Math.max(p.zoom / 1.5, 0.8) }))}
+            className="w-9 h-9 bg-slate-800/95 border border-slate-600 text-white rounded-lg flex items-center justify-center text-xl font-bold hover:bg-slate-700 active:scale-95 shadow-lg transition-colors"
+            title="Zoom out"
+          >−</button>
+          {/* Divider */}
+          <div className="w-9 h-px bg-slate-600 my-0.5" />
+          {/* Pan up */}
+          <button
+            onClick={() => setPosition(p => ({ ...p, coordinates: [p.coordinates[0], Math.min(p.coordinates[1] + 15 / p.zoom, 85)] as [number, number] }))}
+            className="w-9 h-9 bg-slate-800/95 border border-slate-600 text-white rounded-lg flex items-center justify-center text-base hover:bg-slate-700 active:scale-95 shadow-lg transition-colors"
+            title="Pan up"
+          >▲</button>
+          {/* Pan left / right row */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPosition(p => ({ ...p, coordinates: [p.coordinates[0] - 30 / p.zoom, p.coordinates[1]] as [number, number] }))}
+              className="w-9 h-9 bg-slate-800/95 border border-slate-600 text-white rounded-lg flex items-center justify-center text-base hover:bg-slate-700 active:scale-95 shadow-lg transition-colors"
+              title="Pan left"
+            >◀</button>
+            <button
+              onClick={() => setPosition(p => ({ ...p, coordinates: [p.coordinates[0] + 30 / p.zoom, p.coordinates[1]] as [number, number] }))}
+              className="w-9 h-9 bg-slate-800/95 border border-slate-600 text-white rounded-lg flex items-center justify-center text-base hover:bg-slate-700 active:scale-95 shadow-lg transition-colors"
+              title="Pan right"
+            >▶</button>
+          </div>
+          {/* Pan down */}
+          <button
+            onClick={() => setPosition(p => ({ ...p, coordinates: [p.coordinates[0], Math.max(p.coordinates[1] - 15 / p.zoom, -85)] as [number, number] }))}
+            className="w-9 h-9 bg-slate-800/95 border border-slate-600 text-white rounded-lg flex items-center justify-center text-base hover:bg-slate-700 active:scale-95 shadow-lg transition-colors"
+            title="Pan down"
+          >▼</button>
+          {/* Reset */}
+          <div className="w-9 h-px bg-slate-600 my-0.5" />
+          <button
+            onClick={() => setPosition({ coordinates: [0, 20], zoom: 1 })}
+            className="w-9 h-9 bg-slate-800/95 border border-slate-600 text-slate-400 rounded-lg flex items-center justify-center text-xs font-bold hover:bg-slate-700 hover:text-white active:scale-95 shadow-lg transition-colors"
+            title="Reset view"
+          >⌂</button>
         </div>
 
         {/* Country popup */}
