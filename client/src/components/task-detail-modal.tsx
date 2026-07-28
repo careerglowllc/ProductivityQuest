@@ -26,7 +26,8 @@ import {
   X,
   Target,
   SlidersHorizontal,
-  Keyboard
+  Keyboard,
+  Map
 } from "lucide-react";
 import { format } from "date-fns";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -40,9 +41,10 @@ interface TaskDetailModalProps {
   task: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSeeQuestline?: (questlineId: number, taskId: number) => void;
 }
 
-export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalProps) {
+export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: TaskDetailModalProps) {
   const isMobile = useIsMobile();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
@@ -89,6 +91,11 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
     const parent = ql.tasks.find((t) => t.id === task.parentTaskId);
     return parent?.title ?? null;
   })();
+
+  // Resolve the questline this task belongs to (for the "See Questline" button)
+  const parentQuestline = task?.questlineId
+    ? questlines.find((q) => q.id === task.questlineId) ?? null
+    : null;
 
   // Sync local state when task prop changes (e.g. switching between tasks)
   // But DON'T overwrite while user is actively editing details/title
@@ -632,6 +639,22 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
             )}
           </DialogTitle>
         </DialogHeader>
+
+        {/* See Questline button — shown when task belongs to a questline */}
+        {parentQuestline && (
+          <button
+            onClick={() => {
+              onOpenChange(false);
+              if (onSeeQuestline) {
+                onSeeQuestline(parentQuestline.id, task.id);
+              }
+            }}
+            className="flex items-center gap-2 mt-2 mb-1 px-3 py-1.5 rounded-lg bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600/35 hover:text-purple-200 transition-colors text-xs font-semibold w-fit"
+          >
+            <Map className="w-3.5 h-3.5" />
+            See Questline: {parentQuestline.icon ? `${parentQuestline.icon} ` : ""}{parentQuestline.title}
+          </button>
+        )}
 
         <div className={`${isMobile ? 'space-y-3 mt-1' : 'space-y-6 mt-4'}`}>
           {/* Details - dynamic display with edit mode */}

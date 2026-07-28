@@ -3429,6 +3429,12 @@ export default function Home() {
               window.history.pushState({}, '', '/tasks');
             }
           }}
+          onSeeQuestline={(qlId, taskId) => {
+            setDetailTaskId(null);
+            window.history.pushState({}, '', '/tasks');
+            setTreeModalQuestlineId(qlId);
+            setTreeModalFocusTaskId(taskId);
+          }}
         />
       )}
 

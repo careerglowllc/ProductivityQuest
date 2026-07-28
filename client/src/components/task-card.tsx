@@ -358,6 +358,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
           task={task}
           open={showDetailModal}
           onOpenChange={setShowDetailModal}
+          onSeeQuestline={onQuestlineNameClick}
         />
 
         <SkillAdjustmentModal
@@ -516,6 +517,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
           task={task}
           open={showDetailModal}
           onOpenChange={setShowDetailModal}
+          onSeeQuestline={onQuestlineNameClick}
         />
 
         <SkillAdjustmentModal
@@ -729,6 +731,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
         task={task}
         open={showDetailModal}
         onOpenChange={setShowDetailModal}
+        onSeeQuestline={onQuestlineNameClick}
       />
 
       <SkillAdjustmentModal
