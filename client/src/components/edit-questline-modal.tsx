@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical, MoreVertical } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical, MoreVertical, HelpCircle } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
 
 const QUESTLINE_ICONS = [
@@ -165,6 +165,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("⚔️");
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showHierarchyHelp, setShowHierarchyHelp] = useState(false);
   const [newStages, setNewStages] = useState<Stage[]>([]);
   // Local flat list of existing tasks for drag-and-drop reordering
   const [orderedTasks, setOrderedTasks] = useState<QuestlineTask[]>([]);
@@ -531,11 +532,128 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl font-serif text-purple-200 flex items-center gap-2">
             <span>✏️</span> Edit Questline
+            <button
+              type="button"
+              onClick={() => setShowHierarchyHelp(true)}
+              className="ml-1 p-1 rounded-full text-purple-400/60 hover:text-purple-300 hover:bg-purple-600/20 transition-colors"
+              title="How does the hierarchy work?"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </button>
           </DialogTitle>
           <p className="text-sm text-purple-300/60 mt-1">
             Update the questline details and add new stages or quests.
           </p>
         </DialogHeader>
+
+        {/* Hierarchy Help Modal */}
+        {showHierarchyHelp && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative">
+              <button
+                onClick={() => setShowHierarchyHelp(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-serif font-bold text-purple-200 mb-1">⚔️ Quest Hierarchy</h2>
+              <p className="text-sm text-purple-300/60 mb-5">How items nest inside a questline</p>
+
+              {/* Visual diagram */}
+              <div className="space-y-1.5">
+                {/* L0 Stage */}
+                <div className="flex items-start gap-3">
+                  <div className="flex flex-col items-center pt-1">
+                    <div className="w-3 h-3 rounded-full bg-purple-400 shrink-0" />
+                    <div className="w-0.5 flex-1 bg-purple-500/30 mt-1" style={{ minHeight: 40 }} />
+                  </div>
+                  <div className="pb-2 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">L0 · STAGE</span>
+                      <span className="text-xs text-slate-400">Top-level milestone or phase</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Groups related quests. Think of it as a chapter — e.g. <span className="text-purple-300/80 italic">"House Cleanup"</span> or <span className="text-purple-300/80 italic">"Launch Marketing"</span>.</p>
+                  </div>
+                </div>
+
+                {/* L1 Quest */}
+                <div className="flex items-start gap-3 pl-5">
+                  <div className="flex flex-col items-center pt-1">
+                    <div className="w-3 h-3 rounded-full bg-blue-400 shrink-0" />
+                    <div className="w-0.5 flex-1 bg-blue-500/30 mt-1" style={{ minHeight: 40 }} />
+                  </div>
+                  <div className="pb-2 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">L1 · QUEST</span>
+                      <span className="text-xs text-slate-400">A concrete goal within a Stage</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">A meaningful unit of work with its own gold reward — e.g. <span className="text-blue-300/80 italic">"Clear out front lawn"</span>.</p>
+                  </div>
+                </div>
+
+                {/* L2 Sub-quest */}
+                <div className="flex items-start gap-3 pl-10">
+                  <div className="flex flex-col items-center pt-1">
+                    <div className="w-3 h-3 rounded-full bg-cyan-400 shrink-0" />
+                    <div className="w-0.5 flex-1 bg-cyan-500/30 mt-1" style={{ minHeight: 40 }} />
+                  </div>
+                  <div className="pb-2 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">L2 · SUB-QUEST</span>
+                      <span className="text-xs text-slate-400">Breaks a Quest into parts</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Optional sub-division — e.g. <span className="text-cyan-300/80 italic">"Move furniture"</span> under a larger quest.</p>
+                  </div>
+                </div>
+
+                {/* L3 Task */}
+                <div className="flex items-start gap-3 pl-[60px]">
+                  <div className="flex flex-col items-center pt-1">
+                    <div className="w-3 h-3 rounded-full bg-teal-400 shrink-0" />
+                    <div className="w-0.5 flex-1 bg-teal-500/30 mt-1" style={{ minHeight: 36 }} />
+                  </div>
+                  <div className="pb-2 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300">L3 · TASK</span>
+                      <span className="text-xs text-slate-400">A single actionable step</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Small, completable unit — e.g. <span className="text-teal-300/80 italic">"Bag up junk items"</span>.</p>
+                  </div>
+                </div>
+
+                {/* L4 Sub-task */}
+                <div className="flex items-start gap-3 pl-[76px]">
+                  <div className="flex flex-col items-center pt-1">
+                    <div className="w-3 h-3 rounded-full bg-slate-400 shrink-0" />
+                  </div>
+                  <div className="pb-1 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-300">L4 · SUB-TASK</span>
+                      <span className="text-xs text-slate-400">Deepest level detail</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">Ultra-granular step if needed — e.g. <span className="text-slate-300/80 italic">"Label each bag"</span>.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className="mt-5 bg-purple-900/20 border border-purple-500/20 rounded-xl p-3 space-y-1.5">
+                <p className="text-[11px] font-semibold text-purple-300 uppercase tracking-wide mb-2">💡 Tips</p>
+                <p className="text-[11px] text-slate-400">• Use <span className="text-purple-300">← →</span> arrows to indent/outdent items and change their level.</p>
+                <p className="text-[11px] text-slate-400">• Use <span className="text-purple-300">↑ ↓</span> arrows to reorder items at the same level.</p>
+                <p className="text-[11px] text-slate-400">• Complete all items to earn the <span className="text-yellow-400">3× gold bonus</span>.</p>
+                <p className="text-[11px] text-slate-400">• You don't need all 5 levels — most questlines only need L0 + L1.</p>
+              </div>
+
+              <button
+                onClick={() => setShowHierarchyHelp(false)}
+                className="mt-4 w-full py-2 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 text-sm font-semibold transition-colors"
+              >
+                Got it ✓
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
           <div className="space-y-6 py-4 pb-[40vh]">
