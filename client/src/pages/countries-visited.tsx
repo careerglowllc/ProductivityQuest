@@ -276,6 +276,18 @@ export default function CountriesVisitedPage() {
       updates["country-__v5"] = "1";
     }
 
+    // v6 migration: force-seed Belgium (may have been missed or stored empty in earlier migrations)
+    if (!kvData["country-__v6"]) {
+      const belRaw = updates[storageKey("BEL")] ?? kvData[storageKey("BEL")];
+      const belExisting: CountryEntry = belRaw ? JSON.parse(belRaw) : EMPTY_ENTRY();
+      updates[storageKey("BEL")] = JSON.stringify({
+        ...belExisting,
+        visitedAt: belExisting.visitedAt || "2016",
+        cities: belExisting.cities?.length ? belExisting.cities : ["Brussels", "Bruges"],
+      });
+      updates["country-__v6"] = "1";
+    }
+
     if (Object.keys(updates).length > 0) {
       saveMutation.mutate({
         updates,
