@@ -16,13 +16,14 @@ import { apiRequest } from "@/lib/queryClient";
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 // Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
+// IMPORTANT: only countries in this table will ever show as "visited" on the map.
+// This prevents disputed territories / unrecognized states from spuriously matching.
 const NUMERIC_TO_ALPHA3: Record<string, string> = {
-  "484": "MEX", "528": "NLD", "056": "BEL", "372": "IRL", "276": "DEU",
+  "484": "MEX", "528": "NLD", "56": "BEL", "372": "IRL", "276": "DEU",
   "392": "JPN", "156": "CHN", "704": "VNM", "764": "THA", "170": "COL",
   "616": "POL", "620": "PRT", "724": "ESP", "826": "GBR", "250": "FRA",
   "380": "ITA", "203": "CZE", "344": "HKG", "630": "PRI",
-  "376": "ISR", "158": "TWN",
-  "56": "BEL",
+  "376": "ISR", "158": "TWN", "840": "USA",
 };
 
 // All visited country ISO codes (HAW = Hawaii, tracked as own region)
@@ -63,6 +64,35 @@ const SEED_DATES: Record<string, string> = {
   DEU: "2016",
   BEL: "2016",
   NLD: "2016",
+  ESP: "2016",
+  FRA: "2016",
+  GBR: "2016",
+};
+
+// Seeded city data (v3 migration)
+const SEED_CITIES: Record<string, string[]> = {
+  MEX: ["Mexico City", "Tulum"],
+  CHN: ["Shanghai", "Beijing", "Shenzhen", "Guangzhou"],
+  HKG: ["Hong Kong Island", "Kowloon"],
+  ISR: ["Tel Aviv", "Jerusalem"],
+  TWN: ["Taipei"],
+  JPN: ["Tokyo", "Kyoto", "Osaka"],
+  VNM: ["Ho Chi Minh City", "Hanoi", "Da Nang"],
+  PRT: ["Lisbon", "Porto"],
+  CZE: ["Prague"],
+  POL: ["Kraków", "Warsaw"],
+  THA: ["Bangkok", "Chiang Mai", "Phuket"],
+  HAW: ["Honolulu", "Maui"],
+  PRI: ["San Juan"],
+  COL: ["Medellín", "Cartagena", "Bogotá"],
+  IRL: ["Dublin"],
+  ITA: ["Rome", "Florence", "Venice", "Milan"],
+  DEU: ["Munich", "Berlin"],
+  BEL: ["Brussels", "Bruges"],
+  NLD: ["Amsterdam"],
+  ESP: ["Madrid", "Barcelona"],
+  FRA: ["Paris"],
+  GBR: ["London"],
 };
 
 interface CountryEntry {
@@ -127,6 +157,20 @@ export default function CountriesVisitedPage() {
         }
       }
       updates["country-__v2"] = "1";
+    }
+
+    // v3 migration: apply known cities if not already applied
+    if (!kvData["country-__v3"]) {
+      for (const [iso, cities] of Object.entries(SEED_CITIES)) {
+        const raw = updates[storageKey(iso)] ?? kvData[storageKey(iso)];
+        const existing: CountryEntry = raw ? JSON.parse(raw) : EMPTY_ENTRY();
+        // Only set cities if currently empty
+        if (!existing.cities || existing.cities.length === 0) {
+          const date = existing.visitedAt || SEED_DATES[iso] || "";
+          updates[storageKey(iso)] = JSON.stringify({ ...existing, visitedAt: date, cities });
+        }
+      }
+      updates["country-__v3"] = "1";
     }
 
     if (Object.keys(updates).length > 0) saveMutation.mutate({ updates });
@@ -238,7 +282,7 @@ export default function CountriesVisitedPage() {
       </div>
 
       {/* Map */}
-      <div className="relative w-full" style={{ height: isMobile ? "60vw" : "680px" }}>
+      <div className="relative w-full" style={{ height: isMobile ? "70vw" : "min(85vh, 1100px)" }}>
         <ComposableMap
           projection="geoEqualEarth"
           style={{ width: "100%", height: "100%" }}
@@ -256,11 +300,14 @@ export default function CountriesVisitedPage() {
             <Geographies geography={GEO_URL}>
               {({ geographies }: { geographies: any[] }) =>
                 geographies.map((geo: any) => {
-                  // world-atlas uses numeric ISO IDs; resolve to alpha-3
+                  // Resolve ISO: only trust our explicit lookup table for visited status.
+                  // Fallback to geo properties for display name / click handling only.
                   const numericId = String(geo.id ?? "");
-                  const iso = NUMERIC_TO_ALPHA3[numericId] ?? geo.properties?.ISO_A3 ?? numericId;
+                  const isoFromTable = NUMERIC_TO_ALPHA3[numericId];
+                  const iso = isoFromTable ?? geo.properties?.ISO_A3 ?? numericId;
                   const name = ISO_NAMES[iso] ?? geo.properties?.NAME ?? geo.properties?.name ?? iso;
-                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso);
+                  // Only mark visited if the ISO came from our trusted lookup table
+                  const visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
                   const isSelected = selected?.iso === iso;
                   return (
                     <Geography
@@ -278,21 +325,23 @@ export default function CountriesVisitedPage() {
                       onMouseLeave={() => setTooltip(null)}
                       style={{
                         default: {
-                          fill: isSelected ? "#0EA5E9" : visited ? "#38BDF8" : "#1e293b",
-                          stroke: "#334155",
-                          strokeWidth: 0.4,
+                          // Visited = filled blue; selected-only = dark fill + bright outline
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#334155",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.4,
                           outline: "none",
                           cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
                         },
                         hover: {
-                          fill: visited ? "#7DD3FC" : "#334155",
-                          stroke: "#94a3b8",
-                          strokeWidth: 0.6,
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: visited ? 0.4 : 1.5,
                           outline: "none",
                           cursor: "pointer",
                         },
                         pressed: {
-                          fill: visited ? "#0EA5E9" : "#475569",
+                          fill: visited ? "#0EA5E9" : "#1e3a5f",
                           outline: "none",
                         },
                       }}
@@ -385,8 +434,12 @@ export default function CountriesVisitedPage() {
 
       {/* Edit panel */}
       {editing && editForm && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.65)" }}>
-          <div className="w-full max-w-lg bg-gradient-to-b from-slate-900 to-slate-800 border border-sky-500/30 rounded-t-3xl p-5 max-h-[88vh] overflow-y-auto">
+        <div
+          className={`fixed inset-0 z-50 flex ${isMobile ? "items-end" : "items-center"} justify-center`}
+          style={{ background: "rgba(0,0,0,0.65)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setEditing(false); }}
+        >
+          <div className={`w-full max-w-lg bg-gradient-to-b from-slate-900 to-slate-800 border border-sky-500/30 ${isMobile ? "rounded-t-3xl" : "rounded-2xl"} p-5 max-h-[88vh] overflow-y-auto`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">✏️ {editForm.name}</h2>
               <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
