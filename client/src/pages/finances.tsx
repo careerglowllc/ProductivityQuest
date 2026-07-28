@@ -279,44 +279,54 @@ function RealEstateROICalculator({
     : 0;
 
   // ── S&P 500 comparison ──────────────────────────────────────────────────
-  // Scenario: invest downPayment upfront + invest (monthlyHousingCost - rent) each month
-  // Positive monthly savings = you're spending MORE on housing than rent → that surplus could go to S&P
-  // Negative monthly savings = rent > housing (unlikely but possible) → you have less to invest
-  const monthlySavingsVsRent = monthlyHousingCost - rentAlternative; // extra cash cost of owning vs renting
+  // Scenario: instead of buying the rental property, invest those same dollars in S&P
+  //   Lump sum at t=0 : down payment + all one-time major expenses (roof, floors, etc.)
+  //   Monthly         : net cash outflow to the property each month
+  //                     = (mortgage + taxes + ins + HOA + maintenance/12) − rental income
+  //                     If the rental is cash-flow positive, $0 extra investment needed
+  const spLumpInvested = downPayment + pendingCosts;
   const spMonthlyRate = Math.pow(1 + spAnnualReturn / 100, 1 / 12) - 1;
   const nMonths = holdYears * 12;
-  // FV of lump sum (down payment) + FV of monthly contributions (cost differential)
-  // When monthlySavingsVsRent > 0, owning costs more → the "savings" side invests less vs renting scenario
-  // In the renting scenario: invest downPayment + monthlySavingsVsRent each month
-  const spFV_lumpSum = downPayment * Math.pow(1 + spMonthlyRate, nMonths);
-  // Rent compounds annually — compute FV of each year's monthly cost-differential contributions
+
+  const spFV_lumpSum = spLumpInvested * Math.pow(1 + spMonthlyRate, nMonths);
+
+  // Year-by-year: net monthly outflow after rental income (rent compounds each year)
   const spFV_monthly = (() => {
     let fv = 0;
     for (let yr = 0; yr < holdYears; yr++) {
-      const rentThisYear = rentAlternative * Math.pow(1 + annualRentIncrease / 100, yr);
-      const monthlySavings = monthlyHousingCost - rentThisYear;
+      const rentYr = includeRental
+        ? effectiveRentEarly * Math.pow(1 + annualRentIncrease / 100, yr)
+        : 0;
+      const netOutflow = Math.max(0, monthlyHousingCost + annualMaintenance / 12 - rentYr);
       const monthsRemaining = (holdYears - yr) * 12;
       const fvFactor = spMonthlyRate > 0
         ? (Math.pow(1 + spMonthlyRate, monthsRemaining) - 1) / spMonthlyRate
         : monthsRemaining;
-      fv += monthlySavings * fvFactor;
+      fv += netOutflow * fvFactor;
     }
     return fv;
   })();
+
   const spFinalValue = spFV_lumpSum + spFV_monthly;
-  // Total rent paid (compounded) in renting scenario
-  const spTotalRentPaid = Array.from({ length: holdYears }, (_, yr) =>
-    rentAlternative * Math.pow(1 + annualRentIncrease / 100, yr) * 12
-  ).reduce((s, v) => s + v, 0);
-  const spTotalCashIn = downPayment + spTotalRentPaid;
+
+  // Net monthly outflow in year 1 (for display)
+  const yr1RentForSP = includeRental ? effectiveRentEarly : 0;
+  const netMonthlyOutflowYr1 = Math.max(0, monthlyHousingCost + annualMaintenance / 12 - yr1RentForSP);
+
+  // Total cash invested in S&P scenario (lump + monthly outflows)
+  const spTotalCashIn = spLumpInvested + Array.from({ length: holdYears }, (_, yr) => {
+    const rentYr = includeRental ? effectiveRentEarly * Math.pow(1 + annualRentIncrease / 100, yr) : 0;
+    return Math.max(0, monthlyHousingCost + annualMaintenance / 12 - rentYr) * 12;
+  }).reduce((s, v) => s + v, 0);
+
   const spNetGain = spFinalValue - spTotalCashIn;
   const spTotalROI = spTotalCashIn > 0 ? (spNetGain / spTotalCashIn) * 100 : 0;
   const spCAGR = spTotalCashIn > 0 && holdYears > 0 && spFinalValue > 0
     ? (Math.pow(spFinalValue / spTotalCashIn, 1 / holdYears) - 1) * 100
     : 0;
 
-  const homeWins = projectedAfterTax >= spFinalValue;
-  const margin = Math.abs(projectedAfterTax - spFinalValue);
+  const homeWins = totalProceeds >= spFinalValue;
+  const margin = Math.abs(totalProceeds - spFinalValue);
 
   // ── Rental scenario ─────────────────────────────────────────────────────
   const effectiveRent = effectiveRentEarly; // alias (already computed above for ROI)
@@ -490,20 +500,18 @@ function RealEstateROICalculator({
       <div className="border-t border-slate-700/40 pt-4">
         <div className="flex items-center gap-2 mb-3">
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">🆚 S&amp;P 500 Comparison</p>
-          <span className="text-[9px] text-slate-600">— what if you rented &amp; invested the difference instead?</span>
+          <span className="text-[9px] text-slate-600">— what if you invested all that capital in S&amp;P 500 instead?</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <SliderRow label="Monthly rent (alternative scenario)" value={rentAlternative} min={500} max={6000} step={50} unit="$" onChange={setRentAlternative} color="text-blue-300" />
-          <SliderRow label="Annual rent increase (alt. scenario)" value={annualRentIncrease} min={0} max={10} step={0.5} unit="%" onChange={setAnnualRentIncrease} color="text-blue-300" />
+        <div className="mb-4 max-w-xs">
           <SliderRow label="S&P 500 annual return assumption" value={spAnnualReturn} min={4} max={15} step={0.5} unit="%" onChange={setSpAnnualReturn} color="text-blue-300" />
         </div>
 
         {/* Side-by-side comparison */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Home */}
+          {/* Home / Rental */}
           <div className={`bg-slate-900/50 rounded-lg p-4 border-2 ${homeWins ? "border-pink-500/50" : "border-slate-700/40"}`}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-pink-300">🏠 Own the House</p>
+              <p className="text-sm font-bold text-pink-300">🏠 {includeRental ? "Rental Property" : "Own the House"}</p>
               {homeWins && <span className="text-[10px] bg-pink-600/30 text-pink-300 border border-pink-500/40 rounded px-1.5 py-0.5 font-semibold">WINNER</span>}
             </div>
             <div className="space-y-1.5 text-xs">
@@ -515,13 +523,19 @@ function RealEstateROICalculator({
                 <span>After-tax sale proceeds</span>
                 <span className="text-emerald-300">{fmt(projectedAfterTax)}</span>
               </div>
+              {includeRental && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Total rental income ({holdYears} yrs)</span>
+                  <span className="text-emerald-300">+{fmt(totalRentalIncomeHold)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-400">
                 <span>Net gain / (loss)</span>
                 <span className={netGain >= 0 ? "text-emerald-300" : "text-red-400"}>{netGain >= 0 ? "+" : ""}{fmt(netGain)}</span>
               </div>
               <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1.5 text-sm">
-                <span className="text-slate-200">End portfolio value</span>
-                <span className={projectedAfterTax >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(projectedAfterTax)}</span>
+                <span className="text-slate-200">Total proceeds</span>
+                <span className={totalProceeds >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(totalProceeds)}</span>
               </div>
               <div className="flex justify-between text-slate-500 text-[10px]">
                 <span>CAGR on cash invested</span>
@@ -533,24 +547,28 @@ function RealEstateROICalculator({
           {/* S&P 500 */}
           <div className={`bg-slate-900/50 rounded-lg p-4 border-2 ${!homeWins ? "border-blue-500/50" : "border-slate-700/40"}`}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-blue-300">📈 Rent + Invest in S&amp;P 500</p>
+              <p className="text-sm font-bold text-blue-300">📈 Invest in S&amp;P 500</p>
               {!homeWins && <span className="text-[10px] bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded px-1.5 py-0.5 font-semibold">WINNER</span>}
             </div>
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-400">
-                <span>Down pmt invested upfront</span>
-                <span>{fmt(downPayment)}</span>
+                <span>Down pmt + one-time costs</span>
+                <span>{fmt(spLumpInvested)}</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Monthly extra vs rent</span>
-                <span className={monthlySavingsVsRent >= 0 ? "text-red-400" : "text-emerald-400"}>
-                  {monthlySavingsVsRent >= 0 ? `+${fmt(monthlySavingsVsRent)}/mo` : `${fmt(monthlySavingsVsRent)}/mo`}
-                  <span className="text-slate-600 ml-1">{monthlySavingsVsRent >= 0 ? "invested" : "saved"}</span>
+                <span>Net monthly subsidy → S&P</span>
+                <span className={netMonthlyOutflowYr1 > 0 ? "text-amber-400" : "text-emerald-400"}>
+                  {netMonthlyOutflowYr1 > 0 ? `${fmt(netMonthlyOutflowYr1)}/mo` : "Cash-flow positive ✓"}
+                  {netMonthlyOutflowYr1 > 0 && <span className="text-slate-600 ml-1">invested</span>}
                 </span>
               </div>
               <div className="flex justify-between text-slate-400">
                 <span>Assumed S&P return</span>
                 <span className="text-blue-300">{fmtPct(spAnnualReturn)}/yr</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Total cash invested</span>
+                <span>{fmt(spTotalCashIn)}</span>
               </div>
               <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1.5 text-sm">
                 <span className="text-slate-200">End portfolio value</span>
@@ -566,11 +584,11 @@ function RealEstateROICalculator({
 
         {/* Winner callout */}
         <div className={`mt-3 rounded-lg p-3 border text-sm font-semibold flex items-center justify-between ${homeWins ? "bg-pink-900/20 border-pink-500/30 text-pink-200" : "bg-blue-900/20 border-blue-500/30 text-blue-200"}`}>
-          <span>{homeWins ? "🏠 House comes out ahead" : "📈 S&P 500 comes out ahead"} over {holdYears} yrs</span>
+          <span>{homeWins ? "🏠 Real estate comes out ahead" : "📈 S&P 500 comes out ahead"} over {holdYears} yrs</span>
           <span className={homeWins ? "text-pink-300" : "text-blue-300"}>by {fmt(margin)}</span>
         </div>
         <p className="text-[10px] text-slate-600 mt-1.5">
-          Assumes {fmtPct(annualAppreciation)}/yr home appreciation · {fmtPct(spAnnualReturn)}/yr S&P return · ${rentAlternative.toLocaleString()}/mo rent (+{fmtPct(annualRentIncrease)}/yr) · {fmtPct(annualMaintenancePct)} maintenance
+          S&P scenario invests: down pmt ({fmt(downPayment)}) + one-time costs ({fmt(pendingCosts)}) upfront, then net monthly outflow{includeRental ? ` after ${fmt(yr1RentForSP)}/mo rental income` : ""} each month · {fmtPct(spAnnualReturn)}/yr assumed return
         </p>
       </div>
     </div>
