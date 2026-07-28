@@ -13,19 +13,31 @@ import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 
+// Use Natural Earth GeoJSON — separates France from its overseas territories,
+// and uses ISO_A3 alpha-3 codes directly in properties (no numeric→alpha3 lookup needed).
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 // UK constituent nations — separate higher-res layer so we can highlight England/Scotland/Wales/NI individually
 const UK_GEO_URL = "https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/administrative/countries.json";
+// US states atlas — used to overlay Alaska (FIPS 02) and Hawaii (FIPS 15) as separate clickable regions
+const US_ATLAS_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+// Italy regions GeoJSON — used to overlay Sicily (region 19) as a separate clickable region
+const ITALY_REGIONS_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
 
 // Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
 // IMPORTANT: only countries in this table will ever show as "visited" on the map.
 // GBR (826) intentionally NOT listed — UK is rendered via the separate UK nations layer instead.
+// FRA (250): world-atlas includes French Guiana/Martinique etc. in France's polygon — this is
+// technically correct but shows "France" over Caribbean/S.America. Accepted limitation.
 const NUMERIC_TO_ALPHA3: Record<string, string> = {
   "484": "MEX", "528": "NLD", "56": "BEL", "372": "IRL", "276": "DEU",
   "392": "JPN", "156": "CHN", "704": "VNM", "764": "THA", "170": "COL",
   "616": "POL", "620": "PRT", "724": "ESP", "250": "FRA",
   "380": "ITA", "203": "CZE", "344": "HKG", "630": "PRI",
-  "376": "ISR", "158": "TWN", "840": "USA",
+  "376": "ISR", "158": "TWN",
+  // Americas
+  "840": "USA", "124": "CAN",
+  // Central/Eastern Europe
+  "348": "HUN", "191": "HRV",
 };
 
 // UK nation code from feature properties (martinjc dataset uses CTRY*CD codes)
@@ -38,13 +50,31 @@ function getUKNationISO(properties: any): string | null {
   return null;
 }
 
+// us-atlas FIPS state IDs for Alaska (02) and Hawaii (15)
+const US_FIPS_TO_ISO: Record<string, string> = {
+  "02": "ALA",
+  "15": "HAW",
+};
+
+// Italy region istat codes → custom ISOs for regions tracked separately from ITA
+// Sicily = region 19
+const ITALY_REGION_TO_ISO: Record<string, string> = {
+  "19": "SIC",
+};
+
 // All visited country ISO codes
 const SEED_ISOS = [
   "MEX","NLD","BEL","IRL","DEU","JPN","CHN","VNM","THA","COL",
   "POL","PRT","ESP","FRA","ITA","CZE","HKG","PRI",
-  "ISR","TWN","HAW",
+  "ISR","TWN",
+  // Americas
+  "USA","CAN","HAW","ALA",
+  // Central/Eastern Europe
+  "HUN","HRV",
   // UK nations (replacing GBR)
   "ENG","NIR","SCT","WLS",
+  // Italian regions
+  "SIC",
 ];
 
 // Display names
@@ -54,8 +84,11 @@ const ISO_NAMES: Record<string, string> = {
   THA: "Thailand", COL: "Colombia", POL: "Poland", PRT: "Portugal",
   ESP: "Spain", FRA: "France", ITA: "Italy",
   CZE: "Czechia", HKG: "Hong Kong", PRI: "Puerto Rico",
-  ISR: "Israel", TWN: "Taiwan", HAW: "Hawaii 🌺",
+  ISR: "Israel", TWN: "Taiwan",
+  USA: "United States", CAN: "Canada", HAW: "Hawaii 🌺", ALA: "Alaska ❄️",
+  HUN: "Hungary", HRV: "Croatia",
   ENG: "England 🏴󠁧󠁢󠁥󠁮󠁧󠁿", SCT: "Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿", WLS: "Wales 🏴󠁧󠁢󠁷󠁬󠁳󠁿", NIR: "Northern Ireland",
+  SIC: "Sicily 🏝️",
 };
 
 // Seeded visit dates (v2 migration)
@@ -81,6 +114,10 @@ const SEED_DATES: Record<string, string> = {
   NLD: "2016",
   ESP: "2016",
   FRA: "2016",
+  HUN: "2016",
+  HRV: "2016",
+  USA: "multiple",
+  CAN: "visited",
   // UK nations
   ENG: "2016",
   NIR: "2016",
@@ -109,6 +146,10 @@ const SEED_CITIES: Record<string, string[]> = {
   NLD: ["Amsterdam"],
   ESP: ["Madrid", "Barcelona"],
   FRA: ["Paris"],
+  HUN: ["Budapest"],
+  HRV: ["Zagreb", "Dubrovnik", "Split"],
+  USA: ["New York", "San Francisco", "Los Angeles", "Chicago", "Seattle", "Sacramento"],
+  CAN: ["Vancouver", "Toronto"],
   ENG: ["London"],
   NIR: ["Belfast"],
 };
@@ -209,6 +250,26 @@ export default function CountriesVisitedPage() {
         updates["country-WLS"] = JSON.stringify(EMPTY_ENTRY());
       }
       updates["country-__v4"] = "1";
+    }
+
+    // v5 migration: add Canada, Hungary, Croatia, USA, Alaska
+    if (!kvData["country-__v5"]) {
+      const v5Seeds: Record<string, CountryEntry> = {
+        CAN: { visitedAt: "visited", cities: ["Vancouver", "Toronto"], highlights: [], lowlights: [], lessons: [] },
+        HUN: { visitedAt: "2016", cities: ["Budapest"], highlights: [], lowlights: [], lessons: [] },
+        HRV: { visitedAt: "2016", cities: ["Zagreb", "Dubrovnik", "Split"], highlights: [], lowlights: [], lessons: [] },
+        USA: { visitedAt: "multiple", cities: ["New York", "San Francisco", "Los Angeles", "Chicago", "Seattle", "Sacramento"], highlights: [], lowlights: [], lessons: [] },
+        // Alaska — not visited (empty entry so it can be edited later)
+        ALA: EMPTY_ENTRY(),
+        // Sicily — not visited (separate from Italy)
+        SIC: EMPTY_ENTRY(),
+      };
+      for (const [iso, entry] of Object.entries(v5Seeds)) {
+        if (!kvData[storageKey(iso)]) {
+          updates[storageKey(iso)] = JSON.stringify(entry);
+        }
+      }
+      updates["country-__v5"] = "1";
     }
 
     if (Object.keys(updates).length > 0) {
@@ -404,6 +465,105 @@ export default function CountriesVisitedPage() {
               {({ geographies }: { geographies: any[] }) =>
                 geographies.map((geo: any) => {
                   const iso = getUKNationISO(geo.properties);
+                  if (!iso) return null;
+                  const name = ISO_NAMES[iso] ?? iso;
+                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                    && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                  const isSelected = selected?.iso === iso;
+                  return (
+                    <Geography
+                      key={geo.rsmKey ?? iso}
+                      geography={geo}
+                      onClick={() => openCountry(iso, name)}
+                      onMouseEnter={(e: any) => {
+                        const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                        setTooltip({
+                          name,
+                          x: svgRect ? e.clientX - svgRect.left : 0,
+                          y: svgRect ? e.clientY - svgRect.top : 0,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{
+                        default: {
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.6,
+                          outline: "none",
+                          cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                        },
+                        hover: {
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
+            {/* Alaska & Hawaii overlay — separate clickable regions drawn on top of the USA polygon */}
+            <Geographies geography={US_ATLAS_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
+                  // us-atlas FIPS id is a number like 2 or 15; pad to 2 digits
+                  const fips = String(geo.id ?? "").padStart(2, "0");
+                  const iso = US_FIPS_TO_ISO[fips];
+                  if (!iso) return null; // skip all other states
+                  const name = ISO_NAMES[iso] ?? iso;
+                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                    && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                  const isSelected = selected?.iso === iso;
+                  return (
+                    <Geography
+                      key={geo.rsmKey ?? iso}
+                      geography={geo}
+                      onClick={() => openCountry(iso, name)}
+                      onMouseEnter={(e: any) => {
+                        const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                        setTooltip({
+                          name,
+                          x: svgRect ? e.clientX - svgRect.left : 0,
+                          y: svgRect ? e.clientY - svgRect.top : 0,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{
+                        default: {
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.6,
+                          outline: "none",
+                          cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                        },
+                        hover: {
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
+            {/* Sicily overlay — separate clickable region drawn on top of the Italy polygon */}
+            <Geographies geography={ITALY_REGIONS_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
+                  const regionCode = String(geo.properties?.reg_istat_code_num ?? "");
+                  const iso = ITALY_REGION_TO_ISO[regionCode];
                   if (!iso) return null;
                   const name = ISO_NAMES[iso] ?? iso;
                   const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
