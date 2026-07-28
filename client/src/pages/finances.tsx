@@ -204,6 +204,7 @@ function RealEstateROICalculator({
   pendingCosts,
   monthsOwned,
   totalExpensesMonthly: _totalExpensesMonthly,
+  downPaymentOverride,
 }: {
   purchasePrice: number;
   currentValue: number;
@@ -212,6 +213,7 @@ function RealEstateROICalculator({
   pendingCosts: number;
   monthsOwned: number;
   totalExpensesMonthly: number;
+  downPaymentOverride?: number;
 }) {
   const [annualAppreciation, setAnnualAppreciation] = useState(4);        // % annual home appreciation
   const [holdYears, setHoldYears] = useState(10);                         // years to hold before selling
@@ -221,15 +223,17 @@ function RealEstateROICalculator({
   const [includeRental, setIncludeRental] = useState(false);
   const [monthlyRent, setMonthlyRent] = useState(2800);                   // rental income if rented out
   const [vacancyRate, setVacancyRate] = useState(5);                      // % vacancy
+  const [annualRentIncrease, setAnnualRentIncrease] = useState(5);        // % annual rent increase
 
   const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
   const fmtPct = (n: number, d = 1) => `${n.toFixed(d)}%`;
 
   // ── Down payment estimate ───────────────────────────────────────────────
-  // Infer original loan: current balance + principal paid so far
+  // Use override if provided (e.g. known ~$30k for 3.5% down + closing costs)
+  // else infer from loan paydown rate
   const monthlyPrincipal = monthsOwned > 0 ? (purchasePrice - loanBalance) / monthsOwned : 500;
   const originalLoan = loanBalance + monthlyPrincipal * monthsOwned;
-  const downPayment = Math.max(0, purchasePrice - originalLoan);
+  const downPayment = downPaymentOverride ?? Math.max(0, purchasePrice - originalLoan);
 
   // ── Projected sale ──────────────────────────────────────────────────────
   const projectedSalePrice = currentValue * Math.pow(1 + annualAppreciation / 100, holdYears);
@@ -286,11 +290,16 @@ function RealEstateROICalculator({
 
   // ── Rental scenario ─────────────────────────────────────────────────────
   const effectiveRent = monthlyRent * (1 - vacancyRate / 100);
-  const annualRentalIncome = effectiveRent * 12;
+  const annualRentalIncome = effectiveRent * 12; // year-1 income (for cap rate / NOI display)
   const annualRentalExpenses = monthlyHousingCost * 12 + annualMaintenance;
   const annualNOI = annualRentalIncome - annualRentalExpenses;
   const capRate = currentValue > 0 ? (annualNOI / currentValue) * 100 : 0;
-  const totalRentalIncomeHold = effectiveRent * holdYears * 12;
+  // Compound rent increases: sum FV of each year's rental income
+  const totalRentalIncomeHold = Array.from({ length: holdYears }, (_, i) =>
+    effectiveRent * 12 * Math.pow(1 + annualRentIncrease / 100, i)
+  ).reduce((s, v) => s + v, 0);
+  // Rent in final year (for display)
+  const finalYearRent = effectiveRent * Math.pow(1 + annualRentIncrease / 100, holdYears - 1);
   const totalRentalProfit = totalRentalIncomeHold + projectedAfterTax - totalHoldingCost;
 
   const SliderRow = ({
@@ -337,6 +346,10 @@ function RealEstateROICalculator({
               <>
                 <SliderRow label="Monthly rent income" value={monthlyRent} min={500} max={6000} step={50} unit="$" onChange={setMonthlyRent} />
                 <SliderRow label="Vacancy rate" value={vacancyRate} min={0} max={20} step={1} unit="%" onChange={setVacancyRate} />
+                <div className="space-y-1">
+                  <SliderRow label="Annual rent increase" value={annualRentIncrease} min={2} max={10} step={0.5} unit="%" onChange={setAnnualRentIncrease} />
+                  <p className="text-[10px] text-slate-600 italic">recommended: 5%/yr (US avg. for single-family rentals)</p>
+                </div>
               </>
             )}
           </div>
@@ -412,20 +425,30 @@ function RealEstateROICalculator({
             <div className="bg-slate-900/50 rounded-lg p-3 space-y-1.5 text-xs border border-amber-700/30">
               <p className="text-[10px] text-amber-400/80 font-semibold uppercase tracking-wider mb-1.5">Rental Metrics</p>
               <div className="flex justify-between text-slate-400">
-                <span>Effective monthly rent</span>
+                <span>Yr 1 effective monthly rent</span>
                 <span className="text-emerald-300">{fmt(effectiveRent)}/mo</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Annual housing expenses</span>
+                <span className="flex items-center gap-1">
+                  Yr {holdYears} rent <span className="text-[9px] text-slate-600">({annualRentIncrease}%/yr compounded)</span>
+                </span>
+                <span className="text-emerald-400">{fmt(finalYearRent)}/mo</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Annual housing expenses (yr 1)</span>
                 <span className="text-red-400">−{fmt(annualRentalExpenses)}/yr</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Net Operating Income</span>
+                <span>Net Operating Income (yr 1)</span>
                 <span className={annualNOI >= 0 ? "text-emerald-300" : "text-red-300"}>{fmt(annualNOI)}/yr</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Cap Rate</span>
+                <span>Cap Rate (yr 1)</span>
                 <span className={capRate >= 4 ? "text-emerald-300" : capRate >= 2 ? "text-yellow-300" : "text-red-300"}>{fmtPct(capRate)}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Total rental income ({holdYears} yrs, compounded)</span>
+                <span className="text-emerald-300">{fmt(totalRentalIncomeHold)}</span>
               </div>
               <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1">
                 <span className="text-slate-200">Total rental profit ({holdYears} yrs)</span>
@@ -1291,7 +1314,9 @@ export default function Finances() {
   const _homeRawGain = _homeSalePrice - _homeTotalSellingCosts - _homeAdjustedBasis;
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
-  const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax - homePendingCosts;
+  const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
+  // Note: homePendingCosts (shed, floors, roof, fume hood) are excluded from net worth —
+  // they are factored in only in the Real Estate ROI tab as holding/improvement costs.
   // BTC wallets and Vanguard brokerage: apply 15% LTCG haircut in all net worth totals
   const _btcAfterTax = _totalBtcValue * 0.85;
   // Settlement/money market (VMFXX) is cash — no LTCG haircut; add at face value.
@@ -3905,13 +3930,28 @@ export default function Finances() {
               const housingItems = financialItems.filter(i =>
                 i.category === "Housing" || (i.tags ?? []).includes("Housing")
               );
+              // Shed financing ends Jan 2027 — it's a temporary payment, exclude from recurring monthly
+              const shedItem = housingItems.find(i => i.item.toLowerCase().includes("shed"));
+              const recurringHousingItems = housingItems.filter(i => !i.item.toLowerCase().includes("shed"));
               const monthlyHousingCost = housingItems.reduce((s, i) => s + i.monthlyCost, 0);
+              // Recurring-only monthly cost (no shed financing) — used for long-term projections
+              const monthlyHousingRecurring = recurringHousingItems.reduce((s, i) => s + i.monthlyCost, 0);
               // Mortgage/PITI is the big one — isolate it for the breakdown
               const mortgageItem = financialItems.find(i =>
                 i.item.toLowerCase().includes("mortgage") || i.item.toLowerCase().includes("piti")
               );
               const monthlyMortgage = mortgageItem ? mortgageItem.monthlyCost : 446714; // cents
-              const monthlyNonMortgageHousing = monthlyHousingCost - monthlyMortgage;
+
+              // One-time costs (down payment + known improvements)
+              const RE_DOWN_PAYMENT = 30000;   // ~3.5% down + inspections/closing costs
+              const oneTimeCosts = [
+                { label: "Down payment + closing costs", amount: RE_DOWN_PAYMENT },
+                { label: "New shed (Affirm financed)", amount: 6200 },
+                { label: "Small roof fix", amount: 500 },
+                { label: "Fume hood install", amount: 1300 },
+                { label: "Floor molding & replacement", amount: 35000, tentative: true },
+              ];
+              const totalOneTimeCosts = oneTimeCosts.reduce((s, i) => s + i.amount, 0);
 
               // Purchase date: May 2025 → calculate months owned
               const purchaseDate = new Date(2025, 4, 1); // May 2025
@@ -3927,10 +3967,13 @@ export default function Finances() {
               const monthsElapsed = monthsOwned;
               const monthsRemaining = Math.max(0, loanTermMonths - monthsElapsed);
 
-              // Lifetime cost so far = months owned × total monthly housing
-              const lifetimeSoFar = monthsOwned * (monthlyHousingCost / 100);
-              // Projected full lifetime cost = (total monthly housing × 360 months) + pending costs
-              const projectedLifetime = (monthlyHousingCost / 100) * loanTermMonths + homePendingCosts;
+              // Lifetime cost so far = months owned × total monthly housing + one-time costs already paid
+              const oneTimePaid = oneTimeCosts
+                .filter(i => !i.tentative)
+                .reduce((s, i) => s + i.amount, 0);
+              const lifetimeSoFar = monthsOwned * (monthlyHousingCost / 100) + oneTimePaid;
+              // Projected full lifetime cost = recurring monthly × 360 months + all one-time costs
+              const projectedLifetime = (monthlyHousingRecurring / 100) * loanTermMonths + totalOneTimeCosts;
 
               // ── ROI Calculator state (local via useState-like inline) ──────────────
               // We can't use hooks here, so we use outer state for sliders defined below
@@ -4052,28 +4095,60 @@ export default function Finances() {
                         <CardDescription className="text-slate-400 text-xs">Owned {yearsOwned} yrs · {monthsOwned} months · 30-yr loan</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-1.5 text-xs">
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Monthly Housing Costs</p>
-                        {housingItems.map(item => (
+
+                        {/* One-time costs */}
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">One-Time Costs</p>
+                        {oneTimeCosts.map((c, i) => (
+                          <div key={i} className="flex justify-between text-slate-400">
+                            <span className="flex items-center gap-1 truncate max-w-[65%]">
+                              {c.label}
+                              {c.tentative && <span className="text-[9px] bg-amber-900/50 text-amber-400 px-1 py-0.5 rounded flex-shrink-0">tentative</span>}
+                            </span>
+                            <span className={c.tentative ? "text-amber-400" : ""}>${c.amount.toLocaleString()}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1 text-slate-300">
+                          <span>Total one-time costs</span>
+                          <span>${totalOneTimeCosts.toLocaleString()}</span>
+                        </div>
+
+                        {/* Monthly recurring */}
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-3 mb-1">Monthly Recurring Costs</p>
+                        {recurringHousingItems.map(item => (
                           <div key={item.id} className="flex justify-between text-slate-400">
                             <span className="truncate max-w-[65%]">{item.item}</span>
                             <span>${Math.round(item.monthlyCost / 100).toLocaleString()}/mo</span>
                           </div>
                         ))}
+                        {shedItem && (
+                          <div className="flex justify-between text-slate-500">
+                            <span className="flex items-center gap-1 truncate max-w-[65%]">
+                              {shedItem.item}
+                              <span className="text-[9px] bg-slate-700 text-slate-500 px-1 py-0.5 rounded flex-shrink-0">ends Jan 2027</span>
+                            </span>
+                            <span className="line-through">${Math.round(shedItem.monthlyCost / 100).toLocaleString()}/mo</span>
+                          </div>
+                        )}
                         <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1 text-slate-300">
-                          <span>Total monthly housing</span>
-                          <span>${Math.round(monthlyHousingCost / 100).toLocaleString()}/mo</span>
+                          <span>Recurring monthly (long-term)</span>
+                          <span>${Math.round(monthlyHousingRecurring / 100).toLocaleString()}/mo</span>
                         </div>
 
+                        {/* Cumulative totals */}
                         <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-3 mb-1">Cumulative Totals</p>
                         <div className="flex justify-between text-slate-400">
-                          <span>Spent so far ({monthsOwned} mo)</span>
+                          <span>Monthly costs so far ({monthsOwned} mo)</span>
+                          <span className="text-amber-300">${Math.round(monthsOwned * (monthlyHousingCost / 100)).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>One-time costs (paid)</span>
+                          <span className="text-amber-300">${oneTimePaid.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-slate-300 border-t border-slate-700/30 pt-1 mt-1">
+                          <span>Total spent so far</span>
                           <span className="text-amber-300">${Math.round(lifetimeSoFar).toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-slate-400">
-                          <span>Pending home improvements</span>
-                          <span className="text-amber-300">${homePendingCosts.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-400">
+                        <div className="flex justify-between text-slate-400 mt-1">
                           <span>Projected full 30-yr total</span>
                           <span className="text-red-400">${Math.round(projectedLifetime).toLocaleString()}</span>
                         </div>
@@ -4111,10 +4186,11 @@ export default function Finances() {
                         purchasePrice={homePurchasePrice}
                         currentValue={reSalePrice}
                         loanBalance={homeLoanBalance}
-                        monthlyHousingCost={monthlyHousingCost / 100}
+                        monthlyHousingCost={monthlyHousingRecurring / 100}
                         pendingCosts={homePendingCosts}
                         monthsOwned={monthsOwned}
                         totalExpensesMonthly={totalExpenses / 100}
+                        downPaymentOverride={RE_DOWN_PAYMENT}
                       />
                     </CardContent>
                   </Card>
@@ -4519,7 +4595,7 @@ export default function Finances() {
               const homeRawGain = homeSalePrice - homeTotalSellingCosts - homeAdjustedBasis;
               const homeTaxableGain = Math.max(0, homeRawGain - homePrimaryExclusion);
               const homeCapGainsTax = homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
-              const homeAfterTaxNetCash = homeNetCashAfterSale - homeCapGainsTax - homePendingCosts;
+              const homeAfterTaxNetCash = homeNetCashAfterSale - homeCapGainsTax;
               // homeEquity = after-tax net cash proceeds (used throughout for net worth)
               const homeEquity = homeAfterTaxNetCash;
 
@@ -4890,36 +4966,39 @@ export default function Finances() {
                           </div>
                         </div>
 
-                        {/* Pending home improvement costs */}
+                        {/* Pending home improvement costs — informational only, not deducted from net worth */}
                         <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Pending Property Costs</p>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pending Property Costs</p>
+                            <span className="text-[9px] text-slate-600 italic">ROI tab only · not in NW</span>
+                          </div>
                           <div className="flex justify-between">
                             <span className="flex items-center gap-1">New shed
                               <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
                             </span>
-                            <span className="text-red-400">-$6,158</span>
+                            <span className="text-slate-500">$6,158</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="flex items-center gap-1">Floor molding &amp; replacement
                               <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
                             </span>
-                            <span className="text-red-400">-$35,000</span>
+                            <span className="text-slate-500">$35,000</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="flex items-center gap-1">Small roof fix
                               <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
                             </span>
-                            <span className="text-red-400">-$500</span>
+                            <span className="text-slate-500">$500</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="flex items-center gap-1">Fume hood install
                               <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
                             </span>
-                            <span className="text-red-400">-$1,300</span>
+                            <span className="text-slate-500">$1,300</span>
                           </div>
-                          <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1">
-                            <span className="text-slate-300">Total pending costs</span>
-                            <span className="text-red-400">-${homePendingCosts.toLocaleString()}</span>
+                          <div className="flex justify-between border-t border-slate-700/30 pt-1 mt-1 text-slate-500">
+                            <span>Total (see Real Estate tab)</span>
+                            <span>${homePendingCosts.toLocaleString()}</span>
                           </div>
                         </div>
 
