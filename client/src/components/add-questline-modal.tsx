@@ -31,6 +31,12 @@ const QUESTLINE_ICONS = [
   "🏗️", "🧱", "🛖", "⛩️", "🚧", "🔌", "🪠", "🔶", "🪝", "🧲", "📏", "🎨", "🖌️", "🛠️",
   // Tools & Maintenance
   "🔧", "🔨", "🪛", "🪚", "🧰", "🪜", "📐", "🔩", "⚙️", "🪤",
+  // Plumbing / Sprinklers / Water Systems
+  "🚿", "🛁", "🪠", "🚰", "💦", "🌊", "⛲", "🔦", "🧯", "🪣",
+  // Carpentry / Woodworking
+  "🪵", "🌲", "📐", "📏", "🔲", "🪝", "🔗", "🧲", "🗜️", "🪛",
+  // Electrical / Hardware
+  "🔌", "🔋", "💡", "🔦", "🧲", "⚡", "🔑", "🔐", "🔩", "🪤",
   // Vehicles & Errands
   "🚗", "🚙", "⛽", "🛒", "📦", "📬", "🏪", "🧾",
   // Clothing & Laundry
