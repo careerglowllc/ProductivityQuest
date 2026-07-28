@@ -739,7 +739,7 @@ export function TaskDetailModal({ task, open, onOpenChange }: TaskDetailModalPro
               <div className="flex items-center gap-2">
                 <p className="text-yellow-100 flex-1">
                   {task.dueDate 
-                    ? format(new Date(task.dueDate), 'MMM dd, yyyy')
+                    ? (() => { const d = new Date(task.dueDate); return format(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), 'MMM dd, yyyy'); })()
                     : 'No due date'}
                 </p>
                 <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
