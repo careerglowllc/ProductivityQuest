@@ -253,14 +253,29 @@ function RealEstateROICalculator({
   const totalHoldingCost = monthlyHousingCost * holdYears * 12 + annualMaintenance * holdYears + pendingCosts;
   const totalCashInvested = downPayment + totalHoldingCost;
 
+  // ── Rental income (needed for ROI when includeRental is on) ─────────────
+  const effectiveRentEarly = monthlyRent * (1 - vacancyRate / 100);
+  const totalRentalIncomeHoldEarly = Array.from({ length: holdYears }, (_, i) =>
+    effectiveRentEarly * 12 * Math.pow(1 + annualRentIncrease / 100, i)
+  ).reduce((s, v) => s + v, 0);
+  // When renting: rental income offsets holding costs; net cash in = down + (holding - rental)
+  const rentalNetHoldingCost = Math.max(0, totalHoldingCost - totalRentalIncomeHoldEarly);
+  const rentalTotalCashInvested = includeRental
+    ? downPayment + rentalNetHoldingCost
+    : totalCashInvested;
+  // Total proceeds when renting = sale proceeds + all rental income collected
+  const totalProceeds = includeRental
+    ? projectedAfterTax + totalRentalIncomeHoldEarly
+    : projectedAfterTax;
+
   // ── Corrected ROI ───────────────────────────────────────────────────────
-  // Net gain = what you walk away with minus everything you put in
-  const netGain = projectedAfterTax - totalCashInvested;
+  // Net gain = what you walk away with (incl. rental) minus everything you put in
+  const netGain = totalProceeds - totalCashInvested;
   // Total ROI based on total cash invested (not just down payment)
   const totalROI = totalCashInvested > 0 ? (netGain / totalCashInvested) * 100 : 0;
   // CAGR (compound annual growth rate) — correct annualized return
-  const cagr = totalCashInvested > 0 && holdYears > 0 && projectedAfterTax > 0
-    ? (Math.pow(projectedAfterTax / totalCashInvested, 1 / holdYears) - 1) * 100
+  const cagr = rentalTotalCashInvested > 0 && holdYears > 0 && totalProceeds > 0
+    ? (Math.pow(totalProceeds / rentalTotalCashInvested, 1 / holdYears) - 1) * 100
     : 0;
 
   // ── S&P 500 comparison ──────────────────────────────────────────────────
@@ -304,15 +319,12 @@ function RealEstateROICalculator({
   const margin = Math.abs(projectedAfterTax - spFinalValue);
 
   // ── Rental scenario ─────────────────────────────────────────────────────
-  const effectiveRent = monthlyRent * (1 - vacancyRate / 100);
+  const effectiveRent = effectiveRentEarly; // alias (already computed above for ROI)
   const annualRentalIncome = effectiveRent * 12; // year-1 income (for cap rate / NOI display)
   const annualRentalExpenses = monthlyHousingCost * 12 + annualMaintenance;
   const annualNOI = annualRentalIncome - annualRentalExpenses;
   const capRate = currentValue > 0 ? (annualNOI / currentValue) * 100 : 0;
-  // Compound rent increases: sum FV of each year's rental income
-  const totalRentalIncomeHold = Array.from({ length: holdYears }, (_, i) =>
-    effectiveRent * 12 * Math.pow(1 + annualRentIncrease / 100, i)
-  ).reduce((s, v) => s + v, 0);
+  const totalRentalIncomeHold = totalRentalIncomeHoldEarly; // alias
   // Rent in final year (for display)
   const finalYearRent = effectiveRent * Math.pow(1 + annualRentIncrease / 100, holdYears - 1);
   const totalRentalProfit = totalRentalIncomeHold + projectedAfterTax - totalHoldingCost;
