@@ -15,6 +15,16 @@ import { apiRequest } from "@/lib/queryClient";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
+// Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
+const NUMERIC_TO_ALPHA3: Record<string, string> = {
+  "484": "MEX", "528": "NLD", "056": "BEL", "372": "IRL", "276": "DEU",
+  "392": "JPN", "156": "CHN", "704": "VNM", "764": "THA", "170": "COL",
+  "616": "POL", "620": "PRT", "724": "ESP", "826": "GBR", "250": "FRA",
+  "380": "ITA", "203": "CZE", "344": "HKG", "630": "PRI",
+  "376": "ISR", "158": "TWN",
+  "56": "BEL",
+};
+
 // All visited country ISO codes (HAW = Hawaii, tracked as own region)
 const SEED_ISOS = [
   "MEX","NLD","BEL","IRL","DEU","JPN","CHN","VNM","THA","COL",
@@ -228,11 +238,11 @@ export default function CountriesVisitedPage() {
       </div>
 
       {/* Map */}
-      <div className="relative w-full" style={{ height: isMobile ? "60vw" : "520px" }}>
+      <div className="relative w-full" style={{ height: isMobile ? "60vw" : "680px" }}>
         <ComposableMap
           projection="geoEqualEarth"
           style={{ width: "100%", height: "100%" }}
-          projectionConfig={{ scale: 160 }}
+          projectionConfig={{ scale: 195 }}
         >
           <ZoomableGroup
             zoom={position.zoom}
@@ -246,8 +256,10 @@ export default function CountriesVisitedPage() {
             <Geographies geography={GEO_URL}>
               {({ geographies }: { geographies: any[] }) =>
                 geographies.map((geo: any) => {
-                  const iso = geo.properties.ISO_A3 ?? geo.id;
-                  const name = geo.properties.NAME ?? geo.properties.name ?? iso;
+                  // world-atlas uses numeric ISO IDs; resolve to alpha-3
+                  const numericId = String(geo.id ?? "");
+                  const iso = NUMERIC_TO_ALPHA3[numericId] ?? geo.properties?.ISO_A3 ?? numericId;
+                  const name = ISO_NAMES[iso] ?? geo.properties?.NAME ?? geo.properties?.name ?? iso;
                   const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso);
                   const isSelected = selected?.iso === iso;
                   return (
