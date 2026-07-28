@@ -22,17 +22,21 @@ const UK_GEO_URL = "https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/
 const US_ATLAS_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 // Italy regions GeoJSON — used to overlay Sicily (region 19) as a separate clickable region
 const ITALY_REGIONS_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
+// Higher-res world atlas (50m) — used to overlay Hong Kong (id 344) which is invisible at 110m resolution
+const WORLD_50M_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
 // Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
 // IMPORTANT: only countries in this table will ever show as "visited" on the map.
 // GBR (826) intentionally NOT listed — UK is rendered via the separate UK nations layer instead.
+// HKG (344) intentionally NOT listed here — rendered via the separate 50m overlay instead (too small at 110m).
 // FRA (250): world-atlas includes French Guiana/Martinique etc. in France's polygon — this is
 // technically correct but shows "France" over Caribbean/S.America. Accepted limitation.
 const NUMERIC_TO_ALPHA3: Record<string, string> = {
   "484": "MEX", "528": "NLD", "56": "BEL", "372": "IRL", "276": "DEU",
   "392": "JPN", "156": "CHN", "704": "VNM", "764": "THA", "170": "COL",
   "616": "POL", "620": "PRT", "724": "ESP", "250": "FRA",
-  "380": "ITA", "203": "CZE", "344": "HKG", "630": "PRI",
+  "380": "ITA", "203": "CZE", "630": "PRI",
+  // HKG (344) omitted — rendered via separate 50m overlay
   "376": "ISR", "158": "TWN",
   // Americas
   "840": "USA", "124": "CAN",
@@ -604,6 +608,55 @@ export default function CountriesVisitedPage() {
                     />
                   );
                 })
+              }
+            </Geographies>
+
+            {/* Hong Kong overlay — rendered from 50m atlas since HKG (id 344) is invisible at 110m */}
+            <Geographies geography={WORLD_50M_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies
+                  .filter((geo: any) => String(geo.id) === "344")
+                  .map((geo: any) => {
+                    const iso = "HKG";
+                    const name = ISO_NAMES[iso] ?? iso;
+                    const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                      && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                    const isSelected = selected?.iso === iso;
+                    return (
+                      <Geography
+                        key={geo.rsmKey ?? "HKG"}
+                        geography={geo}
+                        onClick={() => openCountry(iso, name)}
+                        onMouseEnter={(e: any) => {
+                          const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                          setTooltip({
+                            name,
+                            x: svgRect ? e.clientX - svgRect.left : 0,
+                            y: svgRect ? e.clientY - svgRect.top : 0,
+                          });
+                        }}
+                        onMouseLeave={() => setTooltip(null)}
+                        style={{
+                          default: {
+                            fill: visited ? "#38BDF8" : "#1e293b",
+                            stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                            strokeWidth: isSelected ? (visited ? 0 : 2) : 0.8,
+                            outline: "none",
+                            cursor: "pointer",
+                            filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                          },
+                          hover: {
+                            fill: visited ? "#7DD3FC" : "#1e3a5f",
+                            stroke: visited ? "#0c4a6e" : "#38BDF8",
+                            strokeWidth: 1.2,
+                            outline: "none",
+                            cursor: "pointer",
+                          },
+                          pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
+                        }}
+                      />
+                    );
+                  })
               }
             </Geographies>
           </ZoomableGroup>
