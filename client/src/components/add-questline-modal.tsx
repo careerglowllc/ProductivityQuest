@@ -41,6 +41,7 @@ interface Stage {
   id: string;
   title: string;
   description: string;
+  dueDate: string;
   duration: string;
   importance: string;
   businessWorkFilter: string;
@@ -54,6 +55,7 @@ function createEmptyStage(indentLevel = 0): Stage {
     id: crypto.randomUUID(),
     title: "",
     description: "",
+    dueDate: "",
     duration: "30",
     importance: "Medium",
     businessWorkFilter: "General",
@@ -77,6 +79,7 @@ function buildTree(stages: Stage[]): any[] {
       importance: stage.importance,
       businessWorkFilter: stage.businessWorkFilter,
       campaign: stage.campaign,
+      dueDate: stage.dueDate || null,
       children: [],
     };
 
@@ -594,6 +597,18 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                           placeholder="Brief description..."
                           className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-9 text-sm"
                           maxLength={500}
+                        />
+                      </div>
+
+                      {/* Due Date */}
+                      <div className="space-y-1">
+                        <Label className="text-purple-200 text-xs">Due Date</Label>
+                        <Input
+                          type="date"
+                          value={stage.dueDate}
+                          onChange={(e) => updateStage(stage.id, { dueDate: e.target.value })}
+                          onFocus={scrollInputIntoView}
+                          className="bg-slate-800/50 border-purple-500/30 text-yellow-100 h-9 text-sm [color-scheme:dark]"
                         />
                       </div>
 
