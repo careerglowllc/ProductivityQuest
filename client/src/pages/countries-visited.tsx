@@ -430,6 +430,8 @@ export default function CountriesVisitedPage() {
                   const numericId = String(geo.id ?? "");
                   const isoFromTable = NUMERIC_TO_ALPHA3[numericId];
                   const iso = isoFromTable ?? geo.properties?.ISO_A3 ?? numericId;
+                  // Skip GBR entirely — rendered by the separate UK nations layer (England/Scotland/Wales/NI)
+                  if (numericId === "826" || iso === "GBR") return null;
                   const name = ISO_NAMES[iso] ?? geo.properties?.NAME ?? geo.properties?.name ?? iso;
                   // Only mark visited if the ISO came from our trusted lookup table
                   const visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
