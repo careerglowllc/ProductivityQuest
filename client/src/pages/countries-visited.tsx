@@ -22,6 +22,10 @@ const UK_GEO_URL = "https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/
 const US_ATLAS_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 // Italy regions GeoJSON — used to overlay Sicily (region 19) as a separate clickable region
 const ITALY_REGIONS_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
+// Italy provinces GeoJSON — used to overlay Sicily's 9 provinces as individual clickable sub-regions
+const ITALY_PROVINCES_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_provinces.geojson";
+// English Electoral Regions GeoJSON — 9 sub-regions within England
+const UK_ENG_REGIONS_URL = "https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/electoral/eng/eer.json";
 // Higher-res world atlas (50m) — used to overlay Hong Kong (id 344) which is invisible at 110m resolution
 const WORLD_50M_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
@@ -66,6 +70,32 @@ const ITALY_REGION_TO_ISO: Record<string, string> = {
   "19": "SIC",
 };
 
+// Sicily province istat codes → custom ISOs (provinces 81–89 all belong to Sicily)
+const SICILY_PROVINCE_TO_ISO: Record<string, string> = {
+  "81": "SITP", // Trapani
+  "82": "SIPA", // Palermo
+  "83": "SIME", // Messina
+  "84": "SIAG", // Agrigento
+  "85": "SICL", // Caltanissetta
+  "86": "SIEN", // Enna
+  "87": "SICT", // Catania
+  "88": "SIRG", // Ragusa
+  "89": "SISR", // Siracusa
+};
+
+// English Electoral Region codes (EER13CD) → custom ISOs
+const EER_CODE_TO_ISO: Record<string, string> = {
+  "E15000001": "ERNE", // North East England
+  "E15000002": "ERNW", // North West England
+  "E15000003": "ERYH", // Yorkshire and The Humber
+  "E15000004": "EREM", // East Midlands
+  "E15000005": "ERWM", // West Midlands
+  "E15000006": "EREA", // Eastern England
+  "E15000007": "ERLN", // London
+  "E15000008": "ERSE", // South East England
+  "E15000009": "ERSW", // South West England
+};
+
 // All visited country ISO codes
 const SEED_ISOS = [
   "MEX","NLD","BEL","IRL","DEU","JPN","CHN","VNM","THA","COL",
@@ -79,6 +109,10 @@ const SEED_ISOS = [
   "ENG","NIR","SCT","WLS",
   // Italian regions
   "SIC",
+  // English Electoral Regions (sub-regions of England)
+  "ERNE","ERNW","ERYH","EREM","ERWM","EREA","ERLN","ERSE","ERSW",
+  // Sicily provinces (sub-regions of Sicily)
+  "SITP","SIPA","SIME","SIAG","SICL","SIEN","SICT","SIRG","SISR",
 ];
 
 // Display names
@@ -93,6 +127,14 @@ const ISO_NAMES: Record<string, string> = {
   HUN: "Hungary", HRV: "Croatia",
   ENG: "England 🏴󠁧󠁢󠁥󠁮󠁧󠁿", SCT: "Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿", WLS: "Wales 🏴󠁧󠁢󠁷󠁬󠁳󠁿", NIR: "Northern Ireland",
   SIC: "Sicily 🏝️",
+  // English Electoral Regions
+  ERNE: "North East England", ERNW: "North West England", ERYH: "Yorkshire & The Humber",
+  EREM: "East Midlands", ERWM: "West Midlands", EREA: "Eastern England",
+  ERLN: "London 🏙️", ERSE: "South East England", ERSW: "South West England",
+  // Sicily provinces
+  SITP: "Trapani", SIPA: "Palermo", SIME: "Messina",
+  SIAG: "Agrigento", SICL: "Caltanissetta", SIEN: "Enna",
+  SICT: "Catania", SIRG: "Ragusa", SISR: "Siracusa",
 };
 
 // Seeded visit dates (v2 migration)
@@ -286,6 +328,20 @@ export default function CountriesVisitedPage() {
         cities: belExisting.cities?.length ? belExisting.cities : ["Brussels", "Bruges"],
       });
       updates["country-__v6"] = "1";
+    }
+
+    // v7 migration: seed empty entries for English regions and Sicily provinces
+    if (!kvData["country-__v7"]) {
+      const newSubRegions = [
+        "ERNE","ERNW","ERYH","EREM","ERWM","EREA","ERLN","ERSE","ERSW",
+        "SITP","SIPA","SIME","SIAG","SICL","SIEN","SICT","SIRG","SISR",
+      ];
+      for (const iso of newSubRegions) {
+        if (!kvData[storageKey(iso)]) {
+          updates[storageKey(iso)] = JSON.stringify(EMPTY_ENTRY());
+        }
+      }
+      updates["country-__v7"] = "1";
     }
 
     if (Object.keys(updates).length > 0) {
@@ -524,6 +580,55 @@ export default function CountriesVisitedPage() {
               }
             </Geographies>
 
+            {/* English regions overlay — 9 Electoral Regions within England, each individually selectable */}
+            <Geographies geography={UK_ENG_REGIONS_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
+                  const eerCode = geo.properties?.EER13CD ?? "";
+                  const iso = EER_CODE_TO_ISO[eerCode];
+                  if (!iso) return null;
+                  const name = ISO_NAMES[iso] ?? geo.properties?.EER13NM ?? iso;
+                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                    && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                  const isSelected = selected?.iso === iso;
+                  return (
+                    <Geography
+                      key={geo.rsmKey ?? iso}
+                      geography={geo}
+                      onClick={() => openCountry(iso, name)}
+                      onMouseEnter={(e: any) => {
+                        const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                        setTooltip({
+                          name,
+                          x: svgRect ? e.clientX - svgRect.left : 0,
+                          y: svgRect ? e.clientY - svgRect.top : 0,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{
+                        default: {
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.5,
+                          outline: "none",
+                          cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                        },
+                        hover: {
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
             {/* Alaska & Hawaii overlay — separate clickable regions drawn on top of the USA polygon */}
             <Geographies geography={US_ATLAS_URL}>
               {({ geographies }: { geographies: any[] }) =>
@@ -604,6 +709,55 @@ export default function CountriesVisitedPage() {
                           fill: visited ? "#38BDF8" : "#1e293b",
                           stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
                           strokeWidth: isSelected ? (visited ? 0 : 2) : 0.6,
+                          outline: "none",
+                          cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                        },
+                        hover: {
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
+            {/* Sicily provinces overlay — 9 provinces within Sicily, each individually selectable */}
+            <Geographies geography={ITALY_PROVINCES_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
+                  const provCode = String(geo.properties?.prov_istat_code_num ?? "");
+                  const iso = SICILY_PROVINCE_TO_ISO[provCode];
+                  if (!iso) return null;
+                  const name = ISO_NAMES[iso] ?? geo.properties?.prov_name ?? iso;
+                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                    && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                  const isSelected = selected?.iso === iso;
+                  return (
+                    <Geography
+                      key={geo.rsmKey ?? iso}
+                      geography={geo}
+                      onClick={() => openCountry(iso, name)}
+                      onMouseEnter={(e: any) => {
+                        const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                        setTooltip({
+                          name,
+                          x: svgRect ? e.clientX - svgRect.left : 0,
+                          y: svgRect ? e.clientY - svgRect.top : 0,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{
+                        default: {
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.5,
                           outline: "none",
                           cursor: "pointer",
                           filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
