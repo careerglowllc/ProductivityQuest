@@ -330,18 +330,13 @@ export default function NPCsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // One-time seed: add Rocklin rental property contacts
+  // Always ensure Rocklin seeded contacts are present (re-adds if server sync wiped them)
   useEffect(() => {
-    try {
-      if (!localStorage.getItem(SEED_KEY_ROCKLIN)) {
-        setContacts((prev) => {
-          const existing = new Set(prev.map((c) => c.id));
-          const toAdd = ROCKLIN_CONTACTS.filter((c) => !existing.has(c.id));
-          return toAdd.length ? [...toAdd, ...prev] : prev;
-        });
-        localStorage.setItem(SEED_KEY_ROCKLIN, "1");
-      }
-    } catch {}
+    setContacts((prev) => {
+      const existing = new Set(prev.map((c) => c.id));
+      const toAdd = ROCKLIN_CONTACTS.filter((c) => !existing.has(c.id));
+      return toAdd.length ? [...toAdd, ...prev] : prev;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
