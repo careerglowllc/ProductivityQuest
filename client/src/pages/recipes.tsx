@@ -88,6 +88,62 @@ function saveRecipes(recipes: Recipe[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
 }
 
+// ── Recipe emoji picker ──────────────────────────────────────
+const EMOJI_RULES: [RegExp, string][] = [
+  [/chicken\s*milanese|schnitzel|breaded\s*chicken/i, "🍗"],
+  [/chicken/i, "🍗"],
+  [/salmon|tuna|cod|tilapia|halibut|fish\s*taco/i, "🐟"],
+  [/shrimp|prawn|lobster|crab|seafood/i, "🦐"],
+  [/steak|beef|brisket|ribeye|sirloin/i, "🥩"],
+  [/burger|hamburger/i, "🍔"],
+  [/pizza/i, "🍕"],
+  [/pasta|spaghetti|lasagna|fettuccine|penne|carbonara|bolognese/i, "🍝"],
+  [/sushi|roll|maki|nigiri/i, "🍣"],
+  [/taco|burrito|quesadilla|enchilada/i, "🌮"],
+  [/soup|chili|stew|bisque|chowder/i, "🍲"],
+  [/salad/i, "🥗"],
+  [/sandwich|sub|wrap|panini/i, "🥪"],
+  [/egg|omelette|omelet|frittata|quiche/i, "🍳"],
+  [/pancake|waffle/i, "🥞"],
+  [/bread|baguette|focaccia|sourdough/i, "🍞"],
+  [/rice|fried\s*rice|risotto|paella/i, "🍚"],
+  [/curry/i, "🍛"],
+  [/noodle|ramen|pho|udon|pad\s*thai/i, "🍜"],
+  [/dumpling|gyoza|potsticker/i, "🥟"],
+  [/stir.?fry/i, "🥘"],
+  [/roast|turkey|pork|lamb|chop/i, "🍖"],
+  [/hot\s*dog|sausage|bratwurst/i, "🌭"],
+  [/avocado|guacamole/i, "🥑"],
+  [/potato|fries|hash\s*brown/i, "🥔"],
+  [/broccoli|veggie|vegetable/i, "🥦"],
+  [/corn/i, "🌽"],
+  [/mushroom/i, "🍄"],
+  [/lemon|lime/i, "🍋"],
+  [/strawberry/i, "🍓"],
+  [/banana|smoothie/i, "🍌"],
+  [/apple|applesauce/i, "🍎"],
+  [/mango/i, "🥭"],
+  [/chocolate|brownie|fudge/i, "🍫"],
+  [/cake|cupcake/i, "🎂"],
+  [/cookie|biscuit/i, "🍪"],
+  [/pie|tart/i, "🥧"],
+  [/ice\s*cream|gelato|sorbet/i, "🍦"],
+  [/donut|doughnut/i, "🍩"],
+  [/muffin/i, "🧁"],
+  [/granola|oatmeal|oat/i, "🥣"],
+  [/yogurt/i, "🥛"],
+  [/cheese/i, "🧀"],
+  [/bacon/i, "🥓"],
+  [/hot\s*sauce|salsa/i, "🌶️"],
+];
+
+function recipeEmoji(name: string): string {
+  for (const [pattern, emoji] of EMOJI_RULES) {
+    if (pattern.test(name)) return emoji;
+  }
+  return "🍽️"; // generic fallback
+}
+
 // ── Component ────────────────────────────────────────────────
 export default function RecipesPage() {
   const isMobile = useIsMobile();
@@ -324,7 +380,9 @@ export default function RecipesPage() {
                   <CardContent className="p-4">
                     {/* Name + actions */}
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="text-orange-50 font-semibold font-serif leading-snug">{r.name}</h3>
+                      <h3 className="text-orange-50 font-semibold font-serif leading-snug">
+                        <span className="mr-1.5">{recipeEmoji(r.name)}</span>{r.name}
+                      </h3>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <button
                           onClick={(ev) => { ev.stopPropagation(); openEdit(r); }}
