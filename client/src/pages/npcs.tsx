@@ -41,7 +41,7 @@ import { useTheme } from "@/contexts/theme-context";
 // ── Constants ───────────────────────────────────────────────
 const STORAGE_KEY = "npcs-v1";
 const SEED_KEY = "npcs-seed-daniela-v1";
-const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v1";
+const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v2";
 
 // Relationship categories with accent colors
 const CATEGORIES = [
@@ -163,6 +163,32 @@ const ROCKLIN_CONTACTS: NPC[] = [
     howWeMet: "Rocklin rental property",
     category: "Professional",
     notes: "Matt at Junk King — junk removal service for 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
+  {
+    id: "npc-rocklin-alfred-healthy-homes",
+    name: "Alfred Daugereaux — Healthy Homes Testing",
+    phone: "9165819685",
+    occupation: "Mold Removal / Testing",
+    location: "Rocklin, CA",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "Alfred at Healthy Homes Testing Co — mold removal specialist for 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
+  {
+    id: "npc-rocklin-emilia-navedo-floors",
+    name: "Emilia Navedo",
+    phone: "19167155977",
+    occupation: "Floor Installations",
+    location: "Rocklin, CA",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "Floor installation specialist for 2605 Plumbago Court, Rocklin, CA 95677.",
     tags: ["rocklin-rental"],
     createdAt: "2026-07-30T00:00:00.000Z",
     updatedAt: "2026-07-30T00:00:00.000Z",
