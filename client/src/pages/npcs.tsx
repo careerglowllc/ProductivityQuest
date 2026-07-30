@@ -41,6 +41,7 @@ import { useTheme } from "@/contexts/theme-context";
 // ── Constants ───────────────────────────────────────────────
 const STORAGE_KEY = "npcs-v1";
 const SEED_KEY = "npcs-seed-daniela-v1";
+const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v1";
 
 // Relationship categories with accent colors
 const CATEGORIES = [
@@ -83,6 +84,7 @@ type NPC = {
 const TAG_STYLES: Record<string, string> = {
   phone: "bg-emerald-500/20 text-emerald-200 border-emerald-500/40",
   linkedin: "bg-sky-500/20 text-sky-200 border-sky-500/40",
+  "rocklin-rental": "bg-orange-500/20 text-orange-200 border-orange-500/40",
 };
 const tagStyle = (t: string) =>
   TAG_STYLES[t.toLowerCase()] || "bg-slate-500/20 text-slate-200 border-slate-500/40";
@@ -137,6 +139,36 @@ const DANIELA: NPC = {
   createdAt: "2026-06-24T00:00:00.000Z",
 };
 
+// Rocklin rental property service contacts
+const ROCKLIN_CONTACTS: NPC[] = [
+  {
+    id: "npc-rocklin-lawn-care",
+    name: "Lawn Care — Rocklin",
+    phone: "19163709085",
+    occupation: "Lawn Care",
+    location: "Rocklin, CA",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "Lawn care service for 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
+  {
+    id: "npc-rocklin-matt-junk-king",
+    name: "Matt — Junk King Rocklin",
+    phone: "19162609000",
+    occupation: "Junk Removal",
+    location: "Rocklin, CA",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "Matt at Junk King — junk removal service for 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
+];
+
 const EMPTY_FORM: NPC = {
   id: "",
   name: "",
@@ -163,7 +195,7 @@ export default function NPCsPage() {
     }
   });
   const [search, setSearch] = useState("");
-  const [tagFilter, setTagFilter] = useState<"all" | "phone" | "linkedin">("all");
+  const [tagFilter, setTagFilter] = useState<"all" | "phone" | "linkedin" | "rocklin-rental">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<NPC>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -179,6 +211,21 @@ export default function NPCsPage() {
           return [DANIELA, ...prev];
         });
         localStorage.setItem(SEED_KEY, "1");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time seed: add Rocklin rental property contacts
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SEED_KEY_ROCKLIN)) {
+        setContacts((prev) => {
+          const existing = new Set(prev.map((c) => c.id));
+          const toAdd = ROCKLIN_CONTACTS.filter((c) => !existing.has(c.id));
+          return toAdd.length ? [...toAdd, ...prev] : prev;
+        });
+        localStorage.setItem(SEED_KEY_ROCKLIN, "1");
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -337,6 +384,7 @@ export default function NPCsPage() {
               { key: "all", label: "All", count: contacts.length },
               { key: "phone", label: "Phone", count: contacts.filter((c) => (c.tags || []).includes("phone")).length },
               { key: "linkedin", label: "LinkedIn", count: contacts.filter((c) => (c.tags || []).includes("linkedin")).length },
+              { key: "rocklin-rental", label: "🏠 Rocklin Rental", count: contacts.filter((c) => (c.tags || []).includes("rocklin-rental")).length },
             ] as const).map((f) => (
               <button
                 key={f.key}
@@ -347,6 +395,8 @@ export default function NPCsPage() {
                       ? "bg-emerald-500/30 text-emerald-100 border-emerald-400/60"
                       : f.key === "linkedin"
                       ? "bg-sky-500/30 text-sky-100 border-sky-400/60"
+                      : f.key === "rocklin-rental"
+                      ? "bg-orange-500/30 text-orange-100 border-orange-400/60"
                       : "bg-blue-500/30 text-blue-100 border-blue-400/60"
                     : "bg-slate-800/60 text-slate-300 border-slate-600/40 hover:border-blue-500/50 hover:text-blue-100"
                 }`}
