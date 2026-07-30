@@ -41,7 +41,8 @@ import { useTheme } from "@/contexts/theme-context";
 // ── Constants ───────────────────────────────────────────────
 const STORAGE_KEY = "npcs-v1";
 const SEED_KEY = "npcs-seed-daniela-v1";
-const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v3";
+const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v4";
+const SEED_KEY_CLOSE_FRIENDS = "npcs-seed-close-friends-v1";
 
 // Relationship categories with accent colors
 const CATEGORIES = [
@@ -85,6 +86,7 @@ const TAG_STYLES: Record<string, string> = {
   phone: "bg-emerald-500/20 text-emerald-200 border-emerald-500/40",
   linkedin: "bg-sky-500/20 text-sky-200 border-sky-500/40",
   "rocklin-rental": "bg-orange-500/20 text-orange-200 border-orange-500/40",
+  "close-friends": "bg-rose-500/20 text-rose-200 border-rose-500/40",
 };
 const tagStyle = (t: string) =>
   TAG_STYLES[t.toLowerCase()] || "bg-slate-500/20 text-slate-200 border-slate-500/40";
@@ -232,7 +234,32 @@ const ROCKLIN_CONTACTS: NPC[] = [
     createdAt: "2026-07-30T00:00:00.000Z",
     updatedAt: "2026-07-30T00:00:00.000Z",
   },
+  {
+    id: "npc-rocklin-cathy-neighbor",
+    name: "Cathy — Rocklin Neighbor",
+    occupation: "Neighbor",
+    location: "Rocklin, CA",
+    howWeMet: "Rocklin rental property neighbor",
+    category: "Acquaintance",
+    notes: "Neighbor near 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
 ];
+
+// Close friends — names to tag; matched by exact name against existing contacts
+const CLOSE_FRIENDS_NAMES = new Set([
+  "Aaron Mehan",
+  "Alex Tseng",
+  "Andrew Nunez",
+  "Shashwath Koppisetty",
+  "Ary Ong-Beth",
+  "Chase Bishop",
+  "Kamen Shah",
+  "Kavi Ramamurthy",
+  "Varun Nagpal",
+]);
 
 const EMPTY_FORM: NPC = {
   id: "",
@@ -260,7 +287,7 @@ export default function NPCsPage() {
     }
   });
   const [search, setSearch] = useState("");
-  const [tagFilter, setTagFilter] = useState<"all" | "phone" | "linkedin" | "rocklin-rental">("all");
+  const [tagFilter, setTagFilter] = useState<"all" | "phone" | "linkedin" | "rocklin-rental" | "close-friends">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<NPC>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -291,6 +318,24 @@ export default function NPCsPage() {
           return toAdd.length ? [...toAdd, ...prev] : prev;
         });
         localStorage.setItem(SEED_KEY_ROCKLIN, "1");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time tag: mark close friends with the close-friends tag
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SEED_KEY_CLOSE_FRIENDS)) {
+        setContacts((prev) =>
+          prev.map((c) => {
+            if (!CLOSE_FRIENDS_NAMES.has(c.name)) return c;
+            const tags = c.tags || [];
+            if (tags.includes("close-friends")) return c;
+            return { ...c, tags: [...tags, "close-friends"], updatedAt: new Date().toISOString() };
+          })
+        );
+        localStorage.setItem(SEED_KEY_CLOSE_FRIENDS, "1");
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -447,6 +492,7 @@ export default function NPCsPage() {
           <div className="flex flex-wrap gap-2 mb-4">
             {([
               { key: "all", label: "All", count: contacts.length },
+              { key: "close-friends", label: "💛 Close Friends", count: contacts.filter((c) => (c.tags || []).includes("close-friends")).length },
               { key: "phone", label: "Phone", count: contacts.filter((c) => (c.tags || []).includes("phone")).length },
               { key: "linkedin", label: "LinkedIn", count: contacts.filter((c) => (c.tags || []).includes("linkedin")).length },
               { key: "rocklin-rental", label: "🏠 Rocklin Rental", count: contacts.filter((c) => (c.tags || []).includes("rocklin-rental")).length },
@@ -456,7 +502,9 @@ export default function NPCsPage() {
                 onClick={() => setTagFilter(f.key)}
                 className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
                   tagFilter === f.key
-                    ? f.key === "phone"
+                    ? f.key === "close-friends"
+                      ? "bg-rose-500/30 text-rose-100 border-rose-400/60"
+                      : f.key === "phone"
                       ? "bg-emerald-500/30 text-emerald-100 border-emerald-400/60"
                       : f.key === "linkedin"
                       ? "bg-sky-500/30 text-sky-100 border-sky-400/60"
