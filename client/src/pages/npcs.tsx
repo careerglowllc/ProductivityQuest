@@ -42,7 +42,9 @@ import { useTheme } from "@/contexts/theme-context";
 const STORAGE_KEY = "npcs-v1";
 const SEED_KEY = "npcs-seed-daniela-v1";
 const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v4";
-const SEED_KEY_CLOSE_FRIENDS = "npcs-seed-close-friends-v1";
+const SEED_KEY_CLOSE_FRIENDS = "npcs-seed-close-friends-v2";
+const SEED_KEY_ROCKLIN_NAMES = "npcs-seed-rocklin-names-v1";
+const SEED_KEY_FAMILY = "npcs-seed-family-v1";
 
 // Relationship categories with accent colors
 const CATEGORIES = [
@@ -87,6 +89,7 @@ const TAG_STYLES: Record<string, string> = {
   linkedin: "bg-sky-500/20 text-sky-200 border-sky-500/40",
   "rocklin-rental": "bg-orange-500/20 text-orange-200 border-orange-500/40",
   "close-friends": "bg-rose-500/20 text-rose-200 border-rose-500/40",
+  "family": "bg-amber-500/20 text-amber-200 border-amber-500/40",
 };
 const tagStyle = (t: string) =>
   TAG_STYLES[t.toLowerCase()] || "bg-slate-500/20 text-slate-200 border-slate-500/40";
@@ -259,6 +262,25 @@ const CLOSE_FRIENDS_NAMES = new Set([
   "Kamen Shah",
   "Kavi Ramamurthy",
   "Varun Nagpal",
+  "Max Weber",
+  "Matt Carroll",
+  "Sean O Hara",
+  "Steve O'Connell",
+]);
+
+// Existing contacts to tag as rocklin-rental by name match
+const ROCKLIN_TAG_NAMES = new Set([
+  "James Nielson",
+  "Josh Hart",
+  "Marcus",
+]);
+
+// Family members — tag by name
+const FAMILY_NAMES = new Set([
+  "Tim Harding",
+  "Ellie Baer",
+  "Mom",
+  "Dad",
 ]);
 
 const EMPTY_FORM: NPC = {
@@ -287,7 +309,7 @@ export default function NPCsPage() {
     }
   });
   const [search, setSearch] = useState("");
-  const [tagFilter, setTagFilter] = useState<"all" | "phone" | "linkedin" | "rocklin-rental" | "close-friends">("all");
+  const [tagFilter, setTagFilter] = useState<"all" | "phone" | "linkedin" | "rocklin-rental" | "close-friends" | "family">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<NPC>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -336,6 +358,42 @@ export default function NPCsPage() {
           })
         );
         localStorage.setItem(SEED_KEY_CLOSE_FRIENDS, "1");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time tag: mark rocklin-rental by name for existing contacts
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SEED_KEY_ROCKLIN_NAMES)) {
+        setContacts((prev) =>
+          prev.map((c) => {
+            if (!ROCKLIN_TAG_NAMES.has(c.name)) return c;
+            const tags = c.tags || [];
+            if (tags.includes("rocklin-rental")) return c;
+            return { ...c, tags: [...tags, "rocklin-rental"], updatedAt: new Date().toISOString() };
+          })
+        );
+        localStorage.setItem(SEED_KEY_ROCKLIN_NAMES, "1");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time tag: mark family members
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SEED_KEY_FAMILY)) {
+        setContacts((prev) =>
+          prev.map((c) => {
+            if (!FAMILY_NAMES.has(c.name)) return c;
+            const tags = c.tags || [];
+            if (tags.includes("family")) return c;
+            return { ...c, tags: [...tags, "family"], updatedAt: new Date().toISOString() };
+          })
+        );
+        localStorage.setItem(SEED_KEY_FAMILY, "1");
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -493,6 +551,7 @@ export default function NPCsPage() {
             {([
               { key: "all", label: "All", count: contacts.length },
               { key: "close-friends", label: "💛 Close Friends", count: contacts.filter((c) => (c.tags || []).includes("close-friends")).length },
+              { key: "family", label: "👨‍👩‍👧‍👦 Family", count: contacts.filter((c) => (c.tags || []).includes("family")).length },
               { key: "phone", label: "Phone", count: contacts.filter((c) => (c.tags || []).includes("phone")).length },
               { key: "linkedin", label: "LinkedIn", count: contacts.filter((c) => (c.tags || []).includes("linkedin")).length },
               { key: "rocklin-rental", label: "🏠 Rocklin Rental", count: contacts.filter((c) => (c.tags || []).includes("rocklin-rental")).length },
@@ -504,6 +563,8 @@ export default function NPCsPage() {
                   tagFilter === f.key
                     ? f.key === "close-friends"
                       ? "bg-rose-500/30 text-rose-100 border-rose-400/60"
+                      : f.key === "family"
+                      ? "bg-amber-500/30 text-amber-100 border-amber-400/60"
                       : f.key === "phone"
                       ? "bg-emerald-500/30 text-emerald-100 border-emerald-400/60"
                       : f.key === "linkedin"
