@@ -41,7 +41,7 @@ import { useTheme } from "@/contexts/theme-context";
 // ── Constants ───────────────────────────────────────────────
 const STORAGE_KEY = "npcs-v1";
 const SEED_KEY = "npcs-seed-daniela-v1";
-const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v2";
+const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v3";
 
 // Relationship categories with accent colors
 const CATEGORIES = [
@@ -189,6 +189,45 @@ const ROCKLIN_CONTACTS: NPC[] = [
     howWeMet: "Rocklin rental property",
     category: "Professional",
     notes: "Floor installation specialist for 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
+  {
+    id: "npc-rocklin-joe-clark-rnb",
+    name: "Joe Clark — RNB Property Management",
+    phone: "9164352424",
+    occupation: "Broker Associate / Property Manager",
+    location: "5754 Lonetree Blvd, Rocklin CA 95765",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "RNB Property Management. DRE # 02201715. Office: (916) 435-2424 · Fax: (916) 435-2425 · Email: Joe.Clark@RNBemail.com",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
+  {
+    id: "npc-rocklin-nick-hvac",
+    name: "Nick — Reliable Cooling & Heating",
+    phone: "19166646888",
+    occupation: "HVAC / Residential Fume Hoods",
+    location: "Sacramento, CA",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "HVAC specialist — residential fume hoods and cooling/heating. Email: reliablecoolingandheating.sac@gmail.com. For 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
+  {
+    id: "npc-rocklin-chris-stackhouse-flooring",
+    name: "Chris Stackhouse — CDS Inspection",
+    phone: "9167088866",
+    occupation: "Certified Flooring Inspector",
+    location: "Rocklin, CA",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "Certified flooring inspector — floor assessments. Email: cdsinspection@hotmail.com. Great for 2605 Plumbago Court, Rocklin, CA 95677.",
     tags: ["rocklin-rental"],
     createdAt: "2026-07-30T00:00:00.000Z",
     updatedAt: "2026-07-30T00:00:00.000Z",
