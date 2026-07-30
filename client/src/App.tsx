@@ -40,6 +40,7 @@ import NotFound from "@/pages/not-found";
 import CPAPPage from "@/pages/cpap";
 import AppearanceSettingsPage from "@/pages/settings-appearance";
 import MorePage from "@/pages/more";
+import RecipesPage from "@/pages/recipes";
 installStorageSync();
 
 function Router() {
@@ -133,6 +134,7 @@ function Router() {
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/journal" component={JournalPage} />
+            <Route path="/recipes" component={RecipesPage} />
             <Route path="/finances" component={Finances} />
             <Route path="/cpap" component={CPAPPage} />
             <Route path="/settings" component={SettingsPage} />

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, Dumbbell } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, Dumbbell, ChefHat } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -216,7 +216,7 @@ export function TabBar() {
 
           {/* Journal - written essays + Accomplishments submenu */}
           {(() => {
-            const isJournalActive = location === "/journal" || location === "/accomplishments" || location === "/explore" || location === "/fitness";
+            const isJournalActive = location === "/journal" || location === "/accomplishments" || location === "/explore" || location === "/fitness" || location === "/recipes";
             return (
               <DropdownMenu open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -266,6 +266,14 @@ export function TabBar() {
                       <a className="flex items-center gap-2 w-full">
                         <Dumbbell className="h-4 w-4 text-emerald-400" />
                         Fitness
+                      </a>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                    <Link href="/recipes">
+                      <a className="flex items-center gap-2 w-full">
+                        <ChefHat className="h-4 w-4 text-orange-400" />
+                        Recipes
                       </a>
                     </Link>
                   </DropdownMenuItem>
