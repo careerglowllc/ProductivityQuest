@@ -18,10 +18,12 @@ import { apiRequest } from "@/lib/queryClient";
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 // UK constituent nations — separate higher-res layer so we can highlight England/Scotland/Wales/NI individually
 const UK_GEO_URL = "https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/administrative/countries.json";
-// US states atlas — used to overlay Alaska (FIPS 02) and Hawaii (FIPS 15) as separate clickable regions
+// US states atlas — all 50 states as separate clickable regions
 const US_ATLAS_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 // Italy regions GeoJSON — used to overlay Sicily (region 19) as a separate clickable region
 const ITALY_REGIONS_URL = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
+// Canada provinces GeoJSON — all 13 provinces/territories as separate clickable regions
+const CANADA_PROVINCES_URL = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/canada.geojson";
 // Higher-res world atlas (50m) — used to overlay Hong Kong (id 344) which is invisible at 110m resolution
 const WORLD_50M_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
@@ -29,8 +31,9 @@ const WORLD_50M_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.
 // IMPORTANT: only countries in this table will ever show as "visited" on the map.
 // GBR (826) intentionally NOT listed — UK is rendered via the separate UK nations layer instead.
 // HKG (344) intentionally NOT listed here — rendered via the separate 50m overlay instead (too small at 110m).
-// FRA (250): world-atlas includes French Guiana/Martinique etc. in France's polygon — this is
-// technically correct but shows "France" over Caribbean/S.America. Accepted limitation.
+// USA (840) intentionally NOT listed — rendered via the separate US states layer instead.
+// CAN (124) intentionally NOT listed — rendered via the separate Canada provinces layer instead.
+// FRA (250): world-atlas includes French Guiana/Martinique etc. in France's polygon — accepted limitation.
 const NUMERIC_TO_ALPHA3: Record<string, string> = {
   "484": "MEX", "528": "NLD", "56": "BEL", "372": "IRL", "276": "DEU",
   "392": "JPN", "156": "CHN", "704": "VNM", "764": "THA", "170": "COL",
@@ -38,8 +41,7 @@ const NUMERIC_TO_ALPHA3: Record<string, string> = {
   "380": "ITA", "203": "CZE", "630": "PRI",
   // HKG (344) omitted — rendered via separate 50m overlay
   "376": "ISR", "158": "TWN",
-  // Americas
-  "840": "USA", "124": "CAN",
+  // Americas: USA (840) and CAN (124) omitted — rendered via state/province overlays
   // Central/Eastern Europe
   "348": "HUN", "191": "HRV",
 };
@@ -54,10 +56,37 @@ function getUKNationISO(properties: any): string | null {
   return null;
 }
 
-// us-atlas FIPS state IDs for Alaska (02) and Hawaii (15)
+// us-atlas FIPS → ISO for all 50 US states (+ DC)
+// Alaska and Hawaii keep their legacy keys (ALA/HAW) for backward data compatibility
 const US_FIPS_TO_ISO: Record<string, string> = {
-  "02": "ALA",
-  "15": "HAW",
+  "01": "US-AL", "02": "ALA",  "04": "US-AZ", "05": "US-AR", "06": "US-CA",
+  "08": "US-CO", "09": "US-CT", "10": "US-DE", "11": "US-DC", "12": "US-FL",
+  "13": "US-GA", "15": "HAW",  "16": "US-ID", "17": "US-IL", "18": "US-IN",
+  "19": "US-IA", "20": "US-KS", "21": "US-KY", "22": "US-LA", "23": "US-ME",
+  "24": "US-MD", "25": "US-MA", "26": "US-MI", "27": "US-MN", "28": "US-MS",
+  "29": "US-MO", "30": "US-MT", "31": "US-NE", "32": "US-NV", "33": "US-NH",
+  "34": "US-NJ", "35": "US-NM", "36": "US-NY", "37": "US-NC", "38": "US-ND",
+  "39": "US-OH", "40": "US-OK", "41": "US-OR", "42": "US-PA", "44": "US-RI",
+  "45": "US-SC", "46": "US-SD", "47": "US-TN", "48": "US-TX", "49": "US-UT",
+  "50": "US-VT", "51": "US-VA", "53": "US-WA", "54": "US-WV", "55": "US-WI",
+  "56": "US-WY",
+};
+
+// Canada province/territory name → ISO
+const CANADA_PROVINCE_TO_ISO: Record<string, string> = {
+  "Alberta": "CA-AB",
+  "British Columbia": "CA-BC",
+  "Manitoba": "CA-MB",
+  "New Brunswick": "CA-NB",
+  "Newfoundland and Labrador": "CA-NL",
+  "Northwest Territories": "CA-NT",
+  "Nova Scotia": "CA-NS",
+  "Nunavut": "CA-NU",
+  "Ontario": "CA-ON",
+  "Prince Edward Island": "CA-PE",
+  "Quebec": "CA-QC",
+  "Saskatchewan": "CA-SK",
+  "Yukon": "CA-YT",
 };
 
 // Italy region istat codes → custom ISOs for regions tracked separately from ITA
@@ -66,13 +95,24 @@ const ITALY_REGION_TO_ISO: Record<string, string> = {
   "19": "SIC",
 };
 
-// All visited country ISO codes
+// All tracked ISO codes
 const SEED_ISOS = [
   "MEX","NLD","BEL","IRL","DEU","JPN","CHN","VNM","THA","COL",
   "POL","PRT","ESP","FRA","ITA","CZE","HKG","PRI",
   "ISR","TWN",
-  // Americas
-  "USA","CAN","HAW","ALA",
+  // US overall + legacy state keys
+  "USA","HAW","ALA",
+  // All 50 US states (+ DC)
+  "US-AL","US-AZ","US-AR","US-CA","US-CO","US-CT","US-DE","US-DC",
+  "US-FL","US-GA","US-ID","US-IL","US-IN","US-IA","US-KS","US-KY",
+  "US-LA","US-ME","US-MD","US-MA","US-MI","US-MN","US-MS","US-MO",
+  "US-MT","US-NE","US-NV","US-NH","US-NJ","US-NM","US-NY","US-NC",
+  "US-ND","US-OH","US-OK","US-OR","US-PA","US-RI","US-SC","US-SD",
+  "US-TN","US-TX","US-UT","US-VT","US-VA","US-WA","US-WV","US-WI","US-WY",
+  // Canada overall + provinces
+  "CAN",
+  "CA-AB","CA-BC","CA-MB","CA-NB","CA-NL","CA-NT",
+  "CA-NS","CA-NU","CA-ON","CA-PE","CA-QC","CA-SK","CA-YT",
   // Central/Eastern Europe
   "HUN","HRV",
   // UK nations (replacing GBR)
@@ -93,6 +133,25 @@ const ISO_NAMES: Record<string, string> = {
   HUN: "Hungary", HRV: "Croatia",
   ENG: "England 🏴󠁧󠁢󠁥󠁮󠁧󠁿", SCT: "Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿", WLS: "Wales 🏴󠁧󠁢󠁷󠁬󠁳󠁿", NIR: "Northern Ireland",
   SIC: "Sicily 🏝️",
+  // US States
+  "US-AL": "Alabama", "US-AZ": "Arizona", "US-AR": "Arkansas", "US-CA": "California",
+  "US-CO": "Colorado", "US-CT": "Connecticut", "US-DE": "Delaware", "US-DC": "Washington D.C.",
+  "US-FL": "Florida", "US-GA": "Georgia", "US-ID": "Idaho", "US-IL": "Illinois",
+  "US-IN": "Indiana", "US-IA": "Iowa", "US-KS": "Kansas", "US-KY": "Kentucky",
+  "US-LA": "Louisiana", "US-ME": "Maine", "US-MD": "Maryland", "US-MA": "Massachusetts",
+  "US-MI": "Michigan", "US-MN": "Minnesota", "US-MS": "Mississippi", "US-MO": "Missouri",
+  "US-MT": "Montana", "US-NE": "Nebraska", "US-NV": "Nevada", "US-NH": "New Hampshire",
+  "US-NJ": "New Jersey", "US-NM": "New Mexico", "US-NY": "New York", "US-NC": "North Carolina",
+  "US-ND": "North Dakota", "US-OH": "Ohio", "US-OK": "Oklahoma", "US-OR": "Oregon",
+  "US-PA": "Pennsylvania", "US-RI": "Rhode Island", "US-SC": "South Carolina", "US-SD": "South Dakota",
+  "US-TN": "Tennessee", "US-TX": "Texas", "US-UT": "Utah", "US-VT": "Vermont",
+  "US-VA": "Virginia", "US-WA": "Washington", "US-WV": "West Virginia",
+  "US-WI": "Wisconsin", "US-WY": "Wyoming",
+  // Canadian provinces & territories
+  "CA-AB": "Alberta", "CA-BC": "British Columbia", "CA-MB": "Manitoba",
+  "CA-NB": "New Brunswick", "CA-NL": "Newfoundland & Labrador", "CA-NT": "Northwest Territories",
+  "CA-NS": "Nova Scotia", "CA-NU": "Nunavut", "CA-ON": "Ontario",
+  "CA-PE": "Prince Edward Island", "CA-QC": "Quebec", "CA-SK": "Saskatchewan", "CA-YT": "Yukon",
 };
 
 // Seeded visit dates (v2 migration)
@@ -288,6 +347,26 @@ export default function CountriesVisitedPage() {
       updates["country-__v6"] = "1";
     }
 
+    // v7 migration: seed empty entries for all US states and Canadian provinces
+    if (!kvData["country-__v7"]) {
+      const newISOs = [
+        "US-AL","US-AZ","US-AR","US-CA","US-CO","US-CT","US-DE","US-DC",
+        "US-FL","US-GA","US-ID","US-IL","US-IN","US-IA","US-KS","US-KY",
+        "US-LA","US-ME","US-MD","US-MA","US-MI","US-MN","US-MS","US-MO",
+        "US-MT","US-NE","US-NV","US-NH","US-NJ","US-NM","US-NY","US-NC",
+        "US-ND","US-OH","US-OK","US-OR","US-PA","US-RI","US-SC","US-SD",
+        "US-TN","US-TX","US-UT","US-VT","US-VA","US-WA","US-WV","US-WI","US-WY",
+        "CA-AB","CA-BC","CA-MB","CA-NB","CA-NL","CA-NT",
+        "CA-NS","CA-NU","CA-ON","CA-PE","CA-QC","CA-SK","CA-YT",
+      ];
+      for (const iso of newISOs) {
+        if (!kvData[storageKey(iso)]) {
+          updates[storageKey(iso)] = JSON.stringify(EMPTY_ENTRY());
+        }
+      }
+      updates["country-__v7"] = "1";
+    }
+
     if (Object.keys(updates).length > 0) {
       saveMutation.mutate({
         updates,
@@ -432,6 +511,8 @@ export default function CountriesVisitedPage() {
                   const iso = isoFromTable ?? geo.properties?.ISO_A3 ?? numericId;
                   // Skip GBR entirely — rendered by the separate UK nations layer (England/Scotland/Wales/NI)
                   if (numericId === "826" || iso === "GBR") return null;
+                  // Skip USA and CAN — rendered by separate state/province layers
+                  if (numericId === "840" || numericId === "124") return null;
                   const name = ISO_NAMES[iso] ?? geo.properties?.NAME ?? geo.properties?.name ?? iso;
                   // Only mark visited if the ISO came from our trusted lookup table
                   const visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
@@ -526,14 +607,14 @@ export default function CountriesVisitedPage() {
               }
             </Geographies>
 
-            {/* Alaska & Hawaii overlay — separate clickable regions drawn on top of the USA polygon */}
+            {/* US states overlay — all 50 states as individual clickable regions */}
             <Geographies geography={US_ATLAS_URL}>
               {({ geographies }: { geographies: any[] }) =>
                 geographies.map((geo: any) => {
                   // us-atlas FIPS id is a number like 2 or 15; pad to 2 digits
                   const fips = String(geo.id ?? "").padStart(2, "0");
                   const iso = US_FIPS_TO_ISO[fips];
-                  if (!iso) return null; // skip all other states
+                  if (!iso) return null; // skip DC (11) or any unmapped territory
                   const name = ISO_NAMES[iso] ?? iso;
                   const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
                     && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
@@ -557,6 +638,55 @@ export default function CountriesVisitedPage() {
                           fill: visited ? "#38BDF8" : "#1e293b",
                           stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
                           strokeWidth: isSelected ? (visited ? 0 : 2) : 0.6,
+                          outline: "none",
+                          cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                        },
+                        hover: {
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
+            {/* Canada provinces overlay — all 13 provinces/territories as individual clickable regions */}
+            <Geographies geography={CANADA_PROVINCES_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
+                  const provinceName = geo.properties?.name ?? geo.properties?.NAME ?? "";
+                  const iso = CANADA_PROVINCE_TO_ISO[provinceName];
+                  if (!iso) return null;
+                  const name = ISO_NAMES[iso] ?? provinceName;
+                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                    && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                  const isSelected = selected?.iso === iso;
+                  return (
+                    <Geography
+                      key={geo.rsmKey ?? iso}
+                      geography={geo}
+                      onClick={() => openCountry(iso, name)}
+                      onMouseEnter={(e: any) => {
+                        const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                        setTooltip({
+                          name,
+                          x: svgRect ? e.clientX - svgRect.left : 0,
+                          y: svgRect ? e.clientY - svgRect.top : 0,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{
+                        default: {
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.4,
                           outline: "none",
                           cursor: "pointer",
                           filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",

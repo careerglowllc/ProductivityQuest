@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,48 @@ export default function RecipesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>(loadRecipes);
   const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  // Seed built-in recipes once
+  useEffect(() => {
+    const seedKey = "recipes-seed-v1";
+    if (localStorage.getItem(seedKey)) return;
+    const existing = loadRecipes();
+    if (!existing.some((r) => r.name === "Chicken Milanese")) {
+      const now = new Date().toISOString();
+      const milanese: Recipe = {
+        id: crypto.randomUUID(),
+        name: "Chicken Milanese",
+        description: "Crispy breaded chicken cutlets — quick to make, delicious served with pasta or an arugula salad and lemon wedges.",
+        ingredients: [
+          "2 large eggs",
+          "Kosher salt and ground black pepper to taste",
+          "¾ cup all-purpose flour",
+          "1 cup Italian seasoned bread crumbs",
+          "2 skinless, boneless chicken breast halves, thinly sliced",
+          "¼ cup vegetable oil for frying",
+          "1 lemon, cut into wedges",
+        ].join("\n"),
+        instructions: [
+          "1. Preheat the oven to 200°F (95°C).",
+          "2. Beat eggs with salt and pepper in a shallow dish. Spread flour in another shallow dish and bread crumbs in a third.",
+          "3. Working one piece at a time, press chicken into flour and shake off excess. Dip into beaten egg, then press into bread crumbs. Toss lightly between your hands so excess falls away. Place on a plate — do not stack.",
+          "4. Heat vegetable oil in a large skillet over medium heat. Pan-fry chicken in batches of 2–3 pieces until golden brown and cooked through, 2–4 minutes per side. Internal temperature should reach 165°F (74°C).",
+          "5. Transfer cooked pieces to a baking sheet and keep warm in the oven while cooking the rest.",
+          "6. Serve with lemon wedges.",
+        ].join("\n"),
+        prepTime: "15 min",
+        cookTime: "15 min",
+        servings: "4",
+        tags: ["Quick", "High Protein", "Dinner", "Lunch"],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const updated = [milanese, ...existing];
+      saveRecipes(updated);
+      setRecipes(updated);
+    }
+    localStorage.setItem(seedKey, "1");
+  }, []);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
