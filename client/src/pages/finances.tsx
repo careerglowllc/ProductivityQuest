@@ -1268,6 +1268,18 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialItems.length]);
 
+  // Remove Rocklin House Solar Panel Routine Cleaning (no longer needed — July 2026)
+  useEffect(() => {
+    const solar = financialItems.find(i => i.item.toLowerCase().includes("solar panel") && i.item.toLowerCase().includes("clean"));
+    if (solar) {
+      fetch(`/api/finances/${solar.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financialItems.length]);
+
   // Auto-seed Simply Sing monthly subscription if it doesn't exist yet
   useEffect(() => {
     if (financialItems.length > 0 && !financialItems.find(i => i.item === "Simply Sing")) {
