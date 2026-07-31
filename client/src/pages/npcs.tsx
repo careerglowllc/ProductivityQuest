@@ -249,6 +249,18 @@ const ROCKLIN_CONTACTS: NPC[] = [
     createdAt: "2026-07-30T00:00:00.000Z",
     updatedAt: "2026-07-30T00:00:00.000Z",
   },
+  {
+    id: "npc-rocklin-carmen-gargani-realtor",
+    name: "Carmen Gargani",
+    occupation: "Realtor",
+    location: "Rocklin, CA",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "Realtor — Rocklin area. Related to 2605 Plumbago Court, Rocklin, CA 95677.",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-07-30T00:00:00.000Z",
+    updatedAt: "2026-07-30T00:00:00.000Z",
+  },
 ];
 
 // Close friends — names to tag; matched by exact name against existing contacts
