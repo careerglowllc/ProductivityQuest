@@ -474,6 +474,7 @@ export default function FoodInCitiesPage() {
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [search, setSearch]                     = useState("");
   const [activeTag, setActiveTag]               = useState<string | null>(null);
+  const [sortBy, setSortBy]                     = useState<"food" | "ambience" | "price" | "overall">("food");
   const [dialogOpen, setDialogOpen]             = useState(false);
   const [editingId, setEditingId]               = useState<string | null>(null);
   const [form, setForm]                         = useState(emptyEntry());
@@ -508,12 +509,19 @@ export default function FoodInCitiesPage() {
       .filter(Boolean).some((v) => v!.toLowerCase().includes(q));
     const matchTag = !activeTag || e.tags.includes(activeTag);
     return matchSearch && matchTag;
-  }).sort((a, b) => b.overallRating - a.overallRating);
+  }).sort((a, b) => {
+    if (sortBy === "overall")   return b.overallRating - a.overallRating;
+    if (sortBy === "food")      return b.stars.food - a.stars.food;
+    if (sortBy === "ambience")  return b.stars.ambience - a.stars.ambience;
+    if (sortBy === "price")     return b.stars.price - a.stars.price;
+    return 0;
+  });
 
   function selectRegion(id: string) {
     setSelectedRegionId(id);
     setSearch("");
     setActiveTag(null);
+    setSortBy("food");
     setView("list");
   }
 
@@ -522,6 +530,7 @@ export default function FoodInCitiesPage() {
     setSelectedRegionId(null);
     setSearch("");
     setActiveTag(null);
+    setSortBy("food");
   }
 
   function openAdd() {
@@ -652,6 +661,22 @@ export default function FoodInCitiesPage() {
                 ))}
               </div>
 
+              {/* Sort pills */}
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <span className="text-[11px] text-slate-500 uppercase tracking-wide">Sort by:</span>
+                {([
+                  ["🍽️ Food",      "food"],
+                  ["🎭 Ambience",  "ambience"],
+                  ["💰 Value",     "price"],
+                  ["⭐ Overall",   "overall"],
+                ] as [string, typeof sortBy][]).map(([label, key]) => (
+                  <button key={key} onClick={() => setSortBy(key)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${sortBy === key ? "bg-pink-500/30 text-pink-200 border-pink-500/60" : "bg-slate-800/40 text-slate-400 border-slate-600/40 hover:text-slate-300"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <p className="text-pink-300/60 text-sm mb-3">
                 {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
                 {activeTag && ` · tagged "${activeTag}"`}
@@ -706,12 +731,12 @@ export default function FoodInCitiesPage() {
                         </div>
 
                         <div className="flex items-center gap-2 mb-2">
-                          <StarDisplay value={e.overallRating} />
-                          <span className="text-xs text-slate-500">overall</span>
+                          <StarDisplay value={e.stars.food} />
+                          <span className="text-xs text-slate-500">food</span>
                         </div>
 
                         <div className="grid grid-cols-3 gap-1 mb-3 text-[11px] text-slate-400">
-                          {([["🍽️ Food", e.stars.food], ["🎭 Ambience", e.stars.ambience], ["💰 Price", e.stars.price]] as [string, number][]).map(([label, val]) => (
+                          {([["🍽️ Food", e.stars.food], ["🎭 Ambience", e.stars.ambience], ["💰 Value", e.stars.price]] as [string, number][]).map(([label, val]) => (
                             <div key={label} className="bg-slate-900/40 rounded px-2 py-1">
                               <span className="block">{label}</span>
                               <span className="text-yellow-400 font-semibold">{val.toFixed(1)} ★</span>
@@ -777,7 +802,7 @@ export default function FoodInCitiesPage() {
                 {([
                   ["🍽️ Food Taste", "food"],
                   ["🎭 Ambience", "ambience"],
-                  ["💰 Price (value)", "price"],
+                  ["💰 Value", "price"],
                 ] as [string, keyof StarRatings][]).map(([label, field]) => (
                   <div key={field} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-2">
                     <span className="text-sm text-slate-300">{label}</span>
