@@ -41,6 +41,7 @@ import CPAPPage from "@/pages/cpap";
 import AppearanceSettingsPage from "@/pages/settings-appearance";
 import MorePage from "@/pages/more";
 import RecipesPage from "@/pages/recipes";
+import FoodInCitiesPage from "@/pages/food-in-cities";
 installStorageSync();
 
 function Router() {
@@ -130,6 +131,7 @@ function Router() {
             <Route path="/accomplishments" component={AccomplishmentsPage} />
             <Route path="/explore" component={ExplorePage} />
             <Route path="/countries-visited" component={CountriesVisitedPage} />
+            <Route path="/food-in-cities" component={FoodInCitiesPage} />
             <Route path="/fitness" component={FitnessPage} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />

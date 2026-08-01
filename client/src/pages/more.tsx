@@ -17,6 +17,7 @@ import {
   BookOpen,
   Dumbbell,
   ChefHat,
+  Utensils,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -58,6 +59,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "Explore", path: "/explore", icon: Compass, color: "cyan", description: "Places & travel" },
       { name: "Fitness", path: "/fitness", icon: Dumbbell, color: "pink", description: "Calories & lifting" },
       { name: "Recipes", path: "/recipes", icon: ChefHat, color: "orange", description: "Food recipe collection" },
+      { name: "Food in Cities", path: "/food-in-cities", icon: Utensils, color: "pink", description: "Restaurants & meals around the world" },
     ],
   },
   {
