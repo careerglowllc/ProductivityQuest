@@ -466,6 +466,32 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
   },
+  {
+    id: "food-taqueria-la-rana-rocklin",
+    name: "Taqueria La Rana",
+    city: "Rocklin, CA",
+    address: "6011 Stanford Ranch Rd Unit 107, Rocklin, CA 95765",
+    overallRating: 3.7,
+    stars: { food: 4, ambience: 3, price: 4 },
+    thoughts: "Solid cheap casual Mexican food. Amazing Taco Tuesday — $2 tacos, an incredible deal. Great bang for your buck.",
+    tags: ["Mexican", "Tacos", "Casual", "Street Food", "Lunch"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-mezcalito-oaxacan-rocklin",
+    name: "Mezcalito Oaxacan Cuisine",
+    city: "Rocklin, CA",
+    address: "5065 Pacific St, Rocklin, CA 95677",
+    overallRating: 3.6,
+    stars: { food: 4.4, ambience: 3, price: 3.5 },
+    thoughts: "Great slightly more upscale Mexican food. Really good quality — a step above the typical taqueria. Worth it for a nicer Mexican dinner.",
+    tags: ["Mexican", "Casual", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -488,7 +514,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v5";
+    const key = "food-cities-seed-v6";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
