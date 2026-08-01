@@ -28,16 +28,34 @@ import { useTheme } from "@/contexts/theme-context";
 const STORAGE_KEY = "food-in-cities-v1";
 
 // ── Regions ───────────────────────────────────────────────────
+// SVG paths (viewBox 0 0 100 100) — simplified state silhouettes
+const REGION_SVG_PATHS: Record<string, string> = {
+  // California silhouette (simplified)
+  "bay-area":       "M 52,4 L 68,6 L 74,14 L 76,24 L 72,34 L 70,48 L 65,60 L 60,72 L 52,84 L 40,90 L 30,84 L 24,72 L 22,58 L 24,44 L 20,32 L 24,18 L 34,8 Z",
+  "central-valley": "M 52,4 L 68,6 L 74,14 L 76,24 L 72,34 L 70,48 L 65,60 L 60,72 L 52,84 L 40,90 L 30,84 L 24,72 L 22,58 L 24,44 L 20,32 L 24,18 L 34,8 Z",
+  // Nevada silhouette (trapezoid with angled bottom-left)
+  "reno":           "M 20,6 L 80,6 L 86,18 L 86,76 L 52,94 L 20,76 Z",
+};
+
+// Highlight polygons showing the sub-region within the state shape
+const REGION_HIGHLIGHT_PATHS: Record<string, string> = {
+  // Bay Area — coastal/southern CA blob
+  "bay-area":       "M 36,52 L 44,48 L 52,50 L 56,58 L 52,68 L 44,72 L 36,68 L 30,60 Z",
+  // Central Valley — interior CA band
+  "central-valley": "M 38,22 L 62,24 L 66,36 L 64,52 L 58,62 L 42,62 L 34,52 L 32,36 Z",
+  // Reno — upper-left portion of Nevada
+  "reno":           "M 22,10 L 52,10 L 52,46 L 30,50 L 22,40 Z",
+};
+
 const REGIONS = [
   {
     id: "bay-area",
     label: "Bay Area",
     emoji: "🌉",
     description: "San Jose, Los Altos, SF & surrounds",
-    mapX: "22%",
-    mapY: "70%",
     color: "#38bdf8",
     ringColor: "rgba(56,189,248,0.22)",
+    stateName: "California",
     citiesMatch: [
       "san jose", "los altos", "livermore", "san francisco", "oakland",
       "berkeley", "fremont", "palo alto", "santa clara", "sunnyvale",
@@ -49,10 +67,9 @@ const REGIONS = [
     label: "Central Valley",
     emoji: "🌾",
     description: "Sacramento, Roseville, Dixon, Stockton & surrounds",
-    mapX: "39%",
-    mapY: "44%",
     color: "#f59e0b",
     ringColor: "rgba(245,158,11,0.22)",
+    stateName: "California",
     citiesMatch: [
       "sacramento", "roseville", "rocklin", "dixon", "stockton", "modesto",
       "elk grove", "davis", "woodland", "vacaville", "fairfield", "vallejo",
@@ -64,10 +81,9 @@ const REGIONS = [
     label: "Reno / Nevada",
     emoji: "🎰",
     description: "Reno, Sparks, Carson City & Nevada",
-    mapX: "70%",
-    mapY: "22%",
     color: "#a855f7",
     ringColor: "rgba(168,85,247,0.22)",
+    stateName: "Nevada",
     citiesMatch: ["reno", "sparks", "carson city", ", nv", "nevada"],
   },
 ];
@@ -157,12 +173,10 @@ function avg(s: StarRatings): number {
   return Math.round(((s.food + s.ambience + s.price) / 3) * 10) / 10;
 }
 
-function deriveRegion(entry: FoodEntry): string {
+function deriveRegions(entry: FoodEntry): string[] {
   const text = (entry.city + " " + (entry.address ?? "")).toLowerCase();
-  for (const r of REGIONS) {
-    if (r.citiesMatch.some((c) => text.includes(c))) return r.id;
-  }
-  return "other";
+  const matched = REGIONS.filter((r) => r.citiesMatch.some((c) => text.includes(c))).map((r) => r.id);
+  return matched.length > 0 ? matched : ["other"];
 }
 
 // ── Star display ─────────────────────────────────────────────
@@ -201,155 +215,81 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
-// ── Region map view ───────────────────────────────────────────
-function RegionMapView({
+// ── Region picker (replaces map) ──────────────────────────────
+function RegionPickerView({
   entries,
   onSelect,
 }: {
   entries: FoodEntry[];
   onSelect: (regionId: string) => void;
 }) {
-  const [hovered, setHovered] = useState<string | null>(null);
-  const countFor = (id: string) => entries.filter((e) => deriveRegion(e) === id).length;
+  const countFor = (id: string) => entries.filter((e) => deriveRegions(e).includes(id)).length;
 
   return (
-    <div className="w-full max-w-2xl mx-auto select-none">
-      {/* Map canvas */}
-      <div
-        className="relative w-full rounded-2xl border border-pink-600/20 overflow-hidden"
-        style={{ paddingBottom: "62%", background: "radial-gradient(ellipse at 30% 80%, #0f2027 0%, #0d1a2e 55%, #0a0f1e 100%)" }}
-      >
-        {/* Grid lines */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.07 }}>
-          {[1,2,3,4,5,6,7].map((i) => (
-            <line key={`h${i}`} x1="0" y1={`${i * 14.28}%`} x2="100%" y2={`${i * 14.28}%`} stroke="#94a3b8" strokeWidth="1" />
-          ))}
-          {[1,2,3,4,5,6,7,8,9].map((i) => (
-            <line key={`v${i}`} x1={`${i * 11.11}%`} y1="0" x2={`${i * 11.11}%`} y2="100%" stroke="#94a3b8" strokeWidth="1" />
-          ))}
-        </svg>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mx-auto">
+      {REGIONS.map((region) => {
+        const count = countFor(region.id);
+        const shapePath    = REGION_SVG_PATHS[region.id];
+        const highlightPath = REGION_HIGHLIGHT_PATHS[region.id];
+        return (
+          <button
+            key={region.id}
+            onClick={() => onSelect(region.id)}
+            className="group relative rounded-2xl border overflow-hidden text-left transition-all duration-200 hover:scale-[1.03] active:scale-95 hover:shadow-xl"
+            style={{
+              borderColor: `${region.color}44`,
+              background: `linear-gradient(145deg, rgba(13,20,42,0.97) 0%, rgba(10,15,30,0.97) 100%)`,
+              minHeight: 180,
+            }}
+          >
+            {/* Glow on hover */}
+            <div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+              style={{ background: `radial-gradient(ellipse at 50% 30%, ${region.ringColor} 0%, transparent 70%)` }}
+            />
 
-        {/* Faint territory blobs */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.055 }}>
-          <ellipse cx="30%" cy="57%" rx="24%" ry="34%" fill="#38bdf8" />
-          <ellipse cx="68%" cy="36%" rx="21%" ry="27%" fill="#a855f7" />
-        </svg>
-
-        {/* CA / NV watermark labels */}
-        <div className="absolute pointer-events-none" style={{ left: "10%", top: "48%", transform: "translateY(-50%)" }}>
-          <span className="text-[9px] uppercase tracking-[0.35em] font-semibold text-slate-600 whitespace-nowrap">California</span>
-        </div>
-        <div className="absolute pointer-events-none" style={{ left: "58%", top: "28%", transform: "translateY(-50%)" }}>
-          <span className="text-[9px] uppercase tracking-[0.35em] font-semibold text-slate-600 whitespace-nowrap">Nevada</span>
-        </div>
-
-        {/* Connector dashes */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.18 }}>
-          <line x1="22%" y1="70%" x2="39%" y2="44%" stroke="#94a3b8" strokeWidth="1" strokeDasharray="5 5" />
-          <line x1="39%" y1="44%" x2="70%" y2="22%" stroke="#94a3b8" strokeWidth="1" strokeDasharray="5 5" />
-        </svg>
-
-        {/* Compass */}
-        <div className="absolute bottom-3 right-4 pointer-events-none flex flex-col items-center">
-          <span className="text-[9px] font-bold text-slate-600">N</span>
-          <span className="text-slate-700 text-sm leading-none">↑</span>
-        </div>
-
-        {/* Region nodes */}
-        {REGIONS.map((region) => {
-          const count = countFor(region.id);
-          const isHov = hovered === region.id;
-          return (
-            <button
-              key={region.id}
-              onMouseEnter={() => setHovered(region.id)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => onSelect(region.id)}
-              className="absolute transition-transform duration-200"
-              style={{
-                left: region.mapX,
-                top: region.mapY,
-                transform: `translate(-50%, -50%) scale(${isHov ? 1.15 : 1})`,
-              }}
-            >
-              {/* Pulse ring */}
-              <span
-                className="absolute rounded-full animate-ping"
-                style={{
-                  width: 54, height: 54,
-                  top: "50%", left: "50%",
-                  marginTop: -27, marginLeft: -27,
-                  background: region.ringColor,
-                  opacity: isHov ? 0.7 : 0.35,
-                }}
-              />
-              {/* Node circle */}
-              <span
-                className="relative flex flex-col items-center justify-center rounded-full border-2 shadow-lg transition-all duration-200"
-                style={{
-                  width: 54, height: 54,
-                  borderColor: region.color,
-                  background: `radial-gradient(circle, ${region.ringColor} 0%, rgba(13,26,46,0.95) 70%)`,
-                  boxShadow: isHov ? `0 0 28px ${region.color}99` : `0 0 12px ${region.color}44`,
-                }}
-              >
-                <span className="text-xl leading-none">{region.emoji}</span>
-                {count > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 text-[10px] font-bold rounded-full flex items-center justify-center border-2"
-                    style={{
-                      width: 19, height: 19,
-                      backgroundColor: region.color,
-                      borderColor: "#0a0f1e",
-                      color: "#0a0f1e",
-                    }}
-                  >
-                    {count}
-                  </span>
+            {/* State SVG silhouette */}
+            <div className="absolute right-3 top-3 opacity-25 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none">
+              <svg width="72" height="72" viewBox="0 0 100 100" fill="none">
+                {/* State outline */}
+                <path
+                  d={shapePath}
+                  stroke={region.color}
+                  strokeWidth="2.5"
+                  fill={region.ringColor}
+                />
+                {/* Sub-region highlight */}
+                {highlightPath && (
+                  <path
+                    d={highlightPath}
+                    fill={region.color}
+                    opacity="0.5"
+                  />
                 )}
-              </span>
-              {/* Label */}
-              <span
-                className="absolute left-1/2 whitespace-nowrap pointer-events-none transition-opacity duration-200"
-                style={{ top: "calc(100% + 8px)", transform: "translateX(-50%)" }}
-              >
-                <span
-                  className="px-2 py-0.5 rounded-md border text-[11px] font-semibold"
-                  style={{
-                    borderColor: `${region.color}55`,
-                    background: "rgba(10,15,30,0.9)",
-                    color: region.color,
-                  }}
-                >
-                  {region.label}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+              </svg>
+            </div>
 
-      {/* Region cards row (tap-friendly on mobile) */}
-      <div className="grid grid-cols-3 gap-3 mt-4">
-        {REGIONS.map((region) => {
-          const count = countFor(region.id);
-          return (
-            <button
-              key={region.id}
-              onClick={() => onSelect(region.id)}
-              className="rounded-xl border p-3 text-left transition-all hover:scale-[1.03] active:scale-95"
-              style={{
-                borderColor: `${region.color}44`,
-                background: `linear-gradient(135deg, ${region.ringColor} 0%, rgba(13,20,40,0.9) 100%)`,
-              }}
-            >
-              <div className="text-2xl mb-1">{region.emoji}</div>
-              <div className="text-xs font-semibold leading-tight" style={{ color: region.color }}>{region.label}</div>
-              <div className="text-[11px] text-slate-500 mt-1">{count} {count === 1 ? "place" : "places"}</div>
-            </button>
-          );
-        })}
-      </div>
+            {/* Content */}
+            <div className="relative z-10 p-4 flex flex-col h-full">
+              <div className="text-3xl mb-2">{region.emoji}</div>
+              <div className="font-bold text-base leading-tight mb-0.5" style={{ color: region.color }}>
+                {region.label}
+              </div>
+              <div className="text-[11px] text-slate-500 mb-3 leading-snug">{region.description}</div>
+
+              <div className="mt-auto flex items-center justify-between">
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                  style={{ color: region.color, borderColor: `${region.color}44`, background: region.ringColor }}
+                >
+                  {count} {count === 1 ? "place" : "places"}
+                </span>
+                <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-sm">→</span>
+              </div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -500,7 +440,7 @@ export default function FoodInCitiesPage() {
 
   // Entries for selected region, filtered by search + tag
   const regionEntries = selectedRegionId
-    ? entries.filter((e) => deriveRegion(e) === selectedRegionId)
+    ? entries.filter((e) => deriveRegions(e).includes(selectedRegionId))
     : entries;
 
   const filtered = regionEntries.filter((e) => {
@@ -606,7 +546,7 @@ export default function FoodInCitiesPage() {
           {view === "map" && (
             <div>
               <p className="text-center text-slate-400 text-sm mb-6">Select a region to explore</p>
-              <RegionMapView entries={entries} onSelect={selectRegion} />
+              <RegionPickerView entries={entries} onSelect={selectRegion} />
               <div className="flex justify-center mt-6">
                 <button onClick={openAdd}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-white font-semibold text-sm transition-colors">
