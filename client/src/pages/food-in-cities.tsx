@@ -32,6 +32,7 @@ const ALL_TAGS = [
   "Fine Dining", "Casual", "Breakfast", "Lunch", "Dinner",
   "Street Food", "Diner / Dive", "Brunch", "Coffee / Cafe",
   "Dessert", "Ice Cream", "Bar / Drinks", "Fast Food", "Seafood",
+  "Steakhouse", "Sandwich / Deli",
   "Elote", "Tacos",
   "American", "Italian", "Japanese", "Mexican", "Chinese",
   "Vietnamese", "Thai", "Indian", "Mediterranean", "French",
@@ -54,6 +55,8 @@ const TAG_COLORS: Record<string, string> = {
   "Fast Food":      "bg-red-400/20 text-red-300 border-red-400/40",
   "Elote":          "bg-yellow-700/20 text-yellow-300 border-yellow-700/40",
   "Tacos":          "bg-lime-600/20 text-lime-300 border-lime-600/40",
+  "Steakhouse":     "bg-red-800/20 text-red-300 border-red-800/40",
+  "Sandwich / Deli":"bg-amber-700/20 text-amber-300 border-amber-700/40",
   "American":       "bg-blue-500/20 text-blue-300 border-blue-500/40",
   "Italian":        "bg-green-500/20 text-green-300 border-green-500/40",
   "Japanese":       "bg-red-500/20 text-red-300 border-red-500/40",
@@ -213,6 +216,32 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
   },
+  {
+    id: "food-american-italian-deli-losaltos",
+    name: "The American Italian Deli",
+    city: "Los Altos, CA",
+    address: "139 Main St, Los Altos, CA 94022",
+    overallRating: 3.6,
+    stars: { food: 4.2, ambience: 3, price: 3.5 },
+    thoughts: "Nostalgic for me — been around since I was a kid. Solid deli and sandwich place, nothing flashy but consistently good. A classic.",
+    tags: ["Sandwich / Deli", "Italian", "American", "Casual", "Lunch"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-western-village-steakhouse-sparks",
+    name: "Western Village Steakhouse",
+    city: "Sparks, NV",
+    address: "815 Nichols Blvd, Sparks, NV 89434",
+    overallRating: 4.7,
+    stars: { food: 5, ambience: 4.5, price: 4.5 },
+    thoughts: "Best restaurant I've had in my life, or at least up there. Insanely good quality across the board — great drinks, great food, great sides. Fun tableside 'on fire' coffee show. Complimentary palate cleansers throughout. For anniversaries they give you a free little dessert and a photo. Amazing price given the food quality.",
+    tags: ["Steakhouse", "Fine Dining", "American", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -230,7 +259,7 @@ export default function FoodInCitiesPage() {
 
   // Seed entries once
   useEffect(() => {
-    const key = "food-cities-seed-v2";
+    const key = "food-cities-seed-v3";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
