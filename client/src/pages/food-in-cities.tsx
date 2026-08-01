@@ -31,7 +31,8 @@ const STORAGE_KEY = "food-in-cities-v1";
 const ALL_TAGS = [
   "Fine Dining", "Casual", "Breakfast", "Lunch", "Dinner",
   "Street Food", "Diner / Dive", "Brunch", "Coffee / Cafe",
-  "Dessert", "Bar / Drinks", "Fast Food", "Seafood",
+  "Dessert", "Ice Cream", "Bar / Drinks", "Fast Food", "Seafood",
+  "Elote", "Tacos",
   "American", "Italian", "Japanese", "Mexican", "Chinese",
   "Vietnamese", "Thai", "Indian", "Mediterranean", "French",
   "Korean", "Middle Eastern", "Latin",
@@ -48,7 +49,11 @@ const TAG_COLORS: Record<string, string> = {
   "Brunch":         "bg-pink-500/20 text-pink-300 border-pink-500/40",
   "Coffee / Cafe":  "bg-rose-500/20 text-rose-300 border-rose-500/40",
   "Dessert":        "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40",
+  "Ice Cream":      "bg-sky-300/20 text-sky-200 border-sky-300/40",
   "Bar / Drinks":   "bg-slate-500/20 text-slate-300 border-slate-500/40",
+  "Fast Food":      "bg-red-400/20 text-red-300 border-red-400/40",
+  "Elote":          "bg-yellow-700/20 text-yellow-300 border-yellow-700/40",
+  "Tacos":          "bg-lime-600/20 text-lime-300 border-lime-600/40",
   "American":       "bg-blue-500/20 text-blue-300 border-blue-500/40",
   "Italian":        "bg-green-500/20 text-green-300 border-green-500/40",
   "Japanese":       "bg-red-500/20 text-red-300 border-red-500/40",
@@ -169,6 +174,45 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
   },
+  {
+    id: "food-giving-pies-sanjose",
+    name: "The Giving Pies",
+    city: "San Jose, CA",
+    address: "569 W Alma Ave, San Jose, CA 95125",
+    overallRating: 3.2,
+    stars: { food: 4.5, ambience: 2.5, price: 2.5 },
+    thoughts: "Pies are mediocre but great coffee. Not worth it for a regular drip coffee, but their specialty drinks are the move — London Fog, vanilla chai, cookie butter latte. Can be made not overly sweet but still really good.",
+    tags: ["Coffee / Cafe", "Dessert", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-metro-balderas-sanjose",
+    name: "Metro Balderas Taqueria",
+    city: "San Jose, CA",
+    address: "300 Willow St, San Jose, CA 95110",
+    overallRating: 3.3,
+    stars: { food: 4.3, ambience: 2, price: 3.5 },
+    thoughts: "Solid authentic burritos. Very Hispanic neighborhood, feels like a real local spot. Good value and quality for what it is.",
+    tags: ["Mexican", "Tacos", "Casual", "Street Food"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-la-original-paleteria-sanjose",
+    name: "La Original Paleteria y Neveria",
+    city: "San Jose, CA",
+    address: "273 Willow St, San Jose, CA 95120",
+    overallRating: 3.2,
+    stars: { food: 4.5, ambience: 2, price: 3 },
+    thoughts: "Authentic Mexican ice cream/paleteria vibes. Really good elote — one of the better ones. Solid Mexican ice cream and cold banana-type treats. Very niche place but great for what it does.",
+    tags: ["Mexican", "Ice Cream", "Elote", "Dessert", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -186,7 +230,7 @@ export default function FoodInCitiesPage() {
 
   // Seed entries once
   useEffect(() => {
-    const key = "food-cities-seed-v1";
+    const key = "food-cities-seed-v2";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
