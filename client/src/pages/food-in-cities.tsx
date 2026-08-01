@@ -92,7 +92,7 @@ const ALL_TAGS = [
   "Fine Dining", "Casual", "Breakfast", "Lunch", "Dinner",
   "Street Food", "Diner / Dive", "Brunch", "Coffee / Cafe",
   "Dessert", "Ice Cream", "Bar / Drinks", "Fast Food", "Seafood",
-  "Steakhouse", "Sandwich / Deli",
+  "Steakhouse", "Sandwich / Deli", "Sushi",
   "Elote", "Tacos",
   "American", "Italian", "Japanese", "Mexican", "Chinese",
   "Vietnamese", "Thai", "Indian", "Mediterranean", "French",
@@ -115,8 +115,9 @@ const TAG_COLORS: Record<string, string> = {
   "Fast Food":      "bg-red-400/20 text-red-300 border-red-400/40",
   "Elote":          "bg-yellow-700/20 text-yellow-300 border-yellow-700/40",
   "Tacos":          "bg-lime-600/20 text-lime-300 border-lime-600/40",
-  "Steakhouse":     "bg-red-800/20 text-red-300 border-red-800/40",
-  "Sandwich / Deli":"bg-amber-700/20 text-amber-300 border-amber-700/40",
+  "Steakhouse":      "bg-red-800/20 text-red-300 border-red-800/40",
+  "Sandwich / Deli": "bg-amber-700/20 text-amber-300 border-amber-700/40",
+  "Sushi":           "bg-pink-700/20 text-pink-300 border-pink-700/40",
   "American":       "bg-blue-500/20 text-blue-300 border-blue-500/40",
   "Italian":        "bg-green-500/20 text-green-300 border-green-500/40",
   "Japanese":       "bg-red-500/20 text-red-300 border-red-500/40",
@@ -400,6 +401,71 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
   },
+  {
+    id: "food-north-fork-chai-newcastle",
+    name: "North Fork Chai Co.",
+    city: "Newcastle, CA",
+    address: "661 Newcastle Rd Suite B, Newcastle, CA 95658",
+    overallRating: 4.3,
+    stars: { food: 5, ambience: 3.5, price: 3.5 },
+    thoughts: "Great specialty coffee. Excellent taste — one of the better specialty coffee spots in the area.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-wallys-cafe-rocklin",
+    name: "Wally's Cafe",
+    city: "Rocklin, CA",
+    address: "2110 Sunset Blvd Unit 600, Rocklin, CA 95765",
+    overallRating: 3.4,
+    stars: { food: 4.2, ambience: 3, price: 3 },
+    thoughts: "Solid Mediterranean food. Good spot for what it is — consistent and tasty.",
+    tags: ["Mediterranean", "Casual", "Lunch"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-mikuni-fountains-roseville",
+    name: "Mikuni at Fountains",
+    city: "Roseville, CA",
+    address: "1194 Roseville Pkwy, Roseville, CA 95678",
+    overallRating: 3.3,
+    stars: { food: 4, ambience: 3.5, price: 2.5 },
+    thoughts: "Great sushi but expensive. High quality and a nice atmosphere — worth it for a special occasion, but pricey for regular visits.",
+    tags: ["Sushi", "Japanese", "Fine Dining", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-pour-choice-auburn",
+    name: "The Pour Choice",
+    city: "Auburn, CA",
+    address: "177 Sacramento St, Auburn, CA 95603",
+    overallRating: 3.2,
+    stars: { food: 3.7, ambience: 3, price: 3 },
+    thoughts: "Good specialty flavors, but expensive and hit or miss depending on what specialty flavor is on. Worth a try but don't go expecting consistency.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  {
+    id: "food-oakhouse-auburn",
+    name: "Oakhouse",
+    city: "Auburn, CA",
+    address: "130 Maple St Suite 100, Auburn, CA 95603",
+    overallRating: 3.5,
+    stars: { food: 4, ambience: 3.5, price: 3 },
+    thoughts: "Solid and fancy but I've had better fine dining. Good steakhouse experience for Auburn — well-executed, nice atmosphere, just doesn't quite reach the top tier.",
+    tags: ["Steakhouse", "Fine Dining", "American", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -422,7 +488,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v4";
+    const key = "food-cities-seed-v5";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
