@@ -242,6 +242,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
   },
+  {
+    id: "food-cattlemens-ca",
+    name: "Cattlemens",
+    city: "Multiple Locations, CA",
+    address: "2882 Kitty Hawk Rd, Livermore, CA 94551 · 2000 Taylor Rd, Roseville, CA 95678 · 250 Dorset Dr, Dixon, CA 95620",
+    overallRating: 3.8,
+    stars: { food: 4.4, ambience: 3, price: 4 },
+    thoughts: "The best place for a mid-range steakhouse vibe. Buffalo wings, prime rib tacos, steak, sweet potato, apple pie — solid great-tasting variety at very reasonable prices. Appetizers are the best part but the steaks are solid too. Great bang for your buck.",
+    tags: ["Steakhouse", "American", "Dinner", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -259,7 +272,7 @@ export default function FoodInCitiesPage() {
 
   // Seed entries once
   useEffect(() => {
-    const key = "food-cities-seed-v3";
+    const key = "food-cities-seed-v4";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
