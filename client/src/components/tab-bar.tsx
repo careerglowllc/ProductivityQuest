@@ -216,7 +216,7 @@ export function TabBar() {
 
           {/* Journal - written essays + Accomplishments submenu */}
           {(() => {
-            const isJournalActive = location === "/journal" || location === "/accomplishments" || location === "/explore" || location === "/fitness" || location === "/recipes" || location === "/food-in-cities";
+            const isJournalActive = location === "/journal" || location === "/accomplishments" || location === "/explore" || location === "/fitness" || location === "/recipes";
             return (
               <DropdownMenu open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -274,14 +274,6 @@ export function TabBar() {
                       <a className="flex items-center gap-2 w-full">
                         <ChefHat className="h-4 w-4 text-orange-400" />
                         Recipes
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/food-in-cities">
-                      <a className="flex items-center gap-2 w-full">
-                        <Utensils className="h-4 w-4 text-pink-400" />
-                        Food in Cities
                       </a>
                     </Link>
                   </DropdownMenuItem>
