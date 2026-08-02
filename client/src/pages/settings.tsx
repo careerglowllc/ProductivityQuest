@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, DollarSign } from "lucide-react";
+import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, DollarSign, LogOut } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 
@@ -165,6 +165,22 @@ export default function SettingsPage() {
                 </Link>
               );
             })}
+          </div>
+
+          {/* Sign Out */}
+          <div className={isMobile ? 'mt-4' : 'mt-6'}>
+            <button
+              onClick={() => window.location.href = '/api/logout'}
+              className={`w-full flex items-center gap-2.5 rounded-xl border border-red-600/30 bg-slate-800/60 hover:bg-red-900/20 hover:border-red-500/50 transition-all ${isMobile ? 'p-2.5' : 'p-4'}`}
+            >
+              <div className={`${isMobile ? 'w-8 h-8 rounded-md' : 'w-12 h-12 rounded-lg'} bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-lg flex-shrink-0`}>
+                <LogOut className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} text-white`} />
+              </div>
+              <div className="min-w-0 text-left">
+                <p className={`${isMobile ? 'text-sm' : 'text-lg'} font-serif font-bold text-red-300`}>Sign Out</p>
+                <p className={`${isMobile ? 'text-[11px] leading-tight' : 'text-sm'} text-red-300/60`}>Log out of your account</p>
+              </div>
+            </button>
           </div>
         </div>
       </div>
