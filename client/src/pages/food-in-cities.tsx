@@ -492,6 +492,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
   },
+  {
+    id: "food-philz-coffee-cupertino",
+    name: "Philz Coffee",
+    city: "Cupertino, CA",
+    address: "19439 Stevens Creek Blvd, Cupertino, CA 95014",
+    overallRating: 3.8,
+    stars: { food: 4.4, ambience: 4, price: 3 },
+    thoughts: "Solid coffee shop vibe, open late. No regular espresso drinks — it's all specialty pour-over style. Mint mojito is very good. You can control sweetness and creaminess levels which is a nice touch.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-08-02T00:00:00.000Z",
+    updatedAt: "2026-08-02T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -514,7 +527,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v6";
+    const key = "food-cities-seed-v7";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
