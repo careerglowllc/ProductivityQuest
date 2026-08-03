@@ -174,6 +174,47 @@ function avg(s: StarRatings): number {
   return Math.round(((s.food + s.ambience + s.price) / 3) * 10) / 10;
 }
 
+// ── Tag → emoji mapping (first match wins) ────────────────────
+const TAG_EMOJI: [string, string][] = [
+  ["Sushi",          "🍣"],
+  ["Steakhouse",     "🥩"],
+  ["Coffee / Cafe",  "☕"],
+  ["Breakfast",      "🍳"],
+  ["Brunch",         "🥂"],
+  ["Ice Cream",      "🍦"],
+  ["Dessert",        "🍰"],
+  ["Tacos",          "🌮"],
+  ["Mexican",        "🌯"],
+  ["Elote",          "🌽"],
+  ["Sandwich / Deli","🥪"],
+  ["Seafood",        "🦞"],
+  ["Fine Dining",    "🍽️"],
+  ["Bar / Drinks",   "🍹"],
+  ["Street Food",    "🛺"],
+  ["Fast Food",      "🍔"],
+  ["Italian",        "🍝"],
+  ["Japanese",       "🍱"],
+  ["Chinese",        "🥢"],
+  ["Vietnamese",     "🍜"],
+  ["Thai",           "🌶️"],
+  ["Indian",         "🍛"],
+  ["Mediterranean",  "🫒"],
+  ["French",         "🥐"],
+  ["Korean",         "🫕"],
+  ["Middle Eastern", "🧆"],
+  ["American",       "🦅"],
+  ["Latin",          "💃"],
+  ["Casual",         "🍴"],
+  ["Diner / Dive",   "🪣"],
+];
+
+function entryEmoji(tags: string[]): string {
+  for (const [tag, emoji] of TAG_EMOJI) {
+    if (tags.includes(tag)) return emoji;
+  }
+  return "🍴";
+}
+
 function deriveRegions(entry: FoodEntry): string[] {
   const text = (entry.city + " " + (entry.address ?? "")).toLowerCase();
   const matched = REGIONS.filter((r) => r.citiesMatch.some((c) => text.includes(c))).map((r) => r.id);
@@ -758,7 +799,10 @@ export default function FoodInCitiesPage() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div>
-                            <h3 className="text-pink-50 font-semibold font-serif leading-snug">{e.name}</h3>
+                            <h3 className="text-pink-50 font-semibold font-serif leading-snug flex items-center gap-1.5">
+                              <span>{entryEmoji(e.tags)}</span>
+                              {e.name}
+                            </h3>
                             <p className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                               <MapPin className="h-3 w-3 shrink-0" />{e.city}
                             </p>
