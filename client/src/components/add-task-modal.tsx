@@ -884,17 +884,17 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           {/* Business/Work Filter */}
           <div className="space-y-2">
             <Label htmlFor="businessWorkFilter" className="text-yellow-200">
-              Business/Work Filter
+              Work Filter
             </Label>
             <Select value={businessWorkFilter} onValueChange={setBusinessWorkFilter}>
               <SelectTrigger className="bg-slate-800/50 border-yellow-600/30 text-yellow-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-yellow-600/40">
-                <SelectItem value="General">General</SelectItem>
-                <SelectItem value="Apple">Apple</SelectItem>
-                <SelectItem value="MW">MW</SelectItem>
-                <SelectItem value="GPR">GPR</SelectItem>
+                <SelectItem value="General">🗂️ General</SelectItem>
+                <SelectItem value="Apple">🍎 Apple</SelectItem>
+                <SelectItem value="MW">🔵 MailWisp</SelectItem>
+                <SelectItem value="GPR">📡 GPR</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -2306,7 +2306,7 @@ export default function Home() {
                             : "text-slate-300 hover:bg-slate-700/80"
                         }`}
                       >
-                        General ({filterCounts.businessGeneral})
+                        🗂️ General ({filterCounts.businessGeneral})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-mw")}
@@ -2316,7 +2316,7 @@ export default function Home() {
                             : "text-slate-300 hover:bg-slate-700/80"
                         }`}
                       >
-                        MW ({filterCounts.businessMW})
+                        🔵 MailWisp ({filterCounts.businessMW})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-gpr")}
@@ -2326,7 +2326,7 @@ export default function Home() {
                             : "text-slate-300 hover:bg-slate-700/80"
                         }`}
                       >
-                        🏗️ GPR ({filterCounts.businessGPR})
+                        📡 GPR ({filterCounts.businessGPR})
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -2540,7 +2540,7 @@ export default function Home() {
                             : "text-slate-300 hover:bg-slate-700/80"
                         }`}
                       >
-                        General ({filterCounts.businessGeneral})
+                        🗂️ General ({filterCounts.businessGeneral})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-mw")}
@@ -2550,7 +2550,7 @@ export default function Home() {
                             : "text-slate-300 hover:bg-slate-700/80"
                         }`}
                       >
-                        MW ({filterCounts.businessMW})
+                        🔵 MailWisp ({filterCounts.businessMW})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-gpr")}
@@ -2560,7 +2560,7 @@ export default function Home() {
                             : "text-slate-300 hover:bg-slate-700/80"
                         }`}
                       >
-                        🏗️ GPR ({filterCounts.businessGPR})
+                        📡 GPR ({filterCounts.businessGPR})
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

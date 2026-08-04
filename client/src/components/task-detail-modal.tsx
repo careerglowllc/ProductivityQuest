@@ -1049,7 +1049,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
             <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
                 <Briefcase className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>{isMobile ? 'Work Filter' : 'Business/Work Filter'}</span>
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Work Filter</span>
               </div>
               <Select
                 value={task.businessWorkFilter || "General"}
@@ -1059,10 +1059,10 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
-                  <SelectItem value="General">💼 General</SelectItem>
+                  <SelectItem value="General">�️ General</SelectItem>
                   <SelectItem value="Apple">🍎 Apple</SelectItem>
-                  <SelectItem value="MW">🏢 MW</SelectItem>
-                  <SelectItem value="GPR">🏗️ GPR</SelectItem>
+                  <SelectItem value="MW">🔵 MailWisp</SelectItem>
+                  <SelectItem value="GPR">📡 GPR</SelectItem>
                 </SelectContent>
               </Select>
             </div>
