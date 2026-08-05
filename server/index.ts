@@ -2,11 +2,28 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { runStartupMigrations } from "./migrations";
+import { apiLimiter } from "./rateLimiters";
 
 const app = express();
+
+// ── Security headers ─────────────────────────────────────────────────────
+// Adds industry-standard protections: HSTS, X-Content-Type-Options (nosniff),
+// X-Frame-Options (clickjacking), Referrer-Policy, and removes the
+// X-Powered-By fingerprint header. Content-Security-Policy is disabled here
+// because this app relies on Vite HMR (dev) and several inline scripts in
+// index.html (theme init) plus third-party chart/export libraries — a strict
+// CSP would need careful per-directive tuning to avoid breaking the app, so
+// it's intentionally left off rather than shipping a broken or falsely-safe
+// policy. The other headers below still provide meaningful protection.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+app.disable("x-powered-by"); // belt-and-suspenders; helmet also does this
 
 // Session setup
 const pgStore = connectPg(session);
@@ -37,6 +54,11 @@ app.use(session({
 
 app.use(express.json({ limit: "40mb" }));
 app.use(express.urlencoded({ extended: false, limit: "40mb" }));
+
+// General API rate limiting — generous, just a safety net against runaway
+// scripts/scraping. Auth-specific endpoints have their own stricter limiters
+// applied directly in routes.ts.
+app.use("/api", apiLimiter);
 
 app.use((req, res, next) => {
   const start = Date.now();

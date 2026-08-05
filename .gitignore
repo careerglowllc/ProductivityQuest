@@ -10,6 +10,10 @@ vite.config.ts.*
 .env.local
 .env.production
 
+# Local database backups (contain financial data, password hashes — never commit)
+backups/
+*.backup.json
+
 # iOS
 ios/App/Pods/
 ios/App/App.xcworkspace/

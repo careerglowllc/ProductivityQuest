@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { requireAuth } from "./auth";
+import { loginLimiter, registerLimiter, passwordResetLimiter } from "./rateLimiters";
 import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
 import { googleCalendar } from "./google-calendar";
 import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema, updateNotionConfigSchema, skillCategorizationTraining } from "@shared/schema";
@@ -15,7 +16,8 @@ import { Resend } from 'resend';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', registerLimiter, async (req, res) => {
+
     try {
       console.log('📝 Registration attempt for:', req.body.username);
       const validatedData = insertUserSchema.parse(req.body);
@@ -72,11 +74,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.errors) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Registration failed", error: error?.message });
+      // Don't leak internal error details (DB errors, stack info) to the client.
+      res.status(500).json({ message: "Registration failed" });
     }
   });
 
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', loginLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
       
@@ -143,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("❌ Login error:", error);
       console.error("Error stack:", error?.stack);
       console.error("Error message:", error?.message);
-      res.status(500).json({ message: "Login failed", error: error?.message });
+      res.status(500).json({ message: "Login failed" });
     }
   });
 
@@ -168,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Forgot password - request reset link
-  app.post('/api/auth/forgot-password', async (req, res) => {
+  app.post('/api/auth/forgot-password', passwordResetLimiter, async (req, res) => {
     try {
       const { email } = req.body;
       
@@ -288,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reset password - verify token and update password
-  app.post('/api/auth/reset-password', async (req, res) => {
+  app.post('/api/auth/reset-password', passwordResetLimiter, async (req, res) => {
     try {
       const { token, password } = req.body;
       
@@ -298,6 +301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (password.length < 8) {
         return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      }
+      if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        return res.status(400).json({ message: 'Password must contain an uppercase letter, a lowercase letter, and a number' });
       }
       
       console.log('🔑 Password reset attempt with token');
@@ -359,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("❌ Error fetching user:", error);
       console.error("Error stack:", error?.stack);
       console.error("Error message:", error?.message);
-      res.status(500).json({ message: "Failed to fetch user", error: error?.message });
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
@@ -3099,7 +3105,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         syncDirection: user.googleCalendarSyncDirection,
       });
     } catch (error: any) {
-      res.json({ error: error.message, stack: error.stack });
+      console.error("Error in Google Calendar debug endpoint:", error);
+      res.status(500).json({ error: "Failed to load debug info" });
     }
   });
 

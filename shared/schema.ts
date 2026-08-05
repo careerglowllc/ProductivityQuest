@@ -337,7 +337,14 @@ export const insertQuestlineSchema = createInsertSchema(questlines).omit({
 export const insertUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(50),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  // Industry-standard baseline: 8+ chars with upper, lower, and a number.
+  // Only applies to NEW registrations/password resets — existing users'
+  // passwords (and their bcrypt hashes) are completely unaffected.
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[a-z]/, "Password must contain a lowercase letter")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[0-9]/, "Password must contain a number"),
 });
 
 export const loginUserSchema = z.object({

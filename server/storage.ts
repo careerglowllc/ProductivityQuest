@@ -1026,7 +1026,10 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(userData: { username: string; email: string; password: string }): Promise<User> {
     const bcrypt = await import('bcryptjs');
-    const passwordHash = await bcrypt.hash(userData.password, 10);
+    // Cost factor 12 is the current industry-standard baseline for bcrypt (OWASP recommends >=10,
+    // 12 is standard for new systems in 2025+). Existing password hashes at cost 10 still verify
+    // fine via bcrypt.compare — this only affects newly hashed passwords going forward.
+    const passwordHash = await bcrypt.hash(userData.password, 12);
     const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const [user] = await db.insert(users).values({
@@ -1049,7 +1052,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPassword(userId: string, newPassword: string): Promise<boolean> {
     const bcrypt = await import('bcryptjs');
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
     await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
     return true;
   }
