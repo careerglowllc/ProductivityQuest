@@ -1177,125 +1177,84 @@ export default function Finances() {
     queryKey: ["/api/finances"],
   });
 
-  // Auto-seed MailWisp Paid User Income if it doesn't exist yet
+  // ── One-time data seed/cleanup (runs once per page load, not on every list change) ──
+  // IMPORTANT: guarded by a ref so this can never re-trigger itself in a loop. Previously
+  // each of these ran as its own `useEffect(..., [financialItems.length])`, and since
+  // `fetch().then()` resolves even on non-2xx responses, a single failed request could
+  // cause invalidateQueries → refetch → effect re-fires → fetch again → invalidate...
+  // an infinite loop that pegs the CPU/network and can freeze or crash the tab.
+  const didAutoSeedRef = useRef(false);
   useEffect(() => {
-    if (financialItems.length > 0 && !financialItems.find(i => i.item === "MailWisp Paid User Income")) {
+    if (didAutoSeedRef.current) return;
+    if (financialItems.length === 0) return;
+    didAutoSeedRef.current = true;
+
+    const create = (payload: Record<string, unknown>) =>
       fetch("/api/finances", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          item: "MailWisp Paid User Income",
-          category: "Income",
-          tags: ["Business", "Income"],
-          monthlyCost: 100, // $1.00 in cents
-          recurType: "Monthly",
-        }),
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financialItems.length]);
+        body: JSON.stringify(payload),
+      }).then((res) => { if (res.ok) return true; console.error("Auto-seed failed:", payload.item, res.status); return false; }).catch(() => false);
 
-  // Auto-seed Sperm Freeze Reprotech annual fee (amortized monthly) if it doesn't exist yet
-  useEffect(() => {
-    if (financialItems.length > 0 && !financialItems.find(i => i.item === "Sperm Freeze Reprotech")) {
-      fetch("/api/finances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          item: "Sperm Freeze Reprotech",
-          category: "Health",
-          tags: ["Health", "Annual"],
-          monthlyCost: 3333, // $33.33/mo in cents — annual fee amortized monthly
-          recurType: "Annual",
-          notes: "Annual storage fee amortized monthly ($399.96/yr)",
-        }),
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financialItems.length]);
+    const remove = (id: number) =>
+      fetch(`/api/finances/${id}`, { method: "DELETE", credentials: "include" })
+        .then((res) => { if (res.ok) return true; console.error("Auto-delete failed:", id, res.status); return false; }).catch(() => false);
 
-  // Auto-seed Brilliant Pest Solutions monthly fee if it doesn't exist yet
-  useEffect(() => {
-    if (financialItems.length > 0 && !financialItems.find(i => i.item === "Brilliant Pest Solutions")) {
-      fetch("/api/finances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          item: "Brilliant Pest Solutions",
-          category: "Housing",
-          tags: ["Housing", "Rental"],
-          monthlyCost: 5900, // $59.00/mo in cents
-          recurType: "Monthly",
-          notes: "Comprehensive pest control for Rocklin Rental House",
-        }),
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financialItems.length]);
+    const tasks: Promise<boolean>[] = [];
 
-  // Auto-seed CASA Annual Audit fee if it doesn't exist yet
-  useEffect(() => {
-    if (financialItems.length > 0 && !financialItems.find(i => i.item === "CASA Annual Audit (TAC)")) {
-      fetch("/api/finances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          item: "CASA Annual Audit (TAC)",
-          category: "Business",
-          tags: ["Business", "Annual"],
-          monthlyCost: 6000, // $60.00/mo in cents — $720/yr amortized monthly
-          recurType: "Annual",
-          notes: "Annual CASA audit via TAC — $720/yr amortized monthly",
-        }),
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
+    if (!financialItems.find(i => i.item === "MailWisp Paid User Income")) {
+      tasks.push(create({
+        item: "MailWisp Paid User Income", category: "Income", tags: ["Business", "Income"],
+        monthlyCost: 100, recurType: "Monthly",
+      }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financialItems.length]);
+    if (!financialItems.find(i => i.item === "Sperm Freeze Reprotech")) {
+      tasks.push(create({
+        item: "Sperm Freeze Reprotech", category: "Health", tags: ["Health", "Annual"],
+        monthlyCost: 3333, recurType: "Annual",
+        notes: "Annual storage fee amortized monthly ($399.96/yr)",
+      }));
+    }
+    if (!financialItems.find(i => i.item === "Brilliant Pest Solutions")) {
+      tasks.push(create({
+        item: "Brilliant Pest Solutions", category: "Housing", tags: ["Housing", "Rental"],
+        monthlyCost: 5900, recurType: "Monthly",
+        notes: "Comprehensive pest control for Rocklin Rental House",
+      }));
+    }
+    if (!financialItems.find(i => i.item === "CASA Annual Audit (TAC)")) {
+      tasks.push(create({
+        item: "CASA Annual Audit (TAC)", category: "Business", tags: ["Business", "Annual"],
+        monthlyCost: 6000, recurType: "Annual",
+        notes: "Annual CASA audit via TAC — $720/yr amortized monthly",
+      }));
+    }
+    if (!financialItems.find(i => i.item === "Simply Sing")) {
+      tasks.push(create({
+        item: "Simply Sing", category: "Phone", tags: ["Subscription", "Entertainment"],
+        monthlyCost: 1499, recurType: "Monthly",
+        notes: "Simply Sing singing app — monthly subscription",
+      }));
+    }
+    if (!financialItems.find(i => i.item === "Seedance AI")) {
+      tasks.push(create({
+        item: "Seedance AI", category: "Business", tags: ["Business", "Subscription"],
+        monthlyCost: 5000, recurType: "Monthly",
+        notes: "Seedance AI — monthly subscription",
+      }));
+    }
 
-  // Remove Hushed (alt phone line) if it exists (cancelled June 2026)
-  useEffect(() => {
     const hushed = financialItems.find(i => i.item.toLowerCase().includes("hushed"));
-    if (hushed) {
-      fetch(`/api/finances/${hushed.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financialItems.length]);
+    if (hushed) tasks.push(remove(hushed.id));
 
-  // Remove Rocklin House Solar Panel Routine Cleaning (no longer needed — July 2026)
-  useEffect(() => {
     const solar = financialItems.find(i => i.item.toLowerCase().includes("solar panel") && i.item.toLowerCase().includes("clean"));
-    if (solar) {
-      fetch(`/api/finances/${solar.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financialItems.length]);
+    if (solar) tasks.push(remove(solar.id));
 
-  // Auto-seed Simply Sing monthly subscription if it doesn't exist yet
-  useEffect(() => {
-    if (financialItems.length > 0 && !financialItems.find(i => i.item === "Simply Sing")) {
-      fetch("/api/finances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          item: "Simply Sing",
-          category: "Phone",
-          tags: ["Subscription", "Entertainment"],
-          monthlyCost: 1499, // $14.99/mo in cents
-          recurType: "Monthly",
-          notes: "Simply Sing singing app — monthly subscription",
-        }),
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/finances"] })).catch(() => {});
+    if (tasks.length > 0) {
+      Promise.all(tasks).then((results) => {
+        if (results.some(Boolean)) queryClient.invalidateQueries({ queryKey: ["/api/finances"] });
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialItems.length]);

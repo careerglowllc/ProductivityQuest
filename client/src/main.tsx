@@ -49,4 +49,33 @@ document.addEventListener('touchmove', (e) => {
   }
 }, { passive: false });
 
+// ── Global crash logger ─────────────────────────────────────────────────────
+// React's <ErrorBoundary> only catches errors thrown during render/lifecycle —
+// NOT errors thrown inside useEffect bodies, event handlers, or promise chains.
+// Those instead surface here as a plain 'error' or 'unhandledrejection' event and,
+// if unhandled, can leave the page effectively dead (blank/black) with no clue why.
+// We persist the last one to sessionStorage so it survives a reload/crash and can
+// be inspected (e.g. via Safari's remote inspector or by checking storage).
+function persistCrash(source: string, message: string, stack?: string) {
+  try {
+    sessionStorage.setItem("pq-last-crash", JSON.stringify({
+      source, message, stack: stack ?? null, url: location.href, at: new Date().toISOString(),
+    }));
+  } catch {}
+  // eslint-disable-next-line no-console
+  console.error(`[GlobalCrash:${source}]`, message, stack ?? "");
+}
+
+window.addEventListener("error", (event) => {
+  persistCrash("error", event.message, event.error?.stack);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason;
+  const message = reason instanceof Error ? reason.message : String(reason);
+  const stack = reason instanceof Error ? reason.stack : undefined;
+  persistCrash("unhandledrejection", message, stack);
+});
+
 createRoot(document.getElementById("root")!).render(<App />);
+

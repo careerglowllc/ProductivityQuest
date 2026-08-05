@@ -5,6 +5,7 @@ import { installStorageSync, hydrateUserData, resetUserDataSync } from "@/lib/sy
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { useAuth } from "@/hooks/useAuth";
 import { TabBar } from "@/components/tab-bar";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -43,6 +44,41 @@ import MorePage from "@/pages/more";
 import RecipesPage from "@/pages/recipes";
 import FoodInCitiesPage from "@/pages/food-in-cities";
 installStorageSync();
+
+// Shows the last crash captured by the global error/unhandledrejection listeners in
+// main.tsx (errors thrown outside React's render phase — useEffect bodies, event
+// handlers, promise chains — which <ErrorBoundary> cannot catch). Lets you actually
+// see what broke instead of just a blank/black screen with no clue.
+function LastCrashBanner() {
+  const [crash, setCrash] = useState<{ source: string; message: string; stack?: string | null; at: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("pq-last-crash");
+      if (raw) setCrash(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  if (!crash) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[9999] bg-red-950/95 border-b border-red-500/50 text-red-100 text-xs p-3 max-h-40 overflow-auto">
+      <div className="flex items-start justify-between gap-3 max-w-3xl mx-auto">
+        <div className="flex-1">
+          <p className="font-bold">⚠️ Last crash ({crash.source}) — {new Date(crash.at).toLocaleString()}</p>
+          <p className="mt-1 break-words">{crash.message}</p>
+          {crash.stack && <pre className="mt-1 text-[10px] text-red-300/80 whitespace-pre-wrap">{crash.stack}</pre>}
+        </div>
+        <button
+          className="text-red-300 hover:text-white shrink-0"
+          onClick={() => { try { sessionStorage.removeItem("pq-last-crash"); } catch {} setCrash(null); }}
+        >
+          ✕ Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -137,7 +173,11 @@ function Router() {
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/journal" component={JournalPage} />
             <Route path="/recipes" component={RecipesPage} />
-            <Route path="/finances" component={Finances} />
+            <Route path="/finances" component={() => (
+              <ErrorBoundary label="Finances">
+                <Finances />
+              </ErrorBoundary>
+            )} />
             <Route path="/cpap" component={CPAPPage} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/settings/notion" component={NotionIntegration} />
@@ -167,7 +207,10 @@ function App() {
       <ThemeProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <LastCrashBanner />
+          <ErrorBoundary label="App">
+            <Router />
+          </ErrorBoundary>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
