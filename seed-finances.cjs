@@ -49,7 +49,7 @@ const FINANCE_DATA = [
   { item: "Rocklin House Sewer Utility Bill", category: "Housing", monthlyCost: 4000, recurType: "Monthly" },
   { item: "MyCareerglow Tello Phone Number", category: "Business", monthlyCost: 964, recurType: "Monthly" },
   { item: "CareerGlow Northwest Registered Agent CA Annual Filing", category: "Business", monthlyCost: 1042, recurType: "Yearly (Amortized)" },
-  { item: "CareerGlow GitHub Copilot Pro+", category: "Business", monthlyCost: 4000, recurType: "Monthly" },
+  { item: "GitHub Copilot Pro+", category: "Business", monthlyCost: 3900, recurType: "Monthly" },
   { item: "Neon Database for MailWisp", category: "Business", monthlyCost: 3000, recurType: "Monthly" },
   { item: "Apple Developer Membership (CareerGlow)", category: "Business", monthlyCost: 825, recurType: "Yearly (Amortized)" },
   { item: "Ford Explorer Registration (estimate)", category: "Transportation", monthlyCost: 4600, recurType: "Yearly (Amortized)" },

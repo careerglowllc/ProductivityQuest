@@ -76,7 +76,7 @@ async function updateFinanceData() {
       { item: "mycareerglow tello phone number", category: "Business", monthlyCost: 964, recurType: "Monthly" },
       { item: "Zoho CareerGlow Accounting (FREE if under 50k revenue)", category: "Business", monthlyCost: 100, recurType: "Monthly" },
       { item: "careerglow northwestrgistered agent CA annual filing", category: "Business", monthlyCost: 1042, recurType: "Yearly (Amortized)" },
-      { item: "careerglow github copilot pro", category: "Business", monthlyCost: 1000, recurType: "Monthly" },
+      { item: "GitHub Copilot Pro+", category: "Business", monthlyCost: 3900, recurType: "Monthly" },
       { item: "neon launch plan (for app data storage)(CG)", category: "Business", monthlyCost: 500, recurType: "Monthly" },
       { item: "apple developer membership careerglow", category: "Business", monthlyCost: 825, recurType: "Yearly (Amortized)" },
       { item: "Honda Accord Registration", category: "Transportation", monthlyCost: 2925, recurType: "Yearly (Amortized)" },

@@ -38,10 +38,11 @@ const INCOME_CATEGORIES = ["Income", "Investment"];
 const RETIREMENT_CATEGORIES = ["Retirement"];
 
 function classifyItem(category: string, tags?: string[] | null): "income" | "retirement" | "expense" {
+  const tagList = Array.isArray(tags) ? tags : [];
   if (INCOME_CATEGORIES.includes(category)) return "income";
-  if (tags && INCOME_CATEGORIES.some(c => tags.includes(c))) return "income";
+  if (tagList.length > 0 && INCOME_CATEGORIES.some(c => tagList.includes(c))) return "income";
   if (RETIREMENT_CATEGORIES.includes(category)) return "retirement";
-  if (tags && RETIREMENT_CATEGORIES.some(c => tags.includes(c))) return "retirement";
+  if (tagList.length > 0 && RETIREMENT_CATEGORIES.some(c => tagList.includes(c))) return "retirement";
   return "expense";
 }
 
