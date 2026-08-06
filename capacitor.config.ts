@@ -27,8 +27,11 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
-      launchAutoHide: true,
+      // Auto-hide is disabled on purpose: it hides the splash on a fixed timer
+      // regardless of whether the WebView has actually painted the app UI yet,
+      // which caused a visible white flash between "splash hides" and "app paints".
+      // We hide it manually in main.tsx once a frame has actually been painted.
+      launchAutoHide: false,
       backgroundColor: '#0f172a',
       showSpinner: true,
       spinnerColor: '#eab308',

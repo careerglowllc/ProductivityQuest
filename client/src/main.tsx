@@ -15,8 +15,16 @@ if (Capacitor.isNativePlatform()) {
   // Configure keyboard behavior
   Keyboard.setAccessoryBarVisible({ isVisible: true }).catch(() => {});
 
-  // Hide splash screen after app loads
-  SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+  // Hide splash screen only after the browser has actually painted a frame of
+  // our app. Hiding it immediately (or on a fixed timer, see capacitor.config.ts)
+  // can reveal the WebView's raw white background for a moment before our dark
+  // UI paints, causing a jarring "flash" mid-transition into the loading screen.
+  // Double rAF guarantees at least one real paint has occurred first.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+    });
+  });
 
   // Add safe area CSS variables for iOS notch handling
   document.documentElement.classList.add('capacitor-ios');
