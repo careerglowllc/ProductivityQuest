@@ -30,6 +30,7 @@ const TASK_EMOJIS = [
 
 const EMOJI_CATEGORIES = [
   { label: "Work", emojis: ["📝","💼","💻","📱","🔧","🛠️","📊","📈","📦","🔍","📡","🤖","🖥️","⌨️","🖨️","💾","📁","📂","🗂️","📋","📌","📍","✂️","📏","📐","🔏","🔐","🔒","🔓","🔑","🗝️","🏗️","🏢","📠","📺","📷","📸","📹","🎞️","📽️","🎙️","📻"] },
+  { label: "Presentation", emojis: ["📽️","📺","🖼️","📊","📈","📉","🗣️","🎤","👨‍🏫","👩‍🏫","🧑‍🏫","📋","📌","🖥️","💻","📄","📃","🗂️","🎯","💡","👥","🎬","🖱️","📢","📣","🎙️"] },
   { label: "Internet & Web", emojis: ["🌐","🔗","📡","🛜","📶","🖥️","💻","📱","⌨️","🖱️","🖨️","💾","💿","📀","🔌","🔋","📲","📤","📥","📨","📧","📬","🔏","🔐","🔒","🔓","🛡️","🤖","⚙️","🔧","🪝","🧩","🔑","🗝️","📊","📈","📉","🗃️","☁️","🌩️","⚡","🚀","🎯","📣","📢","💬","🗨️","🗯️","💭","🧵","🔔","🔕"] },
   { label: "Industrial", emojis: ["⚙️","🔩","🏭","🔨","⚒️","🛠️","🪛","🪚","⛏️","🔧","🔗","⛓️","🪝","🧱","🔋","🔌","💡","🪜","🧲","🗜️","🪤","🛢️","⚗️","🧪","🔬","🔭","📡","🤖","🦾","🦿","🚧","🏗️","🏚️","🏠","🏘️","🏛️","🏟️","🏬","🏭","🚜","🚛","🚚","🏎️","🚒","🚑","⚓","🪝","🧰","🪣","🗑️","⚠️","🔴","🟠","🟡","🟢"] },
   { label: "Energy", emojis: ["🔆","☀️","🌞","⚡","🔋","🪫","🔌","💡","🔦","🕯️","🌬️","💨","🌊","💧","🏭","🛢️","⛽","🔥","♻️","🌍","🌡️","🧯","⚙️","🧲"] },
@@ -58,7 +59,12 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "🔧", keywords: "fix repair tool wrench" },
   { emoji: "🛠️", keywords: "tools build repair" },
   { emoji: "📊", keywords: "chart graph data analytics" },
-  { emoji: "📈", keywords: "growth increase stock up" },
+  { emoji: "�️", keywords: "projector presentation slideshow slides film" },
+  { emoji: "📺", keywords: "screen presentation slideshow display tv monitor" },
+  { emoji: "🖼️", keywords: "slide slideshow picture frame image presentation" },
+  { emoji: "🗣️", keywords: "speaking presentation talk presenter speech pitch" },
+  { emoji: "👨‍🏫", keywords: "teacher presentation lecture teach instructor" },
+  { emoji: "�📈", keywords: "growth increase stock up" },
   { emoji: "📉", keywords: "decline decrease down" },
   { emoji: "📦", keywords: "box package ship deliver" },
   { emoji: "🔍", keywords: "search find look investigate" },

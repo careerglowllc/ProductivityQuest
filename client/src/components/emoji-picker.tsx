@@ -339,6 +339,14 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "👔", keywords: ["tie", "business", "formal", "suit", "professional", "work"] },
   { emoji: "🎤", keywords: ["microphone", "speak", "presentation", "talk", "sing", "voice", "podcast"] },
   { emoji: "🖨️", keywords: ["printer", "print", "document", "paper", "office"] },
+  { emoji: "📽️", keywords: ["projector", "presentation", "slideshow", "slides", "film", "movie"] },
+  { emoji: "📺", keywords: ["screen", "presentation", "slideshow", "display", "tv", "monitor"] },
+  { emoji: "🖼️", keywords: ["slide", "slideshow", "picture", "frame", "image", "presentation"] },
+  { emoji: "📋", keywords: ["clipboard", "presentation", "slides", "notes", "outline", "agenda"] },
+  { emoji: "🗣️", keywords: ["speaking", "presentation", "talk", "presenter", "speech", "pitch"] },
+  { emoji: "👨‍🏫", keywords: ["teacher", "presentation", "lecture", "teach", "instructor", "professor"] },
+  { emoji: "👩‍🏫", keywords: ["teacher", "presentation", "lecture", "teach", "instructor", "professor"] },
+  { emoji: "🧑‍🏫", keywords: ["teacher", "presentation", "lecture", "teach", "instructor", "professor"] },
 
   // Health / Fitness
   { emoji: "🏃", keywords: ["run", "running", "jog", "exercise", "fitness", "cardio", "sprint"] },
@@ -1394,6 +1402,7 @@ const EMOJI_CATEGORIES: Record<string, string[]> = {
   "People": ["👨", "👩", "🧑", "👶", "🧒", "👦", "👧", "👴", "👵", "🧓", "🧔", "👨‍🦰", "👨‍🦱", "👨‍🦳", "👨‍🦲", "👩‍🦰", "👩‍🦱", "👩‍🦳", "👩‍🦲", "👱‍♂️", "👱‍♀️", "🤴", "👸", "👰", "🤵", "🫅", "👼", "🤰", "🤱", "👨‍🍼", "👩‍🍼", "🧑‍🍼", "👪", "👨‍👩‍👦", "👨‍👩‍👧", "👨‍👩‍👧‍👦", "👨‍👩‍👦‍👦", "👨‍👩‍👧‍👧", "👩‍👦", "👩‍👧", "👩‍👧‍👦", "👨‍👦", "👨‍👧", "👨‍👧‍👦", "👫", "👬", "👭", "💑", "💏", "🧑‍🤝‍🧑"],
   "Roles": ["🧑‍💻", "👨‍💻", "👩‍💻", "🧑‍🏫", "👨‍🏫", "👩‍🏫", "🧑‍⚕️", "👨‍⚕️", "👩‍⚕️", "🧑‍🍳", "👨‍🍳", "👩‍🍳", "🧑‍🔧", "👨‍🔧", "👩‍🔧", "🧑‍🌾", "👨‍🌾", "👩‍🌾", "🧑‍🎓", "👨‍🎓", "👩‍🎓", "🧑‍🎤", "👨‍🎤", "👩‍🎤", "🧑‍🚒", "👨‍🚒", "👩‍🚒", "👷", "👷‍♂️", "👷‍♀️", "👮", "👮‍♂️", "👮‍♀️", "🕵️", "🕵️‍♂️", "🕵️‍♀️", "💂", "💂‍♂️", "💂‍♀️", "🧑‍✈️", "👨‍✈️", "👩‍✈️", "🧑‍🚀", "👨‍🚀", "👩‍🚀", "🧑‍⚖️", "👨‍⚖️", "👩‍⚖️", "🧑‍🎨", "👨‍🎨", "🧙‍♀️", "🧙‍♂️", "🦸‍♀️", "🦸‍♂️", "🦹‍♀️", "🦹‍♂️"],
   "Work": ["💼", "🏢", "💻", "🖥️", "📊", "📈", "📧", "📞", "📱", "📅", "⏰", "⏳", "🔔", "💰", "💵", "💳", "🤝", "👔", "🎤", "🖨️", "📤", "📥", "🧑‍💻", "🧑‍💼", "📣", "🗂️", "📁", "⌨️", "🖱️", "💾", "📡", "🌐"],
+  "Presentation": ["📽️", "📺", "🖼️", "📊", "📈", "📉", "🗣️", "🎤", "👨‍🏫", "👩‍🏫", "🧑‍🏫", "📋", "📌", "🖥️", "💻", "📄", "📃", "🗂️", "🎯", "💡", "👥", "🎬", "🖱️", "📢", "📣", "🎙️"],
   "Health": ["🏃", "🧘", "💊", "🩺", "🏋️", "🚴", "🏊", "🧠", "🍎", "🥗", "💧", "❤️‍🩹", "🦷", "👁️", "💉", "🧬", "🌿", "😴", "💤", "🩹", "🏥", "🧑‍⚕️", "🫀", "🫁", "🧴"],
   "Medical": ["😷", "🤒", "🤕", "🤧", "🩻", "🩹", "🏥", "🚑", "🩸", "💉", "🩺", "💊", "🫁", "🫀", "🧠", "🦷", "🦴", "🩼", "🦽", "🦼", "🦯", "🧬", "🔬", "🧪", "⚗️", "🧴", "🌡️", "❤️‍🩹", "🧑‍⚕️", "👨‍⚕️", "👩‍⚕️"],
   "Learn": ["📖", "📚", "🎓", "🧪", "🔬", "🔭", "🌍", "🎨", "🎵", "🎹", "🎸", "📐", "🧮", "🔢", "✍️", "💬", "🗣️", "🧑‍🎓", "🧑‍🏫", "🧑‍🔬"],
