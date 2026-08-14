@@ -55,6 +55,17 @@ const Toast = React.forwardRef<
   const handleTouchStart = React.useCallback((e: TouchEvent) => {
     touchRef.current = { startY: e.touches[0].clientY, currentY: e.touches[0].clientY };
     setIsTouching(true);
+    // Immediately kill any in-progress CSS entrance/exit animation (Tailwind's
+    // animate-in slide-in-from-top-full) so it doesn't fight our JS-driven
+    // transform. CSS animations win over inline styles, so if the toast is
+    // still playing its ~300ms entrance animation when the user starts a
+    // swipe, the transform we set below would be silently overridden until
+    // the animation finishes — making early/"premature" swipe-to-dismiss
+    // feel broken or unresponsive.
+    const node = e.currentTarget as HTMLElement | null;
+    if (node) {
+      node.style.animation = 'none';
+    }
   }, []);
 
   const handleTouchMove = React.useCallback((e: TouchEvent) => {
@@ -132,6 +143,7 @@ const Toast = React.forwardRef<
       style={{
         transform: offsetY !== 0 ? `translateY(${offsetY}px)` : undefined,
         transition: isTouching ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out',
+        animation: (isTouching || dismissing || offsetY !== 0) ? 'none' : undefined,
         opacity: dismissing ? 0 : 1,
         touchAction: 'none', // prevent browser handling of touch gestures
       }}

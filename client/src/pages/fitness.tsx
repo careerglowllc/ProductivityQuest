@@ -13,6 +13,7 @@ type FitnessCategory = {
   bg: string;
   iconColor: string;
   icon: typeof Dumbbell;
+  href?: string;
 };
 
 const CATEGORIES: FitnessCategory[] = [
@@ -26,6 +27,7 @@ const CATEGORIES: FitnessCategory[] = [
     bg: "bg-rose-500/10",
     iconColor: "text-rose-400",
     icon: Flame,
+    href: "/fitness/calories",
   },
   {
     key: "lifting",
@@ -37,6 +39,7 @@ const CATEGORIES: FitnessCategory[] = [
     bg: "bg-emerald-500/10",
     iconColor: "text-emerald-400",
     icon: Dumbbell,
+    href: "/fitness/lifting",
   },
 ];
 
@@ -77,10 +80,9 @@ export default function FitnessPage() {
         <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
-            return (
+            const cardInner = (
               <div
-                key={cat.key}
-                className={`rounded-2xl border ${cat.border} ${cat.bg} p-5 transition-all hover:scale-[1.02] cursor-default`}
+                className={`rounded-2xl border ${cat.border} ${cat.bg} p-5 transition-all hover:scale-[1.02] ${cat.href ? "cursor-pointer" : "cursor-default"}`}
               >
                 <div className="flex items-center gap-3 mb-2">
                   <div className={`flex items-center justify-center h-11 w-11 rounded-xl bg-slate-900/40 ${cat.iconColor}`}>
@@ -94,22 +96,29 @@ export default function FitnessPage() {
                 </div>
                 <p className="text-sm text-slate-400 leading-relaxed">{cat.description}</p>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xs text-slate-500">No entries yet</span>
+                  <span className="text-xs text-slate-500">{cat.href ? "View dashboard →" : "No entries yet"}</span>
                   <span
                     className="text-[10px] uppercase tracking-wide rounded-full px-2.5 py-1 border"
                     style={{ color: cat.color, borderColor: `${cat.color}55` }}
                   >
-                    Coming soon
+                    {cat.href ? "Live" : "Coming soon"}
                   </span>
                 </div>
               </div>
+            );
+            return cat.href ? (
+              <Link key={cat.key} href={cat.href}>
+                <a>{cardInner}</a>
+              </Link>
+            ) : (
+              <div key={cat.key}>{cardInner}</div>
             );
           })}
         </div>
 
         {/* Footer note */}
         <p className="text-center text-slate-600 text-xs mt-10">
-          This page is a placeholder — calorie logging and weightlifting logging are on the way.
+          Both calorie logging and weightlifting logging now include full dashboards with charts and history.
         </p>
       </div>
     </div>

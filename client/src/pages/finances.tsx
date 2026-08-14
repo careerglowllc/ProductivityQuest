@@ -1135,8 +1135,8 @@ export default function Finances() {
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-checking") || "40000"); } catch { return 40000; }
   });
-  // CareerGlow LLC — Mercury business account (manual, May 2026)
-  const [careerglowBalance] = useState<number>(13348);
+  // CareerGlow LLC — Mercury business account (manual, updated Aug 2026: → $8,440)
+  const [careerglowBalance] = useState<number>(8440);
   // HSA — Optum Financial (manual, June 2026)
   const [hsaBalance] = useState<number>(1.62);
   const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {

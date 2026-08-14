@@ -35,6 +35,8 @@ import AccomplishmentsPage from "@/pages/accomplishments";
 import ExplorePage from "@/pages/explore";
 import CountriesVisitedPage from "@/pages/countries-visited";
 import FitnessPage from "@/pages/fitness";
+import FitnessLiftingPage from "@/pages/fitness-lifting";
+import FitnessCaloriesPage from "@/pages/fitness-calories";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
@@ -169,6 +171,8 @@ function Router() {
             <Route path="/countries-visited" component={CountriesVisitedPage} />
             <Route path="/food-in-cities" component={FoodInCitiesPage} />
             <Route path="/fitness" component={FitnessPage} />
+            <Route path="/fitness/lifting" component={FitnessLiftingPage} />
+            <Route path="/fitness/calories" component={FitnessCaloriesPage} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/journal" component={JournalPage} />
