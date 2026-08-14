@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
-import { Dumbbell, ArrowLeft, TrendingUp, TrendingDown, Minus, CalendarDays, ListChecks, Flame } from "lucide-react";
+import { Dumbbell, ArrowLeft, TrendingUp, TrendingDown, Minus, CalendarDays, ListChecks, Flame, Layers } from "lucide-react";
 import { Link } from "wouter";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
+import { loadCalorieLog, ensureCalorieLogSeeded, type CalorieDayLog } from "@/lib/calorie-log";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PPL (Push / Pull / Legs) Weightlifting Log
@@ -197,6 +198,8 @@ export default function FitnessLiftingPage() {
   const [activeType, setActiveType] = useState<WorkoutType | "All">("All");
   const [selectedExercise, setSelectedExercise] = useState<string>(DEFAULT_EXERCISE.Push);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
+  const [showCalorieOverlay, setShowCalorieOverlay] = useState(false);
+  const [calorieEntries] = useState<CalorieDayLog[]>(() => loadCalorieLog());
 
   // Seed localStorage once so this log is part of the synced "workout-" store.
   useEffect(() => {
@@ -205,6 +208,7 @@ export default function FitnessLiftingPage() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_ENTRIES));
       }
     } catch { /* ignore */ }
+    ensureCalorieLogSeeded();
   }, []);
 
   const entriesForType = useMemo(
@@ -226,6 +230,13 @@ export default function FitnessLiftingPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }
   }, [activeType, exerciseList]);
+
+  // Quick lookup: date -> calories logged that day (for the optional overlay)
+  const caloriesByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of calorieEntries) map.set(c.date, c.calories);
+    return map;
+  }, [calorieEntries]);
 
   const chartEntries = useMemo(() => {
     const windowDef = TIME_WINDOWS.find((w) => w.key === timeWindow);
@@ -251,8 +262,9 @@ export default function FitnessLiftingPage() {
         value: e.metric!.value,
         display: formatMetricValue(e.metric),
         setsRaw: e.setsRaw,
+        calories: caloriesByDate.get(e.date) ?? null,
       }));
-  }, [entries, selectedExercise, timeWindow]);
+  }, [entries, selectedExercise, timeWindow, caloriesByDate]);
 
   const selectedExerciseMetricKind: MetricKind = useMemo(() => {
     const match = entries.find((e) => e.exercise === selectedExercise && e.metric);
@@ -391,7 +403,7 @@ export default function FitnessLiftingPage() {
           </div>
 
           {/* Time window filter */}
-          <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
             {TIME_WINDOWS.map((w) => (
               <button
                 key={w.key}
@@ -408,24 +420,74 @@ export default function FitnessLiftingPage() {
             ))}
           </div>
 
+          {/* Overlay toggle(s) — extensible for future metrics like body weight */}
+          <div className="flex items-center gap-4 mb-4">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none group">
+              <span
+                className="flex items-center justify-center h-4 w-4 rounded border transition-colors"
+                style={
+                  showCalorieOverlay
+                    ? { backgroundColor: "#F87171", borderColor: "#F87171" }
+                    : { backgroundColor: "transparent", borderColor: "#475569" }
+                }
+                onClick={() => setShowCalorieOverlay((v) => !v)}
+              >
+                {showCalorieOverlay && <span className="text-[10px] leading-none text-slate-950 font-bold">✓</span>}
+              </span>
+              <input type="checkbox" className="sr-only" checked={showCalorieOverlay} onChange={() => setShowCalorieOverlay((v) => !v)} />
+              <span className="text-xs text-slate-300 group-hover:text-white transition-colors flex items-center gap-1">
+                <Layers className="h-3 w-3 text-rose-400" /> Overlay Calories
+              </span>
+            </label>
+            <span className="text-[11px] text-slate-600 italic">More overlays (e.g. body weight) coming once that logging is added</span>
+          </div>
+
           {chartEntries.length > 0 ? (
             <div style={{ width: "100%", height: isMobile ? 220 : 300 }}>
               <ResponsiveContainer>
-                <LineChart data={chartEntries} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <LineChart data={chartEntries} margin={{ top: 5, right: showCalorieOverlay ? 10 : 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} />
                   <YAxis
+                    yAxisId="left"
                     tick={{ fill: "#94A3B8", fontSize: 11 }}
                     label={{ value: metricAxisLabel(selectedExerciseMetricKind), angle: -90, position: "insideLeft", fill: "#64748B", fontSize: 11 }}
                     domain={["dataMin - 5", "dataMax + 5"]}
                   />
+                  {showCalorieOverlay && (
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fill: "#94A3B8", fontSize: 11 }}
+                      label={{ value: "Calories (kcal)", angle: 90, position: "insideRight", fill: "#64748B", fontSize: 11 }}
+                      domain={["dataMin - 200", "dataMax + 200"]}
+                    />
+                  )}
                   <Tooltip
                     contentStyle={{ backgroundColor: "#0F172A", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: "#E2E8F0" }}
-                    formatter={(_value: number, _name: string, ctx: any) => [ctx.payload.display, "Top set"]}
+                    formatter={(value: number, name: string, ctx: any) =>
+                      name === "calories"
+                        ? [value != null ? `${value.toLocaleString()} kcal` : "No log", "Calories"]
+                        : [ctx.payload.display, "Top set"]
+                    }
                     labelFormatter={(_label, payload) => (payload && payload[0] ? formatDateFull(payload[0].payload.date) : "")}
                   />
-                  <Line type="monotone" dataKey="value" stroke="#34D399" strokeWidth={2.5} dot={{ r: 3, fill: "#34D399" }} activeDot={{ r: 5 }} />
+                  {showCalorieOverlay && <Legend wrapperStyle={{ fontSize: 11, color: "#94A3B8" }} />}
+                  <Line yAxisId="left" type="monotone" dataKey="value" name="Top set" stroke="#34D399" strokeWidth={2.5} dot={{ r: 3, fill: "#34D399" }} activeDot={{ r: 5 }} />
+                  {showCalorieOverlay && (
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="calories"
+                      name="calories"
+                      stroke="#F87171"
+                      strokeWidth={1.75}
+                      strokeDasharray="4 3"
+                      dot={{ r: 2.5, fill: "#F87171" }}
+                      connectNulls
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </div>
