@@ -143,6 +143,17 @@ const WORKOUT_TABS: Array<{ key: WorkoutType | "All"; label: string; color: stri
   { key: "Legs", label: "Legs", color: "#34D399" },
 ];
 
+type TimeWindow = "week" | "month" | "3m" | "6m" | "1y" | "3y" | "all";
+const TIME_WINDOWS: Array<{ key: TimeWindow; label: string; days: number | null }> = [
+  { key: "week", label: "1W", days: 7 },
+  { key: "month", label: "1M", days: 30 },
+  { key: "3m", label: "3M", days: 91 },
+  { key: "6m", label: "6M", days: 182 },
+  { key: "1y", label: "1Y", days: 365 },
+  { key: "3y", label: "3Y", days: 1095 },
+  { key: "all", label: "All", days: null },
+];
+
 // Headline lift to default to when switching tabs
 const DEFAULT_EXERCISE: Record<WorkoutType, string> = {
   Push: "Incline Dumbbell Press",
@@ -185,6 +196,7 @@ export default function FitnessLiftingPage() {
   const [entries] = useState<LogEntry[]>(() => loadEntries());
   const [activeType, setActiveType] = useState<WorkoutType | "All">("All");
   const [selectedExercise, setSelectedExercise] = useState<string>(DEFAULT_EXERCISE.Push);
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
 
   // Seed localStorage once so this log is part of the synced "workout-" store.
   useEffect(() => {
@@ -216,8 +228,22 @@ export default function FitnessLiftingPage() {
   }, [activeType, exerciseList]);
 
   const chartEntries = useMemo(() => {
+    const windowDef = TIME_WINDOWS.find((w) => w.key === timeWindow);
+    let cutoff: string | null = null;
+    if (windowDef?.days) {
+      const latestDate = entries.reduce((max, e) => (e.date > max ? e.date : max), entries[0]?.date ?? "");
+      if (latestDate) {
+        const [y, m, d] = latestDate.split("-").map(Number);
+        const dt = new Date(y, m - 1, d);
+        dt.setDate(dt.getDate() - windowDef.days);
+        const yy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, "0");
+        const dd = String(dt.getDate()).padStart(2, "0");
+        cutoff = `${yy}-${mm}-${dd}`;
+      }
+    }
     return entries
-      .filter((e) => e.exercise === selectedExercise && e.metric !== null)
+      .filter((e) => e.exercise === selectedExercise && e.metric !== null && (!cutoff || e.date >= cutoff))
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((e) => ({
         date: e.date,
@@ -226,7 +252,7 @@ export default function FitnessLiftingPage() {
         display: formatMetricValue(e.metric),
         setsRaw: e.setsRaw,
       }));
-  }, [entries, selectedExercise]);
+  }, [entries, selectedExercise, timeWindow]);
 
   const selectedExerciseMetricKind: MetricKind = useMemo(() => {
     const match = entries.find((e) => e.exercise === selectedExercise && e.metric);
@@ -364,6 +390,24 @@ export default function FitnessLiftingPage() {
             </select>
           </div>
 
+          {/* Time window filter */}
+          <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+            {TIME_WINDOWS.map((w) => (
+              <button
+                key={w.key}
+                onClick={() => setTimeWindow(w.key)}
+                className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
+                style={
+                  timeWindow === w.key
+                    ? { backgroundColor: "#34D39922", borderColor: "#34D39988", color: "#34D399" }
+                    : { backgroundColor: "transparent", borderColor: "#334155", color: "#94A3B8" }
+                }
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+
           {chartEntries.length > 0 ? (
             <div style={{ width: "100%", height: isMobile ? 220 : 300 }}>
               <ResponsiveContainer>
@@ -386,7 +430,7 @@ export default function FitnessLiftingPage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-slate-500 text-sm text-center py-10">No numeric data logged for this exercise yet.</p>
+            <p className="text-slate-500 text-sm text-center py-10">No numeric data logged for this exercise in the selected time window.</p>
           )}
         </div>
 
