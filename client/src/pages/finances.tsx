@@ -1117,7 +1117,13 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-home-depreciation") || "0"); } catch { return 0; }
   });
   const [homePrimaryExclusion, setHomePrimaryExclusion] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-exclusion") || "250000"); } catch { return 250000; }
+    // No Section 121 primary residence exclusion — requirements (2 of last 5 years as primary residence) are not met.
+    try {
+      const stored = localStorage.getItem("nw-home-exclusion");
+      // Clear out any stale 250000 default that was previously saved so the exclusion is properly removed.
+      if (stored === "250000") { localStorage.removeItem("nw-home-exclusion"); return 0; }
+      return stored ? parseFloat(stored) : 0;
+    } catch { return 0; }
   });
   const [homeFedCapGainsRate, setHomeFedCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-fed-cg") || "15"); } catch { return 15; }
@@ -5065,10 +5071,12 @@ export default function Finances() {
                               {homeRawGain >= 0 ? `$${Math.round(homeRawGain).toLocaleString()}` : `-$${Math.abs(Math.round(homeRawGain)).toLocaleString()}`}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span>Primary home exclusion</span>
-                            <span className="text-emerald-400">-${homePrimaryExclusion.toLocaleString()}</span>
-                          </div>
+                          {homePrimaryExclusion > 0 && (
+                            <div className="flex justify-between">
+                              <span>Primary home exclusion</span>
+                              <span className="text-emerald-400">-${homePrimaryExclusion.toLocaleString()}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between">
                             <span>Taxable gain</span>
                             <span className={homeTaxableGain > 0 ? "text-yellow-400" : "text-emerald-400"}>
