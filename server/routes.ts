@@ -4901,6 +4901,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Family contributions routes (parental financial help log)
+  app.get("/api/family-contributions", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const items = await storage.getFamilyContributions(userId);
+      res.json(items);
+    } catch (error: any) {
+      console.error("Error fetching family contributions:", error);
+      res.status(500).json({ error: "Failed to fetch family contributions" });
+    }
+  });
+
+  app.post("/api/family-contributions", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { amount, description, dateGiven } = req.body;
+
+      if (amount === undefined || !description || !dateGiven) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const newItem = await storage.createFamilyContribution({
+        userId,
+        amount,
+        description,
+        dateGiven: new Date(dateGiven),
+      });
+
+      res.json(newItem);
+    } catch (error: any) {
+      console.error("Error creating family contribution:", error);
+      res.status(500).json({ error: "Failed to create family contribution" });
+    }
+  });
+
+  app.delete("/api/family-contributions/:id", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const itemId = parseInt(req.params.id);
+
+      if (isNaN(itemId)) {
+        return res.status(400).json({ error: "Invalid item ID" });
+      }
+
+      await storage.deleteFamilyContribution(userId, itemId);
+      res.json({ message: "Family contribution deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting family contribution:", error);
+      res.status(500).json({ error: "Failed to delete family contribution" });
+    }
+  });
+
   // Net Worth snapshot routes
   app.get("/api/nw-snapshots", requireAuth, async (req: any, res) => {
     try {

@@ -1,4 +1,4 @@
-import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, nwSnapshots, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, userKv, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type NwSnapshot, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
+import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, familyContributions, nwSnapshots, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, userKv, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type FamilyContribution, type InsertFamilyContribution, type NwSnapshot, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, isNull, inArray, gt, desc, sql } from "drizzle-orm";
 
@@ -1153,6 +1153,25 @@ export class DatabaseStorage implements IStorage {
   async deleteFinancialItem(userId: string, itemId: number): Promise<boolean> {
     await db.delete(financialItems).where(
       and(eq(financialItems.id, itemId), eq(financialItems.userId, userId))
+    );
+    return true;
+  }
+
+  // Family contribution operations (parental financial help log)
+  async getFamilyContributions(userId: string): Promise<FamilyContribution[]> {
+    return db.select().from(familyContributions)
+      .where(eq(familyContributions.userId, userId))
+      .orderBy(familyContributions.dateGiven);
+  }
+
+  async createFamilyContribution(item: InsertFamilyContribution): Promise<FamilyContribution> {
+    const [newItem] = await db.insert(familyContributions).values(item).returning();
+    return newItem;
+  }
+
+  async deleteFamilyContribution(userId: string, itemId: number): Promise<boolean> {
+    await db.delete(familyContributions).where(
+      and(eq(familyContributions.id, itemId), eq(familyContributions.userId, userId))
     );
     return true;
   }

@@ -16,13 +16,13 @@ import { useTheme } from "@/contexts/theme-context";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale, Briefcase
+  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale, Briefcase, HeartHandshake
 } from "lucide-react";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ReferenceLine, Area, AreaChart
 } from "recharts";
-import type { FinancialItem, NwSnapshot } from "@shared/schema";
+import type { FinancialItem, NwSnapshot, FamilyContribution } from "@shared/schema";
 
 const CATEGORIES = [
   "General", "Business", "Entertainment", "Food", "Housing", "Transportation",
@@ -36,6 +36,9 @@ const RECUR_TYPES = [
 
 const INCOME_CATEGORIES = ["Income", "Investment"];
 const RETIREMENT_CATEGORIES = ["Retirement"];
+
+// Parents pledged $15,000 total, given here-and-there for purchases (not a lump sum)
+const PARENT_GIFT_PLEDGED_CENTS = 1500000;
 
 function classifyItem(category: string, tags?: string[] | null): "income" | "retirement" | "expense" {
   const tagList = Array.isArray(tags) ? tags : [];
@@ -1368,6 +1371,62 @@ export default function Finances() {
     onError: () => toast({ title: "Failed to delete item", variant: "destructive" }),
   });
 
+  // ── Parental financial help log ──
+  const { data: familyContributions = [] } = useQuery<FamilyContribution[]>({
+    queryKey: ["/api/family-contributions"],
+  });
+
+  const [newContribution, setNewContribution] = useState({ description: "", amount: "", dateGiven: "" });
+
+  const createContributionMutation = useMutation({
+    mutationFn: async (data: { description: string; amount: number; dateGiven: string }) => {
+      const response = await fetch("/api/family-contributions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to create contribution");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/family-contributions"] });
+      setNewContribution({ description: "", amount: "", dateGiven: "" });
+      toast({ title: "Contribution logged" });
+    },
+    onError: () => toast({ title: "Failed to log contribution", variant: "destructive" }),
+  });
+
+  const deleteContributionMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/family-contributions/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete contribution");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/family-contributions"] });
+      toast({ title: "Contribution deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete contribution", variant: "destructive" }),
+  });
+
+  const handleAddContribution = () => {
+    if (!newContribution.description || !newContribution.amount || !newContribution.dateGiven) {
+      toast({ title: "Please fill all fields", variant: "destructive" }); return;
+    }
+    createContributionMutation.mutate({
+      description: newContribution.description,
+      amount: Math.round(parseFloat(newContribution.amount) * 100),
+      dateGiven: newContribution.dateGiven,
+    });
+  };
+
+  const totalContributed = familyContributions.reduce((s, c) => s + c.amount, 0);
+  const remainingPledged = PARENT_GIFT_PLEDGED_CENTS - totalContributed;
+
   const totalIncome = financialItems
     .filter(i => classifyItem(i.category, i.tags) === "income")
     .reduce((s, i) => s + i.monthlyCost, 0);
@@ -1921,6 +1980,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="table" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
               <List className="h-3.5 w-3.5 mr-1.5" />All Items
+            </TabsTrigger>
+            <TabsTrigger value="family-gift" className="data-[state=active]:bg-pink-600/40 text-xs px-3 py-1.5">
+              <HeartHandshake className="h-3.5 w-3.5 mr-1.5" />Parent Gift
             </TabsTrigger>
           </TabsList>
 
@@ -6481,6 +6543,119 @@ export default function Finances() {
                 </>
               );
             })()}
+          </TabsContent>
+
+          {/* ── Parental Financial Gift Log ─────────────────────────── */}
+          <TabsContent value="family-gift" className="space-y-4">
+            <Card className="bg-slate-800/60 border-pink-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-pink-300 text-base flex items-center gap-2">
+                  <HeartHandshake className="h-4 w-4" /> Parent Gift Tracker
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  My parents pledged $15,000 total, given here and there (not a lump sum) to help cover purchases.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                  <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-3">
+                    <p className="text-xs text-slate-400">Pledged Total</p>
+                    <p className="text-xl font-bold text-pink-300">{formatCurrency(PARENT_GIFT_PLEDGED_CENTS)}</p>
+                  </div>
+                  <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+                    <p className="text-xs text-slate-400">Received So Far</p>
+                    <p className="text-xl font-bold text-green-300">{formatCurrency(totalContributed)}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-500/20 bg-slate-500/5 p-3">
+                    <p className="text-xs text-slate-400">Remaining</p>
+                    <p className="text-xl font-bold text-slate-200">{formatCurrency(Math.max(remainingPledged, 0))}</p>
+                  </div>
+                </div>
+                <div className="w-full bg-slate-900/50 rounded-full h-2.5 overflow-hidden mb-1">
+                  <div
+                    className="h-full bg-gradient-to-r from-pink-500 to-rose-400 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (totalContributed / PARENT_GIFT_PLEDGED_CENTS) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {((totalContributed / PARENT_GIFT_PLEDGED_CENTS) * 100).toFixed(1)}% of pledge received
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/60 border-pink-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-pink-300 text-base">Log New Gift</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <Label className="text-slate-300 text-xs">Description</Label>
+                    <Input value={newContribution.description}
+                      onChange={(e) => setNewContribution({ ...newContribution, description: e.target.value })}
+                      placeholder="e.g. From old checking account" className="bg-slate-900/50 border-slate-600 text-white h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300 text-xs">Amount ($)</Label>
+                    <Input type="number" step="0.01" value={newContribution.amount}
+                      onChange={(e) => setNewContribution({ ...newContribution, amount: e.target.value })}
+                      placeholder="0.00" className="bg-slate-900/50 border-slate-600 text-white h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300 text-xs">Date Given</Label>
+                    <Input type="date" value={newContribution.dateGiven}
+                      onChange={(e) => setNewContribution({ ...newContribution, dateGiven: e.target.value })}
+                      className="bg-slate-900/50 border-slate-600 text-white h-8 text-sm" />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={handleAddContribution} className="w-full bg-pink-600 hover:bg-pink-700 h-8 text-sm">
+                      <Plus className="h-3.5 w-3.5 mr-1.5" /> Add
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/60 border-pink-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-pink-300 text-base">Gift History</CardTitle>
+                <CardDescription className="text-slate-400 text-xs">{familyContributions.length} entr{familyContributions.length === 1 ? "y" : "ies"}</CardDescription>
+              </CardHeader>
+              <CardContent className="px-0 pb-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-700/40 bg-slate-900/20">
+                      <TableHead className="text-slate-400 text-[11px] pl-4">Date</TableHead>
+                      <TableHead className="text-slate-400 text-[11px]">Description</TableHead>
+                      <TableHead className="text-slate-400 text-[11px]">Amount</TableHead>
+                      <TableHead className="text-slate-400 text-[11px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...familyContributions].sort((a, b) => new Date(b.dateGiven).getTime() - new Date(a.dateGiven).getTime()).map((c) => (
+                      <TableRow key={c.id} className="border-slate-700/30 hover:bg-slate-700/20 group">
+                        <TableCell className="text-slate-300 text-xs py-2 pl-4">
+                          {new Date(c.dateGiven).toLocaleDateString("en-US", { timeZone: "UTC" })}
+                        </TableCell>
+                        <TableCell className="text-white text-xs py-2">{c.description}</TableCell>
+                        <TableCell className="text-green-300 text-xs py-2 font-semibold tabular-nums">+{formatCurrency(c.amount)}</TableCell>
+                        <TableCell className="py-2 pr-3">
+                          <Button variant="ghost" size="sm" onClick={() => deleteContributionMutation.mutate(c.id)}
+                            className="h-6 w-6 p-0 text-red-400/30 hover:text-red-300 hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {familyContributions.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-slate-500 text-xs py-6">No gifts logged yet.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
 
         </Tabs>

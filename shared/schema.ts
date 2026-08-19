@@ -226,6 +226,16 @@ export const financialItems = pgTable("financial_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Itemized log of parental financial help (gifted amount vs. pledged total)
+export const familyContributions = pgTable("family_contributions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  amount: integer("amount").notNull(), // cents
+  description: text("description").notNull(), // e.g. "From old checking account"
+  dateGiven: timestamp("date_given").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Net Worth monthly snapshots — one row per user per month, upserted each visit
 export const nwSnapshots = pgTable("nw_snapshots", {
   id: serial("id").primaryKey(),
@@ -399,6 +409,8 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type ShopItem = typeof shopItems.$inferSelect;
 export type FinancialItem = typeof financialItems.$inferSelect;
 export type InsertFinancialItem = typeof financialItems.$inferInsert;
+export type FamilyContribution = typeof familyContributions.$inferSelect;
+export type InsertFamilyContribution = typeof familyContributions.$inferInsert;
 export type NwSnapshot = typeof nwSnapshots.$inferSelect;
 export type InsertNwSnapshot = typeof nwSnapshots.$inferInsert;
 export type InsertShopItem = z.infer<typeof insertShopItemSchema>;
