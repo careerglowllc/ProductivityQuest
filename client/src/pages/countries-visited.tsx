@@ -56,6 +56,18 @@ function getUKNationISO(properties: any): string | null {
   return null;
 }
 
+// world-atlas's France feature is a single MultiPolygon that bundles overseas territories
+// (French Guiana, on the South American coast) in with mainland France/Corsica. Strip out
+// any ring whose longitude puts it in the Americas so it doesn't render/highlight as "France".
+function stripFrenchOverseas(geo: any) {
+  if (geo.geometry?.type !== "MultiPolygon") return geo;
+  const coordinates = geo.geometry.coordinates.filter((polygon: number[][][]) => {
+    const [lng] = polygon[0][0];
+    return lng > -20; // mainland France + Corsica sit between roughly -5 and 9; French Guiana is ~ -53
+  });
+  return { ...geo, geometry: { ...geo.geometry, coordinates } };
+}
+
 // us-atlas FIPS → ISO for all 50 US states (+ DC)
 // Alaska and Hawaii keep their legacy keys (ALA/HAW) for backward data compatibility
 const US_FIPS_TO_ISO: Record<string, string> = {
@@ -530,10 +542,11 @@ export default function CountriesVisitedPage() {
                   // Only mark visited if the ISO came from our trusted lookup table
                   const visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
                   const isSelected = selected?.iso === iso;
+                  const displayGeo = numericId === "250" ? stripFrenchOverseas(geo) : geo;
                   return (
                     <Geography
                       key={geo.rsmKey}
-                      geography={geo}
+                      geography={displayGeo}
                       onClick={() => openCountry(iso, name)}
                       onMouseEnter={(e: any) => {
                         const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
