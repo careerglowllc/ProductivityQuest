@@ -68,14 +68,20 @@ function stripFrenchOverseas(geo: any) {
   return { ...geo, geometry: { ...geo.geometry, coordinates } };
 }
 
-// world-atlas's Italy feature bundles Sicily in as its own ring in the same MultiPolygon as
-// the mainland/Sardinia, so filling Italy blue paints Sicily too. Drop Sicily's ring here —
-// it's rendered separately (and independently tracked as visited/not) by the Italy regions overlay.
-function stripSicilyFromItaly(geo: any) {
+// world-atlas's Italy feature bundles Sicily and Sardinia in as their own rings in the same
+// MultiPolygon as the mainland, so filling Italy blue paints both islands too. Drop those rings
+// here — they're rendered separately (and independently tracked as visited/not) by the Italy regions overlay.
+function stripIslandsFromItaly(geo: any) {
   if (geo.geometry?.type !== "MultiPolygon") return geo;
   const coordinates = geo.geometry.coordinates.filter((polygon: number[][][]) => {
-    const maxLat = polygon[0].reduce((max: number, pt: number[]) => Math.max(max, pt[1]), -Infinity);
-    return maxLat > 38.5; // Sicily sits south of the mainland "boot" tip, entirely below ~38.3°N
+    let maxLat = -Infinity, maxLng = -Infinity;
+    for (const [lng, lat] of polygon[0]) {
+      if (lat > maxLat) maxLat = lat;
+      if (lng > maxLng) maxLng = lng;
+    }
+    if (maxLat < 38.5) return false; // Sicily — entirely below the mainland "boot" tip (~38.3°N)
+    if (maxLat < 42.2 && maxLng < 10.2) return false; // Sardinia — west island, well below Piedmont/Liguria's latitude
+    return true;
   });
   return { ...geo, geometry: { ...geo.geometry, coordinates } };
 }
@@ -114,9 +120,10 @@ const CANADA_PROVINCE_TO_ISO: Record<string, string> = {
 };
 
 // Italy region istat codes → custom ISOs for regions tracked separately from ITA
-// Sicily = region 19
+// Sicily = region 19, Sardinia = region 20
 const ITALY_REGION_TO_ISO: Record<string, string> = {
   "19": "SIC",
+  "20": "SAR",
 };
 
 // All tracked ISO codes
@@ -142,7 +149,7 @@ const SEED_ISOS = [
   // UK nations (replacing GBR)
   "ENG","NIR","SCT","WLS",
   // Italian regions
-  "SIC",
+  "SIC","SAR",
 ];
 
 // Display names
@@ -156,7 +163,7 @@ const ISO_NAMES: Record<string, string> = {
   USA: "United States", CAN: "Canada", HAW: "Hawaii 🌺", ALA: "Alaska ❄️",
   HUN: "Hungary", HRV: "Croatia",
   ENG: "England 🏴󠁧󠁢󠁥󠁮󠁧󠁿", SCT: "Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿", WLS: "Wales 🏴󠁧󠁢󠁷󠁬󠁳󠁿", NIR: "Northern Ireland",
-  SIC: "Sicily 🏝️",
+  SIC: "Sicily 🏝️", SAR: "Sardinia (Italy)",
   // US States
   "US-AL": "Alabama", "US-AZ": "Arizona", "US-AR": "Arkansas", "US-CA": "California",
   "US-CO": "Colorado", "US-CT": "Connecticut", "US-DE": "Delaware", "US-DC": "Washington D.C.",
@@ -555,7 +562,7 @@ export default function CountriesVisitedPage() {
                   const visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
                   const isSelected = selected?.iso === iso;
                   const displayGeo = numericId === "250" ? stripFrenchOverseas(geo)
-                    : numericId === "380" ? stripSicilyFromItaly(geo)
+                    : numericId === "380" ? stripIslandsFromItaly(geo)
                     : geo;
                   return (
                     <Geography
