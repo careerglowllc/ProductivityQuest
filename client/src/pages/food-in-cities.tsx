@@ -90,7 +90,7 @@ const REGIONS = [
 
 const ALL_TAGS = [
   "Fine Dining", "Casual", "Breakfast", "Lunch", "Dinner",
-  "Street Food", "Diner / Dive", "Brunch", "Coffee / Cafe",
+  "Street Food", "Diner / Dive", "Brunch", "Coffee / Cafe", "Bakery",
   "Dessert", "Ice Cream", "Bar / Drinks", "Fast Food", "Seafood",
   "Steakhouse", "Sandwich / Deli", "Sushi",
   "Elote", "Tacos",
@@ -109,6 +109,7 @@ const TAG_COLORS: Record<string, string> = {
   "Diner / Dive":   "bg-amber-500/20 text-amber-300 border-amber-500/40",
   "Brunch":         "bg-pink-500/20 text-pink-300 border-pink-500/40",
   "Coffee / Cafe":  "bg-rose-500/20 text-rose-300 border-rose-500/40",
+  "Bakery":         "bg-orange-300/20 text-orange-200 border-orange-300/40",
   "Dessert":        "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40",
   "Ice Cream":      "bg-sky-300/20 text-sky-200 border-sky-300/40",
   "Bar / Drinks":   "bg-slate-500/20 text-slate-300 border-slate-500/40",
@@ -571,6 +572,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     visitedAt: "",
     createdAt: "2026-08-02T00:00:00.000Z",
     updatedAt: "2026-08-02T00:00:00.000Z",
+  },
+  {
+    id: "food-gk-pastry-sourdough-losaltos",
+    name: "GK Pastry & Sourdough",
+    city: "Los Altos, CA",
+    address: "251 Main St, Los Altos, CA 94022",
+    overallRating: 4.5,
+    stars: { food: 4.5, ambience: 4.5, price: 4.5 },
+    thoughts: "Great and reasonably priced baked goods like sourdough. Friendly staff and free samples.",
+    tags: ["Coffee / Cafe", "Dessert", "Casual", "Breakfast", "Bakery"],
+    visitedAt: "",
+    createdAt: "2026-08-20T00:00:00.000Z",
+    updatedAt: "2026-08-20T00:00:00.000Z",
   },
 ];
 
