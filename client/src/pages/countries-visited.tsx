@@ -68,6 +68,18 @@ function stripFrenchOverseas(geo: any) {
   return { ...geo, geometry: { ...geo.geometry, coordinates } };
 }
 
+// world-atlas's Italy feature bundles Sicily in as its own ring in the same MultiPolygon as
+// the mainland/Sardinia, so filling Italy blue paints Sicily too. Drop Sicily's ring here —
+// it's rendered separately (and independently tracked as visited/not) by the Italy regions overlay.
+function stripSicilyFromItaly(geo: any) {
+  if (geo.geometry?.type !== "MultiPolygon") return geo;
+  const coordinates = geo.geometry.coordinates.filter((polygon: number[][][]) => {
+    const maxLat = polygon[0].reduce((max: number, pt: number[]) => Math.max(max, pt[1]), -Infinity);
+    return maxLat > 38.5; // Sicily sits south of the mainland "boot" tip, entirely below ~38.3°N
+  });
+  return { ...geo, geometry: { ...geo.geometry, coordinates } };
+}
+
 // us-atlas FIPS → ISO for all 50 US states (+ DC)
 // Alaska and Hawaii keep their legacy keys (ALA/HAW) for backward data compatibility
 const US_FIPS_TO_ISO: Record<string, string> = {
@@ -542,7 +554,9 @@ export default function CountriesVisitedPage() {
                   // Only mark visited if the ISO came from our trusted lookup table
                   const visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
                   const isSelected = selected?.iso === iso;
-                  const displayGeo = numericId === "250" ? stripFrenchOverseas(geo) : geo;
+                  const displayGeo = numericId === "250" ? stripFrenchOverseas(geo)
+                    : numericId === "380" ? stripSicilyFromItaly(geo)
+                    : geo;
                   return (
                     <Geography
                       key={geo.rsmKey}
