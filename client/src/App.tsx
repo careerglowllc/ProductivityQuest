@@ -34,6 +34,7 @@ import Finances from "@/pages/finances";
 import AccomplishmentsPage from "@/pages/accomplishments";
 import ExplorePage from "@/pages/explore";
 import CountriesVisitedPage from "@/pages/countries-visited";
+import USStatesVisitedPage from "@/pages/us-states-visited";
 import FitnessPage from "@/pages/fitness";
 import FitnessLiftingPage from "@/pages/fitness-lifting";
 import FitnessCaloriesPage from "@/pages/fitness-calories";
@@ -169,6 +170,7 @@ function Router() {
             <Route path="/accomplishments" component={AccomplishmentsPage} />
             <Route path="/explore" component={ExplorePage} />
             <Route path="/countries-visited" component={CountriesVisitedPage} />
+            <Route path="/us-states-visited" component={USStatesVisitedPage} />
             <Route path="/food-in-cities" component={FoodInCitiesPage} />
             <Route path="/fitness" component={FitnessPage} />
             <Route path="/fitness/lifting" component={FitnessLiftingPage} />

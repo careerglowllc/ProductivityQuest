@@ -103,9 +103,10 @@ export default function ExplorePage() {
           {CATEGORIES.map((cat) => {
             const Icon = CATEGORY_ICONS[cat.key] ?? Globe;
             const isCountries = cat.key === "countries";
+            const isStates = cat.key === "states";
             const isFood = cat.key === "food";
-            const isClickable = isCountries || isFood;
-            const href = isCountries ? "/countries-visited" : isFood ? "/food-in-cities" : "#";
+            const isClickable = isCountries || isStates || isFood;
+            const href = isCountries ? "/countries-visited" : isStates ? "/us-states-visited" : isFood ? "/food-in-cities" : "#";
             const CardContent = (
               <div
                 key={cat.key}
