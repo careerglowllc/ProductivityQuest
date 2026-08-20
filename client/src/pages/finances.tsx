@@ -1136,10 +1136,12 @@ export default function Finances() {
   });
   // Pending home improvement costs (July 2026) — deducted from net worth as real outlays
   const homeShedCost = 6158;    // new shed — final cost
-  const homeFloorCost = 35000;  // floor molding & replacement — tentative cost (not yet final)
+  const homeFloorMoldingCost = 6000; // floor molding & cabinet demo — tentative cost (not yet final)
+  const homeFloorsCost = 17000; // new floors — tentative cost (not yet final)
+  const homeCabinetsCost = 19000; // new cabinets — tentative cost (not yet final)
   const homeRoofFixCost = 500;  // small roof fix — final cost
   const homeFumeHoodCost = 1300; // fume hood install — final cost
-  const homePendingCosts = homeShedCost + homeFloorCost + homeRoofFixCost + homeFumeHoodCost;
+  const homePendingCosts = homeShedCost + homeFloorMoldingCost + homeFloorsCost + homeCabinetsCost + homeRoofFixCost + homeFumeHoodCost;
   // Cash — BMO checking account ending in 1711 (manual, updated July 7, 2026: → $80,756)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-checking") || "40000"); } catch { return 40000; }
@@ -4129,7 +4131,9 @@ export default function Finances() {
                 { label: "New shed (Affirm financed)", amount: 6200 },
                 { label: "Small roof fix", amount: 500 },
                 { label: "Fume hood install", amount: 1300 },
-                { label: "Floor molding & replacement", amount: 35000, tentative: true },
+                { label: "Floor molding and cabinet demo", amount: 6000, tentative: true },
+                { label: "Floors", amount: 17000, tentative: true },
+                { label: "Cabinets", amount: 19000, tentative: true },
               ];
               const totalOneTimeCosts = oneTimeCosts.reduce((s, i) => s + i.amount, 0);
 
@@ -5161,10 +5165,22 @@ export default function Finances() {
                             <span className="text-slate-500">$6,158</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="flex items-center gap-1">Floor molding &amp; replacement
+                            <span className="flex items-center gap-1">Floor molding and cabinet demo
                               <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
                             </span>
-                            <span className="text-slate-500">$35,000</span>
+                            <span className="text-slate-500">$6,000</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="flex items-center gap-1">Floors
+                              <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
+                            </span>
+                            <span className="text-slate-500">$17,000</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="flex items-center gap-1">Cabinets
+                              <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
+                            </span>
+                            <span className="text-slate-500">$19,000</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="flex items-center gap-1">Small roof fix
