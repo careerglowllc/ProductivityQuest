@@ -1247,19 +1247,14 @@ export default function Finances() {
         notes: "Simply Sing singing app — monthly subscription",
       }));
     }
-    if (!financialItems.find(i => i.item === "Seedance AI")) {
-      tasks.push(create({
-        item: "Seedance AI", category: "Business", tags: ["Business", "Subscription"],
-        monthlyCost: 5000, recurType: "Monthly",
-        notes: "Seedance AI — monthly subscription",
-      }));
-    }
-
     const hushed = financialItems.find(i => i.item.toLowerCase().includes("hushed"));
     if (hushed) tasks.push(remove(hushed.id));
 
     const solar = financialItems.find(i => i.item.toLowerCase().includes("solar panel") && i.item.toLowerCase().includes("clean"));
     if (solar) tasks.push(remove(solar.id));
+
+    const seedance = financialItems.find(i => i.item.toLowerCase().includes("seedance"));
+    if (seedance) tasks.push(remove(seedance.id));
 
     if (tasks.length > 0) {
       Promise.all(tasks).then((results) => {
