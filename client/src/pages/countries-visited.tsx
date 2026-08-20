@@ -367,6 +367,19 @@ export default function CountriesVisitedPage() {
       updates["country-__v7"] = "1";
     }
 
+    // v8 migration: mark NY, CA, TX, MA, FL, ME, LA as visited
+    if (!kvData["country-__v8"]) {
+      const v8Isos = ["US-NY", "US-CA", "US-TX", "US-MA", "US-FL", "US-ME", "US-LA", "US-NV"];
+      for (const iso of v8Isos) {
+        const raw = updates[storageKey(iso)] ?? kvData[storageKey(iso)];
+        const existing: CountryEntry = raw ? JSON.parse(raw) : EMPTY_ENTRY();
+        if (!existing.visitedAt) {
+          updates[storageKey(iso)] = JSON.stringify({ ...existing, visitedAt: "visited" });
+        }
+      }
+      updates["country-__v8"] = "1";
+    }
+
     if (Object.keys(updates).length > 0) {
       saveMutation.mutate({
         updates,
