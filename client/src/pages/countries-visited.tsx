@@ -26,14 +26,12 @@ const ITALY_REGIONS_URL = "https://raw.githubusercontent.com/openpolis/geojson-i
 const CANADA_PROVINCES_URL = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/canada.geojson";
 // Higher-res world atlas (50m) — used to overlay Hong Kong (id 344) which is invisible at 110m resolution
 const WORLD_50M_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
-// City-focused sub-regions for countries where only specific cities have been visited — a
-// hand-picked bundle of province/state boundaries (from geoBoundaries.org, ODbL/CC-BY) built
-// locally rather than fetched whole, so we ship only the ~14 regions we actually need.
-// Each feature's `parentIso` reuses the country's existing storage key (no new toggles).
+// City-focused sub-regions — drawn as an overlay ON TOP of the whole (already-visited) country
+// so the country still renders normally, just with an extra subdivision line showing which
+// city/province area is called out. A hand-picked bundle of province/state boundaries (from
+// geoBoundaries.org, ODbL/CC-BY) built locally rather than fetched whole, so we ship only the
+// ~14 regions we actually need. Each feature's `parentIso` reuses the country's existing storage key.
 const CITY_REGIONS_URL = "/geo/city-regions.geojson";
-// Detailed view: countries rendered as focused city sub-regions instead of the whole country
-// (Italy also gets this treatment, via the existing Italy regions overlay — see ITALY_REGION_TO_ISO)
-const CITY_DETAIL_NUMERIC_IDS = new Set(["392", "620", "724", "170", "276", "250", "380", "156", "704", "764"]);
 
 // Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
 // IMPORTANT: only countries in this table will ever show as "visited" on the map.
@@ -78,8 +76,22 @@ function stripFrenchOverseas(geo: any) {
 
 // world-atlas's Italy feature bundles Sicily and Sardinia in as their own rings in the same
 // MultiPolygon as the mainland, so filling Italy blue paints both islands too. In Simple view
-// we keep the whole thing (islands included); in Detailed view Italy is skipped entirely and
-// only the Lazio/Sicily/Sardinia regions render (see ITALY_REGION_TO_ISO), so no stripping is needed there.
+// we keep the whole thing (islands included); in Detailed view we drop those rings — they're
+// rendered separately (and independently tracked as visited/not) by the Italy regions overlay.
+function stripIslandsFromItaly(geo: any) {
+  if (geo.geometry?.type !== "MultiPolygon") return geo;
+  const coordinates = geo.geometry.coordinates.filter((polygon: number[][][]) => {
+    let maxLat = -Infinity, maxLng = -Infinity;
+    for (const [lng, lat] of polygon[0]) {
+      if (lat > maxLat) maxLat = lat;
+      if (lng > maxLng) maxLng = lng;
+    }
+    if (maxLat < 38.5) return false; // Sicily — entirely below the mainland "boot" tip (~38.3°N)
+    if (maxLat < 42.2 && maxLng < 10.2) return false; // Sardinia — west island, well below Piedmont/Liguria's latitude
+    return true;
+  });
+  return { ...geo, geometry: { ...geo.geometry, coordinates } };
+}
 
 // us-atlas FIPS → ISO for all 50 US states (+ DC)
 // Alaska and Hawaii keep their legacy keys (ALA/HAW) for backward data compatibility
@@ -608,8 +620,6 @@ export default function CountriesVisitedPage() {
                     // Skip GBR/USA/CAN entirely — the separate nation/state/province layers below render them broken down
                     if (numericId === "826" || iso === "GBR") return null;
                     if (numericId === "840" || numericId === "124") return null;
-                    // Skip countries shown as focused city sub-regions instead (see CITY_REGIONS_URL / ITALY_REGION_TO_ISO)
-                    if (CITY_DETAIL_NUMERIC_IDS.has(numericId)) return null;
                   } else if (numericId === "826") {
                     // Simple view: treat the UK as one country, visited if any of its 4 nations is
                     iso = "GBR";
@@ -628,7 +638,9 @@ export default function CountriesVisitedPage() {
                   }
 
                   const isSelected = selected?.iso === iso;
-                  const displayGeo = numericId === "250" ? stripFrenchOverseas(geo) : geo;
+                  const displayGeo = numericId === "250" ? stripFrenchOverseas(geo)
+                    : (numericId === "380" && view === "detailed") ? stripIslandsFromItaly(geo)
+                    : geo;
                   return (
                     <Geography
                       key={geo.rsmKey}
