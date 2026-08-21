@@ -661,8 +661,6 @@ export default function CountriesVisitedPage() {
                     // Skip GBR/USA/CAN entirely — the separate nation/state/province layers below render them broken down
                     if (numericId === "826" || iso === "GBR") return null;
                     if (numericId === "840" || numericId === "124") return null;
-                    // Skip countries shown as focused city sub-regions instead (see CITY_REGIONS_URL / ITALY_REGION_TO_ISO)
-                    if (CITY_DETAIL_NUMERIC_IDS.has(numericId)) return null;
                   } else if (numericId === "826") {
                     // Simple view: treat the UK as one country, visited if any of its 4 nations is
                     iso = "GBR";
@@ -682,6 +680,11 @@ export default function CountriesVisitedPage() {
 
                   const isSelected = selected?.iso === iso;
                   const displayGeo = numericId === "250" ? stripFrenchOverseas(geo) : geo;
+                  // In Detailed view, these countries show their visited status via the city
+                  // sub-region/marker only — the outline itself always renders as unvisited so
+                  // it doesn't look like the whole country is filled in.
+                  const shownAsUnvisited = view === "detailed" && CITY_DETAIL_NUMERIC_IDS.has(numericId);
+                  const displayVisited = visited && !shownAsUnvisited;
                   return (
                     <Geography
                       key={geo.rsmKey}
@@ -699,22 +702,22 @@ export default function CountriesVisitedPage() {
                       style={{
                         default: {
                           // Visited = filled blue; selected-only = dark fill + bright outline
-                          fill: visited ? "#38BDF8" : "#1e293b",
-                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#334155",
-                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.4,
+                          fill: displayVisited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : displayVisited ? "#0c4a6e" : "#334155",
+                          strokeWidth: isSelected ? (displayVisited ? 0 : 2) : 0.4,
                           outline: "none",
                           cursor: "pointer",
-                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                          filter: isSelected && !displayVisited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
                         },
                         hover: {
-                          fill: visited ? "#7DD3FC" : "#1e3a5f",
-                          stroke: visited ? "#0c4a6e" : "#38BDF8",
-                          strokeWidth: visited ? 0.4 : 1.5,
+                          fill: displayVisited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: displayVisited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: displayVisited ? 0.4 : 1.5,
                           outline: "none",
                           cursor: "pointer",
                         },
                         pressed: {
-                          fill: visited ? "#0EA5E9" : "#1e3a5f",
+                          fill: displayVisited ? "#0EA5E9" : "#1e3a5f",
                           outline: "none",
                         },
                       }}
