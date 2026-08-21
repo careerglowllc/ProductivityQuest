@@ -4336,6 +4336,22 @@ export default function Finances() {
                           <span>Projected full 30-yr total</span>
                           <span className="text-red-400">${Math.round(projectedLifetime).toLocaleString()}</span>
                         </div>
+
+                        {/* If sold today, net of everything spent so far */}
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-3 mb-1">If Sold Today (Net of Lifetime Spend)</p>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Gross equity (value − loan) − spent so far</span>
+                          <span className={(reEquityRaw - lifetimeSoFar) >= 0 ? "text-emerald-300" : "text-red-400"}>
+                            {(reEquityRaw - lifetimeSoFar) >= 0 ? `$${Math.round(reEquityRaw - lifetimeSoFar).toLocaleString()}` : `-$${Math.abs(Math.round(reEquityRaw - lifetimeSoFar)).toLocaleString()}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-slate-300 border-t border-slate-700/30 pt-1 mt-1">
+                          <span>Net after costs/tax − spent so far</span>
+                          <span className={(reAfterTax - lifetimeSoFar) >= 0 ? "text-emerald-300" : "text-red-400"}>
+                            {(reAfterTax - lifetimeSoFar) >= 0 ? `$${Math.round(reAfterTax - lifetimeSoFar).toLocaleString()}` : `-$${Math.abs(Math.round(reAfterTax - lifetimeSoFar)).toLocaleString()}`}
+                          </span>
+                        </div>
+
                         <div className="flex justify-between font-bold border-t border-slate-600/60 pt-1.5 mt-1">
                           <span className="text-slate-200">Remaining months on loan</span>
                           <span className="text-slate-300">{monthsRemaining} mo ({(monthsRemaining / 12).toFixed(1)} yrs)</span>
