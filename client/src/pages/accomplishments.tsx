@@ -3,6 +3,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { TrendingUp, ArrowLeft, Download } from "lucide-react";
 import { Link } from "wouter";
+import type { CSVExport } from "@/lib/csv-export";
 
 type AccomplishmentCategory = "practical" | "mindset" | "life" | "adventure" | "career" | "health" | "relationships" | "financial";
 
@@ -94,10 +95,11 @@ const ACCOMPLISHMENTS: Accomplishment[] = [
   { year: 2016, title: "Vatican City & Rome — Sistine Chapel, Colosseum & Pasta Lessons", detail: "Stood inside the Vatican and looked up at the Sistine Chapel — one of those moments where you genuinely can't believe you're there. Walked through the Colosseum and felt the weight of 2,000 years of history under your feet. Ate real, authentic pasta in Rome, and got a hilariously memorable lesson from an Italian waitress who watched my fork technique with visible concern and took it upon herself to correct me — the kind of spontaneous, human travel moment that no guidebook prepares you for. A trip that made history tangible and knocked the American insularity down another few notches.", category: "adventure", emoji: "🏛️" },
 ];
 
-function exportAccomplishmentsCSV(items: Accomplishment[]) {
+// Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
+export function buildAccomplishmentsCSVExport(): CSVExport {
   const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const headers = ["Year", "Year End", "Title", "Category", "Category Label", "Emoji", "Detail", "Duration (years)", "Time Span"];
-  const rows = items
+  const rows = ACCOMPLISHMENTS
     .slice()
     .sort((a, b) => a.year !== b.year ? a.year - b.year : a.title.localeCompare(b.title))
     .map(item => {
@@ -108,7 +110,12 @@ function exportAccomplishmentsCSV(items: Accomplishment[]) {
       return [item.year, yearEnd, item.title, item.category, catLabel, item.emoji, item.detail, duration, timeSpan].map(v => escape(String(v))).join(",");
     });
   const csv = [headers.map(h => `"${h}"`).join(","), ...rows].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  return { folder: "Accomplishments", filename: "accomplishments.csv", content: csv };
+}
+
+function exportAccomplishmentsCSV() {
+  const { content } = buildAccomplishmentsCSVExport();
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -191,7 +198,7 @@ export default function AccomplishmentsPage() {
           <p className="text-emerald-400/70 text-xs">{ACCOMPLISHMENTS.length} accomplishments across {years.length} years</p>
           <div className="flex justify-center pt-1">
             <button
-              onClick={() => exportAccomplishmentsCSV(ACCOMPLISHMENTS)}
+              onClick={() => exportAccomplishmentsCSV()}
               className="inline-flex items-center gap-2 text-xs rounded-full px-4 py-2 border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-all"
             >
               <Download className="h-3.5 w-3.5" /> Export CSV

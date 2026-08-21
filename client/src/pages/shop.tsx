@@ -7,11 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles, Pencil } from "lucide-react";
+import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles, Pencil, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
+import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 
 // Common emojis for shop items
 const EMOJI_OPTIONS = [
@@ -31,6 +32,16 @@ const EMOJI_OPTIONS = [
   "🐌", "🐞", "🐜", "🦗", "🕷️", "🦂", "🐢", "🐍", "🦎", "🦖",
   "🐙", "🦑", "🦐", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🦈",
 ];
+
+// Pure async builder (fetches its own data) so the Settings page's "Export All" master
+// export can build this CSV without the Item Shop page being mounted.
+export async function buildShopItemsCSVExport(): Promise<CSVExport> {
+  const r = await fetch("/api/shop/items", { credentials: "include" });
+  const items: any[] = await r.json();
+  const headers = ["Name", "Description", "Cost (Gold)", "Icon", "Category", "Is Global", "Created At"];
+  const rows = items.map(i => [i.name, i.description, i.cost, i.icon, i.category, i.isGlobal ? "Yes" : "No", i.createdAt]);
+  return { folder: "Shop", filename: "shop-items.csv", content: rowsToCSV(headers, rows) };
+}
 
 export default function Shop() {
   const { isDark } = useTheme();
@@ -315,14 +326,25 @@ export default function Shop() {
                 <p className="text-xl font-bold text-yellow-100">{progress.goldTotal} Gold</p>
               </div>
             </div>
-            <Button
-              onClick={() => setShowAddModal(true)}
-              size="sm"
-              className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white border border-yellow-400/50 text-xs"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Add Item
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button
+                onClick={() => { buildShopItemsCSVExport().then(exp => downloadCSV(exp.filename, exp.content)); }}
+                size="sm"
+                variant="outline"
+                className="border-yellow-500/40 text-yellow-300 text-xs"
+              >
+                <Download className="w-3 h-3 mr-1" />
+                Export
+              </Button>
+              <Button
+                onClick={() => setShowAddModal(true)}
+                size="sm"
+                className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white border border-yellow-400/50 text-xs"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Item
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -343,6 +365,14 @@ export default function Shop() {
           >
             <Plus className="w-4 h-4 mr-2" />
             Add New Item
+          </Button>
+          <Button
+            onClick={() => { buildShopItemsCSVExport().then(exp => downloadCSV(exp.filename, exp.content)); }}
+            variant="outline"
+            className="mt-4 ml-2 border-yellow-500/40 text-yellow-300"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
           </Button>
         </div>
         )}

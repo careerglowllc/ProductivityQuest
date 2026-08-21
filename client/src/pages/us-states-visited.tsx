@@ -7,11 +7,12 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import { Link } from "wouter";
-import { ArrowLeft, Edit2, X, Plus, Trash2, Check, Map as MapIcon } from "lucide-react";
+import { ArrowLeft, Edit2, X, Plus, Trash2, Check, Map as MapIcon, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
+import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 
 // Same us-atlas source + FIPS→ISO table used by the Countries Visited world map, so a
 // state marked visited here shows up there too (and vice versa) — both pages read/write
@@ -72,6 +73,29 @@ const ensure = (arr?: string[]) => (arr && arr.length ? arr : [""]);
 // Same "country-<iso>" key format the Countries Visited page uses — this is what keeps
 // the two pages in sync (they're reading/writing the exact same backend records).
 function storageKey(iso: string) { return `country-${iso}`; }
+
+// Pure async builder (fetches its own data) so the Settings page's "Export All" master
+// export can build this CSV without the US States Visited page being mounted.
+export async function buildStatesVisitedCSVExport(): Promise<CSVExport> {
+  const r = await fetch("/api/user-data", { credentials: "include" });
+  const kvData: Record<string, string> = await r.json();
+  const headers = ["State ISO", "State Name", "Visited At", "Cities", "Highlights", "Lowlights", "Lessons"];
+  const rows: unknown[][] = [];
+  for (const iso of ALL_STATE_ISOS) {
+    const raw = kvData[storageKey(iso)];
+    if (!raw) continue;
+    let entry: StateEntry;
+    try { entry = JSON.parse(raw); } catch { continue; }
+    if (!entry.visitedAt && !(entry.cities && entry.cities.length)) continue;
+    rows.push([
+      iso, STATE_NAMES[iso] ?? iso, entry.visitedAt,
+      (entry.cities || []).join("; "), (entry.highlights || []).join("; "),
+      (entry.lowlights || []).join("; "), (entry.lessons || []).join("; "),
+    ]);
+  }
+  rows.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  return { folder: "Travel", filename: "states-visited.csv", content: rowsToCSV(headers, rows) };
+}
 
 export default function USStatesVisitedPage() {
   const isMobile = useIsMobile();
@@ -194,8 +218,16 @@ export default function USStatesVisitedPage() {
             <MapIcon className="h-6 w-6 text-violet-400" />
             <h1 className="text-2xl font-serif font-bold text-white">US States Visited</h1>
           </div>
-          <div className="text-sm text-violet-300 font-semibold">
-            {visitedIsos.length} / 50 states
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { buildStatesVisitedCSVExport().then(exp => downloadCSV(exp.filename, exp.content)); }}
+              className="inline-flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+            <div className="text-sm text-violet-300 font-semibold">
+              {visitedIsos.length} / 50 states
+            </div>
           </div>
         </div>
         <p className="text-slate-400 text-sm mb-4">

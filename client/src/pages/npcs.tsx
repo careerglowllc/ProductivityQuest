@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { type CSVExport } from "@/lib/csv-export";
 
 // ── Constants ───────────────────────────────────────────────
 const STORAGE_KEY = "npcs-v1";
@@ -130,6 +131,32 @@ function initials(name: string) {
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function npcsToCSVContent(contacts: NPC[]): string {
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const headers = [
+    "Name", "Phone", "Occupation", "Location", "How We Met",
+    "Category", "Tags", "Notes", "Date Added", "Last Modified",
+  ];
+  const rows = contacts
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) =>
+      [
+        c.name, c.phone, c.occupation, c.location, c.howWeMet,
+        c.category, (c.tags || []).join("; "), c.notes,
+        fmtDate(c.createdAt), fmtDate(c.updatedAt),
+      ].map(esc).join(",")
+    );
+  return [headers.map(esc).join(","), ...rows].join("\n");
+}
+
+// Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
+export function buildNPCsCSVExport(): CSVExport {
+  let contacts: NPC[] = [];
+  try { contacts = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { /* ignore */ }
+  return { folder: "Contacts", filename: "npcs.csv", content: npcsToCSVContent(contacts) };
 }
 
 const DANIELA: NPC = {
@@ -469,22 +496,7 @@ export default function NPCsPage() {
   }
 
   function exportCSV() {
-    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const headers = [
-      "Name", "Phone", "Occupation", "Location", "How We Met",
-      "Category", "Tags", "Notes", "Date Added", "Last Modified",
-    ];
-    const rows = contacts
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((c) =>
-        [
-          c.name, c.phone, c.occupation, c.location, c.howWeMet,
-          c.category, (c.tags || []).join("; "), c.notes,
-          fmtDate(c.createdAt), fmtDate(c.updatedAt),
-        ].map(esc).join(",")
-      );
-    const csv = [headers.map(esc).join(","), ...rows].join("\n");
+    const csv = npcsToCSVContent(contacts);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

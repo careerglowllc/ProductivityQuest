@@ -1,15 +1,74 @@
 import { Link } from "wouter";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, DollarSign, LogOut } from "lucide-react";
+import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, DollarSign, LogOut, Download, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { useToast } from "@/hooks/use-toast";
+import { buildRecipesCSVExport } from "@/pages/recipes";
+import { buildAccomplishmentsCSVExport } from "@/pages/accomplishments";
+import { buildNPCsCSVExport } from "@/pages/npcs";
+import { buildCountriesVisitedCSVExport } from "@/pages/countries-visited";
+import { buildStatesVisitedCSVExport } from "@/pages/us-states-visited";
+import { buildShopItemsCSVExport } from "@/pages/shop";
+
+async function exportAllAsZip() {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+
+  const results = await Promise.allSettled([
+    Promise.resolve(buildRecipesCSVExport()),
+    Promise.resolve(buildAccomplishmentsCSVExport()),
+    Promise.resolve(buildNPCsCSVExport()),
+    buildCountriesVisitedCSVExport(),
+    buildStatesVisitedCSVExport(),
+    buildShopItemsCSVExport(),
+  ]);
+
+  let successCount = 0;
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      const exp = result.value;
+      zip.folder(exp.folder)!.file(exp.filename, exp.content);
+      successCount++;
+    } else {
+      console.error("Export failed for one section:", result.reason);
+    }
+  }
+
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `productivityquest-export-${new Date().toISOString().slice(0, 10)}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  return successCount;
+}
 
 export default function SettingsPage() {
   const { isDark } = useTheme();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportAll = async () => {
+    setExporting(true);
+    try {
+      const count = await exportAllAsZip();
+      toast({ title: "Export complete!", description: `Bundled ${count} CSV file(s) into a zip, organized by section.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err?.message || "Something went wrong.", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -117,6 +176,29 @@ export default function SettingsPage() {
             </div>
             <p className={`text-yellow-200/70 ${isMobile ? 'text-xs' : ''}`}>Manage your integrations and preferences</p>
           </div>
+
+          {/* Export All */}
+          <Card className={`bg-slate-800/60 backdrop-blur-md border border-sky-600/30 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+            <CardContent className={isMobile ? 'p-3' : 'p-5'}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className={`${isMobile ? 'text-sm' : 'text-lg'} font-serif font-bold text-sky-100`}>Export All as CSV</h3>
+                  <p className={`${isMobile ? 'text-[11px] leading-tight' : 'text-sm'} text-sky-200/70`}>
+                    One-click zip of Recipes, Accomplishments, Countries/States Traveled, Item Shop & NPCs — organized into folders by section.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleExportAll}
+                  disabled={exporting}
+                  className="bg-sky-600 hover:bg-sky-500 text-white shrink-0"
+                  size={isMobile ? "sm" : "default"}
+                >
+                  {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
+                  {exporting ? "Exporting…" : "Export All"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Settings Menu */}
           <div className={isMobile ? 'space-y-1.5' : 'space-y-4'}>

@@ -8,9 +8,10 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import { Link } from "wouter";
-import { ArrowLeft, Edit2, X, Plus, Trash2, Check, Globe } from "lucide-react";
+import { ArrowLeft, Edit2, X, Plus, Trash2, Check, Globe, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -296,6 +297,29 @@ const ensure = (arr?: string[]) => (arr && arr.length ? arr : [""]);
 
 function storageKey(iso: string) { return `country-${iso}`; }
 
+// Pure async builder (fetches its own data) so the Settings page's "Export All" master
+// export can build this CSV without the Countries Visited page being mounted.
+export async function buildCountriesVisitedCSVExport(): Promise<CSVExport> {
+  const r = await fetch("/api/user-data", { credentials: "include" });
+  const kvData: Record<string, string> = await r.json();
+  const headers = ["ISO Code", "Name", "Visited At", "Cities", "Highlights", "Lowlights", "Lessons"];
+  const rows: unknown[][] = [];
+  for (const [k, v] of Object.entries(kvData)) {
+    if (!k.startsWith("country-") || k.startsWith("country-__")) continue;
+    const iso = k.slice(8);
+    let entry: CountryEntry;
+    try { entry = JSON.parse(v); } catch { continue; }
+    if (!entry.visitedAt && !(entry.cities && entry.cities.length)) continue;
+    rows.push([
+      iso, ISO_NAMES[iso] ?? iso, entry.visitedAt,
+      (entry.cities || []).join("; "), (entry.highlights || []).join("; "),
+      (entry.lowlights || []).join("; "), (entry.lessons || []).join("; "),
+    ]);
+  }
+  rows.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  return { folder: "Travel", filename: "countries-visited.csv", content: rowsToCSV(headers, rows) };
+}
+
 export default function CountriesVisitedPage() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -567,8 +591,16 @@ export default function CountriesVisitedPage() {
             <Globe className="h-6 w-6 text-sky-400" />
             <h1 className="text-2xl font-serif font-bold text-white">Countries Visited</h1>
           </div>
-          <div className="text-sm text-sky-300 font-semibold">
-            {displayedVisitedIsos.length} {displayedVisitedIsos.length === 1 ? "country" : "countries"}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { buildCountriesVisitedCSVExport().then(exp => downloadCSV(exp.filename, exp.content)); }}
+              className="inline-flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+            <div className="text-sm text-sky-300 font-semibold">
+              {displayedVisitedIsos.length} {displayedVisitedIsos.length === 1 ? "country" : "countries"}
+            </div>
           </div>
         </div>
         {/* Simple / Detailed view toggle */}

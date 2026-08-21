@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
   Clock,
   Users,
   ArrowLeft,
+  Download,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -86,6 +88,17 @@ function loadRecipes(): Recipe[] {
 
 function saveRecipes(recipes: Recipe[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+}
+
+// Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
+export function buildRecipesCSVExport(): CSVExport {
+  const recipes = loadRecipes();
+  const headers = ["Name", "Description", "Ingredients", "Instructions", "Prep Time", "Cook Time", "Servings", "Tags", "Created", "Updated"];
+  const rows = recipes.map(r => [
+    r.name, r.description, r.ingredients, r.instructions,
+    r.prepTime, r.cookTime, r.servings, r.tags.join("; "), r.createdAt, r.updatedAt,
+  ]);
+  return { folder: "Recipes", filename: "recipes.csv", content: rowsToCSV(headers, rows) };
 }
 
 // ── Recipe emoji picker ──────────────────────────────────────
@@ -309,6 +322,13 @@ export default function RecipesPage() {
               className="bg-orange-600 hover:bg-orange-500 text-white font-semibold shrink-0"
             >
               <Plus className="h-4 w-4 mr-1.5" /> New Recipe
+            </Button>
+            <Button
+              onClick={() => { const exp = buildRecipesCSVExport(); downloadCSV(exp.filename, exp.content); }}
+              variant="outline"
+              className="border-orange-600/40 text-orange-200 hover:bg-orange-600/10 shrink-0"
+            >
+              <Download className="h-4 w-4 mr-1.5" /> Export CSV
             </Button>
           </div>
 
