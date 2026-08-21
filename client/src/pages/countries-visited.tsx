@@ -162,6 +162,8 @@ const ISO_NAMES: Record<string, string> = {
   ISR: "Israel", TWN: "Taiwan",
   USA: "United States", CAN: "Canada", HAW: "Hawaii 🌺", ALA: "Alaska ❄️",
   HUN: "Hungary", HRV: "Croatia",
+  // GBR is never stored (visits are tracked per UK nation below) — name kept only for the simple-view aggregate
+  GBR: "United Kingdom",
   ENG: "England 🏴󠁧󠁢󠁥󠁮󠁧󠁿", SCT: "Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿", WLS: "Wales 🏴󠁧󠁢󠁷󠁬󠁳󠁿", NIR: "Northern Ireland",
   SIC: "Sicily 🏝️", SAR: "Sardinia (Italy)",
   // US States
@@ -184,6 +186,16 @@ const ISO_NAMES: Record<string, string> = {
   "CA-NS": "Nova Scotia", "CA-NU": "Nunavut", "CA-ON": "Ontario",
   "CA-PE": "Prince Edward Island", "CA-QC": "Quebec", "CA-SK": "Saskatchewan", "CA-YT": "Yukon",
 };
+
+// ISO codes that only exist as a "detailed" breakdown of a bigger country (US states, Canada
+// provinces, UK nations, Italian regions). The simple view hides these and shows just the
+// parent country instead.
+const SUB_REGION_ISOS = new Set<string>([
+  ...Object.values(US_FIPS_TO_ISO).filter(iso => iso.startsWith("US-")),
+  ...Object.values(CANADA_PROVINCE_TO_ISO),
+  "ENG", "SCT", "WLS", "NIR",
+  "SIC", "SAR",
+]);
 
 // Seeded visit dates (v2 migration)
 const SEED_DATES: Record<string, string> = {
@@ -433,6 +445,17 @@ export default function CountriesVisitedPage() {
     return e.visitedAt || (e.cities && e.cities.length > 0);
   });
 
+  // Simple view = whole countries only. Detailed view = current granular breakdown
+  // (US states, Canada provinces, UK nations, Italy regions). Defaults to simple.
+  const [view, setView] = useState<"simple" | "detailed">("simple");
+  const ukVisited = ["ENG", "SCT", "WLS", "NIR"].some(iso => {
+    const e = visitedMap[iso];
+    return e && (e.visitedAt || e.cities?.length);
+  });
+  const displayedVisitedIsos = view === "simple"
+    ? [...visitedIsos.filter(iso => !SUB_REGION_ISOS.has(iso)), ...(ukVisited ? ["GBR"] : [])]
+    : visitedIsos;
+
   // Hover tooltip state
   const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null);
 
@@ -452,6 +475,12 @@ export default function CountriesVisitedPage() {
     setSelected({ iso, name });
     setEditing(false);
     setTooltip(null);
+  };
+
+  const changeView = (v: "simple" | "detailed") => {
+    setView(v);
+    setSelected(null);
+    setEditing(false);
   };
 
   const startEdit = () => {
@@ -521,11 +550,32 @@ export default function CountriesVisitedPage() {
             <h1 className="text-2xl font-serif font-bold text-white">Countries Visited</h1>
           </div>
           <div className="text-sm text-sky-300 font-semibold">
-            {visitedIsos.length} {visitedIsos.length === 1 ? "country" : "countries"}
+            {displayedVisitedIsos.length} {displayedVisitedIsos.length === 1 ? "country" : "countries"}
           </div>
         </div>
+        {/* Simple / Detailed view toggle */}
+        <div className="flex items-center gap-1.5 mb-3 bg-slate-800/60 border border-slate-700/60 rounded-full p-1 w-fit">
+          <button
+            onClick={() => changeView("simple")}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+              view === "simple" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            🌍 Simple
+          </button>
+          <button
+            onClick={() => changeView("detailed")}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+              view === "detailed" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            🔍 Detailed
+          </button>
+        </div>
         <p className="text-slate-400 text-sm mb-4">
-          Click any country to log your visit. Highlighted = visited. Hover to see names.
+          {view === "simple"
+            ? "Whole countries only. Click any country to log your visit. Switch to Detailed for US states, Canada provinces, UK nations & Italy's regions."
+            : "Click any country, state, province, or region to log your visit. Highlighted = visited. Hover to see names."}
         </p>
       </div>
 
@@ -552,17 +602,35 @@ export default function CountriesVisitedPage() {
                   // Fallback to geo properties for display name / click handling only.
                   const numericId = String(geo.id ?? "");
                   const isoFromTable = NUMERIC_TO_ALPHA3[numericId];
-                  const iso = isoFromTable ?? geo.properties?.ISO_A3 ?? numericId;
-                  // Skip GBR entirely — rendered by the separate UK nations layer (England/Scotland/Wales/NI)
-                  if (numericId === "826" || iso === "GBR") return null;
-                  // Skip USA and CAN — rendered by separate state/province layers
-                  if (numericId === "840" || numericId === "124") return null;
-                  const name = ISO_NAMES[iso] ?? geo.properties?.NAME ?? geo.properties?.name ?? iso;
+                  let iso = isoFromTable ?? geo.properties?.ISO_A3 ?? numericId;
+                  let name = ISO_NAMES[iso] ?? geo.properties?.NAME ?? geo.properties?.name ?? iso;
                   // Only mark visited if the ISO came from our trusted lookup table
-                  const visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
+                  let visited = isoFromTable !== undefined && Object.prototype.hasOwnProperty.call(visitedMap, isoFromTable);
+
+                  if (view === "detailed") {
+                    // Skip GBR/USA/CAN entirely — the separate nation/state/province layers below render them broken down
+                    if (numericId === "826" || iso === "GBR") return null;
+                    if (numericId === "840" || numericId === "124") return null;
+                  } else if (numericId === "826") {
+                    // Simple view: treat the UK as one country, visited if any of its 4 nations is
+                    iso = "GBR";
+                    name = ISO_NAMES.GBR;
+                    visited = ukVisited;
+                  } else if (numericId === "840") {
+                    iso = "USA";
+                    name = ISO_NAMES.USA;
+                    const e = visitedMap.USA;
+                    visited = !!(e && (e.visitedAt || e.cities?.length));
+                  } else if (numericId === "124") {
+                    iso = "CAN";
+                    name = ISO_NAMES.CAN;
+                    const e = visitedMap.CAN;
+                    visited = !!(e && (e.visitedAt || e.cities?.length));
+                  }
+
                   const isSelected = selected?.iso === iso;
                   const displayGeo = numericId === "250" ? stripFrenchOverseas(geo)
-                    : numericId === "380" ? stripIslandsFromItaly(geo)
+                    : (numericId === "380" && view === "detailed") ? stripIslandsFromItaly(geo)
                     : geo;
                   return (
                     <Geography
@@ -606,6 +674,8 @@ export default function CountriesVisitedPage() {
               }
             </Geographies>
 
+            {view === "detailed" && (
+            <>
             {/* UK Nations layer — overlays England/Scotland/Wales/NI as separate clickable regions */}
             <Geographies geography={UK_GEO_URL}>
               {({ geographies }: { geographies: any[] }) =>
@@ -801,6 +871,8 @@ export default function CountriesVisitedPage() {
                 })
               }
             </Geographies>
+            </>
+            )}
 
             {/* Hong Kong overlay — rendered from 50m atlas since HKG (id 344) is invisible at 110m */}
             <Geographies geography={WORLD_50M_URL}>
@@ -923,10 +995,12 @@ export default function CountriesVisitedPage() {
                 {selectedEntry?.visitedAt && <p className="text-sky-300 text-sm">📅 {selectedEntry.visitedAt}</p>}
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <button onClick={startEdit} className="p-1.5 rounded-lg bg-sky-600/20 text-sky-300 hover:bg-sky-600/40" title="Edit">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                {selectedEntry && (
+                {selected.iso !== "GBR" && (
+                  <button onClick={startEdit} className="p-1.5 rounded-lg bg-sky-600/20 text-sky-300 hover:bg-sky-600/40" title="Edit">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                )}
+                {selectedEntry && selected.iso !== "GBR" && (
                   <button onClick={() => removeCountry(selected.iso)} className="p-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/40" title="Remove">
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -937,7 +1011,9 @@ export default function CountriesVisitedPage() {
               </div>
             </div>
 
-            {selectedEntry ? (
+            {selected.iso === "GBR" ? (
+              <p className="text-slate-500 text-sm">Made up of England, Scotland, Wales & Northern Ireland — switch to Detailed view to log visits for each nation individually.</p>
+            ) : selectedEntry ? (
               <div className="space-y-2.5 text-sm max-h-52 overflow-y-auto pr-1">
                 {selectedEntry.cities?.length > 0 && (
                   <div>
@@ -1027,17 +1103,24 @@ export default function CountriesVisitedPage() {
       )}
 
       {/* Visited chips */}
-      {visitedIsos.length > 0 && (
+      {displayedVisitedIsos.length > 0 && (
         <div className={`${isMobile ? "px-4" : "px-6"} max-w-7xl mx-auto mt-6`}>
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
-            Your Visited Countries ({visitedIsos.length})
+            Your Visited {view === "simple" ? "Countries" : "Places"} ({displayedVisitedIsos.length})
           </h3>
           <div className="flex flex-wrap gap-2">
-            {visitedIsos.sort().map(iso => (
-              <button key={iso} onClick={() => openCountry(iso, nameCache[iso] ?? iso)}
-                className="px-3 py-1 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 text-sm hover:bg-sky-500/30 transition-colors">
-                {nameCache[iso] ?? iso}
-              </button>
+            {displayedVisitedIsos.sort().map(iso => (
+              iso === "GBR" ? (
+                <span key={iso}
+                  className="px-3 py-1 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 text-sm">
+                  {ISO_NAMES.GBR}
+                </span>
+              ) : (
+                <button key={iso} onClick={() => openCountry(iso, nameCache[iso] ?? iso)}
+                  className="px-3 py-1 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 text-sm hover:bg-sky-500/30 transition-colors">
+                  {nameCache[iso] ?? iso}
+                </button>
+              )
             ))}
           </div>
         </div>
