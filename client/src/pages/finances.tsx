@@ -1254,6 +1254,13 @@ export default function Finances() {
         notes: "Simply Sing singing app — monthly subscription",
       }));
     }
+    if (!financialItems.find(i => i.item === "Instagram Verified Checkmark (MailWisp)")) {
+      tasks.push(create({
+        item: "Instagram Verified Checkmark (MailWisp)", category: "Business", tags: ["Business", "Subscription"],
+        monthlyCost: 1499, recurType: "Monthly",
+        notes: "Instagram verified checkmark — monthly subscription for MailWisp",
+      }));
+    }
     const hushed = financialItems.find(i => i.item.toLowerCase().includes("hushed"));
     if (hushed) tasks.push(remove(hushed.id));
 
