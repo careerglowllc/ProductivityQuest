@@ -26,6 +26,14 @@ const ITALY_REGIONS_URL = "https://raw.githubusercontent.com/openpolis/geojson-i
 const CANADA_PROVINCES_URL = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/canada.geojson";
 // Higher-res world atlas (50m) — used to overlay Hong Kong (id 344) which is invisible at 110m resolution
 const WORLD_50M_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
+// City-focused sub-regions for countries where only specific cities have been visited — a
+// hand-picked bundle of province/state boundaries (from geoBoundaries.org, ODbL/CC-BY) built
+// locally rather than fetched whole, so we ship only the ~14 regions we actually need.
+// Each feature's `parentIso` reuses the country's existing storage key (no new toggles).
+const CITY_REGIONS_URL = "/geo/city-regions.geojson";
+// Detailed view: countries rendered as focused city sub-regions instead of the whole country
+// (Italy also gets this treatment, via the existing Italy regions overlay — see ITALY_REGION_TO_ISO)
+const CITY_DETAIL_NUMERIC_IDS = new Set(["392", "620", "724", "170", "276", "250", "380", "156", "704", "764"]);
 
 // Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
 // IMPORTANT: only countries in this table will ever show as "visited" on the map.
@@ -69,22 +77,9 @@ function stripFrenchOverseas(geo: any) {
 }
 
 // world-atlas's Italy feature bundles Sicily and Sardinia in as their own rings in the same
-// MultiPolygon as the mainland, so filling Italy blue paints both islands too. Drop those rings
-// here — they're rendered separately (and independently tracked as visited/not) by the Italy regions overlay.
-function stripIslandsFromItaly(geo: any) {
-  if (geo.geometry?.type !== "MultiPolygon") return geo;
-  const coordinates = geo.geometry.coordinates.filter((polygon: number[][][]) => {
-    let maxLat = -Infinity, maxLng = -Infinity;
-    for (const [lng, lat] of polygon[0]) {
-      if (lat > maxLat) maxLat = lat;
-      if (lng > maxLng) maxLng = lng;
-    }
-    if (maxLat < 38.5) return false; // Sicily — entirely below the mainland "boot" tip (~38.3°N)
-    if (maxLat < 42.2 && maxLng < 10.2) return false; // Sardinia — west island, well below Piedmont/Liguria's latitude
-    return true;
-  });
-  return { ...geo, geometry: { ...geo.geometry, coordinates } };
-}
+// MultiPolygon as the mainland, so filling Italy blue paints both islands too. In Simple view
+// we keep the whole thing (islands included); in Detailed view Italy is skipped entirely and
+// only the Lazio/Sicily/Sardinia regions render (see ITALY_REGION_TO_ISO), so no stripping is needed there.
 
 // us-atlas FIPS → ISO for all 50 US states (+ DC)
 // Alaska and Hawaii keep their legacy keys (ALA/HAW) for backward data compatibility
@@ -120,10 +115,12 @@ const CANADA_PROVINCE_TO_ISO: Record<string, string> = {
 };
 
 // Italy region istat codes → custom ISOs for regions tracked separately from ITA
-// Sicily = region 19, Sardinia = region 20
+// Sicily = region 19, Sardinia = region 20. Lazio (12) reuses the ITA key itself —
+// it's how "just Rome" is shown in Detailed view instead of the whole country.
 const ITALY_REGION_TO_ISO: Record<string, string> = {
   "19": "SIC",
   "20": "SAR",
+  "12": "ITA",
 };
 
 // All tracked ISO codes
@@ -574,7 +571,7 @@ export default function CountriesVisitedPage() {
         </div>
         <p className="text-slate-400 text-sm mb-4">
           {view === "simple"
-            ? "Whole countries only. Click any country to log your visit. Switch to Detailed for US states, Canada provinces, UK nations & Italy's regions."
+            ? "Whole countries only. Click any country to log your visit. Switch to Detailed for US states, Canada provinces, UK nations, Italy's regions & city hotspots (Japan, Portugal, Spain, Colombia, Germany, France, China, Vietnam & Thailand)."
             : "Click any country, state, province, or region to log your visit. Highlighted = visited. Hover to see names."}
         </p>
       </div>
@@ -611,6 +608,8 @@ export default function CountriesVisitedPage() {
                     // Skip GBR/USA/CAN entirely — the separate nation/state/province layers below render them broken down
                     if (numericId === "826" || iso === "GBR") return null;
                     if (numericId === "840" || numericId === "124") return null;
+                    // Skip countries shown as focused city sub-regions instead (see CITY_REGIONS_URL / ITALY_REGION_TO_ISO)
+                    if (CITY_DETAIL_NUMERIC_IDS.has(numericId)) return null;
                   } else if (numericId === "826") {
                     // Simple view: treat the UK as one country, visited if any of its 4 nations is
                     iso = "GBR";
@@ -629,9 +628,7 @@ export default function CountriesVisitedPage() {
                   }
 
                   const isSelected = selected?.iso === iso;
-                  const displayGeo = numericId === "250" ? stripFrenchOverseas(geo)
-                    : (numericId === "380" && view === "detailed") ? stripIslandsFromItaly(geo)
-                    : geo;
+                  const displayGeo = numericId === "250" ? stripFrenchOverseas(geo) : geo;
                   return (
                     <Geography
                       key={geo.rsmKey}
@@ -830,7 +827,7 @@ export default function CountriesVisitedPage() {
                   const regionCode = String(geo.properties?.reg_istat_code_num ?? "");
                   const iso = ITALY_REGION_TO_ISO[regionCode];
                   if (!iso) return null;
-                  const name = ISO_NAMES[iso] ?? iso;
+                  const name = regionCode === "12" ? "Italy (Rome)" : (ISO_NAMES[iso] ?? iso);
                   const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
                     && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
                   const isSelected = selected?.iso === iso;
@@ -839,6 +836,56 @@ export default function CountriesVisitedPage() {
                       key={geo.rsmKey ?? iso}
                       geography={geo}
                       onClick={() => openCountry(iso, name)}
+                      onMouseEnter={(e: any) => {
+                        const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
+                        setTooltip({
+                          name,
+                          x: svgRect ? e.clientX - svgRect.left : 0,
+                          y: svgRect ? e.clientY - svgRect.top : 0,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{
+                        default: {
+                          fill: visited ? "#38BDF8" : "#1e293b",
+                          stroke: isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#4a5568",
+                          strokeWidth: isSelected ? (visited ? 0 : 2) : 0.6,
+                          outline: "none",
+                          cursor: "pointer",
+                          filter: isSelected && !visited ? "drop-shadow(0 0 4px #38BDF8)" : "none",
+                        },
+                        hover: {
+                          fill: visited ? "#7DD3FC" : "#1e3a5f",
+                          stroke: visited ? "#0c4a6e" : "#38BDF8",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: { fill: visited ? "#0EA5E9" : "#1e3a5f", outline: "none" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
+            {/* City-focused sub-regions — Japan/Portugal/Spain/Colombia/Germany/France/China/Vietnam/Thailand
+                render as just the city area(s) visited, reusing each country's existing visited record */}
+            <Geographies geography={CITY_REGIONS_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
+                  const iso = geo.properties?.parentIso;
+                  const cityLabel = geo.properties?.name;
+                  if (!iso) return null;
+                  const name = `${cityLabel} (${ISO_NAMES[iso] ?? iso})`;
+                  const visited = Object.prototype.hasOwnProperty.call(visitedMap, iso)
+                    && !!(visitedMap[iso]?.visitedAt || visitedMap[iso]?.cities?.length);
+                  const isSelected = selected?.iso === iso;
+                  return (
+                    <Geography
+                      key={geo.rsmKey ?? `${iso}-${cityLabel}`}
+                      geography={geo}
+                      onClick={() => openCountry(iso, ISO_NAMES[iso] ?? iso)}
                       onMouseEnter={(e: any) => {
                         const svgRect = e.target?.ownerSVGElement?.getBoundingClientRect?.();
                         setTooltip({
