@@ -1136,7 +1136,7 @@ export default function Finances() {
   });
   // Pending home improvement costs (July 2026) — deducted from net worth as real outlays
   const homeShedCost = 6158;    // new shed — final cost
-  const homeFloorMoldingCost = 6000; // floor molding & cabinet demo — tentative cost (not yet final)
+  const homeFloorMoldingCost = 9835; // floor molding, cabinet demo & plumber visit — final cost
   const homeFloorsCost = 17000; // new floors — tentative cost (not yet final)
   const homeCabinetsCost = 19000; // new cabinets — tentative cost (not yet final)
   const homeRoofFixCost = 500;  // small roof fix — final cost
@@ -4131,7 +4131,7 @@ export default function Finances() {
                 { label: "New shed (Affirm financed)", amount: 6200 },
                 { label: "Small roof fix", amount: 500 },
                 { label: "Fume hood install", amount: 1300 },
-                { label: "Floor molding and cabinet demo", amount: 6000, tentative: true },
+                { label: "Floor molding and cabinet demo and plumber visit", amount: 9835 },
                 { label: "Floors", amount: 17000, tentative: true },
                 { label: "Cabinets", amount: 19000, tentative: true },
               ];
@@ -5181,10 +5181,10 @@ export default function Finances() {
                             <span className="text-slate-500">$6,158</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="flex items-center gap-1">Floor molding and cabinet demo
-                              <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
+                            <span className="flex items-center gap-1">Floor molding and cabinet demo and plumber visit
+                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
                             </span>
-                            <span className="text-slate-500">$6,000</span>
+                            <span className="text-slate-500">$9,835</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="flex items-center gap-1">Floors
