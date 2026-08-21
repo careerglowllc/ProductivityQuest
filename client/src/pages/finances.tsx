@@ -1102,7 +1102,12 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-home-value") || "636000"); } catch { return 636000; }
   });
   const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-loan") || "614000"); } catch { return 614000; }
+    try { return parseFloat(localStorage.getItem("nw-home-loan") || "607798.98"); } catch { return 607798.98; }
+  });
+  // Escrow/impound balance held by the servicer — refunded to us at payoff/sale, so it's a
+  // credit added back to net proceeds (not a cost).
+  const [homeEscrowBalance, setHomeEscrowBalance] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("nw-home-escrow") || "2744.40"); } catch { return 2744.40; }
   });
   const [homePurchasePrice, setHomePurchasePrice] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-purchase") || "636000"); } catch { return 636000; }
@@ -1488,7 +1493,7 @@ export default function Finances() {
   const _homeAgentCommission = _homeSalePrice * (homeSellerFee / 100);
   const _homeTransferTax = _homeSalePrice * _HOME_TRANSFER_TAX_RATE;
   const _homeTotalSellingCosts = _homeAgentCommission + _homeTransferTax + homeOtherCosts;
-  const _homeNetCashAfterSale = _homeSalePrice - homeLoanBalance - _homeTotalSellingCosts;
+  const _homeNetCashAfterSale = _homeSalePrice - homeLoanBalance + homeEscrowBalance - _homeTotalSellingCosts;
   const _homeAdjustedBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
   const _homeRawGain = _homeSalePrice - _homeTotalSellingCosts - _homeAdjustedBasis;
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
@@ -4100,13 +4105,13 @@ export default function Finances() {
               const reAgentCommission = reSalePrice * (homeSellerFee / 100);
               const reTransferTax = reSalePrice * 0.0022;
               const reTotalSellingCosts = reAgentCommission + reTransferTax + homeOtherCosts;
-              const reNetCashPreTax = reSalePrice - homeLoanBalance - reTotalSellingCosts;
+              const reNetCashPreTax = reSalePrice - homeLoanBalance + homeEscrowBalance - reTotalSellingCosts;
               const reAdjBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
               const reRawGain = reSalePrice - reTotalSellingCosts - reAdjBasis;
               const reTaxableGain = Math.max(0, reRawGain - homePrimaryExclusion);
               const reCapGainsTax = reTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
               const reAfterTax = reNetCashPreTax - reCapGainsTax - homePendingCosts;
-              const reEquityRaw = reSalePrice - homeLoanBalance; // gross equity before costs/tax
+              const reEquityRaw = reSalePrice - homeLoanBalance + homeEscrowBalance; // gross equity before costs/tax (escrow refund credited back)
 
               // ── Housing category monthly costs from finance items ──────────────────
               const housingItems = financialItems.filter(i =>
@@ -4225,6 +4230,10 @@ export default function Finances() {
                         <div className="flex justify-between text-slate-400">
                           <span>Remaining loan balance</span>
                           <span className="text-red-400">−${homeLoanBalance.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Escrow balance refund</span>
+                          <span className="text-emerald-400">+${homeEscrowBalance.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-slate-400">
                           <span>Agent commission ({homeSellerFee}%)</span>
@@ -4789,7 +4798,7 @@ export default function Finances() {
               const homeAgentCommission = homeSalePrice * (homeSellerFee / 100);
               const homeTransferTax = homeSalePrice * HOME_TRANSFER_TAX_RATE;
               const homeTotalSellingCosts = homeAgentCommission + homeTransferTax + homeOtherCosts;
-              const homeNetCashAfterSale = homeSalePrice - homeLoanBalance - homeTotalSellingCosts;
+              const homeNetCashAfterSale = homeSalePrice - homeLoanBalance + homeEscrowBalance - homeTotalSellingCosts;
               // Capital gains side (loan not subtracted — IRS basis calculation)
               const homeAdjustedBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
               const homeRawGain = homeSalePrice - homeTotalSellingCosts - homeAdjustedBasis;
@@ -5114,6 +5123,10 @@ export default function Finances() {
                           <div className="flex justify-between">
                             <span className="flex items-center gap-1.5">Loan payoff <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">manual</span></span>
                             <span className="text-red-400">-${homeLoanBalance.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Escrow balance refund</span>
+                            <span className="text-emerald-400">+${homeEscrowBalance.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between font-semibold border-t border-slate-700/30 pt-1 mt-1">
                             <span className="text-slate-300">Net cash (pre-tax)</span>
@@ -5486,6 +5499,12 @@ export default function Finances() {
                                 <Label className="text-slate-300 text-xs mb-1 block">Loan Balance ($)</Label>
                                 <Input type="number" min="0" step="1000" value={homeLoanBalance}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setHomeLoanBalance(v); try { localStorage.setItem("nw-home-loan", String(v)); } catch {} }}
+                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-slate-300 text-xs mb-1 block">Escrow Balance ($) <span className="text-slate-600">(refunded at payoff)</span></Label>
+                                <Input type="number" min="0" step="100" value={homeEscrowBalance}
+                                  onChange={e => { const v = parseFloat(e.target.value)||0; setHomeEscrowBalance(v); try { localStorage.setItem("nw-home-escrow", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                               </div>
                               <div>
