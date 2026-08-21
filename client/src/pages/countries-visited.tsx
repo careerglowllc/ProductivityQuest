@@ -4,6 +4,7 @@ import {
   ComposableMap,
   Geographies,
   Geography,
+  Marker,
   ZoomableGroup,
 } from "react-simple-maps";
 import { Link } from "wouter";
@@ -34,6 +35,26 @@ const CITY_REGIONS_URL = "/geo/city-regions.geojson";
 // Detailed view: countries rendered as focused city sub-regions instead of the whole country
 // (Italy also gets this treatment, via the existing Italy regions overlay — see ITALY_REGION_TO_ISO)
 const CITY_DETAIL_NUMERIC_IDS = new Set(["392", "620", "724", "170", "276", "250", "380", "156", "704", "764"]);
+
+// City-region polygons are too small to see/click at world-map zoom, so we also drop a small
+// fixed-size dot marker at each one's centroid — always visible/clickable regardless of zoom.
+const CITY_MARKERS: { coords: [number, number]; parentIso: string; label: string }[] = [
+  { coords: [139.493, 35.696], parentIso: "JPN", label: "Tokyo" },
+  { coords: [135.398, 35.319], parentIso: "JPN", label: "Kyoto" },
+  { coords: [-9.187, 39.024], parentIso: "PRT", label: "Lisbon" },
+  { coords: [-3.719, 40.414], parentIso: "ESP", label: "Madrid" },
+  { coords: [-74.185, 4.370], parentIso: "COL", label: "Bogotá" },
+  { coords: [-76.734, 3.891], parentIso: "COL", label: "Cali" },
+  { coords: [6.853, 50.837], parentIso: "DEU", label: "Cologne" },
+  { coords: [2.358, 48.847], parentIso: "FRA", label: "Paris" },
+  { coords: [121.350, 31.075], parentIso: "CHN", label: "Shanghai" },
+  { coords: [119.289, 32.936], parentIso: "CHN", label: "Jiangsu (Suzhou/Yancheng)" },
+  { coords: [112.956, 23.288], parentIso: "CHN", label: "Guangdong (Shenzhen)" },
+  { coords: [105.763, 21.005], parentIso: "VNM", label: "Hanoi" },
+  { coords: [100.523, 13.689], parentIso: "THA", label: "Bangkok" },
+  { coords: [98.849, 18.997], parentIso: "THA", label: "Chiang Mai" },
+  { coords: [12.483, 41.895], parentIso: "ITA", label: "Rome" },
+];
 
 // Numeric ISO 3166-1 → alpha-3 lookup for all seeded countries
 // IMPORTANT: only countries in this table will ever show as "visited" on the map.
@@ -918,6 +939,39 @@ export default function CountriesVisitedPage() {
                 })
               }
             </Geographies>
+
+            {/* Fixed-size dot markers for the city sub-regions above (and Rome) — the actual
+                polygons are often too small to see or click at world-map zoom */}
+            {CITY_MARKERS.map((m) => {
+              const e = visitedMap[m.parentIso];
+              const visited = !!(e && (e.visitedAt || e.cities?.length));
+              const isSelected = selected?.iso === m.parentIso;
+              const name = `${m.label} (${ISO_NAMES[m.parentIso] ?? m.parentIso})`;
+              return (
+                <Marker
+                  key={m.label}
+                  coordinates={m.coords}
+                  onClick={() => openCountry(m.parentIso, ISO_NAMES[m.parentIso] ?? m.parentIso)}
+                  onMouseEnter={(e2: any) => {
+                    const svgRect = e2.target?.ownerSVGElement?.getBoundingClientRect?.();
+                    setTooltip({
+                      name,
+                      x: svgRect ? e2.clientX - svgRect.left : 0,
+                      y: svgRect ? e2.clientY - svgRect.top : 0,
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
+                >
+                  <circle
+                    r={isSelected ? 5 : 3.5}
+                    fill={visited ? "#38BDF8" : "#1e293b"}
+                    stroke={isSelected ? "#38BDF8" : visited ? "#0c4a6e" : "#94a3b8"}
+                    strokeWidth={isSelected ? 2 : 1}
+                    style={{ cursor: "pointer" }}
+                  />
+                </Marker>
+              );
+            })}
             </>
             )}
 
