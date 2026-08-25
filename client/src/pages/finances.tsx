@@ -1159,7 +1159,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
   // Pending home improvement costs (July 2026) — deducted from net worth as real outlays
-  const homeShedCost = 6158;    // new shed — final cost
+  const homeShedCost = 6158.28; // new shed — final cost
   const homeFloorMoldingCost = 9835; // floor molding, cabinet demo & plumber visit — final cost
   const homeFloorsCost = 17000; // new floors — tentative cost (not yet final)
   const homeCabinetsCost = 19000; // new cabinets — tentative cost (not yet final)
@@ -4159,7 +4159,7 @@ export default function Finances() {
               const RE_DOWN_PAYMENT = 30000;   // ~3.5% down + inspections/closing costs
               const oneTimeCosts = [
                 { label: "Down payment + closing costs", amount: RE_DOWN_PAYMENT },
-                { label: "New shed (Affirm financed)", amount: 6200 },
+                { label: "New shed (Affirm financed)", amount: 6158.28 },
                 { label: "Small roof fix", amount: 500 },
                 { label: "Fume hood install", amount: 1300 },
                 { label: "Floor molding and cabinet demo and plumber visit", amount: 9835 },
