@@ -5188,55 +5188,7 @@ export default function Finances() {
                           </div>
                         </div>
 
-                        {/* Pending home improvement costs — informational only, not deducted from net worth */}
-                        <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-0.5 text-xs text-slate-400">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pending Property Costs</p>
-                            <span className="text-[9px] text-slate-600 italic">ROI tab only · not in NW</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="flex items-center gap-1">New shed
-                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
-                            </span>
-                            <span className="text-slate-500">$6,158</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="flex items-center gap-1">Floor molding and cabinet demo and plumber visit
-                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
-                            </span>
-                            <span className="text-slate-500">$9,835</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="flex items-center gap-1">Floors
-                              <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
-                            </span>
-                            <span className="text-slate-500">$17,000</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="flex items-center gap-1">Cabinets
-                              <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1 py-0.5 rounded">tentative</span>
-                            </span>
-                            <span className="text-slate-500">$19,000</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="flex items-center gap-1">Small roof fix
-                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
-                            </span>
-                            <span className="text-slate-500">$500</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="flex items-center gap-1">Fume hood install
-                              <span className="text-[9px] bg-slate-700 text-slate-400 px-1 py-0.5 rounded">final</span>
-                            </span>
-                            <span className="text-slate-500">$1,300</span>
-                          </div>
-                          <div className="flex justify-between border-t border-slate-700/30 pt-1 mt-1 text-slate-500">
-                            <span>Total (see Real Estate tab)</span>
-                            <span>${homePendingCosts.toLocaleString()}</span>
-                          </div>
-                        </div>
-
-                        {/* Final after-tax */}
+                        {/* Final after-tax — sale-as-is proceeds; pending improvement costs live in the Real Estate ROI tab, not here */}
                         <div className="mt-2 pt-2 border-t border-slate-600/60">
                           <div className="flex justify-between text-sm font-bold">
                             <span className="text-slate-200">After-tax net cash</span>
