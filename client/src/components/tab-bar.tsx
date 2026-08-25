@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, Dumbbell, ChefHat, Utensils } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, BookMarked, Dumbbell, ChefHat, Utensils } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -216,7 +216,7 @@ export function TabBar() {
 
           {/* Journal - written essays + Accomplishments submenu */}
           {(() => {
-            const isJournalActive = location === "/journal" || location === "/accomplishments" || location === "/explore" || location === "/fitness" || location === "/recipes";
+            const isJournalActive = location === "/journal" || location === "/reference-beliefs" || location === "/accomplishments" || location === "/explore" || location === "/fitness" || location === "/recipes";
             return (
               <DropdownMenu open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -245,6 +245,14 @@ export function TabBar() {
                   onMouseEnter={() => setJournalMenuOpen(true)}
                   onMouseLeave={() => setJournalMenuOpen(false)}
                 >
+                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                    <Link href="/reference-beliefs">
+                      <a className="flex items-center gap-2 w-full">
+                        <BookMarked className="h-4 w-4 text-amber-400" />
+                        Reference Beliefs
+                      </a>
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
                     <Link href="/accomplishments">
                       <a className="flex items-center gap-2 w-full">

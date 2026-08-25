@@ -46,6 +46,7 @@ import AppearanceSettingsPage from "@/pages/settings-appearance";
 import MorePage from "@/pages/more";
 import RecipesPage from "@/pages/recipes";
 import FoodInCitiesPage from "@/pages/food-in-cities";
+import ReferenceBeliefsPage from "@/pages/reference-beliefs";
 installStorageSync();
 
 // Shows the last crash captured by the global error/unhandledrejection listeners in
@@ -178,6 +179,7 @@ function Router() {
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/journal" component={JournalPage} />
+            <Route path="/reference-beliefs" component={ReferenceBeliefsPage} />
             <Route path="/recipes" component={RecipesPage} />
             <Route path="/finances" component={() => (
               <ErrorBoundary label="Finances">
