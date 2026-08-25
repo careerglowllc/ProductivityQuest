@@ -1,11 +1,70 @@
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import { DayPicker, useNavigation, type CaptionLabelProps } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
+
+// Clicking (or double-clicking) the "Month Year" caption swaps it for a native
+// month input, so jumping years ahead doesn't require clicking the arrows dozens of times.
+function CaptionLabelWithMonthYearInput(props: CaptionLabelProps) {
+  const { goToMonth } = useNavigation()
+  const [editing, setEditing] = React.useState(false)
+  const [value, setValue] = React.useState("")
+
+  const startEditing = () => {
+    const year = props.displayMonth.getFullYear()
+    const month = String(props.displayMonth.getMonth() + 1).padStart(2, "0")
+    setValue(`${year}-${month}`)
+    setEditing(true)
+  }
+
+  const commit = () => {
+    const match = /^(\d{4})-(\d{2})$/.exec(value)
+    if (match) {
+      const year = parseInt(match[1], 10)
+      const month = parseInt(match[2], 10) - 1
+      if (!Number.isNaN(year) && month >= 0 && month <= 11) {
+        goToMonth(new Date(year, month, 1))
+      }
+    }
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <input
+        type="month"
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); commit(); }
+          if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
+        }}
+        aria-label="Jump to month and year"
+        data-testid="calendar-month-year-input"
+        className="text-sm font-medium bg-transparent border border-gray-300 dark:border-yellow-600/40 rounded px-1 py-0.5 text-gray-900 dark:text-yellow-100 focus:outline-none focus:ring-1 focus:ring-purple-500 dark:focus:ring-yellow-500"
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startEditing}
+      onDoubleClick={startEditing}
+      aria-label="Click to manually enter month and year"
+      data-testid="calendar-month-year-label"
+      className="text-sm font-medium text-gray-900 dark:text-yellow-100 hover:underline cursor-pointer bg-transparent"
+    >
+      {props.displayMonth.toLocaleString("default", { month: "long", year: "numeric" })}
+    </button>
+  )
+}
 
 function Calendar({
   className,
@@ -58,6 +117,7 @@ function Calendar({
         IconRight: ({ className, ...props }) => (
           <ChevronRight className={cn("h-4 w-4", className)} {...props} />
         ),
+        CaptionLabel: CaptionLabelWithMonthYearInput,
       }}
       {...props}
     />
@@ -66,3 +126,4 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
+
