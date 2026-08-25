@@ -23,6 +23,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ReferenceLine, Area, AreaChart
 } from "recharts";
 import type { FinancialItem, NwSnapshot, FamilyContribution } from "@shared/schema";
+import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 
 const CATEGORIES = [
   "General", "Business", "Entertainment", "Food", "Housing", "Transportation",
@@ -36,6 +37,24 @@ const RECUR_TYPES = [
 
 const INCOME_CATEGORIES = ["Income", "Investment"];
 const RETIREMENT_CATEGORIES = ["Retirement"];
+
+// Pure async builder (fetches its own data) so the Settings page's "Export All" master
+// export can build this CSV without the Finances page being mounted.
+export async function buildFinancesCSVExport(): Promise<CSVExport> {
+  const r = await fetch("/api/finances", { credentials: "include" });
+  const items: FinancialItem[] = await r.json();
+  const headers = ["Item", "Category", "Tags", "Monthly Cost ($)", "Annual Cost ($)", "Recurrence", "Notes"];
+  const rows = items.map(i => [
+    i.item,
+    i.category,
+    (i.tags ?? []).join("; "),
+    (i.monthlyCost / 100).toFixed(2),
+    ((i.monthlyCost * 12) / 100).toFixed(2),
+    i.recurType,
+    i.notes ?? "",
+  ]);
+  return { folder: "Finances", filename: "financial-items.csv", content: rowsToCSV(headers, rows) };
+}
 
 // Parents pledged $15,000 total, given here-and-there for purchases (not a lump sum)
 const PARENT_GIFT_PLEDGED_CENTS = 1500000;

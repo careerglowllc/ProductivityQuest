@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { AddQuestlineModal } from "@/components/add-questline-modal";
 import { EditQuestlineModal } from "@/components/edit-questline-modal";
 import { EmojiPicker } from "@/components/emoji-picker";
+import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 
 interface QuestlineTask {
   id: number;
@@ -39,6 +40,26 @@ interface QuestlineData {
   completedAt: string | null;
   bonusAwarded: boolean | null;
   tasks: QuestlineTask[];
+}
+
+// Pure async builder (fetches its own data) so the Settings page's "Export All" master
+// export can build this CSV without the Questlines page being mounted.
+export async function buildQuestlinesCSVExport(): Promise<CSVExport> {
+  const r = await fetch("/api/questlines", { credentials: "include" });
+  const questlines: QuestlineData[] = await r.json();
+  const headers = ["ID", "Title", "Description", "Icon", "Completed", "Completed At", "Bonus Awarded", "Task Count", "Tasks Completed"];
+  const rows = questlines.map(ql => [
+    ql.id,
+    ql.title,
+    ql.description ?? "",
+    ql.icon ?? "",
+    ql.completed ? "Yes" : "No",
+    ql.completedAt ?? "",
+    ql.bonusAwarded ? "Yes" : "No",
+    ql.tasks.length,
+    ql.tasks.filter(t => t.completed).length,
+  ]);
+  return { folder: "Questlines", filename: "questlines.csv", content: rowsToCSV(headers, rows) };
 }
 
 export default function CampaignsPage() {

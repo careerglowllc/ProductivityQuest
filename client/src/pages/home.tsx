@@ -27,11 +27,20 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
+import type { CSVExport } from "@/lib/csv-export";
 
 type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `assignee-${string}`;
 type BusinessFilterType = "Apple" | "General" | "MW" | "GPR";
 type SortType = "due-date" | "importance";
 type ViewType = "list" | "grid";
+
+// Pure async builder (fetches its own data) so the Settings page's "Export All" master
+// export can reuse the server's task CSV endpoint without the Tasks page being mounted.
+export async function buildTasksCSVExport(): Promise<CSVExport> {
+  const r = await fetch("/api/tasks/export/csv", { credentials: "include" });
+  const content = await r.text();
+  return { folder: "Tasks", filename: "tasks.csv", content };
+}
 
 export default function Home() {
   const [location] = useLocation();
