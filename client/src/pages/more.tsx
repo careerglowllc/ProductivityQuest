@@ -56,7 +56,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "CPAP", path: "/cpap", icon: Activity, color: "cyan", description: "Sleep therapy tracker" },
       { name: "NPCs", path: "/npcs", icon: Users, color: "blue", description: "People rolodex" },
       { name: "Journal", path: "/journal", icon: BookOpen, color: "orange", description: "Essays & reflections" },
-      { name: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, color: "orange", description: "Free-form essay notes" },
+      { name: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, color: "orange", description: "Principles & reference notes" },
       { name: "Accomplishments", path: "/accomplishments", icon: Trophy, color: "yellow", description: "Milestones reached" },
       { name: "Explore", path: "/explore", icon: Compass, color: "cyan", description: "Places & travel" },
       { name: "Fitness", path: "/fitness", icon: Dumbbell, color: "pink", description: "Calories & lifting" },
