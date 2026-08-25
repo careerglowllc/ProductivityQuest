@@ -586,6 +586,32 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-20T00:00:00.000Z",
     updatedAt: "2026-08-20T00:00:00.000Z",
   },
+  {
+    id: "food-elia-campbell",
+    name: "Elia",
+    city: "Campbell, CA",
+    address: "276 E Campbell Ave, Campbell, CA 95008",
+    overallRating: 4,
+    stars: { food: 4, ambience: 4, price: 4 },
+    thoughts: "Greek food, reasonable price for a high-end vibe. Really great food — chicken was juicy and lamb was great. Fried cheese appetizer had a fun flaming presentation, but the taste was just ok.",
+    tags: ["Mediterranean", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-08-23T00:00:00.000Z",
+    updatedAt: "2026-08-23T00:00:00.000Z",
+  },
+  {
+    id: "food-orchard-valley-coffee-campbell",
+    name: "Orchard Valley Coffee",
+    city: "Campbell, CA",
+    address: "349 E Campbell Ave, Campbell, CA 95008",
+    overallRating: 3.2,
+    stars: { food: 3, ambience: 4, price: 3.2 },
+    thoughts: "Had the masala chai — ok but not great. Haven't tried the coffee or food yet. Ambience is fine, has seating and wifi so it works for getting work done.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-08-23T00:00:00.000Z",
+    updatedAt: "2026-08-23T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -608,7 +634,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v7";
+    const key = "food-cities-seed-v9";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
