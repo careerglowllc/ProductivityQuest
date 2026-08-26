@@ -1320,6 +1320,9 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "🇬🇺", keywords: ["flag", "guam", "pacific", "us territory"] },
   { emoji: "🇰🇮", keywords: ["flag", "kiribati", "pacific", "oceania"] },
 
+  // Country Flags — Antarctica
+  { emoji: "🇦🇶", keywords: ["flag", "antarctica", "antarctic", "south pole", "penguin"] },
+
   { emoji: "🗽", keywords: ["statue", "liberty", "new york", "america", "landmark", "travel"] },
   { emoji: "🗼", keywords: ["tokyo", "tower", "japan", "landmark", "travel"] },
   { emoji: "🗿", keywords: ["moai", "statue", "easter island", "stone", "face"] },
