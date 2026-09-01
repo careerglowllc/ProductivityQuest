@@ -2014,7 +2014,7 @@ export default function Finances() {
                 <p className="text-xs text-slate-400">Income + Investment</p>
               </div>
               <p className="text-2xl font-bold text-green-300">{formatCurrency(totalIncome)}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">per month · incl. RSU/bonus amortization</p>
             </CardContent>
           </Card>
           <Card className="bg-slate-800/60 border-red-500/30">
@@ -2605,6 +2605,7 @@ export default function Finances() {
                         <p className="text-xs text-green-400 font-semibold mb-2 flex items-center gap-1.5">
                           <TrendingUp className="h-3.5 w-3.5" /> Income + Investment
                         </p>
+                        <p className="text-[9px] text-slate-500 italic mb-1.5">Includes monthly amortization of RSU vesting &amp; sign-on bonus payouts.</p>
                         {financialItems.filter(i => classifyItem(i.category, i.tags) === "income")
                           .sort((a, b) => b.monthlyCost - a.monthlyCost)
                           .map(i => (
