@@ -49,8 +49,17 @@ function scheduleFlush() {
   }, FLUSH_DELAY_MS);
 }
 
-/** Push any queued changes to the server immediately. Never throws. */
-export async function flushNow(): Promise<void> {
+/**
+ * Push any queued changes to the server immediately. Never throws.
+ *
+ * `keepalive` must be set when flushing from a visibilitychange/pagehide handler: as the
+ * tab/app is backgrounded or torn down, a normal in-flight fetch can be aborted by the
+ * browser before it reaches the server, silently dropping the last edit (this was the
+ * cause of "mobile edit never showed up on web after refresh" — the debounced flush was
+ * still pending when the app got backgrounded/killed). `keepalive: true` tells the
+ * browser to let the request complete in the background past page unload.
+ */
+export async function flushNow(keepalive = false): Promise<void> {
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
@@ -66,7 +75,7 @@ export async function flushNow(): Promise<void> {
   pendingDeletes.clear();
 
   try {
-    await apiRequest("PUT", "/api/user-data", { updates, deletes });
+    await apiRequest("PUT", "/api/user-data", { updates, deletes }, keepalive ? { keepalive: true } : undefined);
   } catch {
     // On failure, re-queue so the next change/flush retries. Don't throw — a failed
     // sync must never break the UI; localStorage still holds the value locally.
@@ -101,12 +110,14 @@ export function installStorageSync(): void {
   };
 
   // Best-effort flush when the tab/app is backgrounded or closed (covers iOS swipe-away).
+  // keepalive=true so the request isn't cancelled mid-flight by the browser tearing down
+  // the page/app before it reaches the server.
   if (typeof window !== "undefined") {
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") void flushNow();
+      if (document.visibilityState === "hidden") void flushNow(true);
     });
     window.addEventListener("pagehide", () => {
-      void flushNow();
+      void flushNow(true);
     });
   }
 }
