@@ -29,7 +29,11 @@ import {
   FileType,
   CheckSquare,
   Square,
+  HeartHandshake,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 
@@ -242,6 +246,34 @@ export default function JournalPage() {
               <h1 className="text-4xl font-serif font-bold text-yellow-100">Journal</h1>
             </div>
             <p className="text-yellow-200/70 text-lg">Your written essays &amp; reflections</p>
+          </div>
+
+          {/* Submenu */}
+          <div className="grid sm:grid-cols-2 gap-3 mb-8">
+            <Link href="/journal/daily-gews">
+              <a className="flex items-center justify-between gap-3 rounded-xl border border-amber-600/30 bg-slate-800/60 hover:border-amber-500/60 hover:bg-slate-800/80 transition-colors p-4 group">
+                <div className="flex items-center gap-3">
+                  <HeartHandshake className="h-6 w-6 text-amber-400 shrink-0" />
+                  <div>
+                    <p className="text-amber-50 font-semibold font-serif">Daily GEWS</p>
+                    <p className="text-slate-400 text-xs">Gratitudes · Wins · Exciteds · Sadnesses</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-amber-300 transition-colors shrink-0" />
+              </a>
+            </Link>
+            <Link href="/journal/empowering-thoughts">
+              <a className="flex items-center justify-between gap-3 rounded-xl border border-amber-600/30 bg-slate-800/60 hover:border-amber-500/60 hover:bg-slate-800/80 transition-colors p-4 group">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-6 w-6 text-amber-400 shrink-0" />
+                  <div>
+                    <p className="text-amber-50 font-semibold font-serif">Current Empowering Thoughts/Beliefs</p>
+                    <p className="text-slate-400 text-xs">Thoughts &amp; beliefs you're reinforcing right now</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-amber-300 transition-colors shrink-0" />
+              </a>
+            </Link>
           </div>
 
           {/* Toolbar */}

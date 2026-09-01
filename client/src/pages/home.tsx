@@ -29,7 +29,7 @@ import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
 
-type FilterType = "all" | "due-today" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `assignee-${string}`;
+type FilterType = "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `assignee-${string}`;
 type BusinessFilterType = "Apple" | "General" | "MW" | "GPR";
 type SortType = "due-date" | "importance";
 type ViewType = "list" | "grid";
@@ -63,7 +63,7 @@ export default function Home() {
   // Load saved filter preference from localStorage, default to 'all'
   const [activeFilter, setActiveFilter] = useState<FilterType>(() => {
     const savedFilter = localStorage.getItem('tasksFilter');
-    const staticFilters = ["all", "due-today", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw", "business-gpr"];
+    const staticFilters = ["all", "due-today", "due-3days", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw", "business-gpr"];
     if (savedFilter && (staticFilters.includes(savedFilter) || savedFilter.startsWith("assignee-"))) {
       return savedFilter as FilterType;
     }
@@ -1552,6 +1552,13 @@ export default function Home() {
         // Due today or overdue (before end of today in local time)
         return taskDate.getTime() < tomorrowStart.getTime();
       }).length,
+      due3Days: activeTasks.filter((task: any) => {
+        if (!task.dueDate) return false;
+        const taskDate = new Date(task.dueDate);
+        // Due within the next 3 days (through end of day 3) or overdue
+        const threeDaysOut = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 4));
+        return taskDate.getTime() < threeDaysOut.getTime();
+      }).length,
       overdue: activeTasks.filter((task: any) => {
         if (!task.dueDate) return false;
         const taskDate = new Date(task.dueDate);
@@ -1626,6 +1633,26 @@ export default function Home() {
           return taskDate.getTime() < tomorrowDT.getTime(); // Include today and all overdue (local time)
         });
       }
+
+      case "due-3days": {
+        const nowD3 = new Date();
+        // Due within the next 3 days (today + 3) or overdue — use LOCAL date
+        const cutoffD3 = new Date(Date.UTC(nowD3.getFullYear(), nowD3.getMonth(), nowD3.getDate() + 4));
+        const due3Tasks = activeTasks.filter((task: any) => {
+          if (!task.dueDate) return false;
+          const taskDate = new Date(task.dueDate);
+          return taskDate.getTime() < cutoffD3.getTime();
+        });
+        // Default order: priority first, then due date (earliest/most-overdue first) within each priority
+        const priorityMapD3: { [key: string]: number } = {
+          'Pareto': 6, 'High': 5, 'Med-High': 4, 'Medium': 3, 'Med-Low': 2, 'Low': 1,
+        };
+        return due3Tasks.sort((a: any, b: any) => {
+          const pDiff = (priorityMapD3[b.importance] || 0) - (priorityMapD3[a.importance] || 0);
+          if (pDiff !== 0) return pDiff;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+      }
       
       case "high-reward":
         // Filter tasks with high gold value (50+) and sort by gold value descending
@@ -1698,7 +1725,13 @@ export default function Home() {
   // Sort tasks based on selected sort option
   const getSortedTasks = (filteredTasks: any[]) => {
     const sortedTasks = [...filteredTasks];
-    
+
+    // "Due <3 Days" always sorts by priority first, then due date — regardless of the
+    // list-wide due-date/importance sort toggle (its filter already applied this order).
+    if (activeFilter === "due-3days") {
+      return sortedTasks;
+    }
+
     if (sortBy === "due-date") {
       sortedTasks.sort((a, b) => {
         // Tasks with no due date go to the end
@@ -2214,6 +2247,17 @@ export default function Home() {
                     Today ({filterCounts.dueToday})
                   </Badge>
                   <Badge 
+                    variant={activeFilter === "due-3days" ? "default" : "outline"}
+                    className={`cursor-pointer text-[10px] px-2 py-1 ${
+                      activeFilter === "due-3days" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
+                    onClick={() => setActiveFilter("due-3days")}
+                  >
+                    &lt;3 Days ({filterCounts.due3Days})
+                  </Badge>
+                  <Badge 
                     variant={activeFilter === "high-priority" ? "default" : "outline"}
                     className={`cursor-pointer text-[10px] px-2 py-1 ${
                       activeFilter === "high-priority" 
@@ -2463,6 +2507,17 @@ export default function Home() {
                     onClick={() => setActiveFilter("due-today")}
                   >
                     Due Today ({filterCounts.dueToday})
+                  </Badge>
+                  <Badge 
+                    variant={activeFilter === "due-3days" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      activeFilter === "due-3days" 
+                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
+                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
+                    }`}
+                    onClick={() => setActiveFilter("due-3days")}
+                  >
+                    Due &lt;3 Days ({filterCounts.due3Days})
                   </Badge>
                   <Badge 
                     variant={activeFilter === "high-reward" ? "default" : "outline"}

@@ -433,6 +433,13 @@ function RealEstateROICalculator({
 
   const propertyWins = sim.wealthDiff >= 0;
 
+  // ── Year-by-year value chart data: property market value vs S&P balance ──
+  const valueChartData = useMemo(() => {
+    const points = [{ year: 0, property: currentValue, sp500: sim.initialPropertyCash }];
+    sim.yearSummary.forEach((y) => points.push({ year: y.year, property: y.propValue, sp500: y.spEndBal }));
+    return points;
+  }, [sim, currentValue]);
+
   // ── Slider helper ────────────────────────────────────────────────────────
   const SliderRow = ({
     label, value, min, max, step, unit, onChange, color = "text-pink-300",
@@ -507,6 +514,45 @@ function RealEstateROICalculator({
       <p className="text-[10px] text-slate-600 italic">
         The S&P alternative invests every dollar used for the property—initial cash, reno, and every monthly shortfall—on the same date it would have been spent. Positive property cash flow is reinvested in the property's own S&P account.
       </p>
+
+      {/* ── Value Over Hold Period chart ── */}
+      <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
+        <p className="text-xs font-semibold text-slate-300 mb-3 flex items-center gap-1.5">
+          <TrendingUp className="h-3.5 w-3.5 text-pink-400" /> Value Over Hold Period
+        </p>
+        <div style={{ width: "100%", height: 260 }}>
+          <ResponsiveContainer>
+            <LineChart data={valueChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis
+                dataKey="year"
+                tick={{ fill: "#94A3B8", fontSize: 11 }}
+                label={{ value: "Hold Period (yrs)", position: "insideBottom", offset: -3, fill: "#64748B", fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fill: "#94A3B8", fontSize: 11 }}
+                tickFormatter={(v: number) => `$${Math.round(v / 1000)}k`}
+                width={55}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: "#0F172A", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: "#E2E8F0" }}
+                labelFormatter={(l) => `Year ${l}`}
+                formatter={(value: number, name: string) => [fmt(value), name === "property" ? "Real Estate" : "S&P 500"]}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: 11, color: "#94A3B8" }}
+                formatter={(v: string) => (v === "property" ? "🏠 Real Estate" : "📈 S&P 500")}
+              />
+              <Line type="monotone" dataKey="property" name="property" stroke="#F472B6" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 5 }} />
+              <Line type="monotone" dataKey="sp500" name="sp500" stroke="#60A5FA" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="text-[10px] text-slate-600 italic mt-2">
+          Real estate line tracks projected market value (before loan payoff/sale costs); S&P line tracks the alternative brokerage balance (pre-liquidation-tax), both starting from the same Month 0 cash.
+        </p>
+      </div>
 
       {/* ── Controls (3-column) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -4184,11 +4230,26 @@ export default function Finances() {
               const monthsElapsed = monthsOwned;
               const monthsRemaining = Math.max(0, loanTermMonths - monthsElapsed);
 
-              // Lifetime cost so far = months owned × total monthly housing + one-time costs already paid
+              // Renters covered $3,500/mo toward the mortgage from March 2025 through June 2026 —
+              // offset that against the months actually owned (May 2025 onward) so we don't double
+              // count the couple of months before closing.
+              const RENTER_MONTHLY_CONTRIBUTION = 3500;
+              const renterWindowStart = new Date(2025, 2, 1); // March 2025
+              const renterWindowEnd = new Date(2026, 5, 1);   // June 2026
+              let renterMonthsCovered = 0;
+              for (let i = 0; i < monthsOwned; i++) {
+                const ownedMonth = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth() + i, 1);
+                if (ownedMonth >= renterWindowStart && ownedMonth <= renterWindowEnd) renterMonthsCovered++;
+              }
+              const renterContribution = renterMonthsCovered * RENTER_MONTHLY_CONTRIBUTION;
+
+              // Lifetime cost so far = months owned × total monthly housing + one-time costs already paid,
+              // less the renter-covered mortgage contribution during their tenancy
               const oneTimePaid = oneTimeCosts
                 .filter(i => !i.tentative)
                 .reduce((s, i) => s + i.amount, 0);
-              const lifetimeSoFar = monthsOwned * (monthlyHousingCost / 100) + oneTimePaid;
+              const monthlyCostsPaid = monthsOwned * (monthlyHousingCost / 100);
+              const lifetimeSoFar = Math.max(0, monthlyCostsPaid - renterContribution) + oneTimePaid;
               // Projected full lifetime cost = recurring monthly × 360 months + all one-time costs
               const projectedLifetime = (monthlyHousingRecurring / 100) * loanTermMonths + totalOneTimeCosts;
 
@@ -4359,8 +4420,16 @@ export default function Finances() {
                         <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-3 mb-1">Cumulative Totals</p>
                         <div className="flex justify-between text-slate-400">
                           <span>Monthly costs so far ({monthsOwned} mo)</span>
-                          <span className="text-amber-300">${Math.round(monthsOwned * (monthlyHousingCost / 100)).toLocaleString()}</span>
+                          <span className="text-amber-300">${Math.round(monthlyCostsPaid).toLocaleString()}</span>
                         </div>
+                        {renterMonthsCovered > 0 && (
+                          <div className="flex justify-between text-slate-400">
+                            <span className="flex items-center gap-1 truncate max-w-[65%]">
+                              Renter contribution (Mar 2025–Jun 2026 @ ${RENTER_MONTHLY_CONTRIBUTION.toLocaleString()}/mo)
+                            </span>
+                            <span className="text-emerald-400">−${renterContribution.toLocaleString()}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-slate-400">
                           <span>One-time costs (paid)</span>
                           <span className="text-amber-300">${oneTimePaid.toLocaleString()}</span>

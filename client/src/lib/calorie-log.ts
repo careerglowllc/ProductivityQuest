@@ -88,15 +88,17 @@ export function ensureCalorieLogSeeded() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Body Weight Log (future) — placeholder scaffold so the lifting page's overlay
-// selector can offer a "Body Weight" toggle ahead of actual logging support.
-// Once weight logging is implemented, populate this the same way as calories.
+// Body Weight Log — persisted under the synced "workout-" localStorage prefix
+// (see client/src/lib/synced-storage.ts + server/routes.ts SYNCED_KEY_PREFIXES).
+// Used by the Weight Log dashboard (fitness-weight.tsx) and its optional
+// calorie-overlay comparison against the Calorie Log.
 // ─────────────────────────────────────────────────────────────────────────────
 export const BODYWEIGHT_STORAGE_KEY = "workout-bodyweight-log-v1";
 
 export interface BodyWeightEntry {
   date: string; // YYYY-MM-DD
   weightLb: number;
+  notes?: string;
 }
 
 export function loadBodyWeightLog(): BodyWeightEntry[] {
@@ -109,3 +111,26 @@ export function loadBodyWeightLog(): BodyWeightEntry[] {
   } catch { /* ignore */ }
   return [];
 }
+
+/** Persist the full weight log (one entry per date; last write for a given date wins). */
+export function saveBodyWeightLog(entries: BodyWeightEntry[]) {
+  try {
+    localStorage.setItem(BODYWEIGHT_STORAGE_KEY, JSON.stringify(entries));
+  } catch { /* ignore */ }
+}
+
+/** Upsert a single day's entry (by date) and persist. Returns the updated log. */
+export function upsertBodyWeightEntry(entry: BodyWeightEntry): BodyWeightEntry[] {
+  const existing = loadBodyWeightLog();
+  const next = [...existing.filter((e) => e.date !== entry.date), entry];
+  saveBodyWeightLog(next);
+  return next;
+}
+
+/** Remove a single day's entry (by date) and persist. Returns the updated log. */
+export function deleteBodyWeightEntry(date: string): BodyWeightEntry[] {
+  const next = loadBodyWeightLog().filter((e) => e.date !== date);
+  saveBodyWeightLog(next);
+  return next;
+}
+

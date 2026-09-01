@@ -609,6 +609,15 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "🕯️", keywords: ["candle", "light", "flame", "wax", "romantic", "prayer"] },
   { emoji: "💣", keywords: ["bomb", "explode", "explosion", "danger", "boom"] },
   { emoji: "🎈", keywords: ["balloon", "party", "birthday", "celebrate", "float"] },
+
+  // Birthday / Celebration
+  { emoji: "🎊", keywords: ["confetti", "ball", "party", "celebrate", "birthday", "streamers", "festive"] },
+  { emoji: "🪅", keywords: ["pinata", "piñata", "party", "birthday", "celebrate", "candy", "hit"] },
+  { emoji: "🎇", keywords: ["sparkler", "firework", "party", "celebrate", "birthday", "sparkle"] },
+  { emoji: "🎆", keywords: ["fireworks", "party", "celebrate", "birthday", "night", "explosion", "sparkle"] },
+  { emoji: "🍾", keywords: ["champagne", "bottle", "pop", "celebrate", "party", "birthday", "toast", "cheers"] },
+  { emoji: "🥂", keywords: ["cheers", "toast", "champagne", "glasses", "celebrate", "party", "birthday"] },
+  { emoji: "🪩", keywords: ["disco ball", "party", "dance", "celebrate", "birthday", "club"] },
   { emoji: "🎗️", keywords: ["ribbon", "awareness", "cause", "charity", "support"] },
   { emoji: "🛡️", keywords: ["shield", "protect", "defense", "security", "guard", "safe"] },
   { emoji: "⚔️", keywords: ["swords", "fight", "battle", "crossed", "combat", "war"] },
@@ -1413,6 +1422,7 @@ const EMOJI_CATEGORIES: Record<string, string[]> = {
   "Life": ["🏠", "🏡", "🏚️", "🛒", "🧹", "🧺", "🍳", "🚗", "✈️", "🌅", "🎂", "🎁", "🐶", "🐱", "🌸", "🌈", "☀️", "🌙", "🛏️", "🪴", "👨‍👩‍👧‍👦", "🏍️", "🚪", "🪑", "🛋️", "🚿", "🧽", "🚜", "🌾", "🐄", "🐎"],
   "Chores": ["🧹", "🧺", "🧽", "🫧", "🧼", "🪣", "🚿", "🪠", "🧻", "🚽", "🛁", "🪟", "🚪", "🛏️", "🪴", "🪜", "🔧", "🔨", "🪛", "🪚", "🧱", "🪵", "🔩", "🔌", "💡", "🗑️", "♻️", "📦", "🧰", "🎨", "🪞", "🏠", "🏡", "🏗️", "🛠️", "🪝", "🍂", "🌿", "🐜", "🚗", "⛽", "📬", "🛒", "👕", "🪡", "🧵", "🥫", "🚰", "🌡️", "❄️", "🏊", "🪤", "🪥", "🧴", "🪒", "💇", "💆", "🧖", "💅", "🛀", "🦷"],
   "Fun": ["🎮", "🎲", "🎭", "🎬", "📺", "🎵", "🎶", "⚽", "🏀", "🎾", "🧩", "📸", "🎧", "🎪", "🥳", "🎡", "🎢", "🎠", "🏈", "🏐"],
+  "Celebration": ["🎉", "🎊", "🥳", "🎂", "🍰", "🧁", "🎁", "🎈", "🪅", "🎇", "🎆", "🍾", "🥂", "🎀", "🪩", "🎗️", "🕯️"],
   "Food": ["☕", "🍕", "🍔", "🍜", "🍣", "🥑", "🍓", "🍰", "🍪", "🥤", "🍷", "🍺", "🫖", "🌮", "🍝", "🥞", "🍗", "🥩", "🍞", "🧀", "🍫", "🍩", "🍦", "🥪", "🍛", "🥦", "🥕", "🍌", "🍊", "🍇", "🍉"],
   "Nature": ["🌿", "🍃", "🪴", "🌱", "🍀", "☘️", "🍁", "🍂", "🌳", "🌲", "🌴", "🌵", "🌷", "🌸", "🌺", "🌹", "🌼", "🌊", "🏔️", "🌋", "🏝️", "🌤️", "🌧️", "🌪️", "🌩️", "☔", "☁️", "❄️", "🦋", "🐝", "🐬", "🦅", "🦉"],
   "Tools": ["⚙️", "🔧", "🔨", "🛠️", "🔑", "🔒", "📍", "🏷️", "🔖", "🚫", "♻️", "🔗", "🗑️", "✂️", "⚖️", "🔍", "🔌", "🔋", "🔦", "🧰", "🪜", "🛡️", "⚔️", "🫗", "🔻"],

@@ -1,6 +1,6 @@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
-import { Dumbbell, ArrowLeft, Flame } from "lucide-react";
+import { Dumbbell, ArrowLeft, Flame, Weight } from "lucide-react";
 import { Link } from "wouter";
 
 type FitnessCategory = {
@@ -40,6 +40,18 @@ const CATEGORIES: FitnessCategory[] = [
     iconColor: "text-emerald-400",
     icon: Dumbbell,
     href: "/fitness/lifting",
+  },
+  {
+    key: "weight",
+    label: "Weight Logging",
+    emoji: "⚖️",
+    description: "Log your body weight over time and compare the trend against your calorie intake.",
+    color: "#22D3EE",
+    border: "border-cyan-500/40",
+    bg: "bg-cyan-500/10",
+    iconColor: "text-cyan-400",
+    icon: Weight,
+    href: "/fitness/weight",
   },
 ];
 
