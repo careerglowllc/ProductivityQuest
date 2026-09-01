@@ -1356,7 +1356,14 @@ export default function Finances() {
       tasks.push(create({
         item: "Instagram Verified Checkmark (MailWisp)", category: "Business", tags: ["Business", "Subscription"],
         monthlyCost: 1499, recurType: "Monthly",
-        notes: "Instagram verified checkmark — monthly subscription for MailWisp",
+        notes: "Instagram verified checkmark — monthly subscription for MailWisp (paid on personal CC, categorized under business)",
+      }));
+    }
+    if (!financialItems.find(i => i.item === "Meta Verified Instagram Badge (WorkBetterClub)")) {
+      tasks.push(create({
+        item: "Meta Verified Instagram Badge (WorkBetterClub)", category: "Business", tags: ["Business", "Subscription"],
+        monthlyCost: 1499, recurType: "Monthly",
+        notes: "Meta Verified badge — monthly subscription for WorkBetterClub (business expense, currently paid on personal CC)",
       }));
     }
     const hushed = financialItems.find(i => i.item.toLowerCase().includes("hushed"));
