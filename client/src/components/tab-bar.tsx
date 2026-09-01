@@ -123,7 +123,12 @@ export function TabBar() {
               return (
                 <DropdownMenu key={tab.path} open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
                   <DropdownMenuTrigger asChild>
-                    <button
+                    {/* div, not <button> — Safari/WKWebView gives native buttons an
+                        appearance-driven intrinsic width that ignores flex-basis:0,
+                        breaking the even flex-1 spacing of the other tabs. */}
+                    <div
+                      role="button"
+                      tabIndex={0}
                       className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                         isJournalActive
                           ? "text-yellow-400"
@@ -134,7 +139,7 @@ export function TabBar() {
                       <span className={`text-[10px] mt-0.5 ${isJournalActive ? "font-semibold" : "font-medium"}`}>
                         {tab.name}
                       </span>
-                    </button>
+                    </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="center" className="bg-slate-800 border-yellow-600/30 mb-2">
                     <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
