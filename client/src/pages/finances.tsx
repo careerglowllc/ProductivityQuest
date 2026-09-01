@@ -306,6 +306,7 @@ function RealEstateROICalculator({
       effectiveRent: number; opEx: number; noi: number; propCF: number;
       ownerContrib: number; ownerDistrib: number;
       spBal: number; propReinvestBal: number;
+      cumulContribToDate: number; cumulDistribToDate: number;
     }
 
     const months: MonthRow[] = [];
@@ -354,6 +355,7 @@ function RealEstateROICalculator({
         year: Math.ceil(m / 12), propValue, loanBal,
         interest, principal, effectiveRent, opEx, noi, propCF,
         ownerContrib, ownerDistrib, spBal, propReinvestBal,
+        cumulContribToDate: cumulContrib, cumulDistribToDate: cumulDistrib,
       });
     }
 
@@ -394,10 +396,33 @@ function RealEstateROICalculator({
     const annualIRR    = monthlyIRR !== null ? (Math.pow(1 + monthlyIRR, 12) - 1) * 100 : null;
 
     // ── Yearly aggregates ────────────────────────────────────────────────
+    // Net wealth per year mirrors the final Sale/S&P math exactly (as if liquidated
+    // that year), so the "Value Over Hold Period" chart agrees with the sale summary.
     const yearSummary = Array.from({ length: holdYears }, (_, i) => {
       const yr  = i + 1;
       const yms = months.filter(m => m.year === yr);
       const last = yms[yms.length - 1];
+
+      let netPropertyWealth = 0;
+      let netSpWealth = 0;
+      if (last) {
+        const yrGrossSale      = last.propValue;
+        const yrSellCosts      = yrGrossSale * ((agentCommPct + transferTaxPct) / 100);
+        const yrPreTaxEquity   = yrGrossSale - last.loanBal - yrSellCosts;
+        const yrGain           = Math.max(0, yrGrossSale - yrSellCosts - purchasePrice);
+        const yrCapGainsTax    = yrGain * ((fedCapGainsPct + stateCapGainsPct) / 100);
+        const yrAfterTaxProceeds = yrPreTaxEquity - yrCapGainsTax;
+        const yrReinvestGain   = Math.max(0, last.propReinvestBal - last.cumulDistribToDate);
+        const yrReinvestTax    = yrReinvestGain * (spCapGainsPct / 100);
+        const yrAfterTaxReinvest = last.propReinvestBal - yrReinvestTax;
+        netPropertyWealth = yrAfterTaxProceeds + yrAfterTaxReinvest;
+
+        const yrSpCostBasis = initialPropertyCash + last.cumulContribToDate;
+        const yrSpGain      = Math.max(0, last.spBal - yrSpCostBasis);
+        const yrSpTax       = yrSpGain * (spCapGainsPct / 100);
+        netSpWealth = last.spBal - yrSpTax;
+      }
+
       return {
         year:        yr,
         propValue:   last?.propValue   ?? 0,
@@ -410,6 +435,7 @@ function RealEstateROICalculator({
         loanBal:     last?.loanBal     ?? 0,
         spContribs:  yms.reduce((s, m) => s + m.ownerContrib,   0),
         spEndBal:    last?.spBal       ?? 0,
+        netPropertyWealth, netSpWealth,
       };
     });
 
@@ -433,12 +459,14 @@ function RealEstateROICalculator({
 
   const propertyWins = sim.wealthDiff >= 0;
 
-  // ── Year-by-year value chart data: property market value vs S&P balance ──
+  // ── Year-by-year value chart data: NET property wealth (as if sold that year, after
+  // loan payoff/sale costs/cap gains tax) vs NET S&P wealth (after liquidation tax) —
+  // matches the Sale & S&P Breakdown numbers at the final year.
   const valueChartData = useMemo(() => {
-    const points = [{ year: 0, property: currentValue, sp500: sim.initialPropertyCash }];
-    sim.yearSummary.forEach((y) => points.push({ year: y.year, property: y.propValue, sp500: y.spEndBal }));
+    const points = [{ year: 0, property: sim.initialPropertyCash, sp500: sim.initialPropertyCash }];
+    sim.yearSummary.forEach((y) => points.push({ year: y.year, property: y.netPropertyWealth, sp500: y.netSpWealth }));
     return points;
-  }, [sim, currentValue]);
+  }, [sim]);
 
   // ── Slider helper ────────────────────────────────────────────────────────
   const SliderRow = ({
@@ -518,7 +546,7 @@ function RealEstateROICalculator({
       {/* ── Value Over Hold Period chart ── */}
       <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
         <p className="text-xs font-semibold text-slate-300 mb-3 flex items-center gap-1.5">
-          <TrendingUp className="h-3.5 w-3.5 text-pink-400" /> Value Over Hold Period
+          <TrendingUp className="h-3.5 w-3.5 text-pink-400" /> Net Wealth Over Hold Period
         </p>
         <div style={{ width: "100%", height: 260 }}>
           <ResponsiveContainer>
@@ -538,11 +566,11 @@ function RealEstateROICalculator({
                 contentStyle={{ backgroundColor: "#0F172A", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: "#E2E8F0" }}
                 labelFormatter={(l) => `Year ${l}`}
-                formatter={(value: number, name: string) => [fmt(value), name === "property" ? "Real Estate" : "S&P 500"]}
+                formatter={(value: number, name: string) => [fmt(value), name === "property" ? "Real Estate (net)" : "S&P 500 (net)"]}
               />
               <Legend
                 wrapperStyle={{ fontSize: 11, color: "#94A3B8" }}
-                formatter={(v: string) => (v === "property" ? "🏠 Real Estate" : "📈 S&P 500")}
+                formatter={(v: string) => (v === "property" ? "🏠 Real Estate (net)" : "📈 S&P 500 (net)")}
               />
               <Line type="monotone" dataKey="property" name="property" stroke="#F472B6" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 5 }} />
               <Line type="monotone" dataKey="sp500" name="sp500" stroke="#60A5FA" strokeWidth={2.5} dot={{ r: 2.5 }} activeDot={{ r: 5 }} />
@@ -550,7 +578,7 @@ function RealEstateROICalculator({
           </ResponsiveContainer>
         </div>
         <p className="text-[10px] text-slate-600 italic mt-2">
-          Real estate line tracks projected market value (before loan payoff/sale costs); S&P line tracks the alternative brokerage balance (pre-liquidation-tax), both starting from the same Month 0 cash.
+          Both lines are NET, as if liquidated that year: real estate = sale price − loan payoff − sale costs − capital gains tax + after-tax reinvested distributions; S&P = brokerage balance − liquidation tax. Matches the Sale &amp; S&P Breakdown totals at year {holdYears}.
         </p>
       </div>
 
