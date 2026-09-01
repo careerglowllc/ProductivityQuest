@@ -796,7 +796,12 @@ export default function Finances() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire" | "real-estate">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "income-vs-expense" | "business" | "expense-breakdown" | "retirement" | "cashflow" | "table" | "networth" | "credit-cards" | "accounts" | "nw-trend" | "fire" | "real-estate">(() => {
+    // Allows deep-linking, e.g. the Dashboard's FIRE Goal widget links to /finances?tab=fire
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    const valid = ["overview", "income-vs-expense", "business", "expense-breakdown", "retirement", "cashflow", "table", "networth", "credit-cards", "accounts", "nw-trend", "fire", "real-estate"];
+    return (valid.includes(tab || "") ? tab : "overview") as any;
+  });
   const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn">("thailand");
   const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn" | null>(null);
   const [fireTier, setFireTier] = useState<"lean" | "comfortable" | "cushy">("comfortable");

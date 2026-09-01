@@ -327,6 +327,219 @@ function FinanceWidget() {
   );
 }
 
+// FIRE Goal Widget — compact preview of the Finances "FIRE Goal" card, using the same
+// Thailand/comfortable/4% SWR defaults shown there on first load. Self-contained (fetches
+// its own financial items, live market prices, and "nw-*" localStorage net-worth settings)
+// so it doesn't depend on the Finances page being mounted.
+function FireGoalDashboardWidget() {
+  const [inheritanceMode, setInheritanceMode] = useState(false);
+
+  const readNum = (key: string, fallback: number) => {
+    try { return parseFloat(localStorage.getItem(key) || String(fallback)); } catch { return fallback; }
+  };
+  const readCachedPrice = (key: string) => {
+    try { return parseFloat(localStorage.getItem(key) ?? "0") || 0; } catch { return 0; }
+  };
+
+  const { data: financialItems = [] } = useQuery<FinancialItem[]>({ queryKey: ["/api/finances"] });
+  const { data: btcData } = useQuery<{ price: number }>({ queryKey: ["/api/market/bitcoin"], staleTime: 60_000, retry: 2 });
+  const { data: vtsaxData } = useQuery<{ price: number }>({ queryKey: ["/api/market/vtsax"], staleTime: 60_000, retry: 2 });
+  const { data: vooData } = useQuery<{ price: number }>({ queryKey: ["/api/market/voo"], staleTime: 60_000, retry: 2 });
+  const { data: vxusData } = useQuery<{ price: number }>({ queryKey: ["/api/market/vxus"], staleTime: 60_000, retry: 2 });
+  const { data: ibitData } = useQuery<{ price: number }>({ queryKey: ["/api/market/ibit"], staleTime: 60_000, retry: 2 });
+  const { data: viiixData } = useQuery<{ price: number }>({ queryKey: ["/api/market/sso"], staleTime: 60_000, retry: 2 });
+  const homeAddress = (() => {
+    try { return localStorage.getItem("nw-home-address") || "2605 Plumbago Court, Rocklin, CA 95677"; } catch { return "2605 Plumbago Court, Rocklin, CA 95677"; }
+  })();
+  const { data: propertyData } = useQuery<{ price: number }>({
+    queryKey: ["/api/market/property", homeAddress],
+    queryFn: async () => {
+      const res = await fetch(`/api/market/property?address=${encodeURIComponent(homeAddress)}`);
+      if (!res.ok) throw new Error("Property fetch failed");
+      return res.json();
+    },
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: 1,
+    enabled: !!homeAddress,
+  });
+
+  const classifyItem = (category: string, tags?: string[] | null): "income" | "retirement" | "expense" => {
+    const tagList = Array.isArray(tags) ? tags : [];
+    const incomeCats = ["Income", "Investment"];
+    const retirementCats = ["Retirement"];
+    if (incomeCats.includes(category) || tagList.some(t => incomeCats.includes(t))) return "income";
+    if (retirementCats.includes(category) || tagList.some(t => retirementCats.includes(t))) return "retirement";
+    return "expense";
+  };
+
+  const totalRetirement = financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement").reduce((s, i) => s + i.monthlyCost, 0);
+  const totalExpenses = financialItems.filter(i => classifyItem(i.category, i.tags) === "expense").reduce((s, i) => s + i.monthlyCost, 0);
+  const w2Income = financialItems.find(i => i.item === "Post-Tax W2 Salary Income")?.monthlyCost ?? 0;
+  const cashflowNetRaw = w2Income - totalExpenses;
+
+  // Net worth pieces (mirrors the Finances page's Overview calc)
+  const btcPrice = btcData?.price ?? readCachedPrice("cache_btc_price");
+  const vtsaxPrice = vtsaxData?.price ?? readCachedPrice("cache_vtsax_price");
+  const vooPrice = vooData?.price ?? readCachedPrice("cache_voo_price");
+  const vxusPrice = vxusData?.price ?? readCachedPrice("cache_vxus_price");
+  const ibitPrice = ibitData?.price ?? readCachedPrice("cache_ibit_price");
+  const viiixPrice = viiixData?.price ?? readCachedPrice("cache_viiix_price");
+
+  const btcHoldings = readNum("nw-btc", 1);
+  const coinbaseBtcHoldings = readNum("nw-coinbase-btc", 0.42362502);
+  const totalBtcValue = btcHoldings * btcPrice + coinbaseBtcHoldings * btcPrice;
+  const vtsaxValue = readNum("nw-vtsax", 146.857) * vtsaxPrice;
+  const vooValue = readNum("nw-voo", 240.676) * vooPrice;
+  const vxusValue = readNum("nw-vxus", 60.057) * vxusPrice;
+  const vanguardTotal = vtsaxValue + vooValue + vxusValue;
+  const vanguardSettlement = readNum("nw-vanguard-settlement", 0);
+  const rothIraValue = (readNum("nw-roth-ibit", 697) * ibitPrice) + (readNum("nw-roth-vtsax", 145.188) * vtsaxPrice);
+  const k401Value = readNum("nw-401k-sso", 1734.032) * viiixPrice;
+
+  const homeEstValue = readNum("nw-home-value", 636000);
+  const homeLoanBalance = readNum("nw-home-loan", 607798.98);
+  const homeEscrowBalance = readNum("nw-home-escrow", 2744.40);
+  const homePurchasePrice = readNum("nw-home-purchase", 636000);
+  const homeSellerFee = readNum("nw-home-fee", 6);
+  const homeOtherCosts = readNum("nw-home-other-costs", 0);
+  const homeCapImprovements = readNum("nw-home-cap-imp", 0);
+  const homeDepreciation = readNum("nw-home-depreciation", 0);
+  const homePrimaryExclusion = readNum("nw-home-exclusion", 0);
+  const homeFedCapGainsRate = readNum("nw-home-fed-cg", 15);
+  const homeCaCapGainsRate = readNum("nw-home-ca-cg", 9.3);
+  const homeSalePrice = (propertyData?.price && propertyData.price > 0) ? propertyData.price : homeEstValue;
+  const homeAgentCommission = homeSalePrice * (homeSellerFee / 100);
+  const homeTransferTax = homeSalePrice * 0.0022;
+  const homeTotalSellingCosts = homeAgentCommission + homeTransferTax + homeOtherCosts;
+  const homeNetCashAfterSale = homeSalePrice - homeLoanBalance + homeEscrowBalance - homeTotalSellingCosts;
+  const homeAdjustedBasis = homePurchasePrice + homeCapImprovements - homeDepreciation;
+  const homeTaxableGain = Math.max(0, homeSalePrice - homeTotalSellingCosts - homeAdjustedBasis - homePrimaryExclusion);
+  const homeCapGainsTax = homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
+  const homeAfterTaxNetCash = homeNetCashAfterSale - homeCapGainsTax;
+
+  const checkingBalance = readNum("nw-checking", 40000);
+  const careerglowBalance = 8440;
+  const hsaBalance = 1.62;
+  const velunaDomainValue = readNum("nw-veluna-domain", 4050);
+  const velunaDomainPurchasePrice = readNum("nw-veluna-domain-purchase", 4001.17);
+  const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
+  const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
+  const eTradeRsuValue = readNum("nw-etrade-rsu", 0);
+  const fordExplorerValue = readNum("nw-ford-explorer", 17000);
+  const kawasakiNinjaValue = readNum("nw-kawasaki-ninja", 1200);
+
+  const btcAfterTax = totalBtcValue * 0.85;
+  const vanguardAfterTax = vanguardTotal * 0.85 + vanguardSettlement;
+
+  // FIRE calc (Thailand · Comfortable · 4% SWR — the Finances FIRE tab's own defaults)
+  const fgRoth = rothIraValue * 0.75;
+  const fg401k = k401Value * 0.68;
+  const fgHsa = hsaBalance * 0.58;
+  const fgLiquid =
+    btcAfterTax + vanguardAfterTax + fgRoth + fg401k +
+    (homeAfterTaxNetCash > 0 ? homeAfterTaxNetCash : 0) +
+    checkingBalance + careerglowBalance + fgHsa +
+    domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+
+  const fireSwr = 0.04;
+  const fireColInflation = 0.05;
+  const fireBuffer = 0.05 + 0.10 + 0.05; // currency + healthcare + lifestyle buffers
+  const fireInheritanceAge = 48;
+  // Thailand · comfortable tier monthly cost-of-living baseline
+  const tierData = { rent: 750, food: 500, transport: 120, health: 150, entertainment: 250, utilities: 100, visa: 230 };
+  const fgMonthlyToday = Math.round(Object.values(tierData).reduce((s, v) => s + v, 0) * (1 + fireBuffer));
+  const fgAnnualToday = fgMonthlyToday * 12;
+  const fgBaseGoal = fgAnnualToday / fireSwr;
+
+  const fgInvestable = btcAfterTax + vanguardAfterTax + fgRoth + fg401k + eTradeRsuValue;
+  const fgHomeBase = Math.max(0, homeAfterTaxNetCash);
+  const fgCashFixed = checkingBalance + careerglowBalance + fgHsa + domainAfterTax + fordExplorerValue + kawasakiNinjaValue;
+  const fgAnnualSavings = Math.max(0, cashflowNetRaw) * 12 + Math.min(totalRetirement * 12, 23_500) * 0.68;
+  const fgFV = (n: number) =>
+    fgInvestable * Math.pow(1.08, n) +
+    (fgAnnualSavings > 0 ? fgAnnualSavings * (Math.pow(1.08, n) - 1) / 0.08 : 0) +
+    fgHomeBase * Math.pow(1.04, n) + fgCashFixed;
+
+  let fgYrs1 = 15;
+  for (let n = 1; n <= 80; n++) { if (fgFV(n) >= fgBaseGoal) { fgYrs1 = n; break; } }
+  const fgInflatedAnnual = fgAnnualToday * Math.pow(1 + fireColInflation, fgYrs1);
+  const fgDrawdownYrs = Math.max(1, fireInheritanceAge - (28 + fgYrs1));
+  const FIRE_GOAL = inheritanceMode
+    ? Math.round(fgInflatedAnnual * (1 - Math.pow(1.07, -fgDrawdownYrs)) / 0.07)
+    : Math.round(fgInflatedAnnual / fireSwr);
+
+  let fgYrs = 15;
+  if (fgLiquid >= FIRE_GOAL) { fgYrs = 0; }
+  else { for (let n = 1; n <= 80; n++) { if (fgFV(n) >= FIRE_GOAL) { fgYrs = n; break; } } }
+  const fgPct = Math.min((fgLiquid / FIRE_GOAL) * 100, 100);
+  const fgAge = 28 + fgYrs;
+  const fmtG = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
+
+  return (
+    <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 transition-all mb-6">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-orange-300 text-base flex items-center gap-2">🔥 FIRE Goal</CardTitle>
+        <p className="text-slate-400 text-xs">
+          {inheritanceMode ? `Drawdown to age ${fireInheritanceAge}` : `${(fireSwr * 100).toFixed(2)}% SWR`} · comfortable · 🇹🇭 thailand
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-1.5 mb-3">
+          <button
+            onClick={() => setInheritanceMode(false)}
+            className={`flex-1 text-[10px] py-1 rounded-md border transition-colors ${
+              !inheritanceMode ? "bg-orange-500/20 border-orange-500/50 text-orange-300 font-semibold" : "bg-transparent border-slate-700/50 text-slate-500 hover:border-slate-600"
+            }`}
+          >
+            📈 Standard SWR
+          </button>
+          <button
+            onClick={() => setInheritanceMode(true)}
+            className={`flex-1 text-[10px] py-1 rounded-md border transition-colors ${
+              inheritanceMode ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-semibold" : "bg-transparent border-slate-700/50 text-slate-500 hover:border-slate-600"
+            }`}
+          >
+            💎 w/ Inheritance
+          </button>
+        </div>
+        <div className="flex items-end gap-2 mb-2">
+          <span className="text-3xl font-black text-orange-400">{fgPct.toFixed(1)}%</span>
+          <span className="text-slate-400 text-sm mb-1">of {fmtG(FIRE_GOAL)} goal</span>
+        </div>
+        <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden mb-3">
+          <div
+            className={`h-3 rounded-full transition-all duration-700 ${inheritanceMode ? "bg-gradient-to-r from-emerald-500 to-teal-400" : "bg-gradient-to-r from-orange-500 to-yellow-400"}`}
+            style={{ width: `${fgPct}%` }}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="bg-slate-700/40 rounded-lg p-2">
+            <p className="text-[10px] text-slate-400">Liquid NW Today</p>
+            <p className="text-sm font-bold text-orange-300">{fmtG(fgLiquid)}</p>
+          </div>
+          <div className="bg-slate-700/40 rounded-lg p-2">
+            <p className="text-[10px] text-slate-400">FIRE Age</p>
+            <p className="text-sm font-bold text-green-400">Age {fgAge} ({2026 + fgYrs})</p>
+          </div>
+          <div className="bg-slate-700/40 rounded-lg p-2">
+            <p className="text-[10px] text-slate-400">Monthly @ Retirement</p>
+            <p className="text-sm font-bold text-yellow-300">{fmtG(Math.round(fgInflatedAnnual / 12))}/mo</p>
+          </div>
+          <div className="bg-slate-700/40 rounded-lg p-2">
+            <p className="text-[10px] text-slate-400">Remaining</p>
+            <p className="text-sm font-bold text-slate-200">{fmtG(Math.max(0, FIRE_GOAL - fgLiquid))}</p>
+          </div>
+        </div>
+        <Link href="/finances?tab=fire">
+          <a className="mt-3 block w-full text-center text-xs text-orange-300 border border-orange-500/30 rounded-lg py-1.5 hover:bg-orange-500/10 transition-colors">
+            Open full FIRE analysis →
+          </a>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: UserSkill[] }) {
   // Ensure skills is an array
@@ -1239,6 +1452,7 @@ export default function Dashboard() {
 
         {/* Active Questlines (mobile only - desktop version is inside resizable layout below) */}
         {isMobile && renderQuestlines()}
+        {isMobile && <FireGoalDashboardWidget />}
 
         {/* Two-by-two grid layout for web (Skills, Schedule, Priorities, Finances), stacked for mobile */}
         {isMobile ? (
@@ -1444,6 +1658,11 @@ export default function Dashboard() {
             {/* Active Questlines — natural height, not compressed */}
             <div className="flex-shrink-0 mb-3">
               {renderQuestlines('mb-0')}
+            </div>
+
+            {/* FIRE Goal — natural height, not compressed */}
+            <div className="flex-shrink-0 mb-3">
+              <FireGoalDashboardWidget />
             </div>
 
             {/* Bottom Grid — takes remaining space */}
