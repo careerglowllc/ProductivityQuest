@@ -18,6 +18,8 @@ import { buildTasksCSVExport } from "@/pages/home";
 import { buildQuestlinesCSVExport } from "@/pages/campaigns";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 
+const APP_VERSION = "v1.0.52";
+
 async function exportAllAsZip() {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
@@ -272,6 +274,9 @@ export default function SettingsPage() {
               </div>
             </button>
           </div>
+
+          {/* Version footer */}
+          <p className="mt-6 text-center text-xs text-yellow-200/40">{APP_VERSION}</p>
         </div>
       </div>
     </div>
