@@ -467,17 +467,17 @@ function FireGoalDashboardWidget() {
 
   return (
     <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-orange-500/30 hover:border-orange-400/60 transition-all mb-6">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-orange-300 text-base flex items-center gap-2">🔥 Financial Independence</CardTitle>
+      <CardHeader className="pt-3 pb-1 px-4">
+        <CardTitle className="text-orange-300 text-xs flex items-center gap-1.5">🔥 Financial Independence</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-end gap-2 mb-2">
-          <span className="text-3xl font-black text-orange-400">{fgPct.toFixed(1)}%</span>
-          <span className="text-slate-400 text-sm mb-1">of {fmtG(FIRE_GOAL)} goal</span>
+      <CardContent className="pt-0 pb-3 px-4">
+        <div className="flex items-end gap-1.5 mb-1">
+          <span className="text-lg font-black text-orange-400">{fgPct.toFixed(1)}%</span>
+          <span className="text-slate-400 text-[10px] mb-0.5">of {fmtG(FIRE_GOAL)} goal</span>
         </div>
-        <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+        <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
           <div
-            className="h-3 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 transition-all duration-700"
+            className="h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 transition-all duration-700"
             style={{ width: `${fgPct}%` }}
           />
         </div>
