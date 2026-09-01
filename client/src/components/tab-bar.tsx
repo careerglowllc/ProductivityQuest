@@ -8,6 +8,17 @@ import { Settings, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/contexts/theme-context";
 
+// Journal sub-pages — shared by the desktop nav dropdown and the mobile bottom-nav dropdown.
+const JOURNAL_SUBLINKS: { label: string; path: string; icon: any; colorClass: string }[] = [
+  { label: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake, colorClass: "text-amber-400" },
+  { label: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, colorClass: "text-amber-400" },
+  { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, colorClass: "text-amber-400" },
+  { label: "Accomplishments", path: "/accomplishments", icon: Trophy, colorClass: "text-yellow-400" },
+  { label: "Explore", path: "/explore", icon: Compass, colorClass: "text-sky-400" },
+  { label: "Fitness", path: "/fitness", icon: Dumbbell, colorClass: "text-emerald-400" },
+  { label: "Recipes", path: "/recipes", icon: ChefHat, colorClass: "text-orange-400" },
+];
+
 export function TabBar() {
   const [location] = useLocation();
   const isMobile = useIsMobile();
@@ -52,7 +63,7 @@ export function TabBar() {
     },
   ];
 
-  // Mobile bottom nav: Dashboard, Quests, Calendar, Settings, All.
+  // Mobile bottom nav: Dashboard, Quests, Calendar, Journal, Settings, All.
   // Shop is dropped here (still reachable from Dashboard / the More hub); Settings
   // and All point at the same destinations they do in the web nav (/settings, /more).
   const mobileTabs = [
@@ -72,6 +83,11 @@ export function TabBar() {
       icon: Calendar,
     },
     {
+      name: "Journal",
+      path: "/journal",
+      icon: BookOpen,
+    },
+    {
       name: "Settings",
       path: "/settings",
       icon: Settings,
@@ -83,15 +99,69 @@ export function TabBar() {
     },
   ];
 
+  const isJournalActive =
+    location === "/journal" ||
+    location === "/journal/daily-gews" ||
+    location === "/journal/empowering-thoughts" ||
+    location === "/reference-beliefs" ||
+    location === "/accomplishments" ||
+    location === "/explore" ||
+    location === "/fitness" ||
+    location === "/recipes";
+
   // Mobile: bottom navigation (dark theme)
   if (isMobile) {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-yellow-600/30 safe-area-inset-bottom z-50 light:bg-white light:border-slate-200">
-        <nav className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
+        <nav className="flex justify-around items-center h-16 max-w-lg mx-auto px-1">
           {mobileTabs.map((tab) => {
             const Icon = tab.icon;
+
+            // Journal opens a dropdown of its sub-pages instead of navigating directly,
+            // since it doesn't have a single canonical destination on mobile.
+            if (tab.name === "Journal") {
+              return (
+                <DropdownMenu key={tab.path} open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                        isJournalActive
+                          ? "text-yellow-400"
+                          : "text-yellow-200/60 hover:text-yellow-200"
+                      }`}
+                    >
+                      <Icon className={`h-5 w-5 ${isJournalActive ? "stroke-[2.5]" : ""}`} />
+                      <span className={`text-[10px] mt-0.5 ${isJournalActive ? "font-semibold" : "font-medium"}`}>
+                        {tab.name}
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="center" className="bg-slate-800 border-yellow-600/30 mb-2">
+                    <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                      <Link href="/journal">
+                        <a className="flex items-center gap-2 w-full">
+                          <BookOpen className="h-4 w-4 text-amber-400" />
+                          Journal Home
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
+                    {JOURNAL_SUBLINKS.map(({ label, path, icon: SubIcon, colorClass }) => (
+                      <DropdownMenuItem key={path} asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                        <Link href={path}>
+                          <a className="flex items-center gap-2 w-full">
+                            <SubIcon className={`h-4 w-4 ${colorClass}`} />
+                            {label}
+                          </a>
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
             const isActive = location === tab.path;
-            
+
             return (
               <Link key={tab.path} href={tab.path}>
                 <a
@@ -216,7 +286,6 @@ export function TabBar() {
 
           {/* Journal - written essays + Accomplishments submenu */}
           {(() => {
-            const isJournalActive = location === "/journal" || location === "/journal/daily-gews" || location === "/journal/empowering-thoughts" || location === "/reference-beliefs" || location === "/accomplishments" || location === "/explore" || location === "/fitness" || location === "/recipes";
             return (
               <DropdownMenu open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -245,62 +314,16 @@ export function TabBar() {
                   onMouseEnter={() => setJournalMenuOpen(true)}
                   onMouseLeave={() => setJournalMenuOpen(false)}
                 >
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/journal/daily-gews">
-                      <a className="flex items-center gap-2 w-full">
-                        <HeartHandshake className="h-4 w-4 text-amber-400" />
-                        Daily GEWS
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/journal/empowering-thoughts">
-                      <a className="flex items-center gap-2 w-full">
-                        <Sparkles className="h-4 w-4 text-amber-400" />
-                        Current Empowering Thoughts/Beliefs
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/reference-beliefs">
-                      <a className="flex items-center gap-2 w-full">
-                        <BookMarked className="h-4 w-4 text-amber-400" />
-                        Reference Beliefs
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/accomplishments">
-                      <a className="flex items-center gap-2 w-full">
-                        <Trophy className="h-4 w-4 text-yellow-400" />
-                        Accomplishments
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/explore">
-                      <a className="flex items-center gap-2 w-full">
-                        <Compass className="h-4 w-4 text-sky-400" />
-                        Explore
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/fitness">
-                      <a className="flex items-center gap-2 w-full">
-                        <Dumbbell className="h-4 w-4 text-emerald-400" />
-                        Fitness
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                    <Link href="/recipes">
-                      <a className="flex items-center gap-2 w-full">
-                        <ChefHat className="h-4 w-4 text-orange-400" />
-                        Recipes
-                      </a>
-                    </Link>
-                  </DropdownMenuItem>
+                  {JOURNAL_SUBLINKS.map(({ label, path, icon: SubIcon, colorClass }) => (
+                    <DropdownMenuItem key={path} asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
+                      <Link href={path}>
+                        <a className="flex items-center gap-2 w-full">
+                          <SubIcon className={`h-4 w-4 ${colorClass}`} />
+                          {label}
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             );
