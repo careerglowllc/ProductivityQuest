@@ -29,7 +29,15 @@ import {
   FileType,
   CheckSquare,
   Square,
+  HeartHandshake,
+  Sparkles,
+  BookMarked,
+  Trophy,
+  Compass,
+  Dumbbell,
+  ChefHat,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 
@@ -46,6 +54,18 @@ type Essay = {
 };
 
 const EMPTY: Essay = { id: "", title: "", body: "", createdAt: "", updatedAt: "" };
+
+// Small dashboard buttons shown under the Journal header — mirrors the desktop nav's
+// Journal dropdown so every related page is reachable from the page itself too.
+const SUBPAGE_LINKS: { label: string; path: string; icon: typeof BookOpen }[] = [
+  { label: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake },
+  { label: "Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles },
+  { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked },
+  { label: "Accomplishments", path: "/accomplishments", icon: Trophy },
+  { label: "Explore", path: "/explore", icon: Compass },
+  { label: "Fitness", path: "/fitness", icon: Dumbbell },
+  { label: "Recipes", path: "/recipes", icon: ChefHat },
+];
 
 // ── Helpers ──────────────────────────────────────────────────
 function newId() {
@@ -242,6 +262,18 @@ export default function JournalPage() {
               <h1 className="text-4xl font-serif font-bold text-yellow-100">Journal</h1>
             </div>
             <p className="text-yellow-200/70 text-lg">Your written essays &amp; reflections</p>
+          </div>
+
+          {/* Related pages — small dashboard menu buttons */}
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            {SUBPAGE_LINKS.map(({ label, path, icon: Icon }) => (
+              <Link key={path} href={path}>
+                <a className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-slate-800/60 hover:border-amber-500/60 hover:bg-slate-800/90 text-amber-200/80 hover:text-amber-100 text-xs font-medium px-3 py-1.5 transition-colors">
+                  <Icon className="h-3.5 w-3.5 text-amber-400" />
+                  {label}
+                </a>
+              </Link>
+            ))}
           </div>
 
           {/* Toolbar */}
