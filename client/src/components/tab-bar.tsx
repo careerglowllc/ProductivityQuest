@@ -113,70 +113,23 @@ export function TabBar() {
   if (isMobile) {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-yellow-600/30 safe-area-inset-bottom z-50 light:bg-white light:border-slate-200">
-        <nav className="flex justify-around items-center h-16 max-w-lg mx-auto px-1">
+        <nav className="flex items-center h-16 max-w-lg mx-auto px-1">
           {mobileTabs.map((tab) => {
             const Icon = tab.icon;
+            const isActive = tab.name === "Journal" ? isJournalActive : location === tab.path;
 
-            // Journal opens a dropdown of its sub-pages instead of navigating directly,
-            // since it doesn't have a single canonical destination on mobile.
-            if (tab.name === "Journal") {
-              return (
-                <DropdownMenu key={tab.path} open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
-                  <DropdownMenuTrigger asChild>
-                    {/* div, not <button> — Safari/WKWebView gives native buttons an
-                        appearance-driven intrinsic width that ignores flex-basis:0,
-                        breaking the even flex-1 spacing of the other tabs. */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      aria-label={tab.name}
-                      className={`flex items-center justify-center flex-1 h-full transition-colors ${
-                        isJournalActive
-                          ? "text-yellow-400"
-                          : "text-yellow-200/60 hover:text-yellow-200"
-                      }`}
-                    >
-                      <Icon className={`h-6 w-6 ${isJournalActive ? "stroke-[2.5]" : ""}`} />
-                    </div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="center" className="bg-slate-800 border-yellow-600/30 mb-2">
-                    <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                      <Link href="/journal">
-                        <a className="flex items-center gap-2 w-full">
-                          <BookOpen className="h-4 w-4 text-amber-400" />
-                          Journal Home
-                        </a>
-                      </Link>
-                    </DropdownMenuItem>
-                    {JOURNAL_SUBLINKS.map(({ label, path, icon: SubIcon, colorClass }) => (
-                      <DropdownMenuItem key={path} asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                        <Link href={path}>
-                          <a className="flex items-center gap-2 w-full">
-                            <SubIcon className={`h-4 w-4 ${colorClass}`} />
-                            {label}
-                          </a>
-                        </Link>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            const isActive = location === tab.path;
-
+            // className goes on <Link> itself — wouter v3 renders the anchor, so a nested
+            // <a> would leave the real flex child unstyled and break even tab sizing.
             return (
-              <Link key={tab.path} href={tab.path}>
-                <a
-                  aria-label={tab.name}
-                  className={`flex items-center justify-center flex-1 h-full transition-colors ${
-                    isActive
-                      ? "text-yellow-400"
-                      : "text-yellow-200/60 hover:text-yellow-200"
-                  }`}
-                >
-                  <Icon className={`h-6 w-6 ${isActive ? "stroke-[2.5]" : ""}`} />
-                </a>
+              <Link
+                key={tab.path}
+                href={tab.path}
+                aria-label={tab.name}
+                className={`flex items-center justify-center basis-0 grow shrink min-w-0 h-full transition-colors ${
+                  isActive ? "text-yellow-400" : "text-yellow-200/60 hover:text-yellow-200"
+                }`}
+              >
+                <Icon className={`h-6 w-6 ${isActive ? "stroke-[2.5]" : ""}`} />
               </Link>
             );
           })}

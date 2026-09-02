@@ -18,7 +18,7 @@ import { buildTasksCSVExport } from "@/pages/home";
 import { buildQuestlinesCSVExport } from "@/pages/campaigns";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 
-const APP_VERSION = "v1.0.53";
+const APP_VERSION = "v1.0.54";
 
 async function exportAllAsZip() {
   const JSZip = (await import("jszip")).default;
