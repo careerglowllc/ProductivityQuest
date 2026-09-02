@@ -129,16 +129,14 @@ export function TabBar() {
                     <div
                       role="button"
                       tabIndex={0}
-                      className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                      aria-label={tab.name}
+                      className={`flex items-center justify-center flex-1 h-full transition-colors ${
                         isJournalActive
                           ? "text-yellow-400"
                           : "text-yellow-200/60 hover:text-yellow-200"
                       }`}
                     >
-                      <Icon className={`h-5 w-5 ${isJournalActive ? "stroke-[2.5]" : ""}`} />
-                      <span className={`text-[10px] mt-0.5 ${isJournalActive ? "font-semibold" : "font-medium"}`}>
-                        {tab.name}
-                      </span>
+                      <Icon className={`h-6 w-6 ${isJournalActive ? "stroke-[2.5]" : ""}`} />
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="center" className="bg-slate-800 border-yellow-600/30 mb-2">
@@ -170,16 +168,14 @@ export function TabBar() {
             return (
               <Link key={tab.path} href={tab.path}>
                 <a
-                  className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                  aria-label={tab.name}
+                  className={`flex items-center justify-center flex-1 h-full transition-colors ${
                     isActive
                       ? "text-yellow-400"
                       : "text-yellow-200/60 hover:text-yellow-200"
                   }`}
                 >
-                  <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
-                  <span className={`text-[10px] mt-0.5 ${isActive ? "font-semibold" : "font-medium"}`}>
-                    {tab.name}
-                  </span>
+                  <Icon className={`h-6 w-6 ${isActive ? "stroke-[2.5]" : ""}`} />
                 </a>
               </Link>
             );
