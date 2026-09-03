@@ -1,5 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CornerDownRight, CheckCircle2, Circle, Clock, Eye } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface QuestlineTask {
   id: number;
@@ -55,6 +57,100 @@ function formatDuration(mins?: number | null) {
 }
 
 export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId, onViewTask }: QuestlineTreeModalProps) {
+  const isMobile = useIsMobile();
+
+  // ── Mobile bottom-sheet: slide-up entrance + swipe-down-to-close ──
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isTouching, setIsTouching] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const contentElRef = useRef<HTMLDivElement | null>(null);
+  const listenersAttachedRef = useRef(false);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+  const dragRef = useRef<{ startY: number; startScrollTop: number; dragging: boolean }>({
+    startY: 0, startScrollTop: 0, dragging: false,
+  });
+
+  // Animate in from below the screen whenever the sheet opens on mobile
+  useEffect(() => {
+    if (!isMobile) return;
+    if (open) {
+      setDragOffset(typeof window !== "undefined" ? window.innerHeight : 800);
+      const raf1 = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setDragOffset(0));
+      });
+      return () => cancelAnimationFrame(raf1);
+    }
+    setDragOffset(0);
+  }, [open, isMobile]);
+
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    dragRef.current = {
+      startY: e.touches[0].clientY,
+      startScrollTop: listRef.current?.scrollTop ?? 0,
+      dragging: false,
+    };
+    setIsTouching(true);
+  }, []);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    const s = dragRef.current;
+    const deltaY = e.touches[0].clientY - s.startY;
+    const currentScrollTop = listRef.current?.scrollTop ?? 0;
+    // Only start dragging the sheet when the list is scrolled to the top and pulling down
+    if (!s.dragging && s.startScrollTop <= 2 && currentScrollTop <= 2 && deltaY > 5) {
+      s.dragging = true;
+    }
+    if (s.dragging && deltaY > 0) {
+      setDragOffset(deltaY);
+      e.preventDefault();
+    } else if (s.dragging && deltaY <= 0) {
+      setDragOffset(0);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const s = dragRef.current;
+    setIsTouching(false);
+    if (!s.dragging) {
+      setDragOffset(0);
+      return;
+    }
+    setDragOffset((offset) => {
+      const screenH = typeof window !== "undefined" ? window.innerHeight : 800;
+      if (offset > 100 || offset > screenH * 0.25) {
+        setTimeout(() => onOpenChangeRef.current(false), 200);
+        return screenH;
+      }
+      return 0;
+    });
+    s.dragging = false;
+  }, []);
+
+  const swipeCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    if (contentElRef.current && listenersAttachedRef.current) {
+      contentElRef.current.removeEventListener('touchstart', handleTouchStart as any);
+      contentElRef.current.removeEventListener('touchmove', handleTouchMove as any);
+      contentElRef.current.removeEventListener('touchend', handleTouchEnd as any);
+      listenersAttachedRef.current = false;
+    }
+    contentElRef.current = node;
+    if (node && isMobile) {
+      node.addEventListener('touchstart', handleTouchStart as any, { passive: true });
+      node.addEventListener('touchmove', handleTouchMove as any, { passive: false });
+      node.addEventListener('touchend', handleTouchEnd as any, { passive: true });
+      listenersAttachedRef.current = true;
+    }
+  }, [isMobile, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  const mobileSheetStyle = isMobile
+    ? {
+        transform: dragOffset !== 0 ? `translateY(${dragOffset}px)` : undefined,
+        transition: isTouching ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+        willChange: 'transform',
+      }
+    : undefined;
+
   if (!questline) return null;
 
   // Sort tasks by questlineOrder
@@ -73,7 +169,16 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 text-yellow-100 overflow-hidden">
+      <DialogContent
+        ref={swipeCallbackRef}
+        style={mobileSheetStyle}
+        className={`${isMobile ? "!top-auto !bottom-0 !left-0 !right-0 !translate-x-0 !translate-y-0 !mx-0 w-full max-w-full max-h-[88vh] rounded-t-2xl rounded-b-none !animate-none pb-[env(safe-area-inset-bottom)]" : "max-w-2xl max-h-[85vh]"} flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 text-yellow-100 overflow-hidden`}
+      >
+        {isMobile && (
+          <div className="flex justify-center pt-1 pb-2 -mt-1 shrink-0">
+            <div className="w-12 h-1.5 rounded-full bg-purple-300/40" />
+          </div>
+        )}
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-serif text-purple-200 flex items-center gap-2">
             <span>{questline.icon || "⚔️"}</span>
@@ -87,7 +192,7 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-1.5 py-2 pr-1" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 space-y-1.5 py-2 pr-1" style={{ WebkitOverflowScrolling: "touch" }}>
           {sorted.map((task) => {
             const indent = task.indentLevel ?? 0;
             const style = getDepthStyle(indent);
