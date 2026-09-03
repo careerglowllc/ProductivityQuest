@@ -20,6 +20,7 @@ import {
   ChefHat,
   Utensils,
   HeartHandshake,
+  Heart,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -59,6 +60,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "Journal", path: "/journal", icon: BookOpen, color: "orange", description: "Essays & reflections" },
       { name: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake, color: "orange", description: "Gratitudes, wins, exciteds & sadnesses" },
       { name: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, color: "orange", description: "Thoughts & beliefs you're reinforcing right now" },
+      { name: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, color: "orange", description: "A running list of things you're grateful for" },
       { name: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, color: "orange", description: "Principles & reference notes" },
       { name: "Accomplishments", path: "/accomplishments", icon: Trophy, color: "yellow", description: "Milestones reached" },
       { name: "Explore", path: "/explore", icon: Compass, color: "cyan", description: "Places & travel" },

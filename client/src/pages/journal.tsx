@@ -36,6 +36,7 @@ import {
   Compass,
   Dumbbell,
   ChefHat,
+  Heart,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -60,6 +61,7 @@ const EMPTY: Essay = { id: "", title: "", body: "", createdAt: "", updatedAt: ""
 const SUBPAGE_LINKS: { label: string; path: string; icon: typeof BookOpen }[] = [
   { label: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake },
   { label: "Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles },
+  { label: "Gratitude Journal", path: "/journal/gratitude", icon: Heart },
   { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked },
   { label: "Accomplishments", path: "/accomplishments", icon: Trophy },
   { label: "Explore", path: "/explore", icon: Compass },
