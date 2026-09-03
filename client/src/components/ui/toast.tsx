@@ -99,10 +99,13 @@ const Toast = React.forwardRef<
   }, []);
 
   // Block Radix's internal pointer capture which interferes with touch-based swipe
-  // We use gotpointercapture to release AFTER Radix captures, ensuring touch events flow normally
+  // We use gotpointercapture to release AFTER Radix captures, ensuring touch events flow normally.
+  // Radix calls event.target.setPointerCapture(...) — the captured element is whatever descendant
+  // (e.g. the ToastAction button) the touch started on, NOT the toast root — so release must happen
+  // on e.target, not e.currentTarget, or the release silently no-ops and the swipe stays blocked.
   const handleGotPointerCapture = React.useCallback((e: PointerEvent) => {
     if (e.pointerType === 'touch') {
-      const target = e.currentTarget as HTMLElement;
+      const target = e.target as HTMLElement;
       try { target.releasePointerCapture(e.pointerId); } catch (_) {}
     }
   }, []);
