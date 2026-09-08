@@ -49,8 +49,64 @@ const Toast = React.forwardRef<
   const [isTouching, setIsTouching] = React.useState(false);
   const elRef = React.useRef<HTMLLIElement | null>(null);
   const listenersRef = React.useRef(false);
+  const docListenersRef = React.useRef(false);
+  // Refs let detachDocListeners remove the exact same function instances it added.
+  const handleTouchMoveRef = React.useRef<((e: TouchEvent) => void) | null>(null);
+  const handleTouchEndRef = React.useRef<(() => void) | null>(null);
   const onOpenChangeRef = React.useRef(onOpenChange);
   onOpenChangeRef.current = onOpenChange;
+
+  // Move/end/cancel are bound to `document` for the duration of a gesture rather than to the
+  // toast element. A toast can be overlapped by modal layers (Radix Dialog + react-remove-scroll)
+  // or the finger can leave the toast bounds mid-swipe — in both cases element-bound listeners
+  // stop firing and the toast gets stuck partway. Document-bound listeners always complete.
+  const detachDocListeners = React.useCallback(() => {
+    if (!docListenersRef.current) return;
+    document.removeEventListener('touchmove', handleTouchMoveRef.current!, { capture: true } as any);
+    document.removeEventListener('touchend', handleTouchEndRef.current!, { capture: true } as any);
+    document.removeEventListener('touchcancel', handleTouchEndRef.current!, { capture: true } as any);
+    docListenersRef.current = false;
+  }, []);
+
+  const finishGesture = React.useCallback(() => {
+    const t = touchRef.current;
+    touchRef.current = null;
+    detachDocListeners();
+    setIsTouching(false);
+    if (!t) {
+      setOffsetY(0);
+      return;
+    }
+    const deltaY = t.currentY - t.startY;
+    // Swiped up past the threshold → dismiss. Otherwise always snap back to rest,
+    // including on touchcancel, so the toast can never be left stranded mid-swipe.
+    if (deltaY < -40) {
+      setDismissing(true);
+      setOffsetY(-200);
+      setTimeout(() => {
+        onOpenChangeRef.current?.(false);
+      }, 200);
+    } else {
+      setOffsetY(0);
+    }
+  }, [detachDocListeners]);
+
+  const handleTouchMove = React.useCallback((e: TouchEvent) => {
+    if (!touchRef.current) return;
+    const deltaY = e.touches[0].clientY - touchRef.current.startY;
+    touchRef.current.currentY = e.touches[0].clientY;
+    // Only allow upward swipe (negative delta) — clamp downward to slight rubber band
+    if (deltaY < 0) {
+      if (e.cancelable) e.preventDefault(); // prevent page scroll while swiping toast
+      setOffsetY(deltaY);
+    } else {
+      setOffsetY(Math.pow(deltaY, 0.6)); // slight rubber band downward
+    }
+  }, []);
+
+  // Refs let detachDocListeners remove the exact same function instances it added.
+  handleTouchMoveRef.current = handleTouchMove;
+  handleTouchEndRef.current = finishGesture;
 
   const handleTouchStart = React.useCallback((e: TouchEvent) => {
     touchRef.current = { startY: e.touches[0].clientY, currentY: e.touches[0].clientY };
@@ -66,35 +122,14 @@ const Toast = React.forwardRef<
     if (node) {
       node.style.animation = 'none';
     }
-  }, []);
-
-  const handleTouchMove = React.useCallback((e: TouchEvent) => {
-    if (!touchRef.current) return;
-    const deltaY = e.touches[0].clientY - touchRef.current.startY;
-    touchRef.current.currentY = e.touches[0].clientY;
-    // Only allow upward swipe (negative delta) — clamp downward to slight rubber band
-    if (deltaY < 0) {
-      e.preventDefault(); // prevent page scroll while swiping toast
-      setOffsetY(deltaY);
-    } else {
-      setOffsetY(Math.pow(deltaY, 0.6)); // slight rubber band downward
-    }
-  }, []);
-
-  const handleTouchEnd = React.useCallback(() => {
-    if (!touchRef.current) return;
-    const deltaY = touchRef.current.currentY - touchRef.current.startY;
-    touchRef.current = null;
-    setIsTouching(false);
-    // If swiped up more than 40px, dismiss
-    if (deltaY < -40) {
-      setDismissing(true);
-      setOffsetY(-200);
-      setTimeout(() => {
-        onOpenChangeRef.current?.(false);
-      }, 200);
-    } else {
-      setOffsetY(0);
+    if (!docListenersRef.current) {
+      document.addEventListener('touchmove', handleTouchMoveRef.current!, { passive: false, capture: true });
+      document.addEventListener('touchend', handleTouchEndRef.current!, { passive: true, capture: true });
+      // touchcancel fires instead of touchend when a modal layer or the system steals the
+      // gesture (common while a Radix Dialog is open, e.g. the quest-completion animation).
+      // Without this the toast never resolves the swipe and appears frozen on screen.
+      document.addEventListener('touchcancel', handleTouchEndRef.current!, { passive: true, capture: true });
+      docListenersRef.current = true;
     }
   }, []);
 
@@ -114,22 +149,22 @@ const Toast = React.forwardRef<
   const callbackRef = React.useCallback((node: HTMLLIElement | null) => {
     // Clean up old
     if (elRef.current && listenersRef.current) {
-      elRef.current.removeEventListener('touchstart', handleTouchStart);
-      elRef.current.removeEventListener('touchmove', handleTouchMove);
-      elRef.current.removeEventListener('touchend', handleTouchEnd);
+      elRef.current.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
       elRef.current.removeEventListener('gotpointercapture', handleGotPointerCapture as EventListener);
       listenersRef.current = false;
     }
     elRef.current = node;
     if (node) {
-      node.addEventListener('touchstart', handleTouchStart, { passive: true });
-      node.addEventListener('touchmove', handleTouchMove, { passive: false });
-      node.addEventListener('touchend', handleTouchEnd, { passive: true });
+      // Capture phase so no descendant (e.g. the Undo action button) can swallow the gesture first.
+      node.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
       // Release pointer capture immediately when Radix sets it, so touch events keep flowing
       node.addEventListener('gotpointercapture', handleGotPointerCapture as EventListener);
       listenersRef.current = true;
     }
-  }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleGotPointerCapture]);
+  }, [handleTouchStart, handleGotPointerCapture]);
+
+  // Detach any lingering document listeners if the toast unmounts mid-gesture
+  React.useEffect(() => detachDocListeners, [detachDocListeners]);
 
   // Merge refs
   const mergedRef = React.useCallback((node: HTMLLIElement | null) => {
