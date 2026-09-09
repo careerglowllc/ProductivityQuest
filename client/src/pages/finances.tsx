@@ -802,6 +802,16 @@ export default function Finances() {
     const valid = ["overview", "income-vs-expense", "business", "expense-breakdown", "retirement", "cashflow", "table", "networth", "credit-cards", "accounts", "nw-trend", "fire", "real-estate"];
     return (valid.includes(tab || "") ? tab : "overview") as any;
   });
+  // Keep the URL's ?tab= in sync so refreshing the page reopens the same tab instead of resetting to Overview.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (activeTab === "overview") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", activeTab);
+    }
+    window.history.replaceState({}, "", url.toString());
+  }, [activeTab]);
   const [fireLocationKey, setFireLocationKey] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn">("thailand");
   const [fireColExpanded, setFireColExpanded] = useState<"thailand" | "vietnam" | "colombia" | "puertoRico" | "austin" | "auburn" | null>(null);
   const [fireTier, setFireTier] = useState<"lean" | "comfortable" | "cushy">("comfortable");
@@ -1154,6 +1164,47 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: veluna.com domain value updated to $1,600 (Sep 9 2026)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260909-veluna";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-veluna-domain", "1600");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setVelunaDomainValue(1600);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time migration: 2605 Plumbago Ct loan payoff + escrow updated per servicer statement (Sep 9 2026)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260909-plumbago-loan";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-home-loan", "607798.98");
+        localStorage.setItem("nw-home-escrow", "2544.22");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setHomeLoanBalance(607798.98);
+        setHomeEscrowBalance(2544.22);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time migration: 2605 Plumbago Ct manual sell-price estimate updated to $640,000 (Sep 9 2026)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260909-plumbago-value";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-home-value", "640000");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setHomeEstValue(640000);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
   const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
   const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
@@ -1197,7 +1248,7 @@ export default function Finances() {
     try { return localStorage.getItem("nw-home-address") || "2605 Plumbago Court, Rocklin, CA 95677"; } catch { return "2605 Plumbago Court, Rocklin, CA 95677"; }
   });
   const [homeEstValue, setHomeEstValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-value") || "636000"); } catch { return 636000; }
+    try { return parseFloat(localStorage.getItem("nw-home-value") || "640000"); } catch { return 640000; }
   });
   const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-loan") || "607798.98"); } catch { return 607798.98; }
@@ -1205,7 +1256,7 @@ export default function Finances() {
   // Escrow/impound balance held by the servicer — refunded to us at payoff/sale, so it's a
   // credit added back to net proceeds (not a cost).
   const [homeEscrowBalance, setHomeEscrowBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-escrow") || "2744.40"); } catch { return 2744.40; }
+    try { return parseFloat(localStorage.getItem("nw-home-escrow") || "2544.22"); } catch { return 2544.22; }
   });
   const [homePurchasePrice, setHomePurchasePrice] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-purchase") || "636000"); } catch { return 636000; }
@@ -1254,7 +1305,7 @@ export default function Finances() {
   // HSA — Optum Financial (manual, June 2026)
   const [hsaBalance] = useState<number>(1.62);
   const [velunaDomainValue, setVelunaDomainValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "4050"); } catch { return 4050; }
+    try { return parseFloat(localStorage.getItem("nw-veluna-domain") || "1600"); } catch { return 1600; }
   });
   const [velunaDomainPurchasePrice, setVelunaDomainPurchasePrice] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-veluna-domain-purchase") || "4001.17"); } catch { return 4001.17; }
@@ -5584,18 +5635,21 @@ export default function Finances() {
                                 <Input type="number" min="0" step="1000" value={homeEstValue}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setHomeEstValue(v); try { localStorage.setItem("nw-home-value", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual entry · last updated Sep 2026</p>
                               </div>
                               <div>
                                 <Label className="text-slate-300 text-xs mb-1 block">Loan Balance ($)</Label>
                                 <Input type="number" min="0" step="1000" value={homeLoanBalance}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setHomeLoanBalance(v); try { localStorage.setItem("nw-home-loan", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual entry · last updated Sep 2026</p>
                               </div>
                               <div>
                                 <Label className="text-slate-300 text-xs mb-1 block">Escrow Balance ($) <span className="text-slate-600">(refunded at payoff)</span></Label>
                                 <Input type="number" min="0" step="100" value={homeEscrowBalance}
                                   onChange={e => { const v = parseFloat(e.target.value)||0; setHomeEscrowBalance(v); try { localStorage.setItem("nw-home-escrow", String(v)); } catch {} }}
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
+                                <p className="text-[10px] text-slate-500 mt-1">Manual entry · last updated Sep 2026</p>
                               </div>
                               <div>
                                 <Label className="text-slate-300 text-xs mb-1 block">Original Purchase Price ($)</Label>

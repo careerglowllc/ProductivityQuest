@@ -3,11 +3,14 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Heart, ArrowLeft, Plus, Trash2, Search, Download } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Heart, ArrowLeft, Plus, Trash2, Search, Download, Pencil, Check, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
+import { EmojiPicker } from "@/components/emoji-picker";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-gratitude-v1";
@@ -16,6 +19,7 @@ type GratitudeEntry = {
   id: string;
   text: string;
   createdAt: string;
+  emoji?: string;
 };
 
 function newId() {
@@ -40,8 +44,8 @@ function loadEntries(): GratitudeEntry[] {
 // Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
 export function buildGratitudeCSVExport(): CSVExport {
   const entries = loadEntries();
-  const headers = ["Entry", "Date Added"];
-  const rows = entries.map((e) => [e.text, fmtDate(e.createdAt)]);
+  const headers = ["Emoji", "Entry", "Date Added"];
+  const rows = entries.map((e) => [e.emoji || "", e.text, fmtDate(e.createdAt)]);
   return { folder: "Journal", filename: "gratitude-journal.csv", content: rowsToCSV(headers, rows) };
 }
 
@@ -50,8 +54,12 @@ export default function JournalGratitudePage() {
   const isMobile = useIsMobile();
   const [entries, setEntries] = useState<GratitudeEntry[]>(loadEntries);
   const [draft, setDraft] = useState("");
+  const [draftEmoji, setDraftEmoji] = useState("");
   const [search, setSearch] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [editUpdateDate, setEditUpdateDate] = useState(false);
 
   // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
@@ -64,13 +72,37 @@ export default function JournalGratitudePage() {
   function addEntry() {
     const text = draft.trim();
     if (!text) return;
-    persist([{ id: newId(), text, createdAt: new Date().toISOString() }, ...entries]);
+    persist([{ id: newId(), text, createdAt: new Date().toISOString(), emoji: draftEmoji || undefined }, ...entries]);
     setDraft("");
+    setDraftEmoji("");
   }
 
   function remove(id: string) {
     persist(entries.filter((e) => e.id !== id));
     setConfirmDeleteId(null);
+  }
+
+  function updateEmoji(id: string, emoji: string) {
+    persist(entries.map((e) => (e.id === id ? { ...e, emoji } : e)));
+  }
+
+  function startEdit(e: GratitudeEntry) {
+    setEditingId(e.id);
+    setEditDraft(e.text);
+    setEditUpdateDate(false);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft("");
+    setEditUpdateDate(false);
+  }
+
+  function saveEdit(id: string) {
+    const text = editDraft.trim();
+    if (!text) return;
+    persist(entries.map((e) => (e.id === id ? { ...e, text, createdAt: editUpdateDate ? new Date().toISOString() : e.createdAt } : e)));
+    cancelEdit();
   }
 
   function handleExport() {
@@ -110,6 +142,9 @@ export default function JournalGratitudePage() {
 
           {/* Quick-add */}
           <div className="flex gap-2 mb-6">
+            <span className="shrink-0" onClick={(ev) => ev.stopPropagation()}>
+              <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} size="md" />
+            </span>
             <Input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -168,19 +203,58 @@ export default function JournalGratitudePage() {
                   key={e.id}
                   className="bg-slate-800/60 backdrop-blur-md border border-pink-600/30 hover:border-pink-500/60 transition-colors group"
                 >
-                  <CardContent className="p-4 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-pink-50 whitespace-pre-wrap">{e.text}</p>
-                      <p className="mt-1 text-[11px] text-slate-500">{fmtDate(e.createdAt)}</p>
-                    </div>
-                    <button
-                      onClick={() => setConfirmDeleteId(e.id)}
-                      className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </CardContent>
+                  {editingId === e.id ? (
+                    <CardContent className="p-4 space-y-3">
+                      <Textarea
+                        value={editDraft}
+                        onChange={(ev) => setEditDraft(ev.target.value)}
+                        className="bg-slate-900/60 border-pink-600/30 text-pink-50 placeholder:text-slate-500 min-h-[80px]"
+                        autoFocus
+                      />
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <label className="flex items-center gap-2 text-xs text-pink-200/70 cursor-pointer">
+                          <Checkbox checked={editUpdateDate} onCheckedChange={(c) => setEditUpdateDate(c === true)} />
+                          Update date to today
+                        </label>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={cancelEdit}>
+                            <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                          </Button>
+                          <Button size="sm" className="bg-pink-600 hover:bg-pink-500 text-white" onClick={() => saveEdit(e.id)}>
+                            <Check className="h-3.5 w-3.5 mr-1" /> Save
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  ) : (
+                    <CardContent className="p-4 flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <span className="shrink-0" onClick={(ev) => ev.stopPropagation()}>
+                          <EmojiPicker value={e.emoji || ""} onChange={(emoji) => updateEmoji(e.id, emoji)} size="sm" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-pink-50 whitespace-pre-wrap">{e.text}</p>
+                          <p className="mt-1 text-[11px] text-slate-500">{fmtDate(e.createdAt)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          onClick={() => startEdit(e)}
+                          className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-pink-300"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(e.id)}
+                          className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-red-400"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
               ))}
             </div>

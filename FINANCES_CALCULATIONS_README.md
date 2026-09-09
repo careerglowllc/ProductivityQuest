@@ -153,9 +153,10 @@ All NW holdings are stored in `localStorage` with these keys:
 | `nw-etrade-rsu` | `0` | E*Trade RSU value (dollars) |
 | `nw-ford-explorer` | `17000` | 2020 Ford Explorer (dollars) |
 | `nw-kawasaki-ninja` | `1200` | Kawasaki Ninja (dollars) |
-| `nw-veluna-domain` | `4050` | veluna.com estimated value |
-| `nw-home-value` | `636000` | Manual home estimate (fallback) |
-| `nw-home-loan` | `614000` | Mortgage balance |
+| `nw-veluna-domain` | `1600` | veluna.com estimated value |
+| `nw-home-value` | `640000` | Manual home estimate (fallback) |
+| `nw-home-loan` | `607798.98` | Mortgage balance |
+| `nw-home-escrow` | `2544.22` | Escrow/impound balance (refunded at payoff) |
 
 ---
 

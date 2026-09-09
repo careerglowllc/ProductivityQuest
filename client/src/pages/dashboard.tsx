@@ -394,9 +394,9 @@ function FireGoalDashboardWidget() {
   const rothIraValue = (readNum("nw-roth-ibit", 697) * ibitPrice) + (readNum("nw-roth-vtsax", 145.188) * vtsaxPrice);
   const k401Value = readNum("nw-401k-sso", 1734.032) * viiixPrice;
 
-  const homeEstValue = readNum("nw-home-value", 636000);
+  const homeEstValue = readNum("nw-home-value", 640000);
   const homeLoanBalance = readNum("nw-home-loan", 607798.98);
-  const homeEscrowBalance = readNum("nw-home-escrow", 2744.40);
+  const homeEscrowBalance = readNum("nw-home-escrow", 2544.22);
   const homePurchasePrice = readNum("nw-home-purchase", 636000);
   const homeSellerFee = readNum("nw-home-fee", 6);
   const homeOtherCosts = readNum("nw-home-other-costs", 0);
@@ -418,7 +418,7 @@ function FireGoalDashboardWidget() {
   const checkingBalance = readNum("nw-checking", 40000);
   const careerglowBalance = 8440;
   const hsaBalance = 1.62;
-  const velunaDomainValue = readNum("nw-veluna-domain", 4050);
+  const velunaDomainValue = readNum("nw-veluna-domain", 1600);
   const velunaDomainPurchasePrice = readNum("nw-veluna-domain-purchase", 4001.17);
   const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
   const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
