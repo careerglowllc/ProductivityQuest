@@ -1,7 +1,7 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
-import { installStorageSync, hydrateUserData, resetUserDataSync } from "@/lib/synced-storage";
+import { installStorageSync, hydrateUserData, resetUserDataSync, startPeriodicHydration } from "@/lib/synced-storage";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -100,7 +100,12 @@ function Router() {
     if (isAuthenticated) {
       let cancelled = false;
       hydrateUserData().finally(() => {
-        if (!cancelled) setUserDataReady(true);
+        if (!cancelled) {
+          setUserDataReady(true);
+          // Keep pulling server data in the background so this device picks up edits made
+          // on another device/tab without requiring a manual logout/login or refresh.
+          startPeriodicHydration();
+        }
       });
       return () => {
         cancelled = true;

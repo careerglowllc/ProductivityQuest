@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import {
   Dialog,
   DialogContent,
@@ -177,6 +178,13 @@ export default function JournalPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Pick up essays added on another device (e.g. mobile) without needing a manual refresh.
+  useEffect(() => subscribeUserDataRefresh(() => {
+    try {
+      setEssays(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+    } catch { /* ignore */ }
+  }), []);
 
   // Persist on change
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Sunrise, Trophy, Sparkle, CloudRain } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-daily-gews-v1";
@@ -72,6 +73,9 @@ export default function JournalDailyGewsPage() {
   const [form, setForm] = useState<GewsEntry>(emptyEntry(todayStr()));
   const [drafts, setDrafts] = useState<Record<GewsCategory, string>>({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
   const [confirmDeleteDate, setConfirmDeleteDate] = useState<string | null>(null);
+
+  // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
+  useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
 
   function persist(next: GewsEntry[]) {
     setEntries(next);

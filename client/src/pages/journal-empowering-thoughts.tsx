@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { Sparkles, ArrowLeft, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-empowering-thoughts-v1";
@@ -57,6 +58,9 @@ export default function JournalEmpoweringThoughtsPage() {
   const [form, setForm] = useState<Thought>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Pick up thoughts added on another device (e.g. mobile) without needing a manual refresh.
+  useEffect(() => subscribeUserDataRefresh(() => setThoughts(loadThoughts())), []);
 
   function persist(next: Thought[]) {
     setThoughts(next);

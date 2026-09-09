@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Heart, ArrowLeft, Plus, Trash2, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-gratitude-v1";
@@ -42,6 +43,9 @@ export default function JournalGratitudePage() {
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
+  useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
 
   function persist(next: GratitudeEntry[]) {
     setEntries(next);

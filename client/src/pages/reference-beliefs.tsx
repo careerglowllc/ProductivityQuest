@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { BookMarked, ArrowLeft, Plus, Pencil, Trash2, Download, Search } from "l
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
+import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-reference-beliefs-v2";
@@ -76,6 +77,9 @@ export default function ReferenceBeliefsPage() {
   const [form, setForm] = useState<Belief>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Pick up beliefs added on another device (e.g. mobile) without needing a manual refresh.
+  useEffect(() => subscribeUserDataRefresh(() => setBeliefs(loadBeliefs())), []);
 
   function persist(next: Belief[]) {
     setBeliefs(next);

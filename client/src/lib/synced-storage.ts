@@ -40,7 +40,22 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 const pendingUpdates = new Map<string, string>();
 const pendingDeletes = new Set<string>();
 
-const FLUSH_DELAY_MS = 1200;
+// Kept short: this only coalesces rapid successive writes to the same key (e.g. typing
+// into a number field fires setItem per keystroke). A long delay widens the window in
+// which a mobile app backgrounding/kill can drop an edit before it ever reaches the server.
+const FLUSH_DELAY_MS = 500;
+
+// Fired on window after every successful hydrate (initial login + periodic poll) so any
+// already-mounted page can refresh its in-memory state from the freshly-pulled localStorage
+// values, instead of only ever reading the synced data once at mount time.
+const REFRESH_EVENT = "pq:user-data-refreshed";
+
+/** Subscribe to server → localStorage refreshes. Returns an unsubscribe function. */
+export function subscribeUserDataRefresh(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(REFRESH_EVENT, cb);
+  return () => window.removeEventListener(REFRESH_EVENT, cb);
+}
 
 function scheduleFlush() {
   if (flushTimer) clearTimeout(flushTimer);
@@ -111,12 +126,18 @@ export function installStorageSync(): void {
 
   // Best-effort flush when the tab/app is backgrounded or closed (covers iOS swipe-away).
   // keepalive=true so the request isn't cancelled mid-flight by the browser tearing down
-  // the page/app before it reaches the server.
+  // the page/app before it reaches the server. Multiple redundant signals are used because
+  // a Capacitor WKWebView doesn't always fire the same lifecycle events a normal mobile
+  // browser tab would — `blur` fires on iOS when the app is backgrounded even in cases
+  // where `visibilitychange`/`pagehide` don't.
   if (typeof window !== "undefined") {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") void flushNow(true);
     });
     window.addEventListener("pagehide", () => {
+      void flushNow(true);
+    });
+    window.addEventListener("blur", () => {
       void flushNow(true);
     });
   }
@@ -172,6 +193,31 @@ export async function hydrateUserData(): Promise<void> {
   } finally {
     suspendCapture = false;
     hydrated = true;
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(REFRESH_EVENT));
+  }
+}
+
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const POLL_INTERVAL_MS = 30000;
+
+/**
+ * Periodically re-pull server data into localStorage (while the tab is visible) so a
+ * second device/tab picks up cross-device edits without requiring a manual refresh or
+ * logout/login. Safe to call multiple times — idempotent. Pair with stopPeriodicHydration()
+ * on logout.
+ */
+export function startPeriodicHydration(): void {
+  if (pollTimer || typeof window === "undefined") return;
+  pollTimer = setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    void hydrateUserData();
+  }, POLL_INTERVAL_MS);
+}
+
+export function stopPeriodicHydration(): void {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
   }
 }
 
@@ -180,6 +226,7 @@ export function resetUserDataSync(): void {
   hydrated = false;
   pendingUpdates.clear();
   pendingDeletes.clear();
+  stopPeriodicHydration();
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
