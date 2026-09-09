@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, BookMarked, Dumbbell, ChefHat, Utensils, HeartHandshake, Heart } from "lucide-react";
+import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, BookMarked, Dumbbell, ChefHat, Utensils, HeartHandshake, Heart, Zap } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ const JOURNAL_SUBLINKS: { label: string; path: string; icon: any; colorClass: st
   { label: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake, colorClass: "text-amber-400" },
   { label: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, colorClass: "text-amber-400" },
   { label: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, colorClass: "text-pink-400" },
+  { label: "Excitement Journal", path: "/journal/excitement", icon: Zap, colorClass: "text-orange-400" },
   { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, colorClass: "text-amber-400" },
   { label: "Accomplishments", path: "/accomplishments", icon: Trophy, colorClass: "text-yellow-400" },
   { label: "Explore", path: "/explore", icon: Compass, colorClass: "text-sky-400" },
@@ -105,6 +106,7 @@ export function TabBar() {
     location === "/journal/daily-gews" ||
     location === "/journal/empowering-thoughts" ||
     location === "/journal/gratitude" ||
+    location === "/journal/excitement" ||
     location === "/reference-beliefs" ||
     location === "/accomplishments" ||
     location === "/explore" ||

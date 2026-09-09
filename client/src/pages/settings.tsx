@@ -17,8 +17,10 @@ import { buildFinancesCSVExport } from "@/pages/finances";
 import { buildTasksCSVExport } from "@/pages/home";
 import { buildQuestlinesCSVExport } from "@/pages/campaigns";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
+import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
+import { buildExcitementCSVExport } from "@/pages/journal-excitement";
 
-const APP_VERSION = "v1.0.55";
+const APP_VERSION = "v1.0.56";
 
 async function exportAllAsZip() {
   const JSZip = (await import("jszip")).default;
@@ -35,6 +37,8 @@ async function exportAllAsZip() {
     buildTasksCSVExport(),
     buildQuestlinesCSVExport(),
     Promise.resolve(buildReferenceBeliefsCSVExport()),
+    Promise.resolve(buildGratitudeCSVExport()),
+    Promise.resolve(buildExcitementCSVExport()),
   ]);
 
   let successCount = 0;
@@ -194,7 +198,7 @@ export default function SettingsPage() {
                 <div className="min-w-0">
                   <h3 className={`${isMobile ? 'text-sm' : 'text-lg'} font-serif font-bold text-sky-100`}>Export All as CSV</h3>
                   <p className={`${isMobile ? 'text-[11px] leading-tight' : 'text-sm'} text-sky-200/70`}>
-                    One-click zip of Recipes, Accomplishments, Countries/States Traveled, Item Shop, NPCs, Finances, Tasks, Questlines & Reference Beliefs — organized into folders by section.
+                    One-click zip of Recipes, Accomplishments, Countries/States Traveled, Item Shop, NPCs, Finances, Tasks, Questlines, Reference Beliefs, Gratitude Journal & Excitement Journal — organized into folders by section.
                   </p>
                 </div>
                 <Button

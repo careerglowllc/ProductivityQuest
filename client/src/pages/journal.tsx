@@ -38,6 +38,7 @@ import {
   Dumbbell,
   ChefHat,
   Heart,
+  Zap,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -63,6 +64,7 @@ const SUBPAGE_LINKS: { label: string; path: string; icon: typeof BookOpen }[] = 
   { label: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake },
   { label: "Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles },
   { label: "Gratitude Journal", path: "/journal/gratitude", icon: Heart },
+  { label: "Excitement Journal", path: "/journal/excitement", icon: Zap },
   { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked },
   { label: "Accomplishments", path: "/accomplishments", icon: Trophy },
   { label: "Explore", path: "/explore", icon: Compass },
