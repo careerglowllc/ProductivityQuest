@@ -68,7 +68,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   const detailsDisplayRef = useRef<HTMLDivElement>(null);
   const detailsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -315,6 +315,14 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
     }, 800);
   };
 
+  // Grow the title textarea to fit its wrapped content instead of scrolling/clipping.
+  const autoGrowTitle = () => {
+    const el = titleInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
   const handleTitleBlur = () => {
     // Save immediately on blur if there's a pending debounce
     if (titleTimeoutRef.current) {
@@ -330,7 +338,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      (e.target as HTMLInputElement).blur();
+      (e.target as HTMLTextAreaElement).blur();
     } else if (e.key === 'Escape') {
       setTitleValue(task?.title || "");
       setIsEditingTitle(false);
@@ -613,14 +621,14 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
               size="lg"
             />
             {isEditingTitle ? (
-              <input
+              <textarea
                 ref={titleInputRef}
-                type="text"
                 value={titleValue}
-                onChange={(e) => handleTitleChange(e.target.value)}
+                onChange={(e) => { handleTitleChange(e.target.value); autoGrowTitle(); }}
                 onBlur={handleTitleBlur}
                 onKeyDown={handleTitleKeyDown}
-                className={`pt-1 flex-1 min-w-0 bg-transparent border-b-2 border-yellow-500/50 focus:border-yellow-400 outline-none text-yellow-100 font-serif ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                rows={1}
+                className={`pt-1 flex-1 min-w-0 bg-transparent border-b-2 border-yellow-500/50 focus:border-yellow-400 outline-none text-yellow-100 font-serif resize-none overflow-hidden whitespace-pre-wrap break-words leading-snug ${isMobile ? 'text-lg' : 'text-2xl'}`}
                 autoFocus
               />
             ) : (
@@ -628,7 +636,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                 className="pt-1 cursor-text hover:text-yellow-200 transition-colors border-b-2 border-transparent"
                 onClick={() => {
                   setIsEditingTitle(true);
-                  setTimeout(() => titleInputRef.current?.focus(), 0);
+                  setTimeout(() => { titleInputRef.current?.focus(); autoGrowTitle(); }, 0);
                 }}
               >
                 {titleValue || task.title}
