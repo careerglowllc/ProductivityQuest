@@ -11,10 +11,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Sunrise, Trophy, Sparkle, CloudRain } from "lucide-react";
+import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Sunrise, Trophy, Sparkle, CloudRain, Undo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-daily-gews-v1";
@@ -67,12 +69,14 @@ function loadEntries(): GewsEntry[] {
 export default function JournalDailyGewsPage() {
   const { isDark } = useTheme();
   const isMobile = useIsMobile();
+  const { toast, dismiss } = useToast();
   const [entries, setEntries] = useState<GewsEntry[]>(loadEntries);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [originalDate, setOriginalDate] = useState<string | null>(null);
   const [form, setForm] = useState<GewsEntry>(emptyEntry(todayStr()));
   const [drafts, setDrafts] = useState<Record<GewsCategory, string>>({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
   const [confirmDeleteDate, setConfirmDeleteDate] = useState<string | null>(null);
+  const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
 
   // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
@@ -82,10 +86,31 @@ export default function JournalDailyGewsPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
   }
 
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  function persistWithUndo(next: GewsEntry[], label: string) {
+    const previous = entries;
+    persist(next);
+    const undo = () => {
+      persist(previous);
+      setLastUndo(null);
+      toast({ title: "Change undone", duration: 2000 });
+    };
+    setLastUndo({ label, undo });
+    return undo;
+  }
+
   const sortedDesc = useMemo(() => [...entries].sort((a, b) => b.date.localeCompare(a.date)), [entries]);
 
   function openAdd() {
-    setForm(emptyEntry(todayStr()));
+    // If today already has an entry, open it for editing instead of a blank form —
+    // otherwise saving would silently wipe out whatever was already logged today.
+    const today = todayStr();
+    const existing = entries.find((e) => e.date === today);
+    if (existing) {
+      openEdit(existing);
+      return;
+    }
+    setForm(emptyEntry(today));
     setDrafts({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
     setOriginalDate(null);
     setDialogOpen(true);
@@ -112,16 +137,33 @@ export default function JournalDailyGewsPage() {
   function save() {
     if (!form.date) return;
     const now = new Date().toISOString();
+    // Auto-commit any typed-but-not-yet-added drafts so closing right after typing
+    // never silently discards them.
+    const finalForm: GewsEntry = { ...form };
+    for (const cat of CATEGORY_ORDER) {
+      const val = drafts[cat].trim();
+      if (val) finalForm[cat] = [...finalForm[cat], val];
+    }
     const withoutOld = originalDate ? entries.filter((e) => e.date !== originalDate) : entries;
-    const withoutSameDate = withoutOld.filter((e) => e.date !== form.date);
-    persist([{ ...form, updatedAt: now }, ...withoutSameDate]);
+    const withoutSameDate = withoutOld.filter((e) => e.date !== finalForm.date);
+    const undo = persistWithUndo([{ ...finalForm, updatedAt: now }, ...withoutSameDate], `${originalDate ? "Edited" : "Added"} entry for ${fmtDateFull(finalForm.date)}`);
     setDialogOpen(false);
     setOriginalDate(null);
+    toast({
+      title: "Changes saved",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   function remove(date: string) {
-    persist(entries.filter((e) => e.date !== date));
+    const undo = persistWithUndo(entries.filter((e) => e.date !== date), `Deleted entry for ${fmtDateFull(date)}`);
     setConfirmDeleteDate(null);
+    toast({
+      title: "Entry deleted",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   const totalItems = (e: GewsEntry) => e.gratitudes.length + e.wins.length + e.exciteds.length + e.sadnesses.length;
@@ -149,9 +191,18 @@ export default function JournalDailyGewsPage() {
             <p className="text-yellow-200/70 text-lg">Gratitudes · Wins · Exciteds · Sadnesses — one entry per day</p>
           </div>
 
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center items-center gap-2 mb-6">
             <Button onClick={openAdd} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
               <Plus className="h-4 w-4 mr-1.5" /> New Entry
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!lastUndo}
+              onClick={() => lastUndo?.undo()}
+              title={lastUndo?.label || "No changes to undo"}
+              className={`shrink-0 ${lastUndo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Undo2 className="h-4 w-4 mr-1.5" /> Undo
             </Button>
           </div>
 

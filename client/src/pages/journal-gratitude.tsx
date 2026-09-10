@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Heart, ArrowLeft, Plus, Trash2, Search, Download, Pencil, Check, X } from "lucide-react";
+import { Heart, ArrowLeft, Plus, Trash2, Search, Download, Pencil, Check, X, Undo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 import { EmojiPicker } from "@/components/emoji-picker";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-gratitude-v1";
@@ -52,6 +54,7 @@ export function buildGratitudeCSVExport(): CSVExport {
 export default function JournalGratitudePage() {
   const { isDark } = useTheme();
   const isMobile = useIsMobile();
+  const { toast, dismiss } = useToast();
   const [entries, setEntries] = useState<GratitudeEntry[]>(loadEntries);
   const [draft, setDraft] = useState("");
   const [draftEmoji, setDraftEmoji] = useState("");
@@ -60,6 +63,7 @@ export default function JournalGratitudePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [editUpdateDate, setEditUpdateDate] = useState(false);
+  const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
 
   // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
@@ -67,6 +71,19 @@ export default function JournalGratitudePage() {
   function persist(next: GratitudeEntry[]) {
     setEntries(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+  }
+
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  function persistWithUndo(next: GratitudeEntry[], label: string) {
+    const previous = entries;
+    persist(next);
+    const undo = () => {
+      persist(previous);
+      setLastUndo(null);
+      toast({ title: "Change undone", duration: 2000 });
+    };
+    setLastUndo({ label, undo });
+    return undo;
   }
 
   function addEntry() {
@@ -78,12 +95,17 @@ export default function JournalGratitudePage() {
   }
 
   function remove(id: string) {
-    persist(entries.filter((e) => e.id !== id));
+    const undo = persistWithUndo(entries.filter((e) => e.id !== id), "Deleted gratitude entry");
     setConfirmDeleteId(null);
+    toast({
+      title: "Entry deleted",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   function updateEmoji(id: string, emoji: string) {
-    persist(entries.map((e) => (e.id === id ? { ...e, emoji } : e)));
+    persistWithUndo(entries.map((e) => (e.id === id ? { ...e, emoji } : e)), "Changed emoji");
   }
 
   function startEdit(e: GratitudeEntry) {
@@ -101,8 +123,13 @@ export default function JournalGratitudePage() {
   function saveEdit(id: string) {
     const text = editDraft.trim();
     if (!text) return;
-    persist(entries.map((e) => (e.id === id ? { ...e, text, createdAt: editUpdateDate ? new Date().toISOString() : e.createdAt } : e)));
+    const undo = persistWithUndo(entries.map((e) => (e.id === id ? { ...e, text, createdAt: editUpdateDate ? new Date().toISOString() : e.createdAt } : e)), "Edited gratitude entry");
     cancelEdit();
+    toast({
+      title: "Changes saved",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   function handleExport() {
@@ -162,6 +189,15 @@ export default function JournalGratitudePage() {
               className="bg-slate-800/60 border-pink-600/40 text-pink-200 hover:bg-pink-600/20 hover:text-pink-100 hover:border-pink-500/60 shrink-0"
             >
               <Download className="h-4 w-4 mr-1.5" /> Export CSV
+            </Button>
+            <Button
+              onClick={() => lastUndo?.undo()}
+              variant="outline"
+              disabled={!lastUndo}
+              title={lastUndo?.label || "No changes to undo"}
+              className={`shrink-0 ${lastUndo ? "border-pink-500/60 text-pink-300 hover:bg-pink-600/20 hover:text-pink-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Undo2 className="h-4 w-4 mr-1.5" /> Undo
             </Button>
           </div>
 

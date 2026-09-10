@@ -12,10 +12,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Sparkles, ArrowLeft, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Sparkles, ArrowLeft, Plus, Pencil, Trash2, Search, Undo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-empowering-thoughts-v1";
@@ -52,12 +54,14 @@ function loadThoughts(): Thought[] {
 export default function JournalEmpoweringThoughtsPage() {
   const { isDark } = useTheme();
   const isMobile = useIsMobile();
+  const { toast, dismiss } = useToast();
   const [thoughts, setThoughts] = useState<Thought[]>(loadThoughts);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<Thought>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
 
   // Pick up thoughts added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setThoughts(loadThoughts())), []);
@@ -65,6 +69,19 @@ export default function JournalEmpoweringThoughtsPage() {
   function persist(next: Thought[]) {
     setThoughts(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+  }
+
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  function persistWithUndo(next: Thought[], label: string) {
+    const previous = thoughts;
+    persist(next);
+    const undo = () => {
+      persist(previous);
+      setLastUndo(null);
+      toast({ title: "Change undone", duration: 2000 });
+    };
+    setLastUndo({ label, undo });
+    return undo;
   }
 
   const filtered = thoughts
@@ -90,18 +107,27 @@ export default function JournalEmpoweringThoughtsPage() {
   function save() {
     const title = form.title.trim() || "Untitled Thought";
     const now = new Date().toISOString();
-    if (editingId) {
-      persist(thoughts.map((t) => (t.id === editingId ? { ...form, title, updatedAt: now } : t)));
-    } else {
-      persist([{ ...form, title, id: newId(), createdAt: now, updatedAt: now }, ...thoughts]);
-    }
+    const wasEditing = !!editingId;
+    const undo = wasEditing
+      ? persistWithUndo(thoughts.map((t) => (t.id === editingId ? { ...form, title, updatedAt: now } : t)), "Edited empowering thought")
+      : persistWithUndo([{ ...form, title, id: newId(), createdAt: now, updatedAt: now }, ...thoughts], "Added empowering thought");
     setDialogOpen(false);
     setEditingId(null);
+    toast({
+      title: "Changes saved",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   function remove(id: string) {
-    persist(thoughts.filter((t) => t.id !== id));
+    const undo = persistWithUndo(thoughts.filter((t) => t.id !== id), "Deleted empowering thought");
     setConfirmDeleteId(null);
+    toast({
+      title: "Entry deleted",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   return (
@@ -142,6 +168,15 @@ export default function JournalEmpoweringThoughtsPage() {
             </div>
             <Button onClick={openAdd} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold shrink-0">
               <Plus className="h-4 w-4 mr-1.5" /> New Entry
+            </Button>
+            <Button
+              onClick={() => lastUndo?.undo()}
+              variant="outline"
+              disabled={!lastUndo}
+              title={lastUndo?.label || "No changes to undo"}
+              className={`shrink-0 ${lastUndo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Undo2 className="h-4 w-4 mr-1.5" /> Undo
             </Button>
           </div>
 
@@ -255,7 +290,7 @@ export default function JournalEmpoweringThoughtsPage() {
           <DialogHeader>
             <DialogTitle>Delete this entry?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-400">This can't be undone.</p>
+          <p className="text-sm text-slate-400">This entry will be removed (you can undo right after).</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => confirmDeleteId && remove(confirmDeleteId)}>Delete</Button>

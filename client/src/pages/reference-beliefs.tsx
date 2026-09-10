@@ -12,11 +12,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { BookMarked, ArrowLeft, Plus, Pencil, Trash2, Download, Search } from "lucide-react";
+import { BookMarked, ArrowLeft, Plus, Pencil, Trash2, Download, Search, Undo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-reference-beliefs-v2";
@@ -71,12 +73,14 @@ export function buildReferenceBeliefsCSVExport(): CSVExport {
 export default function ReferenceBeliefsPage() {
   const { isDark } = useTheme();
   const isMobile = useIsMobile();
+  const { toast, dismiss } = useToast();
   const [beliefs, setBeliefs] = useState<Belief[]>(loadBeliefs);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<Belief>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
 
   // Pick up beliefs added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setBeliefs(loadBeliefs())), []);
@@ -84,6 +88,19 @@ export default function ReferenceBeliefsPage() {
   function persist(next: Belief[]) {
     setBeliefs(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+  }
+
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  function persistWithUndo(next: Belief[], label: string) {
+    const previous = beliefs;
+    persist(next);
+    const undo = () => {
+      persist(previous);
+      setLastUndo(null);
+      toast({ title: "Change undone", duration: 2000 });
+    };
+    setLastUndo({ label, undo });
+    return undo;
   }
 
   const filtered = beliefs
@@ -109,18 +126,26 @@ export default function ReferenceBeliefsPage() {
   function save() {
     const title = form.title.trim() || "Untitled Belief";
     const now = new Date().toISOString();
-    if (editingId) {
-      persist(beliefs.map((b) => (b.id === editingId ? { ...form, title, updatedAt: now } : b)));
-    } else {
-      persist([{ ...form, title, id: newId(), createdAt: now, updatedAt: now }, ...beliefs]);
-    }
+    const undo = editingId
+      ? persistWithUndo(beliefs.map((b) => (b.id === editingId ? { ...form, title, updatedAt: now } : b)), "Edited belief")
+      : persistWithUndo([{ ...form, title, id: newId(), createdAt: now, updatedAt: now }, ...beliefs], "Added belief");
     setDialogOpen(false);
     setEditingId(null);
+    toast({
+      title: "Changes saved",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   function remove(id: string) {
-    persist(beliefs.filter((b) => b.id !== id));
+    const undo = persistWithUndo(beliefs.filter((b) => b.id !== id), "Deleted belief");
     setConfirmDeleteId(null);
+    toast({
+      title: "Belief deleted",
+      duration: 5000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); undo(); }}>Undo</ToastAction>,
+    });
   }
 
   function handleExport() {
@@ -172,6 +197,15 @@ export default function ReferenceBeliefsPage() {
               className="bg-slate-800/60 border-amber-600/40 text-amber-200 hover:bg-amber-600/20 hover:text-amber-100 hover:border-amber-500/60 shrink-0"
             >
               <Download className="h-4 w-4 mr-1.5" /> Export CSV
+            </Button>
+            <Button
+              onClick={() => lastUndo?.undo()}
+              variant="outline"
+              disabled={!lastUndo}
+              title={lastUndo?.label || "No changes to undo"}
+              className={`shrink-0 ${lastUndo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Undo2 className="h-4 w-4 mr-1.5" /> Undo
             </Button>
           </div>
 
@@ -288,8 +322,8 @@ export default function ReferenceBeliefsPage() {
             <DialogTitle className="text-red-200">Delete belief?</DialogTitle>
           </DialogHeader>
           <p className="text-slate-300 text-sm">
-            This will permanently remove{" "}
-            <span className="font-semibold text-white">{beliefs.find((b) => b.id === confirmDeleteId)?.title}</span>.
+            This will remove{" "}
+            <span className="font-semibold text-white">{beliefs.find((b) => b.id === confirmDeleteId)?.title}</span> (you can undo right after).
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmDeleteId(null)} className="text-slate-300 hover:text-white hover:bg-slate-800">
