@@ -57,14 +57,20 @@ const Toast = React.forwardRef<
   onOpenChangeRef.current = onOpenChange;
 
   // Move/end/cancel are bound to `document` for the duration of a gesture rather than to the
-  // toast element. A toast can be overlapped by modal layers (Radix Dialog + react-remove-scroll)
-  // or the finger can leave the toast bounds mid-swipe — in both cases element-bound listeners
-  // stop firing and the toast gets stuck partway. Document-bound listeners always complete.
+  // Move/end/cancel are bound to `window` (rather than `document` or the toast element) for the
+  // duration of a gesture. Radix Dialog's internal scroll-lock (react-remove-scroll) attaches its
+  // own capture-phase touchmove listeners to `document` as soon as a modal opens (e.g. the Task
+  // Detail modal). Capture-phase listeners on the same target fire in registration order, so if a
+  // dialog is already open when the swipe starts, Radix's document listener — registered earlier —
+  // would run before ours and could stopPropagation the event before we ever see it. `window` sits
+  // above `document` in the capture chain, so a window-bound listener always runs first regardless
+  // of when Radix's document listener was registered — guaranteeing our gesture tracking completes
+  // even while a modal is open, and even if the finger leaves the toast bounds mid-swipe.
   const detachDocListeners = React.useCallback(() => {
     if (!docListenersRef.current) return;
-    document.removeEventListener('touchmove', handleTouchMoveRef.current!, { capture: true } as any);
-    document.removeEventListener('touchend', handleTouchEndRef.current!, { capture: true } as any);
-    document.removeEventListener('touchcancel', handleTouchEndRef.current!, { capture: true } as any);
+    window.removeEventListener('touchmove', handleTouchMoveRef.current!, { capture: true } as any);
+    window.removeEventListener('touchend', handleTouchEndRef.current!, { capture: true } as any);
+    window.removeEventListener('touchcancel', handleTouchEndRef.current!, { capture: true } as any);
     docListenersRef.current = false;
   }, []);
 
@@ -123,12 +129,12 @@ const Toast = React.forwardRef<
       node.style.animation = 'none';
     }
     if (!docListenersRef.current) {
-      document.addEventListener('touchmove', handleTouchMoveRef.current!, { passive: false, capture: true });
-      document.addEventListener('touchend', handleTouchEndRef.current!, { passive: true, capture: true });
+      window.addEventListener('touchmove', handleTouchMoveRef.current!, { passive: false, capture: true });
+      window.addEventListener('touchend', handleTouchEndRef.current!, { passive: true, capture: true });
       // touchcancel fires instead of touchend when a modal layer or the system steals the
       // gesture (common while a Radix Dialog is open, e.g. the quest-completion animation).
       // Without this the toast never resolves the swipe and appears frozen on screen.
-      document.addEventListener('touchcancel', handleTouchEndRef.current!, { passive: true, capture: true });
+      window.addEventListener('touchcancel', handleTouchEndRef.current!, { passive: true, capture: true });
       docListenersRef.current = true;
     }
   }, []);
