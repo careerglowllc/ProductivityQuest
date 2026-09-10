@@ -486,6 +486,48 @@ function FireGoalDashboardWidget() {
   );
 }
 
+// Today's Tasks Progress Widget — % of today's quests (same "Due Today" bucket used by the
+// Quests page's filter: due today or overdue, not yet completed) that are done so far today.
+// Self-contained: fetches its own tasks so it doesn't depend on the Quests page being mounted.
+function TodayTasksProgressWidget() {
+  const { data: tasks = [] } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
+  // Mirrors the Quests page's "Due Today" filter (client/src/pages/home.tsx), but applied to
+  // ALL tasks (not just incomplete ones) so completed tasks still count toward the total.
+  const now = new Date();
+  const tomorrow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  const todayTasks = safeTasks.filter((t: any) => {
+    if (!t.dueDate) return false;
+    return new Date(t.dueDate).getTime() < tomorrow.getTime();
+  });
+  const totalToday = todayTasks.length;
+  const completedToday = todayTasks.filter((t: any) => t.completed).length;
+  const pct = totalToday > 0 ? (completedToday / totalToday) * 100 : 0;
+
+  return (
+    <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-emerald-500/30 hover:border-emerald-400/60 transition-all mb-6">
+      <CardHeader className="pt-3 pb-1 px-4">
+        <CardTitle className="text-emerald-300 text-xs flex items-center gap-1.5">✅ Today's Quests</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0 pb-3 px-4">
+        <div className="flex items-end gap-1.5 mb-1">
+          <span className="text-lg font-black text-emerald-400">{totalToday > 0 ? `${pct.toFixed(0)}%` : "—"}</span>
+          <span className="text-slate-400 text-[10px] mb-0.5">
+            {totalToday > 0 ? `${completedToday} of ${totalToday} completed today` : "Nothing due today"}
+          </span>
+        </div>
+        <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+          <div
+            className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 // Spider Chart Component
 function SpiderChart({ skills }: { skills: UserSkill[] }) {
@@ -1400,6 +1442,7 @@ export default function Dashboard() {
         {/* Active Questlines (mobile only - desktop version is inside resizable layout below) */}
         {isMobile && renderQuestlines()}
         {isMobile && <FireGoalDashboardWidget />}
+        {isMobile && <TodayTasksProgressWidget />}
 
         {/* Two-by-two grid layout for web (Skills, Schedule, Priorities, Finances), stacked for mobile */}
         {isMobile ? (
@@ -1610,6 +1653,7 @@ export default function Dashboard() {
             {/* FIRE Goal — natural height, not compressed */}
             <div className="flex-shrink-0 mb-3">
               <FireGoalDashboardWidget />
+              <TodayTasksProgressWidget />
             </div>
 
             {/* Bottom Grid — takes remaining space */}
