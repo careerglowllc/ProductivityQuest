@@ -491,18 +491,34 @@ function FireGoalDashboardWidget() {
 // Self-contained: fetches its own tasks so it doesn't depend on the Quests page being mounted.
 function TodayTasksProgressWidget() {
   const { data: tasks = [] } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
+  // Completing a quest recycles it (one-time) or reschedules its dueDate forward (recurring),
+  // so it drops out of /api/tasks' "due today" bucket — fetch the recycle bin too so those
+  // completions still get credited toward today's total below.
+  const { data: recycledTasks = [] } = useQuery<any[]>({ queryKey: ["/api/recycled-tasks"] });
   const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const safeRecycled = Array.isArray(recycledTasks) ? recycledTasks : [];
 
-  // Mirrors the Quests page's "Due Today" filter (client/src/pages/home.tsx), but applied to
-  // ALL tasks (not just incomplete ones) so completed tasks still count toward the total.
   const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   const tomorrow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1));
-  const todayTasks = safeTasks.filter((t: any) => {
-    if (!t.dueDate) return false;
-    return new Date(t.dueDate).getTime() < tomorrow.getTime();
-  });
-  const totalToday = todayTasks.length;
-  const completedToday = todayTasks.filter((t: any) => t.completed).length;
+  const isCompletedToday = (t: any) => {
+    if (!t.completedAt) return false;
+    const ts = new Date(t.completedAt).getTime();
+    return ts >= todayStart.getTime() && ts < tomorrow.getTime();
+  };
+
+  // Mirrors the Quests page's "Due Today" filter (client/src/pages/home.tsx): still-open
+  // quests due today or overdue.
+  const openToday = safeTasks.filter((t: any) => t.dueDate && new Date(t.dueDate).getTime() < tomorrow.getTime());
+
+  // Quests completed today that no longer show up in `openToday` because completing them
+  // moved them out of the bucket (recurring: dueDate pushed forward; one-time: recycled).
+  const completedTodayRecurring = safeTasks.filter((t: any) => isCompletedToday(t) && !openToday.includes(t));
+  const completedTodayOneTime = safeRecycled.filter((t: any) => t.recycledReason === "completed" && isCompletedToday(t));
+
+  const totalToday = openToday.length + completedTodayRecurring.length + completedTodayOneTime.length;
+  const completedToday =
+    openToday.filter((t: any) => t.completed).length + completedTodayRecurring.length + completedTodayOneTime.length;
   const pct = totalToday > 0 ? (completedToday / totalToday) * 100 : 0;
 
   return (

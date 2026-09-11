@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Sparkles, ArrowLeft, Plus, Pencil, Trash2, Search, Undo2 } from "lucide-react";
+import { Sparkles, ArrowLeft, Plus, Pencil, Trash2, Search, Undo2, Redo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
@@ -62,6 +62,7 @@ export default function JournalEmpoweringThoughtsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
+  const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
 
   // Pick up thoughts added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setThoughts(loadThoughts())), []);
@@ -71,13 +72,22 @@ export default function JournalEmpoweringThoughtsPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
   }
 
-  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast,
+  // and re-applied via the Redo button if that undo is triggered.
   function persistWithUndo(next: Thought[], label: string) {
     const previous = thoughts;
     persist(next);
+    setLastRedo(null); // a fresh change invalidates any pending redo
     const undo = () => {
       persist(previous);
       setLastUndo(null);
+      const redo = () => {
+        persist(next);
+        setLastRedo(null);
+        setLastUndo({ label, undo });
+        toast({ title: "Change redone", duration: 2000 });
+      };
+      setLastRedo({ label, redo });
       toast({ title: "Change undone", duration: 2000 });
     };
     setLastUndo({ label, undo });
@@ -177,6 +187,15 @@ export default function JournalEmpoweringThoughtsPage() {
               className={`shrink-0 ${lastUndo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
             >
               <Undo2 className="h-4 w-4 mr-1.5" /> Undo
+            </Button>
+            <Button
+              onClick={() => lastRedo?.redo()}
+              variant="outline"
+              disabled={!lastRedo}
+              title={lastRedo?.label ? `Redo: ${lastRedo.label}` : "No changes to redo"}
+              className={`shrink-0 ${lastRedo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Redo2 className="h-4 w-4 mr-1.5" /> Redo
             </Button>
           </div>
 

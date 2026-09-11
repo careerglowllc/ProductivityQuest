@@ -317,7 +317,9 @@ export class DatabaseStorage implements IStorage {
         .update(tasks)
         .set({
           dueDate: nextDueDate,
-          // Don't mark as completed, just reschedule
+          // Don't mark as completed, just reschedule — but stamp completedAt so
+          // today's-completion stats/widgets can still credit this occurrence.
+          completedAt: new Date(),
         })
         .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
         .returning();

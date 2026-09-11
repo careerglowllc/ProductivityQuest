@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Heart, ArrowLeft, Plus, Trash2, Search, Download, Pencil, Check, X, Undo2 } from "lucide-react";
+import { Heart, ArrowLeft, Plus, Trash2, Search, Download, Pencil, Check, X, Undo2, Redo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
@@ -64,6 +64,7 @@ export default function JournalGratitudePage() {
   const [editDraft, setEditDraft] = useState("");
   const [editUpdateDate, setEditUpdateDate] = useState(false);
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
+  const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
 
   // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
@@ -73,13 +74,22 @@ export default function JournalGratitudePage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
   }
 
-  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast,
+  // and re-applied via the Redo button if that undo is triggered.
   function persistWithUndo(next: GratitudeEntry[], label: string) {
     const previous = entries;
     persist(next);
+    setLastRedo(null); // a fresh change invalidates any pending redo
     const undo = () => {
       persist(previous);
       setLastUndo(null);
+      const redo = () => {
+        persist(next);
+        setLastRedo(null);
+        setLastUndo({ label, undo });
+        toast({ title: "Change redone", duration: 2000 });
+      };
+      setLastRedo({ label, redo });
       toast({ title: "Change undone", duration: 2000 });
     };
     setLastUndo({ label, undo });
@@ -198,6 +208,15 @@ export default function JournalGratitudePage() {
               className={`shrink-0 ${lastUndo ? "border-pink-500/60 text-pink-300 hover:bg-pink-600/20 hover:text-pink-100" : "border-slate-700 text-slate-600"}`}
             >
               <Undo2 className="h-4 w-4 mr-1.5" /> Undo
+            </Button>
+            <Button
+              onClick={() => lastRedo?.redo()}
+              variant="outline"
+              disabled={!lastRedo}
+              title={lastRedo?.label ? `Redo: ${lastRedo.label}` : "No changes to redo"}
+              className={`shrink-0 ${lastRedo ? "border-pink-500/60 text-pink-300 hover:bg-pink-600/20 hover:text-pink-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Redo2 className="h-4 w-4 mr-1.5" /> Redo
             </Button>
           </div>
 

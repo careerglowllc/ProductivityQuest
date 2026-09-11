@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Sunrise, Trophy, Sparkle, CloudRain, Undo2 } from "lucide-react";
+import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Sunrise, Trophy, Sparkle, CloudRain, Undo2, Redo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
@@ -77,6 +77,7 @@ export default function JournalDailyGewsPage() {
   const [drafts, setDrafts] = useState<Record<GewsCategory, string>>({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
   const [confirmDeleteDate, setConfirmDeleteDate] = useState<string | null>(null);
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
+  const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
 
   // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
@@ -86,13 +87,22 @@ export default function JournalDailyGewsPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
   }
 
-  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast,
+  // and re-applied via the Redo button if that undo is triggered.
   function persistWithUndo(next: GewsEntry[], label: string) {
     const previous = entries;
     persist(next);
+    setLastRedo(null); // a fresh change invalidates any pending redo
     const undo = () => {
       persist(previous);
       setLastUndo(null);
+      const redo = () => {
+        persist(next);
+        setLastRedo(null);
+        setLastUndo({ label, undo });
+        toast({ title: "Change redone", duration: 2000 });
+      };
+      setLastRedo({ label, redo });
       toast({ title: "Change undone", duration: 2000 });
     };
     setLastUndo({ label, undo });
@@ -203,6 +213,15 @@ export default function JournalDailyGewsPage() {
               className={`shrink-0 ${lastUndo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
             >
               <Undo2 className="h-4 w-4 mr-1.5" /> Undo
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!lastRedo}
+              onClick={() => lastRedo?.redo()}
+              title={lastRedo?.label ? `Redo: ${lastRedo.label}` : "No changes to redo"}
+              className={`shrink-0 ${lastRedo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Redo2 className="h-4 w-4 mr-1.5" /> Redo
             </Button>
           </div>
 

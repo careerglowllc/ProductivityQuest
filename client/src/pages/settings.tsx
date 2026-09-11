@@ -20,7 +20,7 @@ import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
 import { buildExcitementCSVExport } from "@/pages/journal-excitement";
 
-const APP_VERSION = "v1.0.57";
+const APP_VERSION = "v1.0.58";
 
 async function exportAllAsZip() {
   const JSZip = (await import("jszip")).default;

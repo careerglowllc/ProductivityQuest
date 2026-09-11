@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { BookMarked, ArrowLeft, Plus, Pencil, Trash2, Download, Search, Undo2 } from "lucide-react";
+import { BookMarked, ArrowLeft, Plus, Pencil, Trash2, Download, Search, Undo2, Redo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
@@ -81,6 +81,7 @@ export default function ReferenceBeliefsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
+  const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
 
   // Pick up beliefs added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setBeliefs(loadBeliefs())), []);
@@ -90,13 +91,22 @@ export default function ReferenceBeliefsPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
   }
 
-  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast.
+  // Snapshot the current list before a mutation so it can be restored via the Undo button/toast,
+  // and re-applied via the Redo button if that undo is triggered.
   function persistWithUndo(next: Belief[], label: string) {
     const previous = beliefs;
     persist(next);
+    setLastRedo(null); // a fresh change invalidates any pending redo
     const undo = () => {
       persist(previous);
       setLastUndo(null);
+      const redo = () => {
+        persist(next);
+        setLastRedo(null);
+        setLastUndo({ label, undo });
+        toast({ title: "Change redone", duration: 2000 });
+      };
+      setLastRedo({ label, redo });
       toast({ title: "Change undone", duration: 2000 });
     };
     setLastUndo({ label, undo });
@@ -206,6 +216,15 @@ export default function ReferenceBeliefsPage() {
               className={`shrink-0 ${lastUndo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
             >
               <Undo2 className="h-4 w-4 mr-1.5" /> Undo
+            </Button>
+            <Button
+              onClick={() => lastRedo?.redo()}
+              variant="outline"
+              disabled={!lastRedo}
+              title={lastRedo?.label ? `Redo: ${lastRedo.label}` : "No changes to redo"}
+              className={`shrink-0 ${lastRedo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
+            >
+              <Redo2 className="h-4 w-4 mr-1.5" /> Redo
             </Button>
           </div>
 
