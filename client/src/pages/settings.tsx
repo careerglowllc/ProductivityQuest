@@ -19,6 +19,7 @@ import { buildQuestlinesCSVExport } from "@/pages/campaigns";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
 import { buildExcitementCSVExport } from "@/pages/journal-excitement";
+import { buildDailyGewsCSVExport } from "@/pages/journal-daily-gews";
 
 const APP_VERSION = "v1.0.58";
 
@@ -39,6 +40,7 @@ async function exportAllAsZip() {
     Promise.resolve(buildReferenceBeliefsCSVExport()),
     Promise.resolve(buildGratitudeCSVExport()),
     Promise.resolve(buildExcitementCSVExport()),
+    Promise.resolve(buildDailyGewsCSVExport()),
   ]);
 
   let successCount = 0;

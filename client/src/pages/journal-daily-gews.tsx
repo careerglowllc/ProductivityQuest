@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Check, Sunrise, Trophy, Sparkle, CloudRain, Undo2, Redo2 } from "lucide-react";
+import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Check, Sunrise, Trophy, Sparkle, CloudRain, Undo2, Redo2, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { AttachmentArea } from "@/components/attachment-area";
 import type { QuestAttachment } from "@/lib/attachments";
+import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-daily-gews-v1";
@@ -84,6 +85,28 @@ function normalizeEntry(e: any): GewsEntry {
     sadnesses: (e.sadnesses || []).map(normalizeLine),
     updatedAt: e.updatedAt || "",
   };
+}
+
+// Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
+// One row per logged line (across all days), since a day can have several lines per category.
+export function buildDailyGewsCSVExport(): CSVExport {
+  const entries = loadEntries();
+  const headers = ["Date", "Category", "Entry", "Attachments"];
+  const rows: string[][] = [];
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  for (const e of sorted) {
+    for (const cat of CATEGORY_ORDER) {
+      for (const line of e[cat]) {
+        rows.push([
+          fmtDateFull(e.date),
+          CATEGORY_META[cat].label,
+          line.text,
+          line.attachments && line.attachments.length > 0 ? `${line.attachments.length} file(s)` : "",
+        ]);
+      }
+    }
+  }
+  return { folder: "Journal", filename: "daily-gews.csv", content: rowsToCSV(headers, rows) };
 }
 
 export default function JournalDailyGewsPage() {
@@ -223,6 +246,11 @@ export default function JournalDailyGewsPage() {
     });
   }
 
+  function handleExport() {
+    const { filename, content } = buildDailyGewsCSVExport();
+    downloadCSV(filename.replace(/\.csv$/, `_${new Date().toISOString().slice(0, 10)}.csv`), content);
+  }
+
   const totalItems = (e: GewsEntry) => e.gratitudes.length + e.wins.length + e.exciteds.length + e.sadnesses.length;
 
   return (
@@ -251,6 +279,14 @@ export default function JournalDailyGewsPage() {
           <div className="flex justify-center items-center gap-2 mb-6">
             <Button onClick={openAdd} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
               <Plus className="h-4 w-4 mr-1.5" /> New Entry
+            </Button>
+            <Button
+              onClick={handleExport}
+              variant="outline"
+              disabled={entries.length === 0}
+              className="bg-slate-800/60 border-amber-600/40 text-amber-200 hover:bg-amber-600/20 hover:text-amber-100 hover:border-amber-500/60 shrink-0"
+            >
+              <Download className="h-4 w-4 mr-1.5" /> Export CSV
             </Button>
             <Button
               variant="outline"
