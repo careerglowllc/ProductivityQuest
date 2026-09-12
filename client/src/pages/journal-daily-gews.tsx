@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Sunrise, Trophy, Sparkle, CloudRain, Undo2, Redo2 } from "lucide-react";
+import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Check, Sunrise, Trophy, Sparkle, CloudRain, Undo2, Redo2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
@@ -42,7 +42,7 @@ const CATEGORY_META: Record<GewsCategory, { label: string; icon: typeof Sunrise;
   exciteds: { label: "Exciteds", icon: Sparkle, color: "#60A5FA", placeholder: "Something you're excited about…" },
   sadnesses: { label: "Sadnesses", icon: CloudRain, color: "#F87171", placeholder: "Something that's weighing on you…" },
 };
-const CATEGORY_ORDER: GewsCategory[] = ["gratitudes", "wins", "exciteds", "sadnesses"];
+const CATEGORY_ORDER: GewsCategory[] = ["sadnesses", "gratitudes", "wins", "exciteds"];
 
 function todayStr(): string {
   const d = new Date();
@@ -97,6 +97,8 @@ export default function JournalDailyGewsPage() {
   const [drafts, setDrafts] = useState<Record<GewsCategory, string>>({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
   const [draftAttachments, setDraftAttachments] = useState<Record<GewsCategory, QuestAttachment[]>>({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
   const [confirmDeleteDate, setConfirmDeleteDate] = useState<string | null>(null);
+  const [editingLine, setEditingLine] = useState<{ cat: GewsCategory; idx: number } | null>(null);
+  const [editingLineText, setEditingLineText] = useState("");
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
   const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
 
@@ -145,6 +147,7 @@ export default function JournalDailyGewsPage() {
     setDrafts({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
     setDraftAttachments({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
     setOriginalDate(null);
+    setEditingLine(null);
     setDialogOpen(true);
   }
 
@@ -153,6 +156,7 @@ export default function JournalDailyGewsPage() {
     setDrafts({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
     setDraftAttachments({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
     setOriginalDate(e.date);
+    setEditingLine(null);
     setDialogOpen(true);
   }
 
@@ -166,6 +170,25 @@ export default function JournalDailyGewsPage() {
 
   function removeItem(cat: GewsCategory, idx: number) {
     setForm({ ...form, [cat]: form[cat].filter((_, i) => i !== idx) });
+  }
+
+  function startLineEdit(cat: GewsCategory, idx: number) {
+    setEditingLine({ cat, idx });
+    setEditingLineText(form[cat][idx].text);
+  }
+
+  function cancelLineEdit() {
+    setEditingLine(null);
+    setEditingLineText("");
+  }
+
+  function saveLineEdit() {
+    if (!editingLine) return;
+    const text = editingLineText.trim();
+    if (!text) { cancelLineEdit(); return; }
+    const { cat, idx } = editingLine;
+    setForm({ ...form, [cat]: form[cat].map((line, i) => (i === idx ? { ...line, text } : line)) });
+    cancelLineEdit();
   }
 
   function save() {
@@ -347,23 +370,56 @@ export default function JournalDailyGewsPage() {
                   </Label>
                   {form[cat].length > 0 && (
                     <ul className="space-y-1">
-                      {form[cat].map((item, idx) => (
-                        <li key={idx} className="flex items-start justify-between gap-2 bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-sm text-slate-200">
-                          <div className="flex-1 min-w-0">
-                            <span>{item.text}</span>
-                            {item.attachments && item.attachments.length > 0 && (
-                              <div className="mt-1.5">
-                                <AttachmentArea attachments={item.attachments} onChange={() => {}} disabled showHint={false}>
-                                  {null}
-                                </AttachmentArea>
-                              </div>
+                      {form[cat].map((item, idx) => {
+                        const isEditingLine = editingLine?.cat === cat && editingLine.idx === idx;
+                        return (
+                          <li key={idx} className="flex items-start justify-between gap-2 bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-sm text-slate-200">
+                            {isEditingLine ? (
+                              <>
+                                <Input
+                                  value={editingLineText}
+                                  onChange={(e) => setEditingLineText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") { e.preventDefault(); saveLineEdit(); }
+                                    if (e.key === "Escape") { e.preventDefault(); cancelLineEdit(); }
+                                  }}
+                                  autoFocus
+                                  className="flex-1 h-7 bg-slate-900/60 border-amber-600/40 text-amber-50"
+                                />
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button onClick={saveLineEdit} title="Save" className="text-emerald-400 hover:text-emerald-300">
+                                    <Check className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={cancelLineEdit} title="Cancel" className="text-slate-500 hover:text-red-400">
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex-1 min-w-0">
+                                  <span>{item.text}</span>
+                                  {item.attachments && item.attachments.length > 0 && (
+                                    <div className="mt-1.5">
+                                      <AttachmentArea attachments={item.attachments} onChange={() => {}} disabled showHint={false}>
+                                        {null}
+                                      </AttachmentArea>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button onClick={() => startLineEdit(cat, idx)} title="Edit" className="text-slate-500 hover:text-amber-300">
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={() => removeItem(cat, idx)} title="Remove" className="text-slate-500 hover:text-red-400">
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </>
                             )}
-                          </div>
-                          <button onClick={() => removeItem(cat, idx)} className="text-slate-500 hover:text-red-400 shrink-0">
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                   <div className="flex gap-2 items-start">
@@ -377,6 +433,7 @@ export default function JournalDailyGewsPage() {
                         value={drafts[cat]}
                         onChange={(e) => setDrafts({ ...drafts, [cat]: e.target.value })}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(cat); } }}
+                        onBlur={() => addItem(cat)}
                         placeholder={meta.placeholder}
                         className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500 pr-10"
                       />
