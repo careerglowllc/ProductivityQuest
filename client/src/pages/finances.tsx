@@ -1655,6 +1655,20 @@ export default function Finances() {
     pct: ((d.value / (totalIncome + totalRetirement + totalExpenses)) * 100),
   }));
 
+  // Same totals as incomeVsExpensePie, but with Expenses split into "true" (money that's
+  // just gone) vs "investment" (real spending, but it builds equity you can get back) — used
+  // only on the Income vs Expenses tab, per the user's request to keep this distinction scoped
+  // there. 401k/Roth/HSA stay in Investments since that principal can be withdrawn later.
+  const incomeVsExpensePieDetailed = [
+    { name: "Income", value: totalIncome, color: "#22C55E" },
+    { name: "Investments", value: totalRetirement, color: "#FBBF24" },
+    { name: "True Expenses", value: totalExpenses - investmentExpenseTotal, color: "#EF4444" },
+    { name: "Investment Expenses", value: investmentExpenseTotal, color: "#FB923C" },
+  ].filter(d => d.value > 0).map(d => ({
+    ...d,
+    pct: ((d.value / (totalIncome + totalRetirement + totalExpenses)) * 100),
+  }));
+
   // ── Net Worth (component-level, shared between Overview & Net Worth tab) ──
   const _btcPrice = btcData?.price ?? cachedBtcPrice;
   const _vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
@@ -2357,7 +2371,7 @@ export default function Finances() {
                       <CardHeader className="pb-2">
                         <CardTitle className="text-purple-300 text-base">Income vs Expense</CardTitle>
                         <CardDescription className="text-slate-400 text-xs">
-                          🟢 Income &amp; Investment · 🟡 Retirement · 🔴 Expenses
+                          🟢 Income · 🟡 Investments · 🔴 Expenses
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -2651,7 +2665,7 @@ export default function Finances() {
                     <CardTitle className="text-green-300">Income vs Investments vs Expenses</CardTitle>
                     <CardDescription className="text-slate-400 text-xs mt-1">
                       {iveView === "summary"
-                        ? "🟢 Income · 🟡 Investments · 🔴 Expenses"
+                        ? "🟢 Income · 🟡 Investments · 🔴 True Expenses · 🟠 Investment Expenses"
                         : "All individual items broken down by category"}
                     </CardDescription>
                   </div>
@@ -2676,9 +2690,9 @@ export default function Finances() {
                   <>
                     <ResponsiveContainer width="100%" height={360}>
                       <RechartsPieChart>
-                        <Pie data={incomeVsExpensePie} cx="50%" cy="50%" outerRadius={130} innerRadius={60}
+                        <Pie data={incomeVsExpensePieDetailed} cx="50%" cy="50%" outerRadius={130} innerRadius={60}
                           dataKey="value" labelLine={false} label={false}>
-                          {incomeVsExpensePie.map((entry, i) => (
+                          {incomeVsExpensePieDetailed.map((entry, i) => (
                             <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.3)" strokeWidth={2} />
                           ))}
                         </Pie>
@@ -2687,7 +2701,7 @@ export default function Finances() {
                       </RechartsPieChart>
                     </ResponsiveContainer>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700/50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-700/50">
                       <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3">
                         <p className="text-xs text-green-400 font-semibold mb-2 flex items-center gap-1.5">
                           <TrendingUp className="h-3.5 w-3.5" /> Income
@@ -2710,6 +2724,7 @@ export default function Finances() {
                         <p className="text-xs text-yellow-400 font-semibold mb-2 flex items-center gap-1.5">
                           <PiggyBank className="h-3.5 w-3.5" /> Investments
                         </p>
+                        <p className="text-[9px] text-slate-500 italic mb-1.5">401k / Roth IRA / HSA — principal you can still get back.</p>
                         {retirementItems.sort((a, b) => b.monthlyCost - a.monthlyCost).map(i => (
                           <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-yellow-500/10 last:border-0">
                             <span className="text-slate-300 truncate mr-2">{i.item}</span>
@@ -2723,32 +2738,40 @@ export default function Finances() {
                       </div>
                       <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
                         <p className="text-xs text-red-400 font-semibold mb-2 flex items-center gap-1.5">
-                          <TrendingDown className="h-3.5 w-3.5" /> Top Expenses
+                          <TrendingDown className="h-3.5 w-3.5" /> True Expenses
                         </p>
-                        {investmentExpenseTotal > 0 && (
-                          <p className="text-[9px] text-slate-500 italic mb-1.5">
-                            🏠 marks Investment Property Housing — still real spending, but it builds equity.
-                          </p>
-                        )}
-                        {financialItems.filter(i => classifyItem(i.category, i.tags) === "expense")
+                        <p className="text-[9px] text-slate-500 italic mb-1.5">Money that's just gone — no equity, no principal back.</p>
+                        {financialItems.filter(i => classifyItem(i.category, i.tags) === "expense" && !isInvestmentExpense(i))
                           .sort((a, b) => b.monthlyCost - a.monthlyCost)
                           .slice(0, 10)
                           .map(i => (
                             <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-red-500/10 last:border-0">
-                              <span className="text-slate-300 truncate mr-2">{isInvestmentExpense(i) && "🏠 "}{i.item}</span>
+                              <span className="text-slate-300 truncate mr-2">{i.item}</span>
                               <span className="text-red-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
                             </div>
                           ))}
                         <div className="flex justify-between text-xs pt-1.5 font-bold">
                           <span className="text-red-300">Total</span>
-                          <span className="text-red-300">{formatCurrency(totalExpenses)}</span>
+                          <span className="text-red-300">{formatCurrency(totalExpenses - investmentExpenseTotal)}</span>
                         </div>
-                        {investmentExpenseTotal > 0 && (
-                          <div className="flex justify-between text-[10px] pt-0.5 text-slate-500">
-                            <span>🏠 of which Investment Property Housing</span>
-                            <span>{formatCurrency(investmentExpenseTotal)}</span>
-                          </div>
-                        )}
+                      </div>
+                      <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 p-3">
+                        <p className="text-xs text-orange-400 font-semibold mb-2 flex items-center gap-1.5">
+                          🏠 Investment Expenses
+                        </p>
+                        <p className="text-[9px] text-slate-500 italic mb-1.5">Real spending, but it builds equity you can recover on sale.</p>
+                        {financialItems.filter(i => classifyItem(i.category, i.tags) === "expense" && isInvestmentExpense(i))
+                          .sort((a, b) => b.monthlyCost - a.monthlyCost)
+                          .map(i => (
+                            <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-orange-500/10 last:border-0">
+                              <span className="text-slate-300 truncate mr-2">{i.item}</span>
+                              <span className="text-orange-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
+                            </div>
+                          ))}
+                        <div className="flex justify-between text-xs pt-1.5 font-bold">
+                          <span className="text-orange-300">Total</span>
+                          <span className="text-orange-300">{formatCurrency(investmentExpenseTotal)}</span>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -2761,9 +2784,12 @@ export default function Finances() {
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
                       .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FBBF24", type: "retirement" as const, category: i.category })),
-                    ...financialItems.filter(i => classifyItem(i.category, i.tags) === "expense")
+                    ...financialItems.filter(i => classifyItem(i.category, i.tags) === "expense" && !isInvestmentExpense(i))
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "expense" as const, category: i.category })),
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "trueExpense" as const, category: i.category })),
+                    ...financialItems.filter(i => classifyItem(i.category, i.tags) === "expense" && isInvestmentExpense(i))
+                      .sort((a, b) => b.monthlyCost - a.monthlyCost)
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FB923C", type: "investmentExpense" as const, category: i.category })),
                   ].filter(d => d.value > 0);
                   const grandTotal = granularData.reduce((s, d) => s + d.value, 0);
                   return (
@@ -2780,21 +2806,19 @@ export default function Finances() {
                         </RechartsPieChart>
                       </ResponsiveContainer>
 
-                      <div className="mt-4 pt-4 border-t border-slate-700/50 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {(["income", "retirement", "expense"] as const).map(type => {
+                      <div className="mt-4 pt-4 border-t border-slate-700/50 grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {(["income", "retirement", "trueExpense", "investmentExpense"] as const).map(type => {
                           const items = granularData.filter(d => d.type === type);
                           const typeTotal = items.reduce((s, d) => s + d.value, 0);
-                          const typeColor = type === "income" ? "green" : type === "retirement" ? "yellow" : "red";
-                          const typeLabel = type === "income" ? "Income" : type === "retirement" ? "Investments" : "Expenses";
+                          const typeColor = type === "income" ? "green" : type === "retirement" ? "yellow" : type === "trueExpense" ? "red" : "orange";
+                          const typeLabel = type === "income" ? "Income" : type === "retirement" ? "Investments" : type === "trueExpense" ? "True Expenses" : "Investment Expenses";
                           return (
                             <div key={type} className={`rounded-lg bg-${typeColor}-500/10 border border-${typeColor}-500/20 p-3`}>
                               <p className={`text-xs text-${typeColor}-400 font-semibold mb-2`}>{typeLabel}</p>
                               {items.map(item => (
                                 <div key={item.name} className="flex items-center gap-1.5 py-0.5 border-b border-slate-700/30 last:border-0">
                                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                                  <span className="text-slate-300 text-xs truncate flex-1 mr-1">
-                                    {type === "expense" && item.category === "Investment Property Housing" && "🏠 "}{item.name}
-                                  </span>
+                                  <span className="text-slate-300 text-xs truncate flex-1 mr-1">{item.name}</span>
                                   <span className={`text-${typeColor}-300 text-xs shrink-0`}>{formatCurrency(item.value)}</span>
                                   <span className="text-slate-500 text-[10px] shrink-0">({grandTotal > 0 ? ((item.value / grandTotal) * 100).toFixed(1) : 0}%)</span>
                                 </div>
