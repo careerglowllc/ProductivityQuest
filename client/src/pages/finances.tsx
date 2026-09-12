@@ -26,7 +26,7 @@ import type { FinancialItem, NwSnapshot, FamilyContribution } from "@shared/sche
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 
 const CATEGORIES = [
-  "General", "Business", "Entertainment", "Food", "Housing", "Transportation",
+  "General", "Business", "Entertainment", "Food", "Investment Property Housing", "Personal Housing", "Transportation",
   "Phone", "Internet", "Insurance", "Credit Card", "Health (Non Insurance)",
   "Toiletries", "Charity", "Income", "Retirement", "Investment"
 ];
@@ -35,8 +35,10 @@ const RECUR_TYPES = [
   "Monthly", "Yearly (Amortized)", "Biweekly (Summed Monthly)", "2x a Year"
 ];
 
-const INCOME_CATEGORIES = ["Income", "Investment"];
-const RETIREMENT_CATEGORIES = ["Retirement"];
+// Only base salary/RSUs/bonuses/etc. count as Income now — 401k, Roth IRA, HSA, and the
+// Rocklin investment-property housing costs are all classified as Investments instead.
+const INCOME_CATEGORIES = ["Income"];
+const RETIREMENT_CATEGORIES = ["Retirement", "Investment", "Investment Property Housing"];
 
 // Pure async builder (fetches its own data) so the Settings page's "Export All" master
 // export can build this CSV without the Finances page being mounted.
@@ -59,7 +61,7 @@ export async function buildFinancesCSVExport(): Promise<CSVExport> {
 // Parents pledged $15,000 total, given here-and-there for purchases (not a lump sum)
 const PARENT_GIFT_PLEDGED_CENTS = 1500000;
 
-function classifyItem(category: string, tags?: string[] | null): "income" | "retirement" | "expense" {
+export function classifyItem(category: string, tags?: string[] | null): "income" | "retirement" | "expense" {
   const tagList = Array.isArray(tags) ? tags : [];
   if (INCOME_CATEGORIES.includes(category)) return "income";
   if (tagList.length > 0 && INCOME_CATEGORIES.some(c => tagList.includes(c))) return "income";
@@ -186,7 +188,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Income":                "#22C55E",
   "Investment":            "#4ADE80",
   "Retirement":            "#FBBF24",
-  "Housing":               "#EF4444",
+  "Investment Property Housing": "#F59E0B",
+  "Personal Housing":      "#EF4444",
   "Food":                  "#F59E0B",
   "Transportation":        "#10B981",
   "Business":              "#3B82F6",
@@ -1384,7 +1387,7 @@ export default function Finances() {
     }
     if (!financialItems.find(i => i.item === "Brilliant Pest Solutions")) {
       tasks.push(create({
-        item: "Brilliant Pest Solutions", category: "Housing", tags: ["Housing", "Rental"],
+        item: "Brilliant Pest Solutions", category: "Investment Property Housing", tags: ["Investment Property Housing", "Rental"],
         monthlyCost: 5900, recurType: "Monthly",
         notes: "Comprehensive pest control for Rocklin Rental House",
       }));
@@ -1623,8 +1626,8 @@ export default function Finances() {
   }
 
   const incomeVsExpensePie = [
-    { name: "Income & Investment", value: totalIncome, color: "#22C55E" },
-    { name: "Retirement Contributions", value: totalRetirement, color: "#FBBF24" },
+    { name: "Income", value: totalIncome, color: "#22C55E" },
+    { name: "Investments", value: totalRetirement, color: "#FBBF24" },
     { name: "Expenses", value: totalExpenses, color: "#EF4444" },
   ].filter(d => d.value > 0).map(d => ({
     ...d,
@@ -1714,7 +1717,7 @@ export default function Finances() {
   const cashflowPie = [
     { name: "W2 Salary", value: w2Income, color: "#22C55E" },
     { name: "Expenses", value: totalExpenses, color: "#EF4444" },
-    { name: "Retirement (out of W2)", value: totalRetirement, color: "#FBBF24" },
+    { name: "Investments (out of W2)", value: totalRetirement, color: "#FBBF24" },
   ].filter(d => d.value > 0).map(d => {
     const total = w2Income + totalExpenses + totalRetirement;
     return { ...d, pct: total > 0 ? (d.value / total) * 100 : 0 };
@@ -1800,8 +1803,8 @@ export default function Finances() {
       [`Exported: ${today}`],
       [],
       ["METRIC", "MONTHLY ($)", "ANNUAL ($)", "NOTES"],
-      ["Total Income & Investment", $(totalIncome), $(totalIncome * 12), "W2 salary + RSUs + ESPP + HSA"],
-      ["Retirement Contributions", $(totalRetirement), $(totalRetirement * 12), "401k + Roth IRA contributions"],
+      ["Total Income", $(totalIncome), $(totalIncome * 12), "W2 salary + RSUs + ESPP"],
+      ["Investments", $(totalRetirement), $(totalRetirement * 12), "401k + Roth IRA + HSA + investment-property housing"],
       ["Total Expenses", $(totalExpenses), $(totalExpenses * 12), "All tracked expense categories"],
       ["Net Cash Flow (after expenses & retirement)", $(netCashFlow), $(netCashFlow * 12), "Income − Expenses − Retirement"],
       ["W2 Salary Only", $(w2Income), $(w2Income * 12), "Post-tax W2 salary"],
@@ -1830,7 +1833,7 @@ export default function Finances() {
     XLSX.utils.book_append_sheet(wb, ws1, "Overview");
 
     // ── Sheet 2: Income vs Expense (all items) ─────────────────────────────
-    const typeLabels: Record<string, string> = { income: "Income / Investment", retirement: "Retirement", expense: "Expense" };
+    const typeLabels: Record<string, string> = { income: "Income", retirement: "Investments", expense: "Expense" };
     const iveRows: (string | number)[][] = [
       ["Income vs Expense — All Items"],
       [`Exported: ${today}`],
@@ -1851,7 +1854,7 @@ export default function Finances() {
       iveRows.push([`${typeLabels[type]} Subtotal`, "", "", "", $(sub), $(sub * 12)]);
     }
     iveRows.push([]);
-    iveRows.push(["GRAND TOTAL INCOME + INVESTMENT", "", "", "", $(totalIncome), $(totalIncome * 12)]);
+    iveRows.push(["GRAND TOTAL INCOME", "", "", "", $(totalIncome), $(totalIncome * 12)]);
     iveRows.push(["GRAND TOTAL EXPENSES", "", "", "", $(totalExpenses), $(totalExpenses * 12)]);
     iveRows.push(["NET CASH FLOW", "", "", "", $(netCashFlow), $(netCashFlow * 12)]);
     const ws2 = XLSX.utils.aoa_to_sheet(iveRows);
@@ -1933,7 +1936,7 @@ export default function Finances() {
 
     // ── Sheet 5: Retirement ────────────────────────────────────────────────
     const retRows: (string | number)[][] = [
-      ["Retirement Contributions & Accounts"],
+      ["Investment Contributions & Accounts"],
       [`Exported: ${today}`],
       [],
       ["── MONTHLY CONTRIBUTIONS ──"],
@@ -1943,7 +1946,7 @@ export default function Finances() {
       retRows.push([it.item, it.category, it.recurType, $(it.monthlyCost), $(it.monthlyCost * 12)]);
     }
     const retTotal = retirementItems.reduce((s, i) => s + i.monthlyCost, 0);
-    retRows.push(["Total Retirement Contributions", "", "", $(retTotal), $(retTotal * 12)]);
+    retRows.push(["Total Investment Contributions", "", "", $(retTotal), $(retTotal * 12)]);
     retRows.push([]);
     retRows.push(["── ACCOUNT BALANCES ──"]);
     retRows.push(["ACCOUNT", "INSTITUTION", "HOLDINGS", "CURRENT VALUE ($)", "TAX TYPE"]);
@@ -1962,7 +1965,7 @@ export default function Finances() {
       ["METRIC", "MONTHLY ($)", "ANNUAL ($)"],
       ["W2 Salary (Post-Tax)", $(w2Income), $(w2Income * 12)],
       ["Total Expenses", $(totalExpenses), $(totalExpenses * 12)],
-      ["Retirement Contributions", $(totalRetirement), $(totalRetirement * 12)],
+      ["Investments", $(totalRetirement), $(totalRetirement * 12)],
       ["Net Cashflow (W2 − Expenses)", $(cashflowNetRaw), $(cashflowNetRaw * 12)],
       ["Non-W2 Income (RSUs, ESPP, etc.)", $(nonW2Income), $(nonW2Income * 12)],
       [],
@@ -2074,7 +2077,7 @@ export default function Finances() {
             <CardContent className="pt-4 pb-3 px-4">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="h-4 w-4 text-green-400" />
-                <p className="text-xs text-slate-400">Income + Investment</p>
+                <p className="text-xs text-slate-400">Income</p>
               </div>
               <p className="text-2xl font-bold text-green-300">{formatCurrency(totalIncome)}</p>
               <p className="text-[11px] text-slate-500 mt-0.5">per month · incl. RSU/bonus amortization</p>
@@ -2123,7 +2126,7 @@ export default function Finances() {
               <PieChart className="h-3.5 w-3.5 mr-1.5" />Expense Breakdown
             </TabsTrigger>
             <TabsTrigger value="retirement" className="data-[state=active]:bg-yellow-600/40 text-xs px-3 py-1.5">
-              <PiggyBank className="h-3.5 w-3.5 mr-1.5" />Retirement
+              <PiggyBank className="h-3.5 w-3.5 mr-1.5" />Investments
             </TabsTrigger>
             <TabsTrigger value="cashflow" className="data-[state=active]:bg-blue-600/40 text-xs px-3 py-1.5">
               <Wallet className="h-3.5 w-3.5 mr-1.5" />Cash Flow (W2 Only)
@@ -2368,9 +2371,9 @@ export default function Finances() {
                       </CardHeader>
                       <CardContent className="space-y-3">
                         {[
-                          { label: "Income & Investment", value: totalIncome, color: "bg-green-500" },
+                          { label: "Income", value: totalIncome, color: "bg-green-500" },
                           { label: "Expenses", value: totalExpenses, color: "bg-red-500" },
-                          { label: "Retirement Contributions", value: totalRetirement, color: "bg-yellow-400" },
+                          { label: "Investments", value: totalRetirement, color: "bg-yellow-400" },
                         ].map(({ label, value, color }) => {
                           const total = totalIncome + totalExpenses + totalRetirement;
                           return (
@@ -2624,10 +2627,10 @@ export default function Finances() {
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle className="text-green-300">Income + Investment vs Expenses</CardTitle>
+                    <CardTitle className="text-green-300">Income vs Investments vs Expenses</CardTitle>
                     <CardDescription className="text-slate-400 text-xs mt-1">
                       {iveView === "summary"
-                        ? "🟢 Income & Investment · 🟡 Retirement · 🔴 Expenses"
+                        ? "🟢 Income · 🟡 Investments · 🔴 Expenses"
                         : "All individual items broken down by category"}
                     </CardDescription>
                   </div>
@@ -2666,7 +2669,7 @@ export default function Finances() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700/50">
                       <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3">
                         <p className="text-xs text-green-400 font-semibold mb-2 flex items-center gap-1.5">
-                          <TrendingUp className="h-3.5 w-3.5" /> Income + Investment
+                          <TrendingUp className="h-3.5 w-3.5" /> Income
                         </p>
                         <p className="text-[9px] text-slate-500 italic mb-1.5">Includes monthly amortization of RSU vesting &amp; sign-on bonus payouts.</p>
                         {financialItems.filter(i => classifyItem(i.category, i.tags) === "income")
@@ -2684,7 +2687,7 @@ export default function Finances() {
                       </div>
                       <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3">
                         <p className="text-xs text-yellow-400 font-semibold mb-2 flex items-center gap-1.5">
-                          <PiggyBank className="h-3.5 w-3.5" /> Retirement
+                          <PiggyBank className="h-3.5 w-3.5" /> Investments
                         </p>
                         {retirementItems.sort((a, b) => b.monthlyCost - a.monthlyCost).map(i => (
                           <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-yellow-500/10 last:border-0">
@@ -2750,7 +2753,7 @@ export default function Finances() {
                           const items = granularData.filter(d => d.type === type);
                           const typeTotal = items.reduce((s, d) => s + d.value, 0);
                           const typeColor = type === "income" ? "green" : type === "retirement" ? "yellow" : "red";
-                          const typeLabel = type === "income" ? "Income & Investment" : type === "retirement" ? "Retirement" : "Expenses";
+                          const typeLabel = type === "income" ? "Income" : type === "retirement" ? "Investments" : "Expenses";
                           return (
                             <div key={type} className={`rounded-lg bg-${typeColor}-500/10 border border-${typeColor}-500/20 p-3`}>
                               <p className={`text-xs text-${typeColor}-400 font-semibold mb-2`}>{typeLabel}</p>
@@ -2968,7 +2971,7 @@ export default function Finances() {
               <CardHeader>
                 <CardTitle className="text-red-300">Expense Breakdown by Category</CardTitle>
                 <CardDescription className="text-slate-400 text-xs">
-                  Income, Investment, and Retirement excluded
+                  Income and Investments excluded
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -3121,16 +3124,16 @@ export default function Finances() {
             <Card className="bg-slate-800/60 border-yellow-500/20">
               <CardHeader>
                 <CardTitle className="text-yellow-300 flex items-center gap-2">
-                  <PiggyBank className="h-5 w-5" /> Retirement Overview
+                  <PiggyBank className="h-5 w-5" /> Investments Overview
                 </CardTitle>
                 <CardDescription className="text-slate-400 text-xs">
-                  401k contributions, employer match, and other retirement-tagged items
+                  401k, Roth IRA, HSA contributions, and investment-property housing costs
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col md:flex-row gap-4 mb-6">
                   <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-5 flex-1 text-center">
-                    <p className="text-xs text-yellow-400 mb-1">Total Monthly Retirement Savings</p>
+                    <p className="text-xs text-yellow-400 mb-1">Total Monthly Investment Contributions</p>
                     <p className="text-4xl font-bold text-yellow-300">{formatCurrency(totalRetirement)}</p>
                     <p className="text-xs text-slate-400 mt-1">
                       {formatCurrency(totalRetirement * 12)}/yr · {totalIncome > 0 ? ((totalRetirement / totalIncome) * 100).toFixed(1) : "0"}% of income
@@ -4689,7 +4692,7 @@ export default function Finances() {
                       <SelectContent className="bg-slate-800 border-slate-600">
                         <SelectItem value="All">All Categories</SelectItem>
                         <SelectItem value="Income">💚 Income</SelectItem>
-                        <SelectItem value="Investment">💚 Investment</SelectItem>
+                        <SelectItem value="Investment">� Investment</SelectItem>
                         <SelectItem value="Retirement">💛 Retirement</SelectItem>
                         {CATEGORIES.filter(c => !["Income", "Investment", "Retirement"].includes(c))
                           .map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
@@ -4708,13 +4711,13 @@ export default function Finances() {
 
                   const groups: { label: string; colorClass: string; headerBg: string; items: typeof searched }[] = [
                     {
-                      label: "💚 Income & Investment",
+                      label: "💚 Income",
                       colorClass: "text-green-300",
                       headerBg: "bg-green-500/10 border-green-500/20",
                       items: searched.filter(i => classifyItem(i.category, i.tags) === "income"),
                     },
                     {
-                      label: "💛 Retirement",
+                      label: "💛 Investments",
                       colorClass: "text-yellow-300",
                       headerBg: "bg-yellow-500/10 border-yellow-500/20",
                       items: searched.filter(i => classifyItem(i.category, i.tags) === "retirement"),

@@ -92,6 +92,15 @@ export async function runStartupMigrations() {
     await sql`
       CREATE UNIQUE INDEX IF NOT EXISTS "UQ_user_kv_user_key" ON user_kv (user_id, key)
     `;
+
+    // Migration: The "Housing" financial item category was always the Rocklin rental
+    // property's costs, not personal housing — rename it so it's grouped with Investments
+    // instead of Expenses, and free up "Personal Housing" as its own expense category.
+    await sql`
+      UPDATE financial_items
+      SET category = 'Investment Property Housing'
+      WHERE category = 'Housing'
+    `;
     
     console.log('✅ Startup migrations completed successfully');
   } catch (error) {

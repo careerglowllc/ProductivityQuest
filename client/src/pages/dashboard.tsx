@@ -16,6 +16,7 @@ import { getSkillIcon } from "@/lib/skillIcons";
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useTheme } from "@/contexts/theme-context";
+import { classifyItem } from "@/pages/finances";
 
 // Default skill icon mapping for backward compatibility
 const skillIcons: Record<string, any> = {
@@ -212,23 +213,15 @@ function FinanceWidget() {
     queryKey: ["/api/finances"],
   });
 
-  const classifyItem = (cat: string) => {
-    const inc = ["Income", "Investment", "Side Income", "Freelance", "RSU", "ESPP", "HSA", "Dividend"];
-    const ret = ["Retirement", "401k", "Roth IRA", "IRA", "Pension"];
-    if (inc.some(k => cat.toLowerCase().includes(k.toLowerCase()))) return "income";
-    if (ret.some(k => cat.toLowerCase().includes(k.toLowerCase()))) return "retirement";
-    return "expense";
-  };
-
-  const totalIncome = financialItems.filter(i => classifyItem(i.category) === "income").reduce((s, i) => s + i.monthlyCost, 0);
-  const totalRetirement = financialItems.filter(i => classifyItem(i.category) === "retirement").reduce((s, i) => s + i.monthlyCost, 0);
-  const totalExpenses = financialItems.filter(i => classifyItem(i.category) === "expense").reduce((s, i) => s + i.monthlyCost, 0);
+  const totalIncome = financialItems.filter(i => classifyItem(i.category, i.tags) === "income").reduce((s, i) => s + i.monthlyCost, 0);
+  const totalRetirement = financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement").reduce((s, i) => s + i.monthlyCost, 0);
+  const totalExpenses = financialItems.filter(i => classifyItem(i.category, i.tags) === "expense").reduce((s, i) => s + i.monthlyCost, 0);
   const netCashFlow = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? (netCashFlow / totalIncome) * 100 : 0;
 
   const pieData = [
-    { name: "Income & Investment", value: totalIncome, color: "#22C55E" },
-    { name: "Retirement Contributions", value: totalRetirement, color: "#FBBF24" },
+    { name: "Income", value: totalIncome, color: "#22C55E" },
+    { name: "Investments", value: totalRetirement, color: "#FBBF24" },
     { name: "Expenses", value: totalExpenses, color: "#EF4444" },
   ].filter(d => d.value > 0);
 
@@ -296,11 +289,11 @@ function FinanceWidget() {
               <div className={`${contentHeight > 280 ? "mt-3 space-y-2" : "mt-1 space-y-1"} flex-shrink-0`}>
                 <div className={`grid grid-cols-3 gap-2 text-center ${contentHeight > 280 ? "mt-2" : ""}`}>
                   <div>
-                    <p className="text-[10px] text-slate-400">Income & Investment</p>
+                    <p className="text-[10px] text-slate-400">Income</p>
                     <p className={`font-bold text-green-300 ${contentHeight > 280 ? "text-base" : "text-xs"}`}>{fmt(totalIncome)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400">Retirement</p>
+                    <p className="text-[10px] text-slate-400">Investments</p>
                     <p className={`font-bold text-yellow-300 ${contentHeight > 280 ? "text-base" : "text-xs"}`}>{fmt(totalRetirement)}</p>
                   </div>
                   <div>
