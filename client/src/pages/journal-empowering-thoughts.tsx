@@ -18,6 +18,8 @@ import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { AttachmentArea } from "@/components/attachment-area";
+import type { QuestAttachment } from "@/lib/attachments";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-empowering-thoughts-v1";
@@ -28,6 +30,7 @@ type Thought = {
   description: string;
   createdAt: string;
   updatedAt: string;
+  attachments?: QuestAttachment[];
 };
 
 const EMPTY: Thought = { id: "", title: "", description: "", createdAt: "", updatedAt: "" };
@@ -253,6 +256,13 @@ export default function JournalEmpoweringThoughtsPage() {
                     <p className="mt-1.5 text-sm text-slate-400 whitespace-pre-wrap">
                       {t.description || "No description yet — click to add one…"}
                     </p>
+                    {t.attachments && t.attachments.length > 0 && (
+                      <div className="mt-2" onClick={(ev) => ev.stopPropagation()}>
+                        <AttachmentArea attachments={t.attachments} onChange={() => {}} disabled showHint={false}>
+                          {null}
+                        </AttachmentArea>
+                      </div>
+                    )}
                     <p className="mt-2 text-[11px] text-slate-500">Updated {fmtDate(t.updatedAt)}</p>
                   </CardContent>
                 </Card>
@@ -284,14 +294,19 @@ export default function JournalEmpoweringThoughtsPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="thought-description">Description</Label>
-              <Textarea
-                id="thought-description"
-                rows={6}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Why this thought matters to you, evidence that supports it, when to remember it…"
-                className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500"
-              />
+              <AttachmentArea
+                attachments={form.attachments || []}
+                onChange={(next) => setForm({ ...form, attachments: next })}
+              >
+                <Textarea
+                  id="thought-description"
+                  rows={6}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Why this thought matters to you, evidence that supports it, when to remember it…"
+                  className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500 pr-10"
+                />
+              </AttachmentArea>
             </div>
           </div>
           <DialogFooter>

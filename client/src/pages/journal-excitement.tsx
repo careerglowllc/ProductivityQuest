@@ -13,6 +13,8 @@ import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { AttachmentArea } from "@/components/attachment-area";
+import type { QuestAttachment } from "@/lib/attachments";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-excitement-v1";
@@ -22,6 +24,7 @@ type ExcitementEntry = {
   text: string;
   createdAt: string;
   emoji?: string;
+  attachments?: QuestAttachment[];
 };
 
 function newId() {
@@ -58,11 +61,13 @@ export default function JournalExcitementPage() {
   const [entries, setEntries] = useState<ExcitementEntry[]>(loadEntries);
   const [draft, setDraft] = useState("");
   const [draftEmoji, setDraftEmoji] = useState("");
+  const [draftAttachments, setDraftAttachments] = useState<QuestAttachment[]>([]);
   const [search, setSearch] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [editUpdateDate, setEditUpdateDate] = useState(false);
+  const [editAttachments, setEditAttachments] = useState<QuestAttachment[]>([]);
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
   const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
 
@@ -99,9 +104,10 @@ export default function JournalExcitementPage() {
   function addEntry() {
     const text = draft.trim();
     if (!text) return;
-    persist([{ id: newId(), text, createdAt: new Date().toISOString(), emoji: draftEmoji || undefined }, ...entries]);
+    persist([{ id: newId(), text, createdAt: new Date().toISOString(), emoji: draftEmoji || undefined, attachments: draftAttachments }, ...entries]);
     setDraft("");
     setDraftEmoji("");
+    setDraftAttachments([]);
   }
 
   function remove(id: string) {
@@ -122,18 +128,20 @@ export default function JournalExcitementPage() {
     setEditingId(e.id);
     setEditDraft(e.text);
     setEditUpdateDate(false);
+    setEditAttachments(e.attachments || []);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditDraft("");
     setEditUpdateDate(false);
+    setEditAttachments([]);
   }
 
   function saveEdit(id: string) {
     const text = editDraft.trim();
     if (!text) return;
-    const undo = persistWithUndo(entries.map((e) => (e.id === id ? { ...e, text, createdAt: editUpdateDate ? new Date().toISOString() : e.createdAt } : e)), "Edited excitement entry");
+    const undo = persistWithUndo(entries.map((e) => (e.id === id ? { ...e, text, createdAt: editUpdateDate ? new Date().toISOString() : e.createdAt, attachments: editAttachments } : e)), "Edited excitement entry");
     cancelEdit();
     toast({
       title: "Changes saved",
@@ -178,17 +186,21 @@ export default function JournalExcitementPage() {
           </div>
 
           {/* Quick-add */}
-          <div className="flex gap-2 mb-6">
-            <span className="shrink-0" onClick={(ev) => ev.stopPropagation()}>
+          <div className="flex gap-2 mb-6 items-start">
+            <span className="shrink-0 mt-0.5" onClick={(ev) => ev.stopPropagation()}>
               <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} size="md" />
             </span>
-            <Input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addEntry(); }}
-              placeholder="I'm excited about…"
-              className="flex-1 bg-slate-800/60 border-orange-600/30 text-orange-50 placeholder:text-slate-500"
-            />
+            <div className="flex-1 min-w-0">
+              <AttachmentArea attachments={draftAttachments} onChange={setDraftAttachments} showHint={false}>
+                <Input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addEntry(); }}
+                  placeholder="I'm excited about…"
+                  className="bg-slate-800/60 border-orange-600/30 text-orange-50 placeholder:text-slate-500 pr-10"
+                />
+              </AttachmentArea>
+            </div>
             <Button onClick={addEntry} className="bg-orange-600 hover:bg-orange-500 text-white font-semibold shrink-0">
               <Plus className="h-4 w-4 mr-1.5" /> Add
             </Button>
@@ -260,12 +272,14 @@ export default function JournalExcitementPage() {
                 >
                   {editingId === e.id ? (
                     <CardContent className="p-4 space-y-3">
-                      <Textarea
-                        value={editDraft}
-                        onChange={(ev) => setEditDraft(ev.target.value)}
-                        className="bg-slate-900/60 border-orange-600/30 text-orange-50 placeholder:text-slate-500 min-h-[80px]"
-                        autoFocus
-                      />
+                      <AttachmentArea attachments={editAttachments} onChange={setEditAttachments}>
+                        <Textarea
+                          value={editDraft}
+                          onChange={(ev) => setEditDraft(ev.target.value)}
+                          className="bg-slate-900/60 border-orange-600/30 text-orange-50 placeholder:text-slate-500 min-h-[80px] pr-10"
+                          autoFocus
+                        />
+                      </AttachmentArea>
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <label className="flex items-center gap-2 text-xs text-orange-200/70 cursor-pointer">
                           <Checkbox checked={editUpdateDate} onCheckedChange={(c) => setEditUpdateDate(c === true)} />
@@ -289,6 +303,13 @@ export default function JournalExcitementPage() {
                         </span>
                         <div className="min-w-0">
                           <p className="text-orange-50 whitespace-pre-wrap">{e.text}</p>
+                          {e.attachments && e.attachments.length > 0 && (
+                            <div className="mt-2" onClick={(ev) => ev.stopPropagation()}>
+                              <AttachmentArea attachments={e.attachments} onChange={() => {}} disabled showHint={false}>
+                                {null}
+                              </AttachmentArea>
+                            </div>
+                          )}
                           <p className="mt-1 text-[11px] text-slate-500">{fmtDate(e.createdAt)}</p>
                         </div>
                       </div>

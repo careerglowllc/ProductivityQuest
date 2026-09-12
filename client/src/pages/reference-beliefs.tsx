@@ -19,6 +19,8 @@ import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { AttachmentArea } from "@/components/attachment-area";
+import type { QuestAttachment } from "@/lib/attachments";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-reference-beliefs-v2";
@@ -31,6 +33,7 @@ type Belief = {
   description: string;
   createdAt: string;
   updatedAt: string;
+  attachments?: QuestAttachment[];
 };
 
 const EMPTY: Belief = { id: "", title: "", description: "", createdAt: "", updatedAt: "" };
@@ -282,6 +285,13 @@ export default function ReferenceBeliefsPage() {
                     <p className="mt-1.5 text-sm text-slate-400 whitespace-pre-wrap">
                       {b.description || "No description yet — click to add one…"}
                     </p>
+                    {b.attachments && b.attachments.length > 0 && (
+                      <div className="mt-2" onClick={(ev) => ev.stopPropagation()}>
+                        <AttachmentArea attachments={b.attachments} onChange={() => {}} disabled showHint={false}>
+                          {null}
+                        </AttachmentArea>
+                      </div>
+                    )}
                     <p className="mt-2 text-[11px] text-slate-500">Updated {fmtDate(b.updatedAt)}</p>
                   </CardContent>
                 </Card>
@@ -314,12 +324,17 @@ export default function ReferenceBeliefsPage() {
             </div>
             <div>
               <Label className="text-amber-200/80 text-xs">Description</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Write the detailed explanation of this belief…"
-                className="bg-slate-800 border-slate-700 text-amber-50 mt-1 min-h-[260px] leading-relaxed"
-              />
+              <AttachmentArea
+                attachments={form.attachments || []}
+                onChange={(next) => setForm((f) => ({ ...f, attachments: next }))}
+              >
+                <Textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Write the detailed explanation of this belief…"
+                  className="bg-slate-800 border-slate-700 text-amber-50 mt-1 min-h-[260px] leading-relaxed pr-10"
+                />
+              </AttachmentArea>
             </div>
           </div>
 

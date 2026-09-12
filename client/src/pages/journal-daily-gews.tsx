@@ -17,18 +17,22 @@ import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { AttachmentArea } from "@/components/attachment-area";
+import type { QuestAttachment } from "@/lib/attachments";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-daily-gews-v1";
 
 type GewsCategory = "gratitudes" | "wins" | "exciteds" | "sadnesses";
 
+type GewsLine = { text: string; attachments?: QuestAttachment[] };
+
 type GewsEntry = {
   date: string; // YYYY-MM-DD
-  gratitudes: string[];
-  wins: string[];
-  exciteds: string[];
-  sadnesses: string[];
+  gratitudes: GewsLine[];
+  wins: GewsLine[];
+  exciteds: GewsLine[];
+  sadnesses: GewsLine[];
   updatedAt: string;
 };
 
@@ -61,9 +65,25 @@ function fmtDateFull(dateStr: string) {
 function loadEntries(): GewsEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return (JSON.parse(raw) as any[]).map(normalizeEntry);
   } catch { /* ignore */ }
   return [];
+}
+
+// Migrates older entries (lines stored as plain strings) into the { text, attachments } shape.
+function normalizeLine(item: string | GewsLine): GewsLine {
+  return typeof item === "string" ? { text: item } : item;
+}
+
+function normalizeEntry(e: any): GewsEntry {
+  return {
+    date: e.date,
+    gratitudes: (e.gratitudes || []).map(normalizeLine),
+    wins: (e.wins || []).map(normalizeLine),
+    exciteds: (e.exciteds || []).map(normalizeLine),
+    sadnesses: (e.sadnesses || []).map(normalizeLine),
+    updatedAt: e.updatedAt || "",
+  };
 }
 
 export default function JournalDailyGewsPage() {
@@ -75,6 +95,7 @@ export default function JournalDailyGewsPage() {
   const [originalDate, setOriginalDate] = useState<string | null>(null);
   const [form, setForm] = useState<GewsEntry>(emptyEntry(todayStr()));
   const [drafts, setDrafts] = useState<Record<GewsCategory, string>>({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
+  const [draftAttachments, setDraftAttachments] = useState<Record<GewsCategory, QuestAttachment[]>>({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
   const [confirmDeleteDate, setConfirmDeleteDate] = useState<string | null>(null);
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
   const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
@@ -122,6 +143,7 @@ export default function JournalDailyGewsPage() {
     }
     setForm(emptyEntry(today));
     setDrafts({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
+    setDraftAttachments({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
     setOriginalDate(null);
     setDialogOpen(true);
   }
@@ -129,6 +151,7 @@ export default function JournalDailyGewsPage() {
   function openEdit(e: GewsEntry) {
     setForm({ ...e });
     setDrafts({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
+    setDraftAttachments({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
     setOriginalDate(e.date);
     setDialogOpen(true);
   }
@@ -136,8 +159,9 @@ export default function JournalDailyGewsPage() {
   function addItem(cat: GewsCategory) {
     const val = drafts[cat].trim();
     if (!val) return;
-    setForm({ ...form, [cat]: [...form[cat], val] });
+    setForm({ ...form, [cat]: [...form[cat], { text: val, attachments: draftAttachments[cat] }] });
     setDrafts({ ...drafts, [cat]: "" });
+    setDraftAttachments({ ...draftAttachments, [cat]: [] });
   }
 
   function removeItem(cat: GewsCategory, idx: number) {
@@ -152,7 +176,7 @@ export default function JournalDailyGewsPage() {
     const finalForm: GewsEntry = { ...form };
     for (const cat of CATEGORY_ORDER) {
       const val = drafts[cat].trim();
-      if (val) finalForm[cat] = [...finalForm[cat], val];
+      if (val) finalForm[cat] = [...finalForm[cat], { text: val, attachments: draftAttachments[cat] }];
     }
     const withoutOld = originalDate ? entries.filter((e) => e.date !== originalDate) : entries;
     const withoutSameDate = withoutOld.filter((e) => e.date !== finalForm.date);
@@ -324,8 +348,17 @@ export default function JournalDailyGewsPage() {
                   {form[cat].length > 0 && (
                     <ul className="space-y-1">
                       {form[cat].map((item, idx) => (
-                        <li key={idx} className="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-sm text-slate-200">
-                          <span className="flex-1">{item}</span>
+                        <li key={idx} className="flex items-start justify-between gap-2 bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-sm text-slate-200">
+                          <div className="flex-1 min-w-0">
+                            <span>{item.text}</span>
+                            {item.attachments && item.attachments.length > 0 && (
+                              <div className="mt-1.5">
+                                <AttachmentArea attachments={item.attachments} onChange={() => {}} disabled showHint={false}>
+                                  {null}
+                                </AttachmentArea>
+                              </div>
+                            )}
+                          </div>
                           <button onClick={() => removeItem(cat, idx)} className="text-slate-500 hover:text-red-400 shrink-0">
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -333,14 +366,21 @@ export default function JournalDailyGewsPage() {
                       ))}
                     </ul>
                   )}
-                  <div className="flex gap-2">
-                    <Input
-                      value={drafts[cat]}
-                      onChange={(e) => setDrafts({ ...drafts, [cat]: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(cat); } }}
-                      placeholder={meta.placeholder}
-                      className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500"
-                    />
+                  <div className="flex gap-2 items-start">
+                    <AttachmentArea
+                      attachments={draftAttachments[cat]}
+                      onChange={(next) => setDraftAttachments({ ...draftAttachments, [cat]: next })}
+                      showHint={false}
+                      className="flex-1"
+                    >
+                      <Input
+                        value={drafts[cat]}
+                        onChange={(e) => setDrafts({ ...drafts, [cat]: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(cat); } }}
+                        placeholder={meta.placeholder}
+                        className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500 pr-10"
+                      />
+                    </AttachmentArea>
                     <Button type="button" variant="outline" onClick={() => addItem(cat)} className="shrink-0">
                       <Plus className="h-4 w-4" />
                     </Button>
