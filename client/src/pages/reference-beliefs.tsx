@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { AttachmentArea } from "@/components/attachment-area";
 import type { QuestAttachment } from "@/lib/attachments";
+import { useSwipeDownToClose } from "@/hooks/use-swipe-down-to-close";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-reference-beliefs-v2";
@@ -85,6 +86,7 @@ export default function ReferenceBeliefsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
   const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
+  const { swipeCallbackRef, style: swipeStyle } = useSwipeDownToClose(dialogOpen, setDialogOpen, isMobile);
 
   // Pick up beliefs added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setBeliefs(loadBeliefs())), []);
@@ -303,7 +305,13 @@ export default function ReferenceBeliefsPage() {
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent style={swipeStyle} className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div ref={isMobile ? swipeCallbackRef : undefined}>
+          {isMobile && (
+            <div className="flex justify-center pb-2 -mt-1">
+              <div className="w-12 h-1.5 rounded-full bg-amber-200/30" />
+            </div>
+          )}
           <DialogHeader>
             <DialogTitle className="font-serif text-amber-100 flex items-center gap-2">
               <BookMarked className="h-5 w-5 text-amber-400" />
@@ -346,6 +354,7 @@ export default function ReferenceBeliefsPage() {
               {editingId ? "Save Changes" : "Create Belief"}
             </Button>
           </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
