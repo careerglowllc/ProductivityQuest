@@ -502,6 +502,12 @@ function RealEstateROICalculator({
 
   return (
     <div className="space-y-5">
+      {/* Subtle reminder of the basis these projections start from — the property's current
+          gross market value, before any loan payoff, selling costs, or capital gains tax. */}
+      <p className="text-[10px] text-slate-500">
+        🏠 Gross market value today: <span className="text-slate-400 font-medium">{fmt(currentValue)}</span> — everything below projects forward from this
+      </p>
+
       {/* ── Winner banner ── */}
       <div className={`rounded-xl p-4 border-2 ${propertyWins ? "bg-pink-900/20 border-pink-500/40" : "bg-blue-900/20 border-blue-500/40"}`}>
         <div className="flex items-start justify-between flex-wrap gap-3">
