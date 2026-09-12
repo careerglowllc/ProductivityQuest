@@ -21,7 +21,7 @@ import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
 import { buildExcitementCSVExport } from "@/pages/journal-excitement";
 import { buildDailyGewsCSVExport } from "@/pages/journal-daily-gews";
 
-const APP_VERSION = "v1.0.58";
+const APP_VERSION = "v1.0.59";
 
 async function exportAllAsZip() {
   const JSZip = (await import("jszip")).default;
