@@ -35,10 +35,10 @@ const RECUR_TYPES = [
   "Monthly", "Yearly (Amortized)", "Biweekly (Summed Monthly)", "2x a Year"
 ];
 
-// Only base salary/RSUs/bonuses/etc. count as Income now — 401k, Roth IRA, HSA, and the
-// Rocklin investment-property housing costs are all classified as Investments instead.
+// Only base salary/RSUs/bonuses/etc. count as Income now — 401k, Roth IRA, and HSA
+// contributions are classified as Investments instead.
 const INCOME_CATEGORIES = ["Income"];
-const RETIREMENT_CATEGORIES = ["Retirement", "Investment", "Investment Property Housing"];
+const RETIREMENT_CATEGORIES = ["Retirement", "Investment"];
 
 // Pure async builder (fetches its own data) so the Settings page's "Export All" master
 // export can build this CSV without the Finances page being mounted.
@@ -68,6 +68,13 @@ export function classifyItem(category: string, tags?: string[] | null): "income"
   if (RETIREMENT_CATEGORIES.includes(category)) return "retirement";
   if (tagList.length > 0 && RETIREMENT_CATEGORIES.some(c => tagList.includes(c))) return "retirement";
   return "expense";
+}
+
+// The Rocklin house's monthly costs are a real expense (money going out) but also build
+// equity in a real-estate investment — flagged separately so both views can call that out
+// instead of hiding the cost or miscounting it as a pure investment contribution.
+function isInvestmentExpense(item: { category: string; tags?: string[] | null }): boolean {
+  return item.category === "Investment Property Housing" || (item.tags ?? []).includes("Investment Property Housing");
 }
 
 // ── FIRE COL Methodology Essays (file-level to avoid TSX parser issues) ──
@@ -1392,6 +1399,13 @@ export default function Finances() {
         notes: "Comprehensive pest control for Rocklin Rental House",
       }));
     }
+    if (!financialItems.find(i => i.item === "Tentative Austin Housing Cost")) {
+      tasks.push(create({
+        item: "Tentative Austin Housing Cost", category: "Personal Housing", tags: ["Personal Housing"],
+        monthlyCost: 140000, recurType: "Monthly",
+        notes: "Placeholder rent estimate once relocated to Austin, TX — adjust once an actual lease is signed.",
+      }));
+    }
     if (!financialItems.find(i => i.item === "CASA Annual Audit (TAC)")) {
       tasks.push(create({
         item: "CASA Annual Audit (TAC)", category: "Business", tags: ["Business", "Annual"],
@@ -1607,6 +1621,13 @@ export default function Finances() {
     .filter(i => classifyItem(i.category, i.tags) === "expense")
     .reduce((s, i) => s + i.monthlyCost, 0);
 
+  // Expense-based investments (e.g. the Rocklin house) are real cash outflows so they still
+  // count toward Total Expenses, but are broken out here so both the pie chart and the
+  // Expense Breakdown can flag that this slice of spending is also building equity.
+  const investmentExpenseTotal = financialItems
+    .filter(i => classifyItem(i.category, i.tags) === "expense" && isInvestmentExpense(i))
+    .reduce((s, i) => s + i.monthlyCost, 0);
+
   const netCashFlow = totalIncome - totalExpenses - totalRetirement;
   const savingsRate = totalIncome > 0 ? (netCashFlow / totalIncome) * 100 : 0;
 
@@ -1804,7 +1825,7 @@ export default function Finances() {
       [],
       ["METRIC", "MONTHLY ($)", "ANNUAL ($)", "NOTES"],
       ["Total Income", $(totalIncome), $(totalIncome * 12), "W2 salary + RSUs + ESPP"],
-      ["Investments", $(totalRetirement), $(totalRetirement * 12), "401k + Roth IRA + HSA + investment-property housing"],
+      ["Investments", $(totalRetirement), $(totalRetirement * 12), "401k + Roth IRA + HSA"],
       ["Total Expenses", $(totalExpenses), $(totalExpenses * 12), "All tracked expense categories"],
       ["Net Cash Flow (after expenses & retirement)", $(netCashFlow), $(netCashFlow * 12), "Income − Expenses − Retirement"],
       ["W2 Salary Only", $(w2Income), $(w2Income * 12), "Post-tax W2 salary"],
@@ -2704,12 +2725,17 @@ export default function Finances() {
                         <p className="text-xs text-red-400 font-semibold mb-2 flex items-center gap-1.5">
                           <TrendingDown className="h-3.5 w-3.5" /> Top Expenses
                         </p>
+                        {investmentExpenseTotal > 0 && (
+                          <p className="text-[9px] text-slate-500 italic mb-1.5">
+                            🏠 marks Investment Property Housing — still real spending, but it builds equity.
+                          </p>
+                        )}
                         {financialItems.filter(i => classifyItem(i.category, i.tags) === "expense")
                           .sort((a, b) => b.monthlyCost - a.monthlyCost)
                           .slice(0, 10)
                           .map(i => (
                             <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-red-500/10 last:border-0">
-                              <span className="text-slate-300 truncate mr-2">{i.item}</span>
+                              <span className="text-slate-300 truncate mr-2">{isInvestmentExpense(i) && "🏠 "}{i.item}</span>
                               <span className="text-red-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
                             </div>
                           ))}
@@ -2717,6 +2743,12 @@ export default function Finances() {
                           <span className="text-red-300">Total</span>
                           <span className="text-red-300">{formatCurrency(totalExpenses)}</span>
                         </div>
+                        {investmentExpenseTotal > 0 && (
+                          <div className="flex justify-between text-[10px] pt-0.5 text-slate-500">
+                            <span>🏠 of which Investment Property Housing</span>
+                            <span>{formatCurrency(investmentExpenseTotal)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>
@@ -2725,13 +2757,13 @@ export default function Finances() {
                   const granularData = [
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "income")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#22C55E", type: "income" as const })),
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#22C55E", type: "income" as const, category: i.category })),
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FBBF24", type: "retirement" as const })),
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FBBF24", type: "retirement" as const, category: i.category })),
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "expense")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "expense" as const })),
+                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "expense" as const, category: i.category })),
                   ].filter(d => d.value > 0);
                   const grandTotal = granularData.reduce((s, d) => s + d.value, 0);
                   return (
@@ -2760,7 +2792,9 @@ export default function Finances() {
                               {items.map(item => (
                                 <div key={item.name} className="flex items-center gap-1.5 py-0.5 border-b border-slate-700/30 last:border-0">
                                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                                  <span className="text-slate-300 text-xs truncate flex-1 mr-1">{item.name}</span>
+                                  <span className="text-slate-300 text-xs truncate flex-1 mr-1">
+                                    {type === "expense" && item.category === "Investment Property Housing" && "🏠 "}{item.name}
+                                  </span>
                                   <span className={`text-${typeColor}-300 text-xs shrink-0`}>{formatCurrency(item.value)}</span>
                                   <span className="text-slate-500 text-[10px] shrink-0">({grandTotal > 0 ? ((item.value / grandTotal) * 100).toFixed(1) : 0}%)</span>
                                 </div>
@@ -2971,7 +3005,7 @@ export default function Finances() {
               <CardHeader>
                 <CardTitle className="text-red-300">Expense Breakdown by Category</CardTitle>
                 <CardDescription className="text-slate-400 text-xs">
-                  Income and Investments excluded
+                  Income and Investments excluded · 🏠 marks Investment Property Housing (still spending, but builds equity)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -2994,7 +3028,7 @@ export default function Finances() {
                       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between text-xs mb-0.5">
-                          <span className="text-slate-300">{cat.name}</span>
+                          <span className="text-slate-300">{cat.name === "Investment Property Housing" && "🏠 "}{cat.name}</span>
                           <span className="text-slate-300 font-medium">{formatCurrency(cat.value)} ({cat.pct.toFixed(1)}%)</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-slate-700">
@@ -3081,7 +3115,7 @@ export default function Finances() {
                             <div className="flex items-center justify-between gap-2 px-4 py-2 border-y border-slate-700/60 bg-slate-900/30">
                               <span className="flex items-center gap-2 text-xs font-bold tracking-wide text-slate-200 min-w-0">
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
-                                <span className="truncate">{g.cat}</span>
+                                <span className="truncate">{g.cat === "Investment Property Housing" && "🏠 "}{g.cat}</span>
                                 <span className="text-slate-500 font-normal shrink-0">({pct.toFixed(1)}%)</span>
                               </span>
                               <span className="text-xs font-semibold text-red-300 text-right shrink-0">
@@ -3127,7 +3161,7 @@ export default function Finances() {
                   <PiggyBank className="h-5 w-5" /> Investments Overview
                 </CardTitle>
                 <CardDescription className="text-slate-400 text-xs">
-                  401k, Roth IRA, HSA contributions, and investment-property housing costs
+                  401k, Roth IRA, and HSA contributions
                 </CardDescription>
               </CardHeader>
               <CardContent>
