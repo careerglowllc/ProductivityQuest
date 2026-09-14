@@ -84,3 +84,73 @@ mtime_ms = 1789407032837
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/7eb3702d-3e9c-4d2d-9425-e14483e53c81/6dee35d4-99dc-4760-890f-b0794073ab1c"
 storage_version_token = "1789407192889935"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "Fn6FcqcvFzgrbOuGGly_k"
+uri = "file://shop-ui.html"
+type = "text"
+title = "Life OS Shop — Desktop and Responsive UI"
+description = "Interactive Shop interface with live-style purchasing, affordability, inventory, consume actions, add/edit/delete controls, CSV export, and responsive behavior."
+logical_id = "fe064332-dfe5-4c19-8015-8b75b537dca5"
+content_hash = "sha256:2659817d0b29d656641b3cdedb3b89b665c7f51f46e4751dffa173e2b4141890"
+size = 17628
+mtime_ms = 1789407399905
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/fe064332-dfe5-4c19-8015-8b75b537dca5/199e09b0-3b09-48f1-b9c5-07de6cee6449"
+storage_version_token = "1789407676965144"
+content_type = "text/html"
+
+[[outputs]]
+id = "g__MYJd0qyoyP3hssse3u"
+uri = "file://shop-mobile-iphone.html"
+type = "text"
+title = "Life OS Shop — iPhone Portrait UI"
+description = "390 × 844 browser view of the responsive Shop interface."
+logical_id = "57e0e3ba-38b7-4fb8-96f9-857e4a7624d9"
+content_hash = "sha256:1a874a9b2d83efa62f0ce565b2841a9aea6f37217fe4712ffd95393e28fe0c11"
+size = 944
+mtime_ms = 1789407655497
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/57e0e3ba-38b7-4fb8-96f9-857e4a7624d9/29957dfa-cb92-4990-992d-be0d39736487"
+storage_version_token = "1789407677528225"
+content_type = "text/html"
+
+[[outputs]]
+id = "3_WFDbYq1la1L0lO9eTrF"
+uri = "file://README_SHOP_UI_IMPLEMENTATION.md"
+type = "text"
+title = "Shop Implementation — Start Here"
+description = "Master implementation guide covering APIs, data flow, component architecture, mutations, design tokens, accessibility, and completion criteria."
+logical_id = "1f779930-2bfb-4438-8e85-d29630cef8ff"
+content_hash = "sha256:64bb1d3fedda0e6a3e7eeca5ebe9cdf0b65ca6a16a85941450239fa22317bc22"
+size = 9632
+mtime_ms = 1789407512882
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/1f779930-2bfb-4438-8e85-d29630cef8ff/109ca892-27e2-4e79-97e8-58338e3741d5"
+storage_version_token = "1789407677980687"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "o6iNJ6pi6HQ_qabj4cwIP"
+uri = "file://README_SHOP_DESKTOP_IMPLEMENTATION.md"
+type = "text"
+title = "Shop Desktop Implementation README"
+description = "Detailed desktop Shop layout, catalog, purchasing, custom reward, inventory, and verification specification."
+logical_id = "39bea716-d618-49f8-be51-77dfd0ccac8a"
+content_hash = "sha256:f6bfb2a91fcfcf461e878e3a2fe561d05fd3ddfcd8207eeb286db21200e48c34"
+size = 5962
+mtime_ms = 1789407558093
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/39bea716-d618-49f8-be51-77dfd0ccac8a/8fcec0b2-b9f7-4ddd-a5e0-45c212c5d60e"
+storage_version_token = "1789407678503513"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "dr_2uNLb9ZSHdP1HosPw7"
+uri = "file://README_SHOP_MOBILE_IMPLEMENTATION.md"
+type = "text"
+title = "Shop Mobile and iPhone Implementation README"
+description = "Detailed responsive Shop specification covering mobile hierarchy, dialogs, bottom navigation, safe areas, touch behavior, and iPhone verification."
+logical_id = "b4a45031-89be-4d74-94b5-5b28a03cb77a"
+content_hash = "sha256:0ccb586e0b46030e9cd7af8fbb7ad51ad08edb82f6fe9563e02164921396a2fa"
+size = 7757
+mtime_ms = 1789407619609
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b4a45031-89be-4d74-94b5-5b28a03cb77a/2b31445c-a79c-4fb8-a902-1c33972563ff"
+storage_version_token = "1789407678930590"
+content_type = "text/markdown"
