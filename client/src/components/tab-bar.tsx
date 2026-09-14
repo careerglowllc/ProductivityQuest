@@ -308,9 +308,9 @@ export function TabBar() {
         <div className="flex items-center gap-2">
           {/* Finances Button */}
           <Link href="/finances">
-            <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600/30 border-2 border-green-500/50 hover:bg-green-600/40 hover:border-green-400/60 transition-all">
-              <DollarSign className="h-5 w-5 text-green-300" />
-              <span className="text-sm font-semibold text-green-100">Finances</span>
+            <a className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${isDark ? "bg-green-600/30 border-green-500/50 hover:bg-green-600/40 hover:border-green-400/60" : "bg-green-100 border-green-500 hover:bg-green-200"}`}>
+              <DollarSign className={`h-5 w-5 ${isDark ? "text-green-300" : "text-green-700"}`} />
+              <span className={`text-sm font-semibold ${isDark ? "text-green-100" : "text-green-900"}`}>Finances</span>
             </a>
           </Link>
 
@@ -318,9 +318,9 @@ export function TabBar() {
 
           {/* NPCs Button */}
           <Link href="/npcs">
-            <a className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/30 border-2 border-blue-500/50 hover:bg-blue-600/40 hover:border-blue-400/60 transition-all">
-              <Users className="h-5 w-5 text-blue-300" />
-              <span className="text-sm font-semibold text-blue-100">NPCs</span>
+            <a className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${isDark ? "bg-blue-600/30 border-blue-500/50 hover:bg-blue-600/40 hover:border-blue-400/60" : "bg-blue-100 border-blue-500 hover:bg-blue-200"}`}>
+              <Users className={`h-5 w-5 ${isDark ? "text-blue-300" : "text-blue-700"}`} />
+              <span className={`text-sm font-semibold ${isDark ? "text-blue-100" : "text-blue-900"}`}>NPCs</span>
             </a>
           </Link>
 
@@ -334,7 +334,7 @@ export function TabBar() {
           <button
             onClick={cycleTheme}
             title={`Theme: ${themeLabel} — click to change`}
-            className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all shrink-0 ${isDark ? "bg-slate-800/60 border-yellow-600/30 hover:bg-slate-700/60 hover:border-yellow-500/50" : "bg-white border-slate-400 hover:bg-slate-50 hover:border-slate-500 shadow-sm"}`}
+            className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all shrink-0 ${isDark ? "bg-slate-800/60 border-yellow-600/30 hover:bg-slate-700/60 hover:border-yellow-500/50" : "bg-white border-2 border-slate-500 hover:bg-slate-50 hover:border-slate-600 shadow-sm"}`}
           >
             <ThemeIcon className={`h-4 w-4 ${isDark ? "text-yellow-300" : "text-slate-600"}`} />
           </button>
@@ -342,7 +342,7 @@ export function TabBar() {
           {/* User Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${isDark ? "bg-slate-800/60 hover:bg-slate-700/60 border-yellow-600/30 hover:border-yellow-500/50" : "bg-white hover:bg-slate-50 border-slate-400 hover:border-slate-500 shadow-sm"}`}>
+              <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${isDark ? "bg-slate-800/60 hover:bg-slate-700/60 border-yellow-600/30 hover:border-yellow-500/50" : "bg-white hover:bg-slate-50 border-2 border-slate-500 hover:border-slate-600 shadow-sm"}`}>
                 <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
                   <User className="h-4 w-4 text-[#ffffff]" />
                 </div>
