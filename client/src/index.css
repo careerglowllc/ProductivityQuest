@@ -484,6 +484,7 @@ html.light::after { background-color: #ffffff !important; }
   --dash-blue: #53a8ff;
   --dash-blue-soft: rgba(83, 168, 255, 0.14);
   --dash-coral: #ff7d84;
+  --dash-coral-soft: rgba(255, 125, 132, 0.14);
   --dash-track: #26334d;
   --dash-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
   /* The rail stays navy in both themes — a deliberate anchor, per the spec. */
@@ -511,6 +512,7 @@ html.light {
   --dash-blue: #2f63a3;
   --dash-blue-soft: #e8f1fb;
   --dash-coral: #c9504d;
+  --dash-coral-soft: #fdeceb;
   --dash-track: #e7ebf0;
   --dash-shadow: 0 10px 30px rgba(19, 32, 56, 0.07);
 }
@@ -596,4 +598,27 @@ html.light {
 }
 @media (max-width: 900px) {
   .dash-modules { grid-template-columns: 1fr; }
+}
+
+/* Shop rewards catalog: 3-up → 2-up → 1-up */
+.dash-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .dash-catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .dash-catalog-grid { grid-template-columns: 1fr; }
+}
+
+/* Shop inventory: 4-up → 2-up */
+.dash-inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .dash-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

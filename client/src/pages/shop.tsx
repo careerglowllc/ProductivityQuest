@@ -1,18 +1,28 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles, Pencil, Download } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { Coins, ShoppingCart, Star, Plus, Trash2, Sparkles, Pencil, Download, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useTheme } from "@/contexts/theme-context";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
+import { DashCard } from "@/components/dash-ui";
+import type { ShopItem, UserProgress } from "@/../../shared/schema";
+
+type InventoryGroup = {
+  itemId: number;
+  item?: ShopItem;
+  unused: number;
+  used: number;
+  purchaseIds: number[];
+};
 
 // Common emojis for shop items
 const EMOJI_OPTIONS = [
@@ -21,16 +31,10 @@ const EMOJI_OPTIONS = [
   "⚔️", "🛡️", "🏹", "🗡️", "🪄", "🔮", "📿", "💍", "👗", "🎩",
   "🍕", "🍔", "🍟", "🍿", "🧃", "☕", "🍰", "🍪", "🎂", "🍫",
   "🚗", "🚀", "🛸", "✈️", "⛵", "🏰", "🏠", "🏖️", "🏔️", "🌈",
-  // Nature emojis
   "🌸", "🌺", "🌻", "🌷", "🌹", "🌿", "🍀", "🌾", "🌱", "🌲",
-  "🌳", "🌴", "🌵", "🌾", "🍁", "🍂", "🍃", "🌊", "☀️", "🌙",
-  "⭐", "💫", "✨", "🌤️", "⛅", "🌈", "🔥", "💧", "❄️", "🌪️",
-  // Animal emojis
-  "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
-  "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🐤", "🦆",
-  "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋",
-  "🐌", "🐞", "🐜", "🦗", "🕷️", "🦂", "🐢", "🐍", "🦎", "🦖",
-  "🐙", "🦑", "🦐", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🦈",
+  "🌳", "🌴", "🌵", "🍁", "🍂", "🍃", "🌊", "☀️", "🌙", "💫",
+  "✨", "🌤️", "⛅", "💧", "❄️", "🐶", "🐱", "🦊", "🐻", "🐼",
+  "🦁", "🐸", "🐧", "🦄", "🐝", "🦋", "🐢", "🦎", "🐙", "🐳",
 ];
 
 // Pure async builder (fetches its own data) so the Settings page's "Export All" master
@@ -43,9 +47,14 @@ export async function buildShopItemsCSVExport(): Promise<CSVExport> {
   return { folder: "Shop", filename: "shop-items.csv", content: rowsToCSV(headers, rows) };
 }
 
+const TONES = ["violet", "mint", "amber", "coral"] as const;
+function toneFor(id: number) {
+  return TONES[id % TONES.length];
+}
+
 export default function Shop() {
-  const { isDark } = useTheme();
-  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [purchaseItemId, setPurchaseItemId] = useState<number | null>(null);
+  const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editPrice, setEditPrice] = useState("");
@@ -53,63 +62,38 @@ export default function Shop() {
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newItemCost, setNewItemCost] = useState("");
   const [newItemIcon, setNewItemIcon] = useState("🎁");
-  const [purchaseAnimation, setPurchaseAnimation] = useState<{ item: any; show: boolean }>({ item: null, show: false });
-  const [consumeAnimation, setConsumeAnimation] = useState<{ item: any; show: boolean }>({ item: null, show: false });
-  
-  const isMobile = useIsMobile();
+
   const { toast } = useToast();
 
-  const { data: progress = { goldTotal: 0 } } = useQuery({
+  const { data: progress = { goldTotal: 0 } as UserProgress } = useQuery<UserProgress>({
     queryKey: ["/api/progress"],
   });
 
-  const { data: shopItems = [], refetch: refetchItems } = useQuery({
+  const { data: shopItems = [], refetch: refetchItems, isLoading: itemsLoading } = useQuery<ShopItem[]>({
     queryKey: ["/api/shop/items"],
   });
 
-  const { data: inventory = [] } = useQuery({
+  const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryGroup[]>({
     queryKey: ["/api/inventory"],
   });
+
+  const goldTotal = progress.goldTotal ?? 0;
+  const inStock = inventory.filter((inv) => inv.unused > 0);
+  const totalUnused = inStock.reduce((s, i) => s + i.unused, 0);
 
   const consumeMutation = useMutation({
     mutationFn: async (purchaseId: number) => {
       const response = await apiRequest("PATCH", `/api/purchases/${purchaseId}/use`);
       return response.json();
     },
-    onMutate: async (purchaseId) => {
-      // Find the inventory item being consumed
-      const invItem = (inventory as any[]).find((inv: any) => 
-        inv.purchaseIds && inv.purchaseIds.includes(purchaseId)
-      );
-      
-      if (invItem && invItem.item) {
-        // Show animation immediately
-        setConsumeAnimation({ item: invItem.item, show: true });
-        
-        // Show toast immediately
-        toast({
-          title: `${invItem.item.icon} Consumed!`,
-          description: `Enjoyed ${invItem.item.name}`,
-        });
-      }
-    },
-    onSuccess: () => {
-      // Refresh data after backend completes
+    onSuccess: (_data, purchaseId) => {
+      const invItem = inventory.find((inv) => inv.purchaseIds?.includes(purchaseId));
+      toast({ title: "Used", description: `Enjoyed ${invItem?.item?.name || "your reward"}.` });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
-      
-      // Hide animation after delay
-      setTimeout(() => {
-        setConsumeAnimation({ item: null, show: false });
-      }, 1500);
     },
     onError: () => {
-      toast({
-        title: "Consume Failed",
-        description: "Failed to use item",
-        variant: "destructive",
-      });
-      setConsumeAnimation({ item: null, show: false });
+      toast({ title: "Couldn't use item", description: "Please try again.", variant: "destructive" });
     },
   });
 
@@ -118,48 +102,16 @@ export default function Shop() {
       const response = await apiRequest("POST", "/api/shop/purchase", { itemId });
       return response.json();
     },
-    onMutate: async (itemId) => {
-      // Find the item being purchased
-      const item = (shopItems as any[]).find((i: any) => i.id === itemId);
-      
-      if (item) {
-        // Check if user has enough gold
-        const currentGold = (progress as any).goldTotal || 0;
-        if (currentGold < item.cost) {
-          throw new Error("Insufficient gold");
-        }
-        
-        // Show animation immediately
-        setPurchaseAnimation({ item, show: true });
-        
-        // Show toast immediately
-        toast({
-          title: `${item.icon} Purchased!`,
-          description: `Bought ${item.name} for ${item.cost} gold`,
-        });
-        
-        // Close modal immediately
-        setSelectedItemId(null);
-      }
-    },
-    onSuccess: () => {
-      // Refresh data after backend completes
+    onSuccess: (_data, itemId) => {
+      const item = shopItems.find((i) => i.id === itemId);
+      toast({ title: "Purchased", description: item ? `Bought ${item.name} for ${item.cost.toLocaleString()} gold.` : "Purchase complete." });
       queryClient.invalidateQueries({ queryKey: ["/api/progress"] });
       queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      
-      // Hide animation after delay
-      setTimeout(() => {
-        setPurchaseAnimation({ item: null, show: false });
-      }, 1500);
+      setPurchaseItemId(null);
     },
     onError: (error: any) => {
-      toast({
-        title: "Purchase Failed",
-        description: error.message || "Insufficient gold",
-        variant: "destructive",
-      });
-      setPurchaseAnimation({ item: null, show: false });
+      toast({ title: "Purchase failed", description: error.message || "Insufficient gold.", variant: "destructive" });
     },
   });
 
@@ -169,19 +121,12 @@ export default function Shop() {
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Item Deleted",
-        description: "Shop item removed successfully",
-      });
+      toast({ title: "Reward removed" });
       refetchItems();
-      setSelectedItemId(null);
+      setDeleteItemId(null);
     },
     onError: () => {
-      toast({
-        title: "Delete Failed",
-        description: "Failed to delete item",
-        variant: "destructive",
-      });
+      toast({ title: "Couldn't delete", description: "Please try again.", variant: "destructive" });
     },
   });
 
@@ -191,10 +136,7 @@ export default function Shop() {
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Item Added!",
-        description: "New shop item created successfully",
-      });
+      toast({ title: "Reward added" });
       refetchItems();
       setShowAddModal(false);
       setNewItemName("");
@@ -203,11 +145,7 @@ export default function Shop() {
       setNewItemIcon("🎁");
     },
     onError: () => {
-      toast({
-        title: "Add Failed",
-        description: "Failed to create shop item",
-        variant: "destructive",
-      });
+      toast({ title: "Couldn't add reward", description: "Please try again.", variant: "destructive" });
     },
   });
 
@@ -217,52 +155,23 @@ export default function Shop() {
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Price Updated!",
-        description: "Shop item price changed successfully",
-      });
+      toast({ title: "Price updated" });
       refetchItems();
       setEditingItemId(null);
       setEditPrice("");
     },
     onError: () => {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update item price",
-        variant: "destructive",
-      });
+      toast({ title: "Couldn't update price", description: "Please try again.", variant: "destructive" });
     },
   });
-
-  const handleBuyItem = () => {
-    if (selectedItemId) {
-      purchaseMutation.mutate(selectedItemId);
-    }
-  };
-
-  const handleDeleteItem = () => {
-    if (selectedItemId) {
-      deleteMutation.mutate(selectedItemId);
-    }
-  };
 
   const handleAddItem = () => {
     const cost = parseInt(newItemCost);
     if (!newItemName || !newItemDescription || !cost || cost <= 0) {
-      toast({
-        title: "Invalid Input",
-        description: "Please fill all fields with valid values",
-        variant: "destructive",
-      });
+      toast({ title: "Missing info", description: "Fill in every field with a valid, positive cost.", variant: "destructive" });
       return;
     }
-
-    addItemMutation.mutate({
-      name: newItemName,
-      description: newItemDescription,
-      cost,
-      icon: newItemIcon,
-    });
+    addItemMutation.mutate({ name: newItemName, description: newItemDescription, cost, icon: newItemIcon });
   };
 
   const handleStartEdit = (itemId: number, currentPrice: number) => {
@@ -273,14 +182,9 @@ export default function Shop() {
   const handleSavePrice = (itemId: number) => {
     const cost = parseInt(editPrice);
     if (!cost || cost <= 0) {
-      toast({
-        title: "Invalid Price",
-        description: "Please enter a valid price greater than 0",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid price", description: "Enter a price greater than 0.", variant: "destructive" });
       return;
     }
-
     updatePriceMutation.mutate({ itemId, cost });
   };
 
@@ -289,550 +193,330 @@ export default function Shop() {
     setEditPrice("");
   };
 
-  const selectedItem = shopItems.find((item: any) => item.id === selectedItemId);
+  const purchaseItem = shopItems.find((i) => i.id === purchaseItemId);
+  const deleteItem = shopItems.find((i) => i.id === deleteItemId);
+  const missingGold = purchaseItem ? Math.max(0, purchaseItem.cost - goldTotal) : 0;
 
   return (
-    <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${!isMobile ? 'pt-16' : ''} pb-24 relative`}>
-      {/* Starfield Background Effect */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
-        <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
-      </div>
-
-      {/* Sticky Header + Gold Balance on Mobile */}
-      {isMobile && (
-        <div className="sticky top-0 z-30 bg-gradient-to-b from-slate-900 via-slate-900/98 to-slate-900/95 backdrop-blur-md border-b border-yellow-600/20 px-4 pt-4 pb-3">
-          {/* Header */}
-          <div className="text-center mb-3">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <ShoppingCart className="h-6 w-6 text-yellow-400" />
-              <h1 className="text-2xl font-serif font-bold text-yellow-100">Item Shop</h1>
-              <ShoppingCart className="h-6 w-6 text-yellow-400" />
-            </div>
-            <p className="text-yellow-200/70 text-sm italic">Spend your hard-earned gold!</p>
+    <div className="min-h-screen bg-[var(--dash-bg)] md:pt-16">
+      <main className="dash-content">
+        {/* Heading */}
+        <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold leading-tight tracking-[-0.04em] text-[var(--dash-ink)] sm:text-[28px]">Shop</h1>
+            <p className="mt-1 text-sm text-[var(--dash-muted)]">Exchange earned gold for things that make real life better.</p>
           </div>
-
-          {/* Gold Balance - Compact */}
-          <div className="flex items-center justify-between bg-slate-800/60 backdrop-blur-md border border-yellow-500/40 rounded-lg px-4 py-2.5">
-            <div className="flex items-center gap-2.5">
-              <div className="bg-yellow-600/20 p-2 rounded-full border border-yellow-500/40">
-                <Coins className="h-5 w-5 text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-xs text-yellow-200/80 font-medium">Your Balance</p>
-                <p className="text-xl font-bold text-yellow-100">{progress.goldTotal} Gold</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Button
-                onClick={() => { buildShopItemsCSVExport().then(exp => downloadCSV(exp.filename, exp.content)); }}
-                size="sm"
-                variant="outline"
-                className="border-yellow-500/40 text-yellow-300 text-xs"
-              >
-                <Download className="w-3 h-3 mr-1" />
-                Export
-              </Button>
-              <Button
-                onClick={() => setShowAddModal(true)}
-                size="sm"
-                className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white border border-yellow-400/50 text-xs"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add Item
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={`container mx-auto px-4 max-w-4xl relative ${isMobile ? 'pt-4 pb-8' : 'py-8'}`}>
-        {/* Header - Desktop only */}
-        {!isMobile && (
-        <div className="mb-8 text-center border-b border-yellow-600/30 pb-6">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <ShoppingCart className="h-8 w-8 text-yellow-400" />
-            <h1 className="text-4xl font-serif font-bold text-yellow-100">Item Shop</h1>
-            <ShoppingCart className="h-8 w-8 text-yellow-400" />
-          </div>
-          <p className="text-yellow-200/70 text-lg italic">Spend your hard-earned gold!</p>
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="mt-4 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white border border-yellow-400/50"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Item
-          </Button>
-          <Button
-            onClick={() => { buildShopItemsCSVExport().then(exp => downloadCSV(exp.filename, exp.content)); }}
-            variant="outline"
-            className="mt-4 ml-2 border-yellow-500/40 text-yellow-300"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-        )}
-
-        {/* Gold Balance - Desktop only */}
-        {!isMobile && (
-        <Card className="mb-8 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/50">
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-yellow-600/20 p-3 rounded-full border border-yellow-500/40">
-                <Coins className="h-8 w-8 text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-sm text-yellow-200/80 font-medium">Your Balance</p>
-                <p className="text-3xl font-bold text-yellow-100">{progress.goldTotal} Gold</p>
-              </div>
-            </div>
-            <ShoppingCart className="h-12 w-12 text-yellow-400/20" />
-          </CardContent>
-        </Card>
-        )}
-
-        {/* Shop Items */}
-        <div className={`${isMobile ? 'flex flex-col gap-3' : 'grid gap-4 md:grid-cols-2 lg:grid-cols-3'}`}>
-          {shopItems.map((item: any) => {
-            const isSelected = selectedItemId === item.id;
-            return (
-            <Card 
-              key={item.id} 
-              className={`bg-slate-800/40 backdrop-blur-md border-2 transition-all cursor-pointer ${
-                isSelected 
-                  ? 'border-yellow-500/60 shadow-lg shadow-yellow-600/20' 
-                  : 'border-yellow-600/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-600/10'
-              }`}
-              onClick={() => setSelectedItemId(isSelected ? null : item.id)}
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              onClick={() => { buildShopItemsCSVExport().then((exp) => downloadCSV(exp.filename, exp.content)); }}
+              variant="outline"
+              className="dash-focus gap-1.5 border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
             >
-              {isMobile ? (
-                /* Mobile: Compact horizontal card layout */
-                <div className="p-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl flex-shrink-0">{item.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-bold text-yellow-100 truncate">{item.name}</h3>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {editingItemId === item.id ? (
-                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                              <Input
-                                type="number"
-                                value={editPrice}
-                                onChange={(e) => setEditPrice(e.target.value)}
-                                className="w-16 h-6 text-xs text-yellow-400 bg-slate-900/60 border-yellow-500/30"
-                                min="1"
-                                autoFocus
-                              />
-                              <Button size="sm" onClick={() => handleSavePrice(item.id)} className="h-6 px-1.5 bg-green-600 hover:bg-green-500 text-[10px]">✓</Button>
-                              <Button size="sm" onClick={handleCancelEdit} variant="outline" className="h-6 px-1.5 text-[10px]">✗</Button>
-                            </div>
-                          ) : (
-                            <>
-                              <Coins className="h-3.5 w-3.5 text-yellow-400" />
-                              <span className="text-sm font-bold text-yellow-400">{item.cost}</span>
-                              {!item.isGlobal && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleStartEdit(item.id, item.cost); }}
-                                  className="p-0.5 hover:bg-yellow-500/20 rounded transition-colors ml-0.5"
-                                >
-                                  <Pencil className="h-3 w-3 text-yellow-400/60" />
-                                </button>
-                              )}
-                            </>
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </Button>
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="dash-focus gap-1.5 bg-[var(--dash-violet)] text-white hover:opacity-90"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add item
+            </Button>
+          </div>
+        </div>
+
+        {/* Balance */}
+        <section
+          aria-label="Available balance"
+          className="mb-6 flex items-center justify-between gap-4 rounded-[10px] border p-[19px]"
+          style={{ borderColor: "var(--dash-violet)", background: "var(--dash-violet-soft)" }}
+        >
+          <div>
+            <p className="dash-mono text-[var(--dash-muted)]">Available balance</p>
+            <p className="mt-1 text-[25px] font-bold tracking-[-0.05em] text-[var(--dash-ink)] sm:text-[29px]">
+              {goldTotal.toLocaleString()} <span className="text-sm font-semibold text-[var(--dash-amber)]">gold</span>
+            </p>
+          </div>
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: "var(--dash-amber-soft)" }}>
+            <Coins aria-hidden className="h-6 w-6" style={{ color: "var(--dash-amber)" }} />
+          </div>
+        </section>
+
+        {/* Catalog */}
+        <section className="mb-8">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-[15px] font-bold text-[var(--dash-ink)]">Rewards catalog</h2>
+              <p className="mt-0.5 text-xs text-[var(--dash-muted)]">Choose a reward. You've earned the right to enjoy it.</p>
+            </div>
+            <span className="shrink-0 text-xs text-[var(--dash-muted)]">
+              {shopItems.length} item{shopItems.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {itemsLoading ? (
+            <p className="py-8 text-center text-sm text-[var(--dash-muted)]">Loading rewards…</p>
+          ) : shopItems.length === 0 ? (
+            <DashCard className="p-10 text-center">
+              <ShoppingCart aria-hidden className="mx-auto mb-3 h-10 w-10 text-[var(--dash-violet)] opacity-40" />
+              <p className="mb-1 font-medium text-[var(--dash-ink)]">No rewards yet</p>
+              <p className="mb-4 text-sm text-[var(--dash-muted)]">Add your first reward to start spending gold on it.</p>
+              <Button onClick={() => setShowAddModal(true)} className="bg-[var(--dash-violet)] text-white hover:opacity-90">
+                <Plus className="mr-1.5 h-4 w-4" /> Add item
+              </Button>
+            </DashCard>
+          ) : (
+            <div className="dash-catalog-grid">
+              {shopItems.map((item) => {
+                const tone = toneFor(item.id);
+                const canAfford = goldTotal >= item.cost;
+                const isEditing = editingItemId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className="dash-focus flex min-h-[177px] flex-col rounded-[10px] border border-[var(--dash-line)] bg-[var(--dash-surface)] p-[17px] shadow-[var(--dash-shadow)] transition-transform hover:-translate-y-0.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span
+                        className="grid h-10 w-10 place-items-center rounded-[10px] text-lg"
+                        style={{ background: `var(--dash-${tone}-soft)`, color: `var(--dash-${tone})` }}
+                        aria-hidden
+                      >
+                        {item.icon}
+                      </span>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            value={editPrice}
+                            onChange={(e) => setEditPrice(e.target.value)}
+                            aria-label={`New price for ${item.name}`}
+                            className="h-8 w-20 border-[var(--dash-line)] text-sm"
+                            autoFocus
+                          />
+                          <Button size="icon" className="h-8 w-8 shrink-0 bg-[var(--dash-mint)] text-white hover:opacity-90" onClick={() => handleSavePrice(item.id)} aria-label="Save price">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" onClick={handleCancelEdit} aria-label="Cancel edit">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex shrink-0 items-center gap-1 font-bold" style={{ color: "var(--dash-amber)" }}>
+                          <Coins aria-hidden className="h-3.5 w-3.5" />
+                          {item.cost.toLocaleString()}
+                          {!item.isGlobal && (
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(item.id, item.cost)}
+                              aria-label={`Edit price for ${item.name}`}
+                              className="dash-focus ml-0.5 rounded p-0.5 text-[var(--dash-muted)] hover:text-[var(--dash-violet)]"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
                           )}
                         </div>
-                      </div>
-                      {item.description && (
-                        <p className="text-yellow-200/60 text-xs mt-0.5 truncate">{item.description}</p>
                       )}
                     </div>
-                  </div>
-                  {/* Inline action buttons when selected on mobile */}
-                  {isSelected && (
-                    <div className="flex gap-2 mt-3 pt-3 border-t border-yellow-500/20">
-                      <Button
-                        onClick={(e) => { e.stopPropagation(); handleBuyItem(); }}
-                        disabled={purchaseMutation.isPending || (progress as any).goldTotal < item.cost}
-                        size="sm"
-                        className="flex-1 h-8 text-xs bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
-                      >
-                        <ShoppingCart className="w-3.5 h-3.5 mr-1" />
-                        Buy ({item.cost}g)
-                      </Button>
-                      {!item.isGlobal && (
-                        <Button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteItem(); }}
-                          disabled={deleteMutation.isPending}
-                          size="sm"
-                          variant="destructive"
-                          className="h-8 px-3 text-xs bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mr-1" />
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Desktop: Original card layout */
-                <>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-4xl">{item.icon}</span>
-                    {item.isGlobal && (
-                      <Badge variant="outline" className="text-xs bg-blue-900/40 text-blue-200 border-blue-600/40">
-                        <Star className="w-3 h-3 mr-1" />
-                        Default
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {editingItemId === item.id ? (
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Input
-                          type="number"
-                          value={editPrice}
-                          onChange={(e) => setEditPrice(e.target.value)}
-                          className="w-20 h-7 text-sm text-yellow-400 bg-slate-900/60 border-yellow-500/30"
-                          min="1"
-                          autoFocus
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleSavePrice(item.id)}
-                          className="h-7 px-2 bg-green-600 hover:bg-green-500 text-xs"
-                        >
-                          ✓
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={handleCancelEdit}
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                        >
-                          ✗
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-1 text-yellow-400 font-bold">
-                          <Coins className="h-4 w-4" />
-                          {item.cost}
-                        </div>
-                        {!item.isGlobal && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartEdit(item.id, item.cost);
-                            }}
-                            className="p-1 hover:bg-yellow-500/20 rounded transition-colors"
-                            title="Edit price"
-                          >
-                            <Pencil className="h-3 w-3 text-yellow-400/60 hover:text-yellow-400" />
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-                <CardTitle className="text-lg text-yellow-100">{item.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-yellow-200/70 text-sm">{item.description}</p>
-              </CardContent>
-                </>
-              )}
-            </Card>
-            );
-          })}
-        </div>
 
-        {/* Selected Item Actions - Desktop only */}
-        {!isMobile && selectedItemId && selectedItem && (
-          <Card className="mt-6 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-500/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="text-5xl">{selectedItem.icon}</span>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-xl font-bold text-yellow-100">{selectedItem.name}</h3>
-                      {selectedItem.isGlobal && (
-                        <Badge variant="outline" className="text-xs bg-blue-900/40 text-blue-200 border-blue-600/40">
-                          <Star className="w-3 h-3 mr-1" />
-                          Default Item
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-yellow-200/70">{selectedItem.description}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Coins className="h-5 w-5 text-yellow-400" />
-                      <span className="text-yellow-400 font-bold text-lg">{selectedItem.cost} Gold</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleBuyItem}
-                    disabled={purchaseMutation.isPending || (progress as any).goldTotal < selectedItem.cost}
-                    className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
-                  >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Buy
-                  </Button>
-                  {!selectedItem.isGlobal && (
-                    <Button
-                      onClick={handleDeleteItem}
-                      disabled={deleteMutation.isPending}
-                      variant="destructive"
-                      className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                    <h3 className="mb-1 mt-3.5 text-[15px] font-semibold text-[var(--dash-ink)]">{item.name}</h3>
+                    <p className="text-xs text-[var(--dash-muted)]">{item.description}</p>
 
-        {/* Empty State */}
-        {shopItems.length === 0 && (
-          <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
-            <CardContent className="p-12 text-center">
-              <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-yellow-400/50" />
-              <p className="text-yellow-100 font-medium text-lg mb-2">No items in shop</p>
-              <p className="text-yellow-200/70 mb-4">Add your first shop item to get started!</p>
-              <Button
-                onClick={() => setShowAddModal(true)}
-                className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white border border-yellow-400/50"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Item
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Inventory Section */}
-      <div className={`max-w-6xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 py-8'}`}>
-        <div className={`${isMobile ? 'mb-3' : 'mb-6'}`}>
-          <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-serif font-bold text-green-100 mb-1`}>Your Inventory</h2>
-          <p className={`text-green-200/70 ${isMobile ? 'text-xs' : ''}`}>Items you've purchased and can use</p>
-        </div>
-
-        <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'}`}>
-          {inventory.filter((invItem: any) => invItem.unused > 0).map((invItem: any) => (
-            <Card 
-              key={invItem.itemId}
-              className={`bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30 hover:border-green-500/50 transition-all`}
-            >
-              <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
-                <div className="text-center">
-                  <div className={`${isMobile ? 'text-3xl mb-2' : 'text-5xl mb-3'}`}>{invItem.item?.icon || "🎁"}</div>
-                  <h3 className={`font-serif font-bold text-green-100 ${isMobile ? 'text-sm mb-1' : 'mb-2'}`}>{invItem.item?.name || "Unknown Item"}</h3>
-                  <Badge className={`bg-green-600/40 text-green-100 border-green-500/50 ${isMobile ? 'text-[10px] mb-2' : 'mb-3'}`}>
-                    {invItem.unused} Available
-                  </Badge>
-                  {invItem.used > 0 && (
-                    <p className="text-xs text-green-300/60 mb-2">{invItem.used} used</p>
-                  )}
-                  {invItem.unused > 0 && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        consumeMutation.mutate(invItem.purchaseIds[0]);
-                      }}
-                      disabled={consumeMutation.isPending}
-                      className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      {consumeMutation.isPending ? (
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 animate-spin" />
-                          Using...
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-3.5">
+                      {item.isGlobal ? (
+                        <span className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-semibold" style={{ background: "var(--dash-violet-soft)", color: "var(--dash-violet)" }}>
+                          <Star aria-hidden className="h-3 w-3" /> Default
                         </span>
                       ) : (
-                        "Consume"
+                        <button
+                          type="button"
+                          onClick={() => setDeleteItemId(item.id)}
+                          className="dash-focus flex items-center gap-1 rounded text-[11px] text-[var(--dash-muted)] hover:text-[var(--dash-coral)]"
+                        >
+                          <Trash2 aria-hidden className="h-3 w-3" /> Remove
+                        </button>
                       )}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          
-          {inventory.filter((invItem: any) => invItem.unused > 0).length === 0 && (
-            <div className="col-span-full">
-              <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-green-600/30">
-                <CardContent className={`${isMobile ? 'p-6' : 'p-12'} text-center`}>
-                  <Star className={`${isMobile ? 'h-10 w-10' : 'h-16 w-16'} mx-auto mb-3 text-green-400/50`} />
-                  <p className={`text-green-100 font-medium ${isMobile ? 'text-sm' : 'text-lg'} mb-1`}>No items in inventory</p>
-                  <p className={`text-green-200/70 ${isMobile ? 'text-xs' : ''}`}>Purchase items from the shop to add them to your inventory!</p>
-                </CardContent>
-              </Card>
+                      <button
+                        type="button"
+                        onClick={() => setPurchaseItemId(item.id)}
+                        className="dash-focus rounded-md px-2 py-1 text-[11px] font-semibold"
+                        style={canAfford
+                          ? { background: "var(--dash-violet-soft)", color: "var(--dash-violet)" }
+                          : { background: "var(--dash-surface-2)", color: "var(--dash-coral)" }}
+                      >
+                        {canAfford ? "Available" : "Not enough gold"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
-      </div>
+        </section>
 
-      {/* Add Item Modal */}
+        {/* Inventory */}
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-[15px] font-bold text-[var(--dash-ink)]">Your inventory</h2>
+              <p className="mt-0.5 text-xs text-[var(--dash-muted)]">Items you've purchased and can use.</p>
+            </div>
+            <span className="shrink-0 text-xs font-medium" style={{ color: "var(--dash-mint)" }}>
+              {inventoryLoading ? "" : totalUnused > 0 ? `${totalUnused} available` : "Empty"}
+            </span>
+          </div>
+
+          <div className="rounded-[10px] border p-[18px]" style={{ borderColor: "var(--dash-mint)", background: "var(--dash-surface)" }}>
+            {inventoryLoading ? (
+              <p className="py-6 text-center text-sm text-[var(--dash-muted)]">Loading inventory…</p>
+            ) : inStock.length === 0 ? (
+              <div className="py-6 text-center">
+                <Sparkles aria-hidden className="mx-auto mb-2 h-9 w-9 opacity-40" style={{ color: "var(--dash-mint)" }} />
+                <p className="font-medium text-[var(--dash-ink)]">No items in inventory</p>
+                <p className="mt-1 text-sm text-[var(--dash-muted)]">Purchase a reward from the catalog to add it here.</p>
+              </div>
+            ) : (
+              <div className="dash-inventory-grid">
+                {inStock.map((invItem) => {
+                  const isPendingThis = consumeMutation.isPending && consumeMutation.variables === invItem.purchaseIds[0];
+                  return (
+                    <div key={invItem.itemId} className="rounded-lg border border-[var(--dash-line)] p-[13px]">
+                      <span className="grid h-9 w-9 place-items-center rounded-lg text-base" style={{ background: "var(--dash-violet-soft)", color: "var(--dash-violet)" }} aria-hidden>
+                        {invItem.item?.icon || "🎁"}
+                      </span>
+                      <p className="mt-2 truncate text-sm font-semibold text-[var(--dash-ink)]">{invItem.item?.name || "Unknown item"}</p>
+                      <p className="truncate text-xs text-[var(--dash-muted)]">{invItem.item?.description}</p>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="dash-mono normal-case" style={{ color: "var(--dash-mint)" }}>{invItem.unused} available</span>
+                        <Button
+                          size="sm"
+                          onClick={() => consumeMutation.mutate(invItem.purchaseIds[0])}
+                          disabled={isPendingThis}
+                          className="h-7 shrink-0 bg-[var(--dash-mint)] px-2.5 text-xs text-white hover:opacity-90"
+                        >
+                          {isPendingThis ? "Using…" : "Use one"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
+      {/* Purchase confirmation */}
+      <Dialog open={purchaseItemId !== null} onOpenChange={(open) => !open && setPurchaseItemId(null)}>
+        <DialogContent className="border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-ink)] sm:max-w-md">
+          {purchaseItem && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2.5 text-[var(--dash-ink)]">
+                  <span className="grid h-10 w-10 place-items-center rounded-[10px] text-lg" style={{ background: "var(--dash-violet-soft)" }} aria-hidden>
+                    {purchaseItem.icon}
+                  </span>
+                  {purchaseItem.name}
+                </DialogTitle>
+                <DialogDescription className="text-[var(--dash-muted)]">{purchaseItem.description}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 rounded-lg border border-[var(--dash-line)] p-3.5 text-sm">
+                <div className="flex justify-between"><span className="text-[var(--dash-muted)]">Price</span><span className="font-semibold" style={{ color: "var(--dash-amber)" }}>{purchaseItem.cost.toLocaleString()} gold</span></div>
+                <div className="flex justify-between"><span className="text-[var(--dash-muted)]">Current balance</span><span className="font-semibold text-[var(--dash-ink)]">{goldTotal.toLocaleString()} gold</span></div>
+                <div className="flex justify-between border-t border-[var(--dash-line)] pt-2">
+                  <span className="text-[var(--dash-muted)]">Balance after purchase</span>
+                  <span className="font-semibold" style={{ color: goldTotal >= purchaseItem.cost ? "var(--dash-mint)" : "var(--dash-coral)" }}>
+                    {(goldTotal - purchaseItem.cost).toLocaleString()} gold
+                  </span>
+                </div>
+              </div>
+              {missingGold > 0 && (
+                <p className="text-xs" style={{ color: "var(--dash-coral)" }}>
+                  You need {missingGold.toLocaleString()} more gold to buy this.
+                </p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPurchaseItemId(null)} className="border-[var(--dash-line)]">Cancel</Button>
+                <Button
+                  onClick={() => purchaseMutation.mutate(purchaseItem.id)}
+                  disabled={purchaseMutation.isPending || missingGold > 0}
+                  className="bg-[var(--dash-violet)] text-white hover:opacity-90"
+                >
+                  <ShoppingCart className="mr-1.5 h-4 w-4" /> {purchaseMutation.isPending ? "Purchasing…" : "Purchase"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteItemId !== null} onOpenChange={(open) => !open && setDeleteItemId(null)}>
+        <AlertDialogContent className="border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-ink)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove "{deleteItem?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[var(--dash-muted)]">
+              This removes it from the catalog. Any copies already in your inventory are unaffected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteItem && deleteMutation.mutate(deleteItem.id)}
+              className="bg-[var(--dash-coral)] text-white hover:opacity-90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add reward */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className={`bg-slate-800 border-2 border-yellow-600/40 ${isMobile ? 'max-w-[95vw] max-h-[85vh] overflow-y-auto' : 'max-w-2xl'}`}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-ink)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-yellow-100 font-serif text-2xl">Add New Shop Item</DialogTitle>
+            <DialogTitle className="text-[var(--dash-ink)]">Add a reward</DialogTitle>
+            <DialogDescription className="text-[var(--dash-muted)]">Make the next milestone tangible.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-yellow-200">Item Name</Label>
-              <Input
-                id="name"
-                value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
-                placeholder="Enter item name"
-                className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40"
-              />
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="e.g. Long bath" className="border-[var(--dash-line)]" />
             </div>
-            
             <div>
-              <Label htmlFor="cost" className="text-yellow-200">Cost (Gold)</Label>
-              <Input
-                id="cost"
-                type="number"
-                value={newItemCost}
-                onChange={(e) => setNewItemCost(e.target.value)}
-                placeholder="Enter cost"
-                className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40"
-              />
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="What makes this worth earning?" rows={2} className="border-[var(--dash-line)]" />
             </div>
-            
             <div>
-              <Label htmlFor="description" className="text-yellow-200">Description</Label>
-              <Textarea
-                id="description"
-                value={newItemDescription}
-                onChange={(e) => setNewItemDescription(e.target.value)}
-                placeholder="Enter item description"
-                className="bg-slate-700/50 border-yellow-600/30 text-yellow-100 placeholder:text-yellow-400/40"
-                rows={3}
-              />
+              <Label htmlFor="cost">Cost in gold</Label>
+              <Input id="cost" type="number" inputMode="numeric" min={1} value={newItemCost} onChange={(e) => setNewItemCost(e.target.value)} placeholder="250" className="border-[var(--dash-line)]" />
             </div>
-            
             <div>
-              <Label className="text-yellow-200 mb-3 block">Select Icon</Label>
-              <div className="grid grid-cols-10 gap-2 max-h-60 overflow-y-auto p-2 bg-slate-900/50 rounded-lg border border-yellow-600/20">
+              <Label className="mb-2 block">Icon</Label>
+              <div className="grid max-h-44 grid-cols-8 gap-1.5 overflow-y-auto rounded-lg border border-[var(--dash-line)] p-2">
                 {EMOJI_OPTIONS.map((emoji) => (
                   <button
                     key={emoji}
+                    type="button"
                     onClick={() => setNewItemIcon(emoji)}
-                    className={`text-3xl p-2 rounded transition-all ${
-                      newItemIcon === emoji
-                        ? 'bg-yellow-600/40 ring-2 ring-yellow-500'
-                        : 'hover:bg-slate-700/50'
-                    }`}
+                    aria-pressed={newItemIcon === emoji}
+                    className="dash-focus rounded-md p-2 text-2xl transition-colors hover:bg-[var(--dash-surface-2)]"
+                    style={newItemIcon === emoji ? { background: "var(--dash-violet-soft)", boxShadow: "0 0 0 2px var(--dash-violet)" } : undefined}
                   >
                     {emoji}
                   </button>
                 ))}
               </div>
-              <div className="mt-3 text-center">
-                <span className="text-yellow-200/70 text-sm">Selected: </span>
-                <span className="text-4xl ml-2">{newItemIcon}</span>
-              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowAddModal(false)}
-              className="border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddItem}
-              disabled={addItemMutation.isPending}
-              className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white border border-yellow-400/50"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
+            <Button variant="outline" onClick={() => setShowAddModal(false)} className="border-[var(--dash-line)]">Cancel</Button>
+            <Button onClick={handleAddItem} disabled={addItemMutation.isPending} className="bg-[var(--dash-violet)] text-white hover:opacity-90">
+              <Plus className="mr-1.5 h-4 w-4" /> {addItemMutation.isPending ? "Adding…" : "Add reward"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Purchase Animation */}
-      {purchaseAnimation.show && purchaseAnimation.item && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="relative animate-in fade-in zoom-in duration-300">
-            <div className="bg-gradient-to-br from-yellow-500/90 to-orange-500/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border-4 border-yellow-400 animate-bounce">
-              <div className="flex flex-col items-center gap-4">
-                <div className="text-8xl animate-pulse">{purchaseAnimation.item.icon}</div>
-                <div className="text-center">
-                  <h3 className="text-3xl font-bold text-white mb-2">Purchased!</h3>
-                  <p className="text-xl text-white/90">{purchaseAnimation.item.name}</p>
-                  <div className="flex items-center justify-center gap-2 mt-3">
-                    <Coins className="w-6 h-6 text-white" />
-                    <span className="text-2xl font-bold text-white">-{purchaseAnimation.item.cost}</span>
-                  </div>
-                </div>
-              </div>
-              {/* Sparkle effects */}
-              <div className="absolute -top-4 -left-4 text-yellow-300 animate-ping">
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <div className="absolute -top-4 -right-4 text-yellow-300 animate-ping" style={{animationDelay: '0.2s'}}>
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <div className="absolute -bottom-4 -left-4 text-yellow-300 animate-ping" style={{animationDelay: '0.4s'}}>
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <div className="absolute -bottom-4 -right-4 text-yellow-300 animate-ping" style={{animationDelay: '0.6s'}}>
-                <Sparkles className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Consume Animation */}
-      {consumeAnimation.show && consumeAnimation.item && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="relative animate-in fade-in zoom-in duration-300">
-            <div className="bg-gradient-to-br from-green-500/90 to-emerald-500/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border-4 border-green-400 animate-pulse">
-              <div className="flex flex-col items-center gap-4">
-                <div className="text-8xl animate-spin">{consumeAnimation.item.icon}</div>
-                <div className="text-center">
-                  <h3 className="text-3xl font-bold text-white mb-2">Consumed!</h3>
-                  <p className="text-xl text-white/90">{consumeAnimation.item.name}</p>
-                  <p className="text-lg text-white/70 mt-2">Enjoy!</p>
-                </div>
-              </div>
-              {/* Sparkle effects */}
-              <div className="absolute -top-4 -left-4 text-green-300 animate-ping">
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <div className="absolute -top-4 -right-4 text-green-300 animate-ping" style={{animationDelay: '0.2s'}}>
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <div className="absolute -bottom-4 -left-4 text-green-300 animate-ping" style={{animationDelay: '0.4s'}}>
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <div className="absolute -bottom-4 -right-4 text-green-300 animate-ping" style={{animationDelay: '0.6s'}}>
-                <Sparkles className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
