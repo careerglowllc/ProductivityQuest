@@ -417,7 +417,6 @@ function FireGoalDashboardWidget() {
   const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
   const eTradeRsuValue = readNum("nw-etrade-rsu", 0);
   const fordExplorerValue = readNum("nw-ford-explorer", 17000);
-  const kawasakiNinjaValue = readNum("nw-kawasaki-ninja", 1200);
 
   const btcAfterTax = totalBtcValue * 0.85;
   const vanguardAfterTax = vanguardTotal * 0.85 + vanguardSettlement;
@@ -430,7 +429,7 @@ function FireGoalDashboardWidget() {
     btcAfterTax + vanguardAfterTax + fgRoth + fg401k +
     (homeAfterTaxNetCash > 0 ? homeAfterTaxNetCash : 0) +
     checkingBalance + careerglowBalance + fgHsa +
-    domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+    domainAfterTax + eTradeRsuValue + fordExplorerValue;
 
   const fireSwr = 0.04;
   const fireColInflation = 0.05;
@@ -443,7 +442,7 @@ function FireGoalDashboardWidget() {
 
   const fgInvestable = btcAfterTax + vanguardAfterTax + fgRoth + fg401k + eTradeRsuValue;
   const fgHomeBase = Math.max(0, homeAfterTaxNetCash);
-  const fgCashFixed = checkingBalance + careerglowBalance + fgHsa + domainAfterTax + fordExplorerValue + kawasakiNinjaValue;
+  const fgCashFixed = checkingBalance + careerglowBalance + fgHsa + domainAfterTax + fordExplorerValue;
   const fgAnnualSavings = Math.max(0, cashflowNetRaw) * 12 + Math.min(totalRetirement * 12, 23_500) * 0.68;
   const fgFV = (n: number) =>
     fgInvestable * Math.pow(1.08, n) +

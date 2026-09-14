@@ -1365,9 +1365,6 @@ export default function Finances() {
   const [fordExplorerValue, setFordExplorerValue] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-ford-explorer") || "17000"); } catch { return 17000; }
   });
-  const [kawasakiNinjaValue, setKawasakiNinjaValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-kawasaki-ninja") || "1200"); } catch { return 1200; }
-  });
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
 
@@ -1750,7 +1747,7 @@ export default function Finances() {
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
   // HSA: 20% early-withdrawal penalty + ~22% income tax = 42% haircut for non-medical use before 65
   const _hsaAfterPenalty = hsaBalance * 0.58;
-  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue + trialByFireInvestment;
+  const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + trialByFireInvestment;
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || vxusLoading || ibitLoading || viiixLoading;
 
   // NW Snapshots — load history + auto-save current month once prices are ready
@@ -1771,7 +1768,7 @@ export default function Finances() {
       cash: Math.round(checkingBalance + careerglowBalance + _hsaAfterPenalty),
       domain: Math.round(_domainAfterTax),
       etrade: Math.round(eTradeRsuValue),
-      vehicles: Math.round(fordExplorerValue + kawasakiNinjaValue),
+      vehicles: Math.round(fordExplorerValue),
     };
     fetch("/api/nw-snapshots", {
       method: "POST",
@@ -1898,7 +1895,6 @@ export default function Finances() {
       ["Real Estate (after costs & taxes)", $v(_homeAfterTaxNetCash), "", "2605 Plumbago Ct, Rocklin CA"],
       ["Domain — veluna.com (after 15% LTCG)", $v(_domainAfterTax), "", `Sale $${velunaDomainValue} · Purchase $${velunaDomainPurchasePrice}`],
       ["Ford Explorer", $v(fordExplorerValue), "", "Vehicle"],
-      ["Kawasaki Ninja 400", $v(kawasakiNinjaValue), "", "Vehicle"],
       [],
       ["TOTAL NET WORTH (after-tax)", $v(overviewNetWorth), "", ""],
     ];
@@ -1999,7 +1995,6 @@ export default function Finances() {
       ["HSA (Optum Financial)", "Health Savings", $v(hsaBalance), "", "", "", ""],
       ["Apple RSUs (E*Trade)", "Equity Compensation", $v(eTradeRsuValue), "", "", "", ""],
       ["Ford Explorer", "Vehicle", $v(fordExplorerValue), "", "", "", ""],
-      ["Kawasaki Ninja 400", "Vehicle", $v(kawasakiNinjaValue), "", "", "", ""],
       ["Trial by Fire (Movie Investment)", "Alternative Investment", $v(trialByFireInvestment), "", "", "", ""],
       [],
       ["── TOTAL NET WORTH (AFTER-TAX) ──", "", "", "", "", "", $v(overviewNetWorth)],
@@ -2390,7 +2385,6 @@ export default function Finances() {
                                 { label: "veluna.com Domain", value: _domainAfterTax, color: "text-violet-300" },
                                 { label: "E*Trade (Apple RSU)", value: eTradeRsuValue, color: "text-green-300" },
                                 { label: "Ford Explorer XLT", value: fordExplorerValue, color: "text-orange-300" },
-                                { label: "Kawasaki Ninja 300", value: kawasakiNinjaValue, color: "text-red-300" },
                               ].map(({ label, value, color }) => (
                                 <div key={label} className="bg-slate-700/40 rounded-lg px-3 py-2">
                                   <p className="text-[10px] text-slate-400">{label}</p>
@@ -2471,7 +2465,7 @@ export default function Finances() {
                     const _cryptoTotal = _btcAfterTax + _rothIraIbitValue * 0.75;
                     const _indexTotal = _vanguardAfterTax + _k401AfterPenalty + eTradeRsuValue + _rothIraVtsaxValue * 0.75;
                     const _domainTotal = _domainAfterTax;
-                    const _vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
+                    const _vehicleTotal = fordExplorerValue;
                     const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + careerglowBalance + hsaBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
                     const _overviewPieData = [
                       { name: "Crypto",                value: Math.round(_cryptoTotal),                        color: "#F59E0B" },
@@ -2550,7 +2544,7 @@ export default function Finances() {
                       _btcAfterTax + _vanguardAfterTax + _fgRoth + _fg401k +
                       (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0) +
                       checkingBalance + careerglowBalance + _fgHsa +
-                      _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+                      _domainAfterTax + eTradeRsuValue + fordExplorerValue;
                     const _fgBuf = fireCurrencyBuffer + fireHealthcareBuffer + fireLifestyleBuffer;
                     const _fgTierData = FIRE_TIER_DATA[fireLocationKey][fireTier];
                     const _fgMonthlyBase = Object.values(_fgTierData).reduce((s, v) => s + v, 0);
@@ -2560,7 +2554,7 @@ export default function Finances() {
                     // Pass-1 years
                     const _fgInvestable = _btcAfterTax + _vanguardAfterTax + _fgRoth + _fg401k + eTradeRsuValue;
                     const _fgHomeBase = Math.max(0, _homeAfterTaxNetCash);
-                    const _fgCashFixed = checkingBalance + careerglowBalance + _fgHsa + _domainAfterTax + fordExplorerValue + kawasakiNinjaValue;
+                    const _fgCashFixed = checkingBalance + careerglowBalance + _fgHsa + _domainAfterTax + fordExplorerValue;
                     const _fgAnnualSavings = Math.max(0, cashflowNetRaw) * 12 + Math.min(totalRetirement * 12, 23_500) * 0.68;
                     const fgFV = (n: number) =>
                       _fgInvestable * Math.pow(1.08, n) +
@@ -3534,7 +3528,7 @@ export default function Finances() {
                 _btcAfterTax + _vanguardAfterTax + _fireRothValue + _fire401kValue +
                 _homeAfterTaxNetCash +
                 checkingBalance + careerglowBalance + _fireHsaValue +
-                _domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+                _domainAfterTax + eTradeRsuValue + fordExplorerValue;
 
                 const FIRE_LOC_INFLATION = fireColInflation;
                 const totalBuffer = fireCurrencyBuffer + fireHealthcareBuffer + fireLifestyleBuffer;
@@ -3626,7 +3620,7 @@ export default function Finances() {
               const _fireAnnualSavings = _fireAnnualDirectSavings + _fireAnnualRetirementNet;
               const _fireInvestable = _btcAfterTax + _vanguardAfterTax + _fireRothValue + _fire401kValue + eTradeRsuValue;
               const _fireHomeBase = Math.max(0, _homeAfterTaxNetCash);
-              const _fireCashFixed = checkingBalance + careerglowBalance + _fireHsaValue + _domainAfterTax + fordExplorerValue + kawasakiNinjaValue;
+              const _fireCashFixed = checkingBalance + careerglowBalance + _fireHsaValue + _domainAfterTax + fordExplorerValue;
 
               const fireFV = (n: number) => {
                 const investFV = _fireInvestable * Math.pow(1 + R_INVEST, n) +
@@ -3789,7 +3783,7 @@ export default function Finances() {
                           {_homeAfterTaxNetCash !== 0 && <div className="flex justify-between"><span>Home equity (after sale costs){_homeAfterTaxNetCash < 0 ? " ⚠️" : ""}</span><span className={_homeAfterTaxNetCash < 0 ? "text-red-400" : ""}>{fmt(_homeAfterTaxNetCash)}</span></div>}
                           <div className="flex justify-between"><span>Cash (checking + biz + HSA)</span><span>{fmt(checkingBalance + careerglowBalance + _fireHsaValue)}</span></div>
                           <div className="flex justify-between"><span>E*Trade RSU</span><span>{fmt(eTradeRsuValue)}</span></div>
-                          <div className="flex justify-between"><span>Vehicles</span><span>{fmt(fordExplorerValue + kawasakiNinjaValue)}</span></div>
+                          <div className="flex justify-between"><span>Vehicles</span><span>{fmt(fordExplorerValue)}</span></div>
                           <div className="flex justify-between"><span>veluna.com domain</span><span>{fmt(_domainAfterTax)}</span></div>
                         </div>
                       </CardContent>
@@ -5105,13 +5099,13 @@ export default function Finances() {
               // Domain: only gains above purchase price are taxed at 15%; loss = no tax
               const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
               const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
-              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraAfterPenalty + k401AfterPenalty + homeEquity + checkingBalance + careerglowBalance + hsaBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue + kawasakiNinjaValue;
+              const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraAfterPenalty + k401AfterPenalty + homeEquity + checkingBalance + careerglowBalance + hsaBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
               const cryptoTotal = btcAfterTax + (rothIraIbitHoldings * ibitPrice) * 0.75; // BTC wallets (after-tax) + Roth IRA IBIT (after 25% early withdrawal)
               const indexFundsTotal = vanguardAfterTax + k401AfterPenalty + eTradeRsuValue + (rothIraVtsaxHoldings * vtsaxPrice) * 0.75; // Vanguard after-tax + 401k after penalty + Apple RSUs + Roth IRA VTSAX after penalty
               const domainTotal = domainAfterTax;
-              const vehicleTotal = fordExplorerValue + kawasakiNinjaValue;
+              const vehicleTotal = fordExplorerValue;
               const pieData = [
                 { name: "Crypto", value: Math.round(cryptoTotal), color: "#F59E0B" },
                 { name: "Index Funds & Equity", value: Math.round(indexFundsTotal), color: "#6366F1" },
@@ -5633,23 +5627,6 @@ export default function Finances() {
                         </div>
                       </CardContent>
                     </Card>
-
-                    {/* Kawasaki Ninja 300 */}
-                    <Card className="bg-slate-800/60 border-red-500/30">
-                      <CardContent className="pt-4 pb-3 px-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs text-red-400 font-bold tracking-wide">🏍️ Kawasaki Ninja 300</p>
-                              <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
-                            </div>
-                            <p className="text-[11px] text-slate-400 mt-0.5">2014 motorcycle — estimated sell value</p>
-                            <p className="text-2xl font-bold mt-0.5 text-white">${kawasakiNinjaValue.toLocaleString()}</p>
-                          </div>
-                          <span className="text-[10px] border rounded px-1.5 py-0.5 text-red-400 border-red-500/30">vehicle</span>
-                        </div>
-                      </CardContent>
-                    </Card>
                   </div>
                 );
                 if (key === "holdings") return (
@@ -5868,13 +5845,6 @@ export default function Finances() {
                                   className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
                                 <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
                               </div>
-                              <div>
-                                <Label className="text-slate-300 text-xs mb-1 block">Kawasaki Ninja 300 (2014) — Estimated Sell Value ($)</Label>
-                                <Input type="number" min="0" step="100" value={kawasakiNinjaValue}
-                                  onChange={e => { const v = parseFloat(e.target.value)||0; setKawasakiNinjaValue(v); try { localStorage.setItem("nw-kawasaki-ninja", String(v)); } catch {} }}
-                                  className="bg-slate-900/50 border-slate-600 text-white h-9 text-sm" />
-                                <p className="text-[10px] text-slate-500 mt-1">Manual estimate · as of May 2026</p>
-                              </div>
                             </div>
                           </div>
                         </div>
@@ -5985,17 +5955,10 @@ export default function Finances() {
                               {/* Vehicle umbrella */}
                               <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
                                 <p className="text-[10px] text-orange-400/70 font-semibold uppercase tracking-widest mb-2">🚗 Vehicles</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="rounded-md bg-orange-500/10 p-2 text-center">
-                                    <p className="text-[10px] text-orange-400 mb-0.5">Ford Explorer XLT</p>
-                                    <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
-                                    <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
-                                  </div>
-                                  <div className="rounded-md bg-red-500/10 p-2 text-center">
-                                    <p className="text-[10px] text-red-400 mb-0.5">Kawasaki Ninja 300</p>
-                                    <p className="text-sm font-bold text-red-300">${kawasakiNinjaValue.toLocaleString()}</p>
-                                    <p className="text-[10px] text-slate-500 mt-0.5">2014 · manual · May 2026</p>
-                                  </div>
+                                <div className="rounded-md bg-orange-500/10 p-2 text-center">
+                                  <p className="text-[10px] text-orange-400 mb-0.5">Ford Explorer XLT</p>
+                                  <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">manual · May 2026</p>
                                 </div>
                               </div>
                             </div>
@@ -6102,14 +6065,6 @@ export default function Finances() {
                                   <p className="text-[10px] text-slate-500 mt-0.5">Vehicle · estimated market value · May 2026</p>
                                 </div>
                                 <p className="text-sm font-bold text-orange-300">${fordExplorerValue.toLocaleString()}</p>
-                              </div>
-                              {/* Kawasaki Ninja 300 */}
-                              <div className="rounded-lg bg-red-500/5 border border-red-500/20 p-3 flex items-center justify-between">
-                                <div>
-                                  <p className="text-xs text-red-400 font-semibold">Kawasaki Ninja 300 (2014)</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Motorcycle · estimated sell value · May 2026</p>
-                                </div>
-                                <p className="text-sm font-bold text-red-300">${kawasakiNinjaValue.toLocaleString()}</p>
                               </div>
                             </div>
                           )}
@@ -6312,15 +6267,6 @@ export default function Finances() {
                           </div>
                           <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
                             <span>Vehicle · estimated market value · May 2026</span>
-                          </div>
-                        </div>
-                        <div className="py-2 border-b border-slate-700/40">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-red-300">🏍️ Kawasaki Ninja 300 (2014)</span>
-                            <span className="text-white font-semibold">${kawasakiNinjaValue.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-xs text-slate-500 mt-1 pl-3">
-                            <span>Motorcycle · estimated sell value · May 2026</span>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm py-2 border-b border-slate-700/40">
