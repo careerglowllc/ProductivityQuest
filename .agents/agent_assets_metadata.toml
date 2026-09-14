@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "7KZHAj-_gLQ6mc-XleEVR"
+uri = "file://ui-overhaul-proposal.html"
+type = "text"
+title = "Professional Gamified UI Overhaul Proposal"
+description = "Self-contained responsive HTML proposal for the dashboard redesign, including desktop and mobile concepts with anchor-based clickable links."
+logical_id = "6336923f-7926-4e99-9713-dbcd5284ebf4"
+content_hash = "sha256:87e44546d2330a3a1bfd3a57ee659bbc35461c41b091b301d55a97fc64746f6d"
+size = 28151
+mtime_ms = 1789405777429
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/6336923f-7926-4e99-9713-dbcd5284ebf4/7b7a6b48-2770-45ed-b1f7-e9e956ed0f4e"
+storage_version_token = "1789405793254140"
+content_type = "text/html"
