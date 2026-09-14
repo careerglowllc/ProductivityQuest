@@ -42,3 +42,45 @@ mtime_ms = 1789406498762
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/ff932949-14e9-4f10-845c-24afdf21a14c/b0521ae8-1ddc-4363-bddf-be3b954a0681"
 storage_version_token = "1789406521560002"
 content_type = "text/html"
+
+[[outputs]]
+id = "Tl5cK90_IfUEYKraFJyjN"
+uri = "file://README_DASHBOARD_UI_IMPLEMENTATION.md"
+type = "text"
+title = "Dashboard UI Implementation — Start Here"
+description = "Master guide covering architecture, existing APIs, component structure, shared design tokens, accessibility, implementation order, and completion criteria."
+logical_id = "6d132de7-e9c1-4d7c-a466-1978398926e9"
+content_hash = "sha256:2847c9514889e0f6543f295858a9d9ce028c9ef0bc31382e19d88cddb7e994dd"
+size = 8279
+mtime_ms = 1789406949529
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/6d132de7-e9c1-4d7c-a466-1978398926e9/b5afb21c-2f23-422f-a2b3-2c0c4ac01014"
+storage_version_token = "1789407051805063"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "ynCK6KNdXmepz3rny40to"
+uri = "file://README_DASHBOARD_DESKTOP_IMPLEMENTATION.md"
+type = "text"
+title = "Dashboard UI — Desktop Implementation README"
+description = "Detailed desktop specification for the sidebar, utility bar, metrics, questlines, dashboard modules, interactions, data wiring, and acceptance checks."
+logical_id = "8f18fedb-9539-4b07-bd43-e687c6db5b16"
+content_hash = "sha256:a6a3bb11d0d21d1350b8fd2149065c8b4f5c4c2747f9ed866cc2109e1868c356"
+size = 9514
+mtime_ms = 1789406989889
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/8f18fedb-9539-4b07-bd43-e687c6db5b16/b4294b11-0a9b-4bd8-abff-a6e84584f081"
+storage_version_token = "1789407052284894"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "OaW3cSR1uJfq_3OM1JgXu"
+uri = "file://README_DASHBOARD_MOBILE_IMPLEMENTATION.md"
+type = "text"
+title = "Dashboard UI — Mobile and iPhone README"
+description = "Detailed responsive specification for iPhone portrait, mobile hierarchy, breakpoints, bottom navigation, safe areas, touch behavior, and device verification."
+logical_id = "7eb3702d-3e9c-4d2d-9425-e14483e53c81"
+content_hash = "sha256:bea8a0eed2430bafc73bf62115c1a2b94acc0720e9a77cc6fca1c7d63888fcf7"
+size = 10142
+mtime_ms = 1789407032837
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/7eb3702d-3e9c-4d2d-9425-e14483e53c81/5665efaa-bbca-447c-a5c5-e1ce796441ca"
+storage_version_token = "1789407052717895"
+content_type = "text/markdown"
