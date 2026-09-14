@@ -211,6 +211,39 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Charity":               "#F43F5E",
 };
 
+// Distinct palette reserved for the Expense Breakdown pie's biggest slices — yellow/red/orange/
+// purple hues (not green/blue) so the largest expense categories read as "big spend" at a glance.
+// Ordered so the very biggest slices get the most saturated / attention-grabbing hues first.
+const BIG_EXPENSE_PALETTE = [
+  "#F59E0B", // amber-500
+  "#DC2626", // red-600
+  "#EA580C", // orange-600
+  "#9333EA", // purple-600
+  "#CA8A04", // yellow-600
+  "#B91C1C", // red-700
+  "#C2410C", // orange-700
+  "#7E22CE", // purple-700
+  "#D97706", // amber-600
+  "#A16207", // yellow-700
+];
+
+/**
+ * Assigns colors for a category pie: the top 10 categories by size that are each at least 2% of
+ * the total get a unique color from BIG_EXPENSE_PALETTE (no two of them share a color). Smaller
+ * ("tiny") slices below that 2% threshold fall back to the shared CATEGORY_COLORS map and may
+ * repeat colors — a minor visual overlap the user said is fine for slivers that small.
+ */
+function assignDistinctSliceColors(sortedByValueDesc: string[], total: number, valueByCat: Record<string, number>): Record<string, string> {
+  const colors: Record<string, string> = {};
+  let paletteIdx = 0;
+  sortedByValueDesc.forEach((cat, idx) => {
+    const pct = total > 0 ? (valueByCat[cat] / total) * 100 : 0;
+    const isBigEnoughForUniqueColor = idx < 10 && pct >= 2 && paletteIdx < BIG_EXPENSE_PALETTE.length;
+    colors[cat] = isBigEnoughForUniqueColor ? BIG_EXPENSE_PALETTE[paletteIdx++] : (CATEGORY_COLORS[cat] || "#94A3B8");
+  });
+  return colors;
+}
+
 const formatCurrency = (cents: number) =>
   `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -1774,13 +1807,13 @@ export default function Finances() {
     .reduce((acc, i) => { acc[i.category] = (acc[i.category] || 0) + i.monthlyCost; return acc; }, {} as Record<string, number>);
 
   const totalExpForPct = Object.values(expenseByCategory).reduce((s, v) => s + v, 0);
-  const expensePie = Object.entries(expenseByCategory)
-    .sort((a, b) => b[1] - a[1])
-    .map(([cat, val]) => ({
-      name: cat, value: val,
-      color: CATEGORY_COLORS[cat] || "#94A3B8",
-      pct: totalExpForPct > 0 ? (val / totalExpForPct) * 100 : 0,
-    }));
+  const expenseCatsSortedDesc = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]).map(([cat]) => cat);
+  const expenseSliceColors = assignDistinctSliceColors(expenseCatsSortedDesc, totalExpForPct, expenseByCategory);
+  const expensePie = expenseCatsSortedDesc.map((cat) => ({
+    name: cat, value: expenseByCategory[cat],
+    color: expenseSliceColors[cat],
+    pct: totalExpForPct > 0 ? (expenseByCategory[cat] / totalExpForPct) * 100 : 0,
+  }));
 
   const incomeByCategory = financialItems
     .filter(i => classifyItem(i.category, i.tags) === "income")
@@ -3121,7 +3154,7 @@ export default function Finances() {
                       cat,
                       items: [...items].sort((a, b) => b.monthlyCost - a.monthlyCost),
                       total: items.reduce((s, i) => s + i.monthlyCost, 0),
-                      color: CATEGORY_COLORS[cat] || "#94A3B8",
+                      color: expenseSliceColors[cat] || CATEGORY_COLORS[cat] || "#94A3B8",
                     }))
                     .sort((a, b) => b.total - a.total);
 
