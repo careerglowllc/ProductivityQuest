@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Heart, Plus, Trash2, Search, Download, Pencil, Check, X, Undo2, Redo2 } from "lucide-react";
+import { Heart, Star, Leaf, Sun, Plus, Trash2, Search, Download, Pencil, Check, X, Undo2, Redo2, Paperclip } from "lucide-react";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
-import { EmojiPicker } from "@/components/emoji-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { AttachmentArea } from "@/components/attachment-area";
@@ -43,6 +43,61 @@ function loadEntries(): GratitudeEntry[] {
   return [];
 }
 
+// A curated set of icons (matching the editorial reference), not a full emoji search —
+// gratitude entries are meant to pick from a small, calm set rather than browse hundreds.
+const GRATITUDE_ICONS = [
+  { key: "heart", Icon: Heart, emoji: "\u2764\ufe0f" },
+  { key: "star", Icon: Star, emoji: "\u2b50" },
+  { key: "leaf", Icon: Leaf, emoji: "\ud83c\udf3f" },
+  { key: "sun", Icon: Sun, emoji: "\u2600\ufe0f" },
+] as const;
+
+function GratitudeIconPicker({
+  value, onChange, size = "md", bare = false,
+}: { value: string; onChange: (emoji: string) => void; size?: "sm" | "md"; bare?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const selected = GRATITUDE_ICONS.find((o) => o.emoji === value) || GRATITUDE_ICONS[0];
+  const boxSize = size === "sm" ? "h-7 w-7" : "h-10 w-10";
+  const iconSize = size === "sm" ? "h-3.5 w-3.5" : "h-[18px] w-[18px]";
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title="Change icon"
+          className={`dash-focus flex ${boxSize} shrink-0 items-center justify-center text-[var(--jrnl-rose)] transition-colors ${
+            bare ? "rounded-full" : "rounded-lg border border-[var(--jrnl-line)] bg-[var(--jrnl-paper-2)] hover:border-[var(--jrnl-rose)]"
+          }`}
+        >
+          <selected.Icon aria-hidden className={iconSize} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] p-1.5">
+        <div className="flex items-center gap-1">
+          {GRATITUDE_ICONS.map(({ key, Icon, emoji }) => {
+            const active = emoji === selected.emoji;
+            return (
+              <button
+                key={key}
+                type="button"
+                title={key}
+                onClick={() => { onChange(emoji); setOpen(false); }}
+                className={`dash-focus flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
+                  active
+                    ? "border-[var(--jrnl-rose)] bg-[var(--jrnl-rose-soft)] text-[var(--jrnl-rose)]"
+                    : "border-transparent text-[var(--jrnl-muted)] hover:border-[var(--jrnl-line)] hover:text-[var(--jrnl-rose)]"
+                }`}
+              >
+                <Icon aria-hidden className="h-4 w-4" />
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
 export function buildGratitudeCSVExport(): CSVExport {
   const entries = loadEntries();
@@ -55,7 +110,7 @@ export default function JournalGratitudePage() {
   const { toast, dismiss } = useToast();
   const [entries, setEntries] = useState<GratitudeEntry[]>(loadEntries);
   const [draft, setDraft] = useState("");
-  const [draftEmoji, setDraftEmoji] = useState("");
+  const [draftEmoji, setDraftEmoji] = useState<string>(GRATITUDE_ICONS[0].emoji);
   const [draftAttachments, setDraftAttachments] = useState<QuestAttachment[]>([]);
   const [search, setSearch] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -101,7 +156,7 @@ export default function JournalGratitudePage() {
     if (!text) return;
     persist([{ id: newId(), text, createdAt: new Date().toISOString(), emoji: draftEmoji || undefined, attachments: draftAttachments }, ...entries]);
     setDraft("");
-    setDraftEmoji("");
+    setDraftEmoji(GRATITUDE_ICONS[0].emoji);
     setDraftAttachments([]);
   }
 
@@ -176,7 +231,7 @@ export default function JournalGratitudePage() {
         </div>
         <div className="flex items-start gap-2">
           <span className="mt-0.5 shrink-0" onClick={(ev) => ev.stopPropagation()}>
-            <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} size="md" />
+            <GratitudeIconPicker value={draftEmoji} onChange={setDraftEmoji} size="md" />
           </span>
           <div className="min-w-0 flex-1">
             <AttachmentArea attachments={draftAttachments} onChange={setDraftAttachments} showHint={false}>
@@ -190,16 +245,33 @@ export default function JournalGratitudePage() {
             </AttachmentArea>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="flex-1" />
-          <Button
-            onClick={handleExport}
-            variant="outline"
-            disabled={entries.length === 0}
-            className="border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] text-[var(--jrnl-muted)] hover:border-[var(--jrnl-sage)] hover:text-[var(--jrnl-sage-deep)]"
-          >
-            <Download className="mr-1.5 h-4 w-4" /> Export CSV
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-[12px] text-[var(--jrnl-muted)]">
+            <Paperclip aria-hidden className="h-3.5 w-3.5" /> Attach a file
+          </span>
+          <Button onClick={addEntry} className="bg-[var(--jrnl-sage)] font-semibold text-white hover:bg-[var(--jrnl-sage-deep)]">
+            <Plus className="mr-1.5 h-4 w-4" /> Add entry
           </Button>
+        </div>
+      </div>
+
+      {/* Search + Undo/Redo/Export */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        {entries.length > 0 ? (
+          <div className="relative flex-1">
+            <Search aria-hidden className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--jrnl-muted)]" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your gratitude…"
+              aria-label="Search gratitude entries"
+              className="border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] pl-9 text-[var(--jrnl-ink)] placeholder:text-[var(--jrnl-muted)]"
+            />
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             onClick={() => lastUndo?.undo()}
             variant="outline"
@@ -218,25 +290,16 @@ export default function JournalGratitudePage() {
           >
             <Redo2 className="mr-1.5 h-4 w-4" /> Redo
           </Button>
-          <Button onClick={addEntry} className="bg-[var(--jrnl-sage)] font-semibold text-white hover:bg-[var(--jrnl-sage-deep)]">
-            <Plus className="mr-1.5 h-4 w-4" /> Add entry
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            disabled={entries.length === 0}
+            className="border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] text-[var(--jrnl-muted)] hover:border-[var(--jrnl-sage)] hover:text-[var(--jrnl-sage-deep)]"
+          >
+            <Download className="mr-1.5 h-4 w-4" /> Export CSV
           </Button>
         </div>
       </div>
-
-      {/* Search */}
-      {entries.length > 0 && (
-        <div className="relative mb-4">
-          <Search aria-hidden className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--jrnl-muted)]" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search your gratitude…"
-            aria-label="Search gratitude entries"
-            className="border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] pl-9 text-[var(--jrnl-ink)] placeholder:text-[var(--jrnl-muted)]"
-          />
-        </div>
-      )}
 
       <p className="dash-mono mb-3 normal-case text-[var(--jrnl-muted)]">
         {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
@@ -292,7 +355,7 @@ export default function JournalGratitudePage() {
                     className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--jrnl-rose-soft)] text-[var(--jrnl-rose)]"
                     onClick={(ev) => ev.stopPropagation()}
                   >
-                    <EmojiPicker value={e.emoji || ""} onChange={(emoji) => updateEmoji(e.id, emoji)} size="sm" />
+                    <GratitudeIconPicker value={e.emoji || ""} onChange={(emoji) => updateEmoji(e.id, emoji)} size="sm" bare />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="whitespace-pre-wrap text-[14px] text-[var(--jrnl-ink)]">{e.text}</p>
