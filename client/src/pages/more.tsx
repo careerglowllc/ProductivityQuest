@@ -22,6 +22,7 @@ import {
   HeartHandshake,
   Heart,
   Zap,
+  ClipboardList,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -63,6 +64,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, color: "orange", description: "Thoughts & beliefs you're reinforcing right now" },
       { name: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, color: "orange", description: "A running list of things you're grateful for" },
       { name: "Excitement Journal", path: "/journal/excitement", icon: Zap, color: "orange", description: "A running list of things you're excited about" },
+      { name: "Weekly Deep Planning", path: "/journal/weekly-planning", icon: ClipboardList, color: "orange", description: "One deep-dive reflection & plan per week" },
       { name: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, color: "orange", description: "Principles & reference notes" },
       { name: "Accomplishments", path: "/accomplishments", icon: Trophy, color: "yellow", description: "Milestones reached" },
       { name: "Explore", path: "/explore", icon: Compass, color: "cyan", description: "Places & travel" },

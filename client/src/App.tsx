@@ -33,6 +33,7 @@ import JournalDailyGewsPage from "@/pages/journal-daily-gews";
 import JournalEmpoweringThoughtsPage from "@/pages/journal-empowering-thoughts";
 import JournalGratitudePage from "@/pages/journal-gratitude";
 import JournalExcitementPage from "@/pages/journal-excitement";
+import JournalWeeklyPlanningPage from "@/pages/journal-weekly-planning";
 import RecyclingBin from "@/pages/recycling-bin";
 import Finances from "@/pages/finances";
 import AccomplishmentsPage from "@/pages/accomplishments";
@@ -194,6 +195,7 @@ function Router() {
             <Route path="/journal/empowering-thoughts" component={JournalEmpoweringThoughtsPage} />
             <Route path="/journal/gratitude" component={JournalGratitudePage} />
             <Route path="/journal/excitement" component={JournalExcitementPage} />
+            <Route path="/journal/weekly-planning" component={JournalWeeklyPlanningPage} />
             <Route path="/reference-beliefs" component={ReferenceBeliefsPage} />
             <Route path="/recipes" component={RecipesPage} />
             <Route path="/finances" component={() => (
