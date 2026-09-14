@@ -4,10 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 
 /**
- * Shared "what do we call this person" logic, used by both the sidebar brand
- * mark and the dashboard's "Welcome back" greeting so they always agree.
- * Defaults to the email/username-derived name; overridden by a custom
- * nickname the user can set (persisted server-side, per-account).
+ * Shared "what do we call this person" logic, used by the sidebar brand mark,
+ * the dashboard's "Welcome back" greeting, and the sidebar's account summary
+ * so they always agree. The nickname itself is only ever set from Settings;
+ * defaults to the email they signed up with if they haven't set one.
  */
 export function useNickname() {
   const { user } = useAuth();
@@ -19,9 +19,8 @@ export function useNickname() {
     retry: false,
   });
 
-  const emailDerivedName = String((user as any)?.firstName || (user as any)?.username || (user as any)?.email || "")
-    .split(/[@\s]/)[0];
-  const nickname = widgetPrefs?.dashboardNickname || emailDerivedName || "there";
+  const emailFallback = String((user as any)?.email || (user as any)?.username || (user as any)?.firstName || "");
+  const nickname = widgetPrefs?.dashboardNickname || emailFallback || "there";
   const initials = (nickname.slice(0, 2) || "?").toUpperCase();
 
   const saveMutation = useMutation({
@@ -37,8 +36,8 @@ export function useNickname() {
   return { nickname, initials, setNickname: saveMutation.mutate };
 }
 
-/** Inline click-to-edit state helper for the nickname — used wherever the
- *  nickname is rendered as editable text (dashboard greeting, sidebar brand). */
+/** Inline click-to-edit state helper for the nickname — used by the Settings
+ *  "Set Nickname" control, the only place the nickname can be changed. */
 export function useEditableNickname() {
   const { nickname, initials, setNickname } = useNickname();
   const [editing, setEditing] = useState(false);

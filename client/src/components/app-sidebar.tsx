@@ -2,11 +2,10 @@ import { Link, useLocation } from "wouter";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronDown, ChevronLeft, ChevronRight, Coins, Monitor, Moon, Pencil, Sun, User,
+  ChevronDown, ChevronLeft, ChevronRight, Coins, Monitor, Moon, Sun, User,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/theme-context";
-import { useEditableNickname } from "@/hooks/use-nickname";
+import { useNickname } from "@/hooks/use-nickname";
 import {
   JOURNAL_SUBLINKS, PRIMARY_NAV, SECONDARY_NAV, breadcrumbFor, isJournalPath,
 } from "@/components/nav-config";
@@ -54,7 +53,6 @@ function RailSectionLabel({ children }: { children: React.ReactNode }) {
  *  dragging past the threshold or clicking the edge toggle button. */
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
   const { preference, cycleTheme, isDark } = useTheme();
   const [journalOpen, setJournalOpen] = useState(() => isJournalPath(location));
 
@@ -114,15 +112,11 @@ export function AppSidebar() {
 
   const toggleCollapsed = () => setCollapsed((c) => !c);
 
-  const {
-    nickname, initials, editing: editingNickname, draft: nicknameDraft, setDraft: setNicknameDraft,
-    startEditing: startEditingNickname, commit: commitNickname, cancel: cancelEditingNickname,
-  } = useEditableNickname();
+  const { nickname, initials } = useNickname();
   const { data: progress } = useQuery<{ goldTotal?: number; tasksCompleted?: number }>({
     queryKey: ["/api/progress"],
   });
 
-  const displayName = (user as any)?.email || (user as any)?.username || "Adventurer";
   const ThemeIcon = preference === "light" ? Sun : preference === "dark" ? Moon : Monitor;
   const themeLabel = preference === "light" ? "Light" : preference === "dark" ? "Dark" : "Auto";
 
@@ -139,30 +133,9 @@ export function AppSidebar() {
           </a>
         </Link>
         {!collapsed && (
-          editingNickname ? (
-            <input
-              autoFocus
-              value={nicknameDraft}
-              onChange={(e) => setNicknameDraft(e.target.value)}
-              onBlur={commitNickname}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); commitNickname(); }
-                if (e.key === "Escape") { e.preventDefault(); cancelEditingNickname(); }
-              }}
-              aria-label="Edit your name"
-              className="dash-focus dash-rail-brand-text min-w-0 flex-1 rounded-md border border-[var(--dash-violet)] bg-[var(--dash-surface-2)] px-1.5 py-0.5 font-bold text-[var(--dash-ink)] outline-none"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={startEditingNickname}
-              title="Click to edit your name"
-              className="dash-focus dash-rail-brand-text group flex min-w-0 items-center gap-1.5 truncate font-bold tracking-tight text-[var(--dash-ink)]"
-            >
-              <span className="truncate">{nickname}</span>
-              <Pencil aria-hidden className="h-[0.55em] w-[0.55em] shrink-0 text-[var(--dash-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
-            </button>
-          )
+          <span className="dash-rail-brand-text min-w-0 flex-1 truncate font-bold tracking-tight text-[var(--dash-ink)]">
+            {nickname}
+          </span>
         )}
       </div>
 
@@ -233,7 +206,7 @@ export function AppSidebar() {
       <div className="mt-auto border-t border-[var(--dash-line)] pt-3">
         <Link href="/settings">
           <a
-            title={collapsed ? displayName : undefined}
+            title={collapsed ? nickname : undefined}
             className={`dash-focus flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-[var(--dash-surface-2)] ${collapsed ? "justify-center" : ""}`}
           >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f7bd61] to-[#ed688d] text-[#0a1020]">
@@ -241,7 +214,7 @@ export function AppSidebar() {
             </span>
             {!collapsed && (
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-[var(--dash-ink)]">{displayName}</span>
+                <span className="block truncate text-[13px] font-semibold text-[var(--dash-ink)]">{nickname}</span>
                 <span className="block truncate text-[12px] text-[var(--dash-muted)]">
                   {(progress?.goldTotal ?? 0).toLocaleString()} gold · {(progress?.tasksCompleted ?? 0).toLocaleString()} quests done
                 </span>

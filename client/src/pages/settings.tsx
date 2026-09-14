@@ -7,6 +7,7 @@ import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { useToast } from "@/hooks/use-toast";
+import { useEditableNickname } from "@/hooks/use-nickname";
 import { buildRecipesCSVExport } from "@/pages/recipes";
 import { buildAccomplishmentsCSVExport } from "@/pages/accomplishments";
 import { buildNPCsCSVExport } from "@/pages/npcs";
@@ -75,6 +76,10 @@ export default function SettingsPage() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
+  const {
+    nickname, editing: editingNickname, draft: nicknameDraft, setDraft: setNicknameDraft,
+    startEditing: startEditingNickname, commit: commitNickname, cancel: cancelEditingNickname,
+  } = useEditableNickname();
 
   const handleExportAll = async () => {
     setExporting(true);
@@ -194,6 +199,49 @@ export default function SettingsPage() {
             </div>
             <p className={`text-yellow-200/70 ${isMobile ? 'text-xs' : ''}`}>Manage your integrations and preferences</p>
           </div>
+
+          {/* Nickname */}
+          <Card className={`bg-slate-800/60 backdrop-blur-md border border-yellow-600/30 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+            <CardContent className={isMobile ? 'p-3' : 'p-5'}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className={`${isMobile ? 'text-sm' : 'text-lg'} font-serif font-bold text-yellow-100`}>Nickname</h3>
+                  {editingNickname ? (
+                    <input
+                      autoFocus
+                      value={nicknameDraft}
+                      onChange={(e) => setNicknameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); commitNickname(); }
+                        if (e.key === "Escape") { e.preventDefault(); cancelEditingNickname(); }
+                      }}
+                      placeholder="What should we call you?"
+                      className="mt-1.5 w-full max-w-xs rounded-md border border-yellow-600/40 bg-slate-900/60 px-2.5 py-1.5 text-sm text-yellow-100 outline-none focus:border-yellow-500"
+                    />
+                  ) : (
+                    <p className={`${isMobile ? 'text-[11px] leading-tight' : 'text-sm'} text-yellow-200/70`}>
+                      Used for your dashboard greeting and sidebar name. Currently{" "}
+                      <span className="font-semibold text-yellow-100">{nickname}</span>.
+                    </p>
+                  )}
+                </div>
+                {editingNickname ? (
+                  <div className="flex shrink-0 gap-2">
+                    <Button onClick={commitNickname} className="bg-yellow-600 hover:bg-yellow-500 text-slate-900" size={isMobile ? "sm" : "default"}>
+                      Save
+                    </Button>
+                    <Button onClick={cancelEditingNickname} variant="outline" size={isMobile ? "sm" : "default"}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={startEditingNickname} className="bg-yellow-600 hover:bg-yellow-500 text-slate-900 shrink-0" size={isMobile ? "sm" : "default"}>
+                    Set Nickname
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Export All */}
           <Card className={`bg-slate-800/60 backdrop-blur-md border border-sky-600/30 ${isMobile ? 'mb-3' : 'mb-6'}`}>

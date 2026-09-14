@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign, GripVertical, Pencil } from "lucide-react";
+import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign, GripVertical } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -18,7 +18,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { useTheme } from "@/contexts/theme-context";
 import { classifyItem } from "@/pages/finances";
 import { DashCard, DashCardHead, StatCard } from "@/components/dash-ui";
-import { useEditableNickname } from "@/hooks/use-nickname";
+import { useNickname } from "@/hooks/use-nickname";
 
 // Default skill icon mapping for backward compatibility
 const skillIcons: Record<string, any> = {
@@ -876,13 +876,9 @@ export default function Dashboard() {
   const hour = now.getHours();
   const greetingWord = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  // Editable "Welcome back" nickname — shared with the sidebar brand mark so
-  // both always agree. Defaults to the email/username-derived name, but the
-  // user can click it to set a custom nickname, persisted server-side.
-  const {
-    nickname, editing: editingNickname, draft: nicknameDraft, setDraft: setNicknameDraft,
-    startEditing: startEditingNickname, commit: commitNickname, cancel: cancelEditingNickname,
-  } = useEditableNickname();
+  // "Welcome back" nickname — shared with the sidebar so they always agree.
+  // Set from Settings > Nickname, not editable inline here.
+  const { nickname } = useNickname();
 
   // Priority ranking: Pareto > High > Med-High > Medium > Med-Low > Low
   const getPriorityValue = (importance: string | null) => {
@@ -1339,33 +1335,7 @@ export default function Dashboard() {
         <header className="mb-[25px] flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
             <h1 className="flex flex-wrap items-baseline gap-x-1.5 text-2xl font-bold leading-tight tracking-[-0.04em] text-[var(--dash-ink)] md:text-[28px]">
-              <span>Welcome back,</span>
-              {editingNickname ? (
-                <input
-                  autoFocus
-                  value={nicknameDraft}
-                  onChange={(e) => setNicknameDraft(e.target.value)}
-                  onBlur={commitNickname}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); commitNickname(); }
-                    if (e.key === "Escape") { e.preventDefault(); cancelEditingNickname(); }
-                  }}
-                  aria-label="Edit your name"
-                  className="max-w-[220px] rounded-md border border-[var(--dash-violet)] bg-transparent px-1.5 py-0 text-2xl font-bold leading-tight tracking-[-0.04em] text-[var(--dash-ink)] outline-none md:text-[28px]"
-                  style={{ width: `${Math.max(nicknameDraft.length, 3) + 2}ch` }}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={startEditingNickname}
-                  title="Click to edit your name"
-                  className="dash-focus group inline-flex items-center gap-1.5 rounded-md border-b-2 border-dotted border-transparent leading-tight transition-colors hover:border-[var(--dash-violet)]"
-                >
-                  {nickname}
-                  <Pencil aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--dash-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
-                </button>
-              )}
-              <span>.</span>
+              <span>Welcome back, {nickname}.</span>
             </h1>
             <p className="mt-1 text-sm text-[var(--dash-muted)]">{greetingWord} — your next best move is ready.</p>
           </div>
