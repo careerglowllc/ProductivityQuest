@@ -323,9 +323,9 @@ export function TabBar() {
           </Link>
 
           {/* Gold Display */}
-          <div className="flex items-center gap-1.5 bg-yellow-600/30 px-3 py-1.5 rounded-full border border-yellow-500/50">
-            <Coins className="h-4 w-4 text-yellow-400" />
-            <span className="font-bold text-yellow-100 text-sm">{(progress as any)?.goldTotal || 0}</span>
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shrink-0 ${isDark ? "bg-yellow-600/30 border-yellow-500/50" : "bg-amber-100 border-amber-400"}`}>
+            <Coins className={`h-4 w-4 ${isDark ? "text-yellow-400" : "text-amber-700"}`} />
+            <span className={`font-bold text-sm ${isDark ? "text-yellow-100" : "text-amber-900"}`}>{(progress as any)?.goldTotal || 0}</span>
           </div>
 
           {/* Theme Toggle (cycles light → dark → auto) */}
@@ -341,11 +341,11 @@ export function TabBar() {
           {/* User Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 bg-slate-800/60 hover:bg-slate-700/60 px-3 py-1.5 rounded-full border border-yellow-600/30 hover:border-yellow-500/50 transition-all">
-                <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center">
+              <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${isDark ? "bg-slate-800/60 hover:bg-slate-700/60 border-yellow-600/30 hover:border-yellow-500/50" : "bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400"}`}>
+                <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
                   <User className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-yellow-100 text-sm font-medium">
+                <span className={`text-sm font-medium ${isDark ? "text-yellow-100" : "text-slate-800"}`}>
                   {(() => {
                     const email = (user as any)?.email || (user as any)?.username || 'User';
                     return email.length > 5 ? email.slice(0, 5) + '...' : email;
