@@ -251,11 +251,16 @@ html.light .fixed.bottom-0 {
   border-color: #e2e8f0 !important;
 }
 
-/* ── Cards / panels (solid + translucent) ── */
-html.light [class*="bg-slate-800"] {
+/* ── Cards / panels (solid + translucent) ──
+   Excludes hover:/focus:/group-hover: prefixed tokens — those are conditional
+   Tailwind classes whose raw class name still contains "bg-slate-800/700", so a
+   plain substring match here would force the color on permanently instead of
+   only on hover (this caused a persistent gray box around hover-highlight-only
+   icon buttons like the emoji picker). */
+html.light [class*="bg-slate-800"]:not([class*="hover:bg-slate-800"]):not([class*="focus:bg-slate-800"]):not([class*="group-hover:bg-slate-800"]) {
   background-color: #ffffff !important;
 }
-html.light [class*="bg-slate-700"] {
+html.light [class*="bg-slate-700"]:not([class*="hover:bg-slate-700"]):not([class*="focus:bg-slate-700"]):not([class*="group-hover:bg-slate-700"]) {
   background-color: #f1f5f9 !important;
 }
 html.light [class*="bg-slate-900\/"] {

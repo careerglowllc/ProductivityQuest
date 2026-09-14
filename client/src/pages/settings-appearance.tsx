@@ -86,7 +86,7 @@ export default function AppearanceSettingsPage() {
                   className={`w-full text-left rounded-xl border transition-all p-4 flex items-center gap-4 ${
                     isSelected
                       ? "bg-slate-700/70 border-yellow-500/60 shadow-lg shadow-yellow-600/10"
-                      : "bg-slate-800/50 border-slate-700/40 hover:border-slate-600/60 hover:bg-slate-800/70"
+                      : "bg-slate-800/50 border-slate-700/40 hover:border-slate-600/60 hover:bg-slate-700/70"
                   }`}
                 >
                   {/* Icon bubble */}

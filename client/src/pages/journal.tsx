@@ -282,7 +282,7 @@ export default function JournalPage() {
           <div className="flex flex-wrap justify-center gap-2 mb-8">
             {SUBPAGE_LINKS.map(({ label, path, icon: Icon }) => (
               <Link key={path} href={path}>
-                <a className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-slate-800/60 hover:border-amber-500/60 hover:bg-slate-800/90 text-amber-200/80 hover:text-amber-100 text-xs font-medium px-3 py-1.5 transition-colors">
+                <a className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-slate-800/60 hover:border-amber-500/60 hover:bg-slate-700/90 text-amber-200/80 hover:text-amber-100 text-xs font-medium px-3 py-1.5 transition-colors">
                   <Icon className="h-3.5 w-3.5 text-amber-400" />
                   {label}
                 </a>

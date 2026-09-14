@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "@/contexts/theme-context";
 
 // Comprehensive keyword-searchable emoji database
 const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
@@ -1439,6 +1440,7 @@ interface EmojiPickerProps {
 }
 
 export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) {
+  const { isDark } = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Common");
@@ -1517,7 +1519,7 @@ export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) 
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className={`${sizeClasses[size]} flex items-center justify-center rounded-md hover:bg-slate-700/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-500/40`}
+          className={`${sizeClasses[size]} flex items-center justify-center rounded-md ${isDark ? "hover:bg-slate-700/50" : "hover:bg-slate-200/70"} transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-500/40`}
           title="Change emoji"
         >
           {value || "📝"}
