@@ -1339,7 +1339,7 @@ export default function Dashboard() {
             </h1>
             <p className="mt-1 text-sm text-[var(--dash-muted)]">{greetingWord} — your next best move is ready.</p>
           </div>
-          <p className="dash-mono shrink-0 pt-1 text-[var(--dash-muted)]">
+          <p className="dash-mono shrink-0 pt-1 text-[25px] text-[var(--dash-muted)]">
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
         </header>
