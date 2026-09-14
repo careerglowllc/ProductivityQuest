@@ -278,7 +278,7 @@ export default function JournalDailyGewsPage() {
             <p className="text-yellow-200/70 text-lg">Gratitudes · Wins · Exciteds · Sadnesses — one entry per day</p>
           </div>
 
-          <div className="flex justify-center items-center gap-2 mb-6">
+          <div className="flex flex-wrap justify-center items-center gap-2 mb-6">
             <Button onClick={openAdd} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
               <Plus className="h-4 w-4 mr-1.5" /> New Entry
             </Button>

@@ -186,7 +186,7 @@ export default function JournalGratitudePage() {
           </div>
 
           {/* Quick-add */}
-          <div className="flex gap-2 mb-6 items-start">
+          <div className="flex flex-wrap gap-2 mb-6 items-start">
             <span className="shrink-0 mt-0.5" onClick={(ev) => ev.stopPropagation()}>
               <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} size="md" />
             </span>
