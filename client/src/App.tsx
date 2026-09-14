@@ -154,6 +154,7 @@ function Router() {
 
   return (
     <>
+      <div className={showTabBar ? "pq-shell" : undefined}>
       <Switch>
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
@@ -221,6 +222,7 @@ function Router() {
           </>
         )}
       </Switch>
+      </div>
       {showTabBar && <TabBar />}
     </>
   );

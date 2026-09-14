@@ -1,128 +1,36 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, CheckSquare, Sparkles, LayoutDashboard, Coins, User, Users, Crown, Calendar, ChevronDown, DollarSign, Trophy, Sun, Moon, Monitor, Compass, BookOpen, BookMarked, Dumbbell, ChefHat, Utensils, HeartHandshake, Heart, Zap, ClipboardList } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Calendar, BookOpen, Settings, Compass } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Settings, LogOut } from "lucide-react";
-import { useState } from "react";
-import { useTheme } from "@/contexts/theme-context";
+import { AppSidebar, AppTopBar } from "@/components/app-sidebar";
+import { isJournalPath } from "@/components/nav-config";
 
-// Journal sub-pages — shared by the desktop nav dropdown and the mobile bottom-nav dropdown.
-const JOURNAL_SUBLINKS: { label: string; path: string; icon: any; colorClass: string }[] = [
-  { label: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake, colorClass: "text-amber-400" },
-  { label: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, colorClass: "text-amber-400" },
-  { label: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, colorClass: "text-pink-400" },
-  { label: "Excitement Journal", path: "/journal/excitement", icon: Zap, colorClass: "text-orange-400" },
-  { label: "Weekly Deep Planning", path: "/journal/weekly-planning", icon: ClipboardList, colorClass: "text-amber-400" },
-  { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, colorClass: "text-amber-400" },
-  { label: "Accomplishments", path: "/accomplishments", icon: Trophy, colorClass: "text-yellow-400" },
-  { label: "Explore", path: "/explore", icon: Compass, colorClass: "text-sky-400" },
-  { label: "Fitness", path: "/fitness", icon: Dumbbell, colorClass: "text-emerald-400" },
-  { label: "Recipes", path: "/recipes", icon: ChefHat, colorClass: "text-orange-400" },
+// Mobile bottom nav: Dashboard, Quests, Calendar, Journal, Settings, All.
+// Shop is dropped here (still reachable from Dashboard / the More hub); Settings
+// and All point at the same destinations they do in the desktop rail.
+const MOBILE_TABS = [
+  { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { name: "Quests", path: "/tasks", icon: CheckSquare },
+  { name: "Calendar", path: "/calendar", icon: Calendar },
+  { name: "Journal", path: "/journal", icon: BookOpen },
+  { name: "Settings", path: "/settings", icon: Settings },
+  { name: "All", path: "/more", icon: Compass },
 ];
 
 export function TabBar() {
   const [location] = useLocation();
   const isMobile = useIsMobile();
-  const { user } = useAuth();
-  const { preference, cycleTheme, isDark } = useTheme();
-  const [questsMenuOpen, setQuestsMenuOpen] = useState(false);
-  const [journalMenuOpen, setJournalMenuOpen] = useState(false);
 
-  // Icon + label for the current theme preference (light → dark → auto)
-  const ThemeIcon = preference === "light" ? Sun : preference === "dark" ? Moon : Monitor;
-  const themeLabel = preference === "light" ? "Light" : preference === "dark" ? "Dark" : "Auto";
-
-  const { data: progress = { goldTotal: 0 } } = useQuery({
-    queryKey: ["/api/progress"],
-  });
-
-  const handleLogout = async () => {
-    // Use GET to /api/logout which will redirect to landing page
-    window.location.href = "/api/logout";
-  };
-
-  const tabs = [
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      name: "Quests",
-      path: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      name: "Calendar",
-      path: "/calendar",
-      icon: Calendar,
-    },
-    {
-      name: "Shop",
-      path: "/shop",
-      icon: ShoppingCart,
-    },
-  ];
-
-  // Mobile bottom nav: Dashboard, Quests, Calendar, Journal, Settings, All.
-  // Shop is dropped here (still reachable from Dashboard / the More hub); Settings
-  // and All point at the same destinations they do in the web nav (/settings, /more).
-  const mobileTabs = [
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      name: "Quests",
-      path: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      name: "Calendar",
-      path: "/calendar",
-      icon: Calendar,
-    },
-    {
-      name: "Journal",
-      path: "/journal",
-      icon: BookOpen,
-    },
-    {
-      name: "Settings",
-      path: "/settings",
-      icon: Settings,
-    },
-    {
-      name: "All",
-      path: "/more",
-      icon: Compass,
-    },
-  ];
-
-  const isJournalActive =
-    location === "/journal" ||
-    location === "/journal/daily-gews" ||
-    location === "/journal/empowering-thoughts" ||
-    location === "/journal/gratitude" ||
-    location === "/journal/excitement" ||
-    location === "/journal/weekly-planning" ||
-    location === "/reference-beliefs" ||
-    location === "/accomplishments" ||
-    location === "/explore" ||
-    location === "/fitness" ||
-    location === "/recipes";
-
-  // Mobile: bottom navigation (dark theme)
+  // Mobile: persistent bottom navigation
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-yellow-600/30 safe-area-inset-bottom z-50 light:bg-white light:border-slate-200">
-        <nav className="flex items-center h-16 max-w-lg mx-auto px-1">
-          {mobileTabs.map((tab) => {
+      <nav
+        aria-label="Primary"
+        className="safe-area-inset-bottom fixed inset-x-0 bottom-0 z-50 border-t border-[var(--dash-line)] bg-[var(--dash-surface)]"
+      >
+        <div className="mx-auto flex max-w-lg items-center px-1">
+          {MOBILE_TABS.map((tab) => {
             const Icon = tab.icon;
-            const isActive = tab.name === "Journal" ? isJournalActive : location === tab.path;
+            const isActive = tab.name === "Journal" ? isJournalPath(location) : location === tab.path;
 
             // className goes on <Link> itself — wouter v3 renders the anchor, so a nested
             // <a> would leave the real flex child unstyled and break even tab sizing.
@@ -131,249 +39,29 @@ export function TabBar() {
                 key={tab.path}
                 href={tab.path}
                 aria-label={tab.name}
-                className={`flex items-center justify-center basis-0 grow shrink min-w-0 h-full transition-colors ${
-                  isActive ? "text-yellow-400" : "text-yellow-200/60 hover:text-yellow-200"
+                aria-current={isActive ? "page" : undefined}
+                className={`dash-focus flex min-h-[56px] min-w-[44px] shrink grow basis-0 flex-col items-center justify-center gap-0.5 transition-colors ${
+                  isActive ? "text-[var(--dash-violet)]" : "text-[var(--dash-muted-2)]"
                 }`}
+                style={{ touchAction: "manipulation" }}
               >
-                <Icon className={`h-6 w-6 ${isActive ? "stroke-[2.5]" : ""}`} />
+                <Icon aria-hidden className={`h-[22px] w-[22px] ${isActive ? "stroke-[2.5]" : ""}`} />
+                <span className={`text-[10px] leading-none ${isActive ? "font-semibold" : "font-medium"}`}>
+                  {tab.name}
+                </span>
               </Link>
             );
           })}
-        </nav>
-      </div>
+        </div>
+      </nav>
     );
   }
 
-  // Web: top navigation (dark theme)
+  // Desktop: fixed left rail + top utility bar
   return (
-    <div className="fixed top-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b-2 border-yellow-600/30 z-50">
-      <nav className="flex justify-between items-center h-16 max-w-7xl mx-auto px-8">
-        {/* Navigation Tabs - Center */}
-        <div className="flex items-center gap-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = location === tab.path;
-            
-            // Special handling for Quests tab with dropdown
-            if (tab.name === "Quests") {
-              return (
-                <DropdownMenu key={tab.path} open={questsMenuOpen} onOpenChange={setQuestsMenuOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <div
-                      onMouseEnter={() => setQuestsMenuOpen(true)}
-                      onMouseLeave={() => setQuestsMenuOpen(false)}
-                    >
-                      <Link href={tab.path}>
-                        <a
-                          className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                            isActive || location === "/campaigns" || location === "/calendar"
-                              ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
-                              : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
-                          }`}
-                        >
-                          <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
-                          <span className={`text-sm ${isActive ? "font-semibold" : "font-medium"}`}>
-                            {tab.name}
-                          </span>
-                          <ChevronDown className="h-4 w-4 opacity-60" />
-                        </a>
-                      </Link>
-                    </div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent 
-                    align="start" 
-                    className="bg-slate-800 border-yellow-600/30"
-                    onMouseEnter={() => setQuestsMenuOpen(true)}
-                    onMouseLeave={() => setQuestsMenuOpen(false)}
-                  >
-                    <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                      <Link href="/calendar">
-                        <a className="flex items-center gap-2 w-full">
-                          <Calendar className="h-4 w-4 text-blue-400" />
-                          Calendar
-                        </a>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                      <Link href="/campaigns">
-                        <a className="flex items-center gap-2 w-full">
-                          <Crown className="h-4 w-4 text-purple-400" />
-                          Questlines
-                        </a>
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-            
-            return (
-              <Link key={tab.path} href={tab.path}>
-                <a
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                    isActive
-                      ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
-                      : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
-                  }`}
-                >
-                  <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
-                  <span className={`text-sm ${isActive ? "font-semibold" : "font-medium"}`}>
-                    {tab.name}
-                  </span>
-                </a>
-              </Link>
-            );
-          })}
-
-          {/* Skills - desktop only (not in mobile tabs) */}
-          {(() => {
-            const isSkillsActive = location === "/skills";
-            return (
-              <Link href="/skills">
-                <a
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                    isSkillsActive
-                      ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
-                      : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
-                  }`}
-                >
-                  <Sparkles className={`h-5 w-5 ${isSkillsActive ? "stroke-[2.5]" : ""}`} />
-                  <span className={`text-sm ${isSkillsActive ? "font-semibold" : "font-medium"}`}>Skills</span>
-                </a>
-              </Link>
-            );
-          })()}
-
-          {/* Journal - written essays + Accomplishments submenu */}
-          {(() => {
-            return (
-              <DropdownMenu open={journalMenuOpen} onOpenChange={setJournalMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <div
-                    onMouseEnter={() => setJournalMenuOpen(true)}
-                    onMouseLeave={() => setJournalMenuOpen(false)}
-                  >
-                    <Link href="/journal">
-                      <a
-                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                          isJournalActive
-                            ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
-                            : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
-                        }`}
-                      >
-                        <BookOpen className={`h-5 w-5 ${isJournalActive ? "stroke-[2.5]" : ""}`} />
-                        <span className={`text-sm ${isJournalActive ? "font-semibold" : "font-medium"}`}>Journal</span>
-                        <ChevronDown className="h-4 w-4 opacity-60" />
-                      </a>
-                    </Link>
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="bg-slate-800 border-yellow-600/30"
-                  onMouseEnter={() => setJournalMenuOpen(true)}
-                  onMouseLeave={() => setJournalMenuOpen(false)}
-                >
-                  {JOURNAL_SUBLINKS.map(({ label, path, icon: SubIcon, colorClass }) => (
-                    <DropdownMenuItem key={path} asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                      <Link href={path}>
-                        <a className="flex items-center gap-2 w-full">
-                          <SubIcon className={`h-4 w-4 ${colorClass}`} />
-                          {label}
-                        </a>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          })()}
-
-          {/* All - jump to the More hub (every page in one place) */}
-          <Link href="/more">
-            <a
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                location === "/more"
-                  ? "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border-2 border-yellow-500/60"
-                  : "text-yellow-200/70 hover:bg-slate-800/60 hover:text-yellow-100 border-2 border-transparent"
-              }`}
-            >
-              <Compass className={`h-5 w-5 ${location === "/more" ? "stroke-[2.5]" : ""}`} />
-              <span className={`text-sm ${location === "/more" ? "font-semibold" : "font-medium"}`}>All</span>
-            </a>
-          </Link>
-        </div>
-
-        {/* Gold and User Info - Right */}
-        <div className="flex items-center gap-2">
-          {/* Finances Button */}
-          <Link href="/finances">
-            <a className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${isDark ? "bg-green-600/30 border-green-500/50 hover:bg-green-600/40 hover:border-green-400/60" : "bg-green-100 border-green-500 hover:bg-green-200"}`}>
-              <DollarSign className={`h-5 w-5 ${isDark ? "text-green-300" : "text-green-700"}`} />
-              <span className={`text-sm font-semibold ${isDark ? "text-green-100" : "text-green-900"}`}>Finances</span>
-            </a>
-          </Link>
-
-          {/* CPAP moved into the More hub (dashboard → More) to declutter the top nav */}
-
-          {/* NPCs Button */}
-          <Link href="/npcs">
-            <a className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${isDark ? "bg-blue-600/30 border-blue-500/50 hover:bg-blue-600/40 hover:border-blue-400/60" : "bg-blue-100 border-blue-500 hover:bg-blue-200"}`}>
-              <Users className={`h-5 w-5 ${isDark ? "text-blue-300" : "text-blue-700"}`} />
-              <span className={`text-sm font-semibold ${isDark ? "text-blue-100" : "text-blue-900"}`}>NPCs</span>
-            </a>
-          </Link>
-
-          {/* Gold Display */}
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shrink-0 ${isDark ? "bg-yellow-600/30 border-yellow-500/50" : "bg-amber-100 border-amber-400"}`}>
-            <Coins className={`h-4 w-4 ${isDark ? "text-yellow-400" : "text-amber-700"}`} />
-            <span className={`font-bold text-sm ${isDark ? "text-yellow-100" : "text-amber-900"}`}>{(progress as any)?.goldTotal || 0}</span>
-          </div>
-
-          {/* Theme Toggle (cycles light → dark → auto) */}
-          <button
-            onClick={cycleTheme}
-            title={`Theme: ${themeLabel} — click to change`}
-            className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all shrink-0 ${isDark ? "bg-slate-800/60 border-yellow-600/30 hover:bg-slate-700/60 hover:border-yellow-500/50" : "bg-white border-2 border-slate-500 hover:bg-slate-50 hover:border-slate-600 shadow-sm"}`}
-          >
-            <ThemeIcon className={`h-4 w-4 ${isDark ? "text-yellow-300" : "text-slate-600"}`} />
-          </button>
-
-          {/* User Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${isDark ? "bg-slate-800/60 hover:bg-slate-700/60 border-yellow-600/30 hover:border-yellow-500/50" : "bg-white hover:bg-slate-50 border-2 border-slate-500 hover:border-slate-600 shadow-sm"}`}>
-                <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
-                  <User className="h-4 w-4 text-[#ffffff]" />
-                </div>
-                <span className={`text-sm font-medium ${isDark ? "text-yellow-100" : "text-slate-800"}`}>
-                  {(() => {
-                    const email = (user as any)?.email || (user as any)?.username || 'User';
-                    return email.length > 5 ? email.slice(0, 5) + '...' : email;
-                  })()}
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
-              <DropdownMenuItem asChild className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">
-                <Link href="/settings">
-                  <a className="flex items-center gap-2 w-full">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </a>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleLogout}
-                className="text-red-300 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </nav>
-    </div>
+    <>
+      <AppSidebar />
+      <AppTopBar />
+    </>
   );
 }

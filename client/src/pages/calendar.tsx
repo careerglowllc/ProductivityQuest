@@ -941,7 +941,7 @@ export default function CalendarPage() {
 
       {/* Resize mode banner — centered at top */}
       {resizeEventId && (
-        <div className={`fixed ${isMobile ? "top-[env(safe-area-inset-top,0px)]" : "top-4"} left-0 right-0 z-40 flex justify-center pointer-events-none`} style={isMobile ? { paddingTop: 6 } : undefined}>
+        <div className={`fixed ${isMobile ? "top-[env(safe-area-inset-top,0px)]" : "top-4 md:left-[var(--dash-sidebar-w)]"} left-0 right-0 z-40 flex justify-center pointer-events-none`} style={isMobile ? { paddingTop: 6 } : undefined}>
           <div className="flex items-center gap-3 bg-gray-900/95 border border-purple-500/40 rounded-full px-6 py-2.5 shadow-xl shadow-purple-500/20 backdrop-blur-sm pointer-events-auto">
             <SlidersHorizontal className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-white font-medium whitespace-nowrap">{isMobile ? "Drag edges to resize" : "Drag edges to resize · Click body to move"}</span>
