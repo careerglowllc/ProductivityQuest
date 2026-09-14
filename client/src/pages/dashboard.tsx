@@ -470,11 +470,15 @@ function useFireGoal() {
 // Quests page's filter: due today or overdue, not yet completed) that are done so far today.
 // Self-contained: fetches its own tasks so it doesn't depend on the Quests page being mounted.
 function useTodayMomentum() {
-  const { data: tasks = [] } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
   // Completing a quest recycles it (one-time) or reschedules its dueDate forward (recurring),
   // so it drops out of /api/tasks' "due today" bucket — fetch the recycle bin too so those
   // completions still get credited toward today's total below.
-  const { data: recycledTasks = [] } = useQuery<any[]>({ queryKey: ["/api/recycled-tasks"] });
+  const { data: recycledTasks = [], isLoading: recycledLoading } = useQuery<any[]>({ queryKey: ["/api/recycled-tasks"] });
+  // Both queries need to have actually resolved before the % means anything — otherwise we
+  // briefly compute against a partial/empty data set (e.g. flashing 100% before the rest of
+  // today's quests have loaded in).
+  const isLoading = tasksLoading || recycledLoading;
   const safeTasks = Array.isArray(tasks) ? tasks : [];
   const safeRecycled = Array.isArray(recycledTasks) ? recycledTasks : [];
 
@@ -501,7 +505,7 @@ function useTodayMomentum() {
     openToday.filter((t: any) => t.completed).length + completedTodayRecurring.length + completedTodayOneTime.length;
   const pct = totalToday > 0 ? (completedToday / totalToday) * 100 : 0;
 
-  return { completedToday, totalToday, pct };
+  return { completedToday, totalToday, pct, isLoading };
 }
 
 
@@ -1382,6 +1386,7 @@ export default function Dashboard() {
               ? `${momentum.completedToday} of ${momentum.totalToday} quests done today`
               : "Nothing due today"}
             pct={momentum.pct}
+            loading={momentum.isLoading}
           />
           <StatCard
             tone="violet"
