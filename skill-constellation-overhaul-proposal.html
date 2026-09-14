@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skill Constellation — UI Overhaul Proposal</title>
+  <style>
+    :root {
+      --bg: #080e1e; --surface: #111a31; --surface-2: #182441; --ink: #f8f8fd;
+      --muted: #99a6bf; --dim: #687592; --violet: #a779ff; --blue: #5cb0ff;
+      --gold: #f3bd53; --mint: #35d6b0; --line: rgba(144, 169, 214, .2);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: radial-gradient(circle at 75% 0%, rgba(96,67,187,.2), transparent 34rem), var(--bg); font: 15px/1.55 Inter, ui-sans-serif, system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    .topbar { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: rgba(8,14,30,.84); backdrop-filter: blur(18px); }
+    .topbar-inner { display: flex; align-items: center; justify-content: space-between; min-height: 66px; gap: 20px; }
+    .brand { display: flex; gap: 10px; align-items: center; font-weight: 800; letter-spacing: -.025em; }
+    .mark { display: grid; place-items: center; width: 31px; height: 31px; border: 1px solid rgba(243,189,83,.7); border-radius: 10px; color: #161226; background: var(--gold); box-shadow: 0 0 25px rgba(243,189,83,.24); }
+    .links { display: flex; flex-wrap: wrap; gap: 18px; color: var(--muted); font-size: 12px; }
+    .links a:hover { color: #fff; }
+    .hero { padding: 78px 0 50px; }
+    .eyebrow, .kicker { color: var(--violet); font-size: 11px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 800px; margin: 13px 0 20px; font-size: clamp(43px, 7vw, 78px); line-height: .98; letter-spacing: -.07em; }
+    .hero p { max-width: 680px; margin-bottom: 28px; color: var(--muted); font-size: 18px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.04); font-weight: 750; }
+    .pill.primary { border-color: rgba(167,121,255,.65); background: linear-gradient(120deg, #7756da, #b15be9); }
+    .pill::after { content: "↗"; }
+    section { padding: 52px 0; border-top: 1px solid var(--line); }
+    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 22px; margin-bottom: 25px; }
+    h2 { margin: 7px 0; font-size: clamp(28px, 4vw, 43px); line-height: 1.05; letter-spacing: -.05em; }
+    .lead { max-width: 660px; margin-bottom: 0; color: var(--muted); }
+    .jump { color: var(--blue); font-size: 12px; font-weight: 750; white-space: nowrap; }
+    .jump::after { content: " ↗"; }
+    .board { position: relative; min-height: 570px; overflow: hidden; border: 1px solid rgba(167,121,255,.34); border-radius: 24px; background: radial-gradient(circle at center, rgba(108,76,204,.19), transparent 32%), radial-gradient(circle at 15% 30%, rgba(92,176,255,.13), transparent 24%), #0b1328; box-shadow: 0 26px 80px rgba(0,0,0,.36); }
+    .board::before, .board::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .32; background-image: radial-gradient(circle, #fff 0 1px, transparent 1.5px); background-size: 109px 127px; background-position: 21px 38px; }
+    .board::after { opacity: .18; background-size: 173px 161px; background-position: 73px 83px; }
+    .board-top { position: absolute; inset: 0 0 auto; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding: 19px 23px; border-bottom: 1px solid rgba(144,169,214,.13); background: rgba(8,14,30,.48); }
+    .board-top strong { font-size: 14px; }
+    .board-top span { color: var(--muted); font-size: 11px; }
+    .orbit { position: absolute; left: 50%; top: 53%; width: min(600px, 70%); aspect-ratio: 1; transform: translate(-50%, -50%); border: 1px solid rgba(243,189,83,.22); border-radius: 50%; }
+    .orbit::before, .orbit::after { content: ""; position: absolute; inset: 13%; border: 1px solid rgba(92,176,255,.25); border-radius: 50%; }
+    .orbit::after { inset: 28%; border-color: rgba(167,121,255,.34); }
+    .orbit-line { position: absolute; left: 50%; top: 50%; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(243,189,83,.32), transparent); transform: translate(-50%, -50%) rotate(27deg); }
+    .orbit-line.two { transform: translate(-50%, -50%) rotate(-37deg); background: linear-gradient(90deg, transparent, rgba(92,176,255,.28), transparent); }
+    .orbit-line.three { transform: translate(-50%, -50%) rotate(90deg); background: linear-gradient(90deg, transparent, rgba(167,121,255,.35), transparent); }
+    .core { position: absolute; left: 50%; top: 50%; z-index: 2; display: grid; place-items: center; width: 74px; height: 74px; transform: translate(-50%, -50%); border: 2px solid var(--gold); border-radius: 50%; color: #191329; background: radial-gradient(circle at 35% 28%, #fff2bb, var(--gold)); box-shadow: 0 0 0 9px rgba(243,189,83,.10), 0 0 38px rgba(243,189,83,.48); font-size: 26px; }
+    .core::after { content: "YOUR MASTERY"; position: absolute; top: 85px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .13em; white-space: nowrap; }
+    .node { position: absolute; z-index: 3; display: grid; place-items: center; width: 65px; height: 65px; border: 2px solid rgba(243,189,83,.85); border-radius: 50%; color: #171226; background: linear-gradient(145deg, #fff5c4, #e9a927); box-shadow: 0 0 0 5px rgba(243,189,83,.07), 0 8px 20px rgba(0,0,0,.25); font-size: 23px; transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; animation: float 5s ease-in-out infinite; }
+    .node:hover, .node:focus-visible { transform: scale(1.14); border-color: #fff4c8; box-shadow: 0 0 0 8px rgba(243,189,83,.13), 0 0 34px rgba(243,189,83,.55); outline: none; }
+    .node::after { content: attr(data-name); position: absolute; top: 72px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+    .node.mindset { left: 15%; top: 33%; animation-delay: -.8s; }
+    .node.health { left: 29%; top: 16%; animation-delay: -2s; }
+    .node.communication { right: 25%; top: 18%; animation-delay: -1.5s; }
+    .node.craft { right: 13%; top: 38%; animation-delay: -3s; }
+    .node.finance { right: 25%; bottom: 16%; animation-delay: -2.5s; }
+    .node.relationships { left: 27%; bottom: 14%; animation-delay: -1s; }
+    .node.active { border-color: #fff6d0; }
+    .node.active::before { content: ""; position: absolute; inset: -13px; border: 1px solid rgba(243,189,83,.65); border-radius: inherit; animation: pulse 1.8s ease-out infinite; }
+    .board:has(#mindset:target) .node.mindset, .board:has(#health:target) .node.health, .board:has(#communication:target) .node.communication, .board:has(#craft:target) .node.craft, .board:has(#finance:target) .node.finance, .board:has(#relationships:target) .node.relationships { transform: scale(1.16); border-color: #fff7d1; box-shadow: 0 0 0 8px rgba(243,189,83,.13), 0 0 38px rgba(243,189,83,.60); }
+    .board:has(#mindset:target) .node.mindset::before, .board:has(#health:target) .node.health::before, .board:has(#communication:target) .node.communication::before, .board:has(#craft:target) .node.craft::before, .board:has(#finance:target) .node.finance::before, .board:has(#relationships:target) .node.relationships::before { content: ""; position: absolute; inset: -13px; border: 1px solid rgba(243,189,83,.7); border-radius: inherit; animation: pulse 1.8s ease-out infinite; }
+    .skill-detail { position: absolute; z-index: 4; left: 21px; bottom: 20px; width: min(320px, calc(100% - 42px)); padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(12,21,42,.90); box-shadow: 0 14px 35px rgba(0,0,0,.25); }
+    .skill-detail:not(:target) { display: none; }
+    .skill-detail:target { display: block; animation: rise .25s ease-out both; }
+    .skill-detail h3 { margin-bottom: 3px; font-size: 15px; }
+    .skill-detail p { margin-bottom: 0; color: var(--muted); font-size: 11px; }
+    .detail-default { display: block; }
+    .board:has(.skill-detail:target) .detail-default { display: none; }
+    .detail-default { position: absolute; z-index: 4; left: 21px; bottom: 20px; color: var(--muted); font-size: 11px; }
+    .detail-default strong { display: block; margin-bottom: 2px; color: var(--ink); font-size: 13px; }
+    @keyframes float { 0%,100% { margin-top: 0; } 50% { margin-top: -5px; } }
+    @keyframes pulse { 0% { transform: scale(.84); opacity: .9; } 100% { transform: scale(1.22); opacity: 0; } }
+    @keyframes rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+    .columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .card { padding: 21px; border: 1px solid var(--line); border-radius: 17px; background: linear-gradient(145deg, rgba(24,36,62,.82), rgba(15,23,42,.82)); }
+    .card .number { color: var(--gold); font-size: 24px; font-weight: 850; }
+    .card h3 { margin: 11px 0 7px; font-size: 16px; }
+    .card p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+    .mobile-board { display: grid; grid-template-columns: minmax(240px,300px) 1fr; gap: 28px; align-items: center; }
+    .phone { width: min(100%, 300px); margin: 0 auto; padding: 9px; border: 1px solid rgba(144,169,214,.35); border-radius: 34px; background: #060b17; box-shadow: 0 22px 60px rgba(0,0,0,.4); }
+    .screen { overflow: hidden; min-height: 590px; border-radius: 26px; background: linear-gradient(180deg, #131e39, #0c1428); }
+    .status { display: flex; justify-content: space-between; padding: 17px 19px 11px; color: var(--muted); font-size: 10px; }
+    .skill-head { display: flex; justify-content: space-between; align-items: start; padding: 13px 17px 17px; }
+    .skill-head h3 { margin: 0 0 3px; font-size: 20px; letter-spacing: -.04em; }
+    .skill-head p { margin: 0; color: var(--muted); font-size: 10px; }
+    .level { padding: 5px 8px; border: 1px solid rgba(243,189,83,.55); border-radius: 999px; color: var(--gold); font-size: 9px; }
+    .mini-map { position: relative; height: 330px; margin: 0 13px; overflow: hidden; border: 1px solid rgba(167,121,255,.3); border-radius: 16px; background: radial-gradient(circle, rgba(96,67,187,.18), transparent 65%), #0b142a; }
+    .mini-map::before { content: ""; position: absolute; inset: 25px 32px; border: 1px solid rgba(243,189,83,.3); border-radius: 50%; box-shadow: 0 0 0 35px rgba(92,176,255,.04), 0 0 0 70px rgba(167,121,255,.04); }
+    .mini-core { position: absolute; left: 50%; top: 50%; display: grid; place-items: center; width: 43px; height: 43px; transform: translate(-50%,-50%); border: 2px solid var(--gold); border-radius: 50%; color: #181126; background: var(--gold); }
+    .mini-node { position: absolute; display: grid; place-items: center; width: 31px; height: 31px; border: 2px solid var(--blue); border-radius: 50%; color: #071226; background: #eef7ff; font-size: 13px; box-shadow: 0 0 15px rgba(92,176,255,.45); animation: float 4s ease-in-out infinite; }
+    .mini-node.one { left: 21%; top: 23%; } .mini-node.two { right: 20%; top: 18%; animation-delay: -.7s; } .mini-node.three { right: 17%; bottom: 24%; animation-delay: -1.5s; } .mini-node.four { left: 20%; bottom: 20%; animation-delay: -2.2s; }
+    .mini-map a:focus-visible .mini-node, .mini-map a:hover .mini-node { box-shadow: 0 0 0 5px rgba(92,176,255,.18), 0 0 25px rgba(92,176,255,.75); transform: scale(1.15); }
+    .mini-actions { display: flex; gap: 8px; padding: 13px; }
+    .mini-actions a { flex: 1; padding: 9px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); text-align: center; font-size: 10px; }
+    .mini-actions a:first-child { color: #fff; border-color: rgba(167,121,255,.55); background: rgba(167,121,255,.16); }
+    .notes { display: grid; gap: 13px; }
+    .note { padding: 20px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); }
+    .note h3 { margin-bottom: 7px; font-size: 16px; }
+    .note p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+    footer { padding: 52px 0 76px; border-top: 1px solid var(--line); color: var(--muted); }
+    footer h2 { color: var(--ink); }
+    footer .links-bottom { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 19px; }
+    footer .links-bottom a { color: var(--blue); font-weight: 750; }
+    @media (max-width: 800px) {
+      .wrap { width: min(100% - 28px, 620px); }
+      .topbar-inner { min-height: 58px; }
+      .links { gap: 10px; font-size: 11px; }
+      .hero { padding: 60px 0 40px; }
+      .section-head { display: block; }
+      .section-head .jump { display: inline-block; margin-top: 13px; }
+      .columns, .mobile-board { grid-template-columns: 1fr; }
+      .mobile-board .notes { order: -1; }
+      .board { min-height: 550px; }
+      .orbit { width: 90%; }
+    }
+    @media (max-width: 480px) {
+      h1 { font-size: 49px; }
+      .board { min-height: 500px; }
+      .board-top { padding: 15px; }
+      .node { width: 53px; height: 53px; font-size: 19px; }
+      .node::after { top: 58px; font-size: 8px; }
+      .node.mindset { left: 9%; } .node.health { left: 25%; top: 20%; } .node.communication { right: 19%; top: 20%; } .node.craft { right: 7%; } .node.finance { right: 18%; } .node.relationships { left: 21%; }
+      .core { width: 63px; height: 63px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#top"><span class="mark">✦</span><span>Skill constellation / proposal</span></a>
+      <nav class="links" aria-label="Proposal navigation"><a href="#direction">Direction</a><a href="#map">Map</a><a href="#mobile">Mobile</a><a href="#motion">Motion</a></nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" style="border-top:0">
+      <div class="wrap">
+        <div class="eyebrow">Skill tree / concept 02</div>
+        <h1>Turn the constellation into a mastery map.</h1>
+        <p>The current radial layout has a strong foundation. The sharper direction is to reduce visual clutter, create a clear center-to-branch hierarchy, and make every selection feel like opening a living capability—not just clicking an icon.</p>
+        <div class="hero-actions"><a class="pill primary" href="#map">Open interactive concept</a><a class="pill" href="#motion">See selection motion</a></div>
+      </div>
+    </section>
+
+    <section id="direction">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">01 / Design direction</div><h2>Sharper structure, warmer reward.</h2><p class="lead">Keep the space-and-mastery metaphor, but replace the current equal-weight ring with a readable progression: identity at the center, disciplines in orbit, milestones on branches.</p></div><a class="jump" href="#map">Jump to constellation</a></div>
+        <div class="columns">
+          <article class="card"><div class="number">01</div><h3>Make the hierarchy legible</h3><p>The core is the user's overall mastery. Major skills become named orbit nodes. Milestones become smaller points on each branch.</p></article>
+          <article class="card"><div class="number">02</div><h3>Separate states with light</h3><p>Gold means earned, blue means available, violet means selected, and dim lines mean locked or future progression.</p></article>
+          <article class="card"><div class="number">03</div><h3>Selection opens context</h3><p>A selected skill should expand a compact detail surface with level, description, progress, and a single route to milestones.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="map">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">02 / Desktop constellation</div><h2>Click a discipline to inspect it.</h2><p class="lead">The nodes below are real anchor links. Hover or select one to preview the intended glow, focus ring, and contextual detail behavior.</p></div><a class="jump" href="#mobile">Compare mobile map</a></div>
+        <div class="board">
+          <div class="board-top"><strong>Mastery map / 6 disciplines</strong><span>Drag to navigate · Scroll to explore · Click a node</span></div>
+          <div class="orbit"><span class="orbit-line"></span><span class="orbit-line two"></span><span class="orbit-line three"></span></div>
+          <div class="core">♛</div>
+          <a class="node mindset" data-name="Mindset" href="#mindset" aria-label="Select Mindset">✦</a>
+          <a class="node health" data-name="Health" href="#health" aria-label="Select Health">⌁</a>
+          <a class="node communication" data-name="Communication" href="#communication" aria-label="Select Communication">◌</a>
+          <a class="node craft" data-name="Craft" href="#craft" aria-label="Select Craft">◇</a>
+          <a class="node finance" data-name="Finance" href="#finance" aria-label="Select Finance">◈</a>
+          <a class="node relationships" data-name="Relationships" href="#relationships" aria-label="Select Relationships">∞</a>
+          <div class="detail-default"><strong>Select a discipline</strong>Each node reveals its progress and next milestone.</div>
+          <article class="skill-detail" id="mindset"><h3>✦ Mindset · Level 16</h3><p>The Transmuter · 72% to next level · 3 milestones ready</p></article>
+          <article class="skill-detail" id="health"><h3>⌁ Health · Level 12</h3><p>The Operator · 58% to next level · 2 milestones ready</p></article>
+          <article class="skill-detail" id="communication"><h3>◌ Communication · Level 9</h3><p>The Translator · 41% to next level · 4 milestones ready</p></article>
+          <article class="skill-detail" id="craft"><h3>◇ Craft · Level 14</h3><p>The Builder · 83% to next level · 1 milestone ready</p></article>
+          <article class="skill-detail" id="finance"><h3>◈ Finance · Level 11</h3><p>The Strategist · 66% to next level · 2 milestones ready</p></article>
+          <article class="skill-detail" id="relationships"><h3>∞ Relationships · Level 8</h3><p>The Connector · 36% to next level · 5 milestones ready</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="mobile">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">03 / Mobile constellation</div><h2>Make the map useful at a glance.</h2><p class="lead">On mobile, the constellation becomes a focused skill card: selected discipline first, compact map second, milestone route always visible.</p></div><a class="jump" href="#motion">See motion details</a></div>
+        <div class="mobile-board">
+          <div class="phone">
+            <div class="screen">
+              <div class="status"><span>10:07</span><span>▮▮▮ ◉ 46</span></div>
+              <div class="skill-head"><div><h3>Mindset</h3><p>The Transmuter · 72% to next level</p></div><a class="level" href="#map">LVL 16</a></div>
+              <div class="mini-map">
+                <div class="mini-core">✦</div>
+                <a href="#mindset" aria-label="Select central mindset node"><span class="mini-node one">✦</span></a>
+                <a href="#health" aria-label="Select health node"><span class="mini-node two">⌁</span></a>
+                <a href="#craft" aria-label="Select craft node"><span class="mini-node three">◇</span></a>
+                <a href="#relationships" aria-label="Select relationships node"><span class="mini-node four">∞</span></a>
+              </div>
+              <div class="mini-actions"><a href="#motion">Milestones 3</a><a href="#map">Full map ↗</a></div>
+            </div>
+          </div>
+          <div class="notes">
+            <article class="note"><h3>Progressive disclosure</h3><p>Don't force users to pan a large tree on a small screen. Keep the current skill anchored, with the full map one link away.</p></article>
+            <article class="note"><h3>Tap feedback</h3><p>Selected nodes should briefly expand, pulse, and update the title immediately. The user should never wonder whether their tap registered.</p></article>
+            <article class="note"><h3>Persistent orientation</h3><p>Keep the current skill name and level outside the map so context survives scrolling and zooming.</p></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="motion">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">04 / Selection motion</div><h2>Motion should explain state.</h2><p class="lead">Use short, deliberate transitions instead of constant spectacle. Every animation answers a question: what changed, what is selected, and where can I go next?</p></div><a class="jump" href="#top">Back to top</a></div>
+        <div class="columns">
+          <article class="card"><div class="number">01</div><h3>Hover / focus</h3><p>Scale the node slightly, lift the glow, and reveal the discipline label. Keyboard focus gets the same visible treatment as pointer hover.</p></article>
+          <article class="card"><div class="number">02</div><h3>Selection</h3><p>Pulse one outer ring, brighten connected paths, and raise the detail panel from the lower edge. Keep it under 300ms.</p></article>
+          <article class="card"><div class="number">03</div><h3>Completion</h3><p>When a milestone completes, run one outward shimmer along its branch, then settle the node into the earned gold state.</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><div class="kicker">Recommended next step</div><h2>Build the constellation as a reusable interaction.</h2><p>Keep the current skill and milestone data model. Replace the presentation layer with a responsive map, explicit node states, and a selected-skill detail surface.</p><div class="links-bottom"><a href="#map">Review constellation ↗</a><a href="#mobile">Review mobile ↗</a><a href="#top">Return to top ↗</a></div></div>
+  </footer>
+</body>
+</html>
