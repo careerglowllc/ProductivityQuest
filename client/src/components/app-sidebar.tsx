@@ -31,8 +31,8 @@ function RailLink({
           collapsed ? "justify-center px-0" : indent ? "pl-9 pr-3 text-[12px]" : "px-3"
         } ${
           active
-            ? "bg-[var(--dash-violet-soft)] font-semibold text-white shadow-[inset_3px_0_0_var(--dash-violet)]"
-            : "text-[var(--dash-navy-ink)] hover:bg-[var(--dash-navy-2)] hover:text-white"
+            ? "bg-[var(--dash-violet-soft)] font-semibold text-[var(--dash-ink)] shadow-[inset_3px_0_0_var(--dash-violet)]"
+            : "text-[var(--dash-muted)] hover:bg-[var(--dash-surface-2)] hover:text-[var(--dash-ink)]"
         }`}
       >
         {!indent && <Icon aria-hidden className={`h-[17px] w-[17px] shrink-0 ${active ? "text-[var(--dash-violet)]" : ""}`} />}
@@ -48,8 +48,9 @@ function RailSectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Fixed left rail, resizable by dragging its right edge. Stays navy in both
- *  themes as a deliberate anchor. Collapses to a slim icon rail either by
+/** Fixed left rail, resizable by dragging its right edge. Follows the app
+ *  theme (white surface in light mode, navy-ish surface in dark mode), same
+ *  as the rest of the shell. Collapses to a slim icon rail either by
  *  dragging past the threshold or clicking the edge toggle button. */
 export function AppSidebar() {
   const [location] = useLocation();
@@ -128,7 +129,7 @@ export function AppSidebar() {
   return (
     <aside
       aria-label="Primary"
-      className={`group fixed inset-y-0 left-0 z-50 hidden w-[var(--dash-sidebar-w)] flex-col border-r border-black/30 bg-[var(--dash-navy)] md:flex ${dragging ? "" : "transition-[width] duration-150"}`}
+      className={`group fixed inset-y-0 left-0 z-50 hidden w-[var(--dash-sidebar-w)] flex-col border-r border-[var(--dash-line)] bg-[var(--dash-surface)] md:flex ${dragging ? "" : "transition-[width] duration-150"}`}
     >
       <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-5 ${collapsed ? "px-2" : "px-3.5"}`}>
       <div className={`mb-4 flex min-w-0 items-center gap-2.5 ${collapsed ? "justify-center px-0" : "px-2"}`}>
@@ -149,17 +150,17 @@ export function AppSidebar() {
                 if (e.key === "Escape") { e.preventDefault(); cancelEditingNickname(); }
               }}
               aria-label="Edit your name"
-              className="dash-focus min-w-0 flex-1 rounded-md border border-[var(--dash-violet)] bg-white/5 px-1.5 py-0.5 text-[15px] font-bold text-white outline-none"
+              className="dash-focus min-w-0 flex-1 rounded-md border border-[var(--dash-violet)] bg-[var(--dash-surface-2)] px-1.5 py-0.5 text-[15px] font-bold text-[var(--dash-ink)] outline-none"
             />
           ) : (
             <button
               type="button"
               onClick={startEditingNickname}
               title="Click to edit your name"
-              className="dash-focus group flex min-w-0 items-center gap-1.5 truncate text-[15px] font-bold tracking-tight text-white"
+              className="dash-focus group flex min-w-0 items-center gap-1.5 truncate text-[15px] font-bold tracking-tight text-[var(--dash-ink)]"
             >
               <span className="truncate">{nickname}</span>
-              <Pencil aria-hidden className="h-3 w-3 shrink-0 text-[var(--dash-navy-ink)] opacity-0 transition-opacity group-hover:opacity-100" />
+              <Pencil aria-hidden className="h-3 w-3 shrink-0 text-[var(--dash-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           )
         )}
@@ -178,7 +179,7 @@ export function AppSidebar() {
           onClick={cycleTheme}
           aria-label={`Theme: ${themeLabel}. Click to change.`}
           title={`Theme: ${themeLabel} — click to change`}
-          className="dash-focus grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/15 bg-white/5 text-[var(--dash-navy-ink)] transition-colors hover:text-white"
+          className="dash-focus grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--dash-line-strong)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] transition-colors hover:text-[var(--dash-ink)]"
         >
           <ThemeIcon aria-hidden className={`h-4 w-4 ${isDark ? "text-amber-300" : ""}`} />
         </button>
@@ -200,7 +201,7 @@ export function AppSidebar() {
                       onClick={() => setJournalOpen((o) => !o)}
                       aria-expanded={journalOpen}
                       aria-label={journalOpen ? "Collapse journal pages" : "Expand journal pages"}
-                      className="dash-focus grid h-8 w-7 shrink-0 place-items-center rounded-md text-[var(--dash-navy-ink)] transition-colors hover:bg-[var(--dash-navy-2)] hover:text-white"
+                      className="dash-focus grid h-8 w-7 shrink-0 place-items-center rounded-md text-[var(--dash-muted)] transition-colors hover:bg-[var(--dash-surface-2)] hover:text-[var(--dash-ink)]"
                     >
                       <ChevronDown aria-hidden className={`h-4 w-4 transition-transform ${journalOpen ? "rotate-180" : ""}`} />
                     </button>
@@ -229,19 +230,19 @@ export function AppSidebar() {
       </nav>
 
       {/* Profile summary — pinned to the bottom of the rail */}
-      <div className="mt-auto border-t border-white/10 pt-3">
+      <div className="mt-auto border-t border-[var(--dash-line)] pt-3">
         <Link href="/settings">
           <a
             title={collapsed ? displayName : undefined}
-            className={`dash-focus flex items-center gap-2.5 rounded-lg p-2 transition-colors hover:bg-[var(--dash-navy-2)] ${collapsed ? "justify-center" : ""}`}
+            className={`dash-focus flex items-center gap-2.5 rounded-lg p-2 transition-colors hover:bg-[var(--dash-surface-2)] ${collapsed ? "justify-center" : ""}`}
           >
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f7bd61] to-[#ed688d] text-[#0a1020]">
               <User aria-hidden className="h-4 w-4" />
             </span>
             {!collapsed && (
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12px] font-semibold text-white">{displayName}</span>
-                <span className="block truncate text-[11px] text-[var(--dash-muted-2)]">
+                <span className="block truncate text-[12px] font-semibold text-[var(--dash-ink)]">{displayName}</span>
+                <span className="block truncate text-[11px] text-[var(--dash-muted)]">
                   {(progress?.goldTotal ?? 0).toLocaleString()} gold · {(progress?.tasksCompleted ?? 0).toLocaleString()} quests done
                 </span>
               </span>
@@ -266,7 +267,7 @@ export function AppSidebar() {
         onClick={toggleCollapsed}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="dash-focus absolute -right-3 top-[70px] z-20 grid h-6 w-6 place-items-center rounded-full border border-white/15 bg-[var(--dash-navy-2)] text-[var(--dash-navy-ink)] opacity-0 shadow transition-opacity hover:text-white group-hover:opacity-100"
+        className="dash-focus absolute -right-3 top-[70px] z-20 grid h-6 w-6 place-items-center rounded-full border border-[var(--dash-line-strong)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] opacity-0 shadow transition-opacity hover:text-[var(--dash-ink)] group-hover:opacity-100"
       >
         {collapsed ? <ChevronRight aria-hidden className="h-3.5 w-3.5" /> : <ChevronLeft aria-hidden className="h-3.5 w-3.5" />}
       </button>
