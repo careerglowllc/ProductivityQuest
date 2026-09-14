@@ -61,9 +61,9 @@ export function AppSidebar() {
       <Link href="/dashboard">
         <a className="dash-focus mb-5 flex items-center gap-2.5 px-2">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-[#d8c4ff] to-[#7c5dff] text-[13px] font-black text-[#0d1325]">
-            Q
+            AB
           </span>
-          <span className="text-[15px] font-bold tracking-tight text-white">QuestList</span>
+          <span className="text-[15px] font-bold tracking-tight text-white">Alex B</span>
         </a>
       </Link>
 
