@@ -182,3 +182,31 @@ mtime_ms = 1789427103786
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/01c35451-c123-4ebc-a7f3-bf9b93a7023f/0bc18556-b2cd-4714-ae8e-1270cc3ca7ea"
 storage_version_token = "1789427122637378"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "iZzdoNPB8GCNQfJffYbFR"
+uri = "file://daily-gews-ui.html"
+type = "text"
+title = "Life OS Daily GEWS UI Overhaul"
+description = "Responsive, interactive Daily GEWS interface with four reflection categories, date-based entries, line editing, attachments, search, undo/redo, deletion, CSV export, and mobile drawer behavior."
+logical_id = "26089b69-0d18-43f4-8886-185cd231cb62"
+content_hash = "sha256:0e8ac87942c061206368f7cb1014ac71a0230430bf5130a5bbcf68fd736bd199"
+size = 28134
+mtime_ms = 1789430183313
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/26089b69-0d18-43f4-8886-185cd231cb62/b0d1ad37-84d3-4005-a722-5e78a81a3eaf"
+storage_version_token = "1789430197352060"
+content_type = "text/html"
+
+[[outputs]]
+id = "nKRtVpXuehuEytuSG1KA7"
+uri = "file://README_DAILY_GEWS_UI_IMPLEMENTATION.md"
+type = "text"
+title = "Daily GEWS UI Implementation README"
+description = "Implementation guide covering the data model, synced storage, one-entry-per-date behavior, category workflows, responsive editor, accessibility, and acceptance checks."
+logical_id = "c55a8fce-5b90-47dc-9761-a28399d76c6c"
+content_hash = "sha256:0ee16664b356e08099dbb69794037d28150022e1e0d2be5f21571fa1f6f22a79"
+size = 7688
+mtime_ms = 1789430144587
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/c55a8fce-5b90-47dc-9761-a28399d76c6c/d7c12436-5fb7-48bc-a113-650574627af0"
+storage_version_token = "1789430197838029"
+content_type = "text/markdown"
