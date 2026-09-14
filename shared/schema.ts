@@ -56,6 +56,8 @@ export const users = pgTable("users", {
     overviewVisible?: Record<string, boolean>;
     nwOrder?: string[];
     nwVisible?: Record<string, boolean>;
+    dashOrder?: string[];
+    dashboardNickname?: string;
   }>().default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

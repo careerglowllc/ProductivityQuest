@@ -37,6 +37,8 @@ export interface IStorage {
       overviewVisible?: Record<string, boolean>;
       nwOrder?: string[];
       nwVisible?: Record<string, boolean>;
+      dashOrder?: string[];
+      dashboardNickname?: string;
     };
   }): Promise<User>;
   
@@ -216,6 +218,8 @@ export class DatabaseStorage implements IStorage {
         overviewVisible?: Record<string, boolean>;
         nwOrder?: string[];
         nwVisible?: Record<string, boolean>;
+        dashOrder?: string[];
+        dashboardNickname?: string;
       };
     }
   ): Promise<User> {

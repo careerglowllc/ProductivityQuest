@@ -2,13 +2,10 @@ import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronDown, Coins, LogOut, Monitor, Moon, Settings, Sun, User,
+  ChevronDown, Coins, Monitor, Moon, Sun, User,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/theme-context";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   JOURNAL_SUBLINKS, PRIMARY_NAV, SECONDARY_NAV, breadcrumbFor, isJournalPath,
 } from "@/components/nav-config";
@@ -45,6 +42,7 @@ function RailSectionLabel({ children }: { children: React.ReactNode }) {
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { preference, cycleTheme, isDark } = useTheme();
   const [journalOpen, setJournalOpen] = useState(() => isJournalPath(location));
 
   const { data: progress } = useQuery<{ goldTotal?: number; tasksCompleted?: number }>({
@@ -52,6 +50,8 @@ export function AppSidebar() {
   });
 
   const displayName = (user as any)?.email || (user as any)?.username || "Adventurer";
+  const ThemeIcon = preference === "light" ? Sun : preference === "dark" ? Moon : Monitor;
+  const themeLabel = preference === "light" ? "Light" : preference === "dark" ? "Dark" : "Auto";
 
   return (
     <aside
@@ -59,13 +59,29 @@ export function AppSidebar() {
       className="fixed inset-y-0 left-0 z-50 hidden w-[var(--dash-sidebar-w)] flex-col overflow-y-auto border-r border-black/30 bg-[var(--dash-navy)] px-3.5 py-5 md:flex"
     >
       <Link href="/dashboard">
-        <a className="dash-focus mb-5 flex items-center gap-2.5 px-2">
+        <a className="dash-focus mb-4 flex items-center gap-2.5 px-2">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-[#d8c4ff] to-[#7c5dff] text-[13px] font-black text-[#0d1325]">
             AB
           </span>
           <span className="text-[15px] font-bold tracking-tight text-white">Alex B</span>
         </a>
       </Link>
+
+      {/* Gold + theme — the only status controls that used to live in the top bar */}
+      <div className="mb-4 flex items-center gap-1.5 px-1">
+        <div className="flex flex-1 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5">
+          <Coins aria-hidden className="h-3.5 w-3.5 text-amber-400" />
+          <span className="text-[13px] font-bold text-amber-300">{(progress?.goldTotal ?? 0).toLocaleString()}</span>
+        </div>
+        <button
+          onClick={cycleTheme}
+          aria-label={`Theme: ${themeLabel}. Click to change.`}
+          title={`Theme: ${themeLabel} — click to change`}
+          className="dash-focus grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/15 bg-white/5 text-[var(--dash-navy-ink)] transition-colors hover:text-white"
+        >
+          <ThemeIcon aria-hidden className={`h-4 w-4 ${isDark ? "text-amber-300" : ""}`} />
+        </button>
+      </div>
 
       <nav className="flex flex-col gap-[3px]">
         {PRIMARY_NAV.map((link) => {
@@ -129,67 +145,17 @@ export function AppSidebar() {
   );
 }
 
-/** Fixed 64px utility bar sitting to the right of the rail. */
+/** Fixed 64px utility bar sitting to the right of the rail. Gold, theme, and
+ *  profile now live in the sidebar — this stays a plain breadcrumb strip. */
 export function AppTopBar() {
   const [location] = useLocation();
-  const { user } = useAuth();
-  const { preference, cycleTheme, isDark } = useTheme();
-
-  const { data: progress } = useQuery<{ goldTotal?: number }>({ queryKey: ["/api/progress"] });
-
-  const ThemeIcon = preference === "light" ? Sun : preference === "dark" ? Moon : Monitor;
-  const themeLabel = preference === "light" ? "Light" : preference === "dark" ? "Dark" : "Auto";
-
-  const handleLogout = () => { window.location.href = "/api/logout"; };
-  const email = (user as any)?.email || (user as any)?.username || "User";
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 hidden h-16 border-b border-[var(--dash-line)] bg-[var(--dash-surface)] md:block md:left-[var(--dash-sidebar-w)]">
-      <div className="flex h-full items-center justify-between gap-4 px-8">
+      <div className="flex h-full items-center px-8">
         <p className="dash-mono truncate text-[var(--dash-muted)]">
           {breadcrumbFor(location)} <span className="opacity-40">/</span> Today
         </p>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full border border-[var(--dash-amber)] bg-[var(--dash-amber-soft)] px-3 py-1.5">
-            <Coins aria-hidden className="h-4 w-4 text-[var(--dash-amber)]" />
-            <span className="text-sm font-bold text-[var(--dash-ink)]">
-              {(progress?.goldTotal ?? 0).toLocaleString()}
-            </span>
-          </div>
-
-          <button
-            onClick={cycleTheme}
-            aria-label={`Theme: ${themeLabel}. Click to change.`}
-            title={`Theme: ${themeLabel} — click to change`}
-            className="dash-focus grid h-9 w-9 place-items-center rounded-full border border-[var(--dash-line-strong)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] transition-colors hover:text-[var(--dash-ink)]"
-          >
-            <ThemeIcon aria-hidden className={`h-4 w-4 ${isDark ? "text-[var(--dash-amber)]" : ""}`} />
-          </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="dash-focus flex items-center gap-2 rounded-full border border-[var(--dash-line-strong)] bg-[var(--dash-surface-2)] py-1.5 pl-1.5 pr-3 transition-colors hover:border-[var(--dash-violet)]">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#7c5dff]">
-                  <User aria-hidden className="h-4 w-4 text-[#ffffff]" />
-                </span>
-                <span className="max-w-[90px] truncate text-sm font-medium text-[var(--dash-ink)]">{email}</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
-              <DropdownMenuItem asChild className="cursor-pointer text-[var(--dash-ink)]">
-                <Link href="/settings">
-                  <a className="flex w-full items-center gap-2">
-                    <Settings aria-hidden className="h-4 w-4" /> Settings
-                  </a>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-[var(--dash-coral)]">
-                <LogOut aria-hidden className="mr-2 h-4 w-4" /> Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
     </header>
   );

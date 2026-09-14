@@ -471,7 +471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/widget-preferences', requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const { overviewOrder, overviewVisible, nwOrder, nwVisible } = req.body;
+      const { overviewOrder, overviewVisible, nwOrder, nwVisible, dashOrder, dashboardNickname } = req.body;
       const user = await storage.getUserById(userId);
       const current = (user?.widgetPreferences as any) ?? {};
       const merged = {
@@ -480,6 +480,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...(overviewVisible !== undefined && { overviewVisible }),
         ...(nwOrder !== undefined && { nwOrder }),
         ...(nwVisible !== undefined && { nwVisible }),
+        ...(dashOrder !== undefined && { dashOrder }),
+        ...(dashboardNickname !== undefined && { dashboardNickname }),
       };
       await storage.updateUserSettings(userId, { widgetPreferences: merged });
       res.json(merged);
