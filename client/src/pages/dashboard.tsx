@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { useTheme } from "@/contexts/theme-context";
 import { classifyItem } from "@/pages/finances";
 import { DashCard, DashCardHead, StatCard } from "@/components/dash-ui";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useEditableNickname } from "@/hooks/use-nickname";
 
 // Default skill icon mapping for backward compatibility
 const skillIcons: Record<string, any> = {
@@ -871,40 +871,14 @@ export default function Dashboard() {
   const now = new Date();
   const hour = now.getHours();
   const greetingWord = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const emailDerivedName = String((user as any)?.firstName || (user as any)?.username || (user as any)?.email || "")
-    .split(/[@\s]/)[0];
 
-  // Editable "Welcome back" nickname — defaults to the email/username-derived name,
-  // but the user can click it to set a custom nickname, persisted server-side so it
-  // follows them across devices.
-  const { data: widgetPrefs } = useQuery<{ dashboardNickname?: string }>({
-    queryKey: ["/api/widget-preferences"],
-    staleTime: Infinity,
-    retry: false,
-  });
-  const nickname = widgetPrefs?.dashboardNickname || emailDerivedName || "there";
-  const [editingNickname, setEditingNickname] = useState(false);
-  const [nicknameDraft, setNicknameDraft] = useState(nickname);
-
-  const saveNicknameMutation = useMutation({
-    mutationFn: async (value: string) => {
-      const res = await apiRequest("POST", "/api/widget-preferences", { dashboardNickname: value });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["/api/widget-preferences"], data);
-    },
-  });
-
-  const startEditingNickname = () => {
-    setNicknameDraft(nickname);
-    setEditingNickname(true);
-  };
-  const commitNickname = () => {
-    const trimmed = nicknameDraft.trim();
-    setEditingNickname(false);
-    if (trimmed && trimmed !== nickname) saveNicknameMutation.mutate(trimmed);
-  };
+  // Editable "Welcome back" nickname — shared with the sidebar brand mark so
+  // both always agree. Defaults to the email/username-derived name, but the
+  // user can click it to set a custom nickname, persisted server-side.
+  const {
+    nickname, editing: editingNickname, draft: nicknameDraft, setDraft: setNicknameDraft,
+    startEditing: startEditingNickname, commit: commitNickname, cancel: cancelEditingNickname,
+  } = useEditableNickname();
 
   // Priority ranking: Pareto > High > Med-High > Medium > Med-Low > Low
   const getPriorityValue = (importance: string | null) => {
@@ -1370,7 +1344,7 @@ export default function Dashboard() {
                   onBlur={commitNickname}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") { e.preventDefault(); commitNickname(); }
-                    if (e.key === "Escape") { e.preventDefault(); setEditingNickname(false); }
+                    if (e.key === "Escape") { e.preventDefault(); cancelEditingNickname(); }
                   }}
                   aria-label="Edit your name"
                   className="max-w-[220px] rounded-md border border-[var(--dash-violet)] bg-transparent px-1.5 py-0 text-2xl font-bold leading-tight tracking-[-0.04em] text-[var(--dash-ink)] outline-none md:text-[28px]"

@@ -2,10 +2,11 @@ import { Link, useLocation } from "wouter";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronDown, ChevronLeft, ChevronRight, Coins, Monitor, Moon, Sun, User,
+  ChevronDown, ChevronLeft, ChevronRight, Coins, Monitor, Moon, Pencil, Sun, User,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/theme-context";
+import { useEditableNickname } from "@/hooks/use-nickname";
 import {
   JOURNAL_SUBLINKS, PRIMARY_NAV, SECONDARY_NAV, breadcrumbFor, isJournalPath,
 } from "@/components/nav-config";
@@ -112,6 +113,10 @@ export function AppSidebar() {
 
   const toggleCollapsed = () => setCollapsed((c) => !c);
 
+  const {
+    nickname, initials, editing: editingNickname, draft: nicknameDraft, setDraft: setNicknameDraft,
+    startEditing: startEditingNickname, commit: commitNickname, cancel: cancelEditingNickname,
+  } = useEditableNickname();
   const { data: progress } = useQuery<{ goldTotal?: number; tasksCompleted?: number }>({
     queryKey: ["/api/progress"],
   });
@@ -126,14 +131,39 @@ export function AppSidebar() {
       className={`group fixed inset-y-0 left-0 z-50 hidden w-[var(--dash-sidebar-w)] flex-col border-r border-black/30 bg-[var(--dash-navy)] md:flex ${dragging ? "" : "transition-[width] duration-150"}`}
     >
       <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-5 ${collapsed ? "px-2" : "px-3.5"}`}>
-      <Link href="/dashboard">
-        <a className={`dash-focus mb-4 flex items-center gap-2.5 ${collapsed ? "justify-center px-0" : "px-2"}`}>
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#d8c4ff] to-[#7c5dff] text-[13px] font-black text-[#0d1325]">
-            AB
-          </span>
-          {!collapsed && <span className="truncate text-[15px] font-bold tracking-tight text-white">Alex B</span>}
-        </a>
-      </Link>
+      <div className={`mb-4 flex min-w-0 items-center gap-2.5 ${collapsed ? "justify-center px-0" : "px-2"}`}>
+        <Link href="/dashboard">
+          <a className="dash-focus grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#d8c4ff] to-[#7c5dff] text-[13px] font-black text-[#0d1325]">
+            {initials}
+          </a>
+        </Link>
+        {!collapsed && (
+          editingNickname ? (
+            <input
+              autoFocus
+              value={nicknameDraft}
+              onChange={(e) => setNicknameDraft(e.target.value)}
+              onBlur={commitNickname}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitNickname(); }
+                if (e.key === "Escape") { e.preventDefault(); cancelEditingNickname(); }
+              }}
+              aria-label="Edit your name"
+              className="dash-focus min-w-0 flex-1 rounded-md border border-[var(--dash-violet)] bg-white/5 px-1.5 py-0.5 text-[15px] font-bold text-white outline-none"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={startEditingNickname}
+              title="Click to edit your name"
+              className="dash-focus group flex min-w-0 items-center gap-1.5 truncate text-[15px] font-bold tracking-tight text-white"
+            >
+              <span className="truncate">{nickname}</span>
+              <Pencil aria-hidden className="h-3 w-3 shrink-0 text-[var(--dash-navy-ink)] opacity-0 transition-opacity group-hover:opacity-100" />
+            </button>
+          )
+        )}
+      </div>
 
       {/* Gold + theme — the only status controls that used to live in the top bar */}
       <div className={`mb-4 flex items-center gap-1.5 ${collapsed ? "flex-col px-0" : "px-1"}`}>
