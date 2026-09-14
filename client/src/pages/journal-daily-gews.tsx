@@ -1,6 +1,4 @@
 import { useMemo, useState, useEffect } from "react";
-import { Link } from "wouter";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +9,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { HeartHandshake, ArrowLeft, Plus, Pencil, Trash2, X, Check, Sunrise, Trophy, Sparkle, CloudRain, Undo2, Redo2, Download } from "lucide-react";
+import { HeartHandshake, Plus, Pencil, Trash2, X, Check, Sunrise, Trophy, Sparkle, CloudRain, Undo2, Redo2, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useTheme } from "@/contexts/theme-context";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -21,6 +18,7 @@ import { AttachmentArea } from "@/components/attachment-area";
 import type { QuestAttachment } from "@/lib/attachments";
 import { rowsToCSV, downloadCSV, type CSVExport } from "@/lib/csv-export";
 import { useSwipeDownToClose } from "@/hooks/use-swipe-down-to-close";
+import { JournalShell, JournalBackLink, JournalHero, RelatedJournalNav } from "@/components/journal-ui";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-daily-gews-v1";
@@ -111,7 +109,6 @@ export function buildDailyGewsCSVExport(): CSVExport {
 }
 
 export default function JournalDailyGewsPage() {
-  const { isDark } = useTheme();
   const isMobile = useIsMobile();
   const { toast, dismiss } = useToast();
   const [entries, setEntries] = useState<GewsEntry[]>(loadEntries);
@@ -256,126 +253,107 @@ export default function JournalDailyGewsPage() {
   const totalItems = (e: GewsEntry) => e.gratitudes.length + e.wins.length + e.exciteds.length + e.sadnesses.length;
 
   return (
-    <div
-      className={`min-h-screen ${
-        isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"
-      } ${!isMobile ? "pt-16" : ""} pb-24 relative overflow-hidden`}
-    >
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          <Link href="/journal">
-            <a className="inline-flex items-center gap-1 text-yellow-200/70 hover:text-yellow-100 text-sm mb-4">
-              <ArrowLeft className="h-4 w-4" /> Back to Journal
-            </a>
-          </Link>
+    <JournalShell>
+      <JournalBackLink />
+      <JournalHero
+        eyebrow="Gratitudes · Wins · Exciteds · Sadnesses"
+        title="Daily GEWS,"
+        emphasis="one entry a day."
+        copy="A short daily check-in: what you're grateful for, what went well, what you're excited about, and what's weighing on you."
+        statValue={`${sortedDesc.length} ${sortedDesc.length === 1 ? "day" : "days"}`}
+        statLabel="logged"
+      />
+      <RelatedJournalNav />
 
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <HeartHandshake className="h-10 w-10 text-amber-400" />
-              <h1 className={`${isMobile ? "text-2xl" : "text-4xl"} font-serif font-bold text-yellow-100`}>Daily GEWS</h1>
-            </div>
-            <p className="text-yellow-200/70 text-lg">Gratitudes · Wins · Exciteds · Sadnesses — one entry per day</p>
-          </div>
-
-          <div className="flex flex-wrap justify-center items-center gap-2 mb-6">
-            <Button onClick={openAdd} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
-              <Plus className="h-4 w-4 mr-1.5" /> New Entry
-            </Button>
-            <Button
-              onClick={handleExport}
-              variant="outline"
-              disabled={entries.length === 0}
-              className="bg-slate-800/60 border-amber-600/40 text-amber-200 hover:bg-amber-600/20 hover:text-amber-100 hover:border-amber-500/60 shrink-0"
-            >
-              <Download className="h-4 w-4 mr-1.5" /> Export CSV
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!lastUndo}
-              onClick={() => lastUndo?.undo()}
-              title={lastUndo?.label || "No changes to undo"}
-              className={`shrink-0 ${lastUndo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
-            >
-              <Undo2 className="h-4 w-4 mr-1.5" /> Undo
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!lastRedo}
-              onClick={() => lastRedo?.redo()}
-              title={lastRedo?.label ? `Redo: ${lastRedo.label}` : "No changes to redo"}
-              className={`shrink-0 ${lastRedo ? "border-amber-500/60 text-amber-300 hover:bg-amber-600/20 hover:text-amber-100" : "border-slate-700 text-slate-600"}`}
-            >
-              <Redo2 className="h-4 w-4 mr-1.5" /> Redo
-            </Button>
-          </div>
-
-          <p className="text-amber-300/60 text-sm mb-3">
-            {sortedDesc.length} {sortedDesc.length === 1 ? "day" : "days"} logged
-          </p>
-
-          {/* List */}
-          {sortedDesc.length === 0 ? (
-            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-amber-600/40">
-              <CardContent className="p-12 text-center">
-                <HeartHandshake className="h-16 w-16 text-amber-400/40 mx-auto mb-4" />
-                <h3 className="text-lg font-serif font-bold text-amber-100 mb-1">No entries yet</h3>
-                <p className="text-amber-300/70 text-sm mb-5">Log today's gratitudes, wins, exciteds and sadnesses.</p>
-                <Button onClick={openAdd} className="bg-amber-600 hover:bg-amber-500 text-white">
-                  <Plus className="h-4 w-4 mr-1.5" /> New Entry
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {sortedDesc.map((e) => (
-                <Card
-                  key={e.date}
-                  className="bg-slate-800/60 backdrop-blur-md border border-amber-600/30 hover:border-amber-500/60 transition-colors group cursor-pointer"
-                  onClick={() => openEdit(e)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-amber-50 font-semibold font-serif">{fmtDateFull(e.date)}</h3>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); openEdit(e); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-amber-300"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); setConfirmDeleteDate(e.date); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-red-400"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      {CATEGORY_ORDER.map((cat) => {
-                        const meta = CATEGORY_META[cat];
-                        const Icon = meta.icon;
-                        return (
-                          <div key={cat} className="flex items-center gap-1.5 text-slate-400">
-                            <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: meta.color }} />
-                            <span>{meta.label} ({e[cat].length})</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {totalItems(e) === 0 && (
-                      <p className="mt-2 text-xs text-slate-500 italic">Empty entry — click to add.</p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <Button onClick={openAdd} className="bg-[var(--jrnl-sage)] font-semibold text-white hover:bg-[var(--jrnl-sage-deep)]">
+          <Plus className="mr-1.5 h-4 w-4" /> New entry
+        </Button>
+        <span className="flex-1" />
+        <Button
+          onClick={handleExport}
+          variant="outline"
+          disabled={entries.length === 0}
+          className="shrink-0 border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] text-[var(--jrnl-muted)] hover:border-[var(--jrnl-sage)] hover:text-[var(--jrnl-sage-deep)]"
+        >
+          <Download className="mr-1.5 h-4 w-4" /> Export CSV
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!lastUndo}
+          onClick={() => lastUndo?.undo()}
+          title={lastUndo?.label || "No changes to undo"}
+          className="shrink-0 border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] text-[var(--jrnl-muted)] hover:border-[var(--jrnl-sage)] hover:text-[var(--jrnl-sage-deep)] disabled:opacity-40"
+        >
+          <Undo2 className="mr-1.5 h-4 w-4" /> Undo
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!lastRedo}
+          onClick={() => lastRedo?.redo()}
+          title={lastRedo?.label ? `Redo: ${lastRedo.label}` : "No changes to redo"}
+          className="shrink-0 border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] text-[var(--jrnl-muted)] hover:border-[var(--jrnl-sage)] hover:text-[var(--jrnl-sage-deep)] disabled:opacity-40"
+        >
+          <Redo2 className="mr-1.5 h-4 w-4" /> Redo
+        </Button>
       </div>
+
+      {/* List */}
+      {sortedDesc.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--jrnl-line)] bg-[var(--jrnl-paper)]/40 p-12 text-center">
+          <HeartHandshake aria-hidden className="mx-auto mb-3 h-9 w-9 text-[var(--jrnl-sage)] opacity-50" />
+          <h2 className="jrnl-display text-[26px] text-[var(--jrnl-ink)]">No entries yet</h2>
+          <p className="mt-1 text-xs text-[var(--jrnl-muted)]">Log today's gratitudes, wins, exciteds and sadnesses.</p>
+          <Button onClick={openAdd} className="mt-4 bg-[var(--jrnl-sage)] text-white hover:bg-[var(--jrnl-sage-deep)]">
+            <Plus className="mr-1.5 h-4 w-4" /> New entry
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {sortedDesc.map((e) => (
+            <article
+              key={e.date}
+              className="group cursor-pointer rounded-lg border border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] p-4 transition-colors hover:shadow-[var(--jrnl-shadow)]"
+              onClick={() => openEdit(e)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="jrnl-display text-[19px] text-[var(--jrnl-ink)]">{fmtDateFull(e.date)}</h3>
+                <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); openEdit(e); }}
+                    className="dash-focus rounded-md p-1.5 text-[var(--jrnl-muted)] hover:bg-[var(--jrnl-sage-soft)] hover:text-[var(--jrnl-sage-deep)]"
+                    title="Edit"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); setConfirmDeleteDate(e.date); }}
+                    className="dash-focus rounded-md p-1.5 text-[var(--jrnl-muted)] hover:bg-[var(--jrnl-rose-soft)] hover:text-[var(--jrnl-rose)]"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                {CATEGORY_ORDER.map((cat) => {
+                  const meta = CATEGORY_META[cat];
+                  const Icon = meta.icon;
+                  return (
+                    <div key={cat} className="flex items-center gap-1.5 text-[var(--jrnl-muted)]">
+                      <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: meta.color }} />
+                      <span>{meta.label} ({e[cat].length})</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {totalItems(e) === 0 && (
+                <p className="mt-2 text-xs italic text-[var(--jrnl-muted)]">Empty entry — click to add.</p>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -515,6 +493,6 @@ export default function JournalDailyGewsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </JournalShell>
   );
 }

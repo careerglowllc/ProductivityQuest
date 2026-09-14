@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,20 +29,9 @@ import {
   FileType,
   CheckSquare,
   Square,
-  HeartHandshake,
-  Sparkles,
-  BookMarked,
-  Trophy,
-  Compass,
-  Dumbbell,
-  ChefHat,
-  Heart,
-  Zap,
-  ClipboardList,
 } from "lucide-react";
-import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useTheme } from "@/contexts/theme-context";
+import { JournalShell, JournalHero, RelatedJournalNav } from "@/components/journal-ui";
 
 // ── Constants ───────────────────────────────────────────────
 const STORAGE_KEY = "journal-v1";
@@ -59,20 +47,6 @@ type Essay = {
 
 const EMPTY: Essay = { id: "", title: "", body: "", createdAt: "", updatedAt: "" };
 
-// Small dashboard buttons shown under the Journal header — mirrors the desktop nav's
-// Journal dropdown so every related page is reachable from the page itself too.
-const SUBPAGE_LINKS: { label: string; path: string; icon: typeof BookOpen }[] = [
-  { label: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake },
-  { label: "Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles },
-  { label: "Gratitude Journal", path: "/journal/gratitude", icon: Heart },
-  { label: "Excitement Journal", path: "/journal/excitement", icon: Zap },
-  { label: "Weekly Deep Planning", path: "/journal/weekly-planning", icon: ClipboardList },
-  { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked },
-  { label: "Accomplishments", path: "/accomplishments", icon: Trophy },
-  { label: "Explore", path: "/explore", icon: Compass },
-  { label: "Fitness", path: "/fitness", icon: Dumbbell },
-  { label: "Recipes", path: "/recipes", icon: ChefHat },
-];
 
 // ── Helpers ──────────────────────────────────────────────────
 function newId() {
@@ -166,7 +140,6 @@ async function exportPDF(essays: Essay[]) {
 
 // ── Component ────────────────────────────────────────────────
 export default function JournalPage() {
-  const { isDark } = useTheme();
   const isMobile = useIsMobile();
 
   const [essays, setEssays] = useState<Essay[]>(() => {
@@ -262,177 +235,152 @@ export default function JournalPage() {
   }
 
   return (
-    <div
-      className={`min-h-screen ${
-        isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"
-      } ${!isMobile ? "pt-16" : ""} pb-24 relative overflow-hidden`}
-    >
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <BookOpen className="h-10 w-10 text-amber-400" />
-              <h1 className="text-4xl font-serif font-bold text-yellow-100">Journal</h1>
-            </div>
-            <p className="text-yellow-200/70 text-lg">Your written essays &amp; reflections</p>
-          </div>
+    <JournalShell>
+      <JournalHero
+        eyebrow="Your written essays & reflections"
+        title="Journal,"
+        emphasis="in your own words."
+        copy="Long-form essays, reflections, and stories — the ideas worth writing all the way out."
+        statValue={`${essays.length} ${essays.length === 1 ? "essay" : "essays"}`}
+        statLabel="written so far"
+      />
+      <RelatedJournalNav />
 
-          {/* Related pages — small dashboard menu buttons */}
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
-            {SUBPAGE_LINKS.map(({ label, path, icon: Icon }) => (
-              <Link key={path} href={path}>
-                <a className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-slate-800/60 hover:border-amber-500/60 hover:bg-slate-700/90 text-amber-200/80 hover:text-amber-100 text-xs font-medium px-3 py-1.5 transition-colors">
-                  <Icon className="h-3.5 w-3.5 text-amber-400" />
-                  {label}
-                </a>
-              </Link>
-            ))}
-          </div>
-
-          {/* Toolbar */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search titles & text…"
-                className="pl-9 bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500"
-              />
-            </div>
+      {/* Toolbar */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search aria-hidden className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--jrnl-muted)]" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search titles & text…"
+            className="border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] pl-9 text-[var(--jrnl-ink)] placeholder:text-[var(--jrnl-muted)]"
+          />
+        </div>
+        <Button
+          onClick={openAdd}
+          className="shrink-0 bg-[var(--jrnl-sage)] font-semibold text-white hover:bg-[var(--jrnl-sage-deep)]"
+        >
+          <Plus className="mr-1.5 h-4 w-4" /> New essay
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
-              onClick={openAdd}
-              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold shrink-0"
+              variant="outline"
+              disabled={filtered.length === 0}
+              className="shrink-0 border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] text-[var(--jrnl-muted)] hover:border-[var(--jrnl-sage)] hover:text-[var(--jrnl-sage-deep)]"
             >
-              <Plus className="h-4 w-4 mr-1.5" /> New Essay
+              <Download className="mr-1.5 h-4 w-4" />
+              Export{someSelected ? ` (${selected.size})` : ""}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  disabled={filtered.length === 0}
-                  className="bg-slate-800/60 border-amber-600/40 text-amber-200 hover:bg-amber-600/20 hover:text-amber-100 hover:border-amber-500/60 shrink-0"
-                >
-                  <Download className="h-4 w-4 mr-1.5" />
-                  Export{someSelected ? ` (${selected.size})` : ""}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-800 border-amber-600/30 text-amber-50">
-                <DropdownMenuItem onClick={() => handleExport("csv")} className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
-                  <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-400" /> Export as CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("pdf")} className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
-                  <FileText className="h-4 w-4 mr-2 text-red-400" /> Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("word")} className="cursor-pointer hover:bg-slate-700 focus:bg-slate-700">
-                  <FileType className="h-4 w-4 mr-2 text-blue-400" /> Export as Word
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] text-[var(--jrnl-ink)]">
+            <DropdownMenuItem onClick={() => handleExport("csv")} className="cursor-pointer hover:bg-[var(--jrnl-sage-soft)]">
+              <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-500" /> Export as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport("pdf")} className="cursor-pointer hover:bg-[var(--jrnl-sage-soft)]">
+              <FileText className="h-4 w-4 mr-2 text-red-500" /> Export as PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport("word")} className="cursor-pointer hover:bg-[var(--jrnl-sage-soft)]">
+              <FileType className="h-4 w-4 mr-2 text-blue-500" /> Export as Word
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-          {/* Count + select all */}
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-amber-300/60 text-sm">
-              {filtered.length} {filtered.length === 1 ? "essay" : "essays"}
-              {someSelected && ` · ${selected.size} selected`}
-              {search.trim() && ` matching “${search.trim()}”`}
-            </p>
-            {filtered.length > 0 && (
-              <button
-                onClick={toggleSelectAll}
-                className="flex items-center gap-1.5 text-xs text-amber-300/80 hover:text-amber-100 transition-colors"
-              >
-                {allSelected ? (
-                  <CheckSquare className="h-4 w-4 text-amber-400" />
-                ) : (
-                  <Square className="h-4 w-4" />
-                )}
-                {allSelected ? "Deselect all" : "Select all"}
-              </button>
+      {/* Count + select all */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="dash-mono normal-case text-[var(--jrnl-muted)]">
+          {filtered.length} {filtered.length === 1 ? "essay" : "essays"}
+          {someSelected && ` · ${selected.size} selected`}
+          {search.trim() && ` matching “${search.trim()}”`}
+        </p>
+        {filtered.length > 0 && (
+          <button
+            onClick={toggleSelectAll}
+            className="dash-focus flex items-center gap-1.5 text-xs text-[var(--jrnl-muted)] transition-colors hover:text-[var(--jrnl-sage-deep)]"
+          >
+            {allSelected ? (
+              <CheckSquare className="h-4 w-4 text-[var(--jrnl-sage)]" />
+            ) : (
+              <Square className="h-4 w-4" />
             )}
-          </div>
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+        )}
+      </div>
 
-          {/* Grid */}
-          {filtered.length === 0 ? (
-            <Card className="bg-slate-800/60 backdrop-blur-md border-2 border-amber-600/40">
-              <CardContent className="p-12 text-center">
-                <FileText className="h-16 w-16 text-amber-400/40 mx-auto mb-4" />
-                <h3 className="text-lg font-serif font-bold text-amber-100 mb-1">
-                  {search.trim() ? "No matches" : "Your journal is empty"}
-                </h3>
-                <p className="text-amber-300/70 text-sm mb-5">
-                  {search.trim()
-                    ? "Try a different search term."
-                    : "Start your first essay to capture an idea, story, or reflection."}
-                </p>
-                {!search.trim() && (
-                  <Button onClick={openAdd} className="bg-amber-600 hover:bg-amber-500 text-white">
-                    <Plus className="h-4 w-4 mr-1.5" /> New Essay
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-4">
-              {filtered.map((e) => (
-                <Card
-                  key={e.id}
-                  className={`bg-slate-800/60 backdrop-blur-md border transition-colors group cursor-pointer ${
-                    selected.has(e.id)
-                      ? "border-amber-500/70 ring-1 ring-amber-500/40"
-                      : "border-amber-600/30 hover:border-amber-500/60"
-                  }`}
-                  onClick={() => openEdit(e)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); toggleSelect(e.id); }}
-                          className="mt-0.5 shrink-0 text-slate-400 hover:text-amber-300"
-                          title={selected.has(e.id) ? "Deselect" : "Select"}
-                        >
-                          {selected.has(e.id) ? (
-                            <CheckSquare className="h-4 w-4 text-amber-400" />
-                          ) : (
-                            <Square className="h-4 w-4" />
-                          )}
-                        </button>
-                        <h3 className="text-amber-50 font-semibold font-serif truncate">{e.title}</h3>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); openEdit(e); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-amber-300"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); setConfirmDeleteId(e.id); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-red-400"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-sm text-slate-400 line-clamp-3 min-h-[3.5rem]">
-                      {snippet(e.body) || "Empty essay — click to write…"}
-                    </p>
-                    <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500">
-                      <span>{wordCount(e.body)} words</span>
-                      <span>· Updated {fmtDate(e.updatedAt)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+      {/* Grid */}
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--jrnl-line)] bg-[var(--jrnl-paper)]/40 p-12 text-center">
+          <FileText aria-hidden className="mx-auto mb-3 h-9 w-9 text-[var(--jrnl-sage)] opacity-50" />
+          <h2 className="jrnl-display text-[26px] text-[var(--jrnl-ink)]">
+            {search.trim() ? "No matches" : "Your journal is empty"}
+          </h2>
+          <p className="mt-1 text-xs text-[var(--jrnl-muted)]">
+            {search.trim()
+              ? "Try a different search term."
+              : "Start your first essay to capture an idea, story, or reflection."}
+          </p>
+          {!search.trim() && (
+            <Button onClick={openAdd} className="mt-4 bg-[var(--jrnl-sage)] text-white hover:bg-[var(--jrnl-sage-deep)]">
+              <Plus className="mr-1.5 h-4 w-4" /> New essay
+            </Button>
           )}
         </div>
-      </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {filtered.map((e) => (
+            <article
+              key={e.id}
+              className={`group cursor-pointer rounded-lg border bg-[var(--jrnl-paper)] p-4 transition-colors hover:shadow-[var(--jrnl-shadow)] ${
+                selected.has(e.id) ? "border-[var(--jrnl-rose)] ring-1 ring-[var(--jrnl-rose)]/40" : "border-[var(--jrnl-line)]"
+              }`}
+              onClick={() => openEdit(e)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); toggleSelect(e.id); }}
+                    className="dash-focus mt-0.5 shrink-0 text-[var(--jrnl-muted)] hover:text-[var(--jrnl-sage-deep)]"
+                    title={selected.has(e.id) ? "Deselect" : "Select"}
+                  >
+                    {selected.has(e.id) ? (
+                      <CheckSquare className="h-4 w-4 text-[var(--jrnl-rose)]" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                  <h3 className="jrnl-display truncate text-[19px] text-[var(--jrnl-ink)]">{e.title}</h3>
+                </div>
+                <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); openEdit(e); }}
+                    className="dash-focus rounded-md p-1.5 text-[var(--jrnl-muted)] hover:bg-[var(--jrnl-sage-soft)] hover:text-[var(--jrnl-sage-deep)]"
+                    title="Edit"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); setConfirmDeleteId(e.id); }}
+                    className="dash-focus rounded-md p-1.5 text-[var(--jrnl-muted)] hover:bg-[var(--jrnl-rose-soft)] hover:text-[var(--jrnl-rose)]"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p className="mt-2 min-h-[3.5rem] text-sm text-[var(--jrnl-muted)] line-clamp-3">
+                {snippet(e.body) || "Empty essay — click to write…"}
+              </p>
+              <div className="mt-2 flex items-center gap-3 text-[11px] text-[var(--jrnl-muted)]">
+                <span>{wordCount(e.body)} words</span>
+                <span>· Updated {fmtDate(e.updatedAt)}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -498,6 +446,6 @@ export default function JournalPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </JournalShell>
   );
 }

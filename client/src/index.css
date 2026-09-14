@@ -544,6 +544,59 @@ html.light {
   font-size: clamp(12px, calc(6px + var(--dash-sidebar-w) * 0.027), 18px);
 }
 
+/* ═════════════════════════════════════════════════════════════
+   JOURNAL — editorial "quiet paper" design tokens + shell
+   Warm paper, muted sage, dusty rose. Theme-aware like --dash-*: light
+   values are the primary/reference look, dark values are a deep-paper
+   equivalent for users who keep the app in dark mode.
+══════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  --jrnl-bg: #211d2b;
+  --jrnl-paper: #2a2438;
+  --jrnl-paper-2: #332c45;
+  --jrnl-ink: #f3efe9;
+  --jrnl-muted: #b6aec2;
+  --jrnl-line: rgba(214, 202, 226, 0.16);
+  --jrnl-sage: #7fb39e;
+  --jrnl-sage-deep: #9fd0bc;
+  --jrnl-sage-soft: rgba(127, 179, 158, 0.16);
+  --jrnl-rose: #e08b8d;
+  --jrnl-rose-soft: rgba(224, 139, 141, 0.16);
+  --jrnl-ochre: #d9ab63;
+  --jrnl-shadow: 0 14px 36px rgba(10, 8, 16, 0.32);
+}
+
+html.light {
+  --jrnl-bg: #f4f0ea;
+  --jrnl-paper: #fffdf8;
+  --jrnl-paper-2: #fbf8f1;
+  --jrnl-ink: #27333b;
+  --jrnl-muted: #78817e;
+  --jrnl-line: #dedbd1;
+  --jrnl-sage: #557b6b;
+  --jrnl-sage-deep: #376154;
+  --jrnl-sage-soft: #e3eee7;
+  --jrnl-rose: #bf6e70;
+  --jrnl-rose-soft: #f8e7e2;
+  --jrnl-ochre: #c79447;
+  --jrnl-shadow: 0 14px 36px rgba(42, 52, 55, 0.08);
+}
+
+.jrnl-display {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-style: normal;
+}
+.jrnl-content {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 16px 96px;
+}
+@media (min-width: 640px) {
+  .jrnl-content { padding: 0 24px 80px; }
+}
+
 /* Progress meters */
 .dash-meter {
   height: 6px;
