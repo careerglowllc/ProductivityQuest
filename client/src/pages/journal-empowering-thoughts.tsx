@@ -18,6 +18,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { AttachmentArea } from "@/components/attachment-area";
 import type { QuestAttachment } from "@/lib/attachments";
 import { useSwipeDownToClose } from "@/hooks/use-swipe-down-to-close";
+import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 import { JournalShell, JournalBackLink, JournalHero, RelatedJournalNav } from "@/components/journal-ui";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
@@ -51,6 +52,14 @@ function loadThoughts(): Thought[] {
     if (raw) return JSON.parse(raw);
   } catch { /* ignore */ }
   return [];
+}
+
+// Pure builder (no side effects) so the Journal hub's/Settings' "Export All" master export can reuse it.
+export function buildEmpoweringThoughtsCSVExport(): CSVExport {
+  const thoughts = loadThoughts();
+  const headers = ["Title", "Description", "Date Added", "Last Modified"];
+  const rows = thoughts.map((t) => [t.title, t.description, fmtDate(t.createdAt), fmtDate(t.updatedAt)]);
+  return { folder: "Journal", filename: "empowering-thoughts.csv", content: rowsToCSV(headers, rows) };
 }
 
 export default function JournalEmpoweringThoughtsPage() {

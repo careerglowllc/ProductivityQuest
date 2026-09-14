@@ -2,12 +2,12 @@ import { Link, useLocation } from "wouter";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronDown, ChevronLeft, ChevronRight, Coins, Monitor, Moon, Sun, User,
+  ChevronLeft, ChevronRight, Coins, Monitor, Moon, Sun, User,
 } from "lucide-react";
 import { useTheme } from "@/contexts/theme-context";
 import { useNickname } from "@/hooks/use-nickname";
 import {
-  JOURNAL_SUBLINKS, PRIMARY_NAV, SECONDARY_NAV, breadcrumbFor, isJournalPath,
+  PRIMARY_NAV, SECONDARY_NAV, breadcrumbFor, isJournalPath,
 } from "@/components/nav-config";
 
 const SIDEBAR_MIN_W = 220;
@@ -54,7 +54,6 @@ function RailSectionLabel({ children }: { children: React.ReactNode }) {
 export function AppSidebar() {
   const [location] = useLocation();
   const { preference, cycleTheme, isDark } = useTheme();
-  const [journalOpen, setJournalOpen] = useState(() => isJournalPath(location));
 
   const [expandedWidth, setExpandedWidth] = useState<number>(() => {
     const saved = Number(localStorage.getItem("pq-sidebar-width"));
@@ -160,39 +159,10 @@ export function AppSidebar() {
 
       <nav className="flex flex-col gap-1">
         {PRIMARY_NAV.map((link) => {
-          if (link.label === "Journal") {
-            const active = isJournalPath(location);
-            return (
-              <div key={link.path}>
-                <div className="flex items-center gap-1">
-                  <div className="min-w-0 flex-1">
-                    <RailLink {...link} active={active} collapsed={collapsed} />
-                  </div>
-                  {!collapsed && (
-                    <button
-                      type="button"
-                      onClick={() => setJournalOpen((o) => !o)}
-                      aria-expanded={journalOpen}
-                      aria-label={journalOpen ? "Collapse journal pages" : "Expand journal pages"}
-                      className="dash-focus grid h-8 w-7 shrink-0 place-items-center rounded-md text-[var(--dash-muted)] transition-colors hover:bg-[var(--dash-surface-2)] hover:text-[var(--dash-ink)]"
-                    >
-                      <ChevronDown aria-hidden className={`h-4 w-4 transition-transform ${journalOpen ? "rotate-180" : ""}`} />
-                    </button>
-                  )}
-                </div>
-                {!collapsed && journalOpen && (
-                  <div className="mt-[3px] flex flex-col gap-[2px]">
-                    {JOURNAL_SUBLINKS.map((sub) => (
-                      <RailLink key={sub.path} {...sub} active={location === sub.path} indent />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          }
           const active =
-            location === link.path ||
-            (link.path === "/tasks" && location === "/campaigns");
+            link.label === "Journal"
+              ? isJournalPath(location)
+              : location === link.path || (link.path === "/tasks" && location === "/campaigns");
           return <RailLink key={link.path} {...link} active={active} collapsed={collapsed} />;
         })}
 

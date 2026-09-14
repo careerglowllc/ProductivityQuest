@@ -27,10 +27,20 @@ import {
   Download,
   FileSpreadsheet,
   FileType,
+  FileArchive,
   CheckSquare,
   Square,
+  Loader2,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
+import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
+import { buildDailyGewsCSVExport } from "@/pages/journal-daily-gews";
+import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
+import { buildExcitementCSVExport } from "@/pages/journal-excitement";
+import { buildEmpoweringThoughtsCSVExport } from "@/pages/journal-empowering-thoughts";
+import { buildWeeklyPlanningCSVExport } from "@/pages/journal-weekly-planning";
+import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 import { JournalShell, JournalHero, RelatedJournalNav } from "@/components/journal-ui";
 
 // ── Constants ───────────────────────────────────────────────
@@ -82,6 +92,20 @@ function downloadBlob(blob: Blob, filename: string) {
 const stamp = () => new Date().toISOString().slice(0, 10);
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Pure builder (no side effects) so a master "Export all journal sections" zip can reuse it.
+export function buildJournalCSVExport(): CSVExport {
+  const essays: Essay[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  })();
+  const headers = ["Title", "Body", "Words", "Date Added", "Last Modified"];
+  const rows = essays.map((e) => [e.title, e.body, wordCount(e.body), fmtDate(e.createdAt), fmtDate(e.updatedAt)]);
+  return { folder: "Journal", filename: "journal-essays.csv", content: rowsToCSV(headers, rows) };
+}
 
 // CSV — one row per essay
 function exportCSV(essays: Essay[]) {
@@ -141,6 +165,7 @@ async function exportPDF(essays: Essay[]) {
 // ── Component ────────────────────────────────────────────────
 export default function JournalPage() {
   const isMobile = useIsMobile();
+  const { toast } = useToast();
 
   const [essays, setEssays] = useState<Essay[]>(() => {
     try {
@@ -155,6 +180,7 @@ export default function JournalPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [exportingAll, setExportingAll] = useState(false);
 
   // Pick up essays added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => {
@@ -203,6 +229,35 @@ export default function JournalPage() {
     if (kind === "csv") exportCSV(target);
     else if (kind === "word") exportWord(target);
     else void exportPDF(target);
+  }
+
+  // Bundles every journal section (this hub's essays + all 6 sub-journals) into one zip,
+  // so you don't have to visit each page individually to back everything up.
+  async function exportAllJournal() {
+    setExportingAll(true);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const exports = [
+        buildJournalCSVExport(),
+        buildDailyGewsCSVExport(),
+        buildGratitudeCSVExport(),
+        buildExcitementCSVExport(),
+        buildEmpoweringThoughtsCSVExport(),
+        buildWeeklyPlanningCSVExport(),
+        buildReferenceBeliefsCSVExport(),
+      ];
+      for (const exp of exports) {
+        zip.folder(exp.folder)!.file(exp.filename, exp.content);
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(blob, `journal-export-${stamp()}.zip`);
+      toast({ title: "Export complete!", description: `Bundled all ${exports.length} journal sections into a zip.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err?.message || "Something went wrong.", variant: "destructive" });
+    } finally {
+      setExportingAll(false);
+    }
   }
 
   function openAdd() {
@@ -283,6 +338,18 @@ export default function JournalPage() {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleExport("word")} className="cursor-pointer hover:bg-[var(--jrnl-sage-soft)]">
               <FileType className="h-4 w-4 mr-2 text-blue-500" /> Export as Word
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(e) => { e.preventDefault(); if (!exportingAll) void exportAllJournal(); }}
+              disabled={exportingAll}
+              className="cursor-pointer hover:bg-[var(--jrnl-sage-soft)]"
+            >
+              {exportingAll ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin text-[var(--jrnl-sage-deep)]" />
+              ) : (
+                <FileArchive className="h-4 w-4 mr-2 text-[var(--jrnl-sage-deep)]" />
+              )}
+              {exportingAll ? "Exporting all sections…" : "Export all journal sections (zip)"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
