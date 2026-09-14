@@ -261,6 +261,11 @@ html.light [class*="bg-slate-700"] {
 html.light [class*="bg-slate-900\/"] {
   background-color: #f8fafc !important;
 }
+/* Solid bg-slate-900 (no opacity suffix) — used by Dialog/modal surfaces across the app.
+   Distinct from the translucent bg-slate-900/NN rule above (e.g. the fixed top nav overlay). */
+html.light [class*="bg-slate-900"]:not([class*="bg-slate-900\/"]) {
+  background-color: #ffffff !important;
+}
 /* Card gradients (purple/indigo tinted) → plain white in light mode */
 html.light [class*="from-purple-900"],
 html.light [class*="to-indigo-900"],
@@ -305,8 +310,21 @@ html.light [class*="text-yellow-300"],
 html.light [class*="text-yellow-400"] {
   color: #b45309 !important;
 }
+/* Amber accent (used by the journal pages' dialogs) — same treatment as yellow above.
+   "text-amber-50" is matched as an exact class token so it doesn't also catch "text-amber-500". */
+html.light [class~="text-amber-50"],
+html.light [class*="text-amber-100"],
+html.light [class*="text-amber-200"] {
+  color: #111827 !important;
+}
+html.light [class*="text-amber-300"],
+html.light [class*="text-amber-400"] {
+  color: #b45309 !important;
+}
 
-/* Very-light colored text: invisible on white → darkened to visible shade of same hue */
+/* Very-light colored text: invisible on white → darkened to visible shade of same hue.
+   The "-50" shade is matched as an exact class token (~=) so it doesn't also catch "-500". */
+html.light [class~="text-purple-50"],
 html.light [class*="text-purple-100"],
 html.light [class*="text-purple-200"] {
   color: #5b21b6 !important; /* purple-800 */
@@ -314,6 +332,7 @@ html.light [class*="text-purple-200"] {
 html.light [class*="text-purple-300"] {
   color: #6d28d9 !important; /* purple-700 */
 }
+html.light [class~="text-blue-50"],
 html.light [class*="text-blue-100"],
 html.light [class*="text-blue-200"] {
   color: #1e40af !important; /* blue-800 */
@@ -321,6 +340,7 @@ html.light [class*="text-blue-200"] {
 html.light [class*="text-blue-300"] {
   color: #1d4ed8 !important; /* blue-700 */
 }
+html.light [class~="text-cyan-50"],
 html.light [class*="text-cyan-100"],
 html.light [class*="text-cyan-200"] {
   color: #0e7490 !important; /* cyan-700 */
@@ -328,26 +348,32 @@ html.light [class*="text-cyan-200"] {
 html.light [class*="text-cyan-300"] {
   color: #0891b2 !important; /* cyan-600 */
 }
+html.light [class~="text-green-50"],
 html.light [class*="text-green-100"],
 html.light [class*="text-green-200"] {
   color: #15803d !important; /* green-700 */
 }
+html.light [class~="text-red-50"],
 html.light [class*="text-red-100"],
 html.light [class*="text-red-200"] {
   color: #b91c1c !important; /* red-700 */
 }
+html.light [class~="text-orange-50"],
 html.light [class*="text-orange-100"],
 html.light [class*="text-orange-200"] {
   color: #c2410c !important; /* orange-700 */
 }
+html.light [class~="text-pink-50"],
 html.light [class*="text-pink-100"],
 html.light [class*="text-pink-200"] {
   color: #be185d !important; /* pink-700 */
 }
+html.light [class~="text-teal-50"],
 html.light [class*="text-teal-100"],
 html.light [class*="text-teal-200"] {
   color: #0f766e !important; /* teal-700 */
 }
+html.light [class~="text-emerald-50"],
 html.light [class*="text-emerald-100"],
 html.light [class*="text-emerald-200"] {
   color: #047857 !important; /* emerald-700 */
@@ -361,6 +387,10 @@ html.light [class*="border-slate-800"] {
 }
 html.light [class*="border-yellow-600\/"],
 html.light [class*="border-yellow-500\/"] {
+  border-color: rgba(180, 83, 9, 0.3) !important;
+}
+html.light [class*="border-amber-600\/"],
+html.light [class*="border-amber-500\/"] {
   border-color: rgba(180, 83, 9, 0.3) !important;
 }
 
