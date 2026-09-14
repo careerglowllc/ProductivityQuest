@@ -11,13 +11,13 @@ import {
   JOURNAL_SUBLINKS, PRIMARY_NAV, SECONDARY_NAV, breadcrumbFor, isJournalPath,
 } from "@/components/nav-config";
 
-const SIDEBAR_MIN_W = 180;
-const SIDEBAR_MAX_W = 360;
-const SIDEBAR_DEFAULT_W = 236;
+const SIDEBAR_MIN_W = 220;
+const SIDEBAR_MAX_W = 420;
+const SIDEBAR_DEFAULT_W = 300;
 const SIDEBAR_COLLAPSED_W = 68;
 // Dragging the handle past this point (while still wider than the collapsed
 // rail) snaps to collapsed on release, mirroring VS Code / most app rails.
-const SIDEBAR_COLLAPSE_THRESHOLD = 130;
+const SIDEBAR_COLLAPSE_THRESHOLD = 150;
 
 function RailLink({
   label, path, icon: Icon, active, indent = false, collapsed = false,
@@ -27,15 +27,15 @@ function RailLink({
       <a
         aria-current={active ? "page" : undefined}
         title={collapsed ? label : undefined}
-        className={`dash-focus relative flex items-center gap-2.5 rounded-lg py-2.5 text-[13px] transition-colors ${
-          collapsed ? "justify-center px-0" : indent ? "pl-9 pr-3 text-[12px]" : "px-3"
+        className={`dash-focus dash-rail-text relative flex items-center gap-3 rounded-lg py-3 transition-colors ${
+          collapsed ? "justify-center px-0" : indent ? "pl-9 pr-3 text-[0.85em]" : "px-3.5"
         } ${
           active
             ? "bg-[var(--dash-violet-soft)] font-semibold text-[var(--dash-ink)] shadow-[inset_3px_0_0_var(--dash-violet)]"
             : "text-[var(--dash-muted)] hover:bg-[var(--dash-surface-2)] hover:text-[var(--dash-ink)]"
         }`}
       >
-        {!indent && <Icon aria-hidden className={`h-[17px] w-[17px] shrink-0 ${active ? "text-[var(--dash-violet)]" : ""}`} />}
+        {!indent && <Icon aria-hidden className={`dash-rail-icon shrink-0 ${active ? "text-[var(--dash-violet)]" : ""}`} />}
         {!collapsed && <span className="truncate">{label}</span>}
       </a>
     </Link>
@@ -131,10 +131,10 @@ export function AppSidebar() {
       aria-label="Primary"
       className={`group fixed inset-y-0 left-0 z-50 hidden w-[var(--dash-sidebar-w)] flex-col border-r border-[var(--dash-line)] bg-[var(--dash-surface)] md:flex ${dragging ? "" : "transition-[width] duration-150"}`}
     >
-      <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-5 ${collapsed ? "px-2" : "px-3.5"}`}>
-      <div className={`mb-4 flex min-w-0 items-center gap-2.5 ${collapsed ? "justify-center px-0" : "px-2"}`}>
+      <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-6 ${collapsed ? "px-2" : "px-4"}`}>
+      <div className={`mb-5 flex min-w-0 items-center gap-3 ${collapsed ? "justify-center px-0" : "px-2"}`}>
         <Link href="/dashboard">
-          <a className="dash-focus grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#d8c4ff] to-[#7c5dff] text-[13px] font-black text-[#0d1325]">
+          <a className="dash-focus dash-rail-brand-icon grid shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#d8c4ff] to-[#7c5dff] font-black text-[#0d1325]">
             {initials}
           </a>
         </Link>
@@ -150,42 +150,42 @@ export function AppSidebar() {
                 if (e.key === "Escape") { e.preventDefault(); cancelEditingNickname(); }
               }}
               aria-label="Edit your name"
-              className="dash-focus min-w-0 flex-1 rounded-md border border-[var(--dash-violet)] bg-[var(--dash-surface-2)] px-1.5 py-0.5 text-[15px] font-bold text-[var(--dash-ink)] outline-none"
+              className="dash-focus dash-rail-brand-text min-w-0 flex-1 rounded-md border border-[var(--dash-violet)] bg-[var(--dash-surface-2)] px-1.5 py-0.5 font-bold text-[var(--dash-ink)] outline-none"
             />
           ) : (
             <button
               type="button"
               onClick={startEditingNickname}
               title="Click to edit your name"
-              className="dash-focus group flex min-w-0 items-center gap-1.5 truncate text-[15px] font-bold tracking-tight text-[var(--dash-ink)]"
+              className="dash-focus dash-rail-brand-text group flex min-w-0 items-center gap-1.5 truncate font-bold tracking-tight text-[var(--dash-ink)]"
             >
               <span className="truncate">{nickname}</span>
-              <Pencil aria-hidden className="h-3 w-3 shrink-0 text-[var(--dash-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+              <Pencil aria-hidden className="h-[0.55em] w-[0.55em] shrink-0 text-[var(--dash-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           )
         )}
       </div>
 
       {/* Gold + theme — the only status controls that used to live in the top bar */}
-      <div className={`mb-4 flex items-center gap-1.5 ${collapsed ? "flex-col px-0" : "px-1"}`}>
+      <div className={`mb-5 flex items-center gap-2 ${collapsed ? "flex-col px-0" : "px-1"}`}>
         <div
           title={collapsed ? `${(progress?.goldTotal ?? 0).toLocaleString()} gold` : undefined}
-          className={`flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 ${collapsed ? "justify-center px-2 py-1.5" : "flex-1 px-3 py-1.5"}`}
+          className={`flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 ${collapsed ? "justify-center px-2 py-2" : "flex-1 px-3.5 py-2"}`}
         >
-          <Coins aria-hidden className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-          {!collapsed && <span className="text-[13px] font-bold text-amber-300">{(progress?.goldTotal ?? 0).toLocaleString()}</span>}
+          <Coins aria-hidden className="h-4 w-4 shrink-0 text-amber-400" />
+          {!collapsed && <span className="text-[15px] font-bold text-amber-300">{(progress?.goldTotal ?? 0).toLocaleString()}</span>}
         </div>
         <button
           onClick={cycleTheme}
           aria-label={`Theme: ${themeLabel}. Click to change.`}
           title={`Theme: ${themeLabel} — click to change`}
-          className="dash-focus grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--dash-line-strong)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] transition-colors hover:text-[var(--dash-ink)]"
+          className="dash-focus grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--dash-line-strong)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] transition-colors hover:text-[var(--dash-ink)]"
         >
-          <ThemeIcon aria-hidden className={`h-4 w-4 ${isDark ? "text-amber-300" : ""}`} />
+          <ThemeIcon aria-hidden className={`h-[18px] w-[18px] ${isDark ? "text-amber-300" : ""}`} />
         </button>
       </div>
 
-      <nav className="flex flex-col gap-[3px]">
+      <nav className="flex flex-col gap-1">
         {PRIMARY_NAV.map((link) => {
           if (link.label === "Journal") {
             const active = isJournalPath(location);
@@ -234,15 +234,15 @@ export function AppSidebar() {
         <Link href="/settings">
           <a
             title={collapsed ? displayName : undefined}
-            className={`dash-focus flex items-center gap-2.5 rounded-lg p-2 transition-colors hover:bg-[var(--dash-surface-2)] ${collapsed ? "justify-center" : ""}`}
+            className={`dash-focus flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-[var(--dash-surface-2)] ${collapsed ? "justify-center" : ""}`}
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f7bd61] to-[#ed688d] text-[#0a1020]">
-              <User aria-hidden className="h-4 w-4" />
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f7bd61] to-[#ed688d] text-[#0a1020]">
+              <User aria-hidden className="h-[18px] w-[18px]" />
             </span>
             {!collapsed && (
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12px] font-semibold text-[var(--dash-ink)]">{displayName}</span>
-                <span className="block truncate text-[11px] text-[var(--dash-muted)]">
+                <span className="block truncate text-[13px] font-semibold text-[var(--dash-ink)]">{displayName}</span>
+                <span className="block truncate text-[12px] text-[var(--dash-muted)]">
                   {(progress?.goldTotal ?? 0).toLocaleString()} gold · {(progress?.tasksCompleted ?? 0).toLocaleString()} quests done
                 </span>
               </span>
