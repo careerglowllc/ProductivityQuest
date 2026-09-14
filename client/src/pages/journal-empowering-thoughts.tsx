@@ -277,7 +277,7 @@ export default function JournalEmpoweringThoughtsPage() {
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent style={swipeStyle} className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div ref={isMobile ? swipeCallbackRef : undefined}>
+          <div ref={isMobile ? swipeCallbackRef : undefined} className="contents">
           {isMobile && (
             <div className="flex justify-center pb-2 -mt-1">
               <div className="w-12 h-1.5 rounded-full bg-amber-200/30" />

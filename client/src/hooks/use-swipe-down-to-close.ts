@@ -12,11 +12,19 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
  * Native `addEventListener` with `{ passive: false }` is required — iOS
  * WebView (Capacitor) registers React's synthetic onTouchMove as passive,
  * which can't call preventDefault() to stop the page from scrolling mid-drag.
+ *
+ * `baseTransform` must match whatever positioning transform DialogContent's
+ * own classes already apply (Radix's default centered dialog uses
+ * `translate(-50%, -50%)`) — the inline `style` this hook returns would
+ * otherwise silently replace that transform instead of adding to it, which
+ * pushes the dialog off-screen. Pass `""` for dialogs that override
+ * positioning to `left-0 top-0 translate-x-0 translate-y-0` (full-screen).
  */
 export function useSwipeDownToClose(
   open: boolean,
   onOpenChange: (open: boolean) => void,
   enabled: boolean,
+  baseTransform: string = "translate(-50%, -50%)",
 ) {
   const gestureRef = useRef<{
     startY: number;
@@ -146,12 +154,12 @@ export function useSwipeDownToClose(
   const style: CSSProperties | undefined = enabled
     ? offsetY > 0
       ? {
-          transform: `translateY(${offsetY}px)`,
+          transform: `${baseTransform} translateY(${offsetY}px)`,
           opacity: closing ? 0 : Math.max(1 - offsetY / (window.innerHeight * 0.6), 0.4),
           transition: closing ? "transform 0.22s ease-out, opacity 0.22s ease-out" : "none",
         }
       : {
-          transform: "translateY(0)",
+          transform: `${baseTransform} translateY(0)`,
           opacity: 1,
           transition: "transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.25s ease-out",
         }
