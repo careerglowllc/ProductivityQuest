@@ -328,56 +328,62 @@ html.light [class*="text-amber-400"] {
    The "-50" shade is matched as an exact class token (~=) so it doesn't also catch "-500". */
 html.light [class~="text-purple-50"],
 html.light [class*="text-purple-100"],
-html.light [class*="text-purple-200"] {
-  color: #5b21b6 !important; /* purple-800 */
-}
+html.light [class*="text-purple-200"],
 html.light [class*="text-purple-300"] {
-  color: #6d28d9 !important; /* purple-700 */
+  color: #5b21b6 !important; /* purple-800 */
 }
 html.light [class~="text-blue-50"],
 html.light [class*="text-blue-100"],
-html.light [class*="text-blue-200"] {
+html.light [class*="text-blue-200"],
+html.light [class*="text-blue-300"] {
   color: #1e40af !important; /* blue-800 */
 }
-html.light [class*="text-blue-300"] {
-  color: #1d4ed8 !important; /* blue-700 */
+html.light [class~="text-sky-50"],
+html.light [class*="text-sky-100"],
+html.light [class*="text-sky-200"],
+html.light [class*="text-sky-300"] {
+  color: #075985 !important; /* sky-800 */
 }
 html.light [class~="text-cyan-50"],
 html.light [class*="text-cyan-100"],
-html.light [class*="text-cyan-200"] {
-  color: #0e7490 !important; /* cyan-700 */
-}
+html.light [class*="text-cyan-200"],
 html.light [class*="text-cyan-300"] {
-  color: #0891b2 !important; /* cyan-600 */
+  color: #0e7490 !important; /* cyan-700 */
 }
 html.light [class~="text-green-50"],
 html.light [class*="text-green-100"],
-html.light [class*="text-green-200"] {
+html.light [class*="text-green-200"],
+html.light [class*="text-green-300"] {
   color: #15803d !important; /* green-700 */
 }
 html.light [class~="text-red-50"],
 html.light [class*="text-red-100"],
-html.light [class*="text-red-200"] {
+html.light [class*="text-red-200"],
+html.light [class*="text-red-300"] {
   color: #b91c1c !important; /* red-700 */
 }
 html.light [class~="text-orange-50"],
 html.light [class*="text-orange-100"],
-html.light [class*="text-orange-200"] {
+html.light [class*="text-orange-200"],
+html.light [class*="text-orange-300"] {
   color: #c2410c !important; /* orange-700 */
 }
 html.light [class~="text-pink-50"],
 html.light [class*="text-pink-100"],
-html.light [class*="text-pink-200"] {
+html.light [class*="text-pink-200"],
+html.light [class*="text-pink-300"] {
   color: #be185d !important; /* pink-700 */
 }
 html.light [class~="text-teal-50"],
 html.light [class*="text-teal-100"],
-html.light [class*="text-teal-200"] {
+html.light [class*="text-teal-200"],
+html.light [class*="text-teal-300"] {
   color: #0f766e !important; /* teal-700 */
 }
 html.light [class~="text-emerald-50"],
 html.light [class*="text-emerald-100"],
-html.light [class*="text-emerald-200"] {
+html.light [class*="text-emerald-200"],
+html.light [class*="text-emerald-300"] {
   color: #047857 !important; /* emerald-700 */
 }
 
