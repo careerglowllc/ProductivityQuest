@@ -2160,6 +2160,9 @@ export default function Finances() {
               </div>
               <p className="text-2xl font-bold text-red-300">{formatCurrency(totalExpenses)}</p>
               <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
+              {activeTab === "income-vs-expense" && (
+                <p className="text-[10px] text-slate-500/70 italic mt-0.5">Investment + True Expenses</p>
+              )}
             </CardContent>
           </Card>
           <Card className={`bg-slate-800/60 ${netCashFlow >= 0 ? "border-green-500/30" : "border-red-500/30"}`}>
