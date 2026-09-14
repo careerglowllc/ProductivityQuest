@@ -1430,8 +1430,8 @@ export default function Dashboard() {
         {/* Active questlines */}
         {renderQuestlines("mb-[18px]")}
 
-        {/* Quick links */}
-        <nav aria-label="Quick links" className="mb-[18px] grid grid-cols-4 gap-2 md:grid-cols-8">
+        {/* Quick links — mobile only; desktop already has these in the sidebar rail */}
+        <nav aria-label="Quick links" className="mb-[18px] grid grid-cols-4 gap-2 md:hidden">
           {quickLinks.map(({ label, path, icon: Icon }) => (
             <Link key={path} href={path}>
               <a className="dash-focus flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-[10px] border border-[var(--dash-line)] bg-[var(--dash-surface)] p-2 transition-colors hover:border-[var(--dash-violet)]">
