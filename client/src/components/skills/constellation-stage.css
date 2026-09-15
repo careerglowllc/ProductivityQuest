@@ -102,6 +102,61 @@
   display: none;
 }
 
+.constellation-stage .focus-scene,
+.constellation-stage .skill-transition-clone {
+  position: absolute;
+  inset: 0;
+}
+
+.constellation-stage .skill-transition-clone {
+  z-index: 9;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.constellation-stage .constellation-focus .constellation-pager {
+  z-index: 12;
+  top: 50%;
+  bottom: auto;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 50%;
+  background: rgba(38, 46, 78, .46);
+  color: rgba(255, 255, 255, .9);
+  font: 400 20px/1 ui-sans-serif, system-ui, sans-serif;
+  transform: translateY(-50%);
+  box-shadow: 0 8px 26px rgba(21, 27, 51, .2);
+  backdrop-filter: blur(10px);
+  transition: color .2s ease, background .2s ease, border-color .2s ease, transform .2s ease;
+}
+
+.constellation-stage .constellation-focus .constellation-pager.prev {
+  left: max(14px, env(safe-area-inset-left));
+}
+
+.constellation-stage .constellation-focus .constellation-pager.next {
+  right: max(14px, env(safe-area-inset-right));
+}
+
+.constellation-stage .constellation-focus .constellation-pager:hover,
+.constellation-stage .constellation-focus .constellation-pager:focus-visible {
+  color: #fff;
+  border-color: rgba(255, 255, 255, .62);
+  background: rgba(51, 61, 101, .78);
+}
+
+.constellation-stage .constellation-focus .constellation-pager.prev:hover {
+  transform: translate(-2px, -50%);
+}
+
+.constellation-stage .constellation-focus .constellation-pager.next:hover {
+  transform: translate(2px, -50%);
+}
+
 @media (max-width: 767px) {
   .constellation-stage .constellation-focus {
     overflow-y: auto;
@@ -181,6 +236,12 @@
   .constellation-stage .focus-low-controls {
     top: 12px;
     bottom: auto;
+  }
+
+  .constellation-stage .constellation-focus .constellation-pager {
+    width: 44px;
+    height: 44px;
+    background: rgba(30, 38, 68, .72);
   }
 }
 
@@ -374,6 +435,20 @@ html.light .constellation-stage .constellation-utility button:hover,
 html.light .constellation-stage .constellation-utility button:focus-visible {
   color: #11110f;
 }
+
+html.light .constellation-stage .constellation-focus .constellation-pager {
+  border-color: rgba(66, 63, 58, .24);
+  background: rgba(255, 253, 249, .78);
+  color: #4f4c47;
+  box-shadow: 0 8px 24px rgba(72, 67, 59, .13);
+}
+
+html.light .constellation-stage .constellation-focus .constellation-pager:hover,
+html.light .constellation-stage .constellation-focus .constellation-pager:focus-visible {
+  border-color: rgba(66, 63, 58, .5);
+  background: rgba(255, 253, 249, .96);
+}
+
 
 html.light .constellation-stage .focus-node:not(.available):not(.locked)::after {
   background: #1c1b19;
