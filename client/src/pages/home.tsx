@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, forwardRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, FolderOpen, Filter, MoreHorizontal, CalendarClock } from "lucide-react";
+import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2 } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -41,6 +41,35 @@ export async function buildTasksCSVExport(): Promise<CSVExport> {
   const content = await r.text();
   return { folder: "Tasks", filename: "tasks.csv", content };
 }
+
+/** Life OS filter chip — used for every quest filter so active state, sizing and
+ *  focus treatment stay identical across the plain chips and the dropdown triggers.
+ *  Forwards refs/props so it can be used directly as a Radix `DropdownMenuTrigger asChild`. */
+const FilterChip = forwardRef<HTMLButtonElement, {
+  label?: string; count?: number; active?: boolean; onClick?: () => void;
+  compact?: boolean; children?: React.ReactNode; className?: string;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>>(function FilterChip(
+  { label, count, active, compact, children, className = "", ...props }, ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      {...props}
+      className={`dash-focus inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border transition-colors ${
+        compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"
+      } ${
+        active
+          ? "border-[var(--dash-violet)] bg-[var(--dash-violet-soft)] font-semibold text-[var(--dash-ink)]"
+          : "border-transparent text-[var(--dash-muted)] hover:bg-[var(--dash-violet-soft)] hover:text-[var(--dash-ink)]"
+      } ${className}`}
+    >
+      {children}
+      {label}
+      {count !== undefined && <span className="opacity-60">{count}</span>}
+    </button>
+  );
+});
 
 export default function Home() {
   const [location] = useLocation();
@@ -1602,6 +1631,10 @@ export default function Home() {
   // Sorted list of unique assignees for the filter UI
   const assigneeList = Object.entries(filterCounts.byAssignee as Record<string, number>).sort((a, b) => b[1] - a[1]);
 
+  const momentumPct = (stats as any)?.totalToday > 0
+    ? Math.round(((stats as any).completedToday / (stats as any).totalToday) * 100)
+    : 0;
+
   // Filter tasks based on active filter and search query
   const getFilteredTasks = () => {
     let activeTasks = tasks.filter((task: any) => !task.completed);
@@ -1910,476 +1943,267 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   return (
-    <div className={`${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16 relative'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
-      {/* Starfield Background Effect - hidden on mobile for layout reliability */}
-      {!isMobile && (
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        <div className="absolute top-10 left-10 w-1 h-1 bg-yellow-200 rounded-full animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-40 left-1/4 w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-60 right-1/3 w-1 h-1 bg-yellow-200 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
-        <div className="absolute top-32 right-1/2 w-1 h-1 bg-blue-200 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
-      </div>
-      )}
+    <div className={`bg-[var(--dash-bg)] ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
 
-      {/* Header - desktop only, mobile has bottom nav */}
-      {!isMobile && (
-      <header className="bg-slate-900/80 backdrop-blur-md shadow-lg border-b border-yellow-600/30 sticky top-0 z-50 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-                <Link href="/dashboard">
-                  <a className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
-                    <Trophy className="text-yellow-400 w-8 h-8" />
-                    <h1 className="text-2xl font-serif font-bold text-yellow-100">QuestList</h1>
-                  </a>
-                </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-      )}
-
-      <div className={`${isMobile ? 'max-w-full h-full' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative'}`}>
+      <div className={`${isMobile ? 'max-w-full h-full' : 'mx-auto max-w-[1230px] px-4 sm:px-6 lg:px-8 py-8'}`}>
       {/* On mobile: inner flex container matching calendar Card pattern */}
       <div className={`${isMobile ? 'h-full flex flex-col overflow-hidden px-3' : ''}`}>
         {/* Pinned header area on mobile — does not scroll */}
         <div className={isMobile ? 'flex-shrink-0 overflow-hidden pb-1' : ''}>
-        {/* Your Quests Header */}
-        <div className={`flex flex-col ${isMobile ? 'gap-1.5 mb-1.5' : 'sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0'}`}>
-          <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-serif font-bold text-yellow-100`}>
-              Your Quests 
-              <span className={`ml-2 ${isMobile ? 'text-sm' : 'text-lg'} font-normal text-yellow-300/80`}>({filterCounts.all})</span>
-            </h2>
-            {!isMobile && <p className="text-yellow-200/70">Complete tasks to earn gold and unlock rewards</p>}
+        {/* Hero */}
+        {!isMobile ? (
+          <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+            <div className="min-w-0">
+              <p className="dash-mono text-[var(--dash-violet)]">Today's operating queue</p>
+              <h1 className="mt-1.5 text-[34px] font-bold leading-none tracking-[-0.045em] text-[var(--dash-ink)]">Quests</h1>
+              <p className="mt-2 text-sm text-[var(--dash-muted)]">Complete the work that compounds. Keep the next move visible.</p>
+            </div>
+            <div className="shrink-0 border-l border-[var(--dash-line)] pl-[22px]">
+              <p className="text-[25px] font-bold leading-none text-[var(--dash-ink)]">{momentumPct}%</p>
+              <p className="mt-1 text-[11px] text-[var(--dash-muted)]">today's momentum</p>
+            </div>
+          </header>
+        ) : (
+          <div className="mb-1.5 flex items-baseline justify-between gap-2">
+            <h1 className="text-lg font-bold tracking-tight text-[var(--dash-ink)]">
+              Quests <span className="text-sm font-normal text-[var(--dash-muted)]">({filterCounts.all})</span>
+            </h1>
+            <span className="dash-mono text-[var(--dash-muted)]">{momentumPct}% today</span>
           </div>
-          {isMobile ? (
-            /* Mobile: Search bar + Add/File buttons in one row */
-            <div className="flex items-center gap-1.5">
-              {/* Search — fills remaining space */}
-              <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-yellow-400/60 w-3.5 h-3.5" />
-                <Input
-                  placeholder="Search tasks..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-7 py-1 text-sm h-9 w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50 rounded-md"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-yellow-400/60 hover:text-yellow-300"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-              {/* Buttons — right side */}
-              <div className="relative shrink-0">
-                <Button 
-                  onClick={() => setShowAddMenu(!showAddMenu)}
-                  size="sm"
-                  className="flex items-center gap-1 h-9 px-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50 text-xs"
-                  title="Add"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  Add
-                </Button>
-                {showAddMenu && (
-                  <>
-                    <div className="fixed inset-0 z-[60]" onClick={() => setShowAddMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-[70] bg-slate-800 border border-yellow-600/40 rounded-lg shadow-xl overflow-hidden min-w-[160px]">
-                      <button
-                        className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-yellow-100 hover:bg-yellow-600/20 transition-colors"
-                        onClick={() => { setShowAddMenu(false); setShowAddTask(true); }}
-                      >
-                        <span>📝</span>
-                        <span>New Quest</span>
-                      </button>
-                      <div className="border-t border-yellow-600/20" />
-                      <button
-                        className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-yellow-100 hover:bg-purple-600/20 transition-colors"
-                        onClick={() => { setShowAddMenu(false); setShowAddQuestline(true); }}
-                      >
-                        <span>⚔️</span>
-                        <span>New Questline</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="relative shrink-0">
-                <Button 
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-1 h-9 px-3 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 text-xs"
-                  title="File Options"
-                  onClick={() => setShowFileMenu(!showFileMenu)}
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  File
-                </Button>
-                {showFileMenu && (
-                  <>
-                    {/* Backdrop to close menu */}
-                    <div className="fixed inset-0 z-[60]" onClick={() => setShowFileMenu(false)} />
-                    {/* Menu */}
-                    <div className="absolute top-full right-0 mt-1 z-[61] min-w-[180px] rounded-md border border-yellow-600/30 bg-slate-800 p-1 shadow-lg">
-                      <button
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
-                        onClick={() => { setShowFileMenu(false); handleImportPrepare(); }}
-                      >
-                        <Download className="w-4 h-4" />
-                        Import from Notion
-                      </button>
-                      <button
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-yellow-100 hover:bg-slate-700 active:bg-slate-600"
-                        onClick={() => { setShowFileMenu(false); handleExportPrepare(); }}
-                      >
-                        <Upload className="w-4 h-4" />
-                        Export to Notion
-                      </button>
-                      <button
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-emerald-200 hover:bg-slate-700 active:bg-slate-600"
-                        onClick={() => { setShowFileMenu(false); handleExportCSV(); }}
-                      >
-                        <FileSpreadsheet className="w-4 h-4" />
-                        Export as CSV
-                      </button>
-                      <button
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-emerald-200 hover:bg-slate-700 active:bg-slate-600"
-                        onClick={() => { setShowFileMenu(false); csvImportRef.current?.click(); }}
-                      >
-                        <Download className="w-4 h-4" />
-                        Import as CSV
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              {lastAction.type && (
-                <Button 
-                  onClick={handleUndo}
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-1 h-9 px-3 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 text-xs shrink-0"
-                  title="Undo"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 7v6h6"/>
-                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-                  </svg>
-                  Undo
-                </Button>
-              )}
-            </div>
-          ) : (
-            /* Desktop: Original button layout */
-            <div className="flex flex-wrap gap-3">
-              <div className="relative">
-                <Button 
-                  onClick={() => setShowAddMenu(!showAddMenu)}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white border border-green-400/50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  <span>Add</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </Button>
-                {showAddMenu && (
-                  <>
-                    <div className="fixed inset-0 z-[60]" onClick={() => setShowAddMenu(false)} />
-                    <div className="absolute left-0 top-full mt-1 z-[70] bg-slate-800 border border-yellow-600/40 rounded-lg shadow-xl overflow-hidden min-w-[180px]">
-                      <button
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm text-yellow-100 hover:bg-yellow-600/20 transition-colors"
-                        onClick={() => { setShowAddMenu(false); setShowAddTask(true); }}
-                      >
-                        <span>📝</span>
-                        <span>New Quest</span>
-                      </button>
-                      <div className="border-t border-yellow-600/20" />
-                      <button
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm text-yellow-100 hover:bg-purple-600/20 transition-colors"
-                        onClick={() => { setShowAddMenu(false); setShowAddQuestline(true); }}
-                      >
-                        <span>⚔️</span>
-                        <span>New Questline</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <Button 
-                onClick={handleCategorizeAll}
-                variant="outline"
-                className="flex items-center space-x-2 bg-purple-900/30 border-purple-500/40 text-purple-200 hover:bg-purple-600/30 hover:text-purple-100 hover:border-purple-500/60"
-              >
-                <Tag className="w-4 h-4" />
-                <span>Categorize All</span>
-              </Button>
-              {lastAction.type && (
-                <Button 
-                  onClick={handleUndo} 
-                  variant="outline"
-                  className="flex items-center space-x-2 bg-orange-900/30 border-orange-500/40 text-orange-200 hover:bg-orange-600/30 hover:text-orange-100 hover:border-orange-500/60"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                    <path d="M3 7v6h6"/>
-                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-                  </svg>
-                  <span>Undo {
-                    lastAction.type === 'complete' ? 'Complete' : 
-                    lastAction.type === 'append-notion' ? 'Append' : 
-                    lastAction.type === 'delete-notion' ? 'Delete' :
-                    lastAction.type === 'import-notion' ? 'Import' :
-                    lastAction.type === 'export-notion' ? 'Export' : ''
-                  }</span>
-                </Button>
-              )}
-              <Button onClick={handleImportPrepare} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">
-                <Download className="w-4 h-4" />
-                <span>Import ALL from Notion</span>
-              </Button>
-              <Button onClick={handleExportPrepare} variant="outline" className="flex items-center space-x-2 bg-slate-700/50 border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20 hover:text-yellow-100 hover:border-yellow-500/60">
-                <Upload className="w-4 h-4" />
-                <span>Export ALL to Notion</span>
-              </Button>
-              <Button onClick={handleExportCSV} variant="outline" className="flex items-center space-x-2 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 hover:text-emerald-100 hover:border-emerald-500/60">
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Export as CSV</span>
-              </Button>
-              <Button onClick={() => csvImportRef.current?.click()} variant="outline" className="flex items-center space-x-2 bg-emerald-700/50 border-emerald-600/40 text-emerald-200 hover:bg-emerald-600/20 hover:text-emerald-100 hover:border-emerald-500/60">
-                <Download className="w-4 h-4" />
-                <span>Import as CSV</span>
-              </Button>
-            </div>
-          )}
-        </div>
+        )}
 
-            {/* Search Bar — desktop only (mobile search is in header row) */}
-            {!isMobile && (
-            <Card className="p-4 mb-4 bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-yellow-400/60 w-4 h-4" />
-                <Input
-                  placeholder="Search tasks by title, description, category, or importance..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full bg-slate-700/50 border-yellow-600/20 text-yellow-100 placeholder:text-yellow-200/40 focus:border-yellow-500/50"
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-yellow-400/60 hover:text-yellow-300 hover:bg-slate-700/50"
-                  >
-                    ×
-                  </Button>
-                )}
-              </div>
-            </Card>
+        {/* Toolbar — search, primary add, and a single overflow menu for secondary actions */}
+        <div className={`flex items-center gap-2 rounded-[10px] border border-[var(--dash-line)] bg-[var(--dash-surface)] shadow-[var(--dash-shadow)] ${isMobile ? 'mb-1.5 p-1.5' : 'mb-3 p-3.5'}`}>
+          <div className="relative min-w-0 flex-1">
+            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--dash-muted)]" />
+            <Input
+              placeholder={isMobile ? "Search quests…" : "Search title, description, category, or questline…"}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search quests"
+              className="h-9 border-[var(--dash-line)] bg-[var(--dash-surface-2)] pl-9 pr-8 text-[var(--dash-ink)] placeholder:text-[var(--dash-muted)]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
+                className="dash-focus absolute right-2 top-1/2 -translate-y-1/2 rounded text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
+          </div>
+
+          {/* Undo stays a visible, contextual control — it is time-sensitive */}
+          {lastAction.type && (
+            <Button
+              onClick={handleUndo}
+              variant="outline"
+              className="h-9 shrink-0 gap-1.5 border-[var(--dash-amber)] bg-[var(--dash-amber-soft)] px-3 text-xs font-semibold text-[var(--dash-ink)]"
+              title="Undo last action"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+              </svg>
+              {!isMobile && <>Undo {
+                lastAction.type === 'complete' ? 'Complete' :
+                lastAction.type === 'append-notion' ? 'Append' :
+                lastAction.type === 'delete-notion' ? 'Delete' :
+                lastAction.type === 'import-notion' ? 'Import' :
+                lastAction.type === 'export-notion' ? 'Export' : ''
+              }</>}
+            </Button>
+          )}
+
+          {/* Add quest / questline */}
+          <div className="relative shrink-0">
+            <Button
+              onClick={() => setShowAddMenu(!showAddMenu)}
+              aria-expanded={showAddMenu}
+              className="h-9 gap-1.5 bg-[var(--dash-violet)] px-3 text-xs font-semibold text-white hover:opacity-90"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              {isMobile ? "Add" : "Add quest"}
+            </Button>
+            {showAddMenu && (
+              <>
+                <div className="fixed inset-0 z-[60]" onClick={() => setShowAddMenu(false)} />
+                <div className="absolute right-0 top-full z-[70] mt-1 min-w-[180px] overflow-hidden rounded-lg border border-[var(--dash-line)] bg-[var(--dash-surface)] p-1 shadow-lg">
+                  <button
+                    className="dash-focus flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--dash-ink)] hover:bg-[var(--dash-violet-soft)]"
+                    onClick={() => { setShowAddMenu(false); setShowAddTask(true); }}
+                  >
+                    <CheckSquare className="h-4 w-4 text-[var(--dash-violet)]" /> New quest
+                  </button>
+                  <button
+                    className="dash-focus flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--dash-ink)] hover:bg-[var(--dash-violet-soft)]"
+                    onClick={() => { setShowAddMenu(false); setShowAddQuestline(true); }}
+                  >
+                    <Trophy className="h-4 w-4 text-[var(--dash-violet)]" /> New questline
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Secondary actions — kept out of the way so they never compete with completing work */}
+          <div className="relative shrink-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowFileMenu(!showFileMenu)}
+              aria-expanded={showFileMenu}
+              aria-label="More actions"
+              title="More actions"
+              className="h-9 gap-1.5 border-[var(--dash-line)] bg-[var(--dash-surface)] px-3 text-xs font-semibold text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              {!isMobile && "More"}
+            </Button>
+            {showFileMenu && (
+              <>
+                <div className="fixed inset-0 z-[60]" onClick={() => setShowFileMenu(false)} />
+                <div className="absolute right-0 top-full z-[61] mt-1 min-w-[210px] rounded-lg border border-[var(--dash-line)] bg-[var(--dash-surface)] p-1 shadow-lg">
+                  <button
+                    className="dash-focus flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--dash-ink)] hover:bg-[var(--dash-violet-soft)]"
+                    onClick={() => { setShowFileMenu(false); handleCategorizeAll(); }}
+                  >
+                    <Tag className="h-4 w-4" /> Categorize all
+                  </button>
+                  <div className="my-1 border-t border-[var(--dash-line)]" />
+                  <button
+                    className="dash-focus flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--dash-ink)] hover:bg-[var(--dash-violet-soft)]"
+                    onClick={() => { setShowFileMenu(false); handleImportPrepare(); }}
+                  >
+                    <Download className="h-4 w-4" /> Import from Notion
+                  </button>
+                  <button
+                    className="dash-focus flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--dash-ink)] hover:bg-[var(--dash-violet-soft)]"
+                    onClick={() => { setShowFileMenu(false); handleExportPrepare(); }}
+                  >
+                    <Upload className="h-4 w-4" /> Export to Notion
+                  </button>
+                  <div className="my-1 border-t border-[var(--dash-line)]" />
+                  <button
+                    className="dash-focus flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--dash-ink)] hover:bg-[var(--dash-violet-soft)]"
+                    onClick={() => { setShowFileMenu(false); handleExportCSV(); }}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" /> Export as CSV
+                  </button>
+                  <button
+                    className="dash-focus flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--dash-ink)] hover:bg-[var(--dash-violet-soft)]"
+                    onClick={() => { setShowFileMenu(false); csvImportRef.current?.click(); }}
+                  >
+                    <Download className="h-4 w-4" /> Import as CSV
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
 
             {/* Results Counter */}
             {(searchQuery || activeFilter !== "all") && (
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-yellow-200/70">
-                  {searchQuery ? (
-                    <span>
-                      Found <strong className="text-yellow-100">{sortedTasks.length}</strong> tasks matching "{searchQuery}"
-                      {activeFilter !== "all" && ` in ${activeFilter.replace("-", " ")}`}
-                    </span>
-                  ) : (
-                    <span>
-                      Showing <strong className="text-yellow-100">{sortedTasks.length}</strong> tasks in {activeFilter.replace("-", " ")}
-                    </span>
-                  )}
-                </div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="dash-mono normal-case text-[var(--dash-muted)]">
+                  Showing <strong className="font-bold text-[var(--dash-ink)]">{sortedTasks.length}</strong> of {filterCounts.all} quests
+                  {searchQuery && ` matching "${searchQuery}"`}
+                  {activeFilter !== "all" && ` in ${activeFilter.replace(/-/g, " ")}`}
+                </p>
                 {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
                     onClick={() => setSearchQuery("")}
-                    className="text-yellow-300 hover:text-yellow-100 hover:bg-slate-700/50"
+                    className="dash-focus shrink-0 rounded text-xs font-semibold text-[var(--dash-blue)] hover:underline"
                   >
                     Clear search
-                  </Button>
+                  </button>
                 )}
               </div>
             )}
 
             {/* Task Filters */}
-            <Card className={`${isMobile ? 'p-2 mb-3' : 'p-4 mb-6'} bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30`}>
+            <div className={`flex items-center gap-1.5 overflow-x-auto rounded-[10px] border border-[var(--dash-line)] bg-[var(--dash-surface)] shadow-[var(--dash-shadow)] ${isMobile ? 'mb-1.5 p-1.5' : 'mb-3 p-2'}`}>
               {isMobile ? (
                 /* Mobile: Two compact rows */
-                <div className="flex flex-col gap-1.5">
+                <div className="flex w-full flex-col gap-1.5">
                   {/* Row 1: Filter badges */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                  <Badge 
-                    variant={activeFilter === "all" ? "default" : "outline"}
-                    className={`cursor-pointer text-[10px] px-2 py-1 ${
-                      activeFilter === "all" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("all")}
-                  >
-                    All ({filterCounts.all})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "due-today" ? "default" : "outline"}
-                    className={`cursor-pointer text-[10px] px-2 py-1 ${
-                      activeFilter === "due-today" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("due-today")}
-                  >
-                    Today ({filterCounts.dueToday})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "due-3days" ? "default" : "outline"}
-                    className={`cursor-pointer text-[10px] px-2 py-1 ${
-                      activeFilter === "due-3days" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("due-3days")}
-                  >
-                    &lt;3 Days ({filterCounts.due3Days})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "high-priority" ? "default" : "outline"}
-                    className={`cursor-pointer text-[10px] px-2 py-1 ${
-                      activeFilter === "high-priority" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("high-priority")}
-                  >
-                    Priority ({filterCounts.highPriority})
-                  </Badge>
+                  <div className="flex w-full items-center gap-1.5 flex-wrap">
+                  <FilterChip compact label="All" count={filterCounts.all} active={activeFilter === "all"} onClick={() => setActiveFilter("all")} />
+                  <FilterChip compact label="Today" count={filterCounts.dueToday} active={activeFilter === "due-today"} onClick={() => setActiveFilter("due-today")} />
+                  <FilterChip compact label="<3 Days" count={filterCounts.due3Days} active={activeFilter === "due-3days"} onClick={() => setActiveFilter("due-3days")} />
+                  <FilterChip compact label="Priority" count={filterCounts.highPriority} active={activeFilter === "high-priority"} onClick={() => setActiveFilter("high-priority")} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Badge 
-                        variant={
-                          (activeFilter === "high-reward" || activeFilter === "quick-tasks" || activeFilter === "routines") ? "default" : "outline"
-                        }
-                        className={`cursor-pointer text-[10px] px-2 py-1 inline-flex items-center gap-1 ${
-                          (activeFilter === "high-reward" || activeFilter === "quick-tasks" || activeFilter === "routines")
-                            ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                            : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                        }`}
+                      <FilterChip
+                        compact
+                        active={activeFilter === "high-reward" || activeFilter === "quick-tasks" || activeFilter === "routines"}
                       >
-                        <Filter className="w-3 h-3" />
+                        <Filter aria-hidden className="h-3 w-3" />
                         {activeFilter === "high-reward" ? `Reward (${filterCounts.highReward})`
                           : activeFilter === "quick-tasks" ? `Quick (${filterCounts.quickTasks})`
                           : activeFilter === "routines" ? `Routines (${filterCounts.routines})`
                           : "More"}
-                      </Badge>
+                      </FilterChip>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                    <DropdownMenuContent className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("high-reward")}
-                        className={`cursor-pointer ${
-                          activeFilter === "high-reward" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "high-reward" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        💰 Reward ({filterCounts.highReward})
+                        High reward ({filterCounts.highReward})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("quick-tasks")}
-                        className={`cursor-pointer ${
-                          activeFilter === "quick-tasks" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "quick-tasks" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        ⚡ Quick ({filterCounts.quickTasks})
+                        Quick tasks ({filterCounts.quickTasks})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("routines")}
-                        className={`cursor-pointer ${
-                          activeFilter === "routines" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "routines" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        🔄 Routines ({filterCounts.routines})
+                        Routines ({filterCounts.routines})
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Badge 
-                        variant={
-                          activeFilter.startsWith("business-") ? "default" : "outline"
-                        }
-                        className={`cursor-pointer text-[10px] px-2 py-1 ${
-                          activeFilter.startsWith("business-")
-                            ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                            : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                        }`}
-                      >
-                        💼 Business ({
-                          filterCounts.businessApple + 
-                          filterCounts.businessGeneral + 
-                          filterCounts.businessMW + 
+                      <FilterChip compact active={activeFilter.startsWith("business-")}>
+                        <Briefcase aria-hidden className="h-3 w-3" />
+                        Business
+                        <span className="opacity-60">{
+                          filterCounts.businessApple +
+                          filterCounts.businessGeneral +
+                          filterCounts.businessMW +
                           filterCounts.businessGPR
-                        })
-                      </Badge>
+                        }</span>
+                      </FilterChip>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                    <DropdownMenuContent className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-apple")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-apple" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-apple" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        🍎 Apple ({filterCounts.businessApple})
+                        Apple ({filterCounts.businessApple})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-general")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-general" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-general" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        🗂️ General ({filterCounts.businessGeneral})
+                        General ({filterCounts.businessGeneral})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-mw")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-mw" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-mw" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        🔵 MailWisp ({filterCounts.businessMW})
+                        MailWisp ({filterCounts.businessMW})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-gpr")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-gpr" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-gpr" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        📡 GPR ({filterCounts.businessGPR})
+                        GPR ({filterCounts.businessGPR})
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -2388,39 +2212,30 @@ export default function Home() {
                   {assigneeList.length >= 2 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant={activeFilter.startsWith("assignee-") ? "default" : "outline"}
-                          size="sm"
-                          className={`h-[22px] px-2 text-[10px] ${
-                            activeFilter.startsWith("assignee-")
-                              ? "bg-indigo-600/50 border-indigo-400/60 text-indigo-200"
-                              : "bg-slate-800/80 border-slate-600/40 text-slate-400 hover:border-indigo-500/40"
-                          }`}
-                        >
-                          👤 {activeFilter.startsWith("assignee-")
+                        <FilterChip compact active={activeFilter.startsWith("assignee-")}>
+                          <User aria-hidden className="h-3 w-3" />
+                          {activeFilter.startsWith("assignee-")
                             ? `${activeFilter.slice("assignee-".length)} (${filterCounts.byAssignee[activeFilter.slice("assignee-".length)] ?? 0})`
                             : `Assignee (${filterCounts.all})`
                           }
-                        </Button>
+                        </FilterChip>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                      <DropdownMenuContent className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
                         <DropdownMenuItem
                           onClick={() => setActiveFilter("all")}
-                          className={`cursor-pointer ${activeFilter === "all" ? "bg-yellow-600/20 text-yellow-200" : "text-slate-300 hover:bg-slate-700/80"}`}
+                          className={`cursor-pointer ${activeFilter === "all" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                         >
-                          👥 All ({filterCounts.all})
+                          All ({filterCounts.all})
                         </DropdownMenuItem>
                         {assigneeList.map(([name, count]) => (
                           <DropdownMenuItem
                             key={name}
                             onClick={() => setActiveFilter(`assignee-${name}` as FilterType)}
                             className={`cursor-pointer ${
-                              activeFilter === `assignee-${name}`
-                                ? "bg-indigo-600/20 text-indigo-200"
-                                : "text-slate-300 hover:bg-slate-700/80"
+                              activeFilter === `assignee-${name}` ? "bg-[var(--dash-violet-soft)] font-semibold" : ""
                             }`}
                           >
-                            👤 {name} ({count as number})
+                            {name} ({count as number})
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -2432,232 +2247,122 @@ export default function Home() {
                     {sortedTasks.length > 0 && (
                       <>
                         {selectedTasks.size < sortedTasks.length ? (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleSelectAll(sortedTasks)}
-                            className="flex items-center gap-1 h-[22px] px-2 text-[10px] bg-slate-800/80 border-blue-500/40 text-blue-300 hover:bg-blue-600/20 hover:text-blue-100"
-                          >
-                            <CheckSquare className="w-3 h-3" />
-                            All
-                          </Button>
+                          <FilterChip compact onClick={() => handleSelectAll(sortedTasks)}>
+                            <CheckSquare aria-hidden className="h-3 w-3" /> All
+                          </FilterChip>
                         ) : selectedTasks.size > 0 ? (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleDeselectAll}
-                            className="flex items-center gap-1 h-[22px] px-2 text-[10px] bg-slate-800/80 border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-100"
-                          >
-                            <XSquare className="w-3 h-3" />
-                            None
-                          </Button>
+                          <FilterChip compact onClick={handleDeselectAll}>
+                            <XSquare aria-hidden className="h-3 w-3" /> None
+                          </FilterChip>
                         ) : null}
                       </>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() => setSortBy(sortBy === "due-date" ? "importance" : "due-date")}
-                      className="flex items-center gap-1 h-[22px] px-2 text-[10px] bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100"
+                      className="dash-focus grid h-[26px] w-[26px] shrink-0 place-items-center rounded-md border border-[var(--dash-line)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
                       title={`Sort by ${sortBy === "due-date" ? "Importance" : "Due Date"}`}
+                      aria-label={`Sort by ${sortBy === "due-date" ? "Importance" : "Due Date"}`}
                     >
                       {sortBy === "due-date" ? (
-                        <CalendarDays className="w-3 h-3" />
+                        <CalendarDays aria-hidden className="h-3 w-3" />
                       ) : (
-                        <AlertTriangle className="w-3 h-3" />
+                        <AlertTriangle aria-hidden className="h-3 w-3" />
                       )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setViewType(viewType === "list" ? "grid" : "list")}
-                      className="flex items-center h-[22px] px-2 text-[10px] bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100"
+                      className="dash-focus grid h-[26px] w-[26px] shrink-0 place-items-center rounded-md border border-[var(--dash-line)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
+                      title={viewType === "list" ? "Grid view" : "List view"}
+                      aria-label={viewType === "list" ? "Switch to grid view" : "Switch to list view"}
                     >
                       {viewType === "list" ? (
-                        <LayoutGrid className="w-3 h-3" />
+                        <LayoutGrid aria-hidden className="h-3 w-3" />
                       ) : (
-                        <List className="w-3 h-3" />
+                        <List aria-hidden className="h-3 w-3" />
                       )}
-                    </Button>
+                    </button>
                   </div>
                   </div>
                 </div>
               ) : (
-                /* Desktop: Original layout */
-              <div className="flex flex-wrap items-center gap-2 justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <Badge 
-                    variant={activeFilter === "all" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "all" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("all")}
-                  >
-                    All Tasks ({filterCounts.all})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "due-today" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "due-today" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("due-today")}
-                  >
-                    Due Today ({filterCounts.dueToday})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "due-3days" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "due-3days" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("due-3days")}
-                  >
-                    Due &lt;3 Days ({filterCounts.due3Days})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "high-reward" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "high-reward" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("high-reward")}
-                  >
-                    High Reward ({filterCounts.highReward})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "quick-tasks" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "quick-tasks" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("quick-tasks")}
-                  >
-                    Quick Tasks ({filterCounts.quickTasks})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "high-priority" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "high-priority" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("high-priority")}
-                  >
-                    High Priority ({filterCounts.highPriority})
-                  </Badge>
-                  <Badge 
-                    variant={activeFilter === "routines" ? "default" : "outline"}
-                    className={`cursor-pointer ${
-                      activeFilter === "routines" 
-                        ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                        : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                    }`}
-                    onClick={() => setActiveFilter("routines")}
-                  >
-                    Routines ({filterCounts.routines})
-                  </Badge>
+                /* Desktop layout */
+              <div className="flex w-full flex-wrap items-center gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  <FilterChip label="All tasks" count={filterCounts.all} active={activeFilter === "all"} onClick={() => setActiveFilter("all")} />
+                  <FilterChip label="Due today" count={filterCounts.dueToday} active={activeFilter === "due-today"} onClick={() => setActiveFilter("due-today")} />
+                  <FilterChip label="Due in 3 days" count={filterCounts.due3Days} active={activeFilter === "due-3days"} onClick={() => setActiveFilter("due-3days")} />
+                  <FilterChip label="High reward" count={filterCounts.highReward} active={activeFilter === "high-reward"} onClick={() => setActiveFilter("high-reward")} />
+                  <FilterChip label="Quick tasks" count={filterCounts.quickTasks} active={activeFilter === "quick-tasks"} onClick={() => setActiveFilter("quick-tasks")} />
+                  <FilterChip label="High priority" count={filterCounts.highPriority} active={activeFilter === "high-priority"} onClick={() => setActiveFilter("high-priority")} />
+                  <FilterChip label="Routines" count={filterCounts.routines} active={activeFilter === "routines"} onClick={() => setActiveFilter("routines")} />
 
                   {/* Business/Work Filter Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Badge 
-                        variant={
-                          activeFilter.startsWith("business-") ? "default" : "outline"
-                        }
-                        className={`cursor-pointer ${
-                          activeFilter.startsWith("business-")
-                            ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 border-yellow-400 hover:from-yellow-500 hover:to-yellow-400" 
-                            : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                        }`}
-                      >
-                        💼 Business ({
-                          filterCounts.businessApple + 
-                          filterCounts.businessGeneral + 
-                          filterCounts.businessMW + 
+                      <FilterChip active={activeFilter.startsWith("business-")}>
+                        <Briefcase aria-hidden className="h-3.5 w-3.5" />
+                        Business
+                        <span className="opacity-60">{
+                          filterCounts.businessApple +
+                          filterCounts.businessGeneral +
+                          filterCounts.businessMW +
                           filterCounts.businessGPR
-                        })
-                      </Badge>
+                        }</span>
+                      </FilterChip>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                    <DropdownMenuContent className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-apple")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-apple" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-apple" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        🍎 Apple ({filterCounts.businessApple})
+                        Apple ({filterCounts.businessApple})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-general")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-general" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-general" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        🗂️ General ({filterCounts.businessGeneral})
+                        General ({filterCounts.businessGeneral})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-mw")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-mw" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-mw" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        🔵 MailWisp ({filterCounts.businessMW})
+                        MailWisp ({filterCounts.businessMW})
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setActiveFilter("business-gpr")}
-                        className={`cursor-pointer ${
-                          activeFilter === "business-gpr" 
-                            ? "bg-yellow-600/20 text-yellow-200" 
-                            : "text-slate-300 hover:bg-slate-700/80"
-                        }`}
+                        className={`cursor-pointer ${activeFilter === "business-gpr" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                       >
-                        📡 GPR ({filterCounts.businessGPR})
+                        GPR ({filterCounts.businessGPR})
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  {/* Assignee filter — mobile/compact, show when 2+ assignees */}
+                  {/* Assignee filter — show when 2+ assignees */}
                   {assigneeList.length >= 2 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Badge
-                          variant={activeFilter.startsWith("assignee-") ? "default" : "outline"}
-                          className={`cursor-pointer ${
-                            activeFilter.startsWith("assignee-")
-                              ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border-indigo-400"
-                              : "border-yellow-600/40 text-yellow-200 hover:bg-yellow-600/20"
-                          }`}
-                        >
-                          👤 {activeFilter.startsWith("assignee-") ? activeFilter.slice("assignee-".length) : "Assignee"}
-                        </Badge>
+                        <FilterChip active={activeFilter.startsWith("assignee-")}>
+                          <User aria-hidden className="h-3.5 w-3.5" />
+                          {activeFilter.startsWith("assignee-") ? activeFilter.slice("assignee-".length) : "Assignee"}
+                        </FilterChip>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="bg-slate-800/95 border-yellow-600/40">
+                      <DropdownMenuContent className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
                         <DropdownMenuItem
                           onClick={() => setActiveFilter("all")}
-                          className={`cursor-pointer ${activeFilter === "all" ? "bg-yellow-600/20 text-yellow-200" : "text-slate-300 hover:bg-slate-700/80"}`}
+                          className={`cursor-pointer ${activeFilter === "all" ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                         >
-                          👥 All ({filterCounts.all})
+                          All ({filterCounts.all})
                         </DropdownMenuItem>
                         {assigneeList.map(([name, count]) => (
                           <DropdownMenuItem
                             key={name}
                             onClick={() => setActiveFilter(`assignee-${name}` as FilterType)}
-                            className={`cursor-pointer ${activeFilter === `assignee-${name}` ? "bg-indigo-600/20 text-indigo-200" : "text-slate-300 hover:bg-slate-700/80"}`}
+                            className={`cursor-pointer ${activeFilter === `assignee-${name}` ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
                           >
-                            👤 {name} ({count as number})
+                            {name} ({count as number})
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -2665,83 +2370,78 @@ export default function Home() {
                   )}
                 </div>
                 
-                <div className="flex gap-2 items-center">
+                <div className="ml-auto flex shrink-0 items-center gap-2">
                   {/* Select All / Deselect All Buttons */}
                   {sortedTasks.length > 0 && (
                     <>
                       {selectedTasks.size < sortedTasks.length ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <button
+                          type="button"
                           onClick={() => handleSelectAll(sortedTasks)}
-                          className="flex items-center gap-2 bg-slate-800/80 border-blue-500/40 text-blue-300 hover:bg-blue-600/20 hover:text-blue-100"
+                          className="dash-focus inline-flex items-center gap-1.5 rounded-md border border-[var(--dash-line)] bg-[var(--dash-surface-2)] px-2.5 py-1.5 text-xs font-semibold text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
                         >
-                          <CheckSquare className="w-4 h-4" />
-                          Select All ({sortedTasks.length})
-                        </Button>
+                          <CheckSquare aria-hidden className="h-3.5 w-3.5" />
+                          Select all ({sortedTasks.length})
+                        </button>
                       ) : selectedTasks.size > 0 ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <button
+                          type="button"
                           onClick={handleDeselectAll}
-                          className="flex items-center gap-2 bg-slate-800/80 border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-100"
+                          className="dash-focus inline-flex items-center gap-1.5 rounded-md border border-[var(--dash-line)] bg-[var(--dash-surface-2)] px-2.5 py-1.5 text-xs font-semibold text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
                         >
-                          <XSquare className="w-4 h-4" />
-                          Deselect All
-                        </Button>
+                          <XSquare aria-hidden className="h-3.5 w-3.5" />
+                          Deselect all
+                        </button>
                       ) : null}
                     </>
                   )}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
+
+                  <button
+                    type="button"
                     onClick={() => setViewType(viewType === "list" ? "grid" : "list")}
-                    className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100"
+                    className="dash-focus inline-flex items-center gap-1.5 rounded-md border border-[var(--dash-line)] bg-[var(--dash-surface-2)] px-2.5 py-1.5 text-xs font-semibold text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
+                    aria-label={viewType === "list" ? "Switch to grid view" : "Switch to list view"}
                   >
                     {viewType === "list" ? (
-                      <>
-                        <LayoutGrid className="w-4 h-4" />
-                        Grid
-                      </>
+                      <><LayoutGrid aria-hidden className="h-3.5 w-3.5" /> Grid</>
                     ) : (
-                      <>
-                        <List className="w-4 h-4" />
-                        List
-                      </>
+                      <><List aria-hidden className="h-3.5 w-3.5" /> List</>
                     )}
-                  </Button>
-                  
+                  </button>
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex items-center gap-2 bg-slate-800/80 border-yellow-600/40 text-yellow-200 hover:bg-slate-700/80 hover:text-yellow-100">
-                        <ArrowUpDown className="w-4 h-4" />
-                        Sort
-                      </Button>
+                      <button
+                        type="button"
+                        className="dash-focus inline-flex items-center gap-1.5 rounded-md border border-[var(--dash-line)] bg-[var(--dash-surface-2)] px-2.5 py-1.5 text-xs font-semibold text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
+                      >
+                        <ArrowUpDown aria-hidden className="h-3.5 w-3.5" />
+                        {sortBy === "due-date" ? "Due date" : "Importance"}
+                      </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-slate-800 border-yellow-600/30">
+                    <DropdownMenuContent align="end" className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
                       <DropdownMenuItem 
                         onClick={() => setSortBy("due-date")}
-                        className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                        className="flex cursor-pointer items-center gap-2"
                       >
                         <CalendarDays className="w-4 h-4" />
                         <span>Due Date</span>
-                        {sortBy === "due-date" && <span className="ml-auto text-yellow-400">✓</span>}
+                        {sortBy === "due-date" && <Check className="ml-auto h-3.5 w-3.5 text-[var(--dash-violet)]" />}
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => setSortBy("importance")}
-                        className="flex items-center gap-2 text-yellow-100 hover:bg-slate-700 focus:bg-slate-700"
+                        className="flex cursor-pointer items-center gap-2"
                       >
                         <AlertTriangle className="w-4 h-4" />
                         <span>Importance</span>
-                        {sortBy === "importance" && <span className="ml-auto text-yellow-400">✓</span>}
+                        {sortBy === "importance" && <Check className="ml-auto h-3.5 w-3.5 text-[var(--dash-violet)]" />}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
               )}
-            </Card>
+            </div>
             </div>{/* End pinned header area */}
 
             {/* Scrollable task area on mobile */}
@@ -2750,7 +2450,7 @@ export default function Home() {
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
               <div className={`fixed ${isMobile ? 'bottom-[calc(4rem+env(safe-area-inset-bottom))]' : 'bottom-20 md:left-[var(--dash-sidebar-w)]'} left-0 right-0 z-40 ${isMobile ? 'px-2 pb-1' : 'px-4 pb-4'}`}>
-                <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-2' : 'p-4'} ${isDark ? 'bg-blue-900/95 border-2 border-blue-500/60' : 'bg-white border border-gray-200 border-t-[3px] border-t-purple-500 shadow-xl shadow-purple-100/50'} backdrop-blur-md shadow-2xl`}>
+                <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-2' : 'p-4'} rounded-[10px] border border-[var(--dash-line-strong)] border-t-[3px] border-t-[var(--dash-violet)] bg-[var(--dash-surface)] shadow-[var(--dash-shadow)]`}>
                   {isMobile ? (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
@@ -3127,37 +2827,46 @@ export default function Home() {
             {/* Task List */}
             <div className={isMobile ? "space-y-1.5" : "space-y-4"}>
               {tasksLoading ? (
-                <div className="text-center py-8 text-yellow-200/70">Loading tasks...</div>
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--dash-muted)]">
+                  <Loader2 aria-hidden className="h-4 w-4 animate-spin text-[var(--dash-violet)]" />
+                  Loading your queue…
+                </div>
               ) : tasks.length === 0 ? (
-                <Card className="p-8 text-center bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
-                  <Trophy className="w-16 h-16 text-yellow-400/50 mx-auto mb-4" />
-                  <h3 className="text-lg font-serif font-semibold text-yellow-100 mb-2">No tasks yet</h3>
-                  <p className="text-yellow-200/70 mb-4">Import from Notion to get started with your quests!</p>
-                  <Button onClick={handleImportPrepare} className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border border-yellow-400/50">Import ALL from Notion</Button>
-                </Card>
-              ) : sortedTasks.length === 0 ? (
-                <Card className="p-8 text-center bg-slate-800/60 backdrop-blur-md border-2 border-yellow-600/30">
-                  <Search className="w-16 h-16 text-yellow-400/50 mx-auto mb-4" />
-                  <h3 className="text-lg font-serif font-semibold text-yellow-100 mb-2">
-                    {searchQuery ? `No tasks found for "${searchQuery}"` : "No tasks match your filter"}
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    {searchQuery 
-                      ? "Try searching with different keywords or clear your search"
-                      : "Try adjusting your filter to see more tasks"
-                    }
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    {searchQuery && (
-                      <Button onClick={() => setSearchQuery("")} variant="outline">
-                        Clear Search
-                      </Button>
-                    )}
-                    <Button onClick={() => setActiveFilter("all")} variant="outline">
-                      Show All Tasks
+                <div className="rounded-[10px] border border-dashed border-[var(--dash-line-strong)] bg-[var(--dash-surface)] p-14 text-center">
+                  <Trophy aria-hidden className="mx-auto mb-3 h-9 w-9 text-[var(--dash-violet)] opacity-50" />
+                  <h3 className="text-[22px] font-bold tracking-tight text-[var(--dash-ink)]">No quests yet</h3>
+                  <p className="mt-1 text-sm text-[var(--dash-muted)]">Add a quest to make the next move visible — or import your existing ones.</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Button onClick={() => setShowAddTask(true)} className="bg-[var(--dash-violet)] text-white hover:opacity-90">
+                      Add first quest
+                    </Button>
+                    <Button onClick={handleImportPrepare} variant="outline" className="border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]">
+                      Import from Notion
                     </Button>
                   </div>
-                </Card>
+                </div>
+              ) : sortedTasks.length === 0 ? (
+                <div className="rounded-[10px] border border-dashed border-[var(--dash-line-strong)] bg-[var(--dash-surface)] p-14 text-center">
+                  <Search aria-hidden className="mx-auto mb-3 h-9 w-9 text-[var(--dash-violet)] opacity-50" />
+                  <h3 className="text-[22px] font-bold tracking-tight text-[var(--dash-ink)]">
+                    {searchQuery ? "No quests match that search" : "Nothing in this view"}
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--dash-muted)]">
+                    {searchQuery
+                      ? "Try a broader term or clear the search."
+                      : "Try adjusting your filter to see more quests."}
+                  </p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {searchQuery && (
+                      <Button onClick={() => setSearchQuery("")} variant="outline" className="border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]">
+                        Clear search
+                      </Button>
+                    )}
+                    <Button onClick={() => setActiveFilter("all")} variant="outline" className="border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]">
+                      Show all quests
+                    </Button>
+                  </div>
+                </div>
               ) : viewType === "list" ? (
                 sortedTasks.map((task: any) => (
                   <TaskCard
@@ -3175,28 +2884,28 @@ export default function Home() {
                   const styles = sortBy === "due-date" && 'priority' in batch 
                     ? getPriorityStyles(batch.priority)
                     : {
-                        borderColor: "border-yellow-600/30",
-                        bgColor: "bg-slate-800/40",
-                        textColor: "text-yellow-400",
-                        iconBg: "bg-yellow-500/20"
+                        borderColor: "border-[var(--dash-line)]",
+                        bgColor: "bg-[var(--dash-surface)]",
+                        textColor: "text-[var(--dash-ink)]",
+                        iconBg: "bg-[var(--dash-violet-soft)]"
                       };
                   
                   return (
                     <div 
                       key={batchIndex} 
-                      className={`space-y-3 p-4 rounded-lg border-2 ${styles.borderColor} ${styles.bgColor} backdrop-blur-sm`}
+                      className={`space-y-3 rounded-[10px] border p-4 ${styles.borderColor} ${styles.bgColor}`}
                     >
-                      <h3 className={`text-lg font-serif font-bold px-2 flex items-center gap-2 ${styles.textColor}`}>
-                        <div className={`p-1.5 rounded-lg ${styles.iconBg}`}>
+                      <h3 className={`flex items-center gap-2 px-1 text-[15px] font-bold tracking-tight ${styles.textColor}`}>
+                        <span className={`grid h-7 w-7 place-items-center rounded-md ${styles.iconBg}`}>
                           {sortBy === "due-date" ? (
-                            <AlertTriangle className="w-5 h-5" />
+                            <AlertTriangle aria-hidden className="h-4 w-4" />
                           ) : (
-                            <CalendarDays className="w-5 h-5" />
+                            <CalendarDays aria-hidden className="h-4 w-4" />
                           )}
-                        </div>
+                        </span>
                         {batch.title}
-                        <span className="text-sm font-normal text-gray-400">
-                          ({batch.tasks.length})
+                        <span className="dash-mono font-normal text-[var(--dash-muted)]">
+                          {batch.tasks.length}
                         </span>
                       </h3>
                       <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>
