@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
 
 export type ThemePreference = "light" | "dark" | "auto";
 export type ResolvedTheme = "light" | "dark";
@@ -48,6 +50,15 @@ function applyThemeClass(resolved: ResolvedTheme) {
   }
   // Native form controls (scrollbars, date pickers) follow this
   root.style.colorScheme = resolved;
+
+  if (Capacitor.isNativePlatform()) {
+    StatusBar.setStyle({
+      style: resolved === "dark" ? Style.Light : Style.Dark,
+    }).catch(() => {});
+    StatusBar.setBackgroundColor({
+      color: resolved === "dark" ? "#0f172a" : "#f8fafc",
+    }).catch(() => {});
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

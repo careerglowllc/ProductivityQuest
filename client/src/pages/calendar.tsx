@@ -816,7 +816,7 @@ export default function CalendarPage() {
   return (
     <div
       className={`${isDark ? "bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900" : "bg-gray-50"} ${isMobile ? "fixed inset-0 overflow-hidden" : "min-h-screen pt-24 pb-8 px-8"}`}
-      style={isMobile ? { top: "env(safe-area-inset-top, 0px)", bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))", left: 0, right: 0, overflowX: "hidden" } : undefined}
+      style={isMobile ? { top: 0, bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))", left: 0, right: 0, paddingTop: "env(safe-area-inset-top, 0px)", overflowX: "hidden" } : undefined}
     >
       <div className={isMobile ? "h-full flex flex-col w-full min-w-0 overflow-x-hidden" : "max-w-7xl mx-auto"}>
         <div className={isMobile ? "flex-1 flex flex-col min-h-0 w-full min-w-0" : `${isDark ? "bg-gray-900/60 border border-purple-500/20" : "bg-white border border-purple-300/40 shadow-sm"} rounded-xl p-4`}>

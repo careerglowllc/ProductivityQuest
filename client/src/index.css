@@ -125,9 +125,14 @@
     padding-top: env(safe-area-inset-top);
   }
 
-  /* Capacitor iOS - handle notch and safe areas */
+  /* Capacitor iOS: the app shell owns the safe-area inset so page backgrounds
+     can still paint behind the status bar. Keeping this out of body prevents
+     fixed pages from being inset differently from normal-flow pages. */
   .capacitor-ios body {
-    /* Ensure content respects safe areas */
+    padding: 0;
+  }
+
+  .capacitor-ios .pq-shell {
     padding-top: env(safe-area-inset-top);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
@@ -530,7 +535,9 @@ html.light {
    Matches useIsMobile()'s 768px breakpoint so JS and CSS never disagree. */
 @media (min-width: 768px) {
   .pq-shell {
+    padding-top: 0;
     padding-left: var(--dash-sidebar-w);
+    padding-right: 0;
   }
 }
 

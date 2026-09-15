@@ -8,8 +8,9 @@ import { SplashScreen } from '@capacitor/splash-screen';
 
 // Initialize Capacitor plugins when running as a native app
 if (Capacitor.isNativePlatform()) {
-  // Configure status bar for dark theme
-  StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+  // Start with readable icons for the default dark theme. ThemeProvider keeps
+  // this synchronized if the user switches to light or auto mode.
+  StatusBar.setStyle({ style: Style.Light }).catch(() => {});
   StatusBar.setBackgroundColor({ color: '#0f172a' }).catch(() => {});
 
   // Configure keyboard behavior
