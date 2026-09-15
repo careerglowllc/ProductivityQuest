@@ -86,9 +86,7 @@ function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGe
       });
       return { point, leaves };
     });
-    const raw: [number, number] = i === 0
-      ? [hub[0], itemLabelHalfH + 8]
-      : polar(cx, cy, outer, angle);
+    const raw = polar(cx, cy, outer, angle);
     const tangent: [number, number] = [-Math.sin(angle * Math.PI / 180), Math.cos(angle * Math.PI / 180)];
     const points = [hub, trunk, ...boughs.flatMap(b => [b.point, ...b.leaves.map(l => l.end)])];
     const offsets = Array.from({ length: 81 }, (_, n) => n === 0 ? 0 : (n % 2 ? -1 : 1) * Math.ceil(n / 2) * 4);
