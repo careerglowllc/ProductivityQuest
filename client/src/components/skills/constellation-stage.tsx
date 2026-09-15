@@ -140,6 +140,7 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [focusId, setFocusId] = useState<number | null>(null);
   const [nodeId, setNodeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [linked, setLinked] = useState<number | null>(null);
   const focused = skills.find(s => s.id === focusId);
   const milestones = focused ? getMilestones(focused) : [];
@@ -159,11 +160,11 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
       });
     }
   }, []);
-  useEffect(() => { const sync = () => { const q = new URLSearchParams(window.location.search).get("domain"); const s = skills.find(x => x.skillName.toLowerCase().replace(/\s+/g, "-") === q); setFocusId(s?.id ?? null); setNodeId(null); }; sync(); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, [skills]);
+  useEffect(() => { const sync = () => { const q = new URLSearchParams(window.location.search).get("domain"); const s = skills.find(x => x.skillName.toLowerCase().replace(/\s+/g, "-") === q); setFocusId(s?.id ?? null); setNodeId(null); setHoveredNodeId(null); }; sync(); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, [skills]);
   useEffect(() => { if (!mapRef.current) return; if (focused) mapRef.current.setAttribute("inert", ""); else mapRef.current.removeAttribute("inert"); }, [focused]);
   const updateUrl = (skill?: UserSkill) => { const u = new URL(window.location.href); skill ? u.searchParams.set("domain", skill.skillName.toLowerCase().replace(/\s+/g, "-")) : u.searchParams.delete("domain"); window.history.pushState({ domain: skill?.skillName }, "", u); };
-  const enter = (skill: UserSkill) => { setFocusId(skill.id); setNodeId(null); updateUrl(skill); };
-  const close = () => { setFocusId(null); setNodeId(null); updateUrl(); };
+  const enter = (skill: UserSkill) => { setFocusId(skill.id); setNodeId(null); setHoveredNodeId(null); updateUrl(skill); };
+  const close = () => { setFocusId(null); setNodeId(null); setHoveredNodeId(null); updateUrl(); };
   const cycle = (direction: number) => { if (!canonical.length) return; const i = Math.max(0, canonical.findIndex(s => s.id === focused?.id)); enter(canonical[(i + direction + canonical.length) % canonical.length]); };
   useEffect(() => { const key = (e: KeyboardEvent) => { if (e.key === "Escape" && focused) close(); else if (e.key === "ArrowLeft") cycle(-1); else if (e.key === "ArrowRight") cycle(1); }; window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key); });
 
@@ -176,6 +177,7 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
   const depthGroups = Array.from({ length: maxDepth + 1 }, (_, d) => milestones.filter(m => dm.get(m.id) === d));
   const focusPos = new Map<string, [number, number]>();
   depthGroups.forEach((group, depth) => group.forEach((node, index) => focusPos.set(node.id, [w * (.08 + (index + 1) * .84 / (group.length + 1)), h * (.68 - (maxDepth ? depth / maxDepth : 0) * .50)])));
+  const inspectedNodeId = hoveredNodeId || nodeId;
   return <main ref={stageRef} className="constellation-stage" aria-label="Life OS skill constellation">
     <section ref={mapRef} className={`constellation-map ${focused ? "is-hidden" : ""}`} aria-label="Ten skill constellation overview" aria-hidden={!!focused}>
       <div className="constellation-nebula"><i /></div>
@@ -205,10 +207,10 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
     </section>
     <section className={`constellation-focus ${focused ? "is-active" : ""}`} aria-label={focused ? `${focused.skillName} focused skill tree` : undefined}>
       {focused && <><svg className="focus-lines" viewBox={`0 0 ${w} ${h}`} aria-hidden="true">{milestones.flatMap(node => (node.parents || []).map(parent => { const from = focusPos.get(parent), to = focusPos.get(node.id); if (!from || !to) return null; const controlX = (from[0] + to[0]) / 2 + (to[1] - from[1]) * .12; return <path key={`${parent}-${node.id}`} className={`constellation-path ${status(node) === "locked" ? "faint" : "active"}`} d={`M${from[0]} ${from[1]} Q${controlX} ${(from[1] + to[1]) / 2} ${to[0]} ${to[1]}`} />; }))}</svg>
-        {milestones.map(node => { const pos = focusPos.get(node.id); if (!pos) return null; return <button key={node.id} className={`focus-node ${status(node)}`} style={{ left: pos[0], top: pos[1] }} aria-label={`${node.title}, ${status(node)}`} disabled={pending} onClick={() => setNodeId(node.id)} />; })}
+        {milestones.map(node => { const pos = focusPos.get(node.id); if (!pos) return null; return <button key={node.id} className={`focus-node ${status(node)}`} style={{ left: pos[0], top: pos[1] }} aria-label={`${node.title}, ${status(node)}`} disabled={pending} onMouseEnter={() => setHoveredNodeId(node.id)} onMouseLeave={() => setHoveredNodeId(null)} onFocus={() => setHoveredNodeId(node.id)} onBlur={() => setHoveredNodeId(null)} onClick={() => setNodeId(node.id)} />; })}
         <div className="focus-hub" style={{ "--tone": COLORS[focused.skillName] || "#b596ee" } as CSSProperties}><HubIcon name={focused.skillName} custom={getCustomIcon(focused)} /></div><div className="focus-title"><b>{focused.skillName}</b><small>{DESC[focused.skillName] || "personal practice"} · Level {focused.level} · {focused.xp}/{focused.maxXp} XP</small></div>
         <button className="focus-back" onClick={close}>‹&nbsp; All skills</button><button className="constellation-pager prev" aria-label="Previous skill" onClick={() => cycle(-1)}>‹</button><button className="constellation-pager next" aria-label="Next skill" onClick={() => cycle(1)}>›</button>
-        <aside className={`node-inspector ${nodeId ? "show" : ""}`} aria-live="polite">{nodeId && byId.get(nodeId) && (() => { const selected = byId.get(nodeId)!; const state = status(selected); return <><span>{state} · {selected.id}</span><h2>{selected.title}</h2><p>{selected.parents?.length ? `Prerequisites: ${selected.parents.map(p => byId.get(p)?.title).filter(Boolean).join(" · ")}` : "Foundation milestone · no prerequisites"}</p><small>{state === "mastered" ? "Path illuminated · complete" : state === "available" ? "Prerequisite met · ready" : "Prerequisite path still forming"}</small><div className="inspector-actions"><button disabled={pending || state === "locked"} onClick={() => { onToggle(focused.id, selected.id); setNodeId(null); }}>{pending ? "Saving…" : state === "mastered" ? "Dim this node" : "Light this node"}</button><button onClick={() => setNodeId(null)}>Close</button></div></>; })()}</aside>
+        <aside className={`node-inspector ${inspectedNodeId ? "show" : ""}`} aria-live="polite">{inspectedNodeId && byId.get(inspectedNodeId) && (() => { const selected = byId.get(inspectedNodeId)!; const state = status(selected); return <><span>{state} · {selected.id}</span><h2>{selected.title}</h2><p>{selected.parents?.length ? `Prerequisites: ${selected.parents.map(p => byId.get(p)?.title).filter(Boolean).join(" · ")}` : "Foundation milestone · no prerequisites"}</p><small>{state === "mastered" ? "Path illuminated · complete" : state === "available" ? "Prerequisite met · ready" : "Prerequisite path still forming"}</small><div className="inspector-actions"><button disabled={pending || state === "locked"} onClick={() => { onToggle(focused.id, selected.id); setNodeId(null); setHoveredNodeId(null); }}>{pending ? "Saving…" : state === "mastered" ? "Dim this node" : "Light this node"}</button><button onClick={() => { setNodeId(null); setHoveredNodeId(null); }}>Close</button></div></>; })()}</aside>
         <div className="focus-low-controls"><button onClick={() => onEditSkill(focused)}>Edit skill</button><button onClick={() => onEditMilestones(focused)}>Customize</button>{focused.isCustom && <button onClick={() => onDeleteSkill(focused)}>Delete</button>}</div>
       </>}
     </section>
