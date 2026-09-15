@@ -1351,7 +1351,7 @@ export default function Dashboard() {
             tone="mint"
             label="Today's momentum"
             value={momentum.totalToday > 0 ? String(Math.round(momentum.pct)) : "—"}
-            unit={momentum.totalToday > 0 ? "/ 100" : undefined}
+            unit={momentum.totalToday > 0 ? "%" : undefined}
             caption={momentum.totalToday > 0
               ? `${momentum.completedToday} of ${momentum.totalToday} quests done today`
               : "Nothing due today"}
