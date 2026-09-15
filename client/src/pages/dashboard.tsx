@@ -551,11 +551,6 @@ function DashboardConstellation({ skills }: { skills: UserSkill[] }) {
             <circle cx={trunk[0]} cy={trunk[1]} r="3.2" className="dashboard-constellation-junction trunk-junction" />
             <circle cx={hub[0]} cy={hub[1]} r="23" className="dashboard-constellation-hub-halo" />
             <circle cx={hub[0]} cy={hub[1]} r="18" className="dashboard-constellation-hub" />
-            <foreignObject x={hub[0] - 10} y={hub[1] - 10} width="20" height="20">
-              <div className="dashboard-constellation-icon" style={{ color: "inherit" }}>
-                {React.createElement(skill.skillIcon ? getSkillIcon(skill.skillIcon) : (skillIcons[skill.skillName] || Target), { size: 16, strokeWidth: 1.7, "aria-hidden": true })}
-              </div>
-            </foreignObject>
             <text x={trees[index].label[0]} y={trees[index].label[1]} textAnchor="middle" className="dashboard-constellation-label">{skill.skillName}{skill.level ? ` · L${skill.level}` : ""}</text>
           </g>
         ))}

@@ -39,7 +39,6 @@
 .dashboard-constellation-leaf.active { fill: #fff; filter: drop-shadow(0 0 3px rgba(255,255,255,.9)); }
 .dashboard-constellation-hub-halo { fill: color-mix(in srgb, currentColor, transparent 78%); opacity: .95; }
 .dashboard-constellation-hub { fill: #596187; stroke: currentColor; stroke-width: 1.35; filter: drop-shadow(0 0 9px color-mix(in srgb, currentColor, transparent 32%)); }
-.dashboard-constellation-icon { display: grid; place-items: center; width: 20px; height: 20px; }
 .dashboard-constellation-label {
   fill: rgba(247,245,251,.9);
   font: 600 9px ui-monospace, SFMono-Regular, Menlo, monospace;
