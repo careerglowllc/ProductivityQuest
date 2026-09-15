@@ -210,3 +210,31 @@ mtime_ms = 1789430473687
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/c55a8fce-5b90-47dc-9761-a28399d76c6c/87e6bbaf-0a6c-41fb-a957-c3775e691d3f"
 storage_version_token = "1789430533083675"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "5Cy689VNZVHICzP_NGMxh"
+uri = "file://quests-ui.html"
+type = "text"
+title = "Life OS Quests UI Overhaul"
+description = "Interactive responsive Quests application mockup with focused queue management, filtering, bulk completion, progressive detail, and isolated demo storage."
+logical_id = "6c6b8591-52e2-4277-8521-bba5ef1d13e1"
+content_hash = "sha256:74ef840ad4c1dc306ed0b44504d02913d6b0d2a8ff289330f26e9e57ca47e624"
+size = 24229
+mtime_ms = 1789433128550
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/6c6b8591-52e2-4277-8521-bba5ef1d13e1/a1c23c19-9522-461b-8601-a74bfff8175d"
+storage_version_token = "1789433155727927"
+content_type = "text/html"
+
+[[outputs]]
+id = "hD1SYKGTbzbCh1hCrSAVz"
+uri = "file://README_QUESTS_UI_IMPLEMENTATION.md"
+type = "text"
+title = "Quests UI Implementation Handoff"
+description = "Production integration guidance, behavior mapping, responsive requirements, accessibility notes, and acceptance checks."
+logical_id = "04af70ba-5df5-4fac-9214-18ffd66f8377"
+content_hash = "sha256:7539d6ef4855831aed4e1f9701ced61f19377a706803f68992aca370e55604a4"
+size = 5048
+mtime_ms = 1789433080764
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/04af70ba-5df5-4fac-9214-18ffd66f8377/38b45f18-11e7-4a46-ad9c-6f0ed1a10cbe"
+storage_version_token = "1789433156219453"
+content_type = "text/markdown"
