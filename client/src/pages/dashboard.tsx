@@ -19,6 +19,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { classifyItem } from "@/pages/finances";
 import { DashCard, DashCardHead, StatCard } from "@/components/dash-ui";
 import { useNickname } from "@/hooks/use-nickname";
+import "./dashboard-constellation.css";
 
 // Default skill icon mapping for backward compatibility
 const skillIcons: Record<string, any> = {
@@ -509,7 +510,103 @@ function useTodayMomentum() {
 }
 
 
-// Spider Chart Component
+const CONSTELLATION_ORDER = ["Mindset", "Scholar", "Charisma", "Physical", "Artist", "Connector", "Craftsman", "Explorer", "Merchant", "Health"];
+const CONSTELLATION_COLORS: Record<string, string> = {
+  Mindset: "#66e3e1", Scholar: "#b596ee", Charisma: "#e68eb4", Physical: "#f0d879", Artist: "#d77f8c",
+  Connector: "#66e3e1", Craftsman: "#b596ee", Explorer: "#e68eb4", Merchant: "#f0d879", Health: "#d77f8c",
+};
+
+/** A deliberately compact atlas: the same trunk / bough / leaf language as
+ * the production Skills constellation, with no chart chrome competing for space. */
+function DashboardConstellation({ skills }: { skills: UserSkill[] }) {
+  const ordered = React.useMemo(
+    () => CONSTELLATION_ORDER.map(name => skills.find(skill => skill.skillName === name)).filter(Boolean) as UserSkill[],
+    [skills],
+  );
+  const particles = React.useMemo(() => Array.from({ length: 42 }, (_, index) => ({
+    x: (index * 83 + 31) % 600,
+    y: (index * 47 + 19) % 360,
+    r: index % 5 === 0 ? 1.15 : .55,
+    opacity: .18 + (index % 6) * .07,
+  })), []);
+  const center: [number, number] = [300, 177];
+  const polar = (radius: number, degrees: number): [number, number] => {
+    const angle = degrees * Math.PI / 180;
+    return [center[0] + Math.cos(angle) * radius, center[1] + Math.sin(angle) * radius];
+  };
+  const trees = ordered.map((skill, index) => {
+    const angle = -90 + index * 36;
+    const hub = polar(75, angle);
+    const trunk = polar(105, angle);
+    const milestones = Array.isArray(skill.constellationMilestones) ? skill.constellationMilestones : [];
+    const completed = new Set(Array.isArray(skill.completedMilestones) ? skill.completedMilestones : []);
+    const ratio = milestones.length
+      ? completed.size / milestones.length
+      : Math.min(1, Math.max(0, (skill.xp || 0) / Math.max(1, skill.maxXp || 100)));
+    const activeLeaves = Math.round(ratio * 6);
+    const boughs = [-1, 1].map(side => {
+      const boughAngle = angle + side * 7;
+      const point = polar(133, boughAngle);
+      const leaves = [-1, 0, 1].map((leafAngle, leafIndex) => ({
+        end: polar(157 + (leafAngle === 0 ? 8 : 0), boughAngle + leafAngle * 4.5),
+        active: (side === -1 ? leafIndex : 3 + leafIndex) < activeLeaves,
+      }));
+      return { point, leaves };
+    });
+    const label = polar(160, angle);
+    return { skill, angle, hub, trunk, boughs, label };
+  });
+  if (!ordered.length) return null;
+
+  return (
+    <div className="dashboard-constellation" aria-label="Skills constellation overview">
+      <svg viewBox="0 0 600 360" role="img" aria-label={`${ordered.length} skills arranged around a growth constellation`}>
+        <defs>
+          <radialGradient id="dash-constellation-nebula" cx="50%" cy="50%">
+            <stop offset="0%" stopColor="#fff" stopOpacity=".82" />
+            <stop offset="30%" stopColor="#e8b5df" stopOpacity=".3" />
+            <stop offset="100%" stopColor="#e8b5df" stopOpacity="0" />
+          </radialGradient>
+          <filter id="dash-constellation-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="2.2" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        {particles.map((particle, index) => (
+          <circle key={`particle-${index}`} cx={particle.x} cy={particle.y} r={particle.r} fill="#f3f0ff" opacity={particle.opacity} />
+        ))}
+        <circle className="dashboard-constellation-aura" cx={center[0]} cy={center[1]} r="70" fill="url(#dash-constellation-nebula)" />
+        <circle className="dashboard-constellation-core" cx={center[0]} cy={center[1]} r="4" fill="#fff" filter="url(#dash-constellation-glow)" />
+        {trees.map(({ skill, hub, trunk, boughs }, index) => (
+          <g key={skill.id} className="dashboard-constellation-tree" style={{ color: CONSTELLATION_COLORS[skill.skillName] || "#b596ee" }}>
+            <path className="dashboard-constellation-path trunk" d={`M${hub[0]} ${hub[1]} Q${(hub[0] + trunk[0]) / 2} ${(hub[1] + trunk[1]) / 2} ${trunk[0]} ${trunk[1]}`} />
+            {boughs.map((bough, boughIndex) => (
+              <g key={`${skill.id}-bough-${boughIndex}`}>
+                <path className="dashboard-constellation-path" d={`M${trunk[0]} ${trunk[1]} Q${(trunk[0] + bough.point[0]) / 2} ${(trunk[1] + bough.point[1]) / 2} ${bough.point[0]} ${bough.point[1]}`} />
+                {bough.leaves.map((leaf, leafIndex) => (
+                  <path key={`${skill.id}-leaf-${boughIndex}-${leafIndex}`} className={`dashboard-constellation-path ${leaf.active ? "active" : "faint"}`} d={`M${bough.point[0]} ${bough.point[1]} Q${(bough.point[0] + leaf.end[0]) / 2} ${(bough.point[1] + leaf.end[1]) / 2} ${leaf.end[0]} ${leaf.end[1]}`} />
+                ))}
+                <circle cx={bough.point[0]} cy={bough.point[1]} r="2.8" className="dashboard-constellation-junction" />
+                {bough.leaves.map((leaf, leafIndex) => <circle key={`leaf-dot-${boughIndex}-${leafIndex}`} cx={leaf.end[0]} cy={leaf.end[1]} r="2.1" className={`dashboard-constellation-leaf ${leaf.active ? "active" : ""}`} />)}
+              </g>
+            ))}
+            <circle cx={trunk[0]} cy={trunk[1]} r="3.2" className="dashboard-constellation-junction trunk-junction" />
+            <circle cx={hub[0]} cy={hub[1]} r="23" className="dashboard-constellation-hub-halo" />
+            <circle cx={hub[0]} cy={hub[1]} r="18" className="dashboard-constellation-hub" />
+            <foreignObject x={hub[0] - 10} y={hub[1] - 10} width="20" height="20">
+              <div className="dashboard-constellation-icon" style={{ color: "inherit" }}>
+                {React.createElement(skill.skillIcon ? getSkillIcon(skill.skillIcon) : (skillIcons[skill.skillName] || Target), { size: 16, strokeWidth: 1.7, "aria-hidden": true })}
+              </div>
+            </foreignObject>
+            <text x={trees[index].label[0]} y={trees[index].label[1]} textAnchor="middle" className="dashboard-constellation-label">{skill.skillName}{skill.level ? ` · L${skill.level}` : ""}</text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+// Retained for compatibility with older dashboard snapshots.
 function SpiderChart({ skills }: { skills: UserSkill[] }) {
   // Ensure skills is an array
   if (!Array.isArray(skills) || skills.length === 0) {
@@ -1116,7 +1213,7 @@ export default function Dashboard() {
           <Dialog>
             <DialogTrigger asChild>
               <button className="dash-focus group relative flex h-full w-full items-center justify-center rounded-lg" aria-label="Enlarge skills overview">
-                <div className="h-full max-h-[400px] w-full max-w-[400px]">
+                <div className="h-full w-full">
                   {skillsLoading ? (
                     <div className="flex h-full items-center justify-center text-sm text-[var(--dash-muted)]">Loading skills…</div>
                   ) : safeSkills.length === 0 ? (
@@ -1125,7 +1222,7 @@ export default function Dashboard() {
                       <span>No skills yet.</span>
                     </div>
                   ) : (
-                    <SpiderChart skills={safeSkills} />
+                    <DashboardConstellation skills={safeSkills} />
                   )}
                 </div>
                 {safeSkills.length > 0 && (
@@ -1137,14 +1234,14 @@ export default function Dashboard() {
                 )}
               </button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-ink)]">
+            <DialogContent className="dashboard-constellation-dialog max-w-2xl border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-ink)]">
               <DialogHeader>
                 <DialogTitle className="text-[var(--dash-ink)]">Skills overview</DialogTitle>
               </DialogHeader>
               {skillsLoading ? (
                 <div className="flex h-[500px] items-center justify-center text-[var(--dash-muted)]">Loading skills…</div>
               ) : (
-                <SpiderChart skills={safeSkills} />
+                <div className="dashboard-constellation-dialog-stage"><DashboardConstellation skills={safeSkills} /></div>
               )}
               <p className="mt-4 text-center text-sm text-[var(--dash-muted)]">
                 Complete quests to level up your skills and expand your constellation
