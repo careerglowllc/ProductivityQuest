@@ -1,1 +1,2 @@
 - [Approved constellation direction](approved-constellation-direction.md) — the full-screen periwinkle reference-driven constellation UI is the confirmed visual target for Skills.
+- [Theme layout parity](theme-layout-parity.md) — light and dark modes must share identical geometry, clipping, safe areas, and responsive behavior.
