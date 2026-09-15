@@ -43,6 +43,7 @@ export const SECONDARY_NAV: NavLink[] = [
   { label: "Shop", path: "/shop", icon: ShoppingCart },
   { label: "NPCs", path: "/npcs", icon: Users },
   { label: "All pages", path: "/more", icon: Compass },
+  { label: "Settings", path: "/settings", icon: Settings },
 ];
 
 const BREADCRUMBS: Record<string, string> = {

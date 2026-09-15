@@ -170,7 +170,12 @@ export function AppSidebar() {
 
         {!collapsed && <RailSectionLabel>More</RailSectionLabel>}
         {SECONDARY_NAV.map((link) => (
-          <RailLink key={link.path} {...link} active={location === link.path} collapsed={collapsed} />
+          <RailLink
+            key={link.path}
+            {...link}
+            active={link.path === "/settings" ? location.startsWith("/settings") : location === link.path}
+            collapsed={collapsed}
+          />
         ))}
       </nav>
 
