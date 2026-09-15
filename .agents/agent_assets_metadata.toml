@@ -243,28 +243,28 @@ content_type = "text/markdown"
 id = "sVUhNC7d4aJm_xBC4sd-k"
 uri = "file://skill-tree-ui.html"
 type = "text"
-title = "Life Skill Constellation with Real Milestones"
-description = "Updated constellation UI using the existing 198 skill milestone names and prerequisite relationships across all ten skills."
+title = "Constellation with Semantic Skill Icons"
+description = "Updated self-contained HTML with custom line icons in every requested skill hub and matching focused-category hubs."
 logical_id = "b3906fb3-7ac1-4b44-abfc-8080c00bbff3"
-content_hash = "sha256:6dcb84a240139b5b090ab6d4b930aac8a5bbb80def127fdbb487fe19b9cdfdc7"
-size = 14030
-mtime_ms = 1789435900238
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b3906fb3-7ac1-4b44-abfc-8080c00bbff3/98b68e5d-2278-40c9-84d5-110c5619c129"
-storage_version_token = "1789436195411298"
+content_hash = "sha256:b93037b9abcf20939d7da65d7f71ae3c84e328eaef72cf5bb145451786e9b49c"
+size = 27482
+mtime_ms = 1789436435330
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b3906fb3-7ac1-4b44-abfc-8080c00bbff3/632690f3-ec72-43f8-835b-0c14d161a701"
+storage_version_token = "1789436477172060"
 content_type = "text/html"
 
 [[outputs]]
 id = "a6JNs7KTKC_162bU1JMsU"
 uri = "file://README_SKILL_TREE_UI_IMPLEMENTATION.md"
 type = "text"
-title = "Updated Skill Tree Handoff"
-description = "Implementation notes for the real milestone mapping, stable node IDs, prerequisite states, and production integration."
+title = "Updated Constellation Implementation Handoff"
+description = "Updated notes for the consolidated single-file prototype and production milestone mapping."
 logical_id = "92e7de8b-9b08-477e-9ab8-59c098e82a71"
-content_hash = "sha256:ea6fb3ed829fc758bcd056f0e075adc50d3e5fceeb8f15b53b6843a9c84fe357"
-size = 5614
-mtime_ms = 1789436020382
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/92e7de8b-9b08-477e-9ab8-59c098e82a71/a94cd042-f6f8-474e-8b3a-4ccf880da0f9"
-storage_version_token = "1789436196336038"
+content_hash = "sha256:9d21dd4e11a7bb2fdd0bb69049da3bbd385d4f951c866202fddf1d3d69f834bc"
+size = 5806
+mtime_ms = 1789436307449
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/92e7de8b-9b08-477e-9ab8-59c098e82a71/b62cfa6d-72ef-4c56-8f35-c4a9107fa0b0"
+storage_version_token = "1789436405103538"
 content_type = "text/markdown"
 
 [[outputs]]
@@ -280,3 +280,17 @@ mtime_ms = 1789436124976
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/8f918803-8933-4ede-86d7-94cc402a62c7/b35d913c-006f-4709-82dc-6dfc300b86b3"
 storage_version_token = "1789436195883514"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "GrASIbLTbLFt9fLqMc5yX"
+uri = "file://screenshots/skill-tree-semantic-icons.jpg"
+type = "image"
+title = "Skill Hub Icon Preview"
+description = "Overview showing the new book, lips, flexed arm, paintbrush, handshake, wrench, compass, shopping bag, and heart icons."
+logical_id = "fd5e661e-1049-4f14-be2b-873294279c81"
+content_hash = "sha256:ad71823cd7b86acccf3d1c18c61141307cf4306f5f592af9dd58a3fdba962381"
+size = 44077
+mtime_ms = 1789436472558
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/fd5e661e-1049-4f14-be2b-873294279c81/cdc01e68-c362-4603-8924-37196b1b25d2"
+storage_version_token = "1789436477654697"
+content_type = "image/jpeg"

@@ -8,6 +8,10 @@ The overview is composed as a dense organism: a small particle nebula at exact c
 
 There are intentionally no sidebars, headers, cards, heavy frames, persistent inspectors, button rows, counters, or dashboard chrome.
 
+### Semantic hub icon map
+
+The inline `iconSvg()` helper keeps hub iconography data-driven. Mindset retains its constellation symbol; the remaining hubs use restrained monochrome line SVGs: Scholar/open book, Charisma/lips, Physical/flexed arm, Artist/paintbrush, Connector/handshake, Craftsman/wrench, Explorer/compass, Merchant/shopping bag, and Health/heart. The same map is used by overview hubs and focused hubs.
+
 ## Interaction model
 
 - Select any of the ten hubs to enter its focused crown.
@@ -44,7 +48,7 @@ Demo progress is isolated to:
 life-os-constellation-demo-v5
 ```
 
-It stores only `{ points, lit }`, where `lit` is keyed by `${skillIndex}-${milestoneId}`. There are no backend calls and no writes to production app storage. The focused tree is sourced from the production `skillMilestones` arrays: Mindset (12), Scholar (15), Charisma (10), Physical (51), Artist (10), Connector (10), Craftsman (20), Explorer (14), Merchant (29), and Health (27), for 198 milestones total. Each array preserves the production `id`, exact `title`, and every `parents` relationship. A production implementation should replace the demo mutation with the existing mutation/query layer while retaining the same stable ID model.
+It stores only `{ points, lit }`, where `lit` is keyed by `${skillIndex}-${milestoneId}`. There are no backend calls, source fetches, reloads, or writes to production app storage. The focused tree embeds a static snapshot of the production `skillMilestones` arrays directly in `skill-tree-ui.html`: Mindset (12), Scholar (15), Charisma (10), Physical (51), Artist (10), Connector (10), Craftsman (20), Explorer (14), Merchant (29), and Health (27), for 198 milestones total. Each array preserves the production `id`, exact `title`, and every `parents` relationship. The prototype is a genuinely self-contained HTML asset with no runtime dependency on production source or helper JavaScript. A production implementation should replace the demo mutation with the existing mutation/query layer while retaining the same stable ID model.
 
 ## Suggested React boundaries
 
