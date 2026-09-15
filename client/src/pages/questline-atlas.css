@@ -125,6 +125,11 @@
   filter: drop-shadow(0 0 3px rgba(113, 223, 196, .7));
 }
 
+.atlas-connections path.is-open-branch {
+  stroke: rgba(209, 218, 247, .42);
+  stroke-dasharray: 3 7;
+}
+
 .atlas-root {
   position: absolute;
   z-index: 4;
@@ -241,6 +246,33 @@
   border-color: #70e1c2;
 }
 
+.atlas-add-branch {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(218, 225, 248, .52);
+  border-radius: 50%;
+  background: rgba(34, 45, 76, .74);
+  color: rgba(236, 240, 252, .88);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 5px 18px rgba(7, 13, 30, .2);
+  backdrop-filter: blur(7px);
+  transition: color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease;
+}
+
+.atlas-add-branch:hover,
+.atlas-add-branch:focus-visible {
+  border-color: #f2d48d;
+  background: rgba(64, 72, 112, .96);
+  color: #fff4d7;
+  outline: none;
+  transform: translate(-50%, -50%) scale(1.14);
+}
+
 .atlas-scene-footer {
   position: absolute;
   z-index: 6;
@@ -292,7 +324,7 @@
 .atlas-empty {
   position: absolute;
   z-index: 5;
-  top: 250px;
+  top: 318px;
   left: 50%;
   width: 250px;
   color: #dbe0f2;
@@ -308,10 +340,6 @@
 .atlas-empty span {
   color: #aab3cd;
   font-size: 12px;
-}
-
-.atlas-empty button {
-  margin: 17px auto;
 }
 
 .atlas-inspector {
@@ -624,6 +652,24 @@ html.light .atlas-dialog textarea {
   border-color: #78869b !important;
 }
 
+html.light .atlas-connections path.is-open-branch {
+  stroke: rgba(78, 91, 111, .42);
+}
+
+html.light .atlas-add-branch {
+  border-color: rgba(71, 82, 101, .48);
+  background: rgba(255, 253, 249, .88);
+  color: #46546a;
+  box-shadow: 0 5px 16px rgba(47, 55, 68, .13);
+}
+
+html.light .atlas-add-branch:hover,
+html.light .atlas-add-branch:focus-visible {
+  border-color: #766029;
+  background: #fffdf8;
+  color: #302b20;
+}
+
 @media (max-width: 900px) {
   .atlas-page {
     padding: 23px 16px 90px;
@@ -716,10 +762,19 @@ html.light .atlas-dialog textarea {
     max-height: calc(100dvh - 110px - env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
   }
+
+  .atlas-add-branch {
+    width: 38px;
+    height: 38px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .atlas-orb {
+    transition: none;
+  }
+
+  .atlas-add-branch {
     transition: none;
   }
 }
