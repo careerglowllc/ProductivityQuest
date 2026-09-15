@@ -308,3 +308,31 @@ mtime_ms = 1789436686221
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/8bc5f013-e6c6-44c6-81f9-1fe9f0c2f7ca/13569917-f23f-4f8e-9249-820341b0b343"
 storage_version_token = "1789436705504631"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "_OYKqvi3epZ7MPnt1p-A_"
+uri = "file://skill-tree-constellation-interactive.html"
+type = "text"
+title = "Working Interactive Skill Constellation"
+description = "Verified single-file HTML with reliable same-page category clicks and direct focused-tree URLs."
+logical_id = "3c0b7bdd-7d41-4253-88c0-efb5763112ae"
+content_hash = "sha256:51b9bf35fbf7462ee4ca0d043f66a49b0154ded16b8f6e6e097d429e1a5d47b7"
+size = 30094
+mtime_ms = 1789437611195
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/3c0b7bdd-7d41-4253-88c0-efb5763112ae/b80216d3-fdf7-4dd7-b74b-e0fcbf0871e5"
+storage_version_token = "1789437661746412"
+content_type = "text/html"
+
+[[outputs]]
+id = "4TrogFrUGcodwk3-y1qup"
+uri = "file://screenshots/craftsman-category-tree-working.jpg"
+type = "image"
+title = "Verified Craftsman Focused Tree"
+description = "Visual proof that the Craftsman URL opens the individual tree with its wrench hub, real nodes, and branch connections."
+logical_id = "6451deb1-8b6d-42f4-b64b-f55fd1f31891"
+content_hash = "sha256:3fdf94a3bfb11ee1303e660654c4837d52d6a6291645f01398d3365d6a11c0f3"
+size = 21331
+mtime_ms = 1789437652226
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/6451deb1-8b6d-42f4-b64b-f55fd1f31891/020c0423-8066-4932-8661-1947732e23ef"
+storage_version_token = "1789437662319918"
+content_type = "image/jpeg"

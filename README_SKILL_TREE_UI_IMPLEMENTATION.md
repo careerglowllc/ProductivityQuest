@@ -16,7 +16,7 @@ Hub circles and adjacent descriptor labels are one linked, keyboard-accessible c
 
 Direct validation URLs include:
 
-`skill-tree-ui.html?domain=mindset` · `?domain=scholar` · `?domain=charisma` · `?domain=physical` · `?domain=artist` · `?domain=connector` · `?domain=craftsman` · `?domain=explorer` · `?domain=merchant` · `?domain=health`
+`skill-tree-constellation-interactive.html?domain=mindset` · `?domain=scholar` · `?domain=charisma` · `?domain=physical` · `?domain=artist` · `?domain=connector` · `?domain=craftsman` · `?domain=explorer` · `?domain=merchant` · `?domain=health`
 
 ## Interaction model
 
@@ -54,7 +54,7 @@ Demo progress is isolated to:
 life-os-constellation-demo-v5
 ```
 
-It stores only `{ points, lit }`, where `lit` is keyed by `${skillIndex}-${milestoneId}`. There are no backend calls, source fetches, reloads, or writes to production app storage. The focused tree embeds a static snapshot of the production `skillMilestones` arrays directly in `skill-tree-ui.html`: Mindset (12), Scholar (15), Charisma (10), Physical (51), Artist (10), Connector (10), Craftsman (20), Explorer (14), Merchant (29), and Health (27), for 198 milestones total. Each array preserves the production `id`, exact `title`, and every `parents` relationship. The prototype is a genuinely self-contained HTML asset with no runtime dependency on production source or helper JavaScript. A production implementation should replace the demo mutation with the existing mutation/query layer while retaining the same stable ID model.
+It stores only `{ points, lit }`, where `lit` is keyed by `${skillIndex}-${milestoneId}`. There are no backend calls, source fetches, reloads, or writes to production app storage. The focused tree embeds a static snapshot of the production `skillMilestones` arrays directly in `skill-tree-constellation-interactive.html`: Mindset (12), Scholar (15), Charisma (10), Physical (51), Artist (10), Connector (10), Craftsman (20), Explorer (14), Merchant (29), and Health (27), for 198 milestones total. Each array preserves the production `id`, exact `title`, and every `parents` relationship. The prototype is a genuinely self-contained HTML asset with no runtime dependency on production source or helper JavaScript. A production implementation should replace the demo mutation with the existing mutation/query layer while retaining the same stable ID model.
 
 ## Suggested React boundaries
 
@@ -78,7 +78,7 @@ It stores only `{ points, lit }`, where `lit` is keyed by `${skillIndex}-${miles
 
 ## Acceptance checks
 
-- Open `skill-tree-ui.html` directly from disk; no build step or server is needed.
+- Open `skill-tree-constellation-interactive.html` directly from disk; no build step or server is needed.
 - Confirm the map, not copy, dominates the viewport and that no dashboard chrome appears.
 - Select all ten skills, cycle adjacent skills, return to the overview, and resize to 320px.
 - Select locked, in-progress, available, and mastered points and confirm the minimal overlay updates.
