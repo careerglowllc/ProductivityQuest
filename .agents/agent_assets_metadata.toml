@@ -238,3 +238,31 @@ mtime_ms = 1789433080764
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/04af70ba-5df5-4fac-9214-18ffd66f8377/38b45f18-11e7-4a46-ad9c-6f0ed1a10cbe"
 storage_version_token = "1789433156219453"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "sVUhNC7d4aJm_xBC4sd-k"
+uri = "file://skill-tree-ui.html"
+type = "text"
+title = "Life OS Skill Constellation"
+description = "Interactive radial capability atlas with cinematic domain transitions, branching skill trees, node inspection, pan and zoom, and persistent demo progression."
+logical_id = "b3906fb3-7ac1-4b44-abfc-8080c00bbff3"
+content_hash = "sha256:fe616a982d8d563dc88cfb75c42463666568769d596b51cdf9440a7a1abd23f9"
+size = 32516
+mtime_ms = 1789435186597
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b3906fb3-7ac1-4b44-abfc-8080c00bbff3/6baed12f-d5ef-47f9-93af-75668ad4bed5"
+storage_version_token = "1789435200674062"
+content_type = "text/html"
+
+[[outputs]]
+id = "a6JNs7KTKC_162bU1JMsU"
+uri = "file://README_SKILL_TREE_UI_IMPLEMENTATION.md"
+type = "text"
+title = "Skill Constellation Implementation Handoff"
+description = "Production mapping, node states, responsive behavior, accessibility and motion requirements, suggested React boundaries, and acceptance checks."
+logical_id = "92e7de8b-9b08-477e-9ab8-59c098e82a71"
+content_hash = "sha256:1111fd82540743bd65758ec6bc670f03f97fd98e70604f8826e8dd583a56212c"
+size = 5981
+mtime_ms = 1789435123477
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/92e7de8b-9b08-477e-9ab8-59c098e82a71/f519c8ca-6edb-482d-95af-3c7fd876776e"
+storage_version_token = "1789435201168567"
+content_type = "text/markdown"
