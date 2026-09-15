@@ -21,6 +21,7 @@
     "cap:run:ios": "npm run cap:sync && npm run cap:open:ios"
   },
   "dependencies": {
+    "@capacitor/haptics": "^7.0.5",
     "@capacitor/keyboard": "^7.0.4",
     "@capacitor/splash-screen": "^7.0.5",
     "@capacitor/status-bar": "^7.0.5",

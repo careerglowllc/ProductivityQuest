@@ -98,7 +98,17 @@
   z-index: 5;
 }
 
+.constellation-stage .focus-back-mobile-icon {
+  display: none;
+}
+
 @media (max-width: 767px) {
+  .constellation-stage .constellation-focus {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: none;
+  }
+
   .constellation-stage .constellation-nebula {
     width: clamp(102px, 32vw, 136px);
     height: clamp(102px, 32vw, 136px);
@@ -137,6 +147,40 @@
 
   .constellation-stage .atlas-label small {
     display: none;
+  }
+
+  .constellation-stage .focus-back {
+    z-index: 12;
+    bottom: 14px;
+    min-width: 154px;
+    min-height: 44px;
+    padding: 11px 18px;
+    border: 1px solid rgba(255, 255, 255, .5);
+    border-radius: 999px;
+    background: rgba(30, 38, 68, .82);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 8px 28px rgba(19, 25, 50, .3);
+    backdrop-filter: blur(10px);
+  }
+
+  .constellation-stage .focus-back-desktop-icon {
+    display: none;
+  }
+
+  .constellation-stage .focus-back-mobile-icon {
+    display: inline;
+  }
+
+  .constellation-stage .focus-title {
+    top: auto;
+    bottom: 78px;
+  }
+
+  .constellation-stage .focus-low-controls {
+    top: 12px;
+    bottom: auto;
   }
 }
 
@@ -358,4 +402,13 @@ html.light .constellation-stage button:focus-visible {
 
 html.light .constellation-stage .constellation-error p {
   color: #4a4742;
+}
+
+@media (max-width: 767px) {
+  html.light .constellation-stage .focus-back {
+    border-color: rgba(42, 40, 36, .46);
+    background: rgba(250, 247, 241, .92);
+    color: #242321;
+    box-shadow: 0 8px 24px rgba(45, 43, 40, .16);
+  }
 }

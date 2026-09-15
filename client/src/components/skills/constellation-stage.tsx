@@ -1,5 +1,7 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type TouchEvent as ReactTouchEvent } from "react";
 import type { LucideIcon } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import type { UserSkill } from "@/../../shared/schema";
 import "./constellation-stage.css";
 
@@ -26,6 +28,11 @@ function polar(cx: number, cy: number, radius: number, degrees: number): [number
 
 type OverviewBough = { point: [number, number]; leaves: { end: [number, number]; angle: number; active: boolean }[] };
 type OverviewGeometry = { angle: number; hub: [number, number]; trunk: [number, number]; boughs: OverviewBough[]; label: [number, number]; labelRect: { left: number; top: number; right: number; bottom: number } };
+type FocusGesture = { id: number; x: number; y: number; lastX: number; lastY: number; startedAt: number; eligible: boolean; thresholdHaptic: boolean; actionCommitted: boolean };
+
+function impact(style: ImpactStyle) {
+  if (Capacitor.isNativePlatform()) void Haptics.impact({ style }).catch(() => {});
+}
 
 function rectsOverlap(a: OverviewGeometry["labelRect"], b: OverviewGeometry["labelRect"], gap: number) {
   return a.left < b.right + gap && a.right + gap > b.left && a.top < b.bottom + gap && a.bottom + gap > b.top;
@@ -170,6 +177,8 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
   const [nodeId, setNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [linked, setLinked] = useState<number | null>(null);
+  const focusGesture = useRef<FocusGesture | null>(null);
+  const focusViewRef = useRef<HTMLElement>(null);
   const focused = skills.find(s => s.id === focusId);
   const milestones = focused ? getMilestones(focused) : [];
   const done = new Set((focused?.completedMilestones as string[] | null) || []);
@@ -194,6 +203,66 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
   const enter = (skill: UserSkill) => { setFocusId(skill.id); setNodeId(null); setHoveredNodeId(null); updateUrl(skill); };
   const close = () => { setFocusId(null); setNodeId(null); setHoveredNodeId(null); updateUrl(); };
   const cycle = (direction: number) => { if (!canonical.length) return; const i = Math.max(0, canonical.findIndex(s => s.id === focused?.id)); enter(canonical[(i + direction + canonical.length) % canonical.length]); };
+  const startFocusGesture = (event: ReactTouchEvent<HTMLElement>) => {
+    if (!focused || event.touches.length !== 1 || !window.matchMedia("(max-width: 767px)").matches) return;
+    const touch = event.touches[0];
+    const target = event.target as HTMLElement;
+    focusGesture.current = {
+      id: touch.identifier,
+      x: touch.clientX,
+      y: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+      startedAt: performance.now(),
+      eligible: !target.closest("button, a, input, select, textarea, [role='button'], .node-inspector"),
+      thresholdHaptic: false,
+      actionCommitted: false,
+    };
+  };
+  const moveFocusGesture = (event: ReactTouchEvent<HTMLElement>) => {
+    const gesture = focusGesture.current;
+    if (!gesture?.eligible || gesture.actionCommitted) return;
+    if (event.touches.length !== 1) { focusGesture.current = null; return; }
+    const touch = Array.from(event.touches).find(item => item.identifier === gesture.id);
+    if (!touch) { focusGesture.current = null; return; }
+    const previousY = gesture.lastY;
+    gesture.lastX = touch.clientX;
+    gesture.lastY = touch.clientY;
+    const dx = gesture.lastX - gesture.x;
+    const dy = gesture.lastY - gesture.y;
+    const elapsed = Math.max(1, performance.now() - gesture.startedAt);
+    const horizontalCommit = Math.abs(dx) >= 72 && Math.abs(dx) > Math.abs(dy) * 1.4 && Math.abs(dx) / elapsed >= .2;
+    const upwardPreview = gesture.y >= window.innerHeight * .58 && -dy >= 78 && -dy > Math.abs(dx) * 1.4 && -dy / elapsed >= .18 && elapsed <= 750;
+    const upwardCommit = gesture.y >= window.innerHeight * .58 && -dy >= Math.max(140, window.innerHeight * .17) && -dy > Math.abs(dx) * 1.4 && -dy / elapsed >= .24 && elapsed <= 750;
+    const previewWasActive = gesture.thresholdHaptic;
+    if (!gesture.thresholdHaptic && elapsed <= 750 && (horizontalCommit || upwardPreview)) {
+      gesture.thresholdHaptic = true;
+      impact(ImpactStyle.Light);
+    }
+    if (upwardCommit && previewWasActive) {
+      gesture.actionCommitted = true;
+      impact(ImpactStyle.Medium);
+      close();
+      return;
+    }
+    const deliberateUpwardCandidate = gesture.y >= window.innerHeight * .58 && dy < -18 && -dy > Math.abs(dx) * 1.4 && -dy / elapsed >= .24 && elapsed <= 750;
+    if (!deliberateUpwardCandidate && Math.abs(dy) > Math.abs(dx) && focusViewRef.current) {
+      focusViewRef.current.scrollTop += previousY - gesture.lastY;
+    }
+  };
+  const endFocusGesture = (event: ReactTouchEvent<HTMLElement>) => {
+    const gesture = focusGesture.current;
+    focusGesture.current = null;
+    if (!gesture?.eligible || gesture.actionCommitted || event.touches.length > 0 || !Array.from(event.changedTouches).some(item => item.identifier === gesture.id)) return;
+    const dx = gesture.lastX - gesture.x;
+    const dy = gesture.lastY - gesture.y;
+    const elapsed = Math.max(1, performance.now() - gesture.startedAt);
+    const horizontalSwipe = elapsed <= 700 && Math.abs(dx) >= 90 && Math.abs(dx) > Math.abs(dy) * 1.4 && Math.abs(dx) / elapsed >= .22;
+    if (horizontalSwipe) {
+      impact(ImpactStyle.Medium);
+      cycle(dx < 0 ? 1 : -1);
+    }
+  };
   useEffect(() => { const key = (e: KeyboardEvent) => { if (e.key === "Escape" && focused) close(); else if (e.key === "ArrowLeft") cycle(-1); else if (e.key === "ArrowRight") cycle(1); }; window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key); });
 
   if (error) return <main className="constellation-stage constellation-error"><h1>Unable to illuminate your skills</h1><p>{error.message || "The constellation could not be loaded."}</p><button onClick={onRetry}>Try again</button></main>;
@@ -233,11 +302,11 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
       <button className="constellation-pager prev" aria-label="Previous skill" onClick={() => cycle(-1)}>‹</button><button className="constellation-pager next" aria-label="Next skill" onClick={() => cycle(1)}>›</button><button className="atlas-caption" onClick={close}>Overview · {canonical.length} skills</button>
       <div className="constellation-utility"><button onClick={onWhySkills}>Why skills?</button><button onClick={onAddSkill}>Add skill</button></div>
     </section>
-    <section className={`constellation-focus ${focused ? "is-active" : ""}`} aria-label={focused ? `${focused.skillName} focused skill tree` : undefined}>
+    <section ref={focusViewRef} className={`constellation-focus ${focused ? "is-active" : ""}`} aria-label={focused ? `${focused.skillName} focused skill tree` : undefined} onTouchStart={startFocusGesture} onTouchMove={moveFocusGesture} onTouchEnd={endFocusGesture} onTouchCancel={() => { focusGesture.current = null; }}>
       {focused && <><svg className="focus-lines" viewBox={`0 0 ${w} ${h}`} aria-hidden="true">{milestones.flatMap(node => (node.parents || []).map(parent => { const from = focusPos.get(parent), to = focusPos.get(node.id); if (!from || !to) return null; const controlX = (from[0] + to[0]) / 2 + (to[1] - from[1]) * .12; return <path key={`${parent}-${node.id}`} className={`constellation-path ${status(node) === "locked" ? "faint" : "active"}`} d={`M${from[0]} ${from[1]} Q${controlX} ${(from[1] + to[1]) / 2} ${to[0]} ${to[1]}`} />; }))}</svg>
         {milestones.map(node => { const pos = focusPos.get(node.id); if (!pos) return null; return <button key={node.id} className={`focus-node ${status(node)}`} style={{ left: pos[0], top: pos[1] }} aria-label={`${node.title}, ${status(node)}`} disabled={pending} onMouseEnter={() => setHoveredNodeId(node.id)} onMouseLeave={() => setHoveredNodeId(null)} onFocus={() => setHoveredNodeId(node.id)} onBlur={() => setHoveredNodeId(null)} onClick={() => setNodeId(node.id)} />; })}
         <div className="focus-hub" style={{ "--tone": COLORS[focused.skillName] || "#b596ee" } as CSSProperties}><HubIcon name={focused.skillName} custom={getCustomIcon(focused)} /></div><div className="focus-title"><b>{focused.skillName}</b><small>{DESC[focused.skillName] || "personal practice"} · Level {focused.level} · {focused.xp}/{focused.maxXp} XP</small></div>
-        <button className="focus-back" onClick={close}>‹&nbsp; All skills</button><button className="constellation-pager prev" aria-label="Previous skill" onClick={() => cycle(-1)}>‹</button><button className="constellation-pager next" aria-label="Next skill" onClick={() => cycle(1)}>›</button>
+        <button className="focus-back" onClick={close}><span className="focus-back-desktop-icon">‹</span><span className="focus-back-mobile-icon">↑</span>&nbsp; All skills</button><button className="constellation-pager prev" aria-label="Previous skill" onClick={() => cycle(-1)}>‹</button><button className="constellation-pager next" aria-label="Next skill" onClick={() => cycle(1)}>›</button>
         <aside className={`node-inspector ${inspectedNodeId ? "show" : ""}`} aria-live="polite">{inspectedNodeId && byId.get(inspectedNodeId) && (() => { const selected = byId.get(inspectedNodeId)!; const state = status(selected); return <><span>{state} · {selected.id}</span><h2>{selected.title}</h2><p>{selected.parents?.length ? `Prerequisites: ${selected.parents.map(p => byId.get(p)?.title).filter(Boolean).join(" · ")}` : "Foundation milestone · no prerequisites"}</p><small>{state === "mastered" ? "Path illuminated · complete" : state === "available" ? "Prerequisite met · ready" : "Prerequisite path still forming"}</small><div className="inspector-actions"><button disabled={pending || state === "locked"} onClick={() => { onToggle(focused.id, selected.id); setNodeId(null); setHoveredNodeId(null); }}>{pending ? "Saving…" : state === "mastered" ? "Dim this node" : "Light this node"}</button><button onClick={() => { setNodeId(null); setHoveredNodeId(null); }}>Close</button></div></>; })()}</aside>
         <div className="focus-low-controls"><button onClick={() => onEditSkill(focused)}>Edit skill</button><button onClick={() => onEditMilestones(focused)}>Customize</button>{focused.isCustom && <button onClick={() => onDeleteSkill(focused)}>Delete</button>}</div>
       </>}
