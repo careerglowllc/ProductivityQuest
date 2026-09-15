@@ -1,88 +1,76 @@
-# Life OS Skill Tree UI — production handoff
+# Life OS constellation — production handoff
 
-## Concept
+## New visual direction
 
-`skill-tree-ui.html` is a standalone, seeded prototype for an immersive Life OS capability instrument. The visual direction is **observatory interface × ancient star chart**: a deep blue-black night mode, restrained gold/cyan/violet signals, mono metadata, and an editorial serif for aspiration. It deliberately avoids game UI tropes: no coins, badges, avatars, cartoon iconography, or fantasy ornament.
+This version is a ground-up rewrite based only on the supplied constellation stills and motion reference. It is not a dashboard, application shell, observatory control panel, or card-based product surface. The viewport is a continuous muted periwinkle/slate-violet field (`#505779`–`#596184`) with a fine circular neural map as the primary object.
 
-The memorable interaction is the transition from a full-life radial **Atlas** into a focused domain constellation. The atlas is an orientation surface; the focused tree is the decision surface.
+The overview is composed as a dense organism: a small particle nebula at exact center, eight small chromatic ring hubs around a 55–65% viewport ring, and many hairline branches that split into tiny white points and hollow locked points. Sparse uppercase labels sit outside the branch ring. The focused state follows the supplied close-up composition: a single colored hub in the lower-center, a wide crown of stems and points above it, and a minimal translucent node annotation near the edge.
 
-## Information architecture
+There are intentionally no sidebars, headers, cards, heavy frames, persistent inspectors, button rows, counters, or dashboard chrome.
 
-1. **Atlas / overview**
-   - Life OS core in the center.
-   - Eight domain satellites: Life Path, Handyman, Scholarly, Financial, Physical, Social, Creative, and Inner Mastery.
-   - Each satellite has a short illuminated count and a semantic SVG icon.
-   - `Continue path` opens Life Path. Domain buttons open their own branch.
-2. **Focused domain**
-   - Back to Atlas.
-   - Large navigable SVG-backed tree with connected branches.
-   - Selected-node inspector with status, progress, requirements, benefits, connected skills, and point investment.
-   - Previous/next domain controls make adjacent exploration easy.
-   - Drag to pan and `− / 1:1 / +` to zoom.
+## Interaction model
 
-## Mapping to production skills data
+- Select any of the eight hubs to enter its focused crown.
+- The overview fades and scales away while the selected crown grows into the frame; the reverse restores the radial atlas.
+- Left/right chevrons cycle domains in either view. `Escape` and `ALL DOMAINS` return to the atlas.
+- Select any focused node. Its path softly isolates and a minimal text overlay appears with state, description, and progress language.
+- Available nodes expose `LIGHT THIS NODE · 1 POINT`. The demo has one isolated point and lights a node into the mastered state, revealing downstream visual paths.
+- Mastered, in-progress, available, and locked states are represented by white, violet, cyan-ready, and hollow/dim points respectively.
 
-The prototype language is intentionally aligned with the concepts in `client/src/pages/skills.tsx`:
+## Content system
 
-- **Handyman** carries forward Craftsman/tool fluency, repair, workshop, systems and legacy thinking.
-- **Creative** carries forward Artist, medium, practice, study, style, finishing and sharing work.
-- **Inner Mastery** translates Mindset into noticing, reframing, attention, ritual and equanimity.
-- **Financial** translates Merchant into baseline numbers, buffers, automation, investing and leverage.
-- **Physical** combines Physical/Athlete/Health language into a safer capability progression: baseline, strength, engine, recovery and performance.
-- **Scholarly** extends Scholar concepts: reading, research, notes, synthesis and teaching.
-- **Social** combines Connector/Charisma into listening, circles, precise speech, hosting and leadership.
-- **Life Path** is the top-level personal direction layer and can become the home for future Explorer goals.
+The seeded domains are:
 
-Production integration should replace the local `trees` object with normalized `UserSkill` and milestone records. Existing production milestones already provide `id`, `title`, `x`, `y`, and `parents`; these map directly to focused-node records. Existing skill descriptions can populate the inspector's description/benefit copy.
+1. Life Path — direction / choices
+2. Handyman — tools / independence
+3. Scholarly — depth / inquiry
+4. Financial — stewardship / leverage
+5. Physical — strength / energy
+6. Social — trust / belonging
+7. Creative — ideas / making
+8. Inner Mastery — attention / meaning
 
-## Node state model
+Node language is practical and original: naming a north star, building a cash buffer, reading with a method, protecting recovery, practicing real listening, finishing a body of work, and creating a grounding ritual.
 
-- **Mastered**: `state.done[nodeId] === true`; gold border and glow.
-- **In progress**: seeded progress is greater than zero but not mastered; violet signal.
-- **Available**: every parent is mastered or has seeded progress; cyan signal and enabled investment button.
-- **Locked**: at least one parent is not available; dimmed, disabled investment.
+For production, replace the local seeded arrays with an adapter that maps production skill and milestone records to `domain`, `name`, `parents`, `progress`, and `state`. The focused visual can consume the existing milestone `x`, `y`, and `parents` concepts without bringing over any old visual treatment.
 
-The demo starts with four isolated points. Investing consumes one point, sets the node to mastered, updates the inspector, and visibly enables downstream paths.
+## Storage
 
-## Demo storage
+Demo progress is isolated to:
 
-Only this key is used:
-
-```js
-life-os-skill-tree-demo-v1
+```text
+life-os-constellation-demo-v3
 ```
 
-The stored shape is `{ points: number, done: { [nodeId]: boolean } }`. Reset only clears this isolated demo key. No backend, API calls, or production data mutation occurs.
+It stores only `{ points, lit }`. There are no backend calls and no writes to production app storage. A production implementation should replace `save()` with the existing mutation/query layer while retaining a separate optimistic demo adapter for previews.
 
 ## Suggested React boundaries
 
-- `SkillTreePage`: route state, selected domain, transition orchestration.
-- `SkillAtlas`: radial overview, domain satellites, atlas legend.
-- `SkillDomainView`: focused tree shell, zoom/pan state, adjacent-domain navigation.
-- `SkillTreeCanvas`: SVG edges plus positioned accessible node buttons.
-- `SkillNodeInspector`: selected node metadata, requirements, progress, connected skills.
-- `SkillStateLegend`: state language and accessible explanation.
-- `useSkillTreeDemo`: isolated optimistic demo state; production version should use the existing query/mutation layer.
-- `skillTreeAdapter`: converts existing `UserSkill`/milestone data into `{ id, name, parents, x, y, description, benefits, progress, state }`.
+- `ConstellationStage`: full-viewport scene, route/state transition.
+- `AtlasConstellation`: center nebula, hub ring, overview paths and accessible hub buttons.
+- `FocusedCrown`: selected domain stems and point nodes.
+- `ConstellationNode`: semantic button, state styling and selection.
+- `NodeOverlay`: minimal transient annotation and unlock action.
+- `DomainPager`: invisible/low-chrome previous, next, and overview controls.
+- `useConstellationProgress`: isolated demo state today; production mutation adapter later.
 
-## Responsive, accessibility, and motion rules
+## Responsive and accessibility rules
 
-- Mobile switches the focused view to a single-column tree followed by an inspector sheet-like panel; no horizontal page overflow.
-- Touch targets are at least approximately 44px in the atlas and inspector controls. Focused nodes remain keyboard buttons with accessible labels.
-- Visible `:focus-visible` rings use gold, matching the night-mode signal system.
-- Atlas domains and tree nodes are semantic buttons; status changes are announced through the live inspector and toast status region.
-- Reduced-motion users receive no drift, path dash, hover transform, or transition animation.
-- Default motion is limited to a slow star drift, path drawing, subtle focus lift, and an intentional unlock toast.
-- Pan is pointer-based and bounded by the browser viewport; zoom has explicit controls and a reset affordance.
+- The visualization remains edge-to-edge from 320px through desktop; labels scale down, never introduce horizontal scrolling.
+- All hubs, points, chevrons, overview controls, and unlock actions are semantic buttons with accessible names.
+- `:focus-visible` is high-contrast white and offset from the point.
+- `aria-live` announces selected node state in the overlay and unlock toast.
+- Escape returns to the atlas. Left/right arrows page between domains. Enter/Space activate focused controls.
+- No emoji or external icon package is used; every icon is inline SVG.
+- `prefers-reduced-motion: reduce` disables star drift, swirl, path drawing, and transition easing while preserving both states and all functionality.
 
 ## Acceptance checks
 
-- Open `skill-tree-ui.html` directly from disk: it renders with no build step.
-- At 320px, 375px, tablet, and desktop widths: no horizontal overflow, legible domain labels, reachable controls.
-- Activate every atlas domain, return to Atlas, and cycle previous/next focused domains.
-- Select foundation, available, locked, in-progress, and mastered nodes; verify inspector content updates.
-- Invest available points; verify point count, mastered styling, toast, and newly available downstream nodes.
-- Reload; verify demo progress persists. Use Reset demo; verify only this prototype resets.
-- Tab through header, atlas domains, focused controls, nodes, inspector controls; activate with Enter/Space.
-- Test with `prefers-reduced-motion: reduce`.
-- Verify production React files are untouched; this handoff requires replacing only the prototype data adapter and storage/mutation layer.
+- Open `skill-tree-ui.html` directly from disk; no build step or server is needed.
+- Confirm the map, not copy, dominates the viewport and that no dashboard chrome appears.
+- Select all eight domains, cycle adjacent domains, return to the overview, and resize to 320px.
+- Select locked, in-progress, available, and mastered points and confirm the minimal overlay updates.
+- Light an available node, confirm the point is consumed, state changes, and connected active lines become brighter.
+- Reload and confirm only `life-os-constellation-demo-v3` persists.
+- Test keyboard tab order, Enter/Space activation, Escape, arrow keys, visible focus, and reduced motion.
+- Keep production React untouched; only the eventual adapter and state mutation layer belong in the app implementation.
