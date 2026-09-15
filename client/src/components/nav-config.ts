@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, CheckSquare, Calendar, Sparkles, DollarSign, BookOpen, Crown,
-  ShoppingCart, Users, Compass, HeartHandshake, Heart, Zap, ClipboardList, BookMarked, Settings,
+  ShoppingCart, Users, Compass, Dumbbell, Flame, HeartHandshake, Heart, Zap, ClipboardList, BookMarked, Settings,
 } from "lucide-react";
 
 export type NavLink = { label: string; path: string; icon: any };
@@ -21,7 +21,10 @@ export function isJournalPath(location: string) {
   return location === "/journal" || JOURNAL_SUBLINKS.some((l) => location === l.path);
 }
 
-/** Primary rail destinations. */
+/** Primary rail destinations. Explore/Fitness/Calorie Tracker sit right after Journal —
+ *  they used to ride along inside the old Journal sidebar sub-menu, which was removed
+ *  once the journal hub grew its own "related pages" nav; these three still need a
+ *  direct sidebar entry point since they aren't journal pages themselves. */
 export const PRIMARY_NAV: NavLink[] = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Quests", path: "/tasks", icon: CheckSquare },
@@ -29,6 +32,9 @@ export const PRIMARY_NAV: NavLink[] = [
   { label: "Skills", path: "/skills", icon: Sparkles },
   { label: "Finances", path: "/finances", icon: DollarSign },
   { label: "Journal", path: "/journal", icon: BookOpen },
+  { label: "Explore", path: "/explore", icon: Compass },
+  { label: "Fitness", path: "/fitness", icon: Dumbbell },
+  { label: "Calorie Tracker", path: "/fitness/calories", icon: Flame },
 ];
 
 /** Secondary destinations — kept out of the primary list so the rail stays scannable. */

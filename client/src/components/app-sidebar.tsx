@@ -162,6 +162,8 @@ export function AppSidebar() {
           const active =
             link.label === "Journal"
               ? isJournalPath(location)
+              : link.label === "Fitness"
+              ? location.startsWith("/fitness") && location !== "/fitness/calories"
               : location === link.path || (link.path === "/tasks" && location === "/campaigns");
           return <RailLink key={link.path} {...link} active={active} collapsed={collapsed} />;
         })}
