@@ -357,16 +357,16 @@ export default function JournalDailyGewsPage() {
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent style={swipeStyle} className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent style={swipeStyle} className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <div ref={isMobile ? swipeCallbackRef : undefined} className="contents">
           {isMobile && (
             <div className="flex justify-center pb-2 -mt-1">
-              <div className="w-12 h-1.5 rounded-full bg-amber-200/30" />
+              <div className="w-12 h-1.5 rounded-full bg-[var(--jrnl-line)]" />
             </div>
           )}
           <DialogHeader>
-            <DialogTitle className="font-serif text-amber-100 flex items-center gap-2">
-              <HeartHandshake className="h-5 w-5 text-amber-400" />
+            <DialogTitle className="jrnl-display text-xl text-[var(--jrnl-ink)] flex items-center gap-2">
+              <HeartHandshake className="h-5 w-5 text-[var(--jrnl-rose)]" />
               {originalDate ? "Edit Daily GEWS Entry" : "New Daily GEWS Entry"}
             </DialogTitle>
           </DialogHeader>
@@ -378,7 +378,7 @@ export default function JournalDailyGewsPage() {
                 type="date"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="bg-slate-800/60 border-amber-600/30 text-amber-50 max-w-[200px]"
+                className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-[200px]"
               />
             </div>
 
@@ -386,7 +386,7 @@ export default function JournalDailyGewsPage() {
               const meta = CATEGORY_META[cat];
               const Icon = meta.icon;
               return (
-                <div key={cat} className="space-y-2 border-t border-slate-700/40 pt-3">
+                <div key={cat} className="space-y-2 border-t border-[var(--jrnl-line)] pt-3">
                   <Label className="flex items-center gap-1.5" style={{ color: meta.color }}>
                     <Icon className="h-4 w-4" /> {meta.label}
                   </Label>
@@ -395,7 +395,7 @@ export default function JournalDailyGewsPage() {
                       {form[cat].map((item, idx) => {
                         const isEditingLine = editingLine?.cat === cat && editingLine.idx === idx;
                         return (
-                          <li key={idx} className="flex items-start justify-between gap-2 bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-sm text-slate-200">
+                          <li key={idx} className="flex items-start justify-between gap-2 bg-[var(--jrnl-paper-2)] border border-[var(--jrnl-line)] rounded-lg px-3 py-1.5 text-sm text-[var(--jrnl-ink)]">
                             {isEditingLine ? (
                               <>
                                 <Input
@@ -406,13 +406,13 @@ export default function JournalDailyGewsPage() {
                                     if (e.key === "Escape") { e.preventDefault(); cancelLineEdit(); }
                                   }}
                                   autoFocus
-                                  className="flex-1 h-7 bg-slate-900/60 border-amber-600/40 text-amber-50"
+                                  className="flex-1 h-7 bg-[var(--jrnl-paper)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)]"
                                 />
                                 <div className="flex items-center gap-1 shrink-0">
                                   <button onClick={saveLineEdit} title="Save" className="text-emerald-400 hover:text-emerald-300">
                                     <Check className="h-3.5 w-3.5" />
                                   </button>
-                                  <button onClick={cancelLineEdit} title="Cancel" className="text-slate-500 hover:text-red-400">
+                                  <button onClick={cancelLineEdit} title="Cancel" className="text-[var(--jrnl-muted)] hover:text-red-400">
                                     <X className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
@@ -430,10 +430,10 @@ export default function JournalDailyGewsPage() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-                                  <button onClick={() => startLineEdit(cat, idx)} title="Edit" className="text-slate-500 hover:text-amber-300">
+                                  <button onClick={() => startLineEdit(cat, idx)} title="Edit" className="text-[var(--jrnl-muted)] hover:text-[var(--jrnl-rose)]">
                                     <Pencil className="h-3.5 w-3.5" />
                                   </button>
-                                  <button onClick={() => removeItem(cat, idx)} title="Remove" className="text-slate-500 hover:text-red-400">
+                                  <button onClick={() => removeItem(cat, idx)} title="Remove" className="text-[var(--jrnl-muted)] hover:text-red-400">
                                     <X className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
@@ -457,7 +457,7 @@ export default function JournalDailyGewsPage() {
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(cat); } }}
                         onBlur={() => addItem(cat)}
                         placeholder={meta.placeholder}
-                        className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500 pr-10"
+                        className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] placeholder:text-[var(--jrnl-muted)] pr-10"
                       />
                     </AttachmentArea>
                     <Button type="button" variant="outline" onClick={() => addItem(cat)} className="shrink-0">
@@ -470,7 +470,7 @@ export default function JournalDailyGewsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={save} className="bg-amber-600 hover:bg-amber-500 text-white" disabled={!form.date}>
+            <Button onClick={save} className="bg-[var(--jrnl-sage)] hover:bg-[var(--jrnl-sage-deep)] text-white" disabled={!form.date}>
               {originalDate ? "Save Changes" : "Add Entry"}
             </Button>
           </DialogFooter>
@@ -480,11 +480,11 @@ export default function JournalDailyGewsPage() {
 
       {/* Delete confirmation */}
       <Dialog open={!!confirmDeleteDate} onOpenChange={(o) => !o && setConfirmDeleteDate(null)}>
-        <DialogContent className="bg-slate-900 border border-amber-600/40 text-amber-50 sm:max-w-sm">
+        <DialogContent className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete this entry?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--jrnl-muted)]">
             {confirmDeleteDate && `This will remove the Daily GEWS entry for ${fmtDateFull(confirmDeleteDate)}.`}
           </p>
           <DialogFooter>

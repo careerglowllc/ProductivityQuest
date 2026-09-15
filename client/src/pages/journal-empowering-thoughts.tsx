@@ -264,16 +264,16 @@ export default function JournalEmpoweringThoughtsPage() {
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent style={swipeStyle} className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent style={swipeStyle} className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <div ref={isMobile ? swipeCallbackRef : undefined} className="contents">
           {isMobile && (
             <div className="flex justify-center pb-2 -mt-1">
-              <div className="w-12 h-1.5 rounded-full bg-amber-200/30" />
+              <div className="w-12 h-1.5 rounded-full bg-[var(--jrnl-line)]" />
             </div>
           )}
           <DialogHeader>
-            <DialogTitle className="font-serif text-amber-100 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-400" />
+            <DialogTitle className="jrnl-display text-xl text-[var(--jrnl-ink)] flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[var(--jrnl-rose)]" />
               {editingId ? "Edit Thought" : "New Empowering Thought"}
             </DialogTitle>
           </DialogHeader>
@@ -285,7 +285,7 @@ export default function JournalEmpoweringThoughtsPage() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="e.g. I am capable of figuring things out"
-                className="bg-slate-800/60 border-amber-600/30 text-amber-50"
+                className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)]"
               />
             </div>
             <div className="space-y-1.5">
@@ -300,14 +300,14 @@ export default function JournalEmpoweringThoughtsPage() {
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Why this thought matters to you, evidence that supports it, when to remember it…"
-                  className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500 pr-10"
+                  className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] placeholder:text-[var(--jrnl-muted)] pr-10"
                 />
               </AttachmentArea>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={save} className="bg-amber-600 hover:bg-amber-500 text-white">
+            <Button onClick={save} className="bg-[var(--jrnl-sage)] hover:bg-[var(--jrnl-sage-deep)] text-white">
               {editingId ? "Save Changes" : "Add Entry"}
             </Button>
           </DialogFooter>
@@ -317,11 +317,11 @@ export default function JournalEmpoweringThoughtsPage() {
 
       {/* Delete confirmation */}
       <Dialog open={!!confirmDeleteId} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
-        <DialogContent className="bg-slate-900 border border-amber-600/40 text-amber-50 sm:max-w-sm">
+        <DialogContent className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete this entry?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-400">This entry will be removed (you can undo right after).</p>
+          <p className="text-sm text-[var(--jrnl-muted)]">This entry will be removed (you can undo right after).</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => confirmDeleteId && remove(confirmDeleteId)}>Delete</Button>

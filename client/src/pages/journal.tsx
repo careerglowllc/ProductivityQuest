@@ -451,42 +451,42 @@ export default function JournalPage() {
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-serif text-amber-100 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-amber-400" />
+            <DialogTitle className="jrnl-display text-xl text-[var(--jrnl-ink)] flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-[var(--jrnl-rose)]" />
               {editingId ? "Edit Essay" : "New Essay"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
             <div>
-              <Label className="text-amber-200/80 text-xs">Title</Label>
+              <Label className="text-[var(--jrnl-muted)] text-xs">Title</Label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder="Essay title"
-                className="bg-slate-800 border-slate-700 text-amber-50 mt-1 text-lg font-serif"
+                className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] mt-1 text-lg jrnl-display"
                 autoFocus
               />
             </div>
             <div>
-              <Label className="text-amber-200/80 text-xs">Body</Label>
+              <Label className="text-[var(--jrnl-muted)] text-xs">Body</Label>
               <Textarea
                 value={form.body}
                 onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
                 placeholder="Write your essay…"
-                className="bg-slate-800 border-slate-700 text-amber-50 mt-1 min-h-[320px] leading-relaxed"
+                className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] mt-1 min-h-[320px] leading-relaxed"
               />
-              <p className="text-[11px] text-slate-500 mt-1">{wordCount(form.body)} words</p>
+              <p className="text-[11px] text-[var(--jrnl-muted)] mt-1">{wordCount(form.body)} words</p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-slate-300 hover:text-white hover:bg-slate-800">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-[var(--jrnl-muted)] hover:text-[var(--jrnl-ink)] hover:bg-[var(--jrnl-paper-2)]">
               Cancel
             </Button>
-            <Button onClick={save} className="bg-amber-600 hover:bg-amber-500 text-white">
+            <Button onClick={save} className="bg-[var(--jrnl-sage)] hover:bg-[var(--jrnl-sage-deep)] text-white">
               {editingId ? "Save Changes" : "Create Essay"}
             </Button>
           </DialogFooter>
@@ -495,16 +495,16 @@ export default function JournalPage() {
 
       {/* Delete confirm */}
       <Dialog open={!!confirmDeleteId} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
-        <DialogContent className="bg-slate-900 border border-red-600/40 text-amber-50 max-w-sm">
+        <DialogContent className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-red-200">Delete essay?</DialogTitle>
+            <DialogTitle className="text-red-400">Delete essay?</DialogTitle>
           </DialogHeader>
-          <p className="text-slate-300 text-sm">
+          <p className="text-[var(--jrnl-muted)] text-sm">
             This will permanently remove{" "}
-            <span className="font-semibold text-white">{essays.find((e) => e.id === confirmDeleteId)?.title}</span>.
+            <span className="font-semibold text-[var(--jrnl-ink)]">{essays.find((e) => e.id === confirmDeleteId)?.title}</span>.
           </p>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmDeleteId(null)} className="text-slate-300 hover:text-white hover:bg-slate-800">
+            <Button variant="ghost" onClick={() => setConfirmDeleteId(null)} className="text-[var(--jrnl-muted)] hover:text-[var(--jrnl-ink)] hover:bg-[var(--jrnl-paper-2)]">
               Cancel
             </Button>
             <Button onClick={() => confirmDeleteId && remove(confirmDeleteId)} className="bg-red-600 hover:bg-red-500 text-white">

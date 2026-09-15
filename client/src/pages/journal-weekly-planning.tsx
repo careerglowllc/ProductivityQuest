@@ -301,16 +301,16 @@ export default function JournalWeeklyPlanningPage() {
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent style={swipeStyle} className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent style={swipeStyle} className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <div ref={isMobile ? swipeCallbackRef : undefined} className="contents">
           {isMobile && (
             <div className="flex justify-center pb-2 -mt-1">
-              <div className="w-12 h-1.5 rounded-full bg-amber-200/30" />
+              <div className="w-12 h-1.5 rounded-full bg-[var(--jrnl-line)]" />
             </div>
           )}
           <DialogHeader>
-            <DialogTitle className="font-serif text-amber-100 flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-amber-400" />
+            <DialogTitle className="jrnl-display text-xl text-[var(--jrnl-ink)] flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-[var(--jrnl-rose)]" />
               {originalDate ? "Edit Weekly Plan" : "New Weekly Plan"}
             </DialogTitle>
           </DialogHeader>
@@ -323,7 +323,7 @@ export default function JournalWeeklyPlanningPage() {
                 type="date"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="bg-slate-800/60 border-amber-600/30 text-amber-50 max-w-[200px]"
+                className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-[200px]"
               />
             </div>
             <div className="space-y-1.5">
@@ -338,7 +338,7 @@ export default function JournalWeeklyPlanningPage() {
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="What went well this week? What's the plan for next week? Deep-dive on goals, priorities, and lessons learned…"
-                  className="bg-slate-800/60 border-amber-600/30 text-amber-50 placeholder:text-slate-500 pr-10"
+                  className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] placeholder:text-[var(--jrnl-muted)] pr-10"
                 />
               </AttachmentArea>
             </div>
@@ -346,7 +346,7 @@ export default function JournalWeeklyPlanningPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={save} className="bg-amber-600 hover:bg-amber-500 text-white" disabled={!form.date}>
+            <Button onClick={save} className="bg-[var(--jrnl-sage)] hover:bg-[var(--jrnl-sage-deep)] text-white" disabled={!form.date}>
               {originalDate ? "Save Changes" : "Add Entry"}
             </Button>
           </DialogFooter>
@@ -356,11 +356,11 @@ export default function JournalWeeklyPlanningPage() {
 
       {/* Delete confirmation */}
       <Dialog open={!!confirmDeleteDate} onOpenChange={(o) => !o && setConfirmDeleteDate(null)}>
-        <DialogContent className="bg-slate-900 border border-amber-600/40 text-amber-50 sm:max-w-sm">
+        <DialogContent className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete this entry?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--jrnl-muted)]">
             {confirmDeleteDate && `This will remove the weekly plan for ${fmtDateFull(confirmDeleteDate)}.`}
           </p>
           <DialogFooter>

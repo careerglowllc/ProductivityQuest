@@ -286,33 +286,33 @@ export default function ReferenceBeliefsPage() {
 
       {/* Editor dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent style={swipeStyle} className="bg-slate-900 border border-amber-600/40 text-amber-50 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent style={swipeStyle} className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <div ref={isMobile ? swipeCallbackRef : undefined} className="contents">
           {isMobile && (
             <div className="flex justify-center pb-2 -mt-1">
-              <div className="w-12 h-1.5 rounded-full bg-amber-200/30" />
+              <div className="w-12 h-1.5 rounded-full bg-[var(--jrnl-line)]" />
             </div>
           )}
           <DialogHeader>
-            <DialogTitle className="font-serif text-amber-100 flex items-center gap-2">
-              <BookMarked className="h-5 w-5 text-amber-400" />
+            <DialogTitle className="jrnl-display text-xl text-[var(--jrnl-ink)] flex items-center gap-2">
+              <BookMarked className="h-5 w-5 text-[var(--jrnl-rose)]" />
               {editingId ? "Edit Belief" : "New Belief"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
             <div>
-              <Label className="text-amber-200/80 text-xs">Title</Label>
+              <Label className="text-[var(--jrnl-muted)] text-xs">Title</Label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder="e.g. Always compound before consuming"
-                className="bg-slate-800 border-slate-700 text-amber-50 mt-1 text-lg font-serif"
+                className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] mt-1 text-lg jrnl-display"
                 autoFocus
               />
             </div>
             <div>
-              <Label className="text-amber-200/80 text-xs">Description</Label>
+              <Label className="text-[var(--jrnl-muted)] text-xs">Description</Label>
               <AttachmentArea
                 attachments={form.attachments || []}
                 onChange={(next) => setForm((f) => ({ ...f, attachments: next }))}
@@ -321,17 +321,17 @@ export default function ReferenceBeliefsPage() {
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder="Write the detailed explanation of this belief…"
-                  className="bg-slate-800 border-slate-700 text-amber-50 mt-1 min-h-[260px] leading-relaxed pr-10"
+                  className="bg-[var(--jrnl-paper-2)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)] mt-1 min-h-[260px] leading-relaxed pr-10"
                 />
               </AttachmentArea>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-slate-300 hover:text-white hover:bg-slate-800">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-[var(--jrnl-muted)] hover:text-[var(--jrnl-ink)] hover:bg-[var(--jrnl-paper-2)]">
               Cancel
             </Button>
-            <Button onClick={save} className="bg-amber-600 hover:bg-amber-500 text-white">
+            <Button onClick={save} className="bg-[var(--jrnl-sage)] hover:bg-[var(--jrnl-sage-deep)] text-white">
               {editingId ? "Save Changes" : "Create Belief"}
             </Button>
           </DialogFooter>
@@ -341,16 +341,16 @@ export default function ReferenceBeliefsPage() {
 
       {/* Delete confirm */}
       <Dialog open={!!confirmDeleteId} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
-        <DialogContent className="bg-slate-900 border border-red-600/40 text-amber-50 max-w-sm">
+        <DialogContent className="bg-[var(--jrnl-paper)] border border-[var(--jrnl-line)] text-[var(--jrnl-ink)] max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-red-200">Delete belief?</DialogTitle>
+            <DialogTitle className="text-red-400">Delete belief?</DialogTitle>
           </DialogHeader>
-          <p className="text-slate-300 text-sm">
+          <p className="text-[var(--jrnl-muted)] text-sm">
             This will remove{" "}
-            <span className="font-semibold text-white">{beliefs.find((b) => b.id === confirmDeleteId)?.title}</span> (you can undo right after).
+            <span className="font-semibold text-[var(--jrnl-ink)]">{beliefs.find((b) => b.id === confirmDeleteId)?.title}</span> (you can undo right after).
           </p>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmDeleteId(null)} className="text-slate-300 hover:text-white hover:bg-slate-800">
+            <Button variant="ghost" onClick={() => setConfirmDeleteId(null)} className="text-[var(--jrnl-muted)] hover:text-[var(--jrnl-ink)] hover:bg-[var(--jrnl-paper-2)]">
               Cancel
             </Button>
             <Button onClick={() => confirmDeleteId && remove(confirmDeleteId)} className="bg-red-600 hover:bg-red-500 text-white">
