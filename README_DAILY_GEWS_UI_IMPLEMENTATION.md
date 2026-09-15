@@ -66,16 +66,31 @@ const CATEGORY_ORDER: GewsCategory[] = [
 
 Legacy entries whose category arrays contain plain strings must be normalized to `{ text, attachments: [] }` before rendering or mutation. Preserve any existing attachment arrays during normalization.
 
+## Preferred capture UX
+
+The primary production interaction should be a compact single-reflection composer, not a four-section form or mandatory dialog. It should sit above history like the approved Gratitude Journal composer:
+
+- One textarea and one category icon control on the left. The initial category is `sadnesses` (Sadnesses).
+- The icon opens an accessible picker with Sadness, Gratitude, Win, and Excited choices. The selected icon, accessible label, color, prompt, and placeholder update together. Category meaning must also be written as a label; color is never the sole signal.
+- The composer has an optional attachment affordance using the existing `AttachmentArea` contract.
+- Enter without Shift immediately appends one reflection to today's entry. Shift+Enter inserts a newline. The selected category remains selected after save so a user can rapidly record several reflections of the same kind; the draft and attachment selection clear.
+- If today has no entry, create today's `GewsEntry`. If today already exists, append to its selected category array. Never create a second record for today's date.
+- History is individual-line-first: each saved reflection is easy to scan under its date, with a visible category label/icon, optional attachment indicator, edit action, recategorize action, and delete action. Complete-day editing remains available from the day header as a secondary path for date changes or batch cleanup, not as the normal capture flow.
+
+This is a deliberate improvement over a four-section editor: the fast path is always visible, one thought is saved at a time, and the day list explains the emotional shape of a day without forcing the user to open a form.
+
 ## Behavior contract
 
 - There is one entry per date. Opening today must open the existing entry when today already exists; it must never create a duplicate or blank replacement.
 - The date control supports selecting another date. Saving an edited entry removes its original date and applies the selected date.
 - If the selected date already exists, the save collision follows the existing React behavior: the selected date is replaced by the saved form, leaving one entry for that date.
-- Each category supports multiple lines. A line can be added with the Add control or by the production page's supported keyboard behavior.
+- Each category remains an array of multiple lines even though capture is one line at a time. A line can be appended from the composer or managed in the complete-day editor.
+- Per-line edit trims and replaces text without changing category. Per-line delete removes only that line. Per-line recategorize removes it from its original array and appends the same `GewsLine` to the selected category, preserving attachments.
+- A composer save is an immediate daily save: update `updatedAt`, persist the one date record, refresh the day list, and toast the result. The selected category should remain selected for rapid repeat capture.
 - Save must auto-commit non-empty text still sitting in any category draft input. Typed drafts must not disappear merely because the user presses Save before pressing Add.
-- Each draft line has an optional attachment affordance. Production must use `AttachmentArea` and `QuestAttachment`; the prototype only exposes a filename affordance and does not upload bytes.
+- Each composer line has an optional attachment affordance. Production must use `AttachmentArea` and `QuestAttachment`; the prototype only exposes a filename affordance and does not upload bytes. When a line is edited or recategorized, preserve its attachments unless `AttachmentArea` explicitly changes them.
 - Existing lines can be edited or removed before the daily save. Empty replacement text is rejected.
-- Daily save, edit, and delete are complete interactions. Delete requires confirmation and production uses the existing toast with Undo.
+- Daily save, edit, and delete are complete interactions. Delete requires confirmation and production uses the existing toast with Undo. Individual line deletion uses the same mutation/undo contract. Complete-day editing is secondary and may remain a responsive dialog/drawer for date changes and batch maintenance.
 - Days are listed chronologically in the UI contract (newest first is the approved display used by the current React page); each day shows category counts and a useful preview.
 - Include a composed empty state and a composed no-search-results state.
 - Undo and redo snapshot the full entry array around every mutating action. A fresh mutation clears redo; undo creates a redoable state; redo restores undo. Keep the existing `persistWithUndo` and toast semantics.
@@ -89,7 +104,7 @@ Production must use the existing `rowsToCSV` and `downloadCSV` helpers, not a re
 Date,Category,Entry,Attachments
 ```
 
-The Date value is the formatted full date, Category is the human label, Entry is the line text, and Attachments is empty or `N file(s)`. Preserve the existing date-stamped `daily-gews.csv` filename behavior.
+The Date value is the formatted full date, Category is the human label, Entry is the line text, and Attachments is empty or `N file(s)`. Preserve the existing date-stamped `daily-gews.csv` filename behavior. The composer always appends against today's local calendar date; only the secondary complete-day editor changes dates. Production writes through synced-storage and must not add raw fetch calls or a second persistence layer.
 
 ## Responsive editor and gesture behavior
 
@@ -109,13 +124,16 @@ The interface should animate only transform and opacity for short hover, toast, 
 2. Confirm the file contains no emoji codepoints; all icons are inline SVG or CSS.
 3. Run `node --check` against the HTML's extracted script. It must pass.
 4. Confirm the prototype uses only `journal-daily-gews-ui-demo-v1`; it must not read or write `journal-daily-gews-v1`.
-5. Desktop shows the Life OS shell, editorial hero, four category colors, related Journal navigation, daily list, counts, toolbar, and seeded demo days.
+5. Desktop shows the Life OS shell, editorial hero, compact single-reflection composer, accessible category picker, four category colors, related Journal navigation, individual reflection history, counts, toolbar, and seeded demo days.
 6. Mobile hides the sidebar, shows bottom navigation, keeps content inside the viewport, and opens a usable bottom drawer.
-7. Opening today with a seeded today entry edits that entry rather than creating a duplicate.
-8. Date selection, multiple lines, attachment affordances, line add/edit/remove, auto-commit of typed drafts, Save, Edit, Delete, and confirmation all work.
-9. Undo and redo restore complete list states and are disabled when unavailable.
-10. Search produces both filtered results and an intentional no-results state; clearing search restores the list.
-11. CSV export has the exact four columns and one row per line with escaped values.
-12. Swipe-down closes the mobile editor; Escape and the close control also work.
-13. Reduced-motion mode removes nonessential motion.
-14. Production integration continues to use the existing React logic, production storage key, synced-storage, `AttachmentArea`, CSV helpers, toast behavior, and `useSwipeDownToClose`.
+7. The composer defaults to Sadness, updates prompt/icon/color for every picker option, and Enter saves one line without opening a dialog.
+8. Add a line to a new today record, then add another line to the same date and confirm there is still exactly one date record.
+9. Individual history lines can be edited, deleted, and recategorized while retaining date context and attachments.
+10. Opening today with a seeded today entry appends through the composer rather than creating a duplicate; the complete-day editor still supports date selection and multiple lines.
+11. Attachment affordances, auto-commit of typed drafts in the complete-day editor, Save, Edit, Delete, and confirmation all work.
+12. Undo and redo restore complete list states and are disabled when unavailable.
+13. Search produces both filtered results and an intentional no-results state; clearing search restores the list.
+14. CSV export has the exact four columns and one row per line with escaped values.
+15. Swipe-down closes the secondary mobile editor; Escape and the close control also work.
+16. Reduced-motion mode removes nonessential motion.
+17. Production integration continues to use the existing React logic, production storage key, synced-storage, `AttachmentArea`, CSV helpers, toast behavior, and `useSwipeDownToClose`.
