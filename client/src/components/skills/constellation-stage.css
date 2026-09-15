@@ -1,7 +1,10 @@
 /* Constellation overview correction: a quiet, readable atlas at production scale. */
-.constellation-stage .constellation-lines path {
+.constellation-stage .constellation-lines path,
+.constellation-stage .focus-lines path {
   stroke-width: 1.38;
-  stroke-dasharray: 150;
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+  animation: none;
 }
 
 .constellation-stage .constellation-lines path.trunk {
