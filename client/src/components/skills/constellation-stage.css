@@ -199,3 +199,151 @@
     letter-spacing: .05em;
   }
 }
+
+/* Light mode keeps the skill tones intact and inverts only the cinematic
+   neutral system.  This is intentionally scoped to the constellation so the
+   rest of the app can keep its own light palette. */
+html.light .constellation-stage {
+  --sky: var(--constellation-field);
+  --ink: var(--constellation-ink);
+  background: radial-gradient(ellipse at 50% 48%, var(--constellation-field-hi) 0, var(--constellation-field) 65%, var(--constellation-field-low) 100%);
+  color: var(--ink);
+}
+
+html.light .constellation-stage::before,
+html.light .constellation-stage::after {
+  background-image:
+    radial-gradient(circle, #171717 0 1px, transparent 1.4px),
+    radial-gradient(circle, #73716d 0 1px, transparent 1.5px);
+}
+
+html.light .constellation-stage .constellation-nebula::before,
+html.light .constellation-stage .constellation-nebula::after {
+  background-image: radial-gradient(circle, #292826 0 1px, transparent 2px);
+}
+
+html.light .constellation-stage .constellation-nebula i {
+  background: #171717;
+  box-shadow: 0 0 18px 6px rgba(31, 30, 28, .36), 0 0 38px 10px rgba(92, 88, 81, .2);
+}
+
+html.light .constellation-stage .constellation-lines path,
+html.light .constellation-stage .focus-lines path {
+  stroke: rgba(43, 42, 39, .55);
+  filter: drop-shadow(0 0 2px rgba(43, 42, 39, .16));
+}
+
+html.light .constellation-stage .constellation-lines path.trunk {
+  stroke: rgba(28, 28, 26, .78);
+}
+
+html.light .constellation-stage .constellation-lines path.active,
+html.light .constellation-stage .focus-lines path.active {
+  stroke: #171717;
+  filter: drop-shadow(0 0 3px rgba(31, 30, 28, .42));
+}
+
+html.light .constellation-stage .node-dot {
+  background: #242321;
+  box-shadow: 0 0 8px 2px rgba(35, 34, 32, .42);
+}
+
+html.light .constellation-stage .node-dot.trunk-junction {
+  background: #171717;
+  box-shadow: 0 0 11px 3px rgba(35, 34, 32, .48);
+}
+
+html.light .constellation-stage .node-dot.split-junction {
+  background: var(--constellation-field);
+  border-color: rgba(39, 38, 35, .78);
+  box-shadow: 0 0 8px 2px rgba(45, 43, 40, .25);
+}
+
+html.light .constellation-stage .node-dot.locked,
+html.light .constellation-stage .focus-node.locked::after {
+  background: transparent;
+  border-color: #77736d;
+  box-shadow: none;
+}
+
+html.light .constellation-stage .atlas-hub,
+html.light .constellation-stage .focus-hub {
+  background: #302f2d;
+  box-shadow:
+    0 0 0 7px color-mix(in srgb, var(--tone), transparent 82%),
+    0 0 24px rgba(47, 45, 41, .2);
+}
+
+html.light .constellation-stage .atlas-label,
+html.light .constellation-stage .atlas-label b,
+html.light .constellation-stage .focus-title b {
+  color: var(--constellation-ink);
+  text-shadow: 0 1px 10px rgba(255, 253, 249, .9);
+}
+
+html.light .constellation-stage .atlas-label small,
+html.light .constellation-stage .focus-title small,
+html.light .constellation-stage .node-inspector span,
+html.light .constellation-stage .node-inspector small {
+  color: var(--constellation-ink-muted);
+  text-shadow: none;
+}
+
+html.light .constellation-stage .atlas-label:hover b,
+html.light .constellation-stage .atlas-label:focus-visible b,
+html.light .constellation-stage .atlas-label:hover small,
+html.light .constellation-stage .atlas-label:focus-visible small {
+  color: #11110f;
+}
+
+html.light .constellation-stage .constellation-pager,
+html.light .constellation-stage .focus-back,
+html.light .constellation-stage .constellation-controls button,
+html.light .constellation-stage .focus-low-controls button,
+html.light .constellation-stage .custom-skill-controls button,
+html.light .constellation-stage .constellation-utility button,
+html.light .constellation-stage .atlas-caption {
+  color: #4f4c47;
+}
+
+html.light .constellation-stage .constellation-pager:hover,
+html.light .constellation-stage .constellation-pager:focus-visible,
+html.light .constellation-stage .focus-back:hover,
+html.light .constellation-stage .focus-back:focus-visible,
+html.light .constellation-stage .focus-low-controls button:hover,
+html.light .constellation-stage .focus-low-controls button:focus-visible,
+html.light .constellation-stage .custom-skill-controls button:hover,
+html.light .constellation-stage .custom-skill-controls button:focus-visible,
+html.light .constellation-stage .constellation-utility button:hover,
+html.light .constellation-stage .constellation-utility button:focus-visible {
+  color: #11110f;
+}
+
+html.light .constellation-stage .focus-node:not(.available):not(.locked)::after {
+  background: #1c1b19;
+  box-shadow: 0 0 8px 2px rgba(35, 34, 32, .38);
+}
+
+html.light .constellation-stage .node-inspector {
+  border-left-color: rgba(42, 40, 36, .48);
+  background: rgba(250, 247, 241, .86);
+}
+
+html.light .constellation-stage .node-inspector p {
+  color: #4a4742;
+}
+
+html.light .constellation-stage .inspector-actions button,
+html.light .constellation-stage .constellation-error button {
+  border-color: rgba(42, 40, 36, .55);
+  color: #242321;
+}
+
+html.light .constellation-stage button:focus-visible {
+  outline-color: #242321;
+  box-shadow: 0 0 0 1px rgba(255, 253, 249, .92);
+}
+
+html.light .constellation-stage .constellation-error p {
+  color: #4a4742;
+}

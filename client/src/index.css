@@ -515,6 +515,15 @@ html.light {
   --dash-coral-soft: #fdeceb;
   --dash-track: #e7ebf0;
   --dash-shadow: 0 10px 30px rgba(19, 32, 56, 0.07);
+
+  /* Skills constellation neutral system. Semantic skill colors live in the
+     constellation components and are deliberately not remapped here. */
+  --constellation-field-hi: #fffdf9;
+  --constellation-field: #f5f1ea;
+  --constellation-field-low: #ebe6de;
+  --constellation-ink: #242321;
+  --constellation-ink-strong: #171717;
+  --constellation-ink-muted: #65615b;
 }
 
 /* Main column offset for the fixed desktop rail (default width ~300px).

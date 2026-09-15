@@ -78,3 +78,85 @@
 @media (prefers-reduced-motion: reduce) {
   .dashboard-constellation-aura { animation: none; }
 }
+
+/* Dashboard replica: invert only the neutral atmosphere. The per-skill
+   currentColor values remain untouched so semantic skill colors stay stable. */
+html.light .dashboard-constellation {
+  border-color: rgba(52, 49, 44, .18);
+  background:
+    radial-gradient(circle at 50% 49%, rgba(70, 66, 60, .09), transparent 25%),
+    radial-gradient(ellipse at 50% 48%, var(--constellation-field-hi) 0, var(--constellation-field) 65%, var(--constellation-field-low) 100%);
+}
+
+html.light .dashboard-constellation::before {
+  background-image:
+    radial-gradient(circle, #171717 0 1px, transparent 1.4px),
+    radial-gradient(circle, #73716d 0 1px, transparent 1.5px);
+}
+
+html.light .dashboard-constellation-path {
+  stroke: rgba(43, 42, 39, .55);
+  filter: drop-shadow(0 0 2px rgba(43, 42, 39, .16));
+}
+
+html.light .dashboard-constellation-path.trunk {
+  stroke: rgba(28, 28, 26, .78);
+}
+
+html.light .dashboard-constellation-path.active {
+  stroke: #171717;
+  filter: drop-shadow(0 0 3px rgba(31, 30, 28, .42));
+}
+
+html.light .dashboard-constellation-junction {
+  fill: var(--constellation-field);
+  stroke: rgba(39, 38, 35, .78);
+  filter: drop-shadow(0 0 2px rgba(45, 43, 40, .25));
+}
+
+html.light .dashboard-constellation-junction.trunk-junction {
+  fill: #171717;
+  stroke: none;
+  filter: drop-shadow(0 0 3px rgba(35, 34, 32, .38));
+}
+
+html.light .dashboard-constellation-leaf {
+  fill: var(--constellation-field);
+  stroke: rgba(39, 38, 35, .7);
+}
+
+html.light .dashboard-constellation-leaf.active {
+  fill: #1c1b19;
+  filter: drop-shadow(0 0 3px rgba(35, 34, 32, .42));
+}
+
+html.light .dashboard-constellation-hub {
+  fill: #302f2d;
+  filter: drop-shadow(0 0 8px rgba(47, 45, 41, .2));
+}
+
+html.light .dashboard-constellation-label {
+  fill: rgba(36, 35, 33, .94);
+  stroke: rgba(255, 253, 249, .92);
+}
+
+html.light .dashboard-constellation-core {
+  fill: #171717;
+  filter: url(#dash-constellation-glow);
+}
+
+html.light .dashboard-constellation defs stop[stop-color="#fff"] {
+  stop-color: #171717 !important;
+}
+
+html.light .dashboard-constellation defs stop[stop-color="#e8b5df"] {
+  stop-color: #77736d !important;
+}
+
+html.light .dashboard-constellation circle[fill="#f3f0ff"] {
+  fill: #292826 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.light .dashboard-constellation-aura { animation: none; }
+}
