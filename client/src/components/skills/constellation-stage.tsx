@@ -38,8 +38,13 @@ function pointNearRect(point: [number, number], rect: OverviewGeometry["labelRec
 /** Single source of truth for rendered overview geometry and deterministic QA. */
 function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGeometry[] {
   const dimension = Math.min(w, h);
-  const r = dimension * (w < 620 ? .235 : .255);
-  const outer = dimension * (w < 620 ? .43 : .46);
+  // The approved constellation has a fuller inner orbit: hubs sit closer to
+  // the nebula while their crowns carry most of the visual mass.
+  // Keep the short-height mode through 600px inclusive. At 601px the
+  // desktop orbit has enough radius to clear its full nebula + aura.
+  const compactStage = w < 768 || h <= 600;
+  const r = dimension * (compactStage ? .30 : .235);
+  const outer = dimension * (compactStage ? .50 : .485);
   const span = outer - r;
   const compact = w < 767 || h < 500;
   const narrow = w <= 400;
@@ -50,13 +55,13 @@ function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGe
   for (let i = 0; i < 10; i++) {
     const angle = -90 + i * 36;
     const hub = polar(cx, cy, r, angle);
-    const trunk = polar(hub[0], hub[1], span * .26, angle);
+    const trunk = polar(hub[0], hub[1], span * .30, angle);
     const boughs = [-1, 1].map(side => {
       const boughAngle = angle + side * 6;
-      const point = polar(hub[0], hub[1], span * .5, boughAngle);
+      const point = polar(hub[0], hub[1], span * .56, boughAngle);
       const leaves = [-1, 0, 1].map(j => {
         const leafAngle = boughAngle + j * 4.5;
-        const end = polar(cx, cy, r + span * (.54 + (j === 0 ? .04 : .01)), leafAngle);
+        const end = polar(cx, cy, r + span * (.64 + (j === 0 ? .06 : .02)), leafAngle);
         return { end, angle: leafAngle, active: side === -1 && j === 0 };
       });
       return { point, leaves };
@@ -94,17 +99,35 @@ function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGe
 function checkOverviewGeometry(w: number, h: number): boolean {
   const geometry = buildOverviewGeometry(w, h, true);
   const dimension = Math.min(w, h);
-  const r = dimension * (w < 620 ? .235 : .255);
-  const outer = dimension * (w < 620 ? .43 : .46);
+  const compactStage = w < 768 || h <= 600;
+  const r = dimension * (compactStage ? .30 : .235);
+  const outer = dimension * (compactStage ? .50 : .485);
   const span = outer - r;
+  const shortStage = h <= 600;
+  const nebulaRadius = compactStage
+    ? (shortStage
+      ? (w < 768 ? 54 : Math.min(66, Math.max(56, w * .08)))
+      : Math.min(68, Math.max(51, w * .16)))
+    : 95;
+  const hubRadius = compactStage
+    ? (shortStage
+      ? (w < 768 ? 24 : Math.min(28, Math.max(25, w * .035)))
+      : Math.min(27, Math.max(23, w * .065)))
+    : 33;
+  const glowFootprint = compactStage ? 10 : 12;
+  const centerClear = geometry.every(tree =>
+    Math.hypot(tree.hub[0] - w / 2, tree.hub[1] - h * .49) >
+    nebulaRadius + hubRadius + glowFootprint
+  );
   return geometry.every((tree, i) => {
     const leafAngles = tree.boughs.flatMap(b => b.leaves.map(leaf => leaf.angle));
     const angleDelta = (a: number) => Math.abs((((a - tree.angle) + 540) % 360) - 180);
     const points = [tree.hub, tree.trunk, ...tree.boughs.flatMap(b => [b.point, ...b.leaves.map(l => l.end)])];
     const pairwiseClear = geometry.every((other, j) => i === j || !rectsOverlap(tree.labelRect, other.labelRect, 0));
     const ownClear = points.every(point => !pointNearRect(point, tree.labelRect, 8));
-    const radialClear = r + span * .58 < outer - Math.max(22, dimension * .035);
-    return leafAngles.every(a => angleDelta(a) <= 14) && ownClear && pairwiseClear && radialClear &&
+    const radialClearance = compactStage ? Math.max(8, dimension * .025) : Math.max(22, dimension * .035);
+    const radialClear = r + span * .70 < outer - radialClearance;
+    return leafAngles.every(a => angleDelta(a) <= 14) && ownClear && pairwiseClear && radialClear && centerClear &&
       geometry.length === 10 &&
       tree.labelRect.left >= 0 && tree.labelRect.top >= 0 && tree.labelRect.right <= w && tree.labelRect.bottom <= h;
   });
@@ -127,7 +150,10 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
   useEffect(() => { const el = stageRef.current; if (!el) return; const ro = new ResizeObserver(([entry]) => setSize({ w: entry.contentRect.width, h: entry.contentRect.height })); ro.observe(el); return () => ro.disconnect(); }, []);
   useEffect(() => {
     if (import.meta.env.DEV) {
-      const boxes = [[1280, 720], [1024, 738], [390, 780], [780, 390], [667, 326], [320, 480], [360, 640]] as const;
+      const boxes = [
+        [1280, 720], [1024, 738], [390, 780], [780, 390], [667, 326], [320, 480], [360, 640],
+        [780, 499], [780, 500], [780, 501], [900, 550], [1024, 599], [1024, 600], [1024, 601],
+      ] as const;
       boxes.forEach(([w, h]) => {
         if (!checkOverviewGeometry(w, h)) throw new Error(`Constellation overview geometry check failed at ${w}×${h}`);
       });
