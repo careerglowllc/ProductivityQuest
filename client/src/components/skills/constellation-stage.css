@@ -1,0 +1,120 @@
+/* Constellation overview correction: a quiet, readable atlas at production scale. */
+.constellation-stage .constellation-lines path {
+  stroke-width: 1.2;
+  stroke-dasharray: 120;
+}
+
+.constellation-stage .constellation-lines path.trunk {
+  stroke: rgba(255, 255, 255, .86);
+  stroke-width: 1.45;
+  opacity: .9;
+}
+
+.constellation-stage .constellation-lines path.linked {
+  stroke-width: 1.55;
+}
+
+.constellation-stage .node-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.constellation-stage .node-dot.trunk-junction {
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  box-shadow: 0 0 10px 3px rgba(255,255,255,.72);
+}
+
+.constellation-stage .node-dot.split-junction {
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(255,255,255,.9);
+  background: #687199;
+  box-shadow: 0 0 7px 1px rgba(255,255,255,.35);
+}
+
+.constellation-stage .atlas-hub {
+  width: 58px;
+  height: 58px;
+  margin: -29px;
+  background: rgba(77, 85, 124, .92);
+}
+
+.constellation-stage .atlas-hub svg {
+  width: 20px;
+  height: 20px;
+}
+
+.constellation-stage .atlas-label {
+  width: 152px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  align-content: center;
+}
+
+.constellation-stage .atlas-label b {
+  font-size: 12px;
+  letter-spacing: .2em;
+  text-shadow: 0 1px 12px rgba(31, 35, 65, .8);
+}
+
+.constellation-stage .atlas-label small {
+  margin-top: 6px;
+  font-size: 9px;
+  color: rgba(230, 232, 247, .82);
+  text-shadow: 0 1px 10px rgba(31, 35, 65, .8);
+}
+
+.constellation-stage .atlas-skill {
+  z-index: 5;
+}
+
+@media (max-width: 767px) {
+  .constellation-stage .atlas-hub {
+    width: 46px;
+    height: 46px;
+    margin: -23px;
+  }
+
+  .constellation-stage .atlas-hub svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .constellation-stage .atlas-label {
+    width: 64px;
+    height: 22px;
+    padding: 0;
+  }
+
+  .constellation-stage .atlas-label b {
+    font-size: 8px;
+    letter-spacing: .08em;
+  }
+
+  .constellation-stage .atlas-label small {
+    display: none;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 768px) {
+  .constellation-stage .atlas-label {
+    width: 64px;
+    height: 22px;
+  }
+  .constellation-stage .atlas-label small { display: none; }
+  .constellation-stage .atlas-label b { font-size: 8px; letter-spacing: .08em; }
+}
+
+@media (max-width: 400px) {
+  .constellation-stage .atlas-label {
+    width: 56px;
+    height: 20px;
+  }
+  .constellation-stage .atlas-label b {
+    font-size: 7px;
+    letter-spacing: .05em;
+  }
+}
