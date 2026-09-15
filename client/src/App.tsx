@@ -53,6 +53,7 @@ import MorePage from "@/pages/more";
 import RecipesPage from "@/pages/recipes";
 import FoodInCitiesPage from "@/pages/food-in-cities";
 import ReferenceBeliefsPage from "@/pages/reference-beliefs";
+import QuestlineAtlas from "@/pages/questline-atlas";
 installStorageSync();
 
 // Shows the last crash captured by the global error/unhandledrejection listeners in
@@ -180,6 +181,7 @@ function Router() {
             <Route path="/calendar" component={CalendarPage} />
             <Route path="/shop" component={Shop} />
             <Route path="/skills" component={Skills} />
+            <Route path="/questline-atlas" component={QuestlineAtlas} />
             <Route path="/accomplishments" component={AccomplishmentsPage} />
             <Route path="/explore" component={ExplorePage} />
             <Route path="/countries-visited" component={CountriesVisitedPage} />

@@ -23,6 +23,7 @@ import {
   Heart,
   Zap,
   ClipboardList,
+  GitBranch,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -44,6 +45,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "Quests", path: "/tasks", icon: CheckSquare, color: "yellow", description: "Tasks & to-dos" },
       { name: "Calendar", path: "/calendar", icon: Calendar, color: "pink", description: "Schedule & events" },
       { name: "Questlines", path: "/campaigns", icon: Crown, color: "purple", description: "Long-term campaigns" },
+      { name: "Questline Atlas", path: "/questline-atlas", icon: GitBranch, color: "blue", description: "Map a questline constellation" },
     ],
   },
   {
