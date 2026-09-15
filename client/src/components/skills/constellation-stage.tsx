@@ -35,6 +35,12 @@ function pointNearRect(point: [number, number], rect: OverviewGeometry["labelRec
   return point[0] > rect.left - gap && point[0] < rect.right + gap && point[1] > rect.top - gap && point[1] < rect.bottom + gap;
 }
 
+function rectTouchesCircle(rect: OverviewGeometry["labelRect"], center: [number, number], radius: number, gap = 0) {
+  const x = Math.max(rect.left, Math.min(center[0], rect.right));
+  const y = Math.max(rect.top, Math.min(center[1], rect.bottom));
+  return Math.hypot(x - center[0], y - center[1]) < radius + gap;
+}
+
 /** Single source of truth for rendered overview geometry and deterministic QA. */
 function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGeometry[] {
   const dimension = Math.min(w, h);
@@ -51,22 +57,38 @@ function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGe
   const labelHalfW = compact ? (narrow ? 28 : 32) : 76;
   const labelHalfH = compact ? (narrow ? 10 : 11) : 19;
   const cx = w / 2, cy = h * .49;
+  const nebulaRadius = compactStage
+    ? (h <= 600 ? (w < 768 ? 54 : Math.min(66, Math.max(56, w * .08))) : Math.min(68, Math.max(51, w * .16)))
+    : 95;
+  const hubRadius = compactStage
+    ? (h <= 600 ? (w < 768 ? 24 : Math.min(28, Math.max(25, w * .035))) : Math.min(27, Math.max(23, w * .065)))
+    : 33;
+  const hubClearance = hubRadius + (compactStage ? 10 : 12);
   const result: OverviewGeometry[] = [];
   for (let i = 0; i < 10; i++) {
     const angle = -90 + i * 36;
+    const itemLabelHalfW = i === 0 ? (compact ? 26 : 40) : labelHalfW;
+    const itemLabelHalfH = i === 0 ? (compact ? 7 : 9) : labelHalfH;
     const hub = polar(cx, cy, r, angle);
     const trunk = polar(hub[0], hub[1], span * .30, angle);
+    // The north crown gets a slightly shorter reach in compact/short stages.
+    // This leaves a deliberate, quiet label lane above Mindset without moving
+    // the orbit or changing any of the other nine sectors.
+    const crownScale = i === 0 ? .40 : 1;
     const boughs = [-1, 1].map(side => {
       const boughAngle = angle + side * 6;
-      const point = polar(hub[0], hub[1], span * .56, boughAngle);
+      const point = polar(hub[0], hub[1], span * (.56 * crownScale + (1 - crownScale) * .12), boughAngle);
       const leaves = [-1, 0, 1].map(j => {
         const leafAngle = boughAngle + j * 4.5;
-        const end = polar(cx, cy, r + span * (.64 + (j === 0 ? .06 : .02)), leafAngle);
+        const leafReach = (.64 + (j === 0 ? .06 : .02)) * crownScale + (1 - crownScale) * .30;
+        const end = polar(cx, cy, r + span * leafReach, leafAngle);
         return { end, angle: leafAngle, active: side === -1 && j === 0 };
       });
       return { point, leaves };
     });
-    const raw = polar(cx, cy, outer, angle);
+    const raw: [number, number] = i === 0
+      ? [hub[0], itemLabelHalfH + 8]
+      : polar(cx, cy, outer, angle);
     const tangent: [number, number] = [-Math.sin(angle * Math.PI / 180), Math.cos(angle * Math.PI / 180)];
     const points = [hub, trunk, ...boughs.flatMap(b => [b.point, ...b.leaves.map(l => l.end)])];
     const offsets = Array.from({ length: 81 }, (_, n) => n === 0 ? 0 : (n % 2 ? -1 : 1) * Math.ceil(n / 2) * 4);
@@ -75,20 +97,22 @@ function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGe
       for (const offset of offsets) {
         const radial: [number, number] = [Math.cos(angle * Math.PI / 180) * radialOffset, Math.sin(angle * Math.PI / 180) * radialOffset];
         const candidate: [number, number] = [raw[0] + radial[0] + tangent[0] * offset, raw[1] + radial[1] + tangent[1] * offset];
-        const x = Math.max(labelHalfW + 8, Math.min(w - labelHalfW - 8, candidate[0]));
-        const y = Math.max(labelHalfH + 8, Math.min(h - labelHalfH - 8, candidate[1]));
-        const rect = { left: x - labelHalfW, top: y - labelHalfH, right: x + labelHalfW, bottom: y + labelHalfH };
+        const x = Math.max(itemLabelHalfW + 8, Math.min(w - itemLabelHalfW - 8, candidate[0]));
+        const y = Math.max(itemLabelHalfH + 8, Math.min(h - itemLabelHalfH - 8, candidate[1]));
+        const rect = { left: x - itemLabelHalfW, top: y - itemLabelHalfH, right: x + itemLabelHalfW, bottom: y + itemLabelHalfH };
         const ownCollision = points.some(point => pointNearRect(point, rect, 9));
+        const hubCollision = i === 0 && rectTouchesCircle(rect, hub, hubClearance, 0);
+        const nebulaCollision = i === 0 && rectTouchesCircle(rect, [cx, cy], nebulaRadius, compactStage ? 4 : 8);
         const neighborCollision = result.some(item => rectsOverlap(rect, item.labelRect, 8));
-        if (!ownCollision && !neighborCollision) { placed = { angle, hub, trunk, boughs, label: [x, y], labelRect: rect }; break; }
+        if (!ownCollision && !hubCollision && !nebulaCollision && !neighborCollision) { placed = { angle, hub, trunk, boughs, label: [x, y], labelRect: rect }; break; }
       }
       if (placed) break;
     }
     if (!placed) {
       if (strict) throw new Error(`No valid overview label placement for sector ${i} at ${w}×${h}`);
-      const x = Math.max(labelHalfW + 2, Math.min(w - labelHalfW - 2, raw[0]));
-      const y = Math.max(labelHalfH + 2, Math.min(h - labelHalfH - 2, raw[1]));
-      placed = { angle, hub, trunk, boughs, label: [x, y], labelRect: { left: x - labelHalfW, top: y - labelHalfH, right: x + labelHalfW, bottom: y + labelHalfH } };
+      const x = Math.max(itemLabelHalfW + 2, Math.min(w - itemLabelHalfW - 2, raw[0]));
+      const y = Math.max(itemLabelHalfH + 2, Math.min(h - itemLabelHalfH - 2, raw[1]));
+      placed = { angle, hub, trunk, boughs, label: [x, y], labelRect: { left: x - itemLabelHalfW, top: y - itemLabelHalfH, right: x + itemLabelHalfW, bottom: y + itemLabelHalfH } };
     }
     result.push(placed);
   }
@@ -125,9 +149,15 @@ function checkOverviewGeometry(w: number, h: number): boolean {
     const points = [tree.hub, tree.trunk, ...tree.boughs.flatMap(b => [b.point, ...b.leaves.map(l => l.end)])];
     const pairwiseClear = geometry.every((other, j) => i === j || !rectsOverlap(tree.labelRect, other.labelRect, 0));
     const ownClear = points.every(point => !pointNearRect(point, tree.labelRect, 8));
+    const allNodeClear = i !== 0 || geometry.every(other => {
+      const otherPoints = [other.trunk, ...other.boughs.flatMap(b => [b.point, ...b.leaves.map(l => l.end)])];
+      return otherPoints.every(point => !pointNearRect(point, tree.labelRect, compactStage ? 6 : 7));
+    });
+    const hubClear = i !== 0 || !rectTouchesCircle(tree.labelRect, tree.hub, hubRadius + glowFootprint);
+    const nebulaClear = i !== 0 || !rectTouchesCircle(tree.labelRect, [w / 2, h * .49], nebulaRadius, compactStage ? 4 : 8);
     const radialClearance = compactStage ? Math.max(8, dimension * .025) : Math.max(22, dimension * .035);
     const radialClear = r + span * .70 < outer - radialClearance;
-    return leafAngles.every(a => angleDelta(a) <= 14) && ownClear && pairwiseClear && radialClear && centerClear &&
+    return leafAngles.every(a => angleDelta(a) <= 14) && ownClear && allNodeClear && hubClear && nebulaClear && pairwiseClear && radialClear && centerClear &&
       geometry.length === 10 &&
       tree.labelRect.left >= 0 && tree.labelRect.top >= 0 && tree.labelRect.right <= w && tree.labelRect.bottom <= h;
   });
@@ -153,7 +183,7 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
     if (import.meta.env.DEV) {
       const boxes = [
         [1280, 720], [1024, 738], [390, 780], [780, 390], [667, 326], [320, 480], [360, 640],
-        [780, 499], [780, 500], [780, 501], [900, 550], [1024, 599], [1024, 600], [1024, 601],
+         [780, 499], [780, 500], [780, 501], [780, 600], [780, 601], [900, 550], [1024, 499], [1024, 500], [1024, 599], [1024, 600], [1024, 601],
       ] as const;
       boxes.forEach(([w, h]) => {
         if (!checkOverviewGeometry(w, h)) throw new Error(`Constellation overview geometry check failed at ${w}×${h}`);
@@ -199,7 +229,7 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
         </Fragment>)}
         <span className={`atlas-skill ${linked === i ? "linked" : ""}`} style={{ "--x": `${hub[0]}px`, "--y": `${hub[1]}px`, "--lx": `${label[0]}px`, "--ly": `${label[1]}px`, "--tone": COLORS[skill.skillName] || "#b596ee" } as CSSProperties}>
         <button className="atlas-hub" aria-label={`Open ${skill.skillName} skill tree`} onMouseEnter={() => setLinked(i)} onMouseLeave={() => setLinked(null)} onFocus={() => setLinked(i)} onBlur={() => setLinked(null)} onClick={() => enter(skill)}><HubIcon name={skill.skillName} custom={getCustomIcon(skill)} /></button>
-        <button className="atlas-label" onMouseEnter={() => setLinked(i)} onMouseLeave={() => setLinked(null)} onFocus={() => setLinked(i)} onBlur={() => setLinked(null)} onClick={() => enter(skill)}><b>{skill.skillName}</b><small>{DESC[skill.skillName] || "personal practice"}</small></button>
+        <button className={`atlas-label ${i === 0 ? "atlas-label--north" : ""}`} onMouseEnter={() => setLinked(i)} onMouseLeave={() => setLinked(null)} onFocus={() => setLinked(i)} onBlur={() => setLinked(null)} onClick={() => enter(skill)}><b>{skill.skillName}</b>{i !== 0 && <small>{DESC[skill.skillName] || "personal practice"}</small>}</button>
         </span>
       </Fragment>)}
       <button className="constellation-pager prev" aria-label="Previous skill" onClick={() => cycle(-1)}>‹</button><button className="constellation-pager next" aria-label="Next skill" onClick={() => cycle(1)}>›</button><button className="atlas-caption" onClick={close}>Overview · {canonical.length} skills</button>

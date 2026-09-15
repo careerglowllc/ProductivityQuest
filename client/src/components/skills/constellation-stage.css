@@ -200,6 +200,18 @@
   }
 }
 
+.constellation-stage .atlas-label.atlas-label--north {
+  width: 80px;
+  height: 18px;
+}
+
+@media (max-width: 767px), (max-height: 499px) {
+  .constellation-stage .atlas-label.atlas-label--north {
+    width: 52px;
+    height: 14px;
+  }
+}
+
 /* Light mode keeps the skill tones intact and inverts only the cinematic
    neutral system.  This is intentionally scoped to the constellation so the
    rest of the app can keep its own light palette. */
