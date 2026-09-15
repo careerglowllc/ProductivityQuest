@@ -7,4 +7,6 @@ Use the full-screen, reference-driven constellation treatment for the Skills exp
 
 **Why:** The user explicitly confirmed this substantially different, reference-faithful direction as exactly the UI they want after rejecting an earlier version that looked too much like the existing application.
 
-**How to apply:** Preserve this visual grammar when extending skill domains, node content, transitions, or production behavior. Avoid dashboards, sidebars, cards, editorial hero sections, and permanent inspector panels in the constellation view.
+When visual fidelity and legacy functionality compete, preserve the approved composition, particle density, glow hierarchy, branch geometry, and motion first. Layer production functionality back in only where it does not flatten or obscure the experience.
+
+**How to apply:** Preserve this visual grammar when extending skill domains, node content, transitions, or production behavior. Avoid dashboards, cards, editorial hero sections, and permanent inspector panels in the constellation view. Treat the standalone HTML as the visual and motion reference when changing the React page.
