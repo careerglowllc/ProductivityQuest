@@ -12,6 +12,8 @@ There are intentionally no sidebars, headers, cards, heavy frames, persistent in
 
 The inline `iconSvg()` helper keeps hub iconography data-driven. Mindset retains its constellation symbol; the remaining hubs use restrained monochrome line SVGs: Scholar/open book, Charisma/lips, Physical/flexed arm, Artist/paintbrush, Connector/handshake, Craftsman/wrench, Explorer/compass, Merchant/shopping bag, and Health/heart. The same map is used by overview hubs and focused hubs.
 
+Hub circles and adjacent descriptor labels are one linked, keyboard-accessible control per skill. Hover, focus, Enter, and Space all address the same domain target; the circle, icon, label, and descriptor brighten together before entering the existing focused-tree transition.
+
 ## Interaction model
 
 - Select any of the ten hubs to enter its focused crown.

@@ -243,14 +243,14 @@ content_type = "text/markdown"
 id = "sVUhNC7d4aJm_xBC4sd-k"
 uri = "file://skill-tree-ui.html"
 type = "text"
-title = "Constellation with Semantic Skill Icons"
-description = "Updated self-contained HTML with custom line icons in every requested skill hub and matching focused-category hubs."
+title = "Interactive Skill Constellation HTML"
+description = "Updated single-file constellation with white completed nodes and linked hover, focus, and click behavior for every category circle and label."
 logical_id = "b3906fb3-7ac1-4b44-abfc-8080c00bbff3"
-content_hash = "sha256:b93037b9abcf20939d7da65d7f71ae3c84e328eaef72cf5bb145451786e9b49c"
-size = 27482
-mtime_ms = 1789436435330
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b3906fb3-7ac1-4b44-abfc-8080c00bbff3/632690f3-ec72-43f8-835b-0c14d161a701"
-storage_version_token = "1789436477172060"
+content_hash = "sha256:d4d92f5da2ddbaede0c83154ab5f3448351abd3df02402d0d2d1770a12a4fd1b"
+size = 28235
+mtime_ms = 1789436650770
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b3906fb3-7ac1-4b44-abfc-8080c00bbff3/3cc8881b-9714-4e83-8692-55096b54aeeb"
+storage_version_token = "1789436705044179"
 content_type = "text/html"
 
 [[outputs]]
@@ -293,4 +293,18 @@ size = 44077
 mtime_ms = 1789436472558
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/fd5e661e-1049-4f14-be2b-873294279c81/cdc01e68-c362-4603-8924-37196b1b25d2"
 storage_version_token = "1789436477654697"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "s46XQX10O60hHQVGFKFMJ"
+uri = "file://screenshots/skill-tree-interactive-hubs.jpg"
+type = "image"
+title = "Updated Constellation Overview"
+description = "Verified overview with white completed branch nodes and interactive category hubs and labels."
+logical_id = "8bc5f013-e6c6-44c6-81f9-1fe9f0c2f7ca"
+content_hash = "sha256:e861321905eda4f3c67b87a29bfbf98a41ec7954cf715e077e40b2c6b4a732ec"
+size = 44040
+mtime_ms = 1789436686221
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/8bc5f013-e6c6-44c6-81f9-1fe9f0c2f7ca/13569917-f23f-4f8e-9249-820341b0b343"
+storage_version_token = "1789436705504631"
 content_type = "image/jpeg"
