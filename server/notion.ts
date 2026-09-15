@@ -7,7 +7,13 @@ export const notion = new Client({
 });
 
 // Extract the page ID from the Notion page URL
-function extractPageIdFromUrl(pageUrl: string): string {
+function extractPageIdFromUrl(pageUrl?: string): string {
+    // Notion is optional for local development. Defer configuration errors
+    // until a Notion route is actually used instead of crashing server startup.
+    if (!pageUrl) {
+        return "";
+    }
+
     const match = pageUrl.match(/([a-f0-9]{32})(?:[?#]|$)/i);
     if (match && match[1]) {
         return match[1];
@@ -16,7 +22,7 @@ function extractPageIdFromUrl(pageUrl: string): string {
     throw Error("Failed to extract page ID");
 }
 
-export const NOTION_PAGE_ID = extractPageIdFromUrl(process.env.NOTION_PAGE_URL!);
+export const NOTION_PAGE_ID = extractPageIdFromUrl(process.env.NOTION_PAGE_URL);
 
 /**
  * Lists all child databases contained within NOTION_PAGE_ID

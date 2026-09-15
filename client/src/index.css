@@ -685,6 +685,81 @@ html.light {
   .dash-catalog-grid { grid-template-columns: 1fr; }
 }
 
+/* ═══ Skills constellation — the atlas is a place, not a dashboard ═══ */
+.constellation-stage {
+  --sky: #565e84; --ink: #f7f5fb; --cyan: #66e3e1; --line: #f2efff9c;
+  position: relative; min-height: 100dvh; overflow: hidden; isolation: isolate;
+  background: radial-gradient(ellipse at 50% 48%, #687199 0, #565e84 65%, #505779 100%);
+  margin-top: -1px; padding-bottom: env(safe-area-inset-bottom, 0px);
+  color: var(--ink); font-family: "DM Sans", ui-sans-serif, sans-serif;
+}
+.constellation-stage:before { content:""; position:absolute; inset:0; opacity:.22; pointer-events:none;
+  background-image:radial-gradient(circle,#fff 0 1px,transparent 1.4px),radial-gradient(circle,#d7ddff 0 1px,transparent 1.5px);
+  background-size:139px 167px,271px 223px; animation: constellation-stars 32s linear infinite;
+}
+.constellation-map,.constellation-focus { position:absolute; inset:0; transition:opacity .55s, transform .75s; }
+.constellation-map.is-hidden { opacity:0; pointer-events:none; transform:scale(.8); }
+.constellation-focus { opacity:0; pointer-events:none; transform:scale(.75); }
+.constellation-focus.is-active { opacity:1; pointer-events:auto; transform:scale(1); }
+.constellation-nebula { position:absolute; left:50%; top:50%; width:142px; height:142px; transform:translate(-50%,-50%); }
+.constellation-nebula:before,.constellation-nebula:after { content:""; position:absolute; inset:27px; border-radius:50%; background:radial-gradient(circle,#fff 0 1px,transparent 2px); background-size:12px 11px; animation: constellation-spin 8s linear infinite; }
+.constellation-nebula:after { inset:12px; opacity:.5; transform:rotate(30deg); background-size:18px 15px; animation-direction:reverse; }
+.constellation-nebula i { position:absolute; left:50%; top:50%; width:7px; height:7px; border-radius:50%; background:#fff; box-shadow:0 0 20px 7px #fff,0 0 40px 10px #e8b5df; transform:translate(-50%,-50%); }
+.constellation-lines,.focus-lines { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+.constellation-lines path,.focus-lines line { fill:none; stroke:var(--line); stroke-width:.28; stroke-linecap:round; }
+.focus-lines line { stroke-width:.45; }
+.focus-lines line.faint { opacity:.45; }
+.atlas-skill { position:absolute; left:var(--x); top:var(--y); color:var(--tone); }
+.atlas-hub,.focus-hub { width:48px; height:48px; margin:-24px; border-radius:50%; border:1px solid var(--tone); background:#596187dd; color:var(--tone); display:grid; place-items:center; box-shadow:0 0 0 7px color-mix(in srgb,var(--tone),transparent 82%),0 0 24px color-mix(in srgb,var(--tone),transparent 35%); transition:filter .2s, transform .2s; }
+.atlas-hub,.focus-node { touch-action: manipulation; }
+.atlas-hub:hover,.atlas-hub:focus-visible { filter:brightness(1.25); transform:scale(1.08); }
+.atlas-hub svg,.focus-hub svg { width:17px; height:17px; }
+.atlas-label { position:absolute; left:calc(var(--lx) - var(--x)); top:calc(var(--ly) - var(--y)); transform:translate(-50%,-50%); min-width:130px; padding:6px; border:0; background:transparent; color:inherit; text-align:center; }
+.atlas-label b,.focus-title b { display:block; font-size:10px; font-weight:500; letter-spacing:.19em; text-transform:uppercase; white-space:nowrap; }
+.atlas-label small,.focus-title small { display:block; margin-top:4px; color:#c9ccdcbd; font:8px ui-monospace,monospace; letter-spacing:.04em; white-space:nowrap; }
+.atlas-label:hover b,.atlas-label:focus-visible b,.atlas-label:hover small,.atlas-label:focus-visible small { color:#fff; }
+.constellation-pager,.focus-back,.constellation-controls button,.focus-low-controls button { position:absolute; border:0; background:transparent; color:#f3f0faaa; font:10px ui-monospace,monospace; letter-spacing:.13em; text-transform:uppercase; padding:8px; }
+.constellation-pager { bottom:14px; font-size:27px; }
+.constellation-pager.prev { left:10px; }.constellation-pager.next { right:10px; }
+.atlas-caption { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); color:#f3f0faaa; font:10px ui-monospace,monospace; letter-spacing:.13em; text-transform:uppercase; }
+.constellation-controls { position:absolute; right:14px; bottom:14px; display:flex; gap:4px; }
+.custom-skill-controls { position:absolute; left:14px; bottom:14px; display:flex; gap:4px; }
+.custom-skill-controls button { border:0; background:transparent; color:#f3f0faaa; padding:8px; font:10px ui-monospace,monospace; letter-spacing:.1em; text-transform:uppercase; }
+.custom-skill-controls button:hover,.custom-skill-controls button:focus-visible { color:#fff; }
+.constellation-controls button:hover,.focus-back:hover,.focus-low-controls button:hover { color:#fff; }
+.focus-hub { position:absolute; left:50%; top:72%; width:74px; height:74px; margin:-37px; }
+.focus-hub svg { width:25px; height:25px; }
+.focus-title { position:absolute; top:82%; left:50%; transform:translateX(-50%); text-align:center; }
+.focus-title b { font-size:16px; letter-spacing:.3em; }
+.focus-title small { margin-top:7px; font-size:9px; letter-spacing:.1em; }
+.focus-back { left:50%; bottom:14px; transform:translateX(-50%); }
+.focus-node { position:absolute; width:44px; height:44px; margin:-22px; padding:0; border:0; border-radius:50%; background:transparent; box-shadow:none; transition:transform .2s; }
+.focus-node:after { content:""; display:block; width:9px; height:9px; margin:17.5px; border-radius:50%; background:#fbfaff; box-shadow:0 0 9px 2px #fff; }
+.focus-node.locked:after { background:transparent; border:1px solid #e1dfed; box-shadow:none; }
+.focus-node.available:after { background:var(--cyan); box-shadow:0 0 10px 2px #66e3e188; }
+.focus-node:hover,.focus-node:focus-visible { transform:scale(1.8); }
+.focus-node.locked:after { background:transparent; border:1px solid #e1dfed; box-shadow:none; }
+.focus-node.available:after { background:var(--cyan); box-shadow:0 0 10px 2px #66e3e188; }
+.node-inspector { position:absolute; right:7vw; bottom:18vh; width:min(310px,75vw); padding:5px 0 5px 15px; border-left:1px solid #fff8; opacity:0; transform:translateY(8px); transition:.3s; pointer-events:none; background:#565e847a; }
+.node-inspector.show { opacity:1; transform:none; pointer-events:auto; }
+.node-inspector span,.node-inspector small { color:#e9e7f7b8; font:9px ui-monospace,monospace; letter-spacing:.13em; text-transform:uppercase; }
+.node-inspector h2 { margin:7px 0 4px; font-size:17px; font-weight:500; }.node-inspector p { margin:0 0 9px; color:#d9d9e6; font-size:12px; }
+.inspector-actions { display:flex; gap:8px; margin-top:12px; }.inspector-actions button { border:1px solid #fff9; background:transparent; color:inherit; padding:7px 10px; font-size:10px; }.inspector-actions button:disabled { opacity:.45; }
+.focus-low-controls { position:absolute; right:14px; bottom:14px; display:flex; gap:4px; }
+@keyframes constellation-stars { to { background-position:130px 95px,-100px 80px; } } @keyframes constellation-spin { to { transform:rotate(360deg); } }
+@media (max-width:600px) {
+  .atlas-hub { width:40px; height:40px; margin:-20px; }.atlas-hub svg { width:15px; }
+  .atlas-label { min-width:72px; }.atlas-label b { font-size:8px; letter-spacing:.1em; }.atlas-label small { font-size:6px; }
+  .constellation-nebula { width:116px; height:116px; }.focus-hub { top:75%; width:62px; height:62px; margin:-31px; }.focus-title { top:86%; }.focus-title b { font-size:11px; }
+  .node-inspector { right:6vw; bottom:16vh; }.focus-low-controls { left:50%; right:auto; transform:translateX(-50%); bottom:48px; white-space:nowrap; }
+}
+.constellation-stage button:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+.constellation-error { display:grid; place-content:center; justify-items:center; gap:10px; padding:24px; text-align:center; }
+.constellation-error h1 { font-size:22px; font-weight:500; }.constellation-error p { max-width:360px; color:#d9d9e6; font-size:13px; }.constellation-error button { border:1px solid #fff9; background:transparent; padding:8px 14px; }
+@media (min-width:768px) { .constellation-stage { min-height:calc(100dvh - 1px); } }
+@media (max-width:767px) { .constellation-stage { min-height:calc(100dvh - 64px); padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px)); } }
+@media (prefers-reduced-motion:reduce) { .constellation-stage:before,.constellation-nebula:before,.constellation-nebula:after { animation:none; }.constellation-map,.constellation-focus,.node-inspector { transition:none; } }
+
 /* Shop inventory: 4-up → 2-up */
 .dash-inventory-grid {
   display: grid;

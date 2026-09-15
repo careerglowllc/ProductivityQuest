@@ -19,6 +19,7 @@ interface Milestone {
   level?: number; // Optional - milestones are not tied to skill levels
   x: number;
   y: number;
+  parents?: string[];
 }
 
 interface EditMilestonesModalProps {
@@ -44,7 +45,11 @@ export function EditMilestonesModal({
   }, [currentMilestones, open]);
 
   const handleAddMilestone = () => {
-    const newId = `milestone-${Date.now()}`;
+    const usedSuffixes = milestones
+      .map((milestone) => Number(milestone.id.match(/(\d+)$/)?.[1] || 0))
+      .filter(Number.isFinite);
+    const nextSuffix = usedSuffixes.length ? Math.max(...usedSuffixes) + 1 : 1;
+    const newId = `milestone-${nextSuffix}`;
     const newLevel = milestones.length + 1;
     const newMilestone: Milestone = {
       id: newId,
@@ -52,12 +57,15 @@ export function EditMilestonesModal({
       level: newLevel,
       x: 50,
       y: 50,
+      parents: milestones.length ? [milestones[milestones.length - 1].id] : [],
     };
     setMilestones([...milestones, newMilestone]);
   };
 
   const handleRemoveMilestone = (id: string) => {
-    setMilestones(milestones.filter((m) => m.id !== id));
+    setMilestones(milestones
+      .filter((m) => m.id !== id)
+      .map((m) => ({ ...m, parents: m.parents?.filter(parentId => parentId !== id) })));
   };
 
   const handleUpdateMilestone = (

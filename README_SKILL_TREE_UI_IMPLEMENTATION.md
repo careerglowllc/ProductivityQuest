@@ -44,7 +44,8 @@ The seeded high-level skills are:
 
 Node language is practical and original: naming a north star, building a cash buffer, reading with a method, protecting recovery, practicing real listening, finishing a body of work, and creating a grounding ritual.
 
-For production, replace the local seeded arrays with an adapter that maps production skill and milestone records to `domain`, `name`, `parents`, `progress`, and `state`. The focused visual can consume the existing milestone `x`, `y`, and `parents` concepts without bringing over any old visual treatment.
+Production now uses `client/src/components/skills/constellation-stage.tsx` as the visual boundary. `Skills` remains the controller for `/api/progress`, `/api/skills`, mutation invalidation, dialogs, and authentication/session behavior. The stage receives a milestone resolver so non-empty `constellationMilestones` overrides win over the static `skillMilestones` fallback, and receives the existing server-backed toggle callback. No prototype storage or embedded milestone snapshot is used in production.
+Custom skills never borrow a canonical tree: their string milestones are adapted to deterministic `${skillId}-custom-N` linear nodes, while an empty custom path remains empty and exposes the customization control. Parent edges are part of the shared milestone type and the editor preserves them, links new nodes to the previous node, and removes deleted IDs from surviving parents.
 
 ## Storage
 
@@ -64,7 +65,7 @@ It stores only `{ points, lit }`, where `lit` is keyed by `${skillIndex}-${miles
 - `ConstellationNode`: semantic button, state styling and selection.
 - `NodeOverlay`: minimal transient annotation and unlock action.
 - `DomainPager`: invisible/low-chrome previous, next, and overview controls.
-- `useConstellationProgress`: isolated demo state today; production mutation adapter later.
+- Production adapter: `Skills` owns React Query and passes `onToggle`, while `ConstellationStage` owns only transient focused/inspected-node state.
 
 ## Responsive and accessibility rules
 

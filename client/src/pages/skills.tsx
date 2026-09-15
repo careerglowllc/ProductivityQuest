@@ -58,6 +58,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import type { LucideIcon } from "lucide-react";
 import { useTheme } from "@/contexts/theme-context";
+import { ConstellationStage } from "@/components/skills/constellation-stage";
 
 const skillDescriptions = {
   Craftsman: {
@@ -569,21 +570,25 @@ export default function Skills() {
     queryKey: ["/api/progress"],
   });
   
-  const { data: skills = [], isLoading } = useQuery<UserSkill[]>({
+  const { data: skills = [], isLoading, error: skillsError, refetch: refetchSkills } = useQuery<UserSkill[]>({
     queryKey: ["/api/skills"],
   });
 
-  const [selectedSkill, setSelectedSkill] = useState<UserSkill | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<UserSkill>(null as unknown as UserSkill);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'constellation'>('constellation');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [skillToDelete, setSkillToDelete] = useState<UserSkill | null>(null);
   const [showEditIconModal, setShowEditIconModal] = useState(false);
-  const [skillToEdit, setSkillToEdit] = useState<UserSkill | null>(null);
+  const [skillToEdit, setSkillToEdit] = useState<UserSkill>(null as unknown as UserSkill);
   const [showWhySkillsModal, setShowWhySkillsModal] = useState(false);
   const [showEditMilestonesModal, setShowEditMilestonesModal] = useState(false);
-  const [skillToEditMilestones, setSkillToEditMilestones] = useState<UserSkill | null>(null);
-  const [selectedMilestone, setSelectedMilestone] = useState<{id: string; title: string; x: number; y: number} | null>(null);
+  const [skillToEditMilestones, setSkillToEditMilestones] = useState<UserSkill>(null as unknown as UserSkill);
+  const [selectedMilestone, setSelectedMilestone] = useState<{id: string; title: string; x: number; y: number}>(null as unknown as {id: string; title: string; x: number; y: number});
+  const clearSelectedSkill = () => setSelectedSkill(null as unknown as UserSkill);
+  const clearSkillEditor = () => setSkillToEdit(null as unknown as UserSkill);
+  const clearMilestoneEditor = () => setSkillToEditMilestones(null as unknown as UserSkill);
+  const clearSelectedMilestone = () => setSelectedMilestone(null as unknown as {id: string; title: string; x: number; y: number});
   const constellationScrollRef = useRef<HTMLDivElement>(null);
   // Auto-center constellation view on starting node when modal opens
   useEffect(() => {
@@ -724,7 +729,7 @@ export default function Skills() {
         description: "Skill has been updated successfully.",
       });
       setShowEditIconModal(false);
-      setSkillToEdit(null);
+      clearSkillEditor();
     },
     onError: (error: any) => {
       toast({
@@ -741,7 +746,7 @@ export default function Skills() {
       milestones 
     }: { 
       skillId: number; 
-      milestones: Array<{ id: string; title: string; level?: number; x: number; y: number }>;
+      milestones: Array<{ id: string; title: string; level?: number; x: number; y: number; parents?: string[] }>;
     }) => {
       return await apiRequest("PATCH", `/api/skills/${skillId}/milestones`, { milestones });
     },
@@ -752,7 +757,7 @@ export default function Skills() {
         description: "Constellation path has been customized successfully.",
       });
       setShowEditMilestonesModal(false);
-      setSkillToEditMilestones(null);
+      clearMilestoneEditor();
     },
     onError: (error: any) => {
       toast({
@@ -785,6 +790,21 @@ export default function Skills() {
     return skillConstellations[skill.skillName] || "The Seeker";
   };
 
+  const getProductionMilestones = (skill: UserSkill) => {
+    if (skill.constellationMilestones?.length) return skill.constellationMilestones;
+    if (skill.skillMilestones?.length) {
+      return skill.skillMilestones.map((title, index, values) => ({
+        id: `${skill.id}-custom-${index + 1}`,
+        title: title.replace(/^Level\s+\d+\s*:\s*/i, ""),
+        level: index + 1,
+        x: 50 + Math.sin(index * 1.7) * 30,
+        y: 90 - (index * 78) / Math.max(values.length - 1, 1),
+        parents: index ? [`${skill.id}-custom-${index}`] : [],
+      }));
+    }
+    return skill.isCustom ? [] : (skillMilestones[skill.skillName] || []);
+  };
+
   if (isLoading) {
     return (
       <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950" : "bg-gray-50"} flex items-center justify-center`}>
@@ -792,7 +812,35 @@ export default function Skills() {
       </div>
     );
   }
-  
+
+  // The constellation is intentionally isolated from the legacy dashboard views below.
+  // Keep this controller responsible for production queries/mutations and dialogs.
+  return (
+    <>
+      <ConstellationStage
+        skills={skills}
+        getMilestones={getProductionMilestones}
+        getCustomIcon={(skill) => getSkillIcon(skill.skillIcon || "Sparkles")}
+        pending={toggleMilestoneMutation.isPending}
+        error={skillsError as Error | null}
+        onRetry={() => { void refetchSkills(); }}
+        onToggle={(skillId, milestoneId) => toggleMilestoneMutation.mutate({ skillId, milestoneId })}
+        onEditSkill={(skill) => { setSkillToEdit(skill); setShowEditIconModal(true); }}
+        onDeleteSkill={(skill) => { setSkillToDelete(skill); setShowDeleteDialog(true); }}
+        onAddSkill={() => setShowAddModal(true)}
+        onWhySkills={() => setShowWhySkillsModal(true)}
+        onEditMilestones={(skill) => { setSkillToEditMilestones(skill); setShowEditMilestonesModal(true); }}
+      />
+      <AddSkillModal open={showAddModal} onOpenChange={setShowAddModal} onSubmit={async (skillData) => { await createSkillMutation.mutateAsync(skillData); }} />
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete Custom Skill?</AlertDialogTitle><AlertDialogDescription>This will permanently delete "{skillToDelete?.skillName}" and remove it from all tasks. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteSkill} className="bg-red-600 hover:bg-red-700">Delete Skill</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
+      {skillToEdit && <EditSkillIconModal open={showEditIconModal} onOpenChange={setShowEditIconModal} skillName={skillToEdit.skillName} currentIcon={skillToEdit.skillIcon || "Star"} currentLevel={skillToEdit.level} currentXp={skillToEdit.xp} currentMaxXp={skillToEdit.maxXp} onSubmit={async (data) => { await updateSkillIconMutation.mutateAsync({ skillId: skillToEdit.id, icon: data.icon, level: data.level, xp: data.xp }); }} />}
+      {skillToEditMilestones && <EditMilestonesModal open={showEditMilestonesModal} onOpenChange={setShowEditMilestonesModal} skillName={skillToEditMilestones.skillName} currentMilestones={getProductionMilestones(skillToEditMilestones)} onSubmit={async (milestones) => { await updateMilestonesMutation.mutateAsync({ skillId: skillToEditMilestones.id, milestones }); }} />}
+      <WhySkillsModal open={showWhySkillsModal} onClose={() => setShowWhySkillsModal(false)} />
+    </>
+  );
+
   return (
     <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 ${!isMobile ? 'pt-16' : 'pt-2'} pb-24 relative overflow-hidden`}>
       {/* Starfield Background Effect */}
@@ -1529,7 +1577,7 @@ export default function Skills() {
       </div>
 
       {/* Skill Detail Modal */}
-      <Dialog open={!!selectedSkill} onOpenChange={(open) => !open && setSelectedSkill(null)}>
+      <Dialog open={!!selectedSkill} onOpenChange={(open) => !open && clearSelectedSkill()}>
         <DialogContent className={`bg-slate-900/95 border-2 border-yellow-600/40 text-yellow-100 ${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none' : 'max-w-4xl max-h-[90vh]'} overflow-hidden`}>
           <DialogHeader>
             <DialogTitle className={`${isMobile ? 'text-xl' : 'text-2xl'} font-serif text-yellow-100 flex items-center gap-3`}>
@@ -1652,7 +1700,7 @@ export default function Skills() {
                   document.addEventListener('touchmove', handleTouchMove, { passive: false });
                   document.addEventListener('touchend', handleTouchEnd);
                 }}
-                onClick={() => setSelectedMilestone(null)}
+                onClick={clearSelectedMilestone}
               >
               {/* Aurora Borealis Effect Layers */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -1761,9 +1809,9 @@ export default function Skills() {
               {/* Milestone constellation */}
               {(() => {
                 // Use database milestones if available, otherwise use default
-                const milestones = selectedSkill.constellationMilestones && selectedSkill.constellationMilestones.length > 0
+                const milestones = (selectedSkill.constellationMilestones?.length
                   ? selectedSkill.constellationMilestones
-                  : skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
+                  : (selectedSkill.isCustom ? [] : (skillMilestones[selectedSkill.skillName] || []))) ?? [];
                 
                 return (
                   <>
@@ -1912,7 +1960,7 @@ export default function Skills() {
                       >
                         {/* Close button */}
                         <button
-                          onClick={() => setSelectedMilestone(null)}
+                          onClick={clearSelectedMilestone}
                           className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded-full border border-yellow-600/40 flex items-center justify-center text-yellow-400 hover:text-yellow-300 transition-colors"
                         >
                           ✕
@@ -1949,9 +1997,9 @@ export default function Skills() {
                           {(() => {
                             const completedMilestones = (selectedSkill.completedMilestones as string[]) || [];
                             const isCompleted = completedMilestones.includes(selectedMilestone.id);
-                            const milestones = selectedSkill.constellationMilestones && selectedSkill.constellationMilestones.length > 0
+                            const milestones = (selectedSkill.constellationMilestones?.length
                               ? selectedSkill.constellationMilestones
-                              : skillMilestones[selectedSkill.skillName] || skillMilestones.Explorer;
+                              : (selectedSkill.isCustom ? [] : (skillMilestones[selectedSkill.skillName] || []))) ?? [];
                             const milestoneIndex = milestones.findIndex(m => m.id === selectedMilestone.id);
                             const isStartingNode = milestones[milestoneIndex]?.level === 1 || milestoneIndex === 0;
 
@@ -1972,7 +2020,7 @@ export default function Skills() {
                                   }, {
                                     onSuccess: () => {
                                       // Close the submenu after successful toggle
-                                      setSelectedMilestone(null);
+                                      clearSelectedMilestone();
                                     }
                                   });
                                 }}

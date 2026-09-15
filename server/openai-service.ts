@@ -1,9 +1,16 @@
 import OpenAI from "openai";
 import type { UserSkill } from "../shared/schema";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OpenAI API key not configured");
+  }
+
+  openai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openai;
+}
 
 // Default skill descriptions (fallback if user hasn't customized)
 const DEFAULT_SKILL_DESCRIPTIONS = {
@@ -96,7 +103,7 @@ Respond with a JSON object in this exact format:
   "reasoning": "Brief explanation of why these skills were chosen"
 }`;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: "gpt-4o-mini", // Using the faster, cheaper model
       messages: [
         {

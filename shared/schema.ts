@@ -167,7 +167,7 @@ export const userSkills = pgTable("user_skills", {
   skillIcon: text("skill_icon"), // Custom icon/emoji for the skill
   skillDescription: text("skill_description"), // Custom description explaining what the skill represents
   skillMilestones: jsonb("skill_milestones").$type<string[]>(), // Custom milestones (e.g., ["Level 10: First mastery", "Level 25: Expert"])
-  constellationMilestones: jsonb("constellation_milestones").$type<Array<{ id: string; title: string; level: number; x: number; y: number }>>(), // Constellation nodes with positions
+  constellationMilestones: jsonb("constellation_milestones").$type<Array<{ id: string; title: string; level?: number; x: number; y: number; parents?: string[] }>>(), // Constellation nodes with positions and parent edges
   completedMilestones: jsonb("completed_milestones").$type<string[]>(), // Array of completed milestone IDs
   isCustom: boolean("is_custom").default(false).notNull(), // true = user-created custom skill, false = default skill
   level: integer("level").default(1).notNull(),
