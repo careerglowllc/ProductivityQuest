@@ -538,19 +538,90 @@ html.light .atlas-stars {
     radial-gradient(circle, #677589 0 1px, transparent 1.5px);
 }
 
+html.light .atlas-connections path {
+  stroke: rgba(54, 68, 94, .78);
+}
+
+html.light .atlas-connections path.is-complete {
+  stroke: #08745c;
+}
+
 html.light .atlas-root-orb {
   background: #5d5a73;
   color: #f6eaff;
 }
 
 html.light .atlas-orb {
-  background: #c3ccdc;
-  color: #30394d;
+  border-color: #34455f;
+  background: #596b85;
+  color: #ffffff;
+}
+
+html.light .atlas-orbit-node.stage .atlas-orb {
+  border-color: #66528d;
+  background: #6c678c;
+  color: #ffffff;
+}
+
+html.light .atlas-orbit-node.is-complete .atlas-orb {
+  border-color: #08745c;
+  color: #ffffff;
 }
 
 html.light .atlas-orbit-node b,
 html.light .atlas-root strong {
   color: #242321;
+}
+
+html.light .atlas-root span {
+  color: #4d596e;
+}
+
+html.light .atlas-orbit-node small {
+  color: #69449e;
+}
+
+html.light .atlas-scene-footer {
+  color: #46536a;
+}
+
+html.light .atlas-scene-footer button,
+html.light .atlas-empty button {
+  border-color: rgba(65, 78, 105, .48);
+  background: rgba(255, 255, 255, .58);
+  color: #263249;
+}
+
+html.light .atlas-scene-footer button:hover,
+html.light .atlas-empty button:hover {
+  border-color: #6341c9;
+  background: rgba(255, 255, 255, .9);
+}
+
+html.light .atlas-empty {
+  color: #242d3d;
+}
+
+html.light .atlas-empty span {
+  color: #505d73;
+}
+
+html.light .atlas-scroll-cue {
+  border-color: rgba(65, 78, 105, .34);
+  background: rgba(255, 255, 255, .9);
+  color: #263249;
+  box-shadow: 0 4px 14px rgba(45, 55, 75, .12);
+}
+
+html.light .atlas-danger-button,
+html.light .atlas-delete-link {
+  color: #a62f35;
+}
+
+html.light .atlas-dialog input,
+html.light .atlas-dialog select,
+html.light .atlas-dialog textarea {
+  border-color: #78869b !important;
 }
 
 @media (max-width: 900px) {
