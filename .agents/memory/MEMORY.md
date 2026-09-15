@@ -1,0 +1,1 @@
+- [Approved constellation direction](approved-constellation-direction.md) — the full-screen periwinkle reference-driven constellation UI is the confirmed visual target for Skills.
