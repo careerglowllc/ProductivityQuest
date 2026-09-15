@@ -19,6 +19,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { classifyItem } from "@/pages/finances";
 import { DashCard, DashCardHead, StatCard } from "@/components/dash-ui";
 import { useNickname } from "@/hooks/use-nickname";
+import { useTodayMomentum } from "@/hooks/use-today-momentum";
 import "./dashboard-constellation.css";
 
 // Default skill icon mapping for backward compatibility
@@ -466,49 +467,6 @@ function useFireGoal() {
 
   return { pct: fgPct, goal: FIRE_GOAL, liquid: fgLiquid };
 }
-
-// Today's momentum — % of today's quests (same "Due Today" bucket used by the
-// Quests page's filter: due today or overdue, not yet completed) that are done so far today.
-// Self-contained: fetches its own tasks so it doesn't depend on the Quests page being mounted.
-function useTodayMomentum() {
-  const { data: tasks = [], isLoading: tasksLoading } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
-  // Completing a quest recycles it (one-time) or reschedules its dueDate forward (recurring),
-  // so it drops out of /api/tasks' "due today" bucket — fetch the recycle bin too so those
-  // completions still get credited toward today's total below.
-  const { data: recycledTasks = [], isLoading: recycledLoading } = useQuery<any[]>({ queryKey: ["/api/recycled-tasks"] });
-  // Both queries need to have actually resolved before the % means anything — otherwise we
-  // briefly compute against a partial/empty data set (e.g. flashing 100% before the rest of
-  // today's quests have loaded in).
-  const isLoading = tasksLoading || recycledLoading;
-  const safeTasks = Array.isArray(tasks) ? tasks : [];
-  const safeRecycled = Array.isArray(recycledTasks) ? recycledTasks : [];
-
-  const now = new Date();
-  const todayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  const tomorrow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1));
-  const isCompletedToday = (t: any) => {
-    if (!t.completedAt) return false;
-    const ts = new Date(t.completedAt).getTime();
-    return ts >= todayStart.getTime() && ts < tomorrow.getTime();
-  };
-
-  // Mirrors the Quests page's "Due Today" filter (client/src/pages/home.tsx): still-open
-  // quests due today or overdue.
-  const openToday = safeTasks.filter((t: any) => t.dueDate && new Date(t.dueDate).getTime() < tomorrow.getTime());
-
-  // Quests completed today that no longer show up in `openToday` because completing them
-  // moved them out of the bucket (recurring: dueDate pushed forward; one-time: recycled).
-  const completedTodayRecurring = safeTasks.filter((t: any) => isCompletedToday(t) && !openToday.includes(t));
-  const completedTodayOneTime = safeRecycled.filter((t: any) => t.recycledReason === "completed" && isCompletedToday(t));
-
-  const totalToday = openToday.length + completedTodayRecurring.length + completedTodayOneTime.length;
-  const completedToday =
-    openToday.filter((t: any) => t.completed).length + completedTodayRecurring.length + completedTodayOneTime.length;
-  const pct = totalToday > 0 ? (completedToday / totalToday) * 100 : 0;
-
-  return { completedToday, totalToday, pct, isLoading };
-}
-
 
 const CONSTELLATION_ORDER = ["Mindset", "Scholar", "Charisma", "Physical", "Artist", "Connector", "Craftsman", "Explorer", "Merchant", "Health"];
 const CONSTELLATION_COLORS: Record<string, string> = {

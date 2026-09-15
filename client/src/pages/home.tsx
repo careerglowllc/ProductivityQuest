@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, forwardRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTodayMomentum } from "@/hooks/use-today-momentum";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -252,9 +253,7 @@ export default function Home() {
     queryKey: ["/api/progress"],
   });
 
-  const { data: stats = { completedToday: 0, totalToday: 0, goldEarnedToday: 0 } } = useQuery({
-    queryKey: ["/api/stats"],
-  });
+  const momentum = useTodayMomentum();
 
   const { data: skills = [] } = useQuery({
     queryKey: ["/api/skills"],
@@ -425,7 +424,10 @@ export default function Home() {
       }
       
       // Refresh data after backend completes
-      refetchTasks();
+      await Promise.all([
+        refetchTasks(),
+        queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] }),
+      ]);
       refetchProgress();
       // Always sync questline status so the questlines page reflects completed stages
       queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
@@ -436,7 +438,10 @@ export default function Home() {
         variant: "destructive",
       });
       // Force refresh to get correct state
-      refetchTasks();
+      await Promise.all([
+        refetchTasks(),
+        queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] }),
+      ]);
       refetchProgress();
     }
   };
@@ -919,7 +924,10 @@ export default function Home() {
       setLastAction({ type: null, taskIds: [] });
 
       // Refresh data
-      refetchTasks();
+      await Promise.all([
+        refetchTasks(),
+        queryClient.invalidateQueries({ queryKey: ["/api/recycled-tasks"] }),
+      ]);
       if (action.type === 'complete') {
         refetchProgress();
         queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
@@ -1631,9 +1639,9 @@ export default function Home() {
   // Sorted list of unique assignees for the filter UI
   const assigneeList = Object.entries(filterCounts.byAssignee as Record<string, number>).sort((a, b) => b[1] - a[1]);
 
-  const momentumPct = (stats as any)?.totalToday > 0
-    ? Math.round(((stats as any).completedToday / (stats as any).totalToday) * 100)
-    : 0;
+  const momentumValue = momentum.isLoading || momentum.totalToday === 0
+    ? "—"
+    : `${Math.round(momentum.pct)}%`;
 
   // Filter tasks based on active filter and search query
   const getFilteredTasks = () => {
@@ -1959,7 +1967,7 @@ export default function Home() {
               <p className="mt-2 text-sm text-[var(--dash-muted)]">Complete the work that compounds. Keep the next move visible.</p>
             </div>
             <div className="shrink-0 border-l border-[var(--dash-line)] pl-[22px]">
-              <p className="text-[25px] font-bold leading-none text-[var(--dash-ink)]">{momentumPct}%</p>
+              <p className="text-[25px] font-bold leading-none text-[var(--dash-ink)]">{momentumValue}</p>
               <p className="mt-1 text-[11px] text-[var(--dash-muted)]">today's momentum</p>
             </div>
           </header>
@@ -1968,7 +1976,7 @@ export default function Home() {
             <h1 className="text-lg font-bold tracking-tight text-[var(--dash-ink)]">
               Quests <span className="text-sm font-normal text-[var(--dash-muted)]">({filterCounts.all})</span>
             </h1>
-            <span className="dash-mono text-[var(--dash-muted)]">{momentumPct}% today</span>
+            <span className="dash-mono text-[var(--dash-muted)]">{momentumValue} today</span>
           </div>
         )}
 
