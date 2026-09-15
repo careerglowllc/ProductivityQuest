@@ -243,14 +243,14 @@ content_type = "text/markdown"
 id = "sVUhNC7d4aJm_xBC4sd-k"
 uri = "file://skill-tree-ui.html"
 type = "text"
-title = "Interactive Skill Constellation HTML"
-description = "Updated single-file constellation with white completed nodes and linked hover, focus, and click behavior for every category circle and label."
+title = "Skill Constellation with Native Category Navigation"
+description = "Updated single-file HTML where every category circle and label is a real link to its focused individual skill tree."
 logical_id = "b3906fb3-7ac1-4b44-abfc-8080c00bbff3"
-content_hash = "sha256:d4d92f5da2ddbaede0c83154ab5f3448351abd3df02402d0d2d1770a12a4fd1b"
-size = 28235
-mtime_ms = 1789436650770
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b3906fb3-7ac1-4b44-abfc-8080c00bbff3/3cc8881b-9714-4e83-8692-55096b54aeeb"
-storage_version_token = "1789436705044179"
+content_hash = "sha256:1307f7ffd1f6516c2fa9af07458025aab56fa06d7fcff1b052c7d2fc7ab2e66e"
+size = 28347
+mtime_ms = 1789436807578
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f8136ed2-66cc-4313-9b7c-a636ea5949eb/b3906fb3-7ac1-4b44-abfc-8080c00bbff3/6b1aaf7e-b7e6-443b-a68b-beb1cb2f08e8"
+storage_version_token = "1789436860664853"
 content_type = "text/html"
 
 [[outputs]]

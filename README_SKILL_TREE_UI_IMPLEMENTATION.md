@@ -14,6 +14,10 @@ The inline `iconSvg()` helper keeps hub iconography data-driven. Mindset retains
 
 Hub circles and adjacent descriptor labels are one linked, keyboard-accessible control per skill. Hover, focus, Enter, and Space all address the same domain target; the circle, icon, label, and descriptor brighten together before entering the existing focused-tree transition.
 
+Direct validation URLs include:
+
+`skill-tree-ui.html?domain=mindset` · `?domain=scholar` · `?domain=charisma` · `?domain=physical` · `?domain=artist` · `?domain=connector` · `?domain=craftsman` · `?domain=explorer` · `?domain=merchant` · `?domain=health`
+
 ## Interaction model
 
 - Select any of the ten hubs to enter its focused crown.
