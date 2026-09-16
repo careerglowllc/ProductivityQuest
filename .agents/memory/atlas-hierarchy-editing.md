@@ -7,4 +7,4 @@ Questline Atlas topology must be built directly in the visual tree. A plus contr
 
 **Why:** The tree’s visible structure is the user’s source of truth. A separate parent selector can contradict that structure, create duplicate branch slots, and make the hierarchy harder to understand.
 
-**How to apply:** Keep creation attached to open branch slots, preserve left/right slot identity in persistence, and treat any future move operation as an explicit visual tree interaction rather than a form field.
+**How to apply:** Start empty parents with two open branches, then keep one additional plus available so parents can have unlimited children and the tree expands horizontally. Preserve sibling order in persistence, and treat any future move operation as an explicit visual tree interaction rather than a form field.
