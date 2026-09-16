@@ -102,6 +102,50 @@
   display: none;
 }
 
+@media (min-width: 768px) {
+  .constellation-stage .focus-back {
+    z-index: 13;
+    top: 18px;
+    bottom: auto;
+    min-width: 180px;
+    min-height: 50px;
+    padding: 13px 24px;
+    border: 1px solid rgba(255, 255, 255, .3);
+    border-radius: 999px;
+    background: rgba(38, 46, 78, .38);
+    color: rgba(255, 255, 255, .88);
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 8px 26px rgba(20, 26, 49, .16);
+    backdrop-filter: blur(10px);
+    transition: color .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+  }
+
+  .constellation-stage .focus-back:hover,
+  .constellation-stage .focus-back:focus-visible {
+    border-color: rgba(255, 255, 255, .62);
+    background: rgba(55, 66, 108, .72);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(20, 26, 49, .24);
+    transform: translateX(-50%) translateY(-2px);
+  }
+
+  html.light .constellation-stage .focus-back {
+    border-color: rgba(66, 63, 58, .26);
+    background: rgba(255, 253, 249, .74);
+    color: #4f4c47;
+    box-shadow: 0 8px 25px rgba(72, 67, 59, .12);
+  }
+
+  html.light .constellation-stage .focus-back:hover,
+  html.light .constellation-stage .focus-back:focus-visible {
+    border-color: rgba(66, 63, 58, .52);
+    background: rgba(255, 253, 249, .98);
+    color: #171614;
+    box-shadow: 0 10px 30px rgba(72, 67, 59, .2);
+  }
+}
+
 .constellation-stage .focus-scene,
 .constellation-stage .skill-transition-clone {
   position: absolute;
