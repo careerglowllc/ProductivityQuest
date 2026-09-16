@@ -198,14 +198,6 @@
   transition: transform .2s, border-color .2s;
 }
 
-.atlas-orbit-node.stage .atlas-orb {
-  width: 50px;
-  height: 50px;
-  border-color: #d3aeff;
-  background: #4a4c7a;
-  box-shadow: 0 0 0 9px rgba(197, 154, 255, .13), 0 0 25px rgba(168, 121, 255, .55);
-}
-
 .atlas-orb i {
   display: grid;
   place-items: center;
@@ -496,11 +488,6 @@
   background: #bfa6ed;
 }
 
-.atlas-legend .legend-quest {
-  border: 1px solid #bfa6ed;
-  background: transparent;
-}
-
 .atlas-legend .legend-done {
   display: grid;
   place-items: center;
@@ -582,12 +569,6 @@ html.light .atlas-root-orb {
 html.light .atlas-orb {
   border-color: #34455f;
   background: #596b85;
-  color: #ffffff;
-}
-
-html.light .atlas-orbit-node.stage .atlas-orb {
-  border-color: #66528d;
-  background: #6c678c;
   color: #ffffff;
 }
 
