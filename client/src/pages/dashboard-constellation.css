@@ -130,7 +130,7 @@ html.light .dashboard-constellation-leaf.active {
 }
 
 html.light .dashboard-constellation-hub {
-  fill: #302f2d;
+  fill: var(--constellation-field);
   filter: drop-shadow(0 0 8px rgba(47, 45, 41, .2));
 }
 
