@@ -14,6 +14,7 @@ import { EditQuestlineModal } from "@/components/edit-questline-modal";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { AtlasTaskTree } from "@/components/atlas-task-tree";
 import { AllProjectsTree } from "@/components/all-projects-tree";
+import { QuestlinesConstellation, type QuestlineNode } from "@/components/questlines";
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 
 interface QuestlineTask {
@@ -114,138 +115,63 @@ export default function CampaignsPage() {
     },
   });
 
+  const toggleConstellationQuest = useMutation({
+    mutationFn: async ({ task, questlineId }: { task: QuestlineNode; questlineId: number }) => {
+      // Recycled quests are already complete and must not be toggled back into progress.
+      if (task.recycled) return null;
+      const completed = !task.completed;
+      await apiRequest("PATCH", `/api/tasks/${task.id}`, {
+        completed,
+        kanbanStage: completed ? "Done" : "Not Started",
+      });
+      // The questline endpoint owns cascading completion/bonus awards. Only checking
+      // after a real completion preserves uncompletion semantics and avoids re-awards.
+      if (completed) {
+        const res = await apiRequest("POST", `/api/questlines/${questlineId}/check-completion`);
+        return res.json();
+      }
+      return null;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      if (data?.bonusAwarded && data.bonusGold > 0) {
+        toast({
+          title: "🏆 Questline Complete!",
+          description: `Cascading bonus awarded: 🪙 ${data.bonusGold} gold and ${data.bonusXp} XP!`,
+        });
+      }
+    },
+    onError: () => {
+      toast({ title: "Could not update quest", description: "Please try again.", variant: "destructive" });
+    },
+  });
+
   const active = questlines.filter((q) => !q.completed);
   const completed = questlines.filter((q) => q.completed);
 
   return (
-    <div className={`min-h-screen ${isDark ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" : "bg-gray-50"} ${isMobile ? "pb-20 px-2 pt-1" : "pt-20 px-4"}`}>
-      <div className={`max-w-6xl mx-auto ${isMobile ? "py-3" : "py-8"}`}>
-        {/* Page Header */}
-        <div className={isMobile ? "mb-3" : "mb-8"}>
-          <div className={`flex items-center justify-between ${isMobile ? "mb-1" : "mb-2"}`}>
-            <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
-              <Target className={`${isMobile ? "h-5 w-5" : "h-8 w-8"} text-purple-400`} />
-              <h1 className={`${isMobile ? "text-xl" : "text-4xl"} font-serif font-bold text-purple-100`}>
-                Questlines
-              </h1>
-            </div>
-            <Button
-              size={isMobile ? "sm" : "default"}
-              onClick={() => setShowCreateModal(true)}
-              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white border border-purple-400/50"
-            >
-              <Plus className={`${isMobile ? "h-3.5 w-3.5 mr-0.5" : "h-4 w-4 mr-1"}`} />
-              {isMobile ? "New" : "New Questline"}
-            </Button>
-          </div>
-          {!isMobile && (
-            <p className="text-purple-300/70 text-lg">
-              Parent quests earn 2× their children's gold, and completion earns 2× the total!
-            </p>
-          )}
-          <div className={`mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 ${isDark ? "border-purple-400/40 bg-slate-900/70" : "border-purple-300 bg-purple-50"}`}>
-            <span className={`text-xs font-semibold ${isDark ? "text-purple-200" : "text-purple-900"}`}>Questline view</span>
-            <div className={`flex flex-wrap rounded-md border p-1 shadow-sm ${isDark ? "border-purple-400/40 bg-slate-950" : "border-purple-300 bg-white"}`} role="group" aria-label="Questline visualization">
-              <button type="button" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"}
-                className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "list" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
-                <List className="h-3.5 w-3.5" /> Default list
-              </button>
-              <button type="button" onClick={() => setViewMode("atlas")} aria-pressed={viewMode === "atlas"}
-                className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "atlas" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
-                <GitBranch className="h-3.5 w-3.5" /> Atlas constellation
-              </button>
-              <button type="button" onClick={() => setViewMode("all-projects")} aria-pressed={viewMode === "all-projects"}
-                className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "all-projects" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
-                <Target className="h-3.5 w-3.5" /> All Projects Tree
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="text-center py-12 text-purple-300/60">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-purple-400" />
-            Loading questlines...
-          </div>
-        ) : questlines.length === 0 ? (
-          <Card className="bg-slate-800/40 border-purple-500/30">
-            <CardContent className="py-12 text-center">
-              <Target className="h-12 w-12 mx-auto mb-3 text-purple-400/50" />
-              <h3 className="text-lg font-serif text-purple-200 mb-2">No Questlines Yet</h3>
-              <p className="text-purple-300/50 text-sm mb-4">
-                Create your first questline with parent quests and subquests to earn bonus rewards.
-              </p>
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Create Questline
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {viewMode === "all-projects" ? (
-              <AllProjectsTree projects={questlines} onOpenProject={openProjectAtlas} />
-            ) : (
-              <>
-            {/* Active Questlines */}
-            {active.length > 0 && (
-              <div className={isMobile ? "mb-4" : "mb-8"}>
-                <h2 className={`${isMobile ? "text-base mb-2" : "text-xl mb-4"} font-serif text-purple-200 flex items-center gap-2`}>
-                  <Target className="h-5 w-5 text-purple-400" />
-                  Active ({active.length})
-                </h2>
-                <div className={isMobile ? "space-y-2" : "space-y-4"}>
-                  {active.map((ql) => (
-                    <QuestlineCard
-                      key={ql.id}
-                      questline={ql}
-                      isMobile={isMobile}
-                      expanded={expandedId === ql.id}
-                      onToggleExpand={() => setExpandedId(expandedId === ql.id ? null : ql.id)}
-                      onDelete={() => setDeletingId(ql.id)}
-                      onEdit={() => setEditingQuestline(ql)}
-                      onCheckCompletion={() => checkCompletion.mutate(ql.id)}
-                      isCheckingCompletion={checkCompletion.isPending}
-                       viewMode={viewMode}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Completed Questlines */}
-            {completed.length > 0 && (
-              <div>
-                <h2 className={`${isMobile ? "text-base mb-2" : "text-xl mb-4"} font-serif text-green-200 flex items-center gap-2`}>
-                  <Trophy className="h-5 w-5 text-green-400" />
-                  Completed ({completed.length})
-                </h2>
-                <div className={isMobile ? "space-y-2" : "space-y-4"}>
-                  {completed.map((ql) => (
-                    <QuestlineCard
-                      key={ql.id}
-                      questline={ql}
-                      isMobile={isMobile}
-                      expanded={expandedId === ql.id}
-                      onToggleExpand={() => setExpandedId(expandedId === ql.id ? null : ql.id)}
-                      onDelete={() => setDeletingId(ql.id)}
-                      onEdit={() => setEditingQuestline(ql)}
-                      onCheckCompletion={() => {}}
-                      isCheckingCompletion={false}
-                       viewMode={viewMode}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-              </>
-            )}
-          </>
-        )}
-      </div>
+    <div className={`min-h-screen ${isMobile ? "pb-20" : ""}`}>
+      <QuestlinesConstellation
+        questlines={questlines}
+        pending={isLoading}
+        onCreate={() => setShowCreateModal(true)}
+        onEditQuestline={(questline) => {
+          const source = questlines.find((candidate) => candidate.id === questline.id);
+          if (source) setEditingQuestline(source);
+        }}
+        onDeleteQuestline={(questline) => setDeletingId(questline.id)}
+         onToggleTask={(task) => {
+           const owner = questlines.find((questline) => questline.tasks.some((candidate) => candidate.id === task.id));
+           if (owner) toggleConstellationQuest.mutate({ task, questlineId: owner.id });
+         }}
+         isTaskPending={(task) => toggleConstellationQuest.isPending && !task.recycled}
+        onEditTask={(task) => {
+          const owner = questlines.find((questline) => questline.tasks.some((candidate) => candidate.id === task.id));
+          if (owner) setEditingQuestline(owner);
+        }}
+      />
 
       {/* Create Questline Modal */}
       <AddQuestlineModal open={showCreateModal} onOpenChange={setShowCreateModal} />

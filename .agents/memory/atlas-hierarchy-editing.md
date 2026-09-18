@@ -14,3 +14,9 @@ New quest creation defaults to the Atlas-style builder, with Manual as an altern
 **Why:** The user explicitly requested visual-first creation and straightforward parent-child relationships at every level, not different entity types for each depth.
 
 **How to apply:** Keep both entry views synchronized and check server persistence limits whenever extending visual nesting.
+
+The Questlines page defaults to a full-page, two-level constellation flow: parent questlines in the overview, then all recursive quests/subquests inside the selected questline.
+
+**Why:** The user wants Questlines to follow the same overview-to-focused-map interaction as Skills rather than defaulting to cards or view selectors.
+
+**How to apply:** Keep the overview and focused map as the primary route experience; preserve creation, editing, completion rewards, deep hierarchy visibility, and shell-safe responsive sizing.
