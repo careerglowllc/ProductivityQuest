@@ -74,12 +74,12 @@ function scheduleFlush() {
  * still pending when the app got backgrounded/killed). `keepalive: true` tells the
  * browser to let the request complete in the background past page unload.
  */
-export async function flushNow(keepalive = false): Promise<void> {
+export async function flushNow(keepalive = false): Promise<boolean> {
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
   }
-  if (pendingUpdates.size === 0 && pendingDeletes.size === 0) return;
+  if (pendingUpdates.size === 0 && pendingDeletes.size === 0) return true;
 
   const updates: Record<string, string> = {};
   pendingUpdates.forEach((v, k) => {
@@ -91,6 +91,7 @@ export async function flushNow(keepalive = false): Promise<void> {
 
   try {
     await apiRequest("PUT", "/api/user-data", { updates, deletes }, keepalive ? { keepalive: true } : undefined);
+    return true;
   } catch {
     // On failure, re-queue so the next change/flush retries. Don't throw — a failed
     // sync must never break the UI; localStorage still holds the value locally.
@@ -98,6 +99,7 @@ export async function flushNow(keepalive = false): Promise<void> {
       if (!pendingUpdates.has(k)) pendingUpdates.set(k, v);
     }
     for (const k of deletes) pendingDeletes.add(k);
+    return false;
   }
 }
 
@@ -230,5 +232,21 @@ export function resetUserDataSync(): void {
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
+  }
+}
+
+/** Remove only per-user synced cache keys, leaving device preferences intact. */
+export function clearSyncedLocalData(): void {
+  if (!ls || !nativeRemoveItem) return;
+  const keys: string[] = [];
+  for (let i = 0; i < ls.length; i++) {
+    const key = ls.key(i);
+    if (key && isSynced(key)) keys.push(key);
+  }
+  suspendCapture = true;
+  try {
+    keys.forEach((key) => nativeRemoveItem(key));
+  } finally {
+    suspendCapture = false;
   }
 }

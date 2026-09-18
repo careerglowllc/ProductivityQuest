@@ -2,10 +2,20 @@ import { Link, useLocation } from "wouter";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronLeft, ChevronRight, Coins, Monitor, Moon, Sun, User,
+  ChevronLeft, ChevronRight, ChevronUp, Coins, LogOut, Monitor, Moon, Settings, Sun, User,
 } from "lucide-react";
 import { useTheme } from "@/contexts/theme-context";
 import { useNickname } from "@/hooks/use-nickname";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { clearSyncedLocalData, flushNow, hydrateUserData, resetUserDataSync } from "@/lib/synced-storage";
+import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   PRIMARY_NAV, SECONDARY_NAV, breadcrumbFor, isJournalPath,
 } from "@/components/nav-config";
@@ -52,8 +62,9 @@ function RailSectionLabel({ children }: { children: React.ReactNode }) {
  *  as the rest of the shell. Collapses to a slim icon rail either by
  *  dragging past the threshold or clicking the edge toggle button. */
 export function AppSidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { preference, cycleTheme, isDark } = useTheme();
+  const { toast } = useToast();
 
   const [expandedWidth, setExpandedWidth] = useState<number>(() => {
     const saved = Number(localStorage.getItem("pq-sidebar-width"));
@@ -61,6 +72,7 @@ export function AppSidebar() {
   });
   const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem("pq-sidebar-collapsed") === "1");
   const [dragging, setDragging] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
 
   // Apply the live width to the shared CSS var that every fixed-offset
@@ -110,6 +122,30 @@ export function AppSidebar() {
   };
 
   const toggleCollapsed = () => setCollapsed((c) => !c);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    let localDataCleared = false;
+    try {
+      const saved = await flushNow();
+      if (!saved) throw new Error("Pending changes could not be saved");
+      clearSyncedLocalData();
+      localDataCleared = true;
+      await apiRequest("POST", "/api/auth/logout");
+      resetUserDataSync();
+      queryClient.clear();
+      window.location.assign("/login");
+    } catch {
+      if (localDataCleared) await hydrateUserData();
+      setSigningOut(false);
+      toast({
+        title: "Could not sign out",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { nickname, initials } = useNickname();
   const { data: progress } = useQuery<{ goldTotal?: number; tasksCompleted?: number }>({
@@ -181,24 +217,57 @@ export function AppSidebar() {
 
       {/* Profile summary — pinned to the bottom of the rail */}
       <div className="mt-auto border-t border-[var(--dash-line)] pt-3">
-        <Link href="/settings">
-          <a
-            title={collapsed ? nickname : undefined}
-            className={`dash-focus flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-[var(--dash-surface-2)] ${collapsed ? "justify-center" : ""}`}
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f7bd61] to-[#ed688d] text-[#0a1020]">
-              <User aria-hidden className="h-[18px] w-[18px]" />
-            </span>
-            {!collapsed && (
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-[var(--dash-ink)]">{nickname}</span>
-                <span className="block truncate text-[12px] text-[var(--dash-muted)]">
-                  {(progress?.goldTotal ?? 0).toLocaleString()} gold · {(progress?.tasksCompleted ?? 0).toLocaleString()} quests done
-                </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title={collapsed ? `${nickname} — open account menu` : undefined}
+              aria-label={collapsed ? `Open account menu for ${nickname}` : undefined}
+              className={`dash-focus flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-[var(--dash-surface-2)] data-[state=open]:bg-[var(--dash-surface-2)] ${collapsed ? "justify-center" : ""}`}
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f7bd61] to-[#ed688d] text-[#0a1020]">
+                <User aria-hidden className="h-[18px] w-[18px]" />
               </span>
-            )}
-          </a>
-        </Link>
+              {!collapsed && (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-[var(--dash-ink)]">{nickname}</span>
+                    <span className="block truncate text-[12px] text-[var(--dash-muted)]">
+                      {(progress?.goldTotal ?? 0).toLocaleString()} gold · {(progress?.tasksCompleted ?? 0).toLocaleString()} quests done
+                    </span>
+                  </span>
+                  <ChevronUp aria-hidden className="h-4 w-4 shrink-0 text-[var(--dash-muted)]" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="w-56 border-[var(--dash-line-strong)] bg-[var(--dash-surface)] text-[var(--dash-ink)] shadow-xl"
+          >
+            <DropdownMenuItem
+              onSelect={() => setLocation("/settings")}
+              className="cursor-pointer focus:bg-[var(--dash-surface-2)]"
+            >
+              <Settings aria-hidden />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-[var(--dash-line)]" />
+            <DropdownMenuItem
+              disabled={signingOut}
+              onSelect={(event) => {
+                event.preventDefault();
+                void handleSignOut();
+              }}
+              className="cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-500"
+            >
+              <LogOut aria-hidden />
+              {signingOut ? "Signing out…" : "Sign out"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       </div>
 
