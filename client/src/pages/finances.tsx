@@ -20,7 +20,7 @@ import {
   BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale, Briefcase, HeartHandshake
 } from "lucide-react";
 import {
-  Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip,
+  Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip, Label as ChartLabel,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ReferenceLine, Area, AreaChart
 } from "recharts";
 import type { FinancialItem, NwSnapshot, FamilyContribution } from "@shared/schema";
@@ -877,7 +877,7 @@ export default function Finances() {
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [expenseBreakdownSearch, setExpenseBreakdownSearch] = useState<string>("");
-  const [expenseChartView, setExpenseChartView] = useState<"pie" | "circle">("pie");
+  const [expenseChartView, setExpenseChartView] = useState<"pie" | "circle">("circle");
   const [expenseBreakdownCat, setExpenseBreakdownCat] = useState<string>("All");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
   // Overview widget visibility toggles
@@ -3063,37 +3063,38 @@ export default function Finances() {
 
           {/* ── Expense Breakdown Pie ─────────────────── */}
           <TabsContent value="expense-breakdown" className="space-y-4">
-            <Card className="bg-slate-800/60 border-red-500/20">
+            <Card className={isDark ? "border-slate-700 bg-slate-900/70" : "border-slate-200 bg-slate-50/80"}>
               <CardHeader>
-                <CardTitle className="text-red-300">Expense Breakdown by Category</CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
+                <CardTitle className={isDark ? "text-slate-100" : "text-slate-900"}>Expense Breakdown by Category</CardTitle>
+                <CardDescription className={isDark ? "text-slate-400 text-xs" : "text-slate-500 text-xs"}>
                   Income and Investments excluded · 🏠 marks Investment Property Housing (still spending, but builds equity)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 ${isDark ? "border-slate-600 bg-slate-900/60" : "border-slate-300 bg-slate-100"}`}>
+                <div className={`mb-5 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 ${isDark ? "border-slate-700 bg-slate-950/50" : "border-slate-200 bg-white"}`}>
                   <span className={`text-xs font-semibold ${isDark ? "text-slate-300" : "text-slate-700"}`}>Chart style</span>
                   <div className={`inline-flex rounded-md border p-1 shadow-sm ${isDark ? "border-slate-600 bg-slate-950" : "border-slate-300 bg-white"}`} role="group" aria-label="Expense chart view">
                     <button type="button" aria-pressed={expenseChartView === "pie"} onClick={() => setExpenseChartView("pie")}
-                      className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${expenseChartView === "pie" ? "bg-red-600 text-white shadow" : isDark ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-slate-700 hover:bg-slate-200 hover:text-slate-950"}`}>
+                      className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${expenseChartView === "pie" ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-950" : isDark ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"}`}>
                       <PieChart className="h-3.5 w-3.5" /> Pie chart
                     </button>
                     <button type="button" aria-pressed={expenseChartView === "circle"} onClick={() => setExpenseChartView("circle")}
-                      className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${expenseChartView === "circle" ? "bg-red-600 text-white shadow" : isDark ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-slate-700 hover:bg-slate-200 hover:text-slate-950"}`}>
+                      className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${expenseChartView === "circle" ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-950" : isDark ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"}`}>
                       <BarChart3 className="h-3.5 w-3.5" /> Circle map
                     </button>
                   </div>
                 </div>
                 {expenseChartView === "circle" ? <ExpenseCircleMap data={expensePie} formatCurrency={formatCurrency} /> : <ResponsiveContainer width="100%" height={360}>
                   <RechartsPieChart>
-                    <Pie data={expensePie} cx="50%" cy="50%" outerRadius={120} innerRadius={50}
+                    <Pie data={expensePie} cx="50%" cy="50%" outerRadius={128} innerRadius={78} paddingAngle={1}
                       dataKey="value" labelLine={false} label={false}>
                       {expensePie.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.3)" strokeWidth={1.5} />
+                        <Cell key={i} fill={entry.color} stroke={isDark ? "#0f172a" : "#f8fafc"} strokeWidth={2} />
                       ))}
+                      <ChartLabel value="MONTHLY TOTAL" position="centerTop" offset={-8} className={isDark ? "fill-slate-400" : "fill-slate-500"} style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1 }} />
+                      <ChartLabel value={formatCurrency(expensePie.reduce((sum, entry) => sum + entry.value, 0))} position="centerBottom" offset={8} className={isDark ? "fill-slate-100" : "fill-slate-800"} style={{ fontSize: 16, fontWeight: 700 }} />
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend formatter={(value) => <span className="text-slate-200 text-xs">{value}</span>} />
                   </RechartsPieChart>
                 </ResponsiveContainer>}
 

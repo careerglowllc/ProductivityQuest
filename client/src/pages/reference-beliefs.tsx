@@ -20,6 +20,7 @@ import { AttachmentArea } from "@/components/attachment-area";
 import type { QuestAttachment } from "@/lib/attachments";
 import { useSwipeDownToClose } from "@/hooks/use-swipe-down-to-close";
 import { JournalShell, JournalBackLink, JournalHero, RelatedJournalNav } from "@/components/journal-ui";
+import { EmojiPicker } from "@/components/emoji-picker";
 
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-reference-beliefs-v2";
@@ -28,6 +29,7 @@ const LEGACY_STORAGE_KEY = "journal-reference-beliefs-v1";
 
 type Belief = {
   id: string;
+  emoji?: string;
   title: string;
   description: string;
   createdAt: string;
@@ -67,8 +69,8 @@ function loadBeliefs(): Belief[] {
 // Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
 export function buildReferenceBeliefsCSVExport(): CSVExport {
   const beliefs = loadBeliefs();
-  const headers = ["Title", "Description", "Date Added", "Last Modified"];
-  const rows = beliefs.map((b) => [b.title, b.description, fmtDate(b.createdAt), fmtDate(b.updatedAt)]);
+  const headers = ["Emoji", "Title", "Description", "Date Added", "Last Modified"];
+  const rows = beliefs.map((b) => [b.emoji || "", b.title, b.description, fmtDate(b.createdAt), fmtDate(b.updatedAt)]);
   return { folder: "Journal", filename: "reference-beliefs.csv", content: rowsToCSV(headers, rows) };
 }
 
@@ -160,6 +162,13 @@ export default function ReferenceBeliefsPage() {
     });
   }
 
+  function updateEmoji(id: string, emoji: string) {
+    persistWithUndo(
+      beliefs.map((belief) => belief.id === id ? { ...belief, emoji } : belief),
+      "Changed belief emoji",
+    );
+  }
+
   function handleExport() {
     const { filename, content } = buildReferenceBeliefsCSVExport();
     downloadCSV(filename.replace(/\.csv$/, `_${new Date().toISOString().slice(0, 10)}.csv`), content);
@@ -249,9 +258,17 @@ export default function ReferenceBeliefsPage() {
               className="group cursor-pointer rounded-lg border border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] p-4 transition-colors hover:shadow-[var(--jrnl-shadow)]"
               onClick={() => openEdit(b)}
             >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="jrnl-display text-[19px] text-[var(--jrnl-ink)]">{b.title}</h3>
-                <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex items-start gap-3">
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--jrnl-sage-soft)]"
+                  onClick={(ev) => ev.stopPropagation()}
+                >
+                  <EmojiPicker value={b.emoji || ""} onChange={(emoji) => updateEmoji(b.id, emoji)} size="sm" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="jrnl-display text-[19px] text-[var(--jrnl-ink)]">{b.title}</h3>
+                    <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                   <button
                     onClick={(ev) => { ev.stopPropagation(); openEdit(b); }}
                     className="dash-focus rounded-md p-1.5 text-[var(--jrnl-muted)] hover:bg-[var(--jrnl-sage-soft)] hover:text-[var(--jrnl-sage-deep)]"
@@ -266,19 +283,21 @@ export default function ReferenceBeliefsPage() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 whitespace-pre-wrap text-sm text-[var(--jrnl-muted)]">
+                    {b.description || "No description yet — click to add one…"}
+                  </p>
+                  {b.attachments && b.attachments.length > 0 && (
+                    <div className="mt-2" onClick={(ev) => ev.stopPropagation()}>
+                      <AttachmentArea attachments={b.attachments} onChange={() => {}} disabled showHint={false}>
+                        {null}
+                      </AttachmentArea>
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-[var(--jrnl-muted)]">Updated {fmtDate(b.updatedAt)}</p>
                 </div>
               </div>
-              <p className="mt-1.5 whitespace-pre-wrap text-sm text-[var(--jrnl-muted)]">
-                {b.description || "No description yet — click to add one…"}
-              </p>
-              {b.attachments && b.attachments.length > 0 && (
-                <div className="mt-2" onClick={(ev) => ev.stopPropagation()}>
-                  <AttachmentArea attachments={b.attachments} onChange={() => {}} disabled showHint={false}>
-                    {null}
-                  </AttachmentArea>
-                </div>
-              )}
-              <p className="mt-2 text-[11px] text-[var(--jrnl-muted)]">Updated {fmtDate(b.updatedAt)}</p>
             </article>
           ))}
         </div>

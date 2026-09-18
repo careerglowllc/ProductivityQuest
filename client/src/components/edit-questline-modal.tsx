@@ -126,14 +126,7 @@ function buildTree(stages: Stage[]): any[] {
 }
 
 const getDepthLabel = (level: number) => {
-  switch (level) {
-    case 0: return "Stage";
-    case 1: return "Quest";
-    case 2: return "Sub-quest";
-    case 3: return "Task";
-    case 4: return "Sub-task";
-    default: return "Item";
-  }
+  return level === 0 ? "Quest" : "Subquest";
 };
 
 const getDepthColor = (level: number) => {
@@ -544,13 +537,13 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
     }
     for (let i = 0; i < newStages.length; i++) {
       if (!newStages[i].title.trim()) {
-        const label = getDepthLabel(newStages[i].indentLevel);
-        toast({ title: `${label} Missing Title`, description: `New item ${i + 1} needs a title.`, variant: "destructive" });
+        const label = newStages[i].existingParentId != null ? "Subquest" : getDepthLabel(newStages[i].indentLevel);
+        toast({ title: `${label} Missing Title`, description: `New quest ${i + 1} needs a title.`, variant: "destructive" });
         return;
       }
       if (!newStages[i].dueDate) {
-        const label = getDepthLabel(newStages[i].indentLevel);
-        toast({ title: `${label} Missing Due Date`, description: `"${newStages[i].title.trim() || `Item ${i + 1}`}" needs a due date.`, variant: "destructive" });
+        const label = newStages[i].existingParentId != null ? "Subquest" : getDepthLabel(newStages[i].indentLevel);
+        toast({ title: `${label} Missing Due Date`, description: `"${newStages[i].title.trim() || `Quest ${i + 1}`}" needs a due date.`, variant: "destructive" });
         return;
       }
     }
@@ -616,7 +609,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
             </button>
           </DialogTitle>
           <p className="text-sm text-purple-300/60 mt-1">
-            Update the questline details and add new stages or quests.
+            Update questline details and organize parent quests with nested subquests.
           </p>
         </DialogHeader>
 
@@ -631,92 +624,26 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                 <X className="w-5 h-5" />
               </button>
               <h2 className="text-xl font-serif font-bold text-purple-200 mb-1">⚔️ Quest Hierarchy</h2>
-              <p className="text-sm text-purple-300/60 mb-5">How items nest inside a questline</p>
+              <p className="text-sm text-purple-300/60 mb-5">How parent and child quests work</p>
 
-              {/* Visual diagram */}
-              <div className="space-y-1.5">
-                {/* L0 Stage */}
-                <div className="flex items-start gap-3">
-                  <div className="flex flex-col items-center pt-1">
-                    <div className="w-3 h-3 rounded-full bg-purple-400 shrink-0" />
-                    <div className="w-0.5 flex-1 bg-purple-500/30 mt-1" style={{ minHeight: 40 }} />
-                  </div>
-                  <div className="pb-2 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">L0 · STAGE</span>
-                      <span className="text-xs text-slate-400">Top-level milestone or phase</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">Groups related quests. Think of it as a chapter — e.g. <span className="text-purple-300/80 italic">"House Cleanup"</span> or <span className="text-purple-300/80 italic">"Launch Marketing"</span>.</p>
-                  </div>
+              <div className="space-y-3">
+                <div className="rounded-lg border border-purple-500/30 bg-purple-900/20 p-3">
+                  <span className="text-xs font-bold text-purple-200">Quest</span>
+                  <p className="mt-1 text-[11px] text-slate-400">A top-level goal in this questline.</p>
                 </div>
-
-                {/* L1 Quest */}
-                <div className="flex items-start gap-3 pl-5">
-                  <div className="flex flex-col items-center pt-1">
-                    <div className="w-3 h-3 rounded-full bg-blue-400 shrink-0" />
-                    <div className="w-0.5 flex-1 bg-blue-500/30 mt-1" style={{ minHeight: 40 }} />
-                  </div>
-                  <div className="pb-2 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">L1 · QUEST</span>
-                      <span className="text-xs text-slate-400">A concrete goal within a Stage</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">A meaningful unit of work with its own gold reward — e.g. <span className="text-blue-300/80 italic">"Clear out front lawn"</span>.</p>
-                  </div>
-                </div>
-
-                {/* L2 Sub-quest */}
-                <div className="flex items-start gap-3 pl-10">
-                  <div className="flex flex-col items-center pt-1">
-                    <div className="w-3 h-3 rounded-full bg-cyan-400 shrink-0" />
-                    <div className="w-0.5 flex-1 bg-cyan-500/30 mt-1" style={{ minHeight: 40 }} />
-                  </div>
-                  <div className="pb-2 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">L2 · SUB-QUEST</span>
-                      <span className="text-xs text-slate-400">Breaks a Quest into parts</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">Optional sub-division — e.g. <span className="text-cyan-300/80 italic">"Move furniture"</span> under a larger quest.</p>
-                  </div>
-                </div>
-
-                {/* L3 Task */}
-                <div className="flex items-start gap-3 pl-[60px]">
-                  <div className="flex flex-col items-center pt-1">
-                    <div className="w-3 h-3 rounded-full bg-teal-400 shrink-0" />
-                    <div className="w-0.5 flex-1 bg-teal-500/30 mt-1" style={{ minHeight: 36 }} />
-                  </div>
-                  <div className="pb-2 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300">L3 · TASK</span>
-                      <span className="text-xs text-slate-400">A single actionable step</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">Small, completable unit — e.g. <span className="text-teal-300/80 italic">"Bag up junk items"</span>.</p>
-                  </div>
-                </div>
-
-                {/* L4 Sub-task */}
-                <div className="flex items-start gap-3 pl-[76px]">
-                  <div className="flex flex-col items-center pt-1">
-                    <div className="w-3 h-3 rounded-full bg-slate-400 shrink-0" />
-                  </div>
-                  <div className="pb-1 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-300">L4 · SUB-TASK</span>
-                      <span className="text-xs text-slate-400">Deepest level detail</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">Ultra-granular step if needed — e.g. <span className="text-slate-300/80 italic">"Label each bag"</span>.</p>
-                  </div>
+                <div className="ml-6 rounded-lg border border-blue-500/30 bg-blue-900/15 p-3">
+                  <span className="text-xs font-bold text-blue-200">↳ Subquest</span>
+                  <p className="mt-1 text-[11px] text-slate-400">A child quest nested beneath a parent quest. Subquests can contain more subquests.</p>
                 </div>
               </div>
 
               {/* Tips */}
               <div className="mt-5 bg-purple-900/20 border border-purple-500/20 rounded-xl p-3 space-y-1.5">
                 <p className="text-[11px] font-semibold text-purple-300 uppercase tracking-wide mb-2">💡 Tips</p>
-                <p className="text-[11px] text-slate-400">• Use <span className="text-purple-300">← →</span> arrows to indent/outdent items and change their level.</p>
-                <p className="text-[11px] text-slate-400">• Use <span className="text-purple-300">↑ ↓</span> arrows to reorder items at the same level.</p>
+                <p className="text-[11px] text-slate-400">• Use <span className="text-purple-300">← →</span> arrows to move quests out of or beneath a parent.</p>
+                <p className="text-[11px] text-slate-400">• Use <span className="text-purple-300">↑ ↓</span> arrows to reorder sibling quests.</p>
                 <p className="text-[11px] text-slate-400">• Complete all items to earn the <span className="text-yellow-400">3× gold bonus</span>.</p>
-                <p className="text-[11px] text-slate-400">• You don't need all 5 levels — most questlines only need L0 + L1.</p>
+                <p className="text-[11px] text-slate-400">• Keep nesting as simple as your questline needs.</p>
               </div>
 
               <button
@@ -794,7 +721,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
               <div className="border-t border-purple-500/20 pt-4">
                 <h3 className="text-base font-serif text-purple-200 mb-2 flex items-center gap-2">
                   📋 Current Structure
-                  <span className="text-sm text-purple-400/50 font-normal">({existingTasks.length} items)</span>
+                  <span className="text-sm text-purple-400/50 font-normal">({existingTasks.length} quests)</span>
                   {reorderMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />}
                 </h3>
                 <p className="text-[11px] text-purple-300/50 mb-3 flex flex-wrap gap-2">
@@ -802,17 +729,17 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                     <span className="text-blue-300/70 font-medium">⠿ Drag</span> rows to reorder.
                   </span>
                   <span>
-                    <span className="text-cyan-300/70 font-medium">← →</span> to change nesting level.
+                    <span className="text-cyan-300/70 font-medium">← →</span> to change the parent relationship.
                   </span>
                   <span>
-                    <span className="text-blue-300/70 font-medium">+ Quest</span> to add children.
+                    <span className="text-blue-300/70 font-medium">+ Subquest</span> to add a child quest.
                   </span>
                 </p>
                 <div className="space-y-0.5">
                   {existingTasks.map((task) => {
                     const indent = task.indentLevel || 0;
                     const done = task.completed || task.recycled;
-                    const childLabel = getDepthLabel(indent + 1);
+                    const childLabel = "Subquest";
                     const pending = pendingByParent.get(task.id) ?? [];
                     return (
                       <div key={task.id}>
@@ -865,7 +792,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                               : <Circle className="w-3.5 h-3.5 text-slate-500" />}
                           </span>
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(indent)}`}>
-                            {getDepthLabel(indent).charAt(0)}
+                            {getDepthLabel(indent)}
                           </span>
                           <span className={`text-xs flex-1 truncate min-w-0 ${done ? "line-through text-slate-500" : "text-purple-100"}`}>
                             {task.emoji && <span className="mr-1">{task.emoji}</span>}
@@ -897,7 +824,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                 indent === 2 ? "bg-teal-500/15 text-teal-300 border-teal-500/20 hover:bg-teal-500/30" :
                                 "bg-slate-500/15 text-slate-300 border-slate-500/20 hover:bg-slate-500/30"
                               }`}
-                              title={`Add a ${childLabel} under "${task.title}"`}
+                              title={`Add a child subquest beneath "${task.title}"`}
                             >
                               <CornerDownRight className="w-2.5 h-2.5" />+ {childLabel}
                             </button>
@@ -908,7 +835,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                             type="button"
                             onClick={(e) => { e.stopPropagation(); editingTaskId === task.id ? (setEditingTaskId(null), setInlineEdit(null)) : openInlineEdit(task); }}
                             className={`p-1 rounded shrink-0 transition-colors ${editingTaskId === task.id ? "text-yellow-400 bg-yellow-500/20" : "text-purple-400/50 hover:text-purple-200 hover:bg-purple-500/20"}`}
-                            title="Edit this item"
+                            title="Edit this quest"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -922,7 +849,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                           >
                             {/* Emoji + Title */}
                             <div className="space-y-1">
-                              <Label className="text-purple-200 text-xs">{getDepthLabel(indent)} Title <span className="text-red-400">*</span></Label>
+                            <Label className="text-purple-200 text-xs">{getDepthLabel(indent)} Title <span className="text-red-400">*</span></Label>
                               <div className="flex gap-2">
                                 <div className="relative shrink-0">
                                   <button
@@ -1015,7 +942,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                   onClick={() => updateStage(stage.id, { expanded: !stage.expanded })}>
                                   {stage.indentLevel > 0 && <CornerDownRight className="w-3 h-3 text-blue-400/30 shrink-0" />}
                                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(stage.indentLevel)}`}>
-                                    NEW {getDepthLabel(stage.indentLevel).charAt(0)}
+                                    New Subquest
                                   </span>
                                   <span className="flex-1 text-sm text-yellow-100/90 truncate min-w-0">
                                     {stage.title || <span className="text-purple-400/40 italic">Untitled…</span>}
@@ -1044,21 +971,23 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                 {stage.indentLevel < MAX_DEPTH && (
                                   <div className="flex items-center gap-1.5 px-2.5 pb-1.5" onClick={(e) => e.stopPropagation()}>
                                     <button type="button" onClick={() => addStageAfter(stage.id, true)}
+                                      title={`Add a child subquest beneath "${stage.title || "this subquest"}"`}
                                       className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/15 text-blue-300 border border-blue-500/20 hover:bg-blue-500/30 transition-colors">
-                                      <CornerDownRight className="w-2.5 h-2.5" />+ {getDepthLabel(stage.indentLevel + 1)}
+                                      <CornerDownRight className="w-2.5 h-2.5" />+ Subquest
                                     </button>
                                     <button type="button" onClick={() => addStageAfter(stage.id, false)}
+                                      title={`Add a sibling quest after "${stage.title || "this subquest"}"`}
                                       className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 hover:bg-purple-500/25 transition-colors">
-                                      <Plus className="w-2.5 h-2.5" />+ Same level
+                                      <Plus className="w-2.5 h-2.5" />+ Sibling Subquest
                                     </button>
                                   </div>
                                 )}
                                 {stage.expanded && (
                                   <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-white/5">
                                     <div className="space-y-1">
-                                      <Label className="text-purple-200 text-xs">{getDepthLabel(stage.indentLevel)} Title <span className="text-red-400">*</span></Label>
+                                      <Label className="text-purple-200 text-xs">Subquest Title <span className="text-red-400">*</span></Label>
                                       <Input value={stage.title} onChange={(e) => updateStage(stage.id, { title: e.target.value })}
-                                        onFocus={scrollInputIntoView} placeholder={`${getDepthLabel(stage.indentLevel)} title...`}
+                                        onFocus={scrollInputIntoView} placeholder="Subquest title..."
                                         className="bg-slate-800/50 border-purple-500/30 text-yellow-100 placeholder:text-purple-300/40 h-8 text-sm" maxLength={200} />
                                     </div>
                                     <div className="space-y-1">
@@ -1105,7 +1034,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
             <div className="border-t border-purple-500/20 pt-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-serif text-purple-200">
-                  ✨ Add New Top-Level Stages {topLevelNew.length > 0 && `(+${topLevelNew.length})`}
+                  ✨ Add New Quests {topLevelNew.length > 0 && `(+${topLevelNew.length})`}
                 </h3>
                 <Button
                   type="button"
@@ -1115,26 +1044,17 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                   className="border-purple-500/40 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100"
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Add Stage
+                  Add Quest
                 </Button>
               </div>
 
               {topLevelNew.length === 0 ? (
                 <div className="text-center py-5 text-purple-300/40 text-xs border border-dashed border-purple-500/20 rounded-lg leading-relaxed">
-                  <p>Click <span className="text-purple-300/70 font-medium">+ Add Stage</span> to create a new top-level stage.</p>
-                  <p className="mt-1">Or use <span className="text-blue-300/60 font-medium">+ Quest</span> buttons above to add items inside an existing stage.</p>
+                  <p>Click <span className="text-purple-300/70 font-medium">+ Add Quest</span> to create a new top-level quest.</p>
+                  <p className="mt-1">Or use <span className="text-blue-300/60 font-medium">+ Subquest</span> above to add a child beneath an existing quest.</p>
                 </div>
               ) : (
                 <>
-                  {/* Depth legend */}
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {[0, 1, 2, 3, 4].map((level) => (
-                      <span key={level} className={`text-[10px] px-2 py-0.5 rounded-full ${getDepthBadge(level)}`}>
-                        L{level}: {getDepthLabel(level)}
-                      </span>
-                    ))}
-                  </div>
-
                   <div className="space-y-2">
                     {topLevelNew.map((stage, tlIdx) => {
                       const realIndex = newStages.findIndex((s) => s.id === stage.id);
@@ -1158,7 +1078,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                               <CornerDownRight className="w-3 h-3 text-purple-400/30 shrink-0" />
                             )}
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(stage.indentLevel)}`}>
-                              {getDepthLabel(stage.indentLevel).charAt(0)}{siblingNum}
+                              {getDepthLabel(stage.indentLevel)} {siblingNum}
                             </span>
                             {stage.emoji && <span className="shrink-0 text-sm">{stage.emoji}</span>}
                             <span className="flex-1 text-sm text-yellow-100 truncate">
@@ -1184,7 +1104,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                 disabled={stage.indentLevel <= 0}
                                 onClick={() => outdentStage(stage.id)}
                                 className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
-                                title="Outdent"
+                                title="Move quest out one parent"
                               >
                                 <ArrowLeft className="w-3 h-3" />
                               </button>
@@ -1193,7 +1113,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                 disabled={stage.indentLevel >= MAX_DEPTH || realIndex === 0}
                                 onClick={() => indentStage(stage.id)}
                                 className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
-                                title="Indent"
+                                title="Make this a subquest of the preceding quest"
                               >
                                 <ArrowRight className="w-3 h-3" />
                               </button>
@@ -1232,18 +1152,20 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                               <button
                                 type="button"
                                 onClick={() => addStageAfter(stage.id, true)}
+                                title={`Add a child subquest beneath "${stage.title || "this quest"}"`}
                                 className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-500/15 text-blue-300 hover:bg-blue-500/30 hover:text-blue-200 transition-colors border border-blue-500/20"
                               >
                                 <CornerDownRight className="w-2.5 h-2.5" />
-                                + {getDepthLabel(stage.indentLevel + 1)}
+                                + Subquest
                               </button>
                               <button
                                 type="button"
                                 onClick={() => addStageAfter(stage.id, false)}
+                                title={`Add a sibling quest after "${stage.title || "this quest"}"`}
                                 className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-500/15 text-purple-300 hover:bg-purple-500/30 hover:text-purple-200 transition-colors border border-purple-500/20"
                               >
                                 <Plus className="w-2.5 h-2.5" />
-                                + {getDepthLabel(stage.indentLevel)}
+                                + Quest
                               </button>
                             </div>
                           )}
@@ -1395,9 +1317,9 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
             {newStages.length > 0 && (
               <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 flex items-center justify-between">
                 <div className="text-sm text-purple-300/70">
-                  <span className="font-semibold text-purple-200">{newStages.length}</span> new item{newStages.length > 1 ? "s" : ""} will be added
+                  <span className="font-semibold text-purple-200">{newStages.length}</span> new quest{newStages.length > 1 ? "s" : ""} will be added
                   {existingChildNew.length > 0 && (
-                    <span className="ml-2 text-blue-300/60">({existingChildNew.length} inside existing stages)</span>
+                    <span className="ml-2 text-blue-300/60">({existingChildNew.length} beneath existing parent quests)</span>
                   )}
                 </div>
                 <div className="text-sm text-yellow-300 font-semibold">🪙 +{newGold}</div>

@@ -63,7 +63,7 @@ function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGe
   const compact = w < 767 || h < 500;
   const narrow = w <= 400;
   const labelHalfW = compact ? (narrow ? 28 : 32) : 76;
-  const labelHalfH = compact ? (narrow ? 10 : 11) : 19;
+  const labelHalfH = compact ? (narrow ? 10 : 11) : 27;
   const cx = w / 2, cy = h * .49;
   const nebulaRadius = compactStage
     ? (h <= 600 ? (w < 768 ? 54 : Math.min(66, Math.max(56, w * .08))) : Math.min(68, Math.max(51, w * .16)))
@@ -75,8 +75,8 @@ function buildOverviewGeometry(w: number, h: number, strict = false): OverviewGe
   const result: OverviewGeometry[] = [];
   for (let i = 0; i < 10; i++) {
     const angle = -90 + i * 36;
-    const itemLabelHalfW = i === 0 ? (compact ? 26 : 40) : labelHalfW;
-    const itemLabelHalfH = i === 0 ? (compact ? 7 : 9) : labelHalfH;
+    const itemLabelHalfW = i === 0 ? (compact ? 26 : labelHalfW) : labelHalfW;
+    const itemLabelHalfH = i === 0 ? (compact ? 7 : labelHalfH) : labelHalfH;
     const hub = polar(cx, cy, r, angle);
     const trunk = polar(hub[0], hub[1], span * .30, angle);
     // The north crown gets a slightly shorter reach in compact/short stages.
@@ -339,7 +339,7 @@ export function ConstellationStage({ skills, getMilestones, getCustomIcon, pendi
         </Fragment>)}
         <span className={`atlas-skill ${linked === i ? "linked" : ""}`} style={{ "--x": `${hub[0]}px`, "--y": `${hub[1]}px`, "--lx": `${label[0]}px`, "--ly": `${label[1]}px`, "--tone": COLORS[skill.skillName] || "#b596ee" } as CSSProperties}>
         <button className="atlas-hub" aria-label={`Open ${skill.skillName} skill tree`} onMouseEnter={() => setLinked(i)} onMouseLeave={() => setLinked(null)} onFocus={() => setLinked(i)} onBlur={() => setLinked(null)} onClick={() => enter(skill)}><HubIcon name={skill.skillName} custom={getCustomIcon(skill)} /></button>
-        <button className={`atlas-label ${i === 0 ? "atlas-label--north" : ""}`} onMouseEnter={() => setLinked(i)} onMouseLeave={() => setLinked(null)} onFocus={() => setLinked(i)} onBlur={() => setLinked(null)} onClick={() => enter(skill)}><b>{skill.skillName}</b>{i !== 0 && <small>{DESC[skill.skillName] || "personal practice"}</small>}</button>
+        <button className={`atlas-label ${i === 0 ? "atlas-label--north" : ""}`} aria-label={`Open ${skill.skillName}, level ${skill.level}, skill tree`} onMouseEnter={() => setLinked(i)} onMouseLeave={() => setLinked(null)} onFocus={() => setLinked(i)} onBlur={() => setLinked(null)} onClick={() => enter(skill)}><b>{skill.skillName}</b><small>{DESC[skill.skillName] || "personal practice"}</small><small className="atlas-skill-level">Level {skill.level}</small></button>
         </span>
       </Fragment>)}
       <button className="constellation-pager prev" aria-label="Previous skill" onClick={() => cycle(-1)}>‹</button><button className="constellation-pager next" aria-label="Next skill" onClick={() => cycle(1)}>›</button><button className="atlas-caption" onClick={close}>Overview · {canonical.length} skills</button>

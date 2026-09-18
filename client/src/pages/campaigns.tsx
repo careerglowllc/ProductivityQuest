@@ -49,7 +49,7 @@ interface QuestlineData {
 export async function buildQuestlinesCSVExport(): Promise<CSVExport> {
   const r = await fetch("/api/questlines", { credentials: "include" });
   const questlines: QuestlineData[] = await r.json();
-  const headers = ["ID", "Title", "Description", "Icon", "Completed", "Completed At", "Bonus Awarded", "Task Count", "Tasks Completed"];
+  const headers = ["ID", "Title", "Description", "Icon", "Completed", "Completed At", "Bonus Awarded", "Quest Count", "Quests Completed"];
   const rows = questlines.map(ql => [
     ql.id,
     ql.title,
@@ -140,7 +140,7 @@ export default function CampaignsPage() {
           </div>
           {!isMobile && (
             <p className="text-purple-300/70 text-lg">
-              Multi-stage quest chains. Stages earn 2× sub-quest gold, completion earns 2× total!
+              Parent quests earn 2× their children's gold, and completion earns 2× the total!
             </p>
           )}
           <div className={`mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 ${isDark ? "border-purple-400/40 bg-slate-900/70" : "border-purple-300 bg-purple-50"}`}>
@@ -173,7 +173,7 @@ export default function CampaignsPage() {
               <Target className="h-12 w-12 mx-auto mb-3 text-purple-400/50" />
               <h3 className="text-lg font-serif text-purple-200 mb-2">No Questlines Yet</h3>
               <p className="text-purple-300/50 text-sm mb-4">
-                Create your first multi-stage questline to earn massive bonus rewards.
+                Create your first questline with parent quests and subquests to earn bonus rewards.
               </p>
               <Button
                 onClick={() => setShowCreateModal(true)}
@@ -264,7 +264,7 @@ export default function CampaignsPage() {
             <DialogTitle className="text-red-200 font-serif">Delete Questline?</DialogTitle>
           </DialogHeader>
           <p className="text-slate-300 text-sm">
-            This will remove the questline. Its stage tasks will remain but be unlinked.
+            This will remove the questline. Its quests will remain but be unlinked.
           </p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeletingId(null)} className="border-slate-600 text-slate-300">
@@ -464,7 +464,7 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update task.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update quest.", variant: "destructive" });
     },
   });
 
@@ -820,9 +820,9 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                 />
                 {editingTaskId !== null && (
                   <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-purple-400/30 bg-slate-950/45 p-2">
-                    <Input value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} className="h-8 min-w-[12rem] flex-1 border-purple-400/30 bg-slate-900/70 text-sm text-purple-100" aria-label="Task title" />
-                    <Input value={editTaskGold} onChange={(e) => setEditTaskGold(e.target.value)} type="number" className="h-8 w-20 border-purple-400/30 bg-slate-900/70 text-sm text-purple-100" aria-label="Task gold value" />
-                    <Button size="sm" onClick={() => saveTaskEdits(editingTaskId)} disabled={updateTask.isPending} className="h-8 bg-purple-600 hover:bg-purple-500">Save task</Button>
+                    <Input value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} className="h-8 min-w-[12rem] flex-1 border-purple-400/30 bg-slate-900/70 text-sm text-purple-100" aria-label="Quest title" />
+                    <Input value={editTaskGold} onChange={(e) => setEditTaskGold(e.target.value)} type="number" className="h-8 w-20 border-purple-400/30 bg-slate-900/70 text-sm text-purple-100" aria-label="Quest gold value" />
+                    <Button size="sm" onClick={() => saveTaskEdits(editingTaskId)} disabled={updateTask.isPending} className="h-8 bg-purple-600 hover:bg-purple-500">Save quest</Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-8 text-purple-200">Cancel</Button>
                   </div>
                 )}
@@ -886,16 +886,15 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                       size="sm"
                     />
                   </span>
-                  {indent > 0 && (
-                    <span className={`text-[8px] font-bold px-1 py-0 rounded ${
+                  <span className={`text-[8px] font-bold px-1 py-0 rounded ${
+                      indent === 0 ? "bg-purple-500/15 text-purple-300/70" :
                       indent === 1 ? "bg-blue-500/15 text-blue-400/60" :
                       indent === 2 ? "bg-cyan-500/15 text-cyan-400/60" :
                       indent === 3 ? "bg-teal-500/15 text-teal-400/60" :
                       "bg-slate-500/15 text-slate-400/60"
                     } shrink-0`}>
-                      L{indent}
-                    </span>
-                  )}
+                      {indent === 0 ? "Quest" : "Subquest"}
+                  </span>
                   {isEditing && editingTaskId === task.id ? (
                     <>
                       <Input
@@ -979,7 +978,7 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                 </div>
                 {stageBonusGold > 0 && (
                   <div className="flex justify-between text-[10px] text-blue-300/70">
-                    <span>Stage bonuses (2× sub-quests)</span>
+                    <span>Parent quest bonus (2× children)</span>
                     <span>+🪙 {stageBonusGold}</span>
                   </div>
                 )}

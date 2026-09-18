@@ -43,8 +43,6 @@ const depthColors: Record<number, { border: string; bg: string; text: string; ba
   4: { border: "border-slate-500/25", bg: "bg-slate-800/10", text: "text-slate-300", badge: "bg-slate-500/20 text-slate-300" },
 };
 
-const depthLabels = ["Stage", "Quest", "Sub-quest", "Task", "Sub-task"];
-
 function getDepthStyle(level: number) {
   return depthColors[Math.min(level, 4)];
 }
@@ -196,17 +194,17 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
           <p className="text-xs text-purple-400/40 mt-1">
             {sorted.filter((t) => t.completed || t.recycled).length}/{sorted.length} completed
           </p>
-          <div className="inline-flex self-start mt-2 rounded border border-purple-400/30 p-0.5" role="group" aria-label="Task view">
+          <div className="inline-flex self-start mt-2 rounded border border-purple-400/30 p-0.5" role="group" aria-label="Quest view">
             <button type="button" onClick={() => setView("list")} aria-pressed={view === "list"} className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded ${view === "list" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60"}`}><List className="w-3 h-3" />List</button>
             <button type="button" onClick={() => setView("atlas")} aria-pressed={view === "atlas"} className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded ${view === "atlas" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60"}`}><GitBranch className="w-3 h-3" />Atlas</button>
           </div>
         </DialogHeader>
 
-        {view === "atlas" ? <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 py-2"><AtlasTaskTree title={questline.title} tasks={sorted} rootIcon={<GitBranch size={16} />} selectedTaskId={selectedTaskId} onSelectTask={(task) => setSelectedTaskId(task.id)} {...(onViewTask ? { onEditTask: (task: QuestlineTask) => onViewTask(task.id), actionLabel: "View task" } : {})} /></div> : <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 space-y-1.5 py-2 pr-1" style={{ WebkitOverflowScrolling: "touch" }}>
+        {view === "atlas" ? <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 py-2"><AtlasTaskTree title={questline.title} tasks={sorted} rootIcon={<GitBranch size={16} />} selectedTaskId={selectedTaskId} onSelectTask={(task) => setSelectedTaskId(task.id)} {...(onViewTask ? { onEditTask: (task: QuestlineTask) => onViewTask(task.id), actionLabel: "View quest" } : {})} /></div> : <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 space-y-1.5 py-2 pr-1" style={{ WebkitOverflowScrolling: "touch" }}>
           {sorted.map((task) => {
             const indent = task.indentLevel ?? 0;
             const style = getDepthStyle(indent);
-            const label = depthLabels[Math.min(indent, 4)];
+            const label = indent === 0 ? "Quest" : "Subquest";
             const done = task.completed || task.recycled;
             const isFocus = task.id === focusTaskId;
             const isAncestor = ancestorIds.has(task.id);
@@ -245,7 +243,7 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
                     </span>
                     {isFocus && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-400/30 text-purple-200 ring-1 ring-purple-400/50">
-                        ← this task
+                        ← this quest
                       </span>
                     )}
                   </div>
@@ -274,7 +272,7 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
                       <button
                         onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
                         className="ml-auto flex items-center gap-1 text-[10px] text-purple-400/60 hover:text-purple-300 transition-colors px-1.5 py-0.5 rounded hover:bg-purple-500/10"
-                        title="View full task"
+                        title="View full quest"
                       >
                         <Eye className="w-3 h-3" />
                         <span>View</span>

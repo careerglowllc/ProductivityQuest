@@ -114,16 +114,8 @@ function buildTree(stages: Stage[]): any[] {
   return result;
 }
 
-// Depth label helpers
 const getDepthLabel = (level: number) => {
-  switch (level) {
-    case 0: return "Stage";
-    case 1: return "Quest";
-    case 2: return "Sub-quest";
-    case 3: return "Task";
-    case 4: return "Sub-task";
-    default: return "Item";
-  }
+  return level === 0 ? "Quest" : "Subquest";
 };
 
 const getDepthColor = (level: number) => {
@@ -182,7 +174,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "⚔️ Questline Created!",
-        description: `"${title}" has been forged with ${stages.length} stage${stages.length > 1 ? "s" : ""}.`,
+        description: `"${title}" has been forged with ${stages.length} quest${stages.length > 1 ? "s" : ""}.`,
       });
       resetForm();
       onOpenChange(false);
@@ -365,7 +357,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
         const label = getDepthLabel(stages[i].indentLevel);
         toast({
           title: `${label} Missing Title`,
-          description: `Item ${i + 1} needs a title.`,
+          description: `Quest ${i + 1} needs a title.`,
           variant: "destructive",
         });
         return;
@@ -391,7 +383,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
             <span>⚔️</span> Create New Questline
           </DialogTitle>
           <p className="text-sm text-purple-300/60 mt-1">
-            Build a quest chain with nested stages, quests, and subtasks (up to 4 levels deep).
+            Build a questline by nesting subquests beneath parent quests.
           </p>
         </DialogHeader>
 
@@ -468,7 +460,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
           <div className="border-t border-purple-500/20 pt-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-serif text-purple-200">
-                Stages & Quests ({stages.length} item{stages.length !== 1 ? "s" : ""})
+                Quests ({stages.length})
               </h3>
               <Button
                 type="button"
@@ -478,17 +470,8 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                 className="border-purple-500/40 text-purple-200 hover:bg-purple-600/20 hover:text-purple-100"
               >
                 <Plus className="w-4 h-4 mr-1" />
-                Add Stage
+                Add Quest
               </Button>
-            </div>
-
-            {/* Depth legend */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              {[0, 1, 2, 3, 4].map((level) => (
-                <span key={level} className={`text-[10px] px-2 py-0.5 rounded-full ${getDepthBadge(level)}`}>
-                  L{level}: {getDepthLabel(level)}
-                </span>
-              ))}
             </div>
 
             <div className="space-y-2">
@@ -520,9 +503,8 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                         <CornerDownRight className="w-3 h-3 text-purple-400/30 shrink-0" />
                       )}
 
-                      {/* Depth badge */}
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getDepthBadge(stage.indentLevel)}`}>
-                        {getDepthLabel(stage.indentLevel).charAt(0)}{siblingNum}
+                        {getDepthLabel(stage.indentLevel)} {siblingNum}
                       </span>
 
                       {stage.emoji && <span className="shrink-0 text-sm">{stage.emoji}</span>}
@@ -548,7 +530,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                           disabled={stage.indentLevel <= 0}
                           onClick={() => outdentStage(stage.id)}
                           className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
-                          title="Outdent (decrease level)"
+                          title="Move quest out one parent"
                         >
                           <ArrowLeft className="w-3 h-3" />
                         </button>
@@ -557,7 +539,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                           disabled={stage.indentLevel >= MAX_DEPTH || index === 0}
                           onClick={() => indentStage(stage.id)}
                           className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
-                          title="Indent (increase level)"
+                          title="Make this a subquest of the preceding quest"
                         >
                           <ArrowRight className="w-3 h-3" />
                         </button>
@@ -737,10 +719,11 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                               size="sm"
                               variant="ghost"
                               onClick={(e) => { e.stopPropagation(); addStageAfter(stage.id, true); }}
+                              title={`Add a child subquest beneath "${stage.title || "this quest"}"`}
                               className="h-7 text-xs text-blue-300/70 hover:text-blue-200 hover:bg-blue-600/15"
                             >
                               <CornerDownRight className="w-3 h-3 mr-1" />
-                              Add {getDepthLabel(stage.indentLevel + 1)}
+                              Add Subquest
                             </Button>
                           )}
                           <Button
@@ -748,10 +731,11 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                             size="sm"
                             variant="ghost"
                             onClick={(e) => { e.stopPropagation(); addStageAfter(stage.id, false); }}
+                            title={`Add a sibling quest after "${stage.title || "this quest"}"`}
                             className="h-7 text-xs text-purple-300/70 hover:text-purple-200 hover:bg-purple-600/15"
                           >
                             <Plus className="w-3 h-3 mr-1" />
-                            Add {getDepthLabel(stage.indentLevel)}
+                            Add Quest
                           </Button>
                         </div>
                     </div>
@@ -767,7 +751,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
             <h4 className="text-sm font-semibold text-purple-200 mb-2">Completion Bonus Preview</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <span className="text-purple-300/60">Total Gold ({stages.length} items):</span>
+                <span className="text-purple-300/60">Total Gold ({stages.length} quests):</span>
                 <span className="ml-2 text-yellow-300">🪙 {totalGold}</span>
               </div>
               <div>
@@ -776,7 +760,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
               </div>
             </div>
             <p className="text-xs text-purple-300/50 mt-2">
-              Complete all {stages.length} item{stages.length > 1 ? "s" : ""} to earn the 3× gold &amp; XP bonus!
+              Complete all {stages.length} quest{stages.length > 1 ? "s" : ""} to earn the 3× gold &amp; XP bonus!
             </p>
           </div>
         </div>

@@ -75,7 +75,7 @@
 
 .constellation-stage .atlas-label {
   width: 152px;
-  height: 38px;
+  height: 54px;
   padding: 0;
   display: grid;
   align-content: center;
@@ -94,6 +94,14 @@
   text-shadow: 0 1px 10px rgba(31, 35, 65, .8);
 }
 
+.constellation-stage .atlas-label .atlas-skill-level {
+  margin-top: 3px;
+  font-size: 8px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .82;
+}
+
 .constellation-stage .atlas-skill {
   z-index: 5;
 }
@@ -105,7 +113,7 @@
 @media (min-width: 768px) {
   .constellation-stage .focus-back {
     z-index: 13;
-    top: 18px;
+    top: max(64px, calc(env(safe-area-inset-top) + 28px));
     bottom: auto;
     min-width: 180px;
     min-height: 50px;
@@ -350,8 +358,8 @@
 }
 
 .constellation-stage .atlas-label.atlas-label--north {
-  width: 80px;
-  height: 18px;
+  width: 152px;
+  height: 54px;
 }
 
 @media (max-width: 767px), (max-height: 499px) {

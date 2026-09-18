@@ -199,7 +199,7 @@ export default function JournalDailyGewsPage() {
   const { swipeCallbackRef, style: swipeStyle } = useSwipeDownToClose(dialogOpen, setDialogOpen, isMobile);
 
   // Composer — the primary capture path: one category, one reflection at a time, appended to today.
-  const [composerCategory, setComposerCategory] = useState<GewsCategory>("sadnesses");
+  const [composerCategory, setComposerCategory] = useState<GewsCategory>("wins");
   const [composerDraft, setComposerDraft] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<QuestAttachment[]>([]);
   const [search, setSearch] = useState("");

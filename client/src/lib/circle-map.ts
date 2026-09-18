@@ -1,5 +1,30 @@
 export type Point = [number, number];
 export type MapValue = { name: string; value: number; color: string; pct: number };
+export type ExternalLabel = { id: string; side: "left" | "right"; desiredY: number };
+export type PlacedExternalLabel = ExternalLabel & { y: number };
+
+/**
+ * Give callouts a stable reading order without letting adjacent labels collide.
+ * The labels may deliberately extend the chart's height when there are many
+ * categories; hiding a positive category is worse than making the chart scroll.
+ */
+export function placeExternalLabels(labels: ExternalLabel[], top: number, bottom: number, gap = 34): PlacedExternalLabel[] {
+  return (["left", "right"] as const).flatMap(side => {
+    const items = labels.filter(label => label.side === side).sort((a, b) => a.desiredY - b.desiredY);
+    if (!items.length) return [];
+    const requiredBottom = top + gap * (items.length - 1);
+    const usableBottom = Math.max(bottom, requiredBottom);
+    const placed = items.map((item, index) => ({
+      ...item,
+      y: Math.max(top + index * gap, Math.min(item.desiredY, usableBottom - gap * (items.length - 1 - index))),
+    }));
+    // A backwards pass honors the lower boundary while retaining the minimum gap.
+    for (let index = placed.length - 2; index >= 0; index--) {
+      placed[index].y = Math.min(placed[index].y, placed[index + 1].y - gap);
+    }
+    return placed;
+  });
+}
 
 export function polygonArea(points: Point[]) {
   return Math.abs(points.reduce((sum, p, i) => {
