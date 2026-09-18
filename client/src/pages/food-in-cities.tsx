@@ -96,7 +96,7 @@ const ALL_TAGS = [
   "Elote", "Tacos",
   "American", "Italian", "Japanese", "Mexican", "Chinese",
   "Vietnamese", "Thai", "Indian", "Mediterranean", "French",
-  "Korean", "Middle Eastern", "Latin",
+  "Korean", "Middle Eastern", "Latin", "Ethiopian",
 ];
 
 const TAG_COLORS: Record<string, string> = {
@@ -132,6 +132,7 @@ const TAG_COLORS: Record<string, string> = {
   "Korean":         "bg-purple-500/20 text-purple-300 border-purple-500/40",
   "Middle Eastern": "bg-amber-600/20 text-amber-300 border-amber-600/40",
   "Latin":          "bg-yellow-600/20 text-yellow-300 border-yellow-600/40",
+  "Ethiopian":      "bg-red-700/20 text-red-300 border-red-700/40",
 };
 
 // ── Types ────────────────────────────────────────────────────
@@ -203,6 +204,7 @@ const TAG_EMOJI: [string, string][] = [
   ["French",         "🥐"],
   ["Korean",         "🫕"],
   ["Middle Eastern", "🧆"],
+  ["Ethiopian",      "🍲"],
   ["American",       "🦅"],
   ["Latin",          "💃"],
   ["Casual",         "🍴"],
@@ -612,6 +614,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-08-23T00:00:00.000Z",
     updatedAt: "2026-08-23T00:00:00.000Z",
   },
+  {
+    id: "food-selam-sanjose",
+    name: "Selam Restaurant",
+    city: "San Jose, CA",
+    address: "3120 Williams Rd, San Jose, CA 95117",
+    overallRating: 2,
+    stars: { food: 2, ambience: 2, price: 3 },
+    thoughts: "Food wasn't very good. Weird soapy sour bread thing that turned grey, and the meat was mediocre — flavoring and spices were just ok.",
+    tags: ["Ethiopian"],
+    visitedAt: "",
+    createdAt: "2026-09-18T00:00:00.000Z",
+    updatedAt: "2026-09-18T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -634,7 +649,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v9";
+    const key = "food-cities-seed-v10";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
