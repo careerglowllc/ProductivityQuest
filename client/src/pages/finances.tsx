@@ -3069,12 +3069,21 @@ export default function Finances() {
                 <CardDescription className="text-slate-400 text-xs">
                   Income and Investments excluded · 🏠 marks Investment Property Housing (still spending, but builds equity)
                 </CardDescription>
-                <div className="flex gap-2 pt-2" role="group" aria-label="Expense chart view">
-                  <Button type="button" size="sm" variant={expenseChartView === "pie" ? "default" : "outline"} aria-pressed={expenseChartView === "pie"} onClick={() => setExpenseChartView("pie")}>Pie chart</Button>
-                  <Button type="button" size="sm" variant={expenseChartView === "circle" ? "default" : "outline"} aria-pressed={expenseChartView === "circle"} onClick={() => setExpenseChartView("circle")}>Circle map</Button>
-                </div>
               </CardHeader>
               <CardContent>
+                <div className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 ${isDark ? "border-slate-600 bg-slate-900/60" : "border-slate-300 bg-slate-100"}`}>
+                  <span className={`text-xs font-semibold ${isDark ? "text-slate-300" : "text-slate-700"}`}>Chart style</span>
+                  <div className={`inline-flex rounded-md border p-1 shadow-sm ${isDark ? "border-slate-600 bg-slate-950" : "border-slate-300 bg-white"}`} role="group" aria-label="Expense chart view">
+                    <button type="button" aria-pressed={expenseChartView === "pie"} onClick={() => setExpenseChartView("pie")}
+                      className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${expenseChartView === "pie" ? "bg-red-600 text-white shadow" : isDark ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-slate-700 hover:bg-slate-200 hover:text-slate-950"}`}>
+                      <PieChart className="h-3.5 w-3.5" /> Pie chart
+                    </button>
+                    <button type="button" aria-pressed={expenseChartView === "circle"} onClick={() => setExpenseChartView("circle")}
+                      className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${expenseChartView === "circle" ? "bg-red-600 text-white shadow" : isDark ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-slate-700 hover:bg-slate-200 hover:text-slate-950"}`}>
+                      <BarChart3 className="h-3.5 w-3.5" /> Circle map
+                    </button>
+                  </div>
+                </div>
                 {expenseChartView === "circle" ? <ExpenseCircleMap data={expensePie} formatCurrency={formatCurrency} /> : <ResponsiveContainer width="100%" height={360}>
                   <RechartsPieChart>
                     <Pie data={expensePie} cx="50%" cy="50%" outerRadius={120} innerRadius={50}

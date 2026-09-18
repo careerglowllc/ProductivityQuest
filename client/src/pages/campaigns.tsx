@@ -137,10 +137,19 @@ export default function CampaignsPage() {
               Multi-stage quest chains. Stages earn 2× sub-quest gold, completion earns 2× total!
             </p>
           )}
-           <div className="mt-3 inline-flex rounded-md border border-purple-400/30 bg-slate-900/40 p-0.5" role="group" aria-label="Questline visualization">
-             <button type="button" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"} className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${viewMode === "list" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60 hover:text-purple-200"}`}><List className="h-3.5 w-3.5" />List</button>
-             <button type="button" onClick={() => setViewMode("atlas")} aria-pressed={viewMode === "atlas"} className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${viewMode === "atlas" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60 hover:text-purple-200"}`}><GitBranch className="h-3.5 w-3.5" />Atlas tree</button>
-           </div>
+          <div className={`mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 ${isDark ? "border-purple-400/40 bg-slate-900/70" : "border-purple-300 bg-purple-50"}`}>
+            <span className={`text-xs font-semibold ${isDark ? "text-purple-200" : "text-purple-900"}`}>Questline view</span>
+            <div className={`inline-flex rounded-md border p-1 shadow-sm ${isDark ? "border-purple-400/40 bg-slate-950" : "border-purple-300 bg-white"}`} role="group" aria-label="Questline visualization">
+              <button type="button" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"}
+                className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "list" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
+                <List className="h-3.5 w-3.5" /> Default list
+              </button>
+              <button type="button" onClick={() => setViewMode("atlas")} aria-pressed={viewMode === "atlas"}
+                className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "atlas" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
+                <GitBranch className="h-3.5 w-3.5" /> Atlas constellation
+              </button>
+            </div>
+          </div>
         </div>
 
         {isLoading ? (
