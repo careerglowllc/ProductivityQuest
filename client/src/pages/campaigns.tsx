@@ -13,6 +13,7 @@ import { AddQuestlineModal } from "@/components/add-questline-modal";
 import { EditQuestlineModal } from "@/components/edit-questline-modal";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { AtlasTaskTree } from "@/components/atlas-task-tree";
+import { AllProjectsTree } from "@/components/all-projects-tree";
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 
 interface QuestlineTask {
@@ -72,7 +73,12 @@ export default function CampaignsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingQuestline, setEditingQuestline] = useState<QuestlineData | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "atlas">("list");
+  const [viewMode, setViewMode] = useState<"list" | "atlas" | "all-projects">("list");
+  const openProjectAtlas = useCallback((projectId: number) => {
+    setExpandedId(projectId);
+    setViewMode("atlas");
+    window.setTimeout(() => document.getElementById(`questline-${projectId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+  }, []);
 
   const { data: questlines = [], isLoading } = useQuery<QuestlineData[]>({
     queryKey: ["/api/questlines"],
@@ -139,7 +145,7 @@ export default function CampaignsPage() {
           )}
           <div className={`mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 ${isDark ? "border-purple-400/40 bg-slate-900/70" : "border-purple-300 bg-purple-50"}`}>
             <span className={`text-xs font-semibold ${isDark ? "text-purple-200" : "text-purple-900"}`}>Questline view</span>
-            <div className={`inline-flex rounded-md border p-1 shadow-sm ${isDark ? "border-purple-400/40 bg-slate-950" : "border-purple-300 bg-white"}`} role="group" aria-label="Questline visualization">
+            <div className={`flex flex-wrap rounded-md border p-1 shadow-sm ${isDark ? "border-purple-400/40 bg-slate-950" : "border-purple-300 bg-white"}`} role="group" aria-label="Questline visualization">
               <button type="button" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"}
                 className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "list" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
                 <List className="h-3.5 w-3.5" /> Default list
@@ -147,6 +153,10 @@ export default function CampaignsPage() {
               <button type="button" onClick={() => setViewMode("atlas")} aria-pressed={viewMode === "atlas"}
                 className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "atlas" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
                 <GitBranch className="h-3.5 w-3.5" /> Atlas constellation
+              </button>
+              <button type="button" onClick={() => setViewMode("all-projects")} aria-pressed={viewMode === "all-projects"}
+                className={`flex min-h-9 items-center gap-1.5 rounded px-3 text-xs font-semibold transition-colors ${viewMode === "all-projects" ? "bg-purple-600 text-white shadow" : isDark ? "text-purple-200 hover:bg-slate-800 hover:text-white" : "text-purple-900 hover:bg-purple-100"}`}>
+                <Target className="h-3.5 w-3.5" /> All Projects Tree
               </button>
             </div>
           </div>
@@ -176,6 +186,10 @@ export default function CampaignsPage() {
           </Card>
         ) : (
           <>
+            {viewMode === "all-projects" ? (
+              <AllProjectsTree projects={questlines} onOpenProject={openProjectAtlas} />
+            ) : (
+              <>
             {/* Active Questlines */}
             {active.length > 0 && (
               <div className={isMobile ? "mb-4" : "mb-8"}>
@@ -226,6 +240,8 @@ export default function CampaignsPage() {
                   ))}
                 </div>
               </div>
+            )}
+              </>
             )}
           </>
         )}
@@ -690,6 +706,7 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
 
   return (
     <Card
+      id={`questline-${questline.id}`}
       className={`overflow-hidden transition-all ${
         isComplete
           ? "bg-green-900/20 border-green-500/30"
