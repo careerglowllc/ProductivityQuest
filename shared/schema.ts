@@ -97,7 +97,7 @@ export const tasks = pgTable("tasks", {
   questlineId: integer("questline_id"), // FK to questlines table (null = standalone task)
   questlineOrder: integer("questline_order"), // Order within the questline (1-based)
   parentTaskId: integer("parent_task_id"), // FK to parent task for subtask nesting (null = top-level)
-  indentLevel: integer("indent_level").default(0), // 0 = top-level stage, 1-4 = nested subtask depth
+  indentLevel: integer("indent_level").default(0), // 0 = top-level stage; positive values are nested subtask depth
   assignedTo: text("assigned_to").default("Alex"), // Person assigned to this quest
   // Inline media attachments embedded in the description (base64 data URLs). Stored in DB so they
   // persist across deploys and work on both web + iOS (which share the hosted server origin).

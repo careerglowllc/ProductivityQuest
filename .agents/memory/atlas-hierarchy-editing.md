@@ -3,8 +3,14 @@ name: Atlas hierarchy editing
 description: The interaction rule that defines Questline Atlas parent-child and sibling relationships.
 ---
 
-Questline Atlas topology must be built directly in the visual tree. A plus control beneath a task creates a direct sub-task in that branch; adjacent tasks are siblings. Tasks use one recursive model rather than separate Stage and Quest types. Editing may change content but must not manually reparent a task.
+Questline Atlas topology must be built directly in the visual tree. A plus control beneath a quest creates a direct child in that branch; adjacent quests are siblings. Use one recursive parent-child model, with Quest/Subquest labels rather than Stage/Task/Subtask depth types. Editing may change content but must not manually reparent a quest.
 
 **Why:** The tree’s visible structure is the user’s source of truth. A separate parent selector can contradict that structure, create duplicate branch slots, and make the hierarchy harder to understand.
 
 **How to apply:** Start empty parents with two open branches, then keep one additional plus available so parents can have unlimited children and the tree expands horizontally. Preserve sibling order in persistence, and treat any future move operation as an explicit visual tree interaction rather than a form field.
+
+New quest creation defaults to the Atlas-style builder, with Manual as an alternate view of the same draft. Nesting must not silently truncate at an arbitrary depth.
+
+**Why:** The user explicitly requested visual-first creation and straightforward parent-child relationships at every level, not different entity types for each depth.
+
+**How to apply:** Keep both entry views synchronized and check server persistence limits whenever extending visual nesting.

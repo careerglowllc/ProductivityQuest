@@ -72,7 +72,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch questlines for the dropdown and stage resolution
+  // Fetch questlines for the dropdown and parent quest resolution
   const { data: questlines = [] } = useQuery<{
     id: number;
     title: string;
@@ -83,8 +83,8 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
     enabled: open,
   });
 
-  // Resolve the parent stage name for this task (if it belongs to a questline and has a parent)
-  const parentStageName = (() => {
+  // Resolve the parent quest name for this task (if it belongs to a questline and has a parent)
+  const parentQuestName = (() => {
     if (!task?.questlineId || !task?.parentTaskId) return null;
     const ql = questlines.find((q) => q.id === task.questlineId);
     if (!ql?.tasks) return null;
@@ -158,7 +158,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
       setIsDatePickerOpen(false);
       toast({
         title: "📅 Due Date Updated",
-        description: "Task due date has been changed successfully.",
+        description: "Quest due date has been changed successfully.",
       });
     },
     onError: () => {
@@ -191,7 +191,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
       setIsEditingDuration(false);
       toast({
         title: "⏱️ Duration Updated",
-        description: "Task duration has been changed successfully.",
+        description: "Quest duration has been changed successfully.",
       });
     },
     onError: () => {
@@ -1040,15 +1040,15 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
               </Select>
             </div>
 
-            {/* Stage (shown when task belongs to a questline and has a parent stage) */}
-            {parentStageName && (
+            {/* Parent quest (shown when a quest belongs to a questline and has a parent) */}
+            {parentQuestName && (
               <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-purple-600/20`}>
                 <div className="flex items-center gap-2 text-purple-400">
                   <Target className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Stage</span>
+                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Parent Quest</span>
                 </div>
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-purple-200/80 truncate ${isMobile ? '' : 'max-w-[180px]'}`}>
-                  {parentStageName}
+                  {parentQuestName}
                 </span>
               </div>
             )}

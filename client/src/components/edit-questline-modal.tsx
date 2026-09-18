@@ -56,7 +56,7 @@ const QUESTLINE_ICONS = [
   "🇦🇺", "🇳🇿", "🇫🇯", "🇵🇫",
 ];
 
-const MAX_DEPTH = 4;
+const MAX_DEPTH = Number.MAX_SAFE_INTEGER;
 
 interface Stage {
   id: string;
@@ -721,7 +721,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
               <div className="border-t border-purple-500/20 pt-4">
                 <h3 className="text-base font-serif text-purple-200 mb-2 flex items-center gap-2">
                   📋 Current Structure
-                  <span className="text-sm text-purple-400/50 font-normal">({existingTasks.length} quests)</span>
+                  <span className="text-sm text-purple-400/50 font-normal">({existingTasks.length} {existingTasks.length === 1 ? "quest" : "quests"})</span>
                   {reorderMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />}
                 </h3>
                 <p className="text-[11px] text-purple-300/50 mb-3 flex flex-wrap gap-2">
@@ -976,7 +976,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                                       <CornerDownRight className="w-2.5 h-2.5" />+ Subquest
                                     </button>
                                     <button type="button" onClick={() => addStageAfter(stage.id, false)}
-                                      title={`Add a sibling quest after "${stage.title || "this subquest"}"`}
+                                      title={`Add a sibling subquest after "${stage.title || "this subquest"}"`}
                                       className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 hover:bg-purple-500/25 transition-colors">
                                       <Plus className="w-2.5 h-2.5" />+ Sibling Subquest
                                     </button>
@@ -1161,11 +1161,11 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                               <button
                                 type="button"
                                 onClick={() => addStageAfter(stage.id, false)}
-                                title={`Add a sibling quest after "${stage.title || "this quest"}"`}
+                                title={`Add a sibling ${getDepthLabel(stage.indentLevel).toLowerCase()} after "${stage.title || "this quest"}"`}
                                 className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-500/15 text-purple-300 hover:bg-purple-500/30 hover:text-purple-200 transition-colors border border-purple-500/20"
                               >
                                 <Plus className="w-2.5 h-2.5" />
-                                + Quest
+                                + {getDepthLabel(stage.indentLevel)}
                               </button>
                             </div>
                           )}

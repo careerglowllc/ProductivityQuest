@@ -1753,7 +1753,7 @@ export default function Finances() {
   const nwIsLoading = btcLoading || vtsaxLoading || vooLoading || vxusLoading || ibitLoading || viiixLoading;
 
   // NW Snapshots — load history + auto-save current month once prices are ready
-  const { data: nwSnapshots = [], refetch: refetchSnapshots } = useQuery<NwSnapshot[]>({
+  const { data: nwSnapshots = [], refetch: refetchSnapshots, isLoading: snapshotsLoading, isError: snapshotsError } = useQuery<NwSnapshot[]>({
     queryKey: ["/api/nw-snapshots"],
     staleTime: 60_000,
   });
@@ -2182,6 +2182,36 @@ export default function Finances() {
         </div>
 
         {/* Tabs */}
+        <section aria-label="Net worth over time and FIRE goal" className={`mb-6 rounded-lg border px-3 pt-3 pb-1 ${isDark ? "border-slate-700/60 bg-slate-800/40" : "border-slate-200 bg-white"}`}>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] tracking-wide">
+            <span className={isDark ? "text-slate-300" : "text-slate-600"}>Net worth over time</span>
+            <span className={isDark ? "text-orange-300" : "text-orange-700"}>— — FIRE goal · $1.5M</span>
+          </div>
+          {snapshotsLoading || snapshotsError || nwSnapshots.length === 0 ? (
+            <div className="flex h-20 items-center justify-center text-xs text-slate-500">
+              {snapshotsLoading ? "Loading net worth history…" : snapshotsError ? "Unable to load net worth history." : "Your first net worth snapshot will appear here once saved."}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={80}>
+              <AreaChart data={[...nwSnapshots].sort((a, b) => a.month.localeCompare(b.month)).map(s => ({
+                label: new Date(`${s.month}-01T12:00:00`).toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+                value: s.totalValue,
+              }))} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="nwSummaryGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={.25} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={.02} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={48} tick={{ fill: "#94a3b8", fontSize: 9 }} height={18} />
+                <YAxis domain={[(min: number) => Math.min(0, min), (max: number) => Math.max(1_650_000, max * 1.1)]} ticks={[0, 1_500_000]} tickFormatter={v => v === 0 ? "$0" : "$1.5M"} axisLine={false} tickLine={false} width={42} tick={{ fill: "#94a3b8", fontSize: 9 }} />
+                <Tooltip formatter={(value: number) => [formatCurrency(value), "Net worth"]} contentStyle={{ background: isDark ? "#0f172a" : "#fff", border: "1px solid #64748b", borderRadius: 8, fontSize: 11, color: isDark ? "#e2e8f0" : "#334155" }} />
+                <ReferenceLine y={1_500_000} stroke="#fb923c" strokeDasharray="5 4" strokeOpacity={.8} />
+                <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={1.5} fill="url(#nwSummaryGradient)" dot={nwSnapshots.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </section>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
           <TabsList className="bg-slate-800/60 border border-purple-500/30 flex flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="overview" className="data-[state=active]:bg-purple-600/40 text-xs px-3 py-1.5">
@@ -3098,17 +3128,17 @@ export default function Finances() {
                   </RechartsPieChart>
                 </ResponsiveContainer>}
 
-                <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-1.5">
+                <div className="mt-5 space-y-2.5 border-t border-slate-700/30 pt-5">
                   {expensePie.map(cat => (
-                    <div key={cat.name} className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                    <div key={cat.name} className="group flex items-center gap-3">
+                      <div className="h-1.5 w-1.5 shrink-0 rounded-full opacity-80 shadow-[0_0_8px_currentColor]" style={{ backgroundColor: cat.color, color: cat.color }} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between text-xs mb-0.5">
-                          <span className="text-slate-300">{cat.name === "Investment Property Housing" && "🏠 "}{cat.name}</span>
-                          <span className="text-slate-300 font-medium">{formatCurrency(cat.value)} ({cat.pct.toFixed(1)}%)</span>
+                        <div className="mb-1.5 flex justify-between gap-4 text-[11px] tracking-wide">
+                          <span className={isDark ? "font-light text-slate-300" : "font-light text-slate-700"}>{cat.name === "Investment Property Housing" && "🏠 "}{cat.name}</span>
+                          <span className={isDark ? "font-light tabular-nums text-slate-400" : "font-light tabular-nums text-slate-500"}>{formatCurrency(cat.value)} <span className="ml-1 text-[9px] opacity-60">{cat.pct.toFixed(1)}%</span></span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-slate-700">
-                          <div className="h-1.5 rounded-full" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                        <div className={isDark ? "h-px bg-slate-700/60" : "h-px bg-slate-300/70"}>
+                          <div className="h-px opacity-80 shadow-[0_0_6px_currentColor]" style={{ width: `${cat.pct}%`, backgroundColor: cat.color, color: cat.color }} />
                         </div>
                       </div>
                     </div>

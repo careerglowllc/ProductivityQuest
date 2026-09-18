@@ -560,12 +560,21 @@ async function campaignQuestlineTests() {
   });
 
   await test('POST /api/questlines creates questline', async () => {
+    let deepStage = { title: 'Create depth 6' };
+    for (let depth = 5; depth >= 0; depth--) {
+      deepStage = { title: `Create depth ${depth}`, children: [deepStage] };
+    }
     const res = await request('POST', '/api/questlines', {
-      name: 'Test Questline', description: 'Integration test questline',
-      category: 'Work', icon: 'BookOpen',
+      title: 'Test Questline',
+      description: 'Integration test questline',
+      icon: '📖',
+      stages: [deepStage],
     }, testUser.cookies);
     assertStatus(res, 200);
     assert(res.data.id);
+    assertEqual(res.data.tasks.length, 7);
+    assertEqual(res.data.tasks[6].indentLevel, 6);
+    assertEqual(res.data.tasks[6].parentTaskId, res.data.tasks[5].id);
     questlineId = res.data.id;
   });
 
@@ -573,7 +582,9 @@ async function campaignQuestlineTests() {
     if (!questlineId) return;
     const res = await request('GET', `/api/questlines/${questlineId}`, null, testUser.cookies);
     assertStatus(res, 200);
-    assertEqual(res.data.name, 'Test Questline');
+    assertEqual(res.data.title, 'Test Questline');
+    assertEqual(res.data.tasks.length, 7);
+    assertEqual(res.data.tasks[6].indentLevel, 6);
   });
 
   await test('PATCH /api/questlines/:id updates questline', async () => {
@@ -586,10 +597,17 @@ async function campaignQuestlineTests() {
 
   await test('POST /api/questlines/:id/add-stages adds stages', async () => {
     if (!questlineId) return;
+    let deepStage = { title: 'Added depth 6' };
+    for (let depth = 5; depth >= 0; depth--) {
+      deepStage = { title: `Added depth ${depth}`, children: [deepStage] };
+    }
     const res = await request('POST', `/api/questlines/${questlineId}/add-stages`, {
-      stages: [{ title: 'Stage 1', tasks: [] }],
+      stages: [deepStage],
     }, testUser.cookies);
-    assert(res.status === 200 || res.status === 400);
+    assertStatus(res, 200);
+    assertEqual(res.data.addedTasks.length, 7);
+    assertEqual(res.data.addedTasks[6].indentLevel, 6);
+    assertEqual(res.data.addedTasks[6].parentTaskId, res.data.addedTasks[5].id);
   });
 
   await test('POST /api/questlines/:id/check-completion responds', async () => {

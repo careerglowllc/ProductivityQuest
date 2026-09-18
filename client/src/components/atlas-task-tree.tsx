@@ -53,7 +53,7 @@ export function AtlasTaskTree<T extends AtlasTask>({ title, tasks, rootIcon, sel
     return () => observer.disconnect();
   }, []);
 
-  return <section className="task-atlas" aria-label={`${title} task tree`}>
+  return <section className="task-atlas" aria-label={`${title} quest tree`}>
     <div className="task-atlas-scroll" ref={viewportRef}>
       {layout.width > width + 8 && <span className="task-atlas-scroll-cue">Swipe sideways for branches</span>}
       <div className="task-atlas-scene" style={{ width: layout.width, height: layout.height }}>
@@ -71,12 +71,12 @@ export function AtlasTaskTree<T extends AtlasTask>({ title, tasks, rootIcon, sel
         {hierarchy.ordered.map((task) => {
           const point = layout.points.get(task.id)!; const done = task.completed || task.recycled;
           return <button key={task.id} type="button" className={`task-atlas-node ${done ? "is-complete" : ""} ${selectedTaskId === task.id ? "is-selected" : ""}`} style={{ left: point.x, top: point.y } as CSSProperties} onClick={() => onSelectTask?.(task)} aria-pressed={selectedTaskId === task.id} aria-label={`${task.title}, ${done ? "complete" : "in progress"}`} title={task.title}>
-            <span className="task-atlas-orb">{done ? <Check size={14} /> : <Circle size={11} />}</span><b>{task.title}</b><small>{point.depth === 1 ? "task" : "sub-task"}</small>
+            <span className="task-atlas-orb">{done ? <Check size={14} /> : <Circle size={11} />}</span><b>{task.title}</b><small>{point.depth === 1 ? "Quest" : "Subquest"}</small>
           </button>;
         })}
-        {!tasks.length && <p className="task-atlas-empty">No tasks have been added to this questline.</p>}
+        {!tasks.length && <p className="task-atlas-empty">No quests have been added to this questline.</p>}
       </div>
     </div>
-    {selected && <div className="task-atlas-detail"><span>{selected.completed || selected.recycled ? "Complete" : "In progress"}</span><strong>{selected.title}</strong>{onEditTask && <button type="button" onClick={() => onEditTask(selected)}>{actionLabel ?? "Edit task"}</button>}{onToggleTask && <button type="button" disabled={isTaskActionPending} onClick={() => onToggleTask(selected)}>{selected.completed || selected.recycled ? "Mark in progress" : "Mark complete"}</button>}</div>}
+    {selected && <div className="task-atlas-detail"><span>{selected.completed || selected.recycled ? "Complete" : "In progress"}</span><strong>{selected.title}</strong>{onEditTask && <button type="button" onClick={() => onEditTask(selected)}>{actionLabel ?? "Edit quest"}</button>}{onToggleTask && <button type="button" disabled={isTaskActionPending} onClick={() => onToggleTask(selected)}>{selected.completed || selected.recycled ? "Mark in progress" : "Mark complete"}</button>}</div>}
   </section>;
 }

@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, GitBranch, List } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
+import { QuestlineDraftTree } from "@/components/questline-draft-tree";
 
 const QUESTLINE_ICONS = [
   // Fantasy / RPG
@@ -46,9 +47,9 @@ const QUESTLINE_ICONS = [
   // Tech & Office
   "🔑", "🔒", "📎", "✂️", "🖊️", "📋", "🗂️", "🗃️", "💻", "📱", "🖥️", "🎮", "📚", "🎒", "📺", "📻",
 ];
-const MAX_DEPTH = 4;
+const MAX_DEPTH = Number.MAX_SAFE_INTEGER;
 
-interface Stage {
+export interface QuestlineDraftNode {
   id: string;
   title: string;
   description: string;
@@ -62,7 +63,7 @@ interface Stage {
   emoji: string;
 }
 
-function createEmptyStage(indentLevel = 0): Stage {
+function createEmptyStage(indentLevel = 0): QuestlineDraftNode {
   return {
     id: crypto.randomUUID(),
     title: "",
@@ -79,7 +80,7 @@ function createEmptyStage(indentLevel = 0): Stage {
 }
 
 // Build a tree structure from the flat stages list for submission to backend
-function buildTree(stages: Stage[]): any[] {
+function buildTree(stages: QuestlineDraftNode[]): any[] {
   const result: any[] = [];
   const stack: { node: any; level: number }[] = [];
 
@@ -115,7 +116,7 @@ function buildTree(stages: Stage[]): any[] {
 }
 
 const getDepthLabel = (level: number) => {
-  return level === 0 ? "Quest" : "Subquest";
+  return level === 0 ? "Quest" : "Child";
 };
 
 const getDepthColor = (level: number) => {
@@ -154,9 +155,10 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("⚔️");
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [editorMode, setEditorMode] = useState<"atlas" | "manual">("atlas");
 
   // Stages state — flat list with indentLevel for tree structure
-  const [stages, setStages] = useState<Stage[]>([createEmptyStage()]);
+  const [stages, setStages] = useState<QuestlineDraftNode[]>([]);
 
   // Scroll focused input into view above keyboard on iOS
   const scrollInputIntoView = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -193,10 +195,11 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
     setDescription("");
     setIcon("⚔️");
     setShowIconPicker(false);
-    setStages([createEmptyStage()]);
+    setStages([]);
+    setEditorMode("atlas");
   };
 
-  const updateStage = (id: string, updates: Partial<Stage>) => {
+  const updateStage = (id: string, updates: Partial<QuestlineDraftNode>) => {
     setStages((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
   };
 
@@ -215,7 +218,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
         }
       }
       const result = prev.filter((s) => !toRemove.has(s.id));
-      return result.length === 0 ? [createEmptyStage()] : result;
+      return result;
     });
   };
 
@@ -226,16 +229,13 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
       const parentLevel = prev[idx].indentLevel;
       const newLevel = asChild ? Math.min(parentLevel + 1, MAX_DEPTH) : parentLevel;
 
-      // Find insertion point
+      // Append after the current branch so the visible left-to-right sibling order persists.
       let insertIdx = idx + 1;
-      if (!asChild) {
-        // Insert as sibling — after all descendants of current item
-        for (let i = idx + 1; i < prev.length; i++) {
-          if (prev[i].indentLevel > parentLevel) {
-            insertIdx = i + 1;
-          } else {
-            break;
-          }
+      for (let i = idx + 1; i < prev.length; i++) {
+        if (prev[i].indentLevel > parentLevel) {
+          insertIdx = i + 1;
+        } else {
+          break;
         }
       }
 
@@ -351,6 +351,14 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
       });
       return;
     }
+    if (!stages.length) {
+      toast({
+        title: "Quest Required",
+        description: "Add at least one quest beneath the questline root.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     for (let i = 0; i < stages.length; i++) {
       if (!stages[i].title.trim()) {
@@ -377,16 +385,42 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 text-yellow-100 overflow-hidden">
+      <DialogContent className={`${editorMode === "atlas" ? "max-w-6xl" : "max-w-3xl"} max-h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 text-yellow-100 overflow-hidden`}>
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl font-serif text-purple-200 flex items-center gap-2">
             <span>⚔️</span> Create New Questline
           </DialogTitle>
-          <p className="text-sm text-purple-300/60 mt-1">
-            Build a questline by nesting subquests beneath parent quests.
-          </p>
+          <div className="flex items-center justify-between gap-3 mt-1">
+            <p className="text-sm text-purple-300/60">
+              Build each relationship directly in the tree.
+            </p>
+            <div className="flex rounded-lg border border-purple-500/30 bg-slate-900/50 p-1" aria-label="Questline editor style">
+              <button type="button" aria-pressed={editorMode === "atlas"} onClick={() => setEditorMode("atlas")} className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs ${editorMode === "atlas" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60"}`}><GitBranch className="w-3.5 h-3.5" /> Atlas</button>
+              <button type="button" aria-pressed={editorMode === "manual"} onClick={() => setEditorMode("manual")} className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs ${editorMode === "manual" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60"}`}><List className="w-3.5 h-3.5" /> Manual</button>
+            </div>
+          </div>
         </DialogHeader>
 
+        {editorMode === "atlas" && (
+          <div className="flex-1 min-h-0 overflow-y-auto py-3">
+            <QuestlineDraftTree
+              title={title}
+              description={description}
+              icon={icon}
+              nodes={stages}
+              onTitleChange={setTitle}
+              onDescriptionChange={setDescription}
+              onIconChange={setIcon}
+              onUpdateNode={updateStage}
+              onAddChild={(id) => addStageAfter(id, true)}
+              onAddSibling={(id) => addStageAfter(id, false)}
+              onAddRoot={addTopLevelStage}
+              onDelete={removeStage}
+              onFocusField={scrollInputIntoView}
+            />
+          </div>
+        )}
+        {editorMode === "manual" && (
         <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="space-y-6 py-4 pb-[40vh]">
           {/* Icon + Title row */}
@@ -539,7 +573,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                           disabled={stage.indentLevel >= MAX_DEPTH || index === 0}
                           onClick={() => indentStage(stage.id)}
                           className="p-1 text-purple-400/60 hover:text-purple-300 disabled:opacity-20"
-                          title="Make this a subquest of the preceding quest"
+                          title="Make this a child of the preceding quest"
                         >
                           <ArrowRight className="w-3 h-3" />
                         </button>
@@ -719,11 +753,11 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                               size="sm"
                               variant="ghost"
                               onClick={(e) => { e.stopPropagation(); addStageAfter(stage.id, true); }}
-                              title={`Add a child subquest beneath "${stage.title || "this quest"}"`}
+                              title={`Add a child beneath "${stage.title || "this quest"}"`}
                               className="h-7 text-xs text-blue-300/70 hover:text-blue-200 hover:bg-blue-600/15"
                             >
                               <CornerDownRight className="w-3 h-3 mr-1" />
-                              Add Subquest
+                              Add Child
                             </Button>
                           )}
                           <Button
@@ -765,6 +799,7 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
           </div>
         </div>
         </div>
+        )}
 
         <DialogFooter className="gap-2 shrink-0 pt-3 border-t border-purple-500/20">
           <Button

@@ -4440,7 +4440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         icon: icon || "⚔️",
       });
 
-      // Recursively create stages and their children (up to 4 levels deep)
+      // Recursively create the complete stage tree.
       const createdTasks: any[] = [];
       let orderCounter = 1;
 
@@ -4472,8 +4472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [newTask] = await db.insert(tasksTable).values(taskData).returning();
         createdTasks.push(newTask);
 
-        // Recursively create children (max depth 4)
-        if (stage.children && Array.isArray(stage.children) && depth < 4) {
+        if (stage.children && Array.isArray(stage.children)) {
           for (const child of stage.children) {
             await createStageAndChildren(child, newTask.id, depth + 1);
           }
@@ -4564,7 +4563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         const [newTask] = await db.insert(tasksTable).values(taskData).returning();
         createdTasks.push(newTask);
-        if (stage.children && Array.isArray(stage.children) && depth < 4) {
+        if (stage.children && Array.isArray(stage.children)) {
           for (const child of stage.children) {
             await createStageAndChildren(child, newTask.id, depth + 1);
           }
@@ -4642,14 +4641,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ql = await storage.getQuestline(qlId, userId);
       if (!ql) return res.status(404).json({ error: "Questline not found" });
 
-      // Verify parent task exists, belongs to this questline, and check depth
+      // Verify parent task exists and belongs to this questline
       const parentTask = await db.select().from(tasksTable)
         .where(and(eq(tasksTable.id, parentTaskId), eq(tasksTable.userId, userId), eq(tasksTable.questlineId, qlId)))
         .then(r => r[0]);
       if (!parentTask) return res.status(404).json({ error: "Parent task not found in this questline" });
 
       const parentDepth = (parentTask as any).indentLevel || 0;
-      if (parentDepth >= 4) return res.status(400).json({ error: "Maximum nesting depth (4 levels) reached" });
 
       // Get max order in questline for new task
       const allTasks = await storage.getQuestlineTasks(userId, qlId);
