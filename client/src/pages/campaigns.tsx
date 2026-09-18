@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X, GripVertical } from "lucide-react";
+import { Target, Plus, Pencil, Trash2, CheckCircle, Gift, Trophy, ChevronDown, ChevronUp, Loader2, Circle, Clock, Check, X, GripVertical, GitBranch, List } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/theme-context";
@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { AddQuestlineModal } from "@/components/add-questline-modal";
 import { EditQuestlineModal } from "@/components/edit-questline-modal";
 import { EmojiPicker } from "@/components/emoji-picker";
+import { AtlasTaskTree } from "@/components/atlas-task-tree";
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 
 interface QuestlineTask {
@@ -71,6 +72,7 @@ export default function CampaignsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingQuestline, setEditingQuestline] = useState<QuestlineData | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "atlas">("list");
 
   const { data: questlines = [], isLoading } = useQuery<QuestlineData[]>({
     queryKey: ["/api/questlines"],
@@ -135,6 +137,10 @@ export default function CampaignsPage() {
               Multi-stage quest chains. Stages earn 2× sub-quest gold, completion earns 2× total!
             </p>
           )}
+           <div className="mt-3 inline-flex rounded-md border border-purple-400/30 bg-slate-900/40 p-0.5" role="group" aria-label="Questline visualization">
+             <button type="button" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"} className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${viewMode === "list" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60 hover:text-purple-200"}`}><List className="h-3.5 w-3.5" />List</button>
+             <button type="button" onClick={() => setViewMode("atlas")} aria-pressed={viewMode === "atlas"} className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${viewMode === "atlas" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60 hover:text-purple-200"}`}><GitBranch className="h-3.5 w-3.5" />Atlas tree</button>
+           </div>
         </div>
 
         {isLoading ? (
@@ -180,6 +186,7 @@ export default function CampaignsPage() {
                       onEdit={() => setEditingQuestline(ql)}
                       onCheckCompletion={() => checkCompletion.mutate(ql.id)}
                       isCheckingCompletion={checkCompletion.isPending}
+                       viewMode={viewMode}
                     />
                   ))}
                 </div>
@@ -205,6 +212,7 @@ export default function CampaignsPage() {
                       onEdit={() => setEditingQuestline(ql)}
                       onCheckCompletion={() => {}}
                       isCheckingCompletion={false}
+                       viewMode={viewMode}
                     />
                   ))}
                 </div>
@@ -340,9 +348,10 @@ interface QuestlineCardProps {
   onEdit: () => void;
   onCheckCompletion: () => void;
   isCheckingCompletion: boolean;
+  viewMode: "list" | "atlas";
 }
 
-function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete, onEdit, onCheckCompletion, isCheckingCompletion }: QuestlineCardProps) {
+function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete, onEdit, onCheckCompletion, isCheckingCompletion, viewMode }: QuestlineCardProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const tasks = questline.tasks || [];
@@ -372,10 +381,13 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
   }
 
   // Recursive function to compute total gold including bonuses for a task subtree
-  const computeSubtreeGold = (task: QuestlineTask): number => {
+  const computeSubtreeGold = (task: QuestlineTask, lineage = new Set<number>()): number => {
+    if (lineage.has(task.id)) return task.goldValue || 0;
+    const nextLineage = new Set(lineage);
+    nextLineage.add(task.id);
     const children = childrenOf.get(task.id) || [];
     if (children.length === 0) return task.goldValue || 0; // leaf quest: base gold only
-    const childrenTotal = children.reduce((sum, c) => sum + computeSubtreeGold(c), 0);
+    const childrenTotal = children.reduce((sum, c) => sum + computeSubtreeGold(c, nextLineage), 0);
     return (task.goldValue || 0) + childrenTotal + childrenTotal * 2; // base + children + 2× bonus
   };
 
@@ -399,6 +411,7 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
   const [editTitle, setEditTitle] = useState(questline.title);
   const [editDesc, setEditDesc] = useState(questline.description || "");
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [selectedAtlasTaskId, setSelectedAtlasTaskId] = useState<number | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editTaskGold, setEditTaskGold] = useState("");
   const taskTitleRef = useRef<HTMLInputElement>(null);
@@ -765,8 +778,31 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
         </div>
 
         {/* Expanded: stages list */}
-        {expanded && (
+        {(expanded || viewMode === "atlas") && (
           <div ref={listRef} className={`${isMobile ? "mt-3" : "mt-4"} space-y-1`}>
+            {viewMode === "atlas" ? (
+              <>
+                <AtlasTaskTree
+                  title={questline.title}
+                  tasks={tasks}
+                  rootIcon={<Target size={18} />}
+                  selectedTaskId={selectedAtlasTaskId}
+                  onSelectTask={(task) => setSelectedAtlasTaskId(task.id)}
+                  onToggleTask={(task) => updateKanbanStatus.mutate({ taskId: task.id, newStatus: task.completed || task.recycled ? "In Progress" : "Done" })}
+                  isTaskActionPending={updateKanbanStatus.isPending}
+                  onEditTask={(task) => { setSelectedAtlasTaskId(task.id); setEditingTaskId(task.id); setEditTaskTitle(task.title); setEditTaskGold(String(task.goldValue || 0)); }}
+                />
+                {editingTaskId !== null && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-purple-400/30 bg-slate-950/45 p-2">
+                    <Input value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} className="h-8 min-w-[12rem] flex-1 border-purple-400/30 bg-slate-900/70 text-sm text-purple-100" aria-label="Task title" />
+                    <Input value={editTaskGold} onChange={(e) => setEditTaskGold(e.target.value)} type="number" className="h-8 w-20 border-purple-400/30 bg-slate-900/70 text-sm text-purple-100" aria-label="Task gold value" />
+                    <Button size="sm" onClick={() => saveTaskEdits(editingTaskId)} disabled={updateTask.isPending} className="h-8 bg-purple-600 hover:bg-purple-500">Save task</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-8 text-purple-200">Cancel</Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
             {isEditing && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-purple-500/10 border border-purple-500/20 mb-2">
                 <GripVertical className="w-3 h-3 text-purple-400" />
@@ -891,6 +927,8 @@ function QuestlineCard({ questline, isMobile, expanded, onToggleExpand, onDelete
                 </div>
               );
             })}
+              </>
+            )}
 
             {/* Bonus breakdown */}
             <div className={`${isMobile ? "mt-2 p-2" : "mt-3 p-3"} rounded-lg border ${

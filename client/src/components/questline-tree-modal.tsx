@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CornerDownRight, CheckCircle2, Circle, Clock, Eye } from "lucide-react";
+import { CornerDownRight, CheckCircle2, Circle, Clock, Eye, GitBranch, List } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AtlasTaskTree } from "@/components/atlas-task-tree";
 
 interface QuestlineTask {
   id: number;
@@ -58,6 +59,9 @@ function formatDuration(mins?: number | null) {
 
 export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId, onViewTask }: QuestlineTreeModalProps) {
   const isMobile = useIsMobile();
+  const [view, setView] = useState<"list" | "atlas">("list");
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(focusTaskId);
+  useEffect(() => setSelectedTaskId(focusTaskId), [focusTaskId, questline?.id]);
 
   // ── Mobile bottom-sheet: slide-up entrance + swipe-down-to-close ──
   const [dragOffset, setDragOffset] = useState(0);
@@ -161,7 +165,9 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
   const ancestorIds = new Set<number>();
   if (focusTaskId) {
     let cur = taskById.get(focusTaskId);
-    while (cur?.parentTaskId) {
+    const visited = new Set<number>();
+    while (cur?.parentTaskId && !visited.has(cur.id)) {
+      visited.add(cur.id);
       ancestorIds.add(cur.parentTaskId);
       cur = taskById.get(cur.parentTaskId);
     }
@@ -190,9 +196,13 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
           <p className="text-xs text-purple-400/40 mt-1">
             {sorted.filter((t) => t.completed || t.recycled).length}/{sorted.length} completed
           </p>
+          <div className="inline-flex self-start mt-2 rounded border border-purple-400/30 p-0.5" role="group" aria-label="Task view">
+            <button type="button" onClick={() => setView("list")} aria-pressed={view === "list"} className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded ${view === "list" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60"}`}><List className="w-3 h-3" />List</button>
+            <button type="button" onClick={() => setView("atlas")} aria-pressed={view === "atlas"} className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded ${view === "atlas" ? "bg-purple-500/30 text-purple-100" : "text-purple-300/60"}`}><GitBranch className="w-3 h-3" />Atlas</button>
+          </div>
         </DialogHeader>
 
-        <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 space-y-1.5 py-2 pr-1" style={{ WebkitOverflowScrolling: "touch" }}>
+        {view === "atlas" ? <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 py-2"><AtlasTaskTree title={questline.title} tasks={sorted} rootIcon={<GitBranch size={16} />} selectedTaskId={selectedTaskId} onSelectTask={(task) => setSelectedTaskId(task.id)} {...(onViewTask ? { onEditTask: (task: QuestlineTask) => onViewTask(task.id), actionLabel: "View task" } : {})} /></div> : <div ref={listRef} className="flex-1 overflow-y-auto min-h-0 space-y-1.5 py-2 pr-1" style={{ WebkitOverflowScrolling: "touch" }}>
           {sorted.map((task) => {
             const indent = task.indentLevel ?? 0;
             const style = getDepthStyle(indent);
@@ -275,7 +285,7 @@ export function QuestlineTreeModal({ open, onOpenChange, questline, focusTaskId,
               </div>
             );
           })}
-        </div>
+        </div>}
       </DialogContent>
     </Dialog>
   );

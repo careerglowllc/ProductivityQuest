@@ -1,0 +1,48 @@
+.task-atlas-node b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.task-atlas-detail {
+  flex-wrap: wrap;
+}
+
+.task-atlas-detail strong {
+  flex: 1 1 11rem;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.task-atlas-detail button {
+  margin-left: 0;
+}
+
+html.light .task-atlas-root small,
+html.light .task-atlas-node small,
+html.light .task-atlas-detail span {
+  color: #46536a;
+}
+
+html.light .task-atlas-lines path.is-complete {
+  stroke: #08745c;
+}
+
+@media (max-width: 520px) {
+  .task-atlas-detail {
+    align-items: flex-start;
+  }
+
+  .task-atlas-detail strong {
+    flex-basis: 100%;
+    order: 2;
+  }
+
+  .task-atlas-detail button {
+    order: 3;
+  }
+}
+.task-atlas{border:1px solid rgba(175,186,239,.28);border-radius:14px;overflow:hidden;background:#151d38;color:#edf0ff}.task-atlas-scroll{position:relative;overflow:auto;max-width:100%;-webkit-overflow-scrolling:touch}.task-atlas-scroll-cue{position:absolute;z-index:5;right:9px;top:9px;padding:5px 7px;border:1px solid rgba(220,225,255,.32);border-radius:999px;background:rgba(20,28,55,.8);color:#e5e8fc;font:8px ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}.task-atlas-scene{position:relative;min-width:330px;isolation:isolate;background:radial-gradient(ellipse at 50% 12%,#465180 0,#263354 45%,#151d38 100%)}.task-atlas-stars{position:absolute;inset:0;opacity:.36;background-image:radial-gradient(circle,#f4f2ff 0 1px,transparent 1.5px),radial-gradient(circle,#aab9eb 0 1px,transparent 1.6px);background-size:127px 151px,211px 189px}.task-atlas-lines{position:absolute;inset:0;z-index:1}.task-atlas-lines path{fill:none;stroke:rgba(220,225,255,.56);stroke-width:1.15}.task-atlas-lines path.is-complete{stroke:#7ddcc3}.task-atlas-root,.task-atlas-node{position:absolute;z-index:2;transform:translateX(-50%);text-align:center}.task-atlas-root{top:16px;width:180px}.task-atlas-root-orb,.task-atlas-orb{display:grid;place-items:center;margin:auto;border-radius:50%;border:1px solid #c6b0ee;background:#4b5788;color:#eee8ff;box-shadow:0 0 0 7px rgba(172,145,240,.1),0 0 22px rgba(170,188,255,.28)}.task-atlas-root-orb{width:43px;height:43px}.task-atlas-root strong,.task-atlas-node b{display:block;overflow-wrap:anywhere}.task-atlas-root strong{margin-top:7px;font:600 13px Georgia,serif}.task-atlas-root small,.task-atlas-node small{display:block;margin-top:3px;color:#c9cdeb;font:8px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase}.task-atlas-node{width:136px;padding:0;border:0;background:none;color:#eff1ff}.task-atlas-orb{width:34px;height:34px}.task-atlas-node b{margin-top:8px;font-size:11px;line-height:1.15}.task-atlas-node.is-complete .task-atlas-orb{border-color:#7ddcc3;color:#7ddcc3}.task-atlas-node.is-selected .task-atlas-orb{outline:2px solid #f1d68b;outline-offset:4px}.task-atlas-node:focus-visible{outline:none}.task-atlas-node:focus-visible .task-atlas-orb{outline:2px solid #f1d68b;outline-offset:4px}.task-atlas-detail{display:flex;align-items:center;gap:9px;padding:9px 12px;border-top:1px solid rgba(175,186,239,.25);background:rgba(19,26,51,.8);font-size:12px}.task-atlas-detail span{color:#aeb9e6;font:9px ui-monospace,monospace;text-transform:uppercase}.task-atlas-detail strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.task-atlas-detail button{margin-left:auto;border:1px solid rgba(221,225,255,.35);border-radius:5px;background:#53618f;color:#fff;padding:6px 8px;white-space:nowrap;font-size:11px}.task-atlas-detail button:disabled{opacity:.55}.task-atlas-empty{position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);width:220px;text-align:center;color:#d9ddf4;font-size:12px}@media(prefers-reduced-motion:reduce){.task-atlas *{transition:none!important}}html.light .task-atlas{background:#d6dde6;color:#282d3a;border-color:#7a879a}html.light .task-atlas-scene{background:radial-gradient(ellipse at 50% 12%,#e9dfea 0,#d8e1e9 45%,#c7d2dc 100%)}html.light .task-atlas-stars{background-image:radial-gradient(circle,#394354 0 1px,transparent 1.5px),radial-gradient(circle,#627084 0 1px,transparent 1.6px)}html.light .task-atlas-lines path{stroke:rgba(52,67,94,.7)}html.light .task-atlas-detail{background:#e6e1dc}html.light .task-atlas-root strong,html.light .task-atlas-node{color:#252b36}html.light .task-atlas-scroll-cue{background:#f2eee8;color:#303849}
