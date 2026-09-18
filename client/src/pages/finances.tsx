@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { ExpenseCircleMap } from "@/components/expense-circle-map";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
@@ -876,6 +877,7 @@ export default function Finances() {
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [expenseBreakdownSearch, setExpenseBreakdownSearch] = useState<string>("");
+  const [expenseChartView, setExpenseChartView] = useState<"pie" | "circle">("pie");
   const [expenseBreakdownCat, setExpenseBreakdownCat] = useState<string>("All");
   const [iveView, setIveView] = useState<"summary" | "granular">("summary");
   // Overview widget visibility toggles
@@ -3067,9 +3069,13 @@ export default function Finances() {
                 <CardDescription className="text-slate-400 text-xs">
                   Income and Investments excluded · 🏠 marks Investment Property Housing (still spending, but builds equity)
                 </CardDescription>
+                <div className="flex gap-2 pt-2" role="group" aria-label="Expense chart view">
+                  <Button type="button" size="sm" variant={expenseChartView === "pie" ? "default" : "outline"} aria-pressed={expenseChartView === "pie"} onClick={() => setExpenseChartView("pie")}>Pie chart</Button>
+                  <Button type="button" size="sm" variant={expenseChartView === "circle" ? "default" : "outline"} aria-pressed={expenseChartView === "circle"} onClick={() => setExpenseChartView("circle")}>Circle map</Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={360}>
+                {expenseChartView === "circle" ? <ExpenseCircleMap data={expensePie} formatCurrency={formatCurrency} /> : <ResponsiveContainer width="100%" height={360}>
                   <RechartsPieChart>
                     <Pie data={expensePie} cx="50%" cy="50%" outerRadius={120} innerRadius={50}
                       dataKey="value" labelLine={false} label={false}>
@@ -3080,7 +3086,7 @@ export default function Finances() {
                     <Tooltip content={<CustomTooltip />} />
                     <Legend formatter={(value) => <span className="text-slate-200 text-xs">{value}</span>} />
                   </RechartsPieChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer>}
 
                 <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-1.5">
                   {expensePie.map(cat => (
