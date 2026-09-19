@@ -184,6 +184,43 @@ html.light .ql-stage{background:radial-gradient(ellipse at 50% 46%,#f7f1e9 0,#e9
   transform: translate(-50%, -50%);
   flex: none;
 }
+.ql-focus-hub {
+  width: 132px;
+  height: 132px;
+  padding: 13px;
+  gap: 5px;
+  text-align: center;
+}
+.ql-focus-hub__mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #ffffff4a;
+  border-radius: 50%;
+  color: #eef0fa;
+  background: #ffffff0b;
+}
+.ql-focus-hub strong {
+  display: -webkit-box;
+  max-width: 104px;
+  overflow: hidden;
+  color: #f7f5fb;
+  font: 400 15px/1.02 "Instrument Serif", Georgia, serif;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ql-focus-hub > small {
+  display: block;
+  color: #d3d6e5b5;
+  font: 8px ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+html.light .ql-focus-hub__mark { border-color: #49443d42; color: #403b36; }
+html.light .ql-focus-hub strong { color: #302d29; }
+html.light .ql-focus-hub > small { color: #69635d; }
 
 /* Status is semantic, rather than branch-colored, so all three states remain
    distinguishable at a glance. Branch color is retained on labels and paths. */
@@ -475,6 +512,19 @@ html.light .ql-inspector__facts > div { border-color: #49443d20; background: #49
     bottom: auto;
   }
   .ql-node-preview { display: none; }
+  .ql-focus-hub {
+    width: 112px;
+    height: 112px;
+    padding: 10px;
+  }
+  .ql-focus-hub__mark {
+    width: 26px;
+    height: 26px;
+  }
+  .ql-focus-hub strong {
+    max-width: 88px;
+    font-size: 13px;
+  }
   .ql-inspector {
     position: fixed;
     z-index: 20;
