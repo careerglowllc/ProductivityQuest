@@ -41,6 +41,26 @@ type Props = {
 
 type Point = { x: number; y: number };
 
+function edgePoints(from: Point, to: Point, startRadiusPx: number, endRadiusPx: number, canvasSize: number) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy);
+  if (!distance) return { start: from, end: to };
+  const ux = dx / distance;
+  const uy = dy / distance;
+  const pxToPercent = 100 / canvasSize;
+  return {
+    start: {
+      x: from.x + ux * startRadiusPx * pxToPercent,
+      y: from.y + uy * startRadiusPx * pxToPercent,
+    },
+    end: {
+      x: to.x - ux * endRadiusPx * pxToPercent,
+      y: to.y - uy * endRadiusPx * pxToPercent,
+    },
+  };
+}
+
 const tones = ["#73d7cb", "#d5a7f3", "#efb36e", "#e68aa9", "#83b5ef", "#c9d36c"];
 const done = (node: QuestlineNode) => Boolean(
   node.completed || (node.recycled && node.recycledReason === "completed"),
@@ -389,7 +409,7 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
              <strong>{questline.title}</strong>
              <small>{questline.tasks.length} quest{questline.tasks.length === 1 ? "" : "s"}</small>
            </div>
-          <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const parent = layout.parentOf.get(task.id); const from = parent != null && layout.positions.has(parent) ? layout.positions.get(parent)! : { x: 50, y: 50 }; const to = layout.positions.get(task.id); const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; return to ? <path key={task.id} className={done(task) ? "is-complete" : ""} style={{ "--branch-tone": tone } as CSSProperties} d={`M${from.x} ${from.y} C${from.x + (to.x - from.x) * .42} ${from.y},${from.x + (to.x - from.x) * .58} ${to.y},${to.x} ${to.y}`} /> : []; })}</svg>
+           <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const parent = layout.parentOf.get(task.id); const from = parent != null && layout.positions.has(parent) ? layout.positions.get(parent)! : { x: 50, y: 50 }; const to = layout.positions.get(task.id); const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; if (!to) return []; const { start, end } = edgePoints(from, to, parent == null ? 56 : 12.5, 12.5, layout.canvasSize * zoom); return <path key={task.id} className={done(task) ? "is-complete" : ""} style={{ "--branch-tone": tone } as CSSProperties} d={`M${start.x} ${start.y} C${start.x + (end.x - start.x) * .42} ${start.y},${start.x + (end.x - start.x) * .58} ${end.y},${end.x} ${end.y}`} />; })}</svg>
             {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; const status = statusOf(task); return <button key={task.id} type="button" className={`ql-task-node is-${status} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone } as CSSProperties} onMouseEnter={() => setHoveredId(task.id)} onMouseLeave={() => setHoveredId((current) => current === task.id ? null : current)} onFocus={() => setHoveredId(task.id)} onBlur={() => setHoveredId((current) => current === task.id ? null : current)} onClick={() => openDetails(task.id)} aria-expanded={selectedId === task.id} aria-controls={selectedId === task.id ? "ql-quest-detail" : undefined} aria-label={`${task.title}, ${statusLabel(status)}, ${dueDetails(task.dueDate).label}, ${formatDuration(task.duration)}, depth ${depth(task) + 1}`}><span>{status === "finished" ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
             {hovered && hovered.id !== selectedId && layout.positions.has(hovered.id) && (() => { const point = layout.positions.get(hovered.id)!; const due = dueDetails(hovered.dueDate); return <aside className={`ql-node-preview ${point.x > 62 ? "is-left" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%` } as CSSProperties} aria-hidden="true"><span className={`ql-node-preview__status is-${statusOf(hovered)}`}>{statusLabel(statusOf(hovered))}</span><strong>{hovered.title}</strong><div><span><CalendarDays size={12} /> {due.label}</span><span><Clock3 size={12} /> {formatDuration(hovered.duration)}</span></div>{hovered.description && <p>{hovered.description}</p>}<small>Click for full details</small></aside>; })()}
           {!tasks.length && <div className="ql-focus-empty"><p>No quests have found this north star yet.</p></div>}
