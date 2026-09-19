@@ -5247,7 +5247,10 @@ export default function Finances() {
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <p className="text-xs text-yellow-400 font-bold tracking-wide">₿ Bitcoin Wallet</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs text-yellow-400 font-bold tracking-wide">₿ Bitcoin Wallet</p>
+                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none">≈ rough estimate</span>
+                            </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : btcPrice > 0 ? fmt(btcValue * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
@@ -5280,7 +5283,10 @@ export default function Finances() {
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <p className="text-xs text-orange-400 font-bold tracking-wide">🔵 Coinbase</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs text-orange-400 font-bold tracking-wide">🔵 Coinbase</p>
+                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none">≈ rough estimate</span>
+                            </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : coinbaseValue > 0 ? fmt(coinbaseValue * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
@@ -5309,7 +5315,10 @@ export default function Finances() {
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <p className="text-xs text-indigo-400 font-bold tracking-wide">🏦 Vanguard Brokerage</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs text-indigo-400 font-bold tracking-wide">🏦 Vanguard Brokerage</p>
+                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none">✓ precise · real cost basis</span>
+                            </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : vanguardTotal > 0 ? fmt(vanguardAfterTax) : <span className="text-red-400 text-sm">Unavailable</span>}
@@ -5378,7 +5387,10 @@ export default function Finances() {
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <p className="text-xs text-emerald-400 font-bold tracking-wide">🌿 Roth IRA</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs text-emerald-400 font-bold tracking-wide">🌿 Roth IRA</p>
+                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none">✓ precise · real cost basis</span>
+                            </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : rothIraAfterPenalty > 0 ? fmt(rothIraAfterPenalty) : <span className="text-red-400 text-sm">Unavailable</span>}
@@ -5411,7 +5423,10 @@ export default function Finances() {
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <p className="text-xs text-teal-400 font-bold tracking-wide">🏦 401k</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs text-teal-400 font-bold tracking-wide">🏦 401k</p>
+                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none">≈ rough estimate</span>
+                            </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
                                 : k401AfterPenalty > 0 ? fmt(k401AfterPenalty) : <span className="text-red-400 text-sm">Unavailable</span>}
