@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, CheckSquare, Calendar, Sparkles, DollarSign, BookOpen, Crown, GitBranch,
+  LayoutDashboard, CheckSquare, Calendar, Sparkles, DollarSign, BookOpen, Crown,
   ShoppingCart, Users, Compass, Dumbbell, Flame, HeartHandshake, Heart, Zap, ClipboardList, BookMarked, Settings,
 } from "lucide-react";
 
@@ -40,7 +40,6 @@ export const PRIMARY_NAV: NavLink[] = [
 /** Secondary destinations — kept out of the primary list so the rail stays scannable. */
 export const SECONDARY_NAV: NavLink[] = [
   { label: "Questlines", path: "/campaigns", icon: Crown },
-  { label: "Questline Atlas", path: "/questline-atlas", icon: GitBranch },
   { label: "Shop", path: "/shop", icon: ShoppingCart },
   { label: "NPCs", path: "/npcs", icon: Users },
   { label: "All pages", path: "/more", icon: Compass },
@@ -55,7 +54,6 @@ const BREADCRUMBS: Record<string, string> = {
   "/finances": "Finances",
   "/journal": "Journal",
   "/campaigns": "Questlines",
-  "/questline-atlas": "Questline Atlas",
   "/shop": "Shop",
   "/npcs": "NPCs",
   "/more": "All pages",
