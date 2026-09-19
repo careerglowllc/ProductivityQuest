@@ -62,6 +62,14 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS questline_order INTEGER
     `;
 
+    // Migration: Add structure_revision to questlines (guards concurrent task
+    // structure changes when claiming completion rewards — see storage.ts
+    // awardQuestlineCompletion)
+    await sql`
+      ALTER TABLE questlines
+      ADD COLUMN IF NOT EXISTS structure_revision INTEGER NOT NULL DEFAULT 0
+    `;
+
     // Migration: Add widget_preferences column to users table
     await sql`
       ALTER TABLE users
