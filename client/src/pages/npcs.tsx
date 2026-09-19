@@ -47,6 +47,7 @@ const SEED_KEY_CLOSE_FRIENDS = "npcs-seed-close-friends-v2";
 const SEED_KEY_ROCKLIN_NAMES = "npcs-seed-rocklin-names-v1";
 const SEED_KEY_FAMILY = "npcs-seed-family-v1";
 const SEED_KEY_JOE_LEFT_ROCKLIN = "npcs-seed-joe-left-rocklin-v1";
+const SEED_KEY_DANIELA_DETAILS = "npcs-seed-daniela-details-v1";
 
 // Relationship categories with accent colors
 const CATEGORIES = [
@@ -169,7 +170,7 @@ const DANIELA: NPC = {
   location: "San Jose, CA",
   howWeMet: "Hinge (dating app)",
   category: "Dating",
-  notes: "",
+  notes: "Likes red roses. Has a sweet tooth — favorite dessert is BJ's Brewhouse Pizookie. Birthday: April 10. Favorite drink: Aperol spritz.",
   createdAt: "2026-06-24T00:00:00.000Z",
 };
 
@@ -460,6 +461,24 @@ export default function NPCsPage() {
           })
         );
         localStorage.setItem(SEED_KEY_JOE_LEFT_ROCKLIN, "1");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time backfill: Daniela Dibono personal details
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SEED_KEY_DANIELA_DETAILS)) {
+        setContacts((prev) =>
+          prev.map((c) => {
+            if (c.id !== DANIELA.id) return c;
+            if ((c.notes || "").includes("Aperol spritz")) return c;
+            const extra = "Likes red roses. Has a sweet tooth \u2014 favorite dessert is BJ's Brewhouse Pizookie. Birthday: April 10. Favorite drink: Aperol spritz.";
+            return { ...c, notes: c.notes ? `${c.notes} ${extra}` : extra, updatedAt: new Date().toISOString() };
+          })
+        );
+        localStorage.setItem(SEED_KEY_DANIELA_DETAILS, "1");
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
