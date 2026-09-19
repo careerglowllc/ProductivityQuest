@@ -46,6 +46,7 @@ const SEED_KEY_ROCKLIN = "npcs-seed-rocklin-v4";
 const SEED_KEY_CLOSE_FRIENDS = "npcs-seed-close-friends-v2";
 const SEED_KEY_ROCKLIN_NAMES = "npcs-seed-rocklin-names-v1";
 const SEED_KEY_FAMILY = "npcs-seed-family-v1";
+const SEED_KEY_JOE_LEFT_ROCKLIN = "npcs-seed-joe-left-rocklin-v1";
 
 // Relationship categories with accent colors
 const CATEGORIES = [
@@ -91,6 +92,7 @@ const TAG_STYLES: Record<string, string> = {
   "rocklin-rental": "bg-orange-500/20 text-orange-200 border-orange-500/40",
   "close-friends": "bg-rose-500/20 text-rose-200 border-rose-500/40",
   "family": "bg-amber-500/20 text-amber-200 border-amber-500/40",
+  "no longer at rocklin branch": "bg-slate-600/20 text-slate-300 border-slate-500/40",
 };
 const tagStyle = (t: string) =>
   TAG_STYLES[t.toLowerCase()] || "bg-slate-500/20 text-slate-200 border-slate-500/40";
@@ -237,8 +239,19 @@ const ROCKLIN_CONTACTS: NPC[] = [
     tags: ["rocklin-rental"],
     createdAt: "2026-07-30T00:00:00.000Z",
     updatedAt: "2026-07-30T00:00:00.000Z",
-  },
-  {
+  },  {
+    id: "npc-rocklin-brenda-acosta-rnb",
+    name: "Brenda Acosta — RNB Property Management",
+    phone: "9164352424",
+    occupation: "Property Manager",
+    location: "5754 Lonetree Blvd, Rocklin CA 95765",
+    howWeMet: "Rocklin rental property",
+    category: "Professional",
+    notes: "RNB Property Management. DRE # 02067974. Office: (916) 435-2424 \u00b7 Fax: (916) 435-2425 \u00b7 Email: brenda@rnbemail.com \u00b7 www.RNBhomes.com",
+    tags: ["rocklin-rental"],
+    createdAt: "2026-09-19T00:00:00.000Z",
+    updatedAt: "2026-09-19T00:00:00.000Z",
+  },  {
     id: "npc-rocklin-nick-hvac",
     name: "Nick — Reliable Cooling & Heating",
     phone: "19166646888",
@@ -428,6 +441,25 @@ export default function NPCsPage() {
           })
         );
         localStorage.setItem(SEED_KEY_FAMILY, "1");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time tag: Joe Clark moved on from the Rocklin branch (Brenda Acosta is now
+  // the RNB contact there) — keep his "rocklin-rental" tag, just flag he's no longer local.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SEED_KEY_JOE_LEFT_ROCKLIN)) {
+        setContacts((prev) =>
+          prev.map((c) => {
+            if (c.id !== "npc-rocklin-joe-clark-rnb") return c;
+            const tags = c.tags || [];
+            if (tags.includes("no longer at rocklin branch")) return c;
+            return { ...c, tags: [...tags, "no longer at rocklin branch"], updatedAt: new Date().toISOString() };
+          })
+        );
+        localStorage.setItem(SEED_KEY_JOE_LEFT_ROCKLIN, "1");
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
