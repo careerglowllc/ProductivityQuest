@@ -13,6 +13,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import React from "react";
 import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
+import { rothIraTrueAfterPenalty } from "@/lib/roth-ira-tax";
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useTheme } from "@/contexts/theme-context";
@@ -431,7 +432,7 @@ function useFireGoal() {
   const vanguardAfterTax = vanguardTotal * 0.85 + vanguardSettlement;
 
   // FIRE calc (Thailand · Comfortable · 4% standard SWR — the Finances FIRE tab's own defaults)
-  const fgRoth = rothIraValue * 0.75;
+  const fgRoth = rothIraTrueAfterPenalty(rothIraValue);
   const fg401k = k401Value * 0.68;
   const fgHsa = hsaBalance * 0.58;
   const fgLiquid =

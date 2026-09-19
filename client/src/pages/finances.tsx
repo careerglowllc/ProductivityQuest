@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import type { FinancialItem, NwSnapshot, FamilyContribution } from "@shared/schema";
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
+import { rothIraTrueAfterPenalty, rothIraEffectiveMultiplier } from "@/lib/roth-ira-tax";
 
 const CATEGORIES = [
   "General", "Business", "Entertainment", "Food", "Investment Property Housing", "Personal Housing", "Transportation",
@@ -1722,8 +1723,9 @@ export default function Finances() {
   const _vxusValue = vxusHoldings * _vxusPrice;
   const _rothIraValue = (rothIraIbitHoldings * _ibitPrice) + (rothIraVtsaxHoldings * _vtsaxPrice);
   const _k401Value = k401Shares * _viiixPrice;
-  // Early withdrawal haircuts (retiring before 55)
-  const _rothIraAfterPenalty = _rothIraValue * 0.75;
+  // Early withdrawal haircuts (retiring before 55). Roth IRA uses the real
+  // principal/earnings breakdown (see roth-ira-tax.ts) instead of a flat estimate.
+  const _rothIraAfterPenalty = rothIraTrueAfterPenalty(_rothIraValue);
   const _k401AfterPenalty = _k401Value * 0.68;
   const _vanguardTotal = _vtsaxValue + _vooValue + _vxusValue;
   const _homeLivePrice = propertyData?.price ?? null;
@@ -2497,8 +2499,9 @@ export default function Finances() {
                   case "portfolioAllocation": {
                     const _rothIraIbitValue = rothIraIbitHoldings * _ibitPrice;
                     const _rothIraVtsaxValue = rothIraVtsaxHoldings * _vtsaxPrice;
-                    const _cryptoTotal = _btcAfterTax + _rothIraIbitValue * 0.75;
-                    const _indexTotal = _vanguardAfterTax + _k401AfterPenalty + eTradeRsuValue + _rothIraVtsaxValue * 0.75;
+                    const _rothMultiplier = rothIraEffectiveMultiplier(_rothIraValue);
+                    const _cryptoTotal = _btcAfterTax + _rothIraIbitValue * _rothMultiplier;
+                    const _indexTotal = _vanguardAfterTax + _k401AfterPenalty + eTradeRsuValue + _rothIraVtsaxValue * _rothMultiplier;
                     const _domainTotal = _domainAfterTax;
                     const _vehicleTotal = fordExplorerValue;
                     const _nwTotal = _cryptoTotal + _indexTotal + checkingBalance + careerglowBalance + hsaBalance + _domainTotal + _vehicleTotal + (_homeAfterTaxNetCash > 0 ? _homeAfterTaxNetCash : 0);
@@ -2572,7 +2575,7 @@ export default function Finances() {
                   }
                   case "fireGoal": {
                     // Inline FIRE computation (mirrors FIRE tab logic)
-                    const _fgRoth = _rothIraValue * 0.75;
+                    const _fgRoth = rothIraTrueAfterPenalty(_rothIraValue);
                     const _fg401k = _k401Value * 0.68;
                     const _fgHsa = hsaBalance * 0.58;
                     const _fgLiquid =
@@ -3565,8 +3568,9 @@ export default function Finances() {
           <TabsContent value="fire" className="space-y-4">
             {(() => {
               // ── Liquid Net Worth (true "money in pocket" if you sold everything at 28) ──
-              // Roth IRA: ~25% haircut (10% penalty + income tax on gains; contributions already after-tax)
-              const _fireRothValue = _rothIraValue * 0.75;
+              // Roth IRA: real principal/earnings breakdown (see roth-ira-tax.ts) — contributions
+              // and aged-out conversions are penalty-free, only earnings + recent conversions are hit.
+              const _fireRothValue = rothIraTrueAfterPenalty(_rothIraValue);
               // 401k: 32% haircut (10% early withdrawal penalty + ~22% federal income tax)
               const _fire401kValue = _k401Value * 0.68;
               // HSA used for non-medical before 65: 20% penalty + ~22% income tax = 42% haircut
@@ -3827,7 +3831,7 @@ export default function Finances() {
                         <div className="mt-3 space-y-1 text-[10px] text-slate-400">
                           <div className="flex justify-between"><span>BTC (15% LTCG)</span><span>{fmt(_btcAfterTax)}</span></div>
                           <div className="flex justify-between"><span>Vanguard (15% LTCG)</span><span>{fmt(_vanguardAfterTax)}</span></div>
-                          <div className="flex justify-between"><span>Roth IRA (25% early haircut)</span><span>{fmt(_fireRothValue)}</span></div>
+                          <div className="flex justify-between"><span>Roth IRA (after early withdrawal penalty/tax)</span><span>{fmt(_fireRothValue)}</span></div>
                           <div className="flex justify-between"><span>401k (32% early haircut)</span><span>{fmt(_fire401kValue)}</span></div>
                           {_homeAfterTaxNetCash !== 0 && <div className="flex justify-between"><span>Home equity (after sale costs){_homeAfterTaxNetCash < 0 ? " ⚠️" : ""}</span><span className={_homeAfterTaxNetCash < 0 ? "text-red-400" : ""}>{fmt(_homeAfterTaxNetCash)}</span></div>}
                           <div className="flex justify-between"><span>Cash (checking + biz + HSA)</span><span>{fmt(checkingBalance + careerglowBalance + _fireHsaValue)}</span></div>
@@ -3882,7 +3886,7 @@ export default function Finances() {
                           {fireInheritanceMode
                             ? <><span className="text-emerald-300">Inheritance mode: drawdown {_inheritanceDrawdownYrs}yrs to age {fireInheritanceAge} at 7%/yr portfolio return, then ${(fireInheritanceAmount/1_000_000).toFixed(1)}M inheritance takes over</span></>
                             : <>FIRE goal = inflated annual spend ÷ {(fireSwr * 100).toFixed(2)}% SWR</>
-                          } · Early withdrawal haircuts: Roth IRA 25%, 401k 32%, HSA 42%
+                          } · Early withdrawal haircuts: Roth IRA (principal/earnings basis, see breakdown above), 401k 32%, HSA 42%
                         </div>
                       </CardContent>
                     </Card>
@@ -5115,7 +5119,7 @@ export default function Finances() {
               const rothIraValue = (rothIraIbitHoldings * ibitPrice) + (rothIraVtsaxHoldings * vtsaxPrice);
               const k401Value = k401Shares * viiixPrice;
               // Early withdrawal haircuts (retiring before 55: 10% penalty + income tax on gains)
-              const rothIraAfterPenalty = rothIraValue * 0.75; // 25% haircut (10% penalty + ~15% income tax)
+              const rothIraAfterPenalty = rothIraTrueAfterPenalty(rothIraValue); // real principal/earnings breakdown, see roth-ira-tax.ts
               const k401AfterPenalty = k401Value * 0.68;       // 32% haircut (10% penalty + ~22% income tax)
               const vanguardTotal = vtsaxValue + vooValue + vsusxValue;
 
@@ -5151,8 +5155,9 @@ export default function Finances() {
               const investmentTotal = btcAfterTax + vanguardAfterTax + rothIraAfterPenalty + k401AfterPenalty + homeEquity + checkingBalance + careerglowBalance + hsaBalance + domainAfterTax + eTradeRsuValue + fordExplorerValue;
               const isLoading = btcLoading || vtsaxLoading || vooLoading || ibitLoading || viiixLoading;
 
-              const cryptoTotal = btcAfterTax + (rothIraIbitHoldings * ibitPrice) * 0.75; // BTC wallets (after-tax) + Roth IRA IBIT (after 25% early withdrawal)
-              const indexFundsTotal = vanguardAfterTax + k401AfterPenalty + eTradeRsuValue + (rothIraVtsaxHoldings * vtsaxPrice) * 0.75; // Vanguard after-tax + 401k after penalty + Apple RSUs + Roth IRA VTSAX after penalty
+              const _rothMultiplier2 = rothIraEffectiveMultiplier(rothIraValue);
+              const cryptoTotal = btcAfterTax + (rothIraIbitHoldings * ibitPrice) * _rothMultiplier2; // BTC wallets (after-tax) + Roth IRA IBIT (after real early withdrawal penalty/tax)
+              const indexFundsTotal = vanguardAfterTax + k401AfterPenalty + eTradeRsuValue + (rothIraVtsaxHoldings * vtsaxPrice) * _rothMultiplier2; // Vanguard after-tax + 401k after penalty + Apple RSUs + Roth IRA VTSAX after penalty
               const domainTotal = domainAfterTax;
               const vehicleTotal = fordExplorerValue;
               const pieData = [
@@ -5356,7 +5361,7 @@ export default function Finances() {
                                 : rothIraAfterPenalty > 0 ? fmt(rothIraAfterPenalty) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
                             {!isLoading && rothIraValue > 0 && (
-                              <p className="text-[10px] text-slate-500 mt-0.5">after ~25% early withdrawal penalty</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">after early withdrawal penalty</p>
                             )}
                           </div>
                           <span className="text-[10px] text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">VTSAX + IBIT</span>
@@ -5371,8 +5376,8 @@ export default function Finances() {
                             <span className="font-semibold text-emerald-300">{fmt(rothIraIbitHoldings * ibitPrice)}</span>
                           </div>
                           <div className="flex justify-between text-slate-500">
-                            <span>Est. 25% early withdrawal</span>
-                            <span className="text-red-400">−{fmt(rothIraValue * 0.25)}</span>
+                            <span>Est. early withdrawal penalty/tax</span>
+                            <span className="text-red-400">−{fmt(rothIraValue - rothIraAfterPenalty)}</span>
                           </div>
                         </div>
                       </CardContent>

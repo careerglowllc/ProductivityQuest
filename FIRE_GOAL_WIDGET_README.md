@@ -65,7 +65,7 @@ The widget re-implements the FIRE tab's core math inline (since the FIRE tab run
 
 ### Liquid NW
 ```
-_fgLiquid = btcAfterTax + vanguardAfterTax + (roth × 0.75) + (401k × 0.68)
+_fgLiquid = btcAfterTax + vanguardAfterTax + rothIraTrueAfterPenalty(roth) + (401k × 0.68)
           + max(0, homeAfterTaxNetCash) + checking + careerglow + (hsa × 0.58)
           + domain + eTrade + fordExplorer + kawasaki
 ```

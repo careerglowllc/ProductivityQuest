@@ -246,7 +246,7 @@ fireFV(n) =
 _fireInvestable =
   _btcAfterTax
   + _vanguardAfterTax
-  + _fireRothValue    ← Roth × 0.75
+  + _fireRothValue    ← real principal/earnings breakdown (roth-ira-tax.ts)
   + _fire401kValue    ← 401k × 0.68
   + eTradeRsuValue
 ```
@@ -352,7 +352,7 @@ For each unmet milestone, the projection data is searched for the first year `fi
 The FIRE tab computes its own liquid NW (`_fireLiquidNW`) that is slightly more conservative than the Overview widget's NW, because it also haircuts the HSA:
 
 ```
-_fireRothValue = _rothIraValue × 0.75    ← 25% early withdrawal haircut
+_fireRothValue = rothIraTrueAfterPenalty(_rothIraValue)  ← real principal/earnings breakdown (client/src/lib/roth-ira-tax.ts)
 _fire401kValue = _k401Value × 0.68       ← 32% early withdrawal haircut
 _fireHsaValue  = hsaBalance × 0.58       ← 42% haircut (non-medical before 65)
 

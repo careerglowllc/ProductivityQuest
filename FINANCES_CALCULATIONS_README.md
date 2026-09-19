@@ -122,7 +122,7 @@ _k401Value     = k401Shares × ssoPrice   ← ProShares Ultra S&P500 (SSO)
 overviewNetWorth =
   _btcAfterTax
   + _vanguardAfterTax
-  + _rothIraAfterPenalty   ← Roth × 0.75
+  + _rothIraAfterPenalty   ← real principal/earnings breakdown (roth-ira-tax.ts)
   + _k401AfterPenalty      ← 401k × 0.68
   + _homeAfterTaxNetCash   ← see §6
   + checkingBalance
@@ -212,10 +212,15 @@ Default rates:
 
 These apply when estimating "what would you actually get if you cashed out your retirement accounts TODAY at age 28":
 
-### Roth IRA (× 0.75 — 25% haircut)
-- Contributions are already after-tax and can be withdrawn penalty-free.
-- But **gains** are subject to the 10% early withdrawal penalty + income tax.
-- Blended haircut across contributions + gains = ~25% effective reduction.
+### Roth IRA (`rothIraTrueAfterPenalty()` in `client/src/lib/roth-ira-tax.ts`)
+- Basis = $12,000 in two 2019/2020 regular contributions (always tax- and penalty-free,
+  any time) + three backdoor-Roth conversions (tax-free since already taxed at conversion,
+  but each has its own 5-year clock for the 10% penalty on that principal).
+- Earnings (current value beyond basis) are taxed as ordinary income (24% federal, $0
+  state — assumes Texas residency by withdrawal time) **plus** the 10% early withdrawal
+  penalty.
+- Replaces the old flat 25% blended estimate with the real principal/earnings math,
+  computed live from the account's actual contribution/conversion history.
 
 ### 401k (× 0.68 — 32% haircut)
 - All contributions are pre-tax.
@@ -237,7 +242,7 @@ The **Net Worth tab** allocation pie breaks holdings into five slices:
 |-------|-------------|
 | Bitcoin | `_btcAfterTax` (all wallets, 15% LTCG applied) |
 | Vanguard Brokerage | `_vanguardAfterTax` (VTSAX + VOO, 15% LTCG) |
-| Roth IRA | `_rothIraAfterPenalty` (IBIT + VTSAX, 25% haircut) |
+| Roth IRA | `_rothIraAfterPenalty` (IBIT + VTSAX, real principal/earnings breakdown) |
 | 401k | `_k401AfterPenalty` (SSO, 32% haircut) |
 | Real Estate | `_homeAfterTaxNetCash` |
 
