@@ -444,12 +444,12 @@ html.light .ql-zoom-controls output { color: #514c46; }
 }
 
 .ql-inspector {
-  top: 50%;
+  top: 45%;
   bottom: auto;
   width: min(360px, calc(100vw - 40px));
-  max-height: min(620px, calc(100% - 180px));
+  max-height: min(540px, calc(100dvh - 190px));
   padding: 20px;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid #ffffff32;
   border-left: 1px solid #ffffff45;
   border-radius: 18px;
@@ -519,9 +519,13 @@ html.light .ql-zoom-controls output { color: #514c46; }
   border-top: 1px solid #ffffff17;
 }
 .ql-inspector__description p {
+  display: -webkit-box;
+  overflow: hidden;
   color: #e1e3edcf;
   font-size: 12px;
   line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
 }
 html.light .ql-node-preview,
 html.light .ql-inspector {
@@ -582,8 +586,14 @@ html.light .ql-inspector__facts > div { border-color: #49443d20; background: #49
     width: auto;
     max-height: none;
     padding: 18px;
+    overflow: auto;
     border-radius: 20px;
     transform: none;
+  }
+  .ql-inspector__description p {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
   }
   .ql-inspector::before {
     content: "";
