@@ -605,4 +605,25 @@ html.light .ql-inspector__facts > div { border-color: #49443d20; background: #49
     background: #ffffff35;
   }
   .ql-inspector__facts { grid-template-columns: 1fr 1fr; }
+
+  /* Back / edit / delete crowd the notch and status bar up top on phones —
+     move them to a bottom-left cluster (mirroring the zoom controls on the
+     right), safely above the app's bottom tab bar via .ql-stage's own inset. */
+  .ql-focus-header {
+    position: static;
+  }
+  .ql-focus-header .ql-back,
+  .ql-focus-header .ql-header-actions {
+    position: absolute;
+    left: 12px;
+    z-index: 6;
+  }
+  .ql-focus-header .ql-header-actions {
+    bottom: 94px;
+    display: flex;
+    gap: 8px;
+  }
+  .ql-focus-header .ql-back {
+    bottom: 46px;
+  }
 }
