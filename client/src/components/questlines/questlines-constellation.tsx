@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowLeft, Check, Circle, Edit3, Focus as FocusIcon, Plus, Target, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, Circle, Clock3, Edit3, Focus as FocusIcon, Plus, Target, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import "./questlines-constellation.css";
 
 export type QuestlineNode = {
@@ -13,6 +13,9 @@ export type QuestlineNode = {
   questlineOrder?: number | null;
   goldValue?: number | null;
   kanbanStage?: string | null;
+  dueDate?: string | Date | null;
+  duration?: number | null;
+  importance?: string | null;
 };
 
 export type Questline = {
@@ -48,6 +51,34 @@ const statusOf = (node: QuestlineNode): NodeStatus => {
   return "not-started";
 };
 const statusLabel = (status: NodeStatus) => status === "finished" ? "Finished" : status === "in-progress" ? "In progress" : "Not started";
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return "No estimate";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `${hours} hr ${remainder} min` : `${hours} hr`;
+};
+const dueDetails = (value?: string | Date | null) => {
+  if (!value) return { label: "No due date", state: "none" };
+  // Due dates are calendar days, not instants. The API commonly serializes
+  // midnight UTC; rebuilding the YYYY-MM-DD portion locally prevents the date
+  // from appearing one day early in western time zones.
+  const serialized = typeof value === "string" ? value : "";
+  const dateOnly = serialized.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const due = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
+  if (Number.isNaN(due.getTime())) return { label: "No due date", state: "none" };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDay = new Date(due);
+  dueDay.setHours(0, 0, 0, 0);
+  const state = dueDay.getTime() < today.getTime() ? "overdue" : dueDay.getTime() === today.getTime() ? "today" : "upcoming";
+  return {
+    label: state === "today" ? "Due today" : due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: due.getFullYear() === today.getFullYear() ? undefined : "numeric" }),
+    state,
+  };
+};
 
 function descendants(tasks: QuestlineNode[], rootId: number | null) {
   const children = new Map<number | null, QuestlineNode[]>();
@@ -126,8 +157,11 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
 
 function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggleTask, isTaskPending, onEditTask }: Omit<Props, "questlines" | "onCreate"> & { questline: Questline; onBack: () => void }) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dialogCloseRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
   const suppressClickRef = useRef(false);
   const zoomAnchorRef = useRef<{ x: number; y: number } | null>(null);
@@ -136,6 +170,30 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
   // Build every downstream map from that normalized list as well.
   const byId = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
   const selected = selectedId ? byId.get(selectedId) : null;
+  const hovered = hoveredId ? byId.get(hoveredId) : null;
+  const closeDetails = () => {
+    setSelectedId(null);
+    window.requestAnimationFrame(() => returnFocusRef.current?.focus());
+  };
+  const openDetails = (taskId: number) => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSelectedId(taskId);
+  };
+  useEffect(() => {
+    if (selectedId == null) return;
+    const frame = window.requestAnimationFrame(() => dialogCloseRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDetails();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selectedId]);
   const depth = (task: QuestlineNode) => {
     let level = 0; let parent = task.parentTaskId ?? null; const seen = new Set<number>();
     while (parent && !seen.has(parent) && byId.has(parent)) { seen.add(parent); level += 1; parent = byId.get(parent)?.parentTaskId ?? null; }
@@ -324,7 +382,8 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
           <div className="ql-focus-orbit ql-focus-orbit--one" /><div className="ql-focus-orbit ql-focus-orbit--two" />
           <div className="ql-focus-hub"><Target size={26} /><span>{questline.tasks.length}<small>quests</small></span></div>
           <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const parent = layout.parentOf.get(task.id); const from = parent != null && layout.positions.has(parent) ? layout.positions.get(parent)! : { x: 50, y: 50 }; const to = layout.positions.get(task.id); const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; return to ? <path key={task.id} className={done(task) ? "is-complete" : ""} style={{ "--branch-tone": tone } as CSSProperties} d={`M${from.x} ${from.y} C${from.x + (to.x - from.x) * .42} ${from.y},${from.x + (to.x - from.x) * .58} ${to.y},${to.x} ${to.y}`} /> : []; })}</svg>
-           {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; const status = statusOf(task); return <button key={task.id} type="button" className={`ql-task-node is-${status} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone } as CSSProperties} onClick={() => setSelectedId(task.id)} aria-label={`${task.title}, ${statusLabel(status)}, depth ${depth(task) + 1}`}><span>{status === "finished" ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
+            {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; const status = statusOf(task); return <button key={task.id} type="button" className={`ql-task-node is-${status} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone } as CSSProperties} onMouseEnter={() => setHoveredId(task.id)} onMouseLeave={() => setHoveredId((current) => current === task.id ? null : current)} onFocus={() => setHoveredId(task.id)} onBlur={() => setHoveredId((current) => current === task.id ? null : current)} onClick={() => openDetails(task.id)} aria-expanded={selectedId === task.id} aria-controls={selectedId === task.id ? "ql-quest-detail" : undefined} aria-label={`${task.title}, ${statusLabel(status)}, ${dueDetails(task.dueDate).label}, ${formatDuration(task.duration)}, depth ${depth(task) + 1}`}><span>{status === "finished" ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
+            {hovered && hovered.id !== selectedId && layout.positions.has(hovered.id) && (() => { const point = layout.positions.get(hovered.id)!; const due = dueDetails(hovered.dueDate); return <aside className={`ql-node-preview ${point.x > 62 ? "is-left" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%` } as CSSProperties} aria-hidden="true"><span className={`ql-node-preview__status is-${statusOf(hovered)}`}>{statusLabel(statusOf(hovered))}</span><strong>{hovered.title}</strong><div><span><CalendarDays size={12} /> {due.label}</span><span><Clock3 size={12} /> {formatDuration(hovered.duration)}</span></div>{hovered.description && <p>{hovered.description}</p>}<small>Click for full details</small></aside>; })()}
           {!tasks.length && <div className="ql-focus-empty"><p>No quests have found this north star yet.</p></div>}
           </div>
         </div>
@@ -338,7 +397,7 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
        <div className="ql-status-legend" aria-label="Quest status legend"><span><i className="is-finished" />Finished</span><span><i className="is-in-progress" />In progress</span><span><i className="is-not-started" />Not started</span></div>
        <ol className="sr-only" aria-label="Quest hierarchy">{tasks.map((task) => <li key={task.id}>{task.title} — {task.parentTaskId && byId.has(task.parentTaskId) ? `child of ${byId.get(task.parentTaskId)?.title}` : "root quest"} — {statusLabel(statusOf(task))}</li>)}</ol>
     </div>
-      {selected && <aside className="ql-inspector" aria-live="polite"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><h2>{selected.title}</h2>{selected.description && <p>{selected.description}</p>}<div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}<button type="button" className="ql-action" onClick={() => setSelectedId(null)}>Close detail</button></div></aside>}
+      {selected && (() => { const due = dueDetails(selected.dueDate); return <aside id="ql-quest-detail" className="ql-inspector" role="dialog" aria-modal="false" aria-labelledby="ql-quest-detail-title"><div className="ql-inspector__topline"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><button ref={dialogCloseRef} type="button" onClick={closeDetails} aria-label="Close quest details">×</button></div><h2 id="ql-quest-detail-title">{selected.title}</h2><div className="ql-inspector__facts"><div className={`is-${due.state}`}><CalendarDays size={16} /><span><small>Due</small><strong>{due.label}</strong></span></div><div><Clock3 size={16} /><span><small>Estimate</small><strong>{formatDuration(selected.duration)}</strong></span></div></div><div className="ql-inspector__description"><small>Description</small><p>{selected.description || "No description has been added yet."}</p></div><div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}</div></aside>; })()}
     <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Drag to pan · Ctrl-scroll or use controls to zoom</span></footer>
   </section>;
 }

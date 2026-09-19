@@ -25,6 +25,7 @@ interface QuestlineTask {
   recycled: boolean | null;
   goldValue: number;
   duration: number;
+  dueDate: string | null;
   importance: string | null;
   questlineOrder: number | null;
   skillTags: string[] | null;
