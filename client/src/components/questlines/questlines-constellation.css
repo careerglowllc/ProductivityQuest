@@ -221,7 +221,10 @@ html.light .ql-stage{background:radial-gradient(ellipse at 50% 46%,#f7f1e9 0,#e9
   text-transform: uppercase;
 }
 .ql-focus-canvas > .ql-lines { z-index: 1; }
-.ql-focus-canvas > .ql-task-node { z-index: 3; }
+.ql-focus-canvas > .ql-task-node {
+  z-index: 3;
+  touch-action: manipulation;
+}
 html.light .ql-focus-hub__mark { border-color: #49443d42; color: #403b36; }
 html.light .ql-focus-hub strong { color: #302d29; }
 html.light .ql-focus-hub > small { color: #69635d; }

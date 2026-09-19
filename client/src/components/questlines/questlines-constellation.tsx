@@ -342,6 +342,9 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
   };
   const startPan = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || !scrollRef.current) return;
+    // Buttons must retain their native pointer sequence so a tap/click can open
+    // details. Panning begins only from the constellation's empty surface.
+    if ((event.target as Element).closest("button, a, input, select, textarea, [role='button']")) return;
     const scroll = scrollRef.current;
     dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop, moved: false };
     scroll.setPointerCapture(event.pointerId);
