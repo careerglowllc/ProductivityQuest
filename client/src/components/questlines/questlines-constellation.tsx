@@ -190,6 +190,12 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
   const zoomAnchorRef = useRef<{ x: number; y: number } | null>(null);
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
+  // Connector lines target these MEASURED icon centers/radii (not the mathematical
+  // layout position) so they always touch the circle exactly, regardless of how
+  // tall a task's wrapped label grows underneath it.
+  const iconRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
+  const hubIconRef = useRef<HTMLSpanElement | null>(null);
+  const [visualPositions, setVisualPositions] = useState<Map<number | "hub", Point & { r: number }>>(new Map());
   const tasks = useMemo(() => descendants(questline.tasks, null).result, [questline.tasks]);
   // descendants() already keeps the first occurrence of any duplicated ID.
   // Build every downstream map from that normalized list as well.
@@ -312,6 +318,33 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
 
     return { positions: map, parentOf, branchIndex, canvasSize, dense: tasks.length > 18 || maxDepth > 4 };
   }, [tasks, byId]);
+  // Re-measure real icon centers/radii after every layout, zoom, or resize change —
+  // wrapped labels of very different lengths shift each icon's actual on-screen
+  // center relative to its mathematical (x, y) anchor.
+  useEffect(() => {
+    const canvas = scrollRef.current?.querySelector<HTMLElement>(".ql-focus-canvas");
+    if (!canvas) return;
+    const measure = () => {
+      const canvasRect = canvas.getBoundingClientRect();
+      if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
+      const next = new Map<number | "hub", Point & { r: number }>();
+      const toPercent = (rect: DOMRect) => ({
+        x: ((rect.left + rect.width / 2) - canvasRect.left) / canvasRect.width * 100,
+        y: ((rect.top + rect.height / 2) - canvasRect.top) / canvasRect.height * 100,
+        r: (rect.width / 2) || 12.5,
+      });
+      iconRefs.current.forEach((el, id) => next.set(id, toPercent(el.getBoundingClientRect())));
+      if (hubIconRef.current) next.set("hub", toPercent(hubIconRef.current.getBoundingClientRect()));
+      setVisualPositions(next);
+    };
+    const frame = window.requestAnimationFrame(measure);
+    const observer = new ResizeObserver(measure);
+    observer.observe(canvas);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [tasks, layout, zoom]);
   useEffect(() => {
     const scroll = scrollRef.current;
     if (!scroll) return;
@@ -445,12 +478,12 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
           <div className={`ql-focus-canvas ${layout.dense ? "is-dense" : ""}`} style={{ width: `${layout.canvasSize * zoom}px`, height: `${layout.canvasSize * zoom}px` }}>
           <div className="ql-focus-orbit ql-focus-orbit--one" /><div className="ql-focus-orbit ql-focus-orbit--two" />
            <div className="ql-focus-hub" style={{ viewTransitionName: `questline-${questline.id}` } as CSSProperties} aria-label={`${questline.title}, ${questline.tasks.length} quests`}>
-             <span className="ql-focus-hub__mark" aria-hidden="true"><Target size={18} /></span>
+             <span ref={hubIconRef} className="ql-focus-hub__mark" aria-hidden="true"><Target size={18} /></span>
              <strong>{questline.title}</strong>
              <small>{questline.tasks.length} quest{questline.tasks.length === 1 ? "" : "s"}</small>
            </div>
-           <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const parent = layout.parentOf.get(task.id); const from = parent != null && layout.positions.has(parent) ? layout.positions.get(parent)! : { x: 50, y: 50 }; const to = layout.positions.get(task.id); const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; if (!to) return []; const { start, end } = edgePoints(from, to, parent == null ? 56 : 12.5, 12.5, layout.canvasSize * zoom); return <path key={task.id} className={done(task) ? "is-complete" : ""} style={{ "--branch-tone": tone } as CSSProperties} d={`M${start.x} ${start.y} C${start.x + (end.x - start.x) * .42} ${start.y},${start.x + (end.x - start.x) * .58} ${end.y},${end.x} ${end.y}`} />; })}</svg>
-            {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; const status = statusOf(task); return <button key={task.id} type="button" className={`ql-task-node is-${status} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone } as CSSProperties} onMouseEnter={() => setHoveredId(task.id)} onMouseLeave={() => setHoveredId((current) => current === task.id ? null : current)} onFocus={() => setHoveredId(task.id)} onBlur={() => setHoveredId((current) => current === task.id ? null : current)} onClick={() => openDetails(task.id)} aria-expanded={selectedId === task.id} aria-controls={selectedId === task.id ? "ql-quest-detail" : undefined} aria-label={`${task.title}, ${statusLabel(status)}, ${dueDetails(task.dueDate).label}, ${formatDuration(task.duration)}, depth ${depth(task) + 1}`}><span>{status === "finished" ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
+           <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const parent = layout.parentOf.get(task.id); const fromLayout = parent != null && layout.positions.has(parent) ? layout.positions.get(parent)! : { x: 50, y: 50 }; const fromVisual = parent != null ? visualPositions.get(parent) : visualPositions.get("hub"); const from = fromVisual ?? fromLayout; const toLayout = layout.positions.get(task.id); const toVisual = visualPositions.get(task.id); const to = toVisual ?? toLayout; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; if (!to) return []; const startRadius = fromVisual?.r ?? (parent == null ? 56 : 12.5); const endRadius = toVisual?.r ?? 12.5; const { start, end } = edgePoints(from, to, startRadius, endRadius, layout.canvasSize * zoom); return <path key={task.id} className={done(task) ? "is-complete" : ""} style={{ "--branch-tone": tone } as CSSProperties} d={`M${start.x} ${start.y} C${start.x + (end.x - start.x) * .42} ${start.y},${start.x + (end.x - start.x) * .58} ${end.y},${end.x} ${end.y}`} />; })}</svg>
+            {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; const status = statusOf(task); return <button key={task.id} type="button" className={`ql-task-node is-${status} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone } as CSSProperties} onMouseEnter={() => setHoveredId(task.id)} onMouseLeave={() => setHoveredId((current) => current === task.id ? null : current)} onFocus={() => setHoveredId(task.id)} onBlur={() => setHoveredId((current) => current === task.id ? null : current)} onClick={() => openDetails(task.id)} aria-expanded={selectedId === task.id} aria-controls={selectedId === task.id ? "ql-quest-detail" : undefined} aria-label={`${task.title}, ${statusLabel(status)}, ${dueDetails(task.dueDate).label}, ${formatDuration(task.duration)}, depth ${depth(task) + 1}`}><span ref={(el) => { if (el) iconRefs.current.set(task.id, el); else iconRefs.current.delete(task.id); }}>{status === "finished" ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
             {hovered && hovered.id !== selectedId && layout.positions.has(hovered.id) && (() => { const point = layout.positions.get(hovered.id)!; const due = dueDetails(hovered.dueDate); return <aside className={`ql-node-preview ${point.x > 62 ? "is-left" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%` } as CSSProperties} aria-hidden="true"><span className={`ql-node-preview__status is-${statusOf(hovered)}`}>{statusLabel(statusOf(hovered))}</span><strong>{hovered.title}</strong><div><span><CalendarDays size={12} /> {due.label}</span><span><Clock3 size={12} /> {formatDuration(hovered.duration)}</span></div>{hovered.description && <p>{hovered.description}</p>}<small>Click for full details</small></aside>; })()}
           {!tasks.length && <div className="ql-focus-empty"><p>No quests have found this north star yet.</p></div>}
           </div>
