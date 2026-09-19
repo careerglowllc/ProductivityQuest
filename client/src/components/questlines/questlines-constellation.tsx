@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { ArrowLeft, CalendarDays, Check, Circle, Clock3, Edit3, Focus as FocusIcon, Plus, Target, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import "./questlines-constellation.css";
 
@@ -140,10 +141,10 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
           {points.map(({ questline, point }) => <path key={questline.id} d={`M50 49 Q${(50 + point.x) / 2} ${(49 + point.y) / 2} ${point.x} ${point.y}`} className={questline.completed ? "is-complete" : ""} />)}
         </svg>
         <div className="ql-overview__hub"><Target size={25} /><span>YOUR<br />HORIZON</span></div>
-        {points.map(({ questline, point }, index) => {
+         {points.map(({ questline, point }, index) => {
           const total = questline.tasks.length;
           const complete = questline.tasks.filter(done).length;
-          return <button key={questline.id} type="button" className={`ql-project-node ${questline.completed ? "is-complete" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tones[index % tones.length] } as CSSProperties} onClick={() => onSelect(questline)} aria-label={`Open ${questline.title}, ${complete} of ${total} quests complete`}>
+          return <button key={questline.id} type="button" className={`ql-project-node ${questline.completed ? "is-complete" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tones[index % tones.length], viewTransitionName: `questline-${questline.id}` } as CSSProperties} onClick={() => onSelect(questline)} aria-label={`Open ${questline.title}, ${complete} of ${total} quests complete`}>
             <span className="ql-project-node__orb">{iconFor(questline.icon)}</span>
             <b>{questline.title}</b><small>{complete}/{total} illuminated</small>
           </button>;
@@ -383,7 +384,7 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
          <div className="ql-focus-space" style={{ minWidth: `max(100%, ${layout.canvasSize * zoom}px)`, minHeight: `max(100%, ${layout.canvasSize * zoom}px)` }}>
           <div className={`ql-focus-canvas ${layout.dense ? "is-dense" : ""}`} style={{ width: `${layout.canvasSize * zoom}px`, height: `${layout.canvasSize * zoom}px` }}>
           <div className="ql-focus-orbit ql-focus-orbit--one" /><div className="ql-focus-orbit ql-focus-orbit--two" />
-           <div className="ql-focus-hub" aria-label={`${questline.title}, ${questline.tasks.length} quests`}>
+           <div className="ql-focus-hub" style={{ viewTransitionName: `questline-${questline.id}` } as CSSProperties} aria-label={`${questline.title}, ${questline.tasks.length} quests`}>
              <span className="ql-focus-hub__mark" aria-hidden="true"><Target size={18} /></span>
              <strong>{questline.title}</strong>
              <small>{questline.tasks.length} quest{questline.tasks.length === 1 ? "" : "s"}</small>
@@ -411,7 +412,30 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
 
 export function QuestlinesConstellation(props: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [fallbackDirection, setFallbackDirection] = useState<"forward" | "back" | null>(null);
   const selected = props.questlines.find((questline) => questline.id === selectedId) ?? null;
+  const transitionTo = (id: number | null) => {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const documentWithTransitions = document as Document & {
+      startViewTransition?: (update: () => void) => { finished: Promise<void> };
+    };
+    if (prefersReducedMotion) {
+      setFallbackDirection(null);
+      setSelectedId(id);
+      return;
+    }
+    if (!documentWithTransitions.startViewTransition) {
+      setFallbackDirection(id == null ? "back" : "forward");
+      setSelectedId(id);
+      return;
+    }
+    setFallbackDirection(null);
+    documentWithTransitions.startViewTransition(() => {
+      flushSync(() => setSelectedId(id));
+    });
+  };
   if (props.pending) return <section className="ql-stage ql-loading" aria-label="Loading questlines"><div className="ql-skeleton ql-skeleton--large" /><div className="ql-skeleton ql-skeleton--small" /><div className="ql-skeleton ql-skeleton--map" /></section>;
-  return selected ? <Focus {...props} questline={selected} onBack={() => setSelectedId(null)} /> : <Overview questlines={props.questlines} onSelect={(questline) => setSelectedId(questline.id)} onCreate={props.onCreate} />;
+  return <div className={`ql-transition-shell ${fallbackDirection ? `is-${fallbackDirection}` : ""}`}>
+    {selected ? <Focus {...props} questline={selected} onBack={() => transitionTo(null)} /> : <Overview questlines={props.questlines} onSelect={(questline) => transitionTo(questline.id)} onCreate={props.onCreate} />}
+  </div>;
 }
