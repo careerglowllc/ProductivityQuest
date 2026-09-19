@@ -84,8 +84,11 @@ export default function CampaignsPage() {
     window.setTimeout(() => document.getElementById(`questline-${projectId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
   }, []);
 
-  const { data: questlines = [], isLoading } = useQuery<QuestlineData[]>({
+  const { data: questlines = [], isLoading, error: questlinesError, refetch: retryQuestlines, isFetching } = useQuery<QuestlineData[]>({
     queryKey: ["/api/questlines"],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const deleteQuestline = useMutation({
@@ -184,6 +187,20 @@ export default function CampaignsPage() {
 
   return (
     <div className={`min-h-screen ${isMobile ? "pb-20" : ""}`}>
+      {questlinesError && (
+        <div role="alert" className="m-4 rounded-xl border border-red-400/40 bg-slate-900 p-5 text-slate-100">
+          <h2 className="font-semibold">Questlines could not be loaded</h2>
+          <p className="mt-2 text-sm">
+            {questlinesError.message.startsWith("429")
+              ? "The server temporarily limited requests. Your saved questlines have not been confirmed missing. Wait a few minutes, then retry."
+              : "The server could not return your questlines. This is a loading error, not confirmation that your data was deleted."}
+          </p>
+          <Button className="mt-3" disabled={isFetching} onClick={() => retryQuestlines()}>
+            {isFetching ? "Retrying…" : "Retry loading questlines"}
+          </Button>
+        </div>
+      )}
+      {(!questlinesError || questlines.length > 0) && (
       <QuestlinesConstellation
         questlines={questlines}
         pending={isLoading}
@@ -205,6 +222,7 @@ export default function CampaignsPage() {
         onDeleteTask={(task) => removeCompletedTask(task)}
         isTaskDeletePending={(task) => isRemovingTask(task.id)}
       />
+      )}
 
       {/* Create Questline Modal */}
       <AddQuestlineModal open={showCreateModal} onOpenChange={setShowCreateModal} />

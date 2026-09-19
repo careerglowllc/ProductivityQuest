@@ -28,13 +28,19 @@ export function PendingCompletedDeletionManager() {
     },
     enabled: Boolean(userId),
     retry: false,
-    refetchInterval: 1000,
+    // Fetch on mount/focus and after schedule/undo mutations, not every second.
+    // The countdown is local; polling consumed almost the entire API allowance.
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {
+    if (!pending.length) return;
+    setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [pending.length]);
 
   useEffect(() => {
     if (!userId) return;
