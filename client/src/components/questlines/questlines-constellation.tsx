@@ -188,6 +188,8 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
   const dragRef = useRef<{ pointerId: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
   const suppressClickRef = useRef(false);
   const zoomAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
   const tasks = useMemo(() => descendants(questline.tasks, null).result, [questline.tasks]);
   // descendants() already keeps the first occurrence of any duplicated ID.
   // Build every downstream map from that normalized list as well.
@@ -364,18 +366,50 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
     });
   };
   const startPan = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !scrollRef.current) return;
-    // Buttons must retain their native pointer sequence so a tap/click can open
-    // details. Panning begins only from the constellation's empty surface.
-    if ((event.target as Element).closest("button, a, input, select, textarea, [role='button']")) return;
     const scroll = scrollRef.current;
+    if (!scroll) return;
+    // Buttons must retain their native pointer sequence so a tap/click can open
+    // details. Panning/pinching begins only from the constellation's empty surface.
+    const isInteractive = (event.target as Element).closest("button, a, input, select, textarea, [role='button']");
+    if (event.pointerType === "touch" && !isInteractive) {
+      scroll.setPointerCapture(event.pointerId);
+      activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (activePointersRef.current.size === 2) {
+        // A second finger landed — hand off from single-finger panning to pinch-zoom.
+        dragRef.current = null;
+        scroll.classList.remove("is-panning");
+        const [a, b] = Array.from(activePointersRef.current.values());
+        pinchRef.current = { startDist: Math.hypot(b.x - a.x, b.y - a.y), startZoom: zoom };
+        return;
+      }
+      if (activePointersRef.current.size > 2) return;
+    }
+    if (event.button !== 0 || isInteractive) return;
     dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop, moved: false };
     scroll.setPointerCapture(event.pointerId);
   };
   const movePan = (event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
     const scroll = scrollRef.current;
-    if (!drag || !scroll || drag.pointerId !== event.pointerId) return;
+    if (!scroll) return;
+    if (activePointersRef.current.has(event.pointerId)) {
+      activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+    if (pinchRef.current && activePointersRef.current.size === 2) {
+      event.preventDefault();
+      suppressClickRef.current = true;
+      const [a, b] = Array.from(activePointersRef.current.values());
+      const distance = Math.hypot(b.x - a.x, b.y - a.y);
+      const nextZoom = Math.min(2, Math.max(0.5, Math.round((pinchRef.current.startZoom * (distance / pinchRef.current.startDist)) * 100) / 100));
+      const rect = scroll.getBoundingClientRect();
+      zoomAnchorRef.current = {
+        x: (scroll.scrollLeft + ((a.x + b.x) / 2 - rect.left)) / Math.max(scroll.scrollWidth, 1),
+        y: (scroll.scrollTop + ((a.y + b.y) / 2 - rect.top)) / Math.max(scroll.scrollHeight, 1),
+      };
+      setZoom(nextZoom);
+      return;
+    }
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
     if (!drag.moved && Math.hypot(dx, dy) < 5) return;
@@ -387,6 +421,10 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
     event.preventDefault();
   };
   const endPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    const wasPinching = pinchRef.current !== null;
+    activePointersRef.current.delete(event.pointerId);
+    if (activePointersRef.current.size < 2) pinchRef.current = null;
+    if (wasPinching) window.setTimeout(() => { suppressClickRef.current = false; }, 0);
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
@@ -428,7 +466,7 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
        <ol className="sr-only" aria-label="Quest hierarchy">{tasks.map((task) => <li key={task.id}>{task.title} — {task.parentTaskId && byId.has(task.parentTaskId) ? `child of ${byId.get(task.parentTaskId)?.title}` : "root quest"} — {statusLabel(statusOf(task))}</li>)}</ol>
     </div>
       {selected && (() => { const due = dueDetails(selected.dueDate); return <aside id="ql-quest-detail" className="ql-inspector" role="dialog" aria-modal="false" aria-labelledby="ql-quest-detail-title"><div className="ql-inspector__topline"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><button ref={dialogCloseRef} type="button" onClick={closeDetails} aria-label="Close quest details">×</button></div><h2 id="ql-quest-detail-title">{selected.title}</h2><div className="ql-inspector__facts"><div className={`is-${due.state}`}><CalendarDays size={16} /><span><small>Due</small><strong>{due.label}</strong></span></div><div><Clock3 size={16} /><span><small>Estimate</small><strong>{formatDuration(selected.duration)}</strong></span></div></div><div className="ql-inspector__description"><small>Description</small><p>{selected.description || "No description has been added yet."}</p></div><div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}{done(selected) && onDeleteTask && <button type="button" className="ql-action ql-icon-action--danger" onClick={() => onDeleteTask(selected)} disabled={isTaskDeletePending?.(selected)}><Trash2 size={14} /> {isTaskDeletePending?.(selected) ? "Removing…" : "Permanently remove"}</button>}</div></aside>; })()}
-    <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Drag to pan · Ctrl-scroll or use controls to zoom</span></footer>
+    <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Drag to pan · pinch, Ctrl-scroll, or use controls to zoom</span></footer>
   </section>;
 }
 
