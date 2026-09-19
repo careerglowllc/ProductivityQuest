@@ -20,3 +20,15 @@ The Questlines page defaults to a full-page, two-level constellation flow: paren
 **Why:** The user wants Questlines to follow the same overview-to-focused-map interaction as Skills rather than defaulting to cards or view selectors.
 
 **How to apply:** Keep the overview and focused map as the primary route experience; preserve creation, editing, completion rewards, deep hierarchy visibility, and shell-safe responsive sizing.
+
+Focused questline constellations use a compact radial mind-map: the questline is central, root quests define major colored spokes, and recursive subtrees receive leaf-weighted angular wedges.
+
+**Why:** Dense depth-row layouts require excessive panning and make unrelated branches cross. The user selected the radial mind-map reference specifically to keep broad quest trees understandable on one screen.
+
+**How to apply:** Keep ordinary broad maps viewport-sized. Expand the scrollable plane only when measured depth or leaf density requires readable node spacing, and initialize oversized maps centered. Center the actual canvas after its dimensions become measurable, not the padded scroll extent. Preserve touch and mouse drag panning.
+
+Completed quest history must remain separate from explicitly deleted quests and retain hierarchy relationships.
+
+**Why:** Completed nodes still need to appear in questline visualizations; treating completion as ordinary trash makes future cleanup destroy progression history.
+
+**How to apply:** Keep completed history available to maps and the completed bin. Preserve legacy completion callers and cascading questline bonuses when changing lifecycle routes.

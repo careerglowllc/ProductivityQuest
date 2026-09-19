@@ -4,12 +4,12 @@ export function useTodayMomentum() {
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<any[]>({
     queryKey: ["/api/tasks"],
   });
-  const { data: recycledTasks = [], isLoading: recycledLoading } = useQuery<any[]>({
-    queryKey: ["/api/recycled-tasks"],
+  const { data: completedArchive, isLoading: completedLoading } = useQuery<{ tasks: any[] }>({
+    queryKey: ["/api/completed-tasks"],
   });
 
   const safeTasks = Array.isArray(tasks) ? tasks : [];
-  const safeRecycled = Array.isArray(recycledTasks) ? recycledTasks : [];
+  const safeCompleted = Array.isArray(completedArchive?.tasks) ? completedArchive.tasks : [];
   const now = new Date();
   const todayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   const tomorrow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1));
@@ -29,7 +29,7 @@ export function useTodayMomentum() {
   const completedTodayRecurring = safeTasks.filter(
     (task: any) => isRecurring(task) && isCompletedToday(task),
   );
-  const completedTodayOneTime = safeRecycled.filter(
+  const completedTodayOneTime = safeCompleted.filter(
     (task: any) => task.recycledReason === "completed" && isCompletedToday(task),
   );
 
@@ -44,6 +44,6 @@ export function useTodayMomentum() {
     completedToday,
     totalToday,
     pct,
-    isLoading: tasksLoading || recycledLoading,
+    isLoading: tasksLoading || completedLoading,
   };
 }

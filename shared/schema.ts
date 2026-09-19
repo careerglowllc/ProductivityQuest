@@ -90,7 +90,10 @@ export const tasks = pgTable("tasks", {
   velin: boolean("velin").default(false),
   recycled: boolean("recycled").default(false),
   recycledAt: timestamptz("recycled_at"),
-  recycledReason: text("recycled_reason"), // "completed" or "deleted"
+  // Legacy completed rows use "completed"; they are a protected archive, not
+  // recycling-bin contents. Keeping them in this relational table preserves
+  // questlineId/parentTaskId links without a destructive data migration.
+  recycledReason: text("recycled_reason"), // "completed" (protected archive) or "deleted"
   skillTags: jsonb("skill_tags").$type<string[]>().default([]), // AI-generated skill tags
   calendarColor: text("calendar_color"), // Hex color from Google Calendar or custom
   emoji: text("emoji").default("📝"), // User-chosen emoji for visual identification

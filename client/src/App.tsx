@@ -35,6 +35,7 @@ import JournalGratitudePage from "@/pages/journal-gratitude";
 import JournalExcitementPage from "@/pages/journal-excitement";
 import JournalWeeklyPlanningPage from "@/pages/journal-weekly-planning";
 import RecyclingBin from "@/pages/recycling-bin";
+import CompletedBin from "@/pages/completed-bin";
 import Finances from "@/pages/finances";
 import AccomplishmentsPage from "@/pages/accomplishments";
 import ExplorePage from "@/pages/explore";
@@ -218,6 +219,7 @@ function Router() {
             <Route path="/settings/guides/measure-what-matters" component={MeasureWhatMattersGuidePage} />
             <Route path="/settings/appearance" component={AppearanceSettingsPage} />
             <Route path="/recycling-bin" component={RecyclingBin} />
+            <Route path="/completed" component={CompletedBin} />
             <Route path="/getting-started" component={GettingStarted} />
             {/* 404 for authenticated users only */}
             <Route component={NotFound} />

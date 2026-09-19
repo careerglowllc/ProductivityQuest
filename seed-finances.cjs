@@ -52,7 +52,7 @@ const FINANCE_DATA = [
   { item: "GitHub Copilot Max", category: "Business", monthlyCost: 10000, recurType: "Monthly" },
   { item: "Neon Database for MailWisp", category: "Business", monthlyCost: 3000, recurType: "Monthly" },
   { item: "Apple Developer Membership (CareerGlow)", category: "Business", monthlyCost: 825, recurType: "Yearly (Amortized)" },
-  { item: "Ford Explorer Registration (estimate)", category: "Transportation", monthlyCost: 4600, recurType: "Yearly (Amortized)" },
+  { item: "Ford Explorer Registration CA", category: "Transportation", monthlyCost: 2600, recurType: "Yearly (Amortized)" },
   { item: "CareerGlow Northwest Registered Agent Renewal", category: "Business", monthlyCost: 1041, recurType: "Yearly (Amortized)" },
   { item: "CG: AWS Testimonial Info Storage", category: "Business", monthlyCost: 100, recurType: "Monthly" },
   { item: "ProductivityQuest Render Service (CareerGlow)", category: "Business", monthlyCost: 700, recurType: "Monthly" },

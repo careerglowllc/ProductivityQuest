@@ -61,6 +61,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/more": "All pages",
   "/settings": "Settings",
   "/recycling-bin": "Recycling Bin",
+  "/completed": "Completed Quests",
   "/cpap": "CPAP",
   "/accomplishments": "Accomplishments",
   "/explore": "Explore",

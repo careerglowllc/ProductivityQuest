@@ -98,3 +98,146 @@ html.light .ql-stage{background:radial-gradient(ellipse at 50% 46%,#f7f1e9 0,#e9
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* Focus map: one-screen radial hierarchy. Roots are the large spokes; descendants
+   stay close to their spoke instead of becoming a wide, pannable tree. */
+.ql-focus-scroll {
+  padding: 0;
+  overflow: auto;
+}
+.ql-focus-canvas {
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+.ql-focus-canvas > .ql-focus-orbit--one {
+  width: min(86vw, 760px);
+  height: min(86vw, 760px);
+}
+.ql-focus-canvas > .ql-focus-orbit--two {
+  width: min(55vw, 500px);
+  height: min(55vw, 500px);
+}
+.ql-task-node {
+  width: min(132px, 15vw);
+  gap: 4px;
+}
+.ql-task-node > span {
+  width: 25px;
+  height: 25px;
+}
+.ql-task-node b {
+  font-size: 10px;
+}
+.ql-focus-canvas.is-dense .ql-task-node {
+  width: min(108px, 13vw);
+}
+.ql-focus-canvas.is-dense .ql-task-node b {
+  font-size: 9px;
+}
+.ql-lines path {
+  stroke: color-mix(in srgb, var(--branch-tone, #e9edff), white 18%);
+  stroke-width: 1.45;
+}
+
+@media (max-width: 767px) {
+  .ql-focus-scroll {
+    overflow: auto;
+  }
+  .ql-focus-canvas {
+    min-width: 100%;
+    min-height: 100%;
+  }
+  .ql-focus-canvas > .ql-focus-orbit--one {
+    width: 108vw;
+    height: 108vw;
+  }
+  .ql-focus-canvas > .ql-focus-orbit--two {
+    width: 70vw;
+    height: 70vw;
+  }
+  .ql-task-node {
+    width: 78px;
+  }
+  .ql-task-node b {
+    font-size: 8px;
+    line-height: 1.1;
+  }
+}
+
+/* The focused constellation is a square radial plane. It can be panned with
+   mouse or touch without turning a drag release into a node activation. */
+.ql-focus-scroll {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ql-focus-scroll.is-panning { cursor: grabbing; }
+.ql-focus-canvas {
+  height: auto;
+  min-height: 100%;
+  flex: none;
+}
+
+/* Status is semantic, rather than branch-colored, so all three states remain
+   distinguishable at a glance. Branch color is retained on labels and paths. */
+.ql-task-node.is-finished > span {
+  border-color: #9ee6aa;
+  background: #3d9a65;
+  color: #fff;
+  box-shadow: 0 0 18px #64d98b99;
+}
+.ql-task-node.is-in-progress > span {
+  border-color: #f6c66f;
+  background: #b87925;
+  color: #fff;
+  box-shadow: 0 0 18px #f1b84e99;
+}
+.ql-task-node.is-not-started > span {
+  border-color: #aeb6c8;
+  background: #48526a;
+  color: #e8ebf2;
+  box-shadow: 0 0 10px #aeb6c844;
+}
+.ql-status-legend {
+  position: absolute;
+  z-index: 4;
+  left: clamp(18px, 4vw, 58px);
+  bottom: 14px;
+  display: flex;
+  gap: 14px;
+  padding: 7px 10px;
+  border: 1px solid #ffffff24;
+  border-radius: 999px;
+  background: #303958cc;
+  color: #eceefa;
+  font: 9px ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  pointer-events: none;
+}
+.ql-status-legend span { display: flex; align-items: center; gap: 5px; }
+.ql-status-legend i { width: 9px; height: 9px; border-radius: 50%; }
+.ql-status-legend i.is-finished { background: #5fd486; }
+.ql-status-legend i.is-in-progress { background: #edb550; }
+.ql-status-legend i.is-not-started { background: #8993a8; }
+
+html.light .ql-status-legend {
+  border-color: #45413a33;
+  background: #f7f2e9e8;
+  color: #36322d;
+}
+
+@media (max-width: 767px) {
+  .ql-status-legend {
+    left: 50%;
+    bottom: 7px;
+    transform: translateX(-50%);
+    gap: 9px;
+    white-space: nowrap;
+    font-size: 7px;
+  }
+}

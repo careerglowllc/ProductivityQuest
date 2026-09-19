@@ -21,6 +21,7 @@ import { LevelUpModal } from "@/components/level-up-modal";
 import { SkillAdjustmentModal } from "@/components/skill-adjustment-modal";
 import { AddTaskModal } from "@/components/add-task-modal";
 import { AddQuestlineModal } from "@/components/add-questline-modal";
+import { QuestSelectionDock } from "@/components/quest-selection-dock";
 import { QuestlineTreeModal } from "@/components/questline-tree-modal";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -2458,7 +2459,7 @@ export default function Home() {
             {/* Bulk Actions for Selected Tasks - Sticky at bottom */}
             {selectedTasks.size > 0 && (
               <div className={`fixed ${isMobile ? 'bottom-[calc(4rem+env(safe-area-inset-bottom))]' : 'bottom-20 md:left-[var(--dash-sidebar-w)]'} left-0 right-0 z-40 ${isMobile ? 'px-2 pb-1' : 'px-4 pb-4'}`}>
-                <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-2' : 'p-4'} rounded-[10px] border border-[var(--dash-line-strong)] border-t-[3px] border-t-[var(--dash-violet)] bg-[var(--dash-surface)] shadow-[var(--dash-shadow)]`}>
+                <Card className={`max-w-7xl mx-auto ${isMobile ? 'p-2.5 rounded-2xl border border-[var(--dash-line-strong)] border-t-[3px] border-t-[var(--dash-violet)] bg-[var(--dash-surface)] shadow-[var(--dash-shadow)]' : 'border-0 bg-transparent p-0 shadow-none'}`}>
                   {isMobile ? (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
@@ -2628,173 +2629,24 @@ export default function Home() {
                       </div>
                     </div>
                   ) : (
-                    <div className="relative flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-medium ${isDark ? 'text-blue-200' : 'text-blue-700'}`}>
-                          {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedTasks(new Set())}
-                        className="absolute -top-1 -right-1 h-7 w-7 p-0 rounded-full text-gray-400 hover:text-white hover:bg-red-500/20"
-                        title="Close and deselect all"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                      <div className="flex gap-2 flex-wrap">
-                        <Button 
-                          onClick={handleCompleteSelected}
-                          className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Complete Selected
-                        </Button>
-                        <Button 
-                          onClick={() => setShowCalendarSync(true)}
-                          variant="outline"
-                          className={`${isDark ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/20 hover:text-emerald-200' : 'border-emerald-500 text-emerald-700 hover:bg-emerald-50'}`}
-                        >
-                          <Calendar className="w-4 h-4 mr-2" />
-                          Sync to Calendar
-                        </Button>
-                        <Button 
-                          onClick={handleRemoveFromCalendar}
-                          variant="outline"
-                          className={`${isDark ? 'border-slate-500/40 text-slate-300 hover:bg-slate-600/20 hover:text-slate-200' : 'border-slate-400 text-slate-600 hover:bg-slate-50'}`}
-                        >
-                          <CalendarDays className="w-4 h-4 mr-2" />
-                          Remove from Calendar
-                        </Button>
-                        <Button 
-                          onClick={handleRemoveAllFromCalendar}
-                          variant="outline"
-                          className={`${isDark ? 'border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200' : 'border-red-400 text-red-600 hover:bg-red-50'}`}
-                        >
-                          <CalendarDays className="w-4 h-4 mr-2" />
-                          Clear ALL from Calendar
-                        </Button>
-                        <Button 
-                          onClick={handleDeleteSelected}
-                          variant="outline"
-                          className={`${isDark ? 'border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200' : 'border-orange-400 text-orange-600 hover:bg-orange-50'}`}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Selected
-                        </Button>
-                        <Button 
-                          onClick={handleAppendToNotion}
-                          variant="outline"
-                          className={`${isDark ? 'border-green-500/40 text-green-300 hover:bg-green-600/20 hover:text-green-200' : 'border-green-500 text-green-700 hover:bg-green-50'}`}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Append to Notion
-                        </Button>
-                        <Button 
-                          onClick={handleDeleteFromNotion}
-                          variant="outline"
-                          className={`${isDark ? 'border-red-500/40 text-red-300 hover:bg-red-600/20 hover:text-red-200' : 'border-red-400 text-red-600 hover:bg-red-50'}`}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete from Notion
-                        </Button>
-                        <Button 
-                          onClick={handleCategorizeSkill}
-                          variant="outline"
-                          className={`${isDark ? 'border-purple-500/40 text-purple-300 hover:bg-purple-600/20 hover:text-purple-200' : 'border-purple-400 text-purple-700 hover:bg-purple-50'}`}
-                          disabled={selectedTasks.size === 0}
-                        >
-                          <Tag className="w-4 h-4 mr-2" />
-                          Categorize Skill
-                        </Button>
-                        <Popover open={showReschedulePopover} onOpenChange={setShowReschedulePopover}>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline"
-                              className={`${isDark ? 'border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/20 hover:text-cyan-200' : 'border-cyan-500 text-cyan-700 hover:bg-cyan-50'}`}
-                              disabled={selectedTasks.size === 0}
-                            >
-                              <CalendarDays className="w-4 h-4 mr-2" />
-                              Reschedule
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className={`w-auto p-0 ${isDark ? 'bg-slate-900 border-yellow-600/30' : 'bg-white border-gray-200'}`} align="end" side="top">
-                            <CalendarPicker
-                              mode="single"
-                              selected={undefined}
-                              onSelect={(date) => {
-                                if (date) {
-                                  handleRescheduleSelected(date);
-                                }
-                              }}
-                              initialFocus
-                              className="rounded-md border-0"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="outline"
-                              className={`${isDark ? 'border-amber-500/40 text-amber-300 hover:bg-amber-600/20 hover:text-amber-200' : 'border-amber-500 text-amber-700 hover:bg-amber-50'}`}
-                              disabled={selectedTasks.size === 0}
-                            >
-                              <ArrowRight className="w-4 h-4 mr-2" />
-                              Push Days
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="bg-slate-800 border-yellow-600/30" side="top" align="end">
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(1)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
-                            >
-                              Push 1 Day
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(3)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
-                            >
-                              Push 3 Days
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(5)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
-                            >
-                              Push 5 Days
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(7)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
-                            >
-                              Push 1 Week
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(14)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
-                            >
-                              Push 2 Weeks
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handlePushDays(30)}
-                              className="text-yellow-100 hover:bg-slate-700 focus:bg-slate-700 cursor-pointer"
-                            >
-                              Push 1 Month
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        {filterCounts.overdue > 0 && (
-                          <Button 
-                            onClick={handleMoveOverdueToToday}
-                            variant="outline"
-                            className="border-orange-500/40 text-orange-300 hover:bg-orange-600/20 hover:text-orange-200"
-                          >
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Move Overdue to Today ({filterCounts.overdue})
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                    <>
+                      <QuestSelectionDock
+                        selectedCount={selectedTasks.size}
+                        overdueCount={filterCounts.overdue}
+                        onClear={() => setSelectedTasks(new Set())}
+                        onComplete={handleCompleteSelected}
+                        onCalendarSync={() => setShowCalendarSync(true)}
+                        onRemoveFromCalendar={handleRemoveFromCalendar}
+                        onRemoveAllFromCalendar={handleRemoveAllFromCalendar}
+                        onDelete={handleDeleteSelected}
+                        onAppendToNotion={handleAppendToNotion}
+                        onDeleteFromNotion={handleDeleteFromNotion}
+                        onCategorize={handleCategorizeSkill}
+                        onReschedule={handleRescheduleSelected}
+                        onPushDays={handlePushDays}
+                        onMoveOverdue={handleMoveOverdueToToday}
+                      />
+                    </>
                   )}
                 </Card>
               </div>

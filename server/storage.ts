@@ -49,7 +49,10 @@ export interface IStorage {
   updateTask(id: number, task: Partial<Task>, userId: string): Promise<Task | undefined>;
   deleteTask(id: number, userId: string): Promise<boolean>;
   completeTask(id: number, userId: string): Promise<Task | undefined>;
+  uncompleteTask(id: number, userId: string): Promise<Task | undefined>;
   getRecycledTasks(userId: string): Promise<Task[]>;
+  getCompletedTasks(userId: string): Promise<Task[]>;
+  countCompletedTasks(userId: string): Promise<number>;
   restoreTask(id: number, userId: string): Promise<Task | undefined>;
   permanentlyDeleteTask(id: number, userId: string): Promise<boolean>;
   permanentlyDeleteTasks(taskIds: number[], userId: string): Promise<number>;
@@ -66,6 +69,7 @@ export interface IStorage {
   getUserProgress(userId: string): Promise<UserProgress>;
   updateUserProgress(userId: string, progress: Partial<UserProgress>): Promise<UserProgress>;
   addGold(userId: string, amount: number): Promise<UserProgress>;
+  removeCompletionGold(userId: string, amount: number): Promise<UserProgress>;
   spendGold(userId: string, amount: number): Promise<UserProgress>;
   
   // Skill operations
@@ -103,6 +107,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  static readonly COMPLETED_ARCHIVE_CAP = 5000;
   // Skill XP progression constants
   private readonly SKILL_BASE_XP = 100; // Base XP requirement for level 1->2
   private readonly SKILL_GROWTH_RATE = 0.02; // 2% growth rate per level (modular for future adjustment)
@@ -300,7 +305,11 @@ export class DatabaseStorage implements IStorage {
         recycledAt: new Date(),
         recycledReason: 'deleted'
       })
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+      .where(and(
+        eq(tasks.id, id),
+        eq(tasks.userId, userId),
+        eq(tasks.completed, false)
+      ))
       .returning();
     return !!recycledTask;
   }
@@ -325,8 +334,17 @@ export class DatabaseStorage implements IStorage {
           // today's-completion stats/widgets can still credit this occurrence.
           completedAt: new Date(),
         })
-        .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+        .where(and(
+          eq(tasks.id, id),
+          eq(tasks.userId, userId),
+          eq(tasks.completed, false),
+          task.dueDate ? eq(tasks.dueDate, task.dueDate) : isNull(tasks.dueDate)
+        ))
         .returning();
+
+      // Another request already completed/rescheduled this same occurrence.
+      // Do not grant its rewards twice.
+      if (!rescheduledTask) return undefined;
 
       // Award gold and update progress
       await this.addGold(userId, task.goldValue);
@@ -353,8 +371,24 @@ export class DatabaseStorage implements IStorage {
           recycledAt: new Date(),
           recycledReason: 'completed'
         })
-        .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+        .where(and(
+          eq(tasks.id, id),
+          eq(tasks.userId, userId),
+          eq(tasks.completed, false),
+          eq(tasks.recycled, false),
+          // Keep the archive bounded without deleting old relational task rows.
+          // The condition is part of the write so concurrent completions cannot
+          // both pass a stale application-side count.
+          sql`(
+            select count(*)
+            from tasks as completed_archive
+            where completed_archive.user_id = ${userId}
+              and completed_archive.completed = true
+          ) < ${DatabaseStorage.COMPLETED_ARCHIVE_CAP}`
+        ))
         .returning();
+
+      if (!completedTask) return undefined;
 
       // Award gold and update progress
       await this.addGold(userId, task.goldValue);
@@ -371,6 +405,25 @@ export class DatabaseStorage implements IStorage {
 
       return completedTask;
     }
+  }
+
+  async uncompleteTask(id: number, userId: string): Promise<Task | undefined> {
+    const [uncompletedTask] = await db
+      .update(tasks)
+      .set({
+        completed: false,
+        completedAt: null,
+        recycled: false,
+        recycledAt: null,
+        recycledReason: null,
+      })
+      .where(and(
+        eq(tasks.id, id),
+        eq(tasks.userId, userId),
+        eq(tasks.completed, true),
+      ))
+      .returning();
+    return uncompletedTask;
   }
 
   /**
@@ -438,9 +491,28 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tasks)
       .where(and(
         eq(tasks.userId, userId),
-        eq(tasks.recycled, true)
+        eq(tasks.recycled, true),
+        eq(tasks.completed, false),
+        eq(tasks.recycledReason, "deleted")
       ))
-      .orderBy(tasks.recycledAt);
+      .orderBy(desc(tasks.recycledAt));
+  }
+
+  async getCompletedTasks(userId: string): Promise<Task[]> {
+    return await db.select().from(tasks)
+      .where(and(
+        eq(tasks.userId, userId),
+        eq(tasks.completed, true)
+      ))
+      .orderBy(desc(tasks.completedAt));
+  }
+
+  async countCompletedTasks(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.completed, true)));
+    return result?.count ?? 0;
   }
 
   async restoreTask(id: number, userId: string): Promise<Task | undefined> {
@@ -451,14 +523,26 @@ export class DatabaseStorage implements IStorage {
         recycledAt: null,
         recycledReason: null
       })
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), eq(tasks.recycled, true)))
+      .where(and(
+        eq(tasks.id, id),
+        eq(tasks.userId, userId),
+        eq(tasks.recycled, true),
+        eq(tasks.completed, false),
+        eq(tasks.recycledReason, "deleted")
+      ))
       .returning();
     return restoredTask;
   }
 
   async permanentlyDeleteTask(id: number, userId: string): Promise<boolean> {
     const result = await db.delete(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), eq(tasks.recycled, true)));
+      .where(and(
+        eq(tasks.id, id),
+        eq(tasks.userId, userId),
+        eq(tasks.recycled, true),
+        eq(tasks.completed, false),
+        eq(tasks.recycledReason, "deleted")
+      ));
     return (result.rowCount ?? 0) > 0;
   }
 
@@ -469,7 +553,9 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         inArray(tasks.id, taskIds),
         eq(tasks.userId, userId),
-        eq(tasks.recycled, true)
+        eq(tasks.recycled, true),
+        eq(tasks.completed, false),
+        eq(tasks.recycledReason, "deleted")
       ));
     
     return result.rowCount ?? 0;
@@ -560,11 +646,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addGold(userId: string, amount: number): Promise<UserProgress> {
-    const currentProgress = await this.getUserProgress(userId);
-    return await this.updateUserProgress(userId, {
-      goldTotal: (currentProgress.goldTotal || 0) + amount,
-      tasksCompleted: (currentProgress.tasksCompleted || 0) + 1,
-    });
+    const [progress] = await db
+      .update(userProgress)
+      .set({
+        goldTotal: sql`coalesce(${userProgress.goldTotal}, 0) + ${amount}`,
+        tasksCompleted: sql`coalesce(${userProgress.tasksCompleted}, 0) + 1`,
+      })
+      .where(eq(userProgress.userId, userId))
+      .returning();
+    return progress;
+  }
+
+  async removeCompletionGold(userId: string, amount: number): Promise<UserProgress> {
+    const [progress] = await db
+      .update(userProgress)
+      .set({
+        goldTotal: sql`greatest(0, coalesce(${userProgress.goldTotal}, 0) - ${amount})`,
+        tasksCompleted: sql`greatest(0, coalesce(${userProgress.tasksCompleted}, 0) - 1)`,
+      })
+      .where(eq(userProgress.userId, userId))
+      .returning();
+    return progress;
   }
 
   async spendGold(userId: string, amount: number): Promise<UserProgress> {

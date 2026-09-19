@@ -5,7 +5,7 @@ import { requireAuth } from "./auth";
 import { loginLimiter, registerLimiter, passwordResetLimiter } from "./rateLimiters";
 import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
 import { googleCalendar } from "./google-calendar";
-import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema, updateNotionConfigSchema, skillCategorizationTraining } from "@shared/schema";
+import { insertTaskSchema, insertPurchaseSchema, insertUserSchema, loginUserSchema, updateNotionConfigSchema, skillCategorizationTraining, type Task } from "@shared/schema";
 import { z } from "zod";
 import { categorizeTaskWithAI, categorizeMultipleTasks } from "./openai-service";
 import { db } from "./db";
@@ -906,6 +906,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Handle date conversion before validation
       const bodyData = { ...req.body };
+      const hasCompletionChange = Object.prototype.hasOwnProperty.call(bodyData, "completed");
+      const requestedCompleted = bodyData.completed;
+      if (hasCompletionChange && typeof requestedCompleted !== "boolean") {
+        return res.status(400).json({ error: "completed must be a boolean" });
+      }
+      delete bodyData.completed;
+      const managedArchiveFields = ["completedAt", "recycled", "recycledAt", "recycledReason"];
+      if (managedArchiveFields.some((field) => Object.prototype.hasOwnProperty.call(bodyData, field))) {
+        return res.status(400).json({
+          error: "Completion and recycling metadata cannot be changed directly",
+        });
+      }
       if (bodyData.dueDate && typeof bodyData.dueDate === 'string') {
         bodyData.dueDate = new Date(bodyData.dueDate);
       }
@@ -914,6 +926,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updateData = insertTaskSchema.partial().parse(bodyData);
+
+      // Keep the long-standing generic PATCH contract for existing clients, but
+      // route completion through the same authoritative storage operation as the
+      // dedicated endpoint. This is what makes reward grants and the archive cap
+      // atomic with respect to duplicate completion requests.
+      if (hasCompletionChange) {
+        const existing = await storage.getTask(id, userId);
+        if (!existing) return res.status(404).json({ error: "Task not found" });
+
+        let task = existing;
+        if (requestedCompleted && !existing.completed) {
+          const completedTask = await storage.completeTask(id, userId);
+          if (!completedTask) {
+            const recurNormalized = (existing.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
+            const isRecurring = recurNormalized !== "" && recurNormalized !== "one-time";
+            if (!isRecurring && await storage.countCompletedTasks(userId) >= 5000) {
+              return res.status(409).json({
+                error: "Completed archive is full",
+                code: "COMPLETED_ARCHIVE_FULL",
+                limit: 5000,
+              });
+            }
+            return res.status(409).json({ error: "Task completion conflicted with another request" });
+          }
+          task = completedTask;
+        } else if (!requestedCompleted && existing.completed) {
+          const uncompletedTask = await storage.uncompleteTask(id, userId);
+          if (!uncompletedTask) {
+            return res.status(409).json({ error: "Task undo conflicted with another request" });
+          }
+          task = uncompletedTask;
+          await storage.removeCompletionGold(userId, existing.goldValue);
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          task = await storage.updateTask(id, updateData as Partial<Task>, userId) ?? task;
+        }
+        return res.json(task);
+      }
 
       // When dueDate is moved to a different day but scheduledTime was NOT explicitly
       // provided (e.g. "move overdue to today" / reschedule), shift the existing
@@ -950,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return value;
       }));
       
-      const task = await storage.updateTask(id, updateData, userId);
+      const task = await storage.updateTask(id, updateData as Partial<Task>, userId);
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
@@ -1032,6 +1083,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!taskBefore || taskBefore.completed) {
         return res.status(404).json({ error: "Task not found or already completed" });
       }
+
+      const recurNormalized = (taskBefore.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
+      const isRecurring = recurNormalized !== "" && recurNormalized !== "one-time";
+      if (!isRecurring && await storage.countCompletedTasks(userId) >= 5000) {
+        return res.status(409).json({
+          error: "Completed archive is full",
+          code: "COMPLETED_ARCHIVE_FULL",
+          limit: 5000,
+        });
+      }
       
       // Calculate XP gains before completion
       const skillXPGains: Array<{ skillName: string; xpGained: number; newXP: number; newLevel: number }> = [];
@@ -1056,7 +1117,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const task = await storage.completeTask(id, userId);
       if (!task) {
-        return res.status(404).json({ error: "Task not found or already completed" });
+        const archiveCount = await storage.countCompletedTasks(userId);
+        if (!isRecurring && archiveCount >= 5000) {
+          return res.status(409).json({
+            error: "Completed archive is full",
+            code: "COMPLETED_ARCHIVE_FULL",
+            limit: 5000,
+          });
+        }
+        return res.status(409).json({ error: "Task was already completed" });
       }
       
       // Get updated skill info after XP award
@@ -1087,7 +1156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const ql = await storage.getQuestline(task.questlineId, userId);
           if (ql && !ql.bonusAwarded) {
             const qlTasks = await storage.getQuestlineTasks(userId, task.questlineId);
-            const allCompleted = qlTasks.every(t => t.completed || t.recycled);
+            const allCompleted = qlTasks.every(t => t.completed || (t.recycled && t.recycledReason === "completed"));
             if (allCompleted && qlTasks.length > 0) {
               const totalGold = qlTasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
               const bonusGold = totalGold * 3;
@@ -1283,6 +1352,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid task IDs" });
       }
 
+      const uniqueTaskIds = Array.from(new Set(taskIds.filter((id: unknown) => Number.isInteger(id))));
+      const candidateTasks = (await Promise.all(
+        uniqueTaskIds.map((id) => storage.getTask(id as number, userId))
+      )).filter((task): task is Task => !!task && !task.completed);
+      const archiveCandidates = candidateTasks.filter((task) => {
+        const recurNormalized = (task.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
+        return recurNormalized === "" || recurNormalized === "one-time";
+      });
+      const archiveCount = await storage.countCompletedTasks(userId);
+      if (archiveCount + archiveCandidates.length > 5000) {
+        return res.status(409).json({
+          error: "Completed archive does not have room for this batch",
+          code: "COMPLETED_ARCHIVE_FULL",
+          limit: 5000,
+          archived: archiveCount,
+          available: Math.max(0, 5000 - archiveCount),
+        });
+      }
+
       let totalGold = 0;
       let completedCount = 0;
       const completedTasks = [];
@@ -1405,7 +1493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const ql = await storage.getQuestline(task.questlineId, userId);
             if (ql && !ql.bonusAwarded) {
               const qlTasks = await storage.getQuestlineTasks(userId, task.questlineId);
-              const allCompleted = qlTasks.every(t => t.completed || t.recycled);
+              const allCompleted = qlTasks.every(t => t.completed || (t.recycled && t.recycledReason === "completed"));
               if (allCompleted && qlTasks.length > 0) {
                 const qlTotalGold = qlTasks.reduce((sum, t) => sum + (t.goldValue || 0), 0);
                 const bonusGold = qlTotalGold * 3;
@@ -1568,14 +1656,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const taskId of taskIds) {
         const task = await storage.getTask(taskId, userId);
         if (task && task.completed) {
-          // Mark as incomplete and restore from recycling
-          const updatedTask = await storage.updateTask(taskId, {
-            completed: false,
-            completedAt: null,
-            recycled: false,
-            recycledAt: null,
-            recycledReason: null
-          }, userId);
+          // The conditional write prevents concurrent undo requests from
+          // refunding the same completion reward more than once.
+          const updatedTask = await storage.uncompleteTask(taskId, userId);
           
           if (updatedTask) {
             totalGoldRefunded += task.goldValue;
@@ -1586,11 +1669,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Deduct gold from user
       if (totalGoldRefunded > 0) {
-        const currentProgress = await storage.getUserProgress(userId);
-        if (currentProgress) {
-          await storage.updateUserProgress(userId, {
-            goldTotal: Math.max(0, (currentProgress.goldTotal || 0) - totalGoldRefunded)
-          });
+        // Each restored task represents one previously-counted completion.
+        for (const task of restoredTasks) {
+          await storage.removeCompletionGold(userId, task.goldValue);
         }
       }
 
@@ -1881,6 +1962,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Delete from Google Calendar if the task has a linked event
       const task = await storage.getTask(id, userId);
+      if (task?.completed) {
+        return res.status(409).json({
+          error: "Completed quests are protected in the completed archive",
+          code: "COMPLETED_TASK_PROTECTED",
+        });
+      }
       if (task?.googleEventId) {
         const user = await storage.getUserById(userId);
         const hasGoogleAuth = user && (
@@ -1926,6 +2013,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Completed tasks are a durable, per-user archive. They remain regular task
+  // rows so questlineId/parentTaskId relationships stay available to renderers.
+  app.get("/api/completed-tasks", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const completedTasks = await storage.getCompletedTasks(userId);
+      res.json({
+        tasks: completedTasks,
+        count: completedTasks.length,
+        limit: 5000,
+      });
+    } catch (error) {
+      console.error("Get completed tasks error:", error);
+      res.status(500).json({ error: "Failed to get completed tasks" });
+    }
+  });
+
   app.post("/api/tasks/:id/restore", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
@@ -1948,6 +2052,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get the task first to check for Google Calendar event
       const task = await storage.getTask(id, userId);
+      if (task?.completed) {
+        return res.status(409).json({
+          error: "Completed quests cannot be permanently deleted",
+          code: "COMPLETED_TASK_PROTECTED",
+        });
+      }
       if (task?.googleEventId) {
         const user = await storage.getUserById(userId);
         const hasGoogleAuth = user && (
@@ -2031,7 +2141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const taskId of taskIds) {
           try {
             const task = await storage.getTask(taskId, userId);
-            if (task?.googleEventId) {
+            if (task?.googleEventId && !task.completed) {
               await googleCalendar.deleteEvent(user!, task.googleEventId, task.googleCalendarId || 'primary');
               console.log(`✅ Deleted Google Calendar event ${task.googleEventId} for task "${task.title}"`);
             }
@@ -2044,11 +2154,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use optimized batch delete instead of loop
       const deletedCount = await storage.permanentlyDeleteTasks(taskIds, userId);
+      const protectedCount = (await Promise.all(
+        taskIds.map((taskId: number) => storage.getTask(taskId, userId))
+      )).filter((task) => task?.completed).length;
 
       console.log(`🗑️ Permanently deleted ${deletedCount} tasks`);
 
       res.json({
-        deletedCount
+        deletedCount,
+        protectedCount
       });
     } catch (error) {
       console.error("Batch permanent delete error:", error);
@@ -4710,8 +4824,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const qlTasks = await storage.getQuestlineTasks(userId, qlId);
       if (qlTasks.length === 0) return res.json({ completed: false, bonusAwarded: false });
 
-      const allCompleted = qlTasks.every(t => t.completed || t.recycled);
-      if (!allCompleted) return res.json({ completed: false, bonusAwarded: false, progress: qlTasks.filter(t => t.completed || t.recycled).length, total: qlTasks.length });
+      const allCompleted = qlTasks.every(t => t.completed || (t.recycled && t.recycledReason === "completed"));
+      if (!allCompleted) return res.json({ completed: false, bonusAwarded: false, progress: qlTasks.filter(t => t.completed || (t.recycled && t.recycledReason === "completed")).length, total: qlTasks.length });
 
       // ── Cascading bonus: stages earn 2× sub-quest rollup, questline earns 2× total ──
       // Build parent→children map

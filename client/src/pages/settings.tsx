@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, DollarSign, LogOut, Download, Loader2 } from "lucide-react";
+import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, Archive, DollarSign, LogOut, Download, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { useToast } from "@/hooks/use-toast";
@@ -129,8 +129,15 @@ export default function SettingsPage() {
       color: "from-purple-500 to-purple-600",
     },
     {
+      title: "Completed Quests",
+      description: "Search your durable completed quest history",
+      icon: Archive,
+      path: "/completed",
+      color: "from-purple-500 to-indigo-600",
+    },
+    {
       title: "Recycling Bin",
-      description: "View and restore deleted or completed tasks",
+      description: "View, restore, or permanently remove deleted tasks",
       icon: Trash2,
       path: "/recycling-bin",
       color: "from-slate-500 to-slate-600",

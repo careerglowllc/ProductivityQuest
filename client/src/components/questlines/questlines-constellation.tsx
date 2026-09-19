@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowLeft, Check, Circle, Edit3, Plus, Target, Trash2 } from "lucide-react";
 import "./questlines-constellation.css";
 
@@ -8,9 +8,11 @@ export type QuestlineNode = {
   description?: string | null;
   completed?: boolean | null;
   recycled?: boolean | null;
+  recycledReason?: string | null;
   parentTaskId?: number | null;
   questlineOrder?: number | null;
   goldValue?: number | null;
+  kanbanStage?: string | null;
 };
 
 export type Questline = {
@@ -36,7 +38,16 @@ type Props = {
 type Point = { x: number; y: number };
 
 const tones = ["#73d7cb", "#d5a7f3", "#efb36e", "#e68aa9", "#83b5ef", "#c9d36c"];
-const done = (node: QuestlineNode) => Boolean(node.completed || node.recycled);
+const done = (node: QuestlineNode) => Boolean(
+  node.completed || (node.recycled && node.recycledReason === "completed"),
+);
+type NodeStatus = "finished" | "in-progress" | "not-started";
+const statusOf = (node: QuestlineNode): NodeStatus => {
+  if (done(node) || node.kanbanStage === "Done") return "finished";
+  if (node.kanbanStage === "In Progress" || node.kanbanStage === "Review") return "in-progress";
+  return "not-started";
+};
+const statusLabel = (status: NodeStatus) => status === "finished" ? "Finished" : status === "in-progress" ? "In progress" : "Not started";
 
 function descendants(tasks: QuestlineNode[], rootId: number | null) {
   const children = new Map<number | null, QuestlineNode[]>();
@@ -115,8 +126,13 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
 
 function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggleTask, isTaskPending, onEditTask }: Omit<Props, "questlines" | "onCreate"> & { questline: Questline; onBack: () => void }) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
   const tasks = useMemo(() => descendants(questline.tasks, null).result, [questline.tasks]);
-  const byId = useMemo(() => new Map(questline.tasks.map((task) => [task.id, task])), [questline.tasks]);
+  // descendants() already keeps the first occurrence of any duplicated ID.
+  // Build every downstream map from that normalized list as well.
+  const byId = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
   const selected = selectedId ? byId.get(selectedId) : null;
   const depth = (task: QuestlineNode) => {
     let level = 0; let parent = task.parentTaskId ?? null; const seen = new Set<number>();
@@ -124,24 +140,141 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
     return level;
   };
   const layout = useMemo(() => {
-    const groups = new Map<number, QuestlineNode[]>();
-    tasks.forEach((task) => {
-      const level = depth(task);
-      groups.set(level, [...(groups.get(level) || []), task]);
-    });
     const map = new Map<number, Point>();
-    const maxLevel = Math.max(0, ...Array.from(groups.keys()));
-    const maxSiblings = Math.max(1, ...Array.from(groups.values()).map((items) => items.length));
-    // A virtual canvas keeps dense branches legible. The scroll container exposes
-    // the full map instead of shrinking labels into an inaccessible cluster.
-    const canvasWidth = Math.max(100, maxSiblings * 15 + 24);
-    const canvasHeight = Math.max(100, (maxLevel + 1) * 22 + 28);
-    groups.forEach((items, level) => items.forEach((task, index) => map.set(task.id, {
-      x: ((index + 1) * 100) / (items.length + 1),
-      y: 12 + ((level + 1) * 76) / (maxLevel + 2),
-    })));
-    return { positions: map, width: canvasWidth, height: canvasHeight };
+    const parentOf = new Map<number, number | null>();
+    tasks.forEach((task) => {
+      const parent = task.parentTaskId;
+      parentOf.set(task.id, parent != null && parent !== task.id && byId.has(parent) ? parent : null);
+    });
+
+    // Break malformed cycles deterministically so every quest belongs to one visible tree.
+    tasks.forEach((task) => {
+      const seen = new Set<number>([task.id]);
+      let child = task.id;
+      let parent = parentOf.get(child) ?? null;
+      while (parent != null) {
+        if (seen.has(parent)) {
+          parentOf.set(child, null);
+          break;
+        }
+        seen.add(parent);
+        child = parent;
+        parent = parentOf.get(child) ?? null;
+      }
+    });
+
+    const children = new Map<number, QuestlineNode[]>();
+    tasks.forEach((task) => {
+      const parent = parentOf.get(task.id);
+      if (parent != null) children.set(parent, [...(children.get(parent) || []), task]);
+    });
+    children.forEach((items) => items.sort((a, b) => (a.questlineOrder ?? 0) - (b.questlineOrder ?? 0)));
+    const roots = tasks
+      .filter((task) => parentOf.get(task.id) == null)
+      .sort((a, b) => (a.questlineOrder ?? 0) - (b.questlineOrder ?? 0));
+
+    const leafWeight = new Map<number, number>();
+    const weigh = (task: QuestlineNode): number => {
+      const cached = leafWeight.get(task.id);
+      if (cached != null) return cached;
+      const descendants = children.get(task.id) || [];
+      const weight = descendants.length ? descendants.reduce((sum, child) => sum + weigh(child), 0) : 1;
+      leafWeight.set(task.id, weight);
+      return weight;
+    };
+    const findDepth = (task: QuestlineNode): number => {
+      const descendants = children.get(task.id) || [];
+      return descendants.length ? 1 + Math.max(...descendants.map(findDepth)) : 0;
+    };
+    const maxDepth = roots.length ? Math.max(...roots.map(findDepth)) : 0;
+    const totalLeaves = Math.max(1, roots.reduce((sum, root) => sum + weigh(root), 0));
+    const branchIndex = new Map<number, number>();
+    const ringSpacing = tasks.length > 18 ? 150 : 165;
+    const rootRadius = 145;
+    const requiredRadius = rootRadius + maxDepth * ringSpacing;
+    const circumferenceSize = Math.ceil((totalLeaves * 118) / Math.PI);
+    const canvasSize = Math.max(620, requiredRadius * 2 + 210, circumferenceSize);
+    const radiusAt = (level: number) => ((rootRadius + level * ringSpacing) / canvasSize) * 100;
+
+    const place = (task: QuestlineNode, level: number, startAngle: number, endAngle: number, branch: number) => {
+      const angle = (startAngle + endAngle) / 2;
+      const radius = radiusAt(level);
+      map.set(task.id, {
+        x: 50 + Math.cos(angle) * radius,
+        y: 50 + Math.sin(angle) * radius,
+      });
+      branchIndex.set(task.id, branch);
+      const descendants = children.get(task.id) || [];
+      if (!descendants.length) return;
+      const available = endAngle - startAngle;
+      let cursor = startAngle;
+      descendants.forEach((child) => {
+        const span = available * (weigh(child) / weigh(task));
+        place(child, level + 1, cursor, cursor + span, branch);
+        cursor += span;
+      });
+    };
+
+    let cursor = -Math.PI / 2;
+    roots.forEach((root, index) => {
+      const fullSpan = Math.PI * 2 * (weigh(root) / totalLeaves);
+      const center = cursor + fullSpan / 2;
+      const usedSpan = Math.min(fullSpan * 0.88, Math.PI * 0.82);
+      place(root, 0, center - usedSpan / 2, center + usedSpan / 2, index);
+      cursor += fullSpan;
+    });
+
+    return { positions: map, parentOf, branchIndex, canvasSize, dense: tasks.length > 18 || maxDepth > 4 };
   }, [tasks, byId]);
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    let frame = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width <= 0 || entry.contentRect.height <= 0) return;
+      frame = window.requestAnimationFrame(() => {
+        const canvas = scroll.querySelector<HTMLElement>(".ql-focus-canvas");
+        if (!canvas) return;
+        // Center the radial plane itself, not the padded scroll extent. The
+        // bottom safe-area/footer padding is intentionally asymmetric.
+        scroll.scrollLeft = Math.max(0, canvas.offsetLeft + canvas.offsetWidth / 2 - scroll.clientWidth / 2);
+        scroll.scrollTop = Math.max(0, canvas.offsetTop + canvas.offsetHeight / 2 - scroll.clientHeight / 2);
+        observer.disconnect();
+      });
+    });
+    observer.observe(scroll);
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [questline.id, layout.canvasSize]);
+  const startPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !scrollRef.current) return;
+    const scroll = scrollRef.current;
+    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop, moved: false };
+    scroll.setPointerCapture(event.pointerId);
+  };
+  const movePan = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const scroll = scrollRef.current;
+    if (!drag || !scroll || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    suppressClickRef.current = true;
+    scroll.classList.add("is-panning");
+    scroll.scrollLeft = drag.left - dx;
+    scroll.scrollTop = drag.top - dy;
+    event.preventDefault();
+  };
+  const endPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    scrollRef.current?.classList.remove("is-panning");
+    if (drag.moved) window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+  };
   const progress = questline.tasks.length ? Math.round((questline.tasks.filter(done).length / questline.tasks.length) * 100) : 0;
   return <section className="ql-stage ql-stage--focus" aria-label={`${questline.title} questline`}>
     <div className="ql-stage__grain" />
@@ -150,19 +283,20 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
       <div><span className="ql-eyebrow">Questline · {progress}% illuminated</span><h1>{questline.title}</h1>{questline.description && <p>{questline.description}</p>}</div>
       <div className="ql-header-actions"><button type="button" className="ql-icon-action" onClick={() => onEditQuestline(questline)} aria-label="Edit questline"><Edit3 size={16} /></button>{onDeleteQuestline && <button type="button" className="ql-icon-action ql-icon-action--danger" onClick={() => onDeleteQuestline(questline)} aria-label="Delete questline"><Trash2 size={16} /></button>}</div>
     </header>
-    <div className="ql-focus-map">
-      <div className="ql-focus-scroll" role="region" aria-label="Scrollable quest constellation">
-        <div className="ql-focus-canvas" style={{ width: `${layout.width}%`, minHeight: `${layout.height}%` }}>
+      <div className="ql-focus-map">
+       <div ref={scrollRef} className="ql-focus-scroll" role="region" aria-label="Pannable quest constellation" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={(event) => { if (suppressClickRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
+         <div className={`ql-focus-canvas ${layout.dense ? "is-dense" : ""}`} style={{ width: `max(100%, ${layout.canvasSize}px)`, aspectRatio: "1 / 1" }}>
           <div className="ql-focus-orbit ql-focus-orbit--one" /><div className="ql-focus-orbit ql-focus-orbit--two" />
           <div className="ql-focus-hub"><Target size={26} /><span>{questline.tasks.length}<small>quests</small></span></div>
-          <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const from = task.parentTaskId && layout.positions.has(task.parentTaskId) ? layout.positions.get(task.parentTaskId)! : { x: 50, y: 50 }; const to = layout.positions.get(task.id); return to ? <path key={task.id} className={done(task) ? "is-complete" : ""} d={`M${from.x} ${from.y} Q${(from.x + to.x) / 2 + 5} ${(from.y + to.y) / 2} ${to.x} ${to.y}`} /> : []; })}</svg>
-          {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; return <button key={task.id} type="button" className={`ql-task-node ${done(task) ? "is-complete" : ""} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tones[depth(task) % tones.length] } as CSSProperties} onClick={() => setSelectedId(task.id)} aria-label={`${task.title}, ${done(task) ? "complete" : "in progress"}, depth ${depth(task) + 1}`}><span>{done(task) ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
+          <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const parent = layout.parentOf.get(task.id); const from = parent != null && layout.positions.has(parent) ? layout.positions.get(parent)! : { x: 50, y: 50 }; const to = layout.positions.get(task.id); const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; return to ? <path key={task.id} className={done(task) ? "is-complete" : ""} style={{ "--branch-tone": tone } as CSSProperties} d={`M${from.x} ${from.y} C${from.x + (to.x - from.x) * .42} ${from.y},${from.x + (to.x - from.x) * .58} ${to.y},${to.x} ${to.y}`} /> : []; })}</svg>
+           {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; const status = statusOf(task); return <button key={task.id} type="button" className={`ql-task-node is-${status} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone } as CSSProperties} onClick={() => setSelectedId(task.id)} aria-label={`${task.title}, ${statusLabel(status)}, depth ${depth(task) + 1}`}><span>{status === "finished" ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
           {!tasks.length && <div className="ql-focus-empty"><p>No quests have found this north star yet.</p></div>}
         </div>
       </div>
-      <ol className="sr-only" aria-label="Quest hierarchy">{tasks.map((task) => <li key={task.id}>{task.title} — {task.parentTaskId && byId.has(task.parentTaskId) ? `child of ${byId.get(task.parentTaskId)?.title}` : "root quest"} — {done(task) ? "complete" : "in progress"}</li>)}</ol>
+       <div className="ql-status-legend" aria-label="Quest status legend"><span><i className="is-finished" />Finished</span><span><i className="is-in-progress" />In progress</span><span><i className="is-not-started" />Not started</span></div>
+       <ol className="sr-only" aria-label="Quest hierarchy">{tasks.map((task) => <li key={task.id}>{task.title} — {task.parentTaskId && byId.has(task.parentTaskId) ? `child of ${byId.get(task.parentTaskId)?.title}` : "root quest"} — {statusLabel(statusOf(task))}</li>)}</ol>
     </div>
-     {selected && <aside className="ql-inspector" aria-live="polite"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {done(selected) ? "Complete" : "In progress"}</span><h2>{selected.title}</h2>{selected.description && <p>{selected.description}</p>}<div className="ql-inspector__actions">{onToggleTask && !selected.recycled && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : done(selected) ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}<button type="button" className="ql-action" onClick={() => setSelectedId(null)}>Close detail</button></div></aside>}
+      {selected && <aside className="ql-inspector" aria-live="polite"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><h2>{selected.title}</h2>{selected.description && <p>{selected.description}</p>}<div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}<button type="button" className="ql-action" onClick={() => setSelectedId(null)}>Close detail</button></div></aside>}
     <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Click any star to inspect its path</span></footer>
   </section>;
 }

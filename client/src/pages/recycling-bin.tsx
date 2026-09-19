@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Trash2, RotateCcw, AlertTriangle, CheckCircle, ArrowLeft, CheckSquare, XSquare, Search, X } from "lucide-react";
+import { Trash2, RotateCcw, AlertTriangle, Archive, ArrowLeft, CheckCircle, CheckSquare, XSquare, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -277,8 +277,14 @@ export default function RecyclingBin() {
                 Recycling Bin
               </CardTitle>
               <p className="text-yellow-200/70 text-sm">
-                Tasks in the recycling bin can be restored or permanently deleted.
+                Deleted tasks can be restored or permanently deleted. Completed quests are protected in their own archive.
               </p>
+              <Link href="/completed">
+                <Button variant="outline" size="sm" className="mt-3 border-purple-500/40 bg-purple-950/40 text-purple-200">
+                  <Archive className="mr-2 h-4 w-4" />
+                  View completed archive
+                </Button>
+              </Link>
             </CardHeader>
           </Card>
         </div>
@@ -367,13 +373,10 @@ export default function RecyclingBin() {
         )}
 
         {/* Tabs */}
-        <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as any)} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800/80 border border-yellow-600/40">
+          <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as any)} className="w-full">
+           <TabsList className="grid w-full grid-cols-2 bg-slate-800/80 border border-yellow-600/40">
             <TabsTrigger value="all" className="data-[state=active]:bg-yellow-600/20 data-[state=active]:text-yellow-100">
               All ({recycledTasks.length})
-            </TabsTrigger>
-            <TabsTrigger value="completed" className="data-[state=active]:bg-green-600/20 data-[state=active]:text-yellow-100">
-              Completed ({recycledTasks.filter(t => t.recycledReason === "completed").length})
             </TabsTrigger>
             <TabsTrigger value="deleted" className="data-[state=active]:bg-red-600/20 data-[state=active]:text-yellow-100">
               Deleted ({recycledTasks.filter(t => t.recycledReason === "deleted").length})

@@ -117,18 +117,24 @@ export default function CampaignsPage() {
 
   const toggleConstellationQuest = useMutation({
     mutationFn: async ({ task, questlineId }: { task: QuestlineNode; questlineId: number }) => {
-      // Recycled quests are already complete and must not be toggled back into progress.
-      if (task.recycled) return null;
+      // Deleted/recycled quests cannot be toggled. Completed archive entries are
+      // recycled too, but the authoritative undo endpoint is designed to restore them.
+      if (task.recycled && !task.completed) return null;
       const completed = !task.completed;
-      await apiRequest("PATCH", `/api/tasks/${task.id}`, {
-        completed,
-        kanbanStage: completed ? "Done" : "Not Started",
-      });
+      if (completed) {
+        await apiRequest("PATCH", `/api/tasks/${task.id}`, {
+          completed: true,
+          kanbanStage: "Done",
+        });
+      } else {
+        await apiRequest("POST", "/api/tasks/undo-complete", { taskIds: [task.id] });
+      }
       // The questline endpoint owns cascading completion/bonus awards. Only checking
       // after a real completion preserves uncompletion semantics and avoids re-awards.
       if (completed) {
         const res = await apiRequest("POST", `/api/questlines/${questlineId}/check-completion`);
-        return res.json();
+        const checked = await res.json();
+        return checked;
       }
       return null;
     },
@@ -166,7 +172,7 @@ export default function CampaignsPage() {
            const owner = questlines.find((questline) => questline.tasks.some((candidate) => candidate.id === task.id));
            if (owner) toggleConstellationQuest.mutate({ task, questlineId: owner.id });
          }}
-         isTaskPending={(task) => toggleConstellationQuest.isPending && !task.recycled}
+         isTaskPending={(task) => toggleConstellationQuest.isPending && (!task.recycled || Boolean(task.completed))}
         onEditTask={(task) => {
           const owner = questlines.find((questline) => questline.tasks.some((candidate) => candidate.id === task.id));
           if (owner) setEditingQuestline(owner);

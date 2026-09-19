@@ -24,6 +24,7 @@ import {
   Zap,
   ClipboardList,
   GitBranch,
+  Archive,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -53,6 +54,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
     links: [
       { name: "Skills", path: "/skills", icon: Sparkles, color: "blue", description: "Skill constellation" },
       { name: "Shop", path: "/shop", icon: ShoppingCart, color: "green", description: "Spend your gold" },
+      { name: "Completed Quests", path: "/completed", icon: Archive, color: "purple", description: "Durable quest history" },
     ],
   },
   {
