@@ -26,6 +26,7 @@ import {
 import type { FinancialItem, NwSnapshot, FamilyContribution } from "@shared/schema";
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 import { rothIraTrueAfterPenalty, rothIraEffectiveMultiplier } from "@/lib/roth-ira-tax";
+import { brokerageAfterTax } from "@/lib/brokerage-tax";
 
 const CATEGORIES = [
   "General", "Business", "Entertainment", "Food", "Investment Property Housing", "Personal Housing", "Transportation",
@@ -1216,6 +1217,25 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: taxable brokerage shares corrected to match Vanguard's
+  // 2026-09-18 cost-basis report (stale defaults had VTSAX at the old Roth
+  // count and VOO undercounted; see client/src/lib/brokerage-tax.ts)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260919-brokerage";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-vtsax", "58.792");
+        localStorage.setItem("nw-voo", "241.3667");
+        localStorage.setItem("nw-vxus", "60.0572");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setVtsaxHoldings(58.792);
+        setVooHoldings(241.3667);
+        setVxusHoldings(60.0572);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // One-time migration: veluna.com domain value updated to $1,600 (Sep 9 2026)
   useEffect(() => {
     try {
@@ -1742,10 +1762,12 @@ export default function Finances() {
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
   // Note: homePendingCosts (shed, floors, roof, fume hood) are excluded from net worth —
   // they are factored in only in the Real Estate ROI tab as holding/improvement costs.
-  // BTC wallets and Vanguard brokerage: apply 15% LTCG haircut in all net worth totals
+  // BTC wallets: apply 15% LTCG haircut (flat approximation, unchanged)
   const _btcAfterTax = _totalBtcValue * 0.85;
-  // Settlement/money market (VMFXX) is cash — no LTCG haircut; add at face value.
-  const _vanguardAfterTax = _vanguardTotal * 0.85 + vanguardSettlement;
+  // Vanguard brokerage: real cost-basis capital gains math (see brokerage-tax.ts) —
+  // only the gain is taxed, not the whole position. Settlement/money market (VMFXX)
+  // is cash, added at face value with no haircut.
+  const _vanguardAfterTax = brokerageAfterTax(_vooValue, _vtsaxValue, _vxusValue, vanguardSettlement);
   // Domain: only taxable gains above purchase price; currently at a loss so $0 tax
   const _domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
   const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
@@ -5145,10 +5167,11 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              // BTC wallets and Vanguard brokerage use after-tax (85%) values in totals
+              // BTC wallets: apply 15% LTCG haircut (flat approximation, unchanged)
               const btcAfterTax = totalBtcValue * 0.85;
-              // Settlement/money market (VMFXX) is cash — no LTCG haircut; add at face value.
-              const vanguardAfterTax = vanguardTotal * 0.85 + vanguardSettlement;
+              // Vanguard brokerage: real cost-basis capital gains math (see brokerage-tax.ts) —
+              // only the gain is taxed, not the whole position. Settlement cash added at face value.
+              const vanguardAfterTax = brokerageAfterTax(vooValue, vtsaxValue, vsusxValue, vanguardSettlement);
               // Domain: only gains above purchase price are taxed at 15%; loss = no tax
               const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
               const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
@@ -5289,10 +5312,10 @@ export default function Finances() {
                             <p className="text-xs text-indigo-400 font-bold tracking-wide">🏦 Vanguard Brokerage</p>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : vanguardTotal > 0 ? fmt(vanguardTotal * 0.85 + vanguardSettlement) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : vanguardTotal > 0 ? fmt(vanguardAfterTax) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
                             {!isLoading && vanguardTotal > 0 && (
-                              <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">after real capital gains tax</p>
                             )}
                           </div>
                           <span className="text-[10px] text-indigo-400 border border-indigo-500/30 rounded px-1.5 py-0.5">VTSAX + VOO + VXUS + VMFXX</span>
@@ -5303,8 +5326,8 @@ export default function Finances() {
                             <span className="font-semibold text-indigo-300">{fmt(vanguardTotal)}</span>
                           </div>
                           <div className="flex justify-between text-slate-500">
-                            <span>Est. 15% LTCG tax</span>
-                            <span className="text-red-400">−{fmt(vanguardTotal * 0.15)}</span>
+                            <span>Est. capital gains tax</span>
+                            <span className="text-red-400">−{fmt(vanguardTotal - vanguardAfterTax + vanguardSettlement)}</span>
                           </div>
                           <div className="flex justify-between text-slate-400 pt-0.5">
                             <span>VTSAX · {vtsaxHoldings} sh.</span>
@@ -6211,15 +6234,15 @@ export default function Finances() {
                         <div className="py-2 border-b border-slate-700/40">
                           <div className="flex justify-between text-sm">
                             <span className="text-indigo-300">🏦 Vanguard Brokerage</span>
-                            <span className="text-white font-semibold">{fmt(vanguardTotal * 0.85 + vanguardSettlement)}</span>
+                            <span className="text-white font-semibold">{fmt(vanguardAfterTax)}</span>
                           </div>
                           <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
                             <span>Gross value</span>
                             <span>{fmt(vanguardTotal)}</span>
                           </div>
                           <div className="flex justify-between text-[10px] text-red-500/80 pl-3">
-                            <span>Est. 15% LTCG tax</span>
-                            <span>−{fmt(vanguardTotal * 0.15)}</span>
+                            <span>Est. capital gains tax</span>
+                            <span>−{fmt(vanguardTotal - vanguardAfterTax + vanguardSettlement)}</span>
                           </div>
                           <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 pl-3">
                             <span>VTSAX {vtsaxHoldings} × {fmt(vtsaxPrice)}</span>

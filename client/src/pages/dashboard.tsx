@@ -14,6 +14,7 @@ import React from "react";
 import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
 import { rothIraTrueAfterPenalty } from "@/lib/roth-ira-tax";
+import { brokerageAfterTax } from "@/lib/brokerage-tax";
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useTheme } from "@/contexts/theme-context";
@@ -389,9 +390,9 @@ function useFireGoal() {
   const btcHoldings = readNum("nw-btc", 1);
   const coinbaseBtcHoldings = readNum("nw-coinbase-btc", 0.42362502);
   const totalBtcValue = btcHoldings * btcPrice + coinbaseBtcHoldings * btcPrice;
-  const vtsaxValue = readNum("nw-vtsax", 146.857) * vtsaxPrice;
-  const vooValue = readNum("nw-voo", 240.676) * vooPrice;
-  const vxusValue = readNum("nw-vxus", 60.057) * vxusPrice;
+  const vtsaxValue = readNum("nw-vtsax", 58.792) * vtsaxPrice;
+  const vooValue = readNum("nw-voo", 241.3667) * vooPrice;
+  const vxusValue = readNum("nw-vxus", 60.0572) * vxusPrice;
   const vanguardTotal = vtsaxValue + vooValue + vxusValue;
   const vanguardSettlement = readNum("nw-vanguard-settlement", 0);
   const rothIraValue = (readNum("nw-roth-ibit", 697) * ibitPrice) + (readNum("nw-roth-vtsax", 145.188) * vtsaxPrice);
@@ -429,7 +430,7 @@ function useFireGoal() {
   const fordExplorerValue = readNum("nw-ford-explorer", 17000);
 
   const btcAfterTax = totalBtcValue * 0.85;
-  const vanguardAfterTax = vanguardTotal * 0.85 + vanguardSettlement;
+  const vanguardAfterTax = brokerageAfterTax(vooValue, vtsaxValue, vxusValue, vanguardSettlement);
 
   // FIRE calc (Thailand · Comfortable · 4% standard SWR — the Finances FIRE tab's own defaults)
   const fgRoth = rothIraTrueAfterPenalty(rothIraValue);

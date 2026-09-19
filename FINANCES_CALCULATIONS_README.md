@@ -106,8 +106,8 @@ _k401Value     = k401Shares × ssoPrice   ← ProShares Ultra S&P500 (SSO)
 | Asset | Tax logic | Multiplier |
 |-------|-----------|-----------|
 | BTC (hardware + Coinbase) | 15% LTCG on entire value | × 0.85 |
-| Vanguard brokerage (VTSAX + VOO) | 15% LTCG on entire value | × 0.85 |
-| Roth IRA | 10% early withdrawal penalty + income tax on gains; contributions already after-tax — blended ~25% effective haircut | × 0.75 |
+| Vanguard brokerage (VTSAX + VOO + VXUS) | Real cost-basis capital gains: only the gain (value − basis) is taxed, at 15% LTCG or 24% ordinary (short-term) depending on holding period — see `brokerage-tax.ts` | `brokerageAfterTax()` |
+| Roth IRA | Real principal/earnings breakdown — contributions and aged-out conversions are penalty-free, only earnings + recent conversions taxed/penalized — see `roth-ira-tax.ts` | `rothIraTrueAfterPenalty()` |
 | 401k (SSO) | 10% early withdrawal penalty + ~22% federal income tax = 32% haircut | × 0.68 |
 | HSA (non-medical before 65) | 20% penalty + ~22% income tax = 42% haircut | × 0.58 |
 | Real estate | See §6 | custom |
@@ -241,7 +241,7 @@ The **Net Worth tab** allocation pie breaks holdings into five slices:
 | Slice | Calculation |
 |-------|-------------|
 | Bitcoin | `_btcAfterTax` (all wallets, 15% LTCG applied) |
-| Vanguard Brokerage | `_vanguardAfterTax` (VTSAX + VOO, 15% LTCG) |
+| Vanguard Brokerage | `_vanguardAfterTax` (VTSAX + VOO + VXUS, real cost-basis capital gains — see `brokerage-tax.ts`) |
 | Roth IRA | `_rothIraAfterPenalty` (IBIT + VTSAX, real principal/earnings breakdown) |
 | 401k | `_k401AfterPenalty` (SSO, 32% haircut) |
 | Real Estate | `_homeAfterTaxNetCash` |
