@@ -37,6 +37,8 @@ type Props = {
   onToggleTask?: (task: QuestlineNode) => void;
   isTaskPending?: (task: QuestlineNode) => boolean;
   onEditTask?: (task: QuestlineNode) => void;
+  onDeleteTask?: (task: QuestlineNode) => void;
+  isTaskDeletePending?: (task: QuestlineNode) => boolean;
 };
 
 type Point = { x: number; y: number };
@@ -176,7 +178,7 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
   );
 }
 
-function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggleTask, isTaskPending, onEditTask }: Omit<Props, "questlines" | "onCreate"> & { questline: Questline; onBack: () => void }) {
+function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggleTask, isTaskPending, onEditTask, onDeleteTask, isTaskDeletePending }: Omit<Props, "questlines" | "onCreate"> & { questline: Questline; onBack: () => void }) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -425,7 +427,7 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
        <div className="ql-status-legend" aria-label="Quest status legend"><span><i className="is-finished" />Finished</span><span><i className="is-in-progress" />In progress</span><span><i className="is-not-started" />Not started</span></div>
        <ol className="sr-only" aria-label="Quest hierarchy">{tasks.map((task) => <li key={task.id}>{task.title} — {task.parentTaskId && byId.has(task.parentTaskId) ? `child of ${byId.get(task.parentTaskId)?.title}` : "root quest"} — {statusLabel(statusOf(task))}</li>)}</ol>
     </div>
-      {selected && (() => { const due = dueDetails(selected.dueDate); return <aside id="ql-quest-detail" className="ql-inspector" role="dialog" aria-modal="false" aria-labelledby="ql-quest-detail-title"><div className="ql-inspector__topline"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><button ref={dialogCloseRef} type="button" onClick={closeDetails} aria-label="Close quest details">×</button></div><h2 id="ql-quest-detail-title">{selected.title}</h2><div className="ql-inspector__facts"><div className={`is-${due.state}`}><CalendarDays size={16} /><span><small>Due</small><strong>{due.label}</strong></span></div><div><Clock3 size={16} /><span><small>Estimate</small><strong>{formatDuration(selected.duration)}</strong></span></div></div><div className="ql-inspector__description"><small>Description</small><p>{selected.description || "No description has been added yet."}</p></div><div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}</div></aside>; })()}
+      {selected && (() => { const due = dueDetails(selected.dueDate); return <aside id="ql-quest-detail" className="ql-inspector" role="dialog" aria-modal="false" aria-labelledby="ql-quest-detail-title"><div className="ql-inspector__topline"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><button ref={dialogCloseRef} type="button" onClick={closeDetails} aria-label="Close quest details">×</button></div><h2 id="ql-quest-detail-title">{selected.title}</h2><div className="ql-inspector__facts"><div className={`is-${due.state}`}><CalendarDays size={16} /><span><small>Due</small><strong>{due.label}</strong></span></div><div><Clock3 size={16} /><span><small>Estimate</small><strong>{formatDuration(selected.duration)}</strong></span></div></div><div className="ql-inspector__description"><small>Description</small><p>{selected.description || "No description has been added yet."}</p></div><div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}{done(selected) && onDeleteTask && <button type="button" className="ql-action ql-icon-action--danger" onClick={() => onDeleteTask(selected)} disabled={isTaskDeletePending?.(selected)}><Trash2 size={14} /> {isTaskDeletePending?.(selected) ? "Removing…" : "Permanently remove"}</button>}</div></aside>; })()}
     <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Drag to pan · Ctrl-scroll or use controls to zoom</span></footer>
   </section>;
 }

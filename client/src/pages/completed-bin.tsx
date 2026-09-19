@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useUndoableCompletedTaskDelete } from "@/hooks/use-undoable-completed-task-delete";
 
 type CompletedTask = {
   id: number;
@@ -32,6 +33,7 @@ const PAGE_SIZE = 50;
 export default function CompletedBin() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const { removeCompletedTask, isRemovingTask } = useUndoableCompletedTaskDelete();
   const { data, isLoading, error } = useQuery<CompletedArchiveResponse>({
     queryKey: ["/api/completed-tasks"],
     queryFn: async () => {
@@ -79,7 +81,7 @@ export default function CompletedBin() {
               Completed quest archive
             </CardTitle>
             <p className="text-sm text-slate-400">
-              Your completed quests are kept as durable history. Archived quests cannot be permanently deleted from the recycling bin.
+              Your completed quests are kept as durable history unless you permanently remove them here.
             </p>
           </CardHeader>
           <CardContent>
@@ -146,9 +148,20 @@ export default function CompletedBin() {
                         </div>
                       )}
                     </div>
-                    <div className="shrink-0 text-right text-xs text-slate-400">
+                    <div className="flex shrink-0 flex-col items-end gap-3 text-right text-xs text-slate-400">
+                      <div>
                       <p>{task.completedAt ? format(new Date(task.completedAt), "MMM d, yyyy · h:mm a") : "Completion date unavailable"}</p>
                       <p className="mt-1">{task.duration} min · {task.goldValue} gold</p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={isRemovingTask(task.id)}
+                        onClick={() => removeCompletedTask(task)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {isRemovingTask(task.id) ? "Removing…" : "Permanently remove"}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

@@ -15,6 +15,20 @@ import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  const purgeExpiredCompletedTasks = async () => {
+    try {
+      const purged = await storage.purgeExpiredCompletedTaskDeletions();
+      if (purged) {
+        console.log(`🗑️ Permanently deleted ${purged} completed quest${purged === 1 ? "" : "s"}`);
+      }
+    } catch (error) {
+      console.error("Completed quest deletion sweep failed:", error);
+    }
+  };
+  await purgeExpiredCompletedTasks();
+  const completedDeletionSweep = setInterval(purgeExpiredCompletedTasks, 1000);
+  completedDeletionSweep.unref();
+
   // Authentication routes
   app.post('/api/auth/register', registerLimiter, async (req, res) => {
 
@@ -926,15 +940,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updateData = insertTaskSchema.partial().parse(bodyData);
+      const existing = await storage.getTask(id, userId);
+      if (!existing) return res.status(404).json({ error: "Task not found" });
+      if (existing.recycledReason === "pending-permanent-delete") {
+        return res.status(409).json({
+          error: "Task is pending permanent deletion; use Undo to restore it",
+          code: "TASK_PENDING_PERMANENT_DELETE",
+        });
+      }
 
       // Keep the long-standing generic PATCH contract for existing clients, but
       // route completion through the same authoritative storage operation as the
       // dedicated endpoint. This is what makes reward grants and the archive cap
       // atomic with respect to duplicate completion requests.
       if (hasCompletionChange) {
-        const existing = await storage.getTask(id, userId);
-        if (!existing) return res.status(404).json({ error: "Task not found" });
-
         let task = existing;
         if (requestedCompleted && !existing.completed) {
           const completedTask = await storage.completeTask(id, userId);
@@ -2042,6 +2061,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Task restoration error:", error);
       res.status(500).json({ error: "Failed to restore task" });
+    }
+  });
+
+  app.post("/api/tasks/:id/schedule-completed-deletion", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const id = parseInt(req.params.id);
+      if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid task ID" });
+      const deleteAt = new Date(Date.now() + 30_000);
+      const task = await storage.scheduleCompletedTaskDeletion(id, userId, deleteAt);
+      if (!task) {
+        return res.status(404).json({ error: "Completed quest not found or already pending deletion" });
+      }
+      res.json({ taskId: id, deleteAt: deleteAt.toISOString() });
+    } catch (error) {
+      console.error("Schedule completed quest deletion error:", error);
+      res.status(500).json({ error: "Failed to schedule completed quest deletion" });
+    }
+  });
+
+  app.get("/api/tasks/pending-completed-deletions", requireAuth, async (req: any, res) => {
+    try {
+      const tasks = await storage.getPendingCompletedTaskDeletions(req.session.userId);
+      res.json(tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        deleteAt: task.recycledAt,
+      })));
+    } catch (error) {
+      console.error("Get pending completed quest deletions error:", error);
+      res.status(500).json({ error: "Failed to get pending completed quest deletions" });
+    }
+  });
+
+  app.post("/api/tasks/:id/undo-completed-deletion", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const id = parseInt(req.params.id);
+      if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid task ID" });
+      const task = await storage.undoCompletedTaskDeletion(id, userId);
+      if (!task) {
+        return res.status(409).json({ error: "The 30-second undo window has expired" });
+      }
+      res.json(task);
+    } catch (error) {
+      console.error("Undo completed quest deletion error:", error);
+      res.status(500).json({ error: "Failed to undo completed quest deletion" });
     }
   });
 

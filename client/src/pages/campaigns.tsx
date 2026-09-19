@@ -16,6 +16,7 @@ import { AtlasTaskTree } from "@/components/atlas-task-tree";
 import { AllProjectsTree } from "@/components/all-projects-tree";
 import { QuestlinesConstellation, type QuestlineNode } from "@/components/questlines";
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
+import { useUndoableCompletedTaskDelete } from "@/hooks/use-undoable-completed-task-delete";
 
 interface QuestlineTask {
   id: number;
@@ -71,6 +72,7 @@ export default function CampaignsPage() {
   const { isDark } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { removeCompletedTask, isRemovingTask } = useUndoableCompletedTaskDelete();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -200,6 +202,8 @@ export default function CampaignsPage() {
           const owner = questlines.find((questline) => questline.tasks.some((candidate) => candidate.id === task.id));
           if (owner) setEditingQuestline(owner);
         }}
+        onDeleteTask={(task) => removeCompletedTask(task)}
+        isTaskDeletePending={(task) => isRemovingTask(task.id)}
       />
 
       {/* Create Questline Modal */}

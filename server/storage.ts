@@ -56,6 +56,10 @@ export interface IStorage {
   restoreTask(id: number, userId: string): Promise<Task | undefined>;
   permanentlyDeleteTask(id: number, userId: string): Promise<boolean>;
   permanentlyDeleteTasks(taskIds: number[], userId: string): Promise<number>;
+  scheduleCompletedTaskDeletion(id: number, userId: string, deleteAt: Date): Promise<Task | undefined>;
+  undoCompletedTaskDeletion(id: number, userId: string): Promise<Task | undefined>;
+  getPendingCompletedTaskDeletions(userId: string): Promise<Task[]>;
+  purgeExpiredCompletedTaskDeletions(): Promise<number>;
   
   // Shop operations
   getShopItems(): Promise<ShopItem[]>;
@@ -429,6 +433,7 @@ export class DatabaseStorage implements IStorage {
         eq(tasks.id, id),
         eq(tasks.userId, userId),
         eq(tasks.completed, true),
+        eq(tasks.recycledReason, "completed"),
       ))
       .returning();
     return uncompletedTask;
@@ -510,7 +515,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tasks)
       .where(and(
         eq(tasks.userId, userId),
-        eq(tasks.completed, true)
+        eq(tasks.completed, true),
+        eq(tasks.recycledReason, "completed"),
       ))
       .orderBy(desc(tasks.completedAt));
   }
@@ -567,6 +573,119 @@ export class DatabaseStorage implements IStorage {
       ));
     
     return result.rowCount ?? 0;
+  }
+
+  async scheduleCompletedTaskDeletion(id: number, userId: string, deleteAt: Date): Promise<Task | undefined> {
+    const [task] = await db.update(tasks)
+      .set({
+        recycledReason: "pending-permanent-delete",
+        recycledAt: deleteAt,
+      })
+      .where(and(
+        eq(tasks.id, id),
+        eq(tasks.userId, userId),
+        eq(tasks.completed, true),
+        eq(tasks.recycled, true),
+        eq(tasks.recycledReason, "completed"),
+      ))
+      .returning();
+    return task;
+  }
+
+  async undoCompletedTaskDeletion(id: number, userId: string): Promise<Task | undefined> {
+    const [task] = await db.update(tasks)
+      .set({
+        recycledReason: "completed",
+        recycledAt: new Date(),
+      })
+      .where(and(
+        eq(tasks.id, id),
+        eq(tasks.userId, userId),
+        eq(tasks.completed, true),
+        eq(tasks.recycled, true),
+        eq(tasks.recycledReason, "pending-permanent-delete"),
+        gt(tasks.recycledAt, new Date()),
+      ))
+      .returning();
+    return task;
+  }
+
+  async getPendingCompletedTaskDeletions(userId: string): Promise<Task[]> {
+    return db.select().from(tasks)
+      .where(and(
+        eq(tasks.userId, userId),
+        eq(tasks.completed, true),
+        eq(tasks.recycled, true),
+        eq(tasks.recycledReason, "pending-permanent-delete"),
+        gt(tasks.recycledAt, new Date()),
+      ))
+      .orderBy(tasks.recycledAt);
+  }
+
+  async purgeExpiredCompletedTaskDeletions(): Promise<number> {
+    // Reparent direct children before deleting their completed parent. Keeping
+    // this in one statement makes hierarchy repair and deletion atomic.
+    const result = await db.execute(sql`
+      WITH RECURSIVE expired AS MATERIALIZED (
+        SELECT id, parent_task_id
+        FROM tasks
+        WHERE completed = true
+          AND recycled = true
+          AND recycled_reason = 'pending-permanent-delete'
+          AND recycled_at <= now()
+        FOR UPDATE
+      ),
+      resolved_children AS (
+        SELECT
+          child.id AS child_id,
+          expired.parent_task_id AS candidate_parent_id,
+          1 AS removed_depth,
+          ARRAY[expired.id]::integer[] AS removed_path
+        FROM tasks child
+        JOIN expired ON child.parent_task_id = expired.id
+        WHERE NOT EXISTS (SELECT 1 FROM expired self WHERE self.id = child.id)
+
+        UNION ALL
+
+        SELECT
+          resolved.child_id,
+          CASE
+            WHEN ancestor.parent_task_id = ANY(resolved.removed_path || ancestor.id)
+              THEN NULL
+            ELSE ancestor.parent_task_id
+          END,
+          resolved.removed_depth + 1,
+          resolved.removed_path || ancestor.id
+        FROM resolved_children resolved
+        JOIN expired ancestor ON ancestor.id = resolved.candidate_parent_id
+      ),
+      nearest_surviving_parent AS (
+        SELECT child_id, candidate_parent_id, removed_depth
+        FROM resolved_children resolved
+        WHERE candidate_parent_id IS NULL
+           OR NOT EXISTS (
+             SELECT 1 FROM expired ancestor
+             WHERE ancestor.id = resolved.candidate_parent_id
+           )
+      ),
+      reparented AS (
+        UPDATE tasks child
+        SET parent_task_id = nearest.candidate_parent_id,
+            indent_level = greatest(0, coalesce(child.indent_level, 0) - nearest.removed_depth)
+        FROM nearest_surviving_parent nearest
+        WHERE child.id = nearest.child_id
+        RETURNING child.id
+      )
+      , deleted AS (
+        DELETE FROM tasks doomed
+        USING expired
+        WHERE doomed.id = expired.id
+        RETURNING doomed.id
+      )
+      SELECT count(*)::integer AS deleted_count
+      FROM deleted
+    `);
+    return Number((result.rows[0] as { deleted_count?: number } | undefined)?.deleted_count ?? 0);
   }
 
   // Shop operations
@@ -1532,7 +1651,11 @@ export class DatabaseStorage implements IStorage {
 
   async getQuestlineTasks(userId: string, questlineId: number): Promise<Task[]> {
     return db.select().from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.questlineId, questlineId)))
+      .where(and(
+        eq(tasks.userId, userId),
+        eq(tasks.questlineId, questlineId),
+        or(isNull(tasks.recycledReason), sql`${tasks.recycledReason} <> 'pending-permanent-delete'`),
+      ))
       .orderBy(tasks.questlineOrder);
   }
 
