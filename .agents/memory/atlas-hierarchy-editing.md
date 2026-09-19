@@ -27,6 +27,12 @@ Focused questline constellations use a compact radial mind-map: the questline is
 
 **How to apply:** Keep ordinary broad maps viewport-sized. Expand the scrollable plane only when measured depth or leaf density requires readable node spacing, and initialize oversized maps centered. Center the actual canvas after its dimensions become measurable, not the padded scroll extent. Preserve touch and mouse drag panning.
 
+Root quests use equal angular sectors around the central node; subtree size may shape descendants inside a sector but must not shift root spokes off balance. Focused maps support 50–200% zoom and recentering.
+
+**Why:** Leaf-weighting the first ring made valid but visually lopsided constellations. Users need predictable symmetry plus zoom and pan to inspect dense maps.
+
+**How to apply:** Keep first-ring angles independent of descendant count. Maintain a reachable viewport-sized scroll plane around the scaled square canvas so zoomed-out maps stay centered and zoomed-in edges remain pannable.
+
 Completed quest history must remain separate from explicitly deleted quests and retain hierarchy relationships.
 
 **Why:** Completed nodes still need to appear in questline visualizations; treating completion as ordinary trash makes future cleanup destroy progression history.

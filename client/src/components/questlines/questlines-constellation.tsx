@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowLeft, Check, Circle, Edit3, Plus, Target, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Circle, Edit3, Focus as FocusIcon, Plus, Target, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import "./questlines-constellation.css";
 
 export type QuestlineNode = {
@@ -126,9 +126,11 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
 
 function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggleTask, isTaskPending, onEditTask }: Omit<Props, "questlines" | "onCreate"> & { questline: Questline; onBack: () => void }) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [zoom, setZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
   const suppressClickRef = useRef(false);
+  const zoomAnchorRef = useRef<{ x: number; y: number } | null>(null);
   const tasks = useMemo(() => descendants(questline.tasks, null).result, [questline.tasks]);
   // descendants() already keeps the first occurrence of any duplicated ID.
   // Build every downstream map from that normalized list as well.
@@ -215,13 +217,14 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
       });
     };
 
-    let cursor = -Math.PI / 2;
+    const rootSpan = (Math.PI * 2) / Math.max(roots.length, 1);
     roots.forEach((root, index) => {
-      const fullSpan = Math.PI * 2 * (weigh(root) / totalLeaves);
-      const center = cursor + fullSpan / 2;
-      const usedSpan = Math.min(fullSpan * 0.88, Math.PI * 0.82);
+      // Root quests always occupy evenly spaced spokes. A large subtree gets
+      // more room inside its own spoke, but never pushes neighboring roots
+      // around the center ring.
+      const center = -Math.PI / 2 + index * rootSpan;
+      const usedSpan = Math.min(rootSpan * 0.82, Math.PI * 0.82);
       place(root, 0, center - usedSpan / 2, center + usedSpan / 2, index);
-      cursor += fullSpan;
     });
 
     return { positions: map, parentOf, branchIndex, canvasSize, dense: tasks.length > 18 || maxDepth > 4 };
@@ -233,12 +236,12 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
     const observer = new ResizeObserver(([entry]) => {
       if (!entry || entry.contentRect.width <= 0 || entry.contentRect.height <= 0) return;
       frame = window.requestAnimationFrame(() => {
-        const canvas = scroll.querySelector<HTMLElement>(".ql-focus-canvas");
-        if (!canvas) return;
-        // Center the radial plane itself, not the padded scroll extent. The
-        // bottom safe-area/footer padding is intentionally asymmetric.
-        scroll.scrollLeft = Math.max(0, canvas.offsetLeft + canvas.offsetWidth / 2 - scroll.clientWidth / 2);
-        scroll.scrollTop = Math.max(0, canvas.offsetTop + canvas.offsetHeight / 2 - scroll.clientHeight / 2);
+        const space = scroll.querySelector<HTMLElement>(".ql-focus-space");
+        if (!space) return;
+        // The transformed canvas is centered inside this reachable scroll plane.
+        // Center against the plane so CSS translation is never double-counted.
+        scroll.scrollLeft = Math.max(0, space.offsetLeft + space.offsetWidth / 2 - scroll.clientWidth / 2);
+        scroll.scrollTop = Math.max(0, space.offsetTop + space.offsetHeight / 2 - scroll.clientHeight / 2);
         observer.disconnect();
       });
     });
@@ -248,6 +251,37 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
       window.cancelAnimationFrame(frame);
     };
   }, [questline.id, layout.canvasSize]);
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    const anchor = zoomAnchorRef.current;
+    if (!scroll || !anchor) return;
+    const frame = window.requestAnimationFrame(() => {
+      scroll.scrollLeft = Math.max(0, anchor.x * scroll.scrollWidth - scroll.clientWidth / 2);
+      scroll.scrollTop = Math.max(0, anchor.y * scroll.scrollHeight - scroll.clientHeight / 2);
+      zoomAnchorRef.current = null;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [zoom]);
+  const changeZoom = (next: number) => {
+    const scroll = scrollRef.current;
+    if (scroll) {
+      zoomAnchorRef.current = {
+        x: (scroll.scrollLeft + scroll.clientWidth / 2) / Math.max(scroll.scrollWidth, 1),
+        y: (scroll.scrollTop + scroll.clientHeight / 2) / Math.max(scroll.scrollHeight, 1),
+      };
+    }
+    setZoom(Math.min(2, Math.max(0.5, Math.round(next * 100) / 100)));
+  };
+  const centerMap = () => {
+    const scroll = scrollRef.current;
+    const space = scroll?.querySelector<HTMLElement>(".ql-focus-space");
+    if (!scroll || !space) return;
+    scroll.scrollTo({
+      left: Math.max(0, space.offsetLeft + space.offsetWidth / 2 - scroll.clientWidth / 2),
+      top: Math.max(0, space.offsetTop + space.offsetHeight / 2 - scroll.clientHeight / 2),
+      behavior: "smooth",
+    });
+  };
   const startPan = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || !scrollRef.current) return;
     const scroll = scrollRef.current;
@@ -284,20 +318,28 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
       <div className="ql-header-actions"><button type="button" className="ql-icon-action" onClick={() => onEditQuestline(questline)} aria-label="Edit questline"><Edit3 size={16} /></button>{onDeleteQuestline && <button type="button" className="ql-icon-action ql-icon-action--danger" onClick={() => onDeleteQuestline(questline)} aria-label="Delete questline"><Trash2 size={16} /></button>}</div>
     </header>
       <div className="ql-focus-map">
-       <div ref={scrollRef} className="ql-focus-scroll" role="region" aria-label="Pannable quest constellation" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onClickCapture={(event) => { if (suppressClickRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
-         <div className={`ql-focus-canvas ${layout.dense ? "is-dense" : ""}`} style={{ width: `max(100%, ${layout.canvasSize}px)`, aspectRatio: "1 / 1" }}>
+       <div ref={scrollRef} className="ql-focus-scroll" role="region" aria-label="Pannable and zoomable quest constellation" onPointerDown={startPan} onPointerMove={movePan} onPointerUp={endPan} onPointerCancel={endPan} onWheel={(event) => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); changeZoom(zoom + (event.deltaY < 0 ? 0.1 : -0.1)); }} onClickCapture={(event) => { if (suppressClickRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
+         <div className="ql-focus-space" style={{ minWidth: `max(100%, ${layout.canvasSize * zoom}px)`, minHeight: `max(100%, ${layout.canvasSize * zoom}px)` }}>
+          <div className={`ql-focus-canvas ${layout.dense ? "is-dense" : ""}`} style={{ width: `${layout.canvasSize * zoom}px`, height: `${layout.canvasSize * zoom}px` }}>
           <div className="ql-focus-orbit ql-focus-orbit--one" /><div className="ql-focus-orbit ql-focus-orbit--two" />
           <div className="ql-focus-hub"><Target size={26} /><span>{questline.tasks.length}<small>quests</small></span></div>
           <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{tasks.flatMap((task) => { const parent = layout.parentOf.get(task.id); const from = parent != null && layout.positions.has(parent) ? layout.positions.get(parent)! : { x: 50, y: 50 }; const to = layout.positions.get(task.id); const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; return to ? <path key={task.id} className={done(task) ? "is-complete" : ""} style={{ "--branch-tone": tone } as CSSProperties} d={`M${from.x} ${from.y} C${from.x + (to.x - from.x) * .42} ${from.y},${from.x + (to.x - from.x) * .58} ${to.y},${to.x} ${to.y}`} /> : []; })}</svg>
            {tasks.map((task) => { const point = layout.positions.get(task.id); if (!point) return null; const tone = tones[(layout.branchIndex.get(task.id) ?? 0) % tones.length]; const status = statusOf(task); return <button key={task.id} type="button" className={`ql-task-node is-${status} ${selectedId === task.id ? "is-selected" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone } as CSSProperties} onClick={() => setSelectedId(task.id)} aria-label={`${task.title}, ${statusLabel(status)}, depth ${depth(task) + 1}`}><span>{status === "finished" ? <Check size={13} /> : <Circle size={9} />}</span><b>{task.title}</b><small>{depth(task) ? "Subquest" : "Quest"}</small></button>; })}
           {!tasks.length && <div className="ql-focus-empty"><p>No quests have found this north star yet.</p></div>}
+          </div>
         </div>
       </div>
+        <div className={`ql-zoom-controls ${selected ? "is-inspecting" : ""}`} aria-label="Map zoom controls">
+          <button type="button" onClick={() => changeZoom(zoom - 0.15)} disabled={zoom <= 0.5} aria-label="Zoom out"><ZoomOut size={16} /></button>
+          <output aria-live="polite" aria-label={`Map zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
+          <button type="button" onClick={() => changeZoom(zoom + 0.15)} disabled={zoom >= 2} aria-label="Zoom in"><ZoomIn size={16} /></button>
+          <button type="button" onClick={centerMap} aria-label="Center map"><FocusIcon size={16} /></button>
+        </div>
        <div className="ql-status-legend" aria-label="Quest status legend"><span><i className="is-finished" />Finished</span><span><i className="is-in-progress" />In progress</span><span><i className="is-not-started" />Not started</span></div>
        <ol className="sr-only" aria-label="Quest hierarchy">{tasks.map((task) => <li key={task.id}>{task.title} — {task.parentTaskId && byId.has(task.parentTaskId) ? `child of ${byId.get(task.parentTaskId)?.title}` : "root quest"} — {statusLabel(statusOf(task))}</li>)}</ol>
     </div>
       {selected && <aside className="ql-inspector" aria-live="polite"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><h2>{selected.title}</h2>{selected.description && <p>{selected.description}</p>}<div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}<button type="button" className="ql-action" onClick={() => setSelectedId(null)}>Close detail</button></div></aside>}
-    <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Click any star to inspect its path</span></footer>
+    <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Drag to pan · Ctrl-scroll or use controls to zoom</span></footer>
   </section>;
 }
 

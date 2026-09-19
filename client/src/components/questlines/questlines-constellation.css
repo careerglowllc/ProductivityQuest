@@ -106,10 +106,6 @@ html.light .ql-stage{background:radial-gradient(ellipse at 50% 46%,#f7f1e9 0,#e9
   overflow: auto;
 }
 .ql-focus-canvas {
-  width: 100%;
-  min-width: 100%;
-  height: 100%;
-  min-height: 100%;
   margin: 0;
 }
 .ql-focus-canvas > .ql-focus-orbit--one {
@@ -147,8 +143,8 @@ html.light .ql-stage{background:radial-gradient(ellipse at 50% 46%,#f7f1e9 0,#e9
     overflow: auto;
   }
   .ql-focus-canvas {
-    min-width: 100%;
-    min-height: 100%;
+    min-width: 0;
+    min-height: 0;
   }
   .ql-focus-canvas > .ql-focus-orbit--one {
     width: 108vw;
@@ -176,9 +172,16 @@ html.light .ql-stage{background:radial-gradient(ellipse at 50% 46%,#f7f1e9 0,#e9
   -webkit-user-select: none;
 }
 .ql-focus-scroll.is-panning { cursor: grabbing; }
+.ql-focus-space {
+  position: relative;
+}
 .ql-focus-canvas {
-  height: auto;
-  min-height: 100%;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  min-width: 0;
+  min-height: 0;
+  transform: translate(-50%, -50%);
   flex: none;
 }
 
@@ -231,6 +234,57 @@ html.light .ql-status-legend {
   color: #36322d;
 }
 
+.ql-zoom-controls {
+  position: absolute;
+  z-index: 6;
+  right: clamp(18px, 4vw, 58px);
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid #ffffff24;
+  border-radius: 999px;
+  background: #303958e8;
+  box-shadow: 0 10px 28px #20274555;
+  backdrop-filter: blur(12px);
+}
+.ql-zoom-controls button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #eef0fa;
+  transition: background .18s, transform .18s, opacity .18s;
+}
+.ql-zoom-controls button:hover,
+.ql-zoom-controls button:focus-visible {
+  background: #ffffff1b;
+  transform: translateY(-1px);
+}
+.ql-zoom-controls button:disabled {
+  opacity: .3;
+  cursor: not-allowed;
+  transform: none;
+}
+.ql-zoom-controls output {
+  min-width: 42px;
+  color: #d9dceb;
+  text-align: center;
+  font: 9px ui-monospace, monospace;
+}
+html.light .ql-zoom-controls {
+  border-color: #45413a33;
+  background: #f7f2e9ed;
+}
+html.light .ql-zoom-controls button { color: #36322d; }
+html.light .ql-zoom-controls button:hover,
+html.light .ql-zoom-controls button:focus-visible { background: #45413a12; }
+html.light .ql-zoom-controls output { color: #514c46; }
+
 @media (max-width: 767px) {
   .ql-status-legend {
     left: 50%;
@@ -239,5 +293,16 @@ html.light .ql-status-legend {
     gap: 9px;
     white-space: nowrap;
     font-size: 7px;
+  }
+  .ql-zoom-controls {
+    right: 12px;
+    bottom: 46px;
+  }
+  .ql-zoom-controls button {
+    width: 36px;
+    height: 36px;
+  }
+  .ql-zoom-controls.is-inspecting {
+    display: none;
   }
 }
