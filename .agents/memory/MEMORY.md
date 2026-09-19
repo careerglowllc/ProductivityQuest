@@ -2,3 +2,4 @@
 - [Theme layout parity](theme-layout-parity.md) — light and dark modes must share identical geometry, clipping, safe areas, and responsive behavior.
 - [Atlas hierarchy editing](atlas-hierarchy-editing.md) — Questline Atlas parent-child relationships come from in-tree branch controls, not manual reparenting.
 - [Logout data isolation](logout-data-isolation.md) — logout must save pending synced edits and clear user-scoped browser caches before another account can hydrate.
+- [Atomic questline rewards](atomic-questline-rewards.md) — Neon HTTP lacks callback transactions; questline reward claims use one SQL statement plus a structure-revision guard.
