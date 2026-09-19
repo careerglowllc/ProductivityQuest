@@ -117,6 +117,7 @@ export const questlines = pgTable("questlines", {
   completed: boolean("completed").default(false),
   completedAt: timestamptz("completed_at"),
   bonusAwarded: boolean("bonus_awarded").default(false), // Whether the 3× completion bonus was given
+  structureRevision: integer("structure_revision").default(0).notNull(),
   createdAt: timestamptz("created_at").defaultNow(),
   updatedAt: timestamptz("updated_at").defaultNow(),
 });

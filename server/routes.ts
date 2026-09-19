@@ -4696,6 +4696,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await createStageAndChildren(stage, rootParentId, rootDepth);
         }
       }
+      if (createdTasks.length > 0) {
+        await storage.reopenQuestlineForStructureChange(userId, qlId);
+      }
 
       res.json({ questlineId: qlId, addedTasks: createdTasks });
     } catch (error: any) {
@@ -4791,6 +4794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const [newTask] = await db.insert(tasksTable).values(taskData).returning();
+      await storage.reopenQuestlineForStructureChange(userId, qlId);
       res.json(newTask);
     } catch (error: any) {
       console.error("Error adding subtask:", error);
@@ -4819,13 +4823,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const ql = await storage.getQuestline(qlId, userId);
       if (!ql) return res.status(404).json({ error: "Questline not found" });
-      if (ql.bonusAwarded) return res.json({ completed: true, bonusAwarded: true, bonusGold: 0, bonusXp: 0 });
 
       const qlTasks = await storage.getQuestlineTasks(userId, qlId);
-      if (qlTasks.length === 0) return res.json({ completed: false, bonusAwarded: false });
+      if (qlTasks.length === 0) {
+        if (ql.completed) {
+          await storage.updateQuestline(userId, qlId, { completed: false, completedAt: null });
+        }
+        return res.json({ completed: false, bonusAwarded: Boolean(ql.bonusAwarded) });
+      }
 
       const allCompleted = qlTasks.every(t => t.completed || (t.recycled && t.recycledReason === "completed"));
-      if (!allCompleted) return res.json({ completed: false, bonusAwarded: false, progress: qlTasks.filter(t => t.completed || (t.recycled && t.recycledReason === "completed")).length, total: qlTasks.length });
+      if (!allCompleted) {
+        // Always write the reconciled state. This waits behind a concurrent
+        // completion claim and ensures a later restore wins.
+        await storage.updateQuestline(userId, qlId, { completed: false, completedAt: null });
+        return res.json({
+          completed: false,
+          bonusAwarded: Boolean(ql.bonusAwarded),
+          progress: qlTasks.filter(t => t.completed || (t.recycled && t.recycledReason === "completed")).length,
+          total: qlTasks.length,
+        });
+      }
+      if (ql.bonusAwarded) {
+        if (!ql.completed) {
+          await storage.updateQuestline(userId, qlId, { completed: true, completedAt: new Date() });
+        }
+        return res.json({ completed: true, bonusAwarded: true, bonusGold: 0, bonusXp: 0 });
+      }
 
       // ── Cascading bonus: stages earn 2× sub-quest rollup, questline earns 2× total ──
       // Build parent→children map
@@ -4863,12 +4887,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const bonusGold = stageBonusGold + questlineBonusGold;
 
-      // Award bonus gold
-      await storage.addGold(userId, bonusGold);
-
       // Award bonus XP with same cascading multiplier
       const { calculateXPPerSkill } = await import("./xpCalculation");
       let totalBonusXp = 0;
+      const skillXpAwards: Record<string, number> = {};
 
       // Recursive: compute XP multiplier for a task based on hierarchy depth
       // Leaf tasks get base XP, stages get 2× child XP bonus, questline gets 2× total bonus
@@ -4889,7 +4911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const bonusXp = xpPerSkill * 2;
               totalBonusXp += bonusXp * child.skillTags.length;
               for (const skillName of child.skillTags) {
-                await storage.addSkillXp(userId, skillName, bonusXp);
+                skillXpAwards[skillName] = (skillXpAwards[skillName] || 0) + bonusXp;
               }
             }
           }
@@ -4903,17 +4925,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const bonusXp = xpPerSkill * 2;
           totalBonusXp += bonusXp * task.skillTags.length;
           for (const skillName of task.skillTags) {
-            await storage.addSkillXp(userId, skillName, bonusXp);
+            skillXpAwards[skillName] = (skillXpAwards[skillName] || 0) + bonusXp;
           }
         }
       }
 
-      // Mark questline as completed with bonus awarded
-      await storage.updateQuestline(userId, qlId, {
-        completed: true,
-        completedAt: new Date(),
-        bonusAwarded: true,
-      });
+      const awarded = await storage.awardQuestlineCompletion(
+        userId,
+        qlId,
+        ql.structureRevision,
+        bonusGold,
+        skillXpAwards,
+      );
+      if (!awarded) {
+        // Another request won the conditional claim while this one calculated.
+        return res.json({ completed: true, bonusAwarded: true, bonusGold: 0, bonusXp: 0 });
+      }
 
       res.json({ completed: true, bonusAwarded: true, bonusGold, bonusXp: totalBonusXp });
     } catch (error: any) {

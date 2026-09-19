@@ -98,6 +98,14 @@ export interface IStorage {
   getQuestline(id: number, userId: string): Promise<Questline | undefined>;
   createQuestline(questline: InsertQuestline): Promise<Questline>;
   updateQuestline(userId: string, id: number, updates: Partial<Questline>): Promise<Questline | undefined>;
+  awardQuestlineCompletion(
+    userId: string,
+    id: number,
+    expectedStructureRevision: number,
+    bonusGold: number,
+    skillXpAwards: Record<string, number>,
+  ): Promise<boolean>;
+  reopenQuestlineForStructureChange(userId: string, id: number): Promise<void>;
   deleteQuestline(userId: string, id: number): Promise<boolean>;
   getQuestlineTasks(userId: string, questlineId: number): Promise<Task[]>;
 
@@ -1405,6 +1413,111 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(questlines.id, id), eq(questlines.userId, userId)))
       .returning();
     return updated;
+  }
+
+  async awardQuestlineCompletion(
+    userId: string,
+    id: number,
+    expectedStructureRevision: number,
+    bonusGold: number,
+    skillXpAwards: Record<string, number>,
+  ): Promise<boolean> {
+    // neon-http cannot run callback transactions. A single data-modifying CTE is
+    // still one PostgreSQL statement, so the claim, rewards, level-ups, and
+    // questline state either all commit or all roll back together.
+    const result = await db.execute(sql`
+      WITH RECURSIVE locked_tasks AS MATERIALIZED (
+        SELECT completed, recycled, recycled_reason
+        FROM tasks
+        WHERE user_id = ${userId}
+          AND questline_id = ${id}
+        FOR UPDATE
+      ),
+      eligibility AS (
+        SELECT count(*) > 0
+          AND bool_and(completed OR (recycled AND recycled_reason = 'completed')) AS eligible
+        FROM locked_tasks
+      ),
+      claimed AS (
+        UPDATE questlines
+        SET completed = true,
+            completed_at = now(),
+            bonus_awarded = true,
+            updated_at = now()
+        WHERE id = ${id}
+          AND user_id = ${userId}
+          AND structure_revision = ${expectedStructureRevision}
+          AND coalesce(bonus_awarded, false) = false
+          AND (SELECT eligible FROM eligibility)
+        RETURNING id
+      ),
+      progress_award AS (
+        UPDATE user_progress
+        SET gold_total = coalesce(gold_total, 0) + ${bonusGold},
+            tasks_completed = coalesce(tasks_completed, 0) + 1
+        WHERE user_id = ${userId}
+          AND EXISTS (SELECT 1 FROM claimed)
+        RETURNING id
+      ),
+      skill_inputs AS (
+        SELECT key AS skill_name, value::integer AS xp_award
+        FROM jsonb_each_text(${JSON.stringify(skillXpAwards)}::jsonb)
+      ),
+      skill_start AS (
+        SELECT us.id,
+               us.level,
+               us.xp + si.xp_award AS xp,
+               us.max_xp
+        FROM user_skills us
+        JOIN skill_inputs si ON si.skill_name = us.skill_name
+        CROSS JOIN claimed
+        WHERE us.user_id = ${userId}
+      ),
+      skill_levels(id, level, xp, max_xp) AS (
+        SELECT id, level, xp, max_xp
+        FROM skill_start
+        UNION ALL
+        SELECT id,
+               level + 1,
+               xp - max_xp,
+               floor(100 * power(1.02, level))::integer
+        FROM skill_levels
+        WHERE xp >= max_xp
+          AND level < 99
+      ),
+      skill_final AS (
+        SELECT DISTINCT ON (id)
+               id,
+               level,
+               CASE WHEN level >= 99 THEN least(xp, max_xp) ELSE xp END AS xp,
+               max_xp
+        FROM skill_levels
+        ORDER BY id, level DESC
+      ),
+      updated_skills AS (
+        UPDATE user_skills us
+        SET level = sf.level,
+            xp = sf.xp,
+            max_xp = sf.max_xp,
+            updated_at = now()
+        FROM skill_final sf
+        WHERE us.id = sf.id
+        RETURNING us.id
+      )
+      SELECT EXISTS (SELECT 1 FROM claimed) AS awarded
+    `);
+    return Boolean((result.rows[0] as { awarded?: boolean } | undefined)?.awarded);
+  }
+
+  async reopenQuestlineForStructureChange(userId: string, id: number): Promise<void> {
+    await db.update(questlines)
+      .set({
+        completed: false,
+        completedAt: null,
+        structureRevision: sql`${questlines.structureRevision} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(questlines.id, id), eq(questlines.userId, userId)));
   }
 
   async deleteQuestline(userId: string, id: number): Promise<boolean> {

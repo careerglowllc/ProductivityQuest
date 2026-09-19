@@ -122,27 +122,41 @@ export default function CampaignsPage() {
       // recycled too, but the authoritative undo endpoint is designed to restore them.
       if (task.recycled && !task.completed) return null;
       const completed = !task.completed;
-      if (completed) {
-        await apiRequest("PATCH", `/api/tasks/${task.id}`, {
-          completed: true,
-          kanbanStage: "Done",
-        });
-      } else {
-        await apiRequest("POST", "/api/tasks/undo-complete", { taskIds: [task.id] });
-      }
-      // The questline endpoint owns cascading completion/bonus awards. Only checking
-      // after a real completion preserves uncompletion semantics and avoids re-awards.
-      if (completed) {
+      // The generic PATCH owns completion rewards/archive state and applies the
+      // requested kanban status in one authoritative request.
+      await apiRequest("PATCH", `/api/tasks/${task.id}`, {
+        completed,
+        kanbanStage: completed ? "Done" : "In Progress",
+      });
+      // Reconcile the parent questline separately. A reconciliation outage must
+      // not turn a successfully persisted task state into a failed mutation.
+      try {
         const res = await apiRequest("POST", `/api/questlines/${questlineId}/check-completion`);
         const checked = await res.json();
         return checked;
+      } catch (error) {
+        console.warn("Questline status reconciliation will retry on refresh:", error);
+        return null;
       }
-      return null;
+    },
+    onMutate: async ({ task, questlineId }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/questlines"] });
+      const previousQuestlines = queryClient.getQueryData<QuestlineData[]>(["/api/questlines"]);
+      const completed = !task.completed;
+      queryClient.setQueryData<QuestlineData[]>(["/api/questlines"], (current = []) =>
+        current.map((questline) => questline.id !== questlineId ? questline : {
+          ...questline,
+          tasks: questline.tasks.map((candidate) => candidate.id !== task.id ? candidate : {
+            ...candidate,
+            completed,
+            kanbanStage: completed ? "Done" : "In Progress",
+            recycled: completed ? true : false,
+          }),
+        }),
+      );
+      return { previousQuestlines };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       if (data?.bonusAwarded && data.bonusGold > 0) {
         toast({
           title: "🏆 Questline Complete!",
@@ -150,8 +164,16 @@ export default function CampaignsPage() {
         });
       }
     },
-    onError: () => {
+    onError: (_error, _variables, context) => {
+      if (context?.previousQuestlines) {
+        queryClient.setQueryData(["/api/questlines"], context.previousQuestlines);
+      }
       toast({ title: "Could not update quest", description: "Please try again.", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
     },
   });
 
