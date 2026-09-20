@@ -662,7 +662,12 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
 
   // Clothing / Fashion
   { emoji: "👕", keywords: ["shirt", "tshirt", "t-shirt", "top", "clothing", "clothes", "wear", "casual"] },
+  { emoji: "🎽", keywords: ["jersey", "shirt", "running", "sport", "athletic", "clothing", "clothes", "tank"] },
   { emoji: "👚", keywords: ["blouse", "shirt", "top", "clothing", "clothes", "woman", "fashion"] },
+  { emoji: "👔", keywords: ["tie", "necktie", "suit", "formal", "office", "business", "clothing", "clothes", "shirt"] },
+  { emoji: "🕴️", keywords: ["suit", "business", "man", "formal", "levitating", "clothing", "office", "professional"] },
+  { emoji: "🥼", keywords: ["lab coat", "coat", "doctor", "scientist", "suit", "clothing", "clothes", "formal"] },
+  { emoji: "🦺", keywords: ["vest", "safety", "jacket", "work", "construction", "clothing", "clothes"] },
   { emoji: "👗", keywords: ["dress", "clothing", "clothes", "woman", "fashion", "formal", "gown"] },
   { emoji: "👖", keywords: ["jeans", "pants", "trousers", "clothing", "clothes", "denim"] },
   { emoji: "🧥", keywords: ["coat", "jacket", "clothing", "clothes", "winter", "warm", "outerwear"] },
@@ -674,10 +679,12 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "🧦", keywords: ["socks", "clothing", "clothes", "feet", "warm", "wear"] },
   { emoji: "👞", keywords: ["shoe", "shoes", "formal", "dress", "clothing", "footwear", "man"] },
   { emoji: "👟", keywords: ["shoe", "shoes", "sneaker", "running", "athletic", "sport", "clothing", "footwear"] },
+  { emoji: "🥿", keywords: ["flat", "shoe", "shoes", "ballet", "woman", "clothing", "footwear", "casual"] },
   { emoji: "👠", keywords: ["heel", "heels", "shoe", "shoes", "woman", "fashion", "formal", "clothing"] },
   { emoji: "👡", keywords: ["sandal", "shoe", "shoes", "woman", "summer", "clothing", "footwear"] },
   { emoji: "👢", keywords: ["boot", "boots", "shoe", "shoes", "woman", "clothing", "footwear", "winter"] },
   { emoji: "🥾", keywords: ["boot", "boots", "hiking", "shoe", "shoes", "outdoor", "clothing", "footwear"] },
+  { emoji: "🩰", keywords: ["ballet", "shoes", "flats", "dance", "clothing", "footwear"] },
   { emoji: "👙", keywords: ["bikini", "swimsuit", "swim", "beach", "summer", "clothing"] },
   { emoji: "🩱", keywords: ["swimsuit", "swim", "one-piece", "beach", "clothing"] },
   { emoji: "🩲", keywords: ["briefs", "underwear", "clothing", "swim"] },
@@ -692,6 +699,7 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "🕶️", keywords: ["sunglasses", "cool", "sun", "shades", "fashion", "accessory"] },
   { emoji: "🥽", keywords: ["goggles", "swim", "safety", "lab", "ski", "eyewear"] },
   { emoji: "🧳", keywords: ["luggage", "travel", "suitcase", "trip", "vacation", "bag"] },
+
 
   // More Food / Drink
   { emoji: "🍗", keywords: ["chicken", "leg", "meat", "food", "drumstick", "poultry"] },
@@ -1419,7 +1427,7 @@ const EMOJI_CATEGORIES: Record<string, string[]> = {
   "Health": ["🏃", "🧘", "💊", "🩺", "🏋️", "🚴", "🏊", "🧠", "🍎", "🥗", "💧", "❤️‍🩹", "🦷", "👁️", "💉", "🧬", "🌿", "😴", "💤", "🩹", "🏥", "🧑‍⚕️", "🫀", "🫁", "🧴"],
   "Medical": ["😷", "🤒", "🤕", "🤧", "🩻", "🩹", "🏥", "🚑", "🩸", "💉", "🩺", "💊", "🫁", "🫀", "🧠", "🦷", "🦴", "🩼", "🦽", "🦼", "🦯", "🧬", "🔬", "🧪", "⚗️", "🧴", "🌡️", "❤️‍🩹", "🧑‍⚕️", "👨‍⚕️", "👩‍⚕️"],
   "Learn": ["📖", "📚", "🎓", "🧪", "🔬", "🔭", "🌍", "🎨", "🎵", "🎹", "🎸", "📐", "🧮", "🔢", "✍️", "💬", "🗣️", "🧑‍🎓", "🧑‍🏫", "🧑‍🔬"],
-  "Clothing": ["👕", "👚", "👗", "👖", "🧥", "👒", "🧢", "🎩", "🧣", "🧤", "🧦", "👞", "👟", "👠", "👡", "👢", "🥾", "👙", "🩳", "👘", "🩴", "👜", "🎒", "👓", "🕶️", "🥽", "💍", "💄", "💅"],
+  "Clothing": ["👕", "🎽", "👚", "👔", "🕴️", "🥼", "🦺", "👗", "👖", "🧥", "👒", "🧢", "🎩", "🧣", "🧤", "🧦", "👞", "👟", "🥿", "👠", "👡", "👢", "🥾", "🩰", "👙", "🩱", "🩲", "🩳", "👘", "🥻", "🩴", "👜", "👝", "🎒", "🧳", "👓", "🕶️", "🥽", "💍", "💄", "💅"],
   "Life": ["🏠", "🏡", "🏚️", "🛒", "🧹", "🧺", "🍳", "🚗", "✈️", "🌅", "🎂", "🎁", "🐶", "🐱", "🌸", "🌈", "☀️", "🌙", "🛏️", "🪴", "👨‍👩‍👧‍👦", "🏍️", "🚪", "🪑", "🛋️", "🚿", "🧽", "🚜", "🌾", "🐄", "🐎"],
   "Chores": ["🧹", "🧺", "🧽", "🫧", "🧼", "🪣", "🚿", "🪠", "🧻", "🚽", "🛁", "🪟", "🚪", "🛏️", "🪴", "🪜", "🔧", "🔨", "🪛", "🪚", "🧱", "🪵", "🔩", "🔌", "💡", "🗑️", "♻️", "📦", "🧰", "🎨", "🪞", "🏠", "🏡", "🏗️", "🛠️", "🪝", "🍂", "🌿", "🐜", "🚗", "⛽", "📬", "🛒", "👕", "🪡", "🧵", "🥫", "🚰", "🌡️", "❄️", "🏊", "🪤", "🪥", "🧴", "🪒", "💇", "💆", "🧖", "💅", "🛀", "🦷"],
   "Fun": ["🎮", "🎲", "🎭", "🎬", "📺", "🎵", "🎶", "⚽", "🏀", "🎾", "🧩", "📸", "🎧", "🎪", "🥳", "🎡", "🎢", "🎠", "🏈", "🏐"],
