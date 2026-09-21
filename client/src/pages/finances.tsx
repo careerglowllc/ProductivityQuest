@@ -27,6 +27,7 @@ import type { FinancialItem, NwSnapshot, FamilyContribution } from "@shared/sche
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 import { rothIraTrueAfterPenalty, rothIraEffectiveMultiplier } from "@/lib/roth-ira-tax";
 import { brokerageAfterTax } from "@/lib/brokerage-tax";
+import { coinbaseBtcTax, ledgerBtcTax } from "@/lib/btc-tax";
 
 const CATEGORIES = [
   "General", "Business", "Entertainment", "Food", "Investment Property Housing", "Personal Housing", "Transportation",
@@ -1738,6 +1739,8 @@ export default function Finances() {
   const _btcValue = btcHoldings * _btcPrice;
   const _coinbaseValue = coinbaseBtcHoldings * _btcPrice;
   const _totalBtcValue = _btcValue + _coinbaseValue;
+  const _ledgerBtcTax = ledgerBtcTax(btcHoldings, _btcPrice);
+  const _coinbaseBtcTax = coinbaseBtcTax(coinbaseBtcHoldings, _btcPrice);
   const _vtsaxValue = vtsaxHoldings * _vtsaxPrice;
   const _vooValue = vooHoldings * _vooPrice;
   const _vxusValue = vxusHoldings * _vxusPrice;
@@ -1762,8 +1765,9 @@ export default function Finances() {
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
   // Note: homePendingCosts (shed, floors, roof, fume hood) are excluded from net worth —
   // they are factored in only in the Real Estate ROI tab as holding/improvement costs.
-  // BTC wallets: apply 15% LTCG haircut (flat approximation, unchanged)
-  const _btcAfterTax = _totalBtcValue * 0.85;
+  // BTC wallets: real FIFO cost-basis capital gains math (see btc-tax.ts) —
+  // only the gain is taxed, not the whole position.
+  const _btcAfterTax = _ledgerBtcTax.afterTaxValue + _coinbaseBtcTax.afterTaxValue;
   // Vanguard brokerage: real cost-basis capital gains math (see brokerage-tax.ts) —
   // only the gain is taxed, not the whole position. Settlement/money market (VMFXX)
   // is cash, added at face value with no haircut.
@@ -1909,7 +1913,7 @@ export default function Finances() {
       ["Savings Rate", `${savingsRate.toFixed(1)}%`, "", "Net Cash Flow / Total Income"],
       [],
       ["NET WORTH SNAPSHOT (after-tax estimates)", "", "", ""],
-      ["BTC Wallet + Coinbase (after 15% LTCG)", $v(_btcAfterTax), "", `${btcHoldings + coinbaseBtcHoldings} BTC @ $${_btcPrice.toFixed(0)}/BTC`],
+      ["BTC Wallet + Coinbase (after real cost-basis cap. gains tax)", $v(_btcAfterTax), "", `${btcHoldings + coinbaseBtcHoldings} BTC @ $${_btcPrice.toFixed(0)}/BTC`],
       ["Vanguard Brokerage (after 15% LTCG)", $v(_vanguardAfterTax), "", `VTSAX ${vtsaxHoldings} sh + VOO ${vooHoldings} sh + $${vanguardSettlement.toLocaleString()} settlement`],
       ["Roth IRA — VTSAX", $v(rothIraVtsaxHoldings * _vtsaxPrice), "", `${rothIraVtsaxHoldings} VTSAX shares`],
       ["Roth IRA — IBIT", $v(rothIraIbitHoldings * _ibitPrice), "", `${rothIraIbitHoldings} IBIT shares`],
@@ -1988,9 +1992,9 @@ export default function Finances() {
       [],
       ["── CRYPTO ──", "", "", "", "", "", ""],
       ["ASSET", "TICKER", "SHARES / UNITS", "PRICE ($)", "GROSS VALUE ($)", "TAX RATE", "AFTER-TAX VALUE ($)"],
-      ["BTC Ledger Wallet", "BTC", btcHoldings, $v(_btcPrice), $v(_btcValue), "15% LTCG", $v(_btcValue * 0.85)],
-      ["BTC Coinbase", "BTC", coinbaseBtcHoldings, $v(_btcPrice), $v(_coinbaseValue), "15% LTCG", $v(_coinbaseValue * 0.85)],
-      ["BTC Total", "", btcHoldings + coinbaseBtcHoldings, $v(_btcPrice), $v(_totalBtcValue), "15% LTCG", $v(_btcAfterTax)],
+      ["BTC Ledger Wallet", "BTC", btcHoldings, $v(_btcPrice), $v(_btcValue), "Real cost basis", $v(_ledgerBtcTax.afterTaxValue)],
+      ["BTC Coinbase", "BTC", coinbaseBtcHoldings, $v(_btcPrice), $v(_coinbaseValue), "Real cost basis", $v(_coinbaseBtcTax.afterTaxValue)],
+      ["BTC Total", "", btcHoldings + coinbaseBtcHoldings, $v(_btcPrice), $v(_totalBtcValue), "Real cost basis", $v(_btcAfterTax)],
       [],
       ["── VANGUARD BROKERAGE ──", "", "", "", "", "", ""],
       ["ASSET", "TICKER", "SHARES", "PRICE ($)", "GROSS VALUE ($)", "TAX RATE", "AFTER-TAX VALUE ($)"],
@@ -5167,8 +5171,11 @@ export default function Finances() {
               const homeEquity = homeAfterTaxNetCash;
 
               const annualSavings = ((totalIncome - totalExpenses - totalRetirement) / 100) * 12;
-              // BTC wallets: apply 15% LTCG haircut (flat approximation, unchanged)
-              const btcAfterTax = totalBtcValue * 0.85;
+              // BTC wallets: real FIFO cost-basis capital gains math (see btc-tax.ts) —
+              // only the gain is taxed, not the whole position.
+              const ledgerBtcTaxInfo = ledgerBtcTax(btcHoldings, btcPrice);
+              const coinbaseBtcTaxInfo = coinbaseBtcTax(coinbaseBtcHoldings, btcPrice);
+              const btcAfterTax = ledgerBtcTaxInfo.afterTaxValue + coinbaseBtcTaxInfo.afterTaxValue;
               // Vanguard brokerage: real cost-basis capital gains math (see brokerage-tax.ts) —
               // only the gain is taxed, not the whole position. Settlement cash added at face value.
               const vanguardAfterTax = brokerageAfterTax(vooValue, vtsaxValue, vsusxValue, vanguardSettlement);
@@ -5249,14 +5256,15 @@ export default function Finances() {
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-xs text-yellow-400 font-bold tracking-wide">₿ Bitcoin Wallet</p>
-                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none">≈ rough estimate</span>
+                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real FIFO cost basis instead of a flat rate">✓ precise · real cost basis</span>
+                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of sale">assumes TX · no state tax</span>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : btcPrice > 0 ? fmt(btcValue * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : btcPrice > 0 ? fmt(ledgerBtcTaxInfo.afterTaxValue) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
                             {!isLoading && btcPrice > 0 && (
-                              <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">after real capital gains tax</p>
                             )}
                           </div>
                           {btcData?.change24h != null && (
@@ -5271,8 +5279,8 @@ export default function Finances() {
                             <span className="font-semibold text-yellow-300">{fmt(btcValue)}</span>
                           </div>
                           <div className="flex justify-between text-slate-500">
-                            <span>Est. 15% LTCG tax</span>
-                            <span className="text-red-400">−{fmt(btcValue * 0.15)}</span>
+                            <span>Est. capital gains tax</span>
+                            <span className="text-red-400">−{fmt(ledgerBtcTaxInfo.estimatedTax)}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -5285,14 +5293,15 @@ export default function Finances() {
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-xs text-orange-400 font-bold tracking-wide">🔵 Coinbase</p>
-                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none">≈ rough estimate</span>
+                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real FIFO cost basis instead of a flat rate">✓ precise · real cost basis</span>
+                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of sale">assumes TX · no state tax</span>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
-                                : coinbaseValue > 0 ? fmt(coinbaseValue * 0.85) : <span className="text-red-400 text-sm">Unavailable</span>}
+                                : coinbaseValue > 0 ? fmt(coinbaseBtcTaxInfo.afterTaxValue) : <span className="text-red-400 text-sm">Unavailable</span>}
                             </p>
                             {!isLoading && coinbaseValue > 0 && (
-                              <p className="text-[10px] text-slate-500 mt-0.5">after ~15% long-term cap. gains tax</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">after real capital gains tax</p>
                             )}
                           </div>
                           <span className="text-[10px] text-orange-400 border border-orange-500/30 rounded px-1.5 py-0.5">BTC</span>
@@ -5303,8 +5312,8 @@ export default function Finances() {
                             <span className="font-semibold text-orange-300">{fmt(coinbaseValue)}</span>
                           </div>
                           <div className="flex justify-between text-slate-500">
-                            <span>Est. 15% LTCG tax</span>
-                            <span className="text-red-400">−{fmt(coinbaseValue * 0.15)}</span>
+                            <span>Est. capital gains tax</span>
+                            <span className="text-red-400">−{fmt(coinbaseBtcTaxInfo.estimatedTax)}</span>
                           </div>
                         </div>
                       </CardContent>

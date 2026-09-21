@@ -15,6 +15,7 @@ import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/sche
 import { getSkillIcon } from "@/lib/skillIcons";
 import { rothIraTrueAfterPenalty } from "@/lib/roth-ira-tax";
 import { brokerageAfterTax } from "@/lib/brokerage-tax";
+import { coinbaseBtcTax, ledgerBtcTax } from "@/lib/btc-tax";
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useTheme } from "@/contexts/theme-context";
@@ -429,7 +430,7 @@ function useFireGoal() {
   const eTradeRsuValue = readNum("nw-etrade-rsu", 0);
   const fordExplorerValue = readNum("nw-ford-explorer", 17000);
 
-  const btcAfterTax = totalBtcValue * 0.85;
+  const btcAfterTax = ledgerBtcTax(btcHoldings, btcPrice).afterTaxValue + coinbaseBtcTax(coinbaseBtcHoldings, btcPrice).afterTaxValue;
   const vanguardAfterTax = brokerageAfterTax(vooValue, vtsaxValue, vxusValue, vanguardSettlement);
 
   // FIRE calc (Thailand · Comfortable · 4% standard SWR — the Finances FIRE tab's own defaults)
