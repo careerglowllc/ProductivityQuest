@@ -977,8 +977,8 @@ export default function Finances() {
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   // NW tab widget visibility + order (persisted to server)
-  type NWWidgetKey = "assets" | "holdings" | "portfolioPie" | "nwSummary" | "cryptoCompare";
-  const DEFAULT_NW_ORDER: NWWidgetKey[] = ["assets", "holdings", "portfolioPie", "nwSummary", "cryptoCompare"];
+  type NWWidgetKey = "assets" | "holdings" | "portfolioPie" | "nwSummary";
+  const DEFAULT_NW_ORDER: NWWidgetKey[] = ["assets", "holdings", "portfolioPie", "nwSummary"];
   const [nwWidgetOrder, setNwWidgetOrder] = useState<NWWidgetKey[]>(() => {
     try {
       const saved = localStorage.getItem("nw-widget-order");
@@ -1000,10 +1000,10 @@ export default function Finances() {
         const parsed = JSON.parse(saved);
         // Migrate old "allocation" → both new keys
         const alloc = parsed.allocation ?? true;
-        return { assets: parsed.assets ?? true, holdings: parsed.holdings ?? true, portfolioPie: parsed.portfolioPie ?? alloc, nwSummary: parsed.nwSummary ?? alloc, cryptoCompare: parsed.cryptoCompare ?? true };
+        return { assets: parsed.assets ?? true, holdings: parsed.holdings ?? true, portfolioPie: parsed.portfolioPie ?? alloc, nwSummary: parsed.nwSummary ?? alloc };
       }
     } catch {}
-    return { assets: true, holdings: true, portfolioPie: true, nwSummary: true, cryptoCompare: true };
+    return { assets: true, holdings: true, portfolioPie: true, nwSummary: true };
   });
   const nwDragSrcIdx = useRef<number | null>(null);
   const [nwDragOverIdx, setNwDragOverIdx] = useState<number | null>(null);
@@ -1051,14 +1051,13 @@ export default function Finances() {
     if (widgetPrefs.nwVisible) {
       // Migrate old "allocation" key → spread its value to portfolioPie + nwSummary if missing
       const rawVisible = widgetPrefs.nwVisible as Record<string, boolean>;
-      const needsMigration = "allocation" in rawVisible || !("portfolioPie" in rawVisible) || !("cryptoCompare" in rawVisible);
+      const needsMigration = "allocation" in rawVisible || !("portfolioPie" in rawVisible);
       const allocValue = rawVisible.allocation ?? true;
       const mv: Record<NWWidgetKey, boolean> = {
         assets: rawVisible.assets ?? true,
         holdings: rawVisible.holdings ?? true,
         portfolioPie: rawVisible.portfolioPie ?? allocValue,
         nwSummary: rawVisible.nwSummary ?? allocValue,
-        cryptoCompare: rawVisible.cryptoCompare ?? true,
       };
       setNwWidgetVisible(prev => ({ ...prev, ...mv }));
       try { localStorage.setItem("nw-widget-visible", JSON.stringify(mv)); } catch {}
@@ -2331,6 +2330,9 @@ export default function Finances() {
             </TabsTrigger>
             <TabsTrigger value="networth" className="data-[state=active]:bg-orange-600/40 text-xs px-3 py-1.5">
               <Scale className="h-3.5 w-3.5 mr-1.5" />Net Worth
+            </TabsTrigger>
+            <TabsTrigger value="crypto" className="data-[state=active]:bg-amber-600/40 text-xs px-3 py-1.5">
+              ₿ Crypto Compare
             </TabsTrigger>
             <TabsTrigger value="expense-breakdown" className="data-[state=active]:bg-red-600/40 text-xs px-3 py-1.5">
               <PieChart className="h-3.5 w-3.5 mr-1.5" />Expense Breakdown
@@ -5289,7 +5291,6 @@ export default function Finances() {
                 holdings:     { label: "My Holdings",         dot: "bg-orange-400",  border: "border-orange-500/30 hover:border-orange-500/60" },
                 portfolioPie: { label: "Portfolio Allocation", dot: "bg-purple-400", border: "border-purple-500/30 hover:border-purple-500/60" },
                 nwSummary:    { label: "Net Worth Summary",    dot: "bg-green-400",  border: "border-green-500/30 hover:border-green-500/60" },
-                cryptoCompare: { label: "Crypto Compare",      dot: "bg-amber-400",  border: "border-amber-500/30 hover:border-amber-500/60" },
               };
               const toggleNwWidget = (key: NWWidgetKey) => {
                 setNwWidgetVisible(prev => {
@@ -6493,96 +6494,6 @@ export default function Finances() {
                       </CardContent>
                   </>
                 );
-                if (key === "cryptoCompare") {
-                  const ibitCurrentValue = rothIraIbitHoldings * ibitPrice;
-                  const ibitAfterTaxValue = ibitCurrentValue * _rothMultiplier2;
-                  const allPoints = btcHistoryAllData?.points ?? [];
-                  const nowMs = Date.now();
-                  const rangeStats: Record<string, { pct: number; dollar: number } | null> = {};
-                  for (const r of CRYPTO_RANGE_DEFS) {
-                    if (!allPoints.length || btcPrice <= 0) { rangeStats[r.key] = null; continue; }
-                    const pastPrice = r.cutoffMs === null ? allPoints[0].price : findPriceAtOrBefore(allPoints, nowMs - r.cutoffMs);
-                    rangeStats[r.key] = pastPrice ? { pct: ((btcPrice - pastPrice) / pastPrice) * 100, dollar: btcPrice - pastPrice } : null;
-                  }
-                  const ibitReturnPct = rangeStats["1y"]?.pct ?? 0;
-                  const chartRawPoints = cryptoChartRange === "all" ? allPoints : (btcHistoryRangeData?.points ?? []);
-                  const chartData = chartRawPoints.map(p => ({
-                    date: new Date(p.t).toLocaleDateString("en-US", chartRawPoints.length > 200 ? { year: "2-digit", month: "short" } : { month: "short", day: "numeric" }),
-                    price: p.price,
-                  }));
-                  const compareRows = [
-                    { key: "ibit", label: "🌿 IBIT (Roth IRA)", cardClass: "border-emerald-500/30", labelClass: "text-emerald-300", current: ibitCurrentValue, afterTax: ibitAfterTaxValue, returnPct: ibitReturnPct, note: "≈ BTC price return — Roth IRA doesn't track IBIT's own cost basis" },
-                    { key: "coinbase", label: "🔵 Coinbase", cardClass: "border-orange-500/30", labelClass: "text-orange-300", current: coinbaseValue, afterTax: coinbaseBtcTaxInfo.afterTaxValue, returnPct: coinbaseBtcTaxInfo.annualizedReturnPct, note: "my annualized return, real cost basis since purchase" },
-                    { key: "wallet", label: "₿ BTC Wallet", cardClass: "border-yellow-500/30", labelClass: "text-yellow-300", current: btcValue, afterTax: ledgerBtcTaxInfo.afterTaxValue, returnPct: ledgerBtcTaxInfo.annualizedReturnPct, note: "my annualized return, real cost basis since purchase" },
-                  ];
-                  return (
-                    <>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-amber-300 text-base flex items-center gap-2">₿ Crypto Compare</CardTitle>
-                        <CardDescription className="text-slate-400 text-xs">IBIT vs. Coinbase vs. BTC Wallet — value, after-tax, and returns</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {compareRows.map(row => (
-                            <div key={row.key} className={`rounded-lg border p-3 bg-slate-900/40 ${row.cardClass}`}>
-                              <p className={`text-xs font-bold ${row.labelClass}`}>{row.label}</p>
-                              <div className="mt-1.5 space-y-1 text-xs">
-                                <div className="flex justify-between"><span className="text-slate-400">Current value</span><span className="text-white font-semibold">{fmt(row.current)}</span></div>
-                                <div className="flex justify-between"><span className="text-slate-400">After-tax value</span><span className="text-slate-200">{fmt(row.afterTax)}</span></div>
-                                <div className="flex justify-between"><span className="text-slate-400">My annual return</span><span className={row.returnPct >= 0 ? "text-green-400" : "text-red-400"}>{row.returnPct >= 0 ? "+" : ""}{row.returnPct.toFixed(1)}%</span></div>
-                              </div>
-                              <p className="text-[9px] text-slate-500 mt-1.5">{row.note}</p>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-5 gap-1.5">
-                          {CRYPTO_RANGE_DEFS.map(r => {
-                            const stat = rangeStats[r.key];
-                            const active = cryptoChartRange === r.key;
-                            return (
-                              <button key={r.key} type="button" onClick={() => setCryptoChartRange(r.key)}
-                                className={`rounded-md border px-1.5 py-1.5 text-center transition-colors ${active ? "border-amber-500/60 bg-amber-500/10" : "border-slate-700/50 hover:border-slate-600"}`}>
-                                <p className="text-[9px] text-slate-400">{r.label}</p>
-                                <p className={`text-xs font-bold ${stat ? (stat.pct >= 0 ? "text-green-400" : "text-red-400") : "text-slate-500"}`}>
-                                  {stat ? `${stat.pct >= 0 ? "+" : ""}${stat.pct.toFixed(1)}%` : "—"}
-                                </p>
-                                <p className="text-[9px] text-slate-500">
-                                  {stat ? `${stat.dollar >= 0 ? "+" : "-"}$${Math.abs(Math.round(stat.dollar)).toLocaleString()}` : ""}
-                                </p>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <div className="h-48">
-                          {btcHistoryLoading && chartData.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-xs text-slate-500">Loading chart…</div>
-                          ) : chartData.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-xs text-slate-500">Chart unavailable</div>
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={chartData}>
-                                <defs>
-                                  <linearGradient id="btcCompareChartGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.4} />
-                                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-                                  </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                                <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#94A3B8" }} minTickGap={40} />
-                                <YAxis tick={{ fontSize: 9, fill: "#94A3B8" }} domain={["auto", "auto"]} tickFormatter={(v) => `$${Math.round(v).toLocaleString()}`} width={55} />
-                                <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #334155", fontSize: 11 }} formatter={(v: number) => [`$${Math.round(v).toLocaleString()}`, "BTC price"]} />
-                                <Area type="monotone" dataKey="price" stroke="#F59E0B" fill="url(#btcCompareChartGradient)" strokeWidth={1.5} />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-500">* BTC price history via CoinGecko. "My annual return" for Coinbase/BTC Wallet is a dollar-weighted CAGR from your real cost basis and purchase dates; IBIT's return is approximated from BTC's own price movement since the Roth IRA doesn't track IBIT's cost basis separately from VTSAX.</p>
-                      </CardContent>
-                    </>
-                  );
-                }
                 return null;
               };
 
@@ -6611,7 +6522,7 @@ export default function Finances() {
 
                   {/* Widget toggle bar */}
                   <div className="flex flex-wrap gap-2 pb-1">
-                    {(["assets", "holdings", "portfolioPie", "nwSummary", "cryptoCompare"] as NWWidgetKey[]).map(k => (
+                    {(["assets", "holdings", "portfolioPie", "nwSummary"] as NWWidgetKey[]).map(k => (
                       <button key={k} onClick={() => toggleNwWidget(k)}
                         className={`flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-all border ${
                           nwWidgetVisible[k]
@@ -6624,16 +6535,14 @@ export default function Finances() {
                     ))}
                   </div>
 
-                  {/* Widgets rendered in draggable order — defensively append any DEFAULT_NW_ORDER
-                      key missing from a stale saved order (e.g. a widget added after the user's
-                      last customization) so newly-added widgets always show up. */}
+                  {/* Widgets rendered in draggable order */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[...nwWidgetOrder, ...DEFAULT_NW_ORDER.filter(k => !nwWidgetOrder.includes(k))].filter(key => nwWidgetVisible[key]).map((key, idx) => {
+                    {nwWidgetOrder.filter(key => nwWidgetVisible[key]).map((key, idx) => {
                       const isDraggingOver = nwDragOverIdx === idx && nwDragSrcIdx.current !== idx;
                       const content = nwRenderWidget(key);
                       if (!content) return null;
                       // "assets" and "holdings" span full width
-                      const fullWidth = key === "assets" || key === "holdings" || key === "cryptoCompare";
+                      const fullWidth = key === "assets" || key === "holdings";
                       return (
                         <div key={key}
                           className={fullWidth ? "md:col-span-2" : ""}
@@ -6658,6 +6567,115 @@ export default function Finances() {
                     })}
                   </div>
                 </>
+              );
+            })()}
+          </TabsContent>
+
+          {/* ── Crypto Compare ───────────────────────────── */}
+          <TabsContent value="crypto" className="space-y-4">
+            {(() => {
+              const btcPrice = btcData?.price ?? cachedBtcPrice;
+              const ibitPrice = ibitData?.price ?? cachedIbitPrice;
+              const vtsaxPrice = vtsaxData?.price ?? cachedVtsaxPrice;
+              const btcValue = btcHoldings * btcPrice;
+              const coinbaseValue = coinbaseBtcHoldings * btcPrice;
+              const rothIraValue = (rothIraIbitHoldings * ibitPrice) + (rothIraVtsaxHoldings * vtsaxPrice);
+              const rothMultiplier = rothIraEffectiveMultiplier(rothIraValue);
+              const ibitCurrentValue = rothIraIbitHoldings * ibitPrice;
+              const ibitAfterTaxValue = ibitCurrentValue * rothMultiplier;
+              const ledgerTax = ledgerBtcTax(btcHoldings, btcPrice);
+              const coinbaseTax = coinbaseBtcTax(coinbaseBtcHoldings, btcPrice);
+              const isLoading = btcLoading || ibitLoading;
+              const fmt = (n: number) => n > 0
+                ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : "—";
+
+              const allPoints = btcHistoryAllData?.points ?? [];
+              const nowMs = Date.now();
+              const rangeStats: Record<string, { pct: number; dollar: number } | null> = {};
+              for (const r of CRYPTO_RANGE_DEFS) {
+                if (!allPoints.length || btcPrice <= 0) { rangeStats[r.key] = null; continue; }
+                const pastPrice = r.cutoffMs === null ? allPoints[0].price : findPriceAtOrBefore(allPoints, nowMs - r.cutoffMs);
+                rangeStats[r.key] = pastPrice ? { pct: ((btcPrice - pastPrice) / pastPrice) * 100, dollar: btcPrice - pastPrice } : null;
+              }
+              const ibitReturnPct = rangeStats["1y"]?.pct ?? 0;
+              const chartRawPoints = cryptoChartRange === "all" ? allPoints : (btcHistoryRangeData?.points ?? []);
+              const chartData = chartRawPoints.map(p => ({
+                date: new Date(p.t).toLocaleDateString("en-US", chartRawPoints.length > 200 ? { year: "2-digit", month: "short" } : { month: "short", day: "numeric" }),
+                price: p.price,
+              }));
+              const compareRows = [
+                { key: "ibit", label: "🌿 IBIT (Roth IRA)", cardClass: "border-emerald-500/30", labelClass: "text-emerald-300", current: ibitCurrentValue, afterTax: ibitAfterTaxValue, returnPct: ibitReturnPct, note: "≈ BTC price return — Roth IRA doesn't track IBIT's own cost basis" },
+                { key: "coinbase", label: "🔵 Coinbase", cardClass: "border-orange-500/30", labelClass: "text-orange-300", current: coinbaseValue, afterTax: coinbaseTax.afterTaxValue, returnPct: coinbaseTax.annualizedReturnPct, note: "my annualized return, real cost basis since purchase" },
+                { key: "wallet", label: "₿ BTC Wallet", cardClass: "border-yellow-500/30", labelClass: "text-yellow-300", current: btcValue, afterTax: ledgerTax.afterTaxValue, returnPct: ledgerTax.annualizedReturnPct, note: "my annualized return, real cost basis since purchase" },
+              ];
+
+              return (
+                <Card className="bg-slate-800/60 border-amber-500/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-amber-300 text-base flex items-center gap-2">₿ Crypto Compare</CardTitle>
+                    <CardDescription className="text-slate-400 text-xs">IBIT vs. Coinbase vs. BTC Wallet — value, after-tax, and returns</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {compareRows.map(row => (
+                        <div key={row.key} className={`rounded-lg border p-3 bg-slate-900/40 ${row.cardClass}`}>
+                          <p className={`text-xs font-bold ${row.labelClass}`}>{row.label}</p>
+                          <div className="mt-1.5 space-y-1 text-xs">
+                            <div className="flex justify-between"><span className="text-slate-400">Current value</span><span className="text-white font-semibold">{isLoading ? "…" : fmt(row.current)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">After-tax value</span><span className="text-slate-200">{isLoading ? "…" : fmt(row.afterTax)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">My annual return</span><span className={row.returnPct >= 0 ? "text-green-400" : "text-red-400"}>{row.returnPct >= 0 ? "+" : ""}{row.returnPct.toFixed(1)}%</span></div>
+                          </div>
+                          <p className="text-[9px] text-slate-500 mt-1.5">{row.note}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {CRYPTO_RANGE_DEFS.map(r => {
+                        const stat = rangeStats[r.key];
+                        const active = cryptoChartRange === r.key;
+                        return (
+                          <button key={r.key} type="button" onClick={() => setCryptoChartRange(r.key)}
+                            className={`rounded-md border px-1.5 py-1.5 text-center transition-colors ${active ? "border-amber-500/60 bg-amber-500/10" : "border-slate-700/50 hover:border-slate-600"}`}>
+                            <p className="text-[9px] text-slate-400">{r.label}</p>
+                            <p className={`text-xs font-bold ${stat ? (stat.pct >= 0 ? "text-green-400" : "text-red-400") : "text-slate-500"}`}>
+                              {stat ? `${stat.pct >= 0 ? "+" : ""}${stat.pct.toFixed(1)}%` : "—"}
+                            </p>
+                            <p className="text-[9px] text-slate-500">
+                              {stat ? `${stat.dollar >= 0 ? "+" : "-"}$${Math.abs(Math.round(stat.dollar)).toLocaleString()}` : ""}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="h-64">
+                      {btcHistoryLoading && chartData.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-500">Loading chart…</div>
+                      ) : chartData.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-500">Chart unavailable</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData}>
+                            <defs>
+                              <linearGradient id="btcCompareChartGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                            <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#94A3B8" }} minTickGap={40} />
+                            <YAxis tick={{ fontSize: 9, fill: "#94A3B8" }} domain={["auto", "auto"]} tickFormatter={(v) => `$${Math.round(v).toLocaleString()}`} width={55} />
+                            <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #334155", fontSize: 11 }} formatter={(v: number) => [`$${Math.round(v).toLocaleString()}`, "BTC price"]} />
+                            <Area type="monotone" dataKey="price" stroke="#F59E0B" fill="url(#btcCompareChartGradient)" strokeWidth={1.5} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500">* BTC price history via CoinGecko. "My annual return" for Coinbase/BTC Wallet is a dollar-weighted CAGR from your real cost basis and purchase dates; IBIT's return is approximated from BTC's own price movement since the Roth IRA doesn't track IBIT's cost basis separately from VTSAX.</p>
+                  </CardContent>
+                </Card>
               );
             })()}
           </TabsContent>
