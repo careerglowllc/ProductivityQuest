@@ -5209,29 +5209,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bitcoin historical price series (CoinGecko market_chart), for the Crypto Compare
-  // widget's week/month/1yr/3yr/all-time charts. In-memory cached per range for 10 min
-  // since the full "max" series rarely needs to be re-fetched from CoinGecko.
+  // Bitcoin historical price series, for the Crypto Compare tab's week/month/1yr/3yr/
+  // all-time charts. Uses blockchain.info's free charts API (no key, no 365-day cap)
+  // instead of CoinGecko's market_chart, since CoinGecko's free tier now rejects any
+  // request going back further than 365 days ("3y"/"all" always errored). In-memory
+  // cached per range for 10 min.
   const btcHistoryCache = new Map<string, { data: any; ts: number }>();
   const BTC_HISTORY_CACHE_TTL_MS = 10 * 60 * 1000;
   app.get("/api/market/bitcoin-history", async (req, res) => {
     try {
-      const daysByRange: Record<string, string> = { "7d": "7", "30d": "30", "1y": "365", "3y": "1095", all: "max" };
-      const range = typeof req.query.range === "string" && req.query.range in daysByRange ? req.query.range : "30d";
-      const days = daysByRange[range];
-      const cached = btcHistoryCache.get(days);
+      const timespanByRange: Record<string, string> = { "7d": "1weeks", "30d": "1months", "1y": "1years", "3y": "3years", all: "all" };
+      const range = typeof req.query.range === "string" && req.query.range in timespanByRange ? req.query.range : "30d";
+      const timespan = timespanByRange[range];
+      const cached = btcHistoryCache.get(range);
       if (cached && Date.now() - cached.ts < BTC_HISTORY_CACHE_TTL_MS) {
         return res.json(cached.data);
       }
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${days}`,
+        `https://api.blockchain.info/charts/market-price?timespan=${timespan}&format=json&cors=true`,
         { headers: { "Accept": "application/json" } }
       );
-      if (!response.ok) throw new Error(`CoinGecko responded ${response.status}`);
+      if (!response.ok) throw new Error(`blockchain.info responded ${response.status}`);
       const raw = await response.json() as any;
-      const points = (Array.isArray(raw.prices) ? raw.prices : []).map((p: [number, number]) => ({ t: p[0], price: p[1] }));
-      const payload = { range, points, source: "CoinGecko" };
-      btcHistoryCache.set(days, { data: payload, ts: Date.now() });
+      const points = (Array.isArray(raw.values) ? raw.values : [])
+        .map((v: { x: number; y: number }) => ({ t: v.x * 1000, price: v.y }))
+        .filter((p: { t: number; price: number }) => p.price > 0);
+      const payload = { range, points, source: "blockchain.info" };
+      btcHistoryCache.set(range, { data: payload, ts: Date.now() });
       res.json(payload);
     } catch (error: any) {
       console.error("Bitcoin history fetch error:", error);
