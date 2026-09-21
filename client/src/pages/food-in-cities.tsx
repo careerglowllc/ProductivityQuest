@@ -627,6 +627,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-18T00:00:00.000Z",
     updatedAt: "2026-09-18T00:00:00.000Z",
   },
+  {
+    id: "food-ramen-takumi-sanjose",
+    name: "Ramen Takumi",
+    city: "San Jose, CA",
+    address: "2223 Business Cir #20, San Jose, CA 95128",
+    overallRating: 3.6,
+    stars: { food: 4.2, ambience: 2, price: 4.5 },
+    thoughts: "Great ramen, perfect dingy interior where you know it's local and amazing ramen served. Really great portions for the price.",
+    tags: ["Japanese", "Casual", "Diner / Dive"],
+    visitedAt: "",
+    createdAt: "2026-09-20T00:00:00.000Z",
+    updatedAt: "2026-09-20T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -649,7 +662,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v10";
+    const key = "food-cities-seed-v11";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
