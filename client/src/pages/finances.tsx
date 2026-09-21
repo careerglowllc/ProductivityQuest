@@ -6624,9 +6624,11 @@ export default function Finances() {
                     ))}
                   </div>
 
-                  {/* Widgets rendered in draggable order */}
+                  {/* Widgets rendered in draggable order — defensively append any DEFAULT_NW_ORDER
+                      key missing from a stale saved order (e.g. a widget added after the user's
+                      last customization) so newly-added widgets always show up. */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {nwWidgetOrder.filter(key => nwWidgetVisible[key]).map((key, idx) => {
+                    {[...nwWidgetOrder, ...DEFAULT_NW_ORDER.filter(k => !nwWidgetOrder.includes(k))].filter(key => nwWidgetVisible[key]).map((key, idx) => {
                       const isDraggingOver = nwDragOverIdx === idx && nwDragSrcIdx.current !== idx;
                       const content = nwRenderWidget(key);
                       if (!content) return null;
