@@ -79,24 +79,28 @@ export interface BtcTaxBreakdown {
   costBasis: number;
   afterTaxValue: number;
   estimatedTax: number;
+  /** Dollar-weighted annualized return (CAGR) across all lots since their original acquisition dates. */
+  annualizedReturnPct: number;
 }
 
 function computeBreakdown(lots: BtcLot[], currentHoldings: number, currentPrice: number, now: Date): BtcTaxBreakdown {
   const grossValue = currentHoldings * currentPrice;
   const totalLotBtc = lots.reduce((s, l) => s + l.btc, 0);
   if (totalLotBtc <= 0 || currentHoldings <= 0 || currentPrice <= 0) {
-    return { grossValue, costBasis: 0, afterTaxValue: grossValue, estimatedTax: 0 };
+    return { grossValue, costBasis: 0, afterTaxValue: grossValue, estimatedTax: 0, annualizedReturnPct: 0 };
   }
   // Scale the tracked lots to match today's actual holdings (handles small drift
   // from dust/rounding/manual entry vs. the simulated FIFO totals).
   const scale = currentHoldings / totalLotBtc;
   let afterTaxValue = 0;
   let costBasisTotal = 0;
+  let weightedYearsCost = 0;
   const nowMs = now.getTime();
   for (const lot of lots) {
     const btc = lot.btc * scale;
     const cost = lot.costBasis * scale;
     costBasisTotal += cost;
+    weightedYearsCost += cost * ((nowMs - new Date(lot.date).getTime()) / ONE_YEAR_MS);
     const value = btc * currentPrice;
     if (value <= cost) { afterTaxValue += value; continue; } // loss lot — nothing to tax
     const heldOverOneYear = nowMs - new Date(lot.date).getTime() >= ONE_YEAR_MS;
@@ -104,7 +108,11 @@ function computeBreakdown(lots: BtcLot[], currentHoldings: number, currentPrice:
     const gain = value - cost;
     afterTaxValue += cost + gain * (1 - rate);
   }
-  return { grossValue, costBasis: costBasisTotal, afterTaxValue, estimatedTax: grossValue - afterTaxValue };
+  const avgYearsHeld = costBasisTotal > 0 ? weightedYearsCost / costBasisTotal : 0;
+  const annualizedReturnPct = (avgYearsHeld > 0 && costBasisTotal > 0)
+    ? (Math.pow(grossValue / costBasisTotal, 1 / avgYearsHeld) - 1) * 100
+    : 0;
+  return { grossValue, costBasis: costBasisTotal, afterTaxValue, estimatedTax: grossValue - afterTaxValue, annualizedReturnPct };
 }
 
 /** Real after-capital-gains-tax breakdown for the Coinbase BTC holdings. */

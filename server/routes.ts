@@ -5209,6 +5209,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bitcoin historical price series (CoinGecko market_chart), for the Crypto Compare
+  // widget's week/month/1yr/3yr/all-time charts. In-memory cached per range for 10 min
+  // since the full "max" series rarely needs to be re-fetched from CoinGecko.
+  const btcHistoryCache = new Map<string, { data: any; ts: number }>();
+  const BTC_HISTORY_CACHE_TTL_MS = 10 * 60 * 1000;
+  app.get("/api/market/bitcoin-history", async (req, res) => {
+    try {
+      const daysByRange: Record<string, string> = { "7d": "7", "30d": "30", "1y": "365", "3y": "1095", all: "max" };
+      const range = typeof req.query.range === "string" && req.query.range in daysByRange ? req.query.range : "30d";
+      const days = daysByRange[range];
+      const cached = btcHistoryCache.get(days);
+      if (cached && Date.now() - cached.ts < BTC_HISTORY_CACHE_TTL_MS) {
+        return res.json(cached.data);
+      }
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${days}`,
+        { headers: { "Accept": "application/json" } }
+      );
+      if (!response.ok) throw new Error(`CoinGecko responded ${response.status}`);
+      const raw = await response.json() as any;
+      const points = (Array.isArray(raw.prices) ? raw.prices : []).map((p: [number, number]) => ({ t: p[0], price: p[1] }));
+      const payload = { range, points, source: "CoinGecko" };
+      btcHistoryCache.set(days, { data: payload, ts: Date.now() });
+      res.json(payload);
+    } catch (error: any) {
+      console.error("Bitcoin history fetch error:", error);
+      res.status(502).json({ error: "Failed to fetch Bitcoin price history", details: error.message });
+    }
+  });
+
   // Generic Yahoo Finance ticker helper
   async function fetchYahooPrice(symbol: string): Promise<{ symbol: string; price: number; change24h: number | null; source: string }> {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2d`;
