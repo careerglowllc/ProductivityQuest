@@ -640,6 +640,18 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-20T00:00:00.000Z",
     updatedAt: "2026-09-20T00:00:00.000Z",
   },
+  {
+    id: "food-udon-mugizo-mountainview-cupertino",
+    name: "Udon Mugizo",
+    city: "Mountain View / Cupertino, CA",
+    overallRating: 4.3,
+    stars: { food: 4.3, ambience: 0, price: 0 },
+    thoughts: "Only remember the flavor (4.3/5) — don't remember price or atmosphere. Haven't been in a while but remember it being solid.",
+    tags: ["Japanese", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-09-20T00:00:00.000Z",
+    updatedAt: "2026-09-20T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -662,7 +674,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v11";
+    const key = "food-cities-seed-v12";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
