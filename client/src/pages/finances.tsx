@@ -17,8 +17,9 @@ import { ExpenseCircleMap } from "@/components/expense-circle-map";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
-  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale, Briefcase, HeartHandshake
+  BarChart3, Filter, Download, Bitcoin, RefreshCw, Edit3, GripVertical, CreditCard, Building2, Scale, Briefcase, HeartHandshake, Eye
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Legend, Tooltip, Label as ChartLabel,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ReferenceLine, Area, AreaChart
@@ -43,6 +44,46 @@ const RECUR_TYPES = [
 // contributions are classified as Investments instead.
 const INCOME_CATEGORIES = ["Income"];
 const RETIREMENT_CATEGORIES = ["Retirement", "Investment"];
+
+// High-level, non-spreadsheet explanations shown in the "how is this calculated"
+// modal for each net worth card tagged "✓ precise · real cost basis".
+const TAX_INFO_CONTENT: Record<string, { title: string; body: string[] }> = {
+  btcWallet: {
+    title: "₿ Bitcoin Wallet — how this is calculated",
+    body: [
+      "Built from your full Coinbase + Ledger transaction history (every buy, sell, and transfer since Jan 2021), tracking exact cost basis per lot instead of a flat haircut on the whole balance.",
+      "Only the gain above what you paid is taxed — your original principal comes back untouched.",
+      "Lots held over a year are taxed at the 15% long-term capital gains rate; lots held a year or less are taxed as ordinary income (24%).",
+      "Assumes Texas residency at the time of sale — no state income tax.",
+    ],
+  },
+  coinbase: {
+    title: "🔵 Coinbase — how this is calculated",
+    body: [
+      "Built from your full Coinbase transaction history (every buy, sell, and transfer since Jan 2021), tracking exact cost basis per lot instead of a flat haircut on the whole balance.",
+      "Only the gain above what you paid is taxed — your original principal comes back untouched.",
+      "Lots held over a year are taxed at the 15% long-term capital gains rate; lots held a year or less are taxed as ordinary income (24%).",
+      "Assumes Texas residency at the time of sale — no state income tax.",
+    ],
+  },
+  vanguard: {
+    title: "🏦 Vanguard Brokerage — how this is calculated",
+    body: [
+      "Uses your actual cost basis for VTSAX, VOO, and VXUS (pulled from Vanguard's own cost-basis report) instead of a flat haircut on the whole balance.",
+      "Only the gain above that cost basis is taxed — your original principal comes back untouched.",
+      "Shares held over a year are taxed at the 15% long-term capital gains rate; shares held a year or less are taxed as ordinary income (24%).",
+      "Settlement cash (VMFXX) is added at face value with no tax. Assumes Texas residency at the time of sale — no state income tax.",
+    ],
+  },
+  rothIra: {
+    title: "🌿 Roth IRA — how this is calculated",
+    body: [
+      "Splits your balance into original contributions/conversions (principal) vs. investment growth (earnings), instead of a flat haircut on the whole balance.",
+      "Principal you've already held 5+ years comes back with zero penalty or tax. Only the earnings portion — and principal pulled before its 5-year clock is up — face the 10% early withdrawal penalty plus income tax.",
+      "Assumes Texas residency at the time of withdrawal — no state income tax.",
+    ],
+  },
+};
 
 // Pure async builder (fetches its own data) so the Settings page's "Export All" master
 // export can build this CSV without the Finances page being mounted.
@@ -1281,6 +1322,9 @@ export default function Finances() {
   // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
   const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
   const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
+
+  // "How is this calculated" modal for the precise net worth cards (see TAX_INFO_CONTENT)
+  const [taxInfoOpen, setTaxInfoOpen] = useState<keyof typeof TAX_INFO_CONTENT | null>(null);
 
   // Net Worth holdings (persisted in localStorage, defaults set for alexbaer321@gmail.com)
   const [btcHoldings, setBtcHoldings] = useState<number>(() => {
@@ -5248,6 +5292,7 @@ export default function Finances() {
               const nwRenderWidget = (key: NWWidgetKey) => {
                 if (!nwWidgetVisible[key]) return null;
                 if (key === "assets") return (
+                  <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Bitcoin — Personal Wallet */}
                     <Card className="bg-slate-800/60 border-yellow-500/30">
@@ -5258,6 +5303,9 @@ export default function Finances() {
                               <p className="text-xs text-yellow-400 font-bold tracking-wide">₿ Bitcoin Wallet</p>
                               <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real FIFO cost basis instead of a flat rate">✓ precise · real cost basis</span>
                               <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of sale">assumes TX · no state tax</span>
+                              <button type="button" onClick={() => setTaxInfoOpen("btcWallet")} className="flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600/60 text-slate-400 hover:text-white hover:border-slate-400 transition-colors" title="How is this calculated?">
+                                <Eye className="w-2 h-2" />
+                              </button>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
@@ -5295,6 +5343,9 @@ export default function Finances() {
                               <p className="text-xs text-orange-400 font-bold tracking-wide">🔵 Coinbase</p>
                               <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real FIFO cost basis instead of a flat rate">✓ precise · real cost basis</span>
                               <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of sale">assumes TX · no state tax</span>
+                              <button type="button" onClick={() => setTaxInfoOpen("coinbase")} className="flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600/60 text-slate-400 hover:text-white hover:border-slate-400 transition-colors" title="How is this calculated?">
+                                <Eye className="w-2 h-2" />
+                              </button>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
@@ -5328,6 +5379,9 @@ export default function Finances() {
                               <p className="text-xs text-indigo-400 font-bold tracking-wide">🏦 Vanguard Brokerage</p>
                               <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real cost basis instead of a flat rate">✓ precise · real cost basis</span>
                               <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of withdrawal">assumes TX · no state tax</span>
+                              <button type="button" onClick={() => setTaxInfoOpen("vanguard")} className="flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600/60 text-slate-400 hover:text-white hover:border-slate-400 transition-colors" title="How is this calculated?">
+                                <Eye className="w-2 h-2" />
+                              </button>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
@@ -5401,6 +5455,9 @@ export default function Finances() {
                               <p className="text-xs text-emerald-400 font-bold tracking-wide">🌿 Roth IRA</p>
                               <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real principal/earnings breakdown instead of a flat rate">✓ precise · real cost basis</span>
                               <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of withdrawal">assumes TX · no state tax</span>
+                              <button type="button" onClick={() => setTaxInfoOpen("rothIra")} className="flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-600/60 text-slate-400 hover:text-white hover:border-slate-400 transition-colors" title="How is this calculated?">
+                                <Eye className="w-2 h-2" />
+                              </button>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
@@ -5731,6 +5788,21 @@ export default function Finances() {
                       </CardContent>
                     </Card>
                   </div>
+                  <Dialog open={taxInfoOpen !== null} onOpenChange={(o) => !o && setTaxInfoOpen(null)}>
+                    <DialogContent className="bg-slate-900 border-slate-700 text-slate-100 max-w-md">
+                      {taxInfoOpen && (
+                        <>
+                          <DialogHeader>
+                            <DialogTitle className="text-base">{TAX_INFO_CONTENT[taxInfoOpen].title}</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-2.5 text-sm text-slate-300">
+                            {TAX_INFO_CONTENT[taxInfoOpen].body.map((p, i) => <p key={i}>{p}</p>)}
+                          </div>
+                        </>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+                  </>
                 );
                 if (key === "holdings") return (
                   <Card className="bg-slate-800/60 border-orange-500/20">
