@@ -5317,7 +5317,8 @@ export default function Finances() {
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-xs text-indigo-400 font-bold tracking-wide">🏦 Vanguard Brokerage</p>
-                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none">✓ precise · real cost basis</span>
+                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real cost basis instead of a flat rate">✓ precise · real cost basis</span>
+                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of withdrawal">assumes TX · no state tax</span>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
@@ -5389,7 +5390,8 @@ export default function Finances() {
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-xs text-emerald-400 font-bold tracking-wide">🌿 Roth IRA</p>
-                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none">✓ precise · real cost basis</span>
+                              <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none" title="Uses your real principal/earnings breakdown instead of a flat rate">✓ precise · real cost basis</span>
+                              <span className="text-[9px] text-slate-400 border border-slate-600/50 rounded px-1 py-0.5 leading-none" title="Tax math assumes you're a Texas resident (no state income tax) at the time of withdrawal">assumes TX · no state tax</span>
                             </div>
                             <p className="text-2xl font-bold text-white mt-0.5">
                               {isLoading ? <span className="text-slate-500 text-base animate-pulse">Loading…</span>
