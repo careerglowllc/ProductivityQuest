@@ -428,7 +428,7 @@ function useFireGoal() {
   const domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
   const domainAfterTax = velunaDomainValue - domainCapGain * 0.15;
   const eTradeRsuValue = readNum("nw-etrade-rsu", 0);
-  const fordExplorerValue = readNum("nw-ford-explorer", 17000);
+  const fordExplorerValue = readNum("nw-ford-explorer", 15000);
 
   const btcAfterTax = ledgerBtcTax(btcHoldings, btcPrice).afterTaxValue + coinbaseBtcTax(coinbaseBtcHoldings, btcPrice).afterTaxValue;
   const vanguardAfterTax = brokerageAfterTax(vooValue, vtsaxValue, vxusValue, vanguardSettlement);

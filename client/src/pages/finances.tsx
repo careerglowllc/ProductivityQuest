@@ -1431,7 +1431,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-etrade-rsu") || "0"); } catch { return 0; }
   });
   const [fordExplorerValue, setFordExplorerValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-ford-explorer") || "17000"); } catch { return 17000; }
+    try { return parseFloat(localStorage.getItem("nw-ford-explorer") || "15000"); } catch { return 15000; }
   });
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [holdingsView, setHoldingsView] = useState<"type" | "account">("type");
