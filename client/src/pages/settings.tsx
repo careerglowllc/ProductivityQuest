@@ -25,7 +25,7 @@ import { buildWeeklyPlanningCSVExport } from "@/pages/journal-weekly-planning";
 import { buildEmpoweringThoughtsCSVExport } from "@/pages/journal-empowering-thoughts";
 import { buildJournalCSVExport } from "@/pages/journal";
 
-const APP_VERSION = "v1.0.66";
+const APP_VERSION = "v1.0.67";
 
 async function exportAllAsZip() {
   const JSZip = (await import("jszip")).default;
