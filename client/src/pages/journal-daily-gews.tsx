@@ -41,10 +41,10 @@ type GewsEntry = {
   updatedAt: string;
 };
 
-// Colors/icons match the Life OS reference: blue for Sadnesses, ochre for Gratitudes,
+// Colors/icons match the Life OS reference: blue for Lessons Learned, ochre for Gratitudes,
 // sage for Wins, terracotta for Exciteds. Category meaning is always also a label, never color-only.
 const CATEGORY_META: Record<GewsCategory, { label: string; icon: typeof Heart; color: string; prompt: string; placeholder: string }> = {
-  sadnesses: { label: "Sadnesses", icon: Waves, color: "#768fc0", prompt: "What is weighing on you today?", placeholder: "Something that's weighing on you…" },
+  sadnesses: { label: "Lessons Learned", icon: Waves, color: "#768fc0", prompt: "What is weighing on you today?", placeholder: "Something that's weighing on you…" },
   gratitudes: { label: "Gratitudes", icon: Heart, color: "#c28b43", prompt: "What are you grateful for today?", placeholder: "Something you're grateful for…" },
   wins: { label: "Wins", icon: Check, color: "#5d9279", prompt: "What went well today?", placeholder: "Something that went well…" },
   exciteds: { label: "Exciteds", icon: Sparkle, color: "#b77463", prompt: "What are you looking forward to?", placeholder: "Something you're excited about…" },
@@ -408,7 +408,7 @@ export default function JournalDailyGewsPage() {
     <JournalShell>
       <JournalBackLink />
       <JournalHero
-        eyebrow="Gratitudes · Wins · Exciteds · Sadnesses"
+        eyebrow="Gratitudes · Wins · Exciteds · Lessons Learned"
         title="Daily GEWS,"
         emphasis="one entry a day."
         copy="A short daily check-in: what you're grateful for, what went well, what you're excited about, and what's weighing on you."

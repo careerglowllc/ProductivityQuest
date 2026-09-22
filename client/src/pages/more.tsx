@@ -62,7 +62,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "CPAP", path: "/cpap", icon: Activity, color: "cyan", description: "Sleep therapy tracker" },
       { name: "NPCs", path: "/npcs", icon: Users, color: "blue", description: "People rolodex" },
       { name: "Journal", path: "/journal", icon: BookOpen, color: "orange", description: "Essays & reflections" },
-      { name: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake, color: "orange", description: "Gratitudes, wins, exciteds & sadnesses" },
+      { name: "Daily GEWS", path: "/journal/daily-gews", icon: HeartHandshake, color: "orange", description: "Gratitudes, wins, exciteds & lessons learned" },
       { name: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, color: "orange", description: "Thoughts & beliefs you're reinforcing right now" },
       { name: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, color: "orange", description: "A running list of things you're grateful for" },
       { name: "Excitement Journal", path: "/journal/excitement", icon: Zap, color: "orange", description: "A running list of things you're excited about" },
