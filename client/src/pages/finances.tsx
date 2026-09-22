@@ -5352,8 +5352,8 @@ export default function Finances() {
                             )}
                           </div>
                           {btcData?.change24h != null && (
-                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${btcData.change24h >= 0 ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"}`}>
-                              {btcData.change24h >= 0 ? "▲" : "▼"} {Math.abs(btcData.change24h).toFixed(2)}%
+                            <span className={`inline-flex items-center justify-center gap-1 text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap ${btcData.change24h >= 0 ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"}`}>
+                              <span>{btcData.change24h >= 0 ? "▲" : "▼"}</span> {Math.abs(btcData.change24h).toFixed(2)}%
                             </span>
                           )}
                         </div>
