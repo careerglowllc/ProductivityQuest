@@ -41,13 +41,13 @@ type GlewEntry = {
   updatedAt: string;
 };
 
-// Colors/icons match the Life OS reference: blue for Lessons Learned, ochre for Gratitudes,
+// Colors/icons match the Life OS reference: blue for Lessons, ochre for Gratitudes,
 // sage for Wins, terracotta for Exciteds. Category meaning is always also a label, never color-only.
-const CATEGORY_META: Record<GlewCategory, { label: string; icon: typeof Heart; color: string; prompt: string; placeholder: string }> = {
-  sadnesses: { label: "Lessons Learned", icon: Waves, color: "#768fc0", prompt: "What is weighing on you today?", placeholder: "Something that's weighing on you…" },
-  gratitudes: { label: "Gratitudes", icon: Heart, color: "#c28b43", prompt: "What are you grateful for today?", placeholder: "Something you're grateful for…" },
-  wins: { label: "Wins", icon: Check, color: "#5d9279", prompt: "What went well today?", placeholder: "Something that went well…" },
-  exciteds: { label: "Exciteds", icon: Sparkle, color: "#b77463", prompt: "What are you looking forward to?", placeholder: "Something you're excited about…" },
+const CATEGORY_META: Record<GlewCategory, { label: string; icon: typeof Heart; color: string; prompt: string; placeholder: string; description: string }> = {
+  sadnesses: { label: "Lessons", icon: Waves, color: "#768fc0", prompt: "What is weighing on you today?", placeholder: "Something that's weighing on you…", description: "Mistakes made or ways you didn't live up to what you wanted — what's the lesson, and what actionable advice will you take from this going forward?" },
+  gratitudes: { label: "Gratitudes", icon: Heart, color: "#c28b43", prompt: "What are you grateful for today?", placeholder: "Something you're grateful for…", description: "Self-explanatory — things you're grateful for." },
+  wins: { label: "Wins", icon: Check, color: "#5d9279", prompt: "What went well today?", placeholder: "Something that went well…", description: "Things that went well, that you're proud of, or that you did." },
+  exciteds: { label: "Exciteds", icon: Sparkle, color: "#b77463", prompt: "What are you looking forward to?", placeholder: "Something you're excited about…", description: "What are you excited for — tomorrow, the future, things like that?" },
 };
 const CATEGORY_ORDER: GlewCategory[] = ["sadnesses", "gratitudes", "wins", "exciteds"];
 
@@ -408,7 +408,7 @@ export default function JournalDailyGlewPage() {
     <JournalShell>
       <JournalBackLink />
       <JournalHero
-        eyebrow="Gratitudes · Wins · Exciteds · Lessons Learned"
+        eyebrow="Gratitudes · Wins · Exciteds · Lessons"
         title="Daily GLEW,"
         emphasis="one entry a day."
         copy="A short daily check-in: what you're grateful for, what went well, what you're excited about, and what's weighing on you."
@@ -416,6 +416,31 @@ export default function JournalDailyGlewPage() {
         statLabel={`${totalLines} reflection${totalLines === 1 ? "" : "s"} kept`}
       />
       <RelatedJournalNav />
+
+      {/* Category legend — icon, name, and a brief description of what each category means */}
+      <div className="mb-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        {CATEGORY_ORDER.map((cat) => {
+          const meta = CATEGORY_META[cat];
+          const Icon = meta.icon;
+          return (
+            <div
+              key={cat}
+              className="flex items-start gap-2.5 rounded-xl border border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] p-3 shadow-[var(--jrnl-shadow)]"
+            >
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                style={{ backgroundColor: `${meta.color}1a`, color: meta.color }}
+              >
+                <Icon aria-hidden className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-[var(--jrnl-ink)]">{meta.label}</p>
+                <p className="text-[11px] leading-snug text-[var(--jrnl-muted)]">{meta.description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Composer — one category, one reflection at a time */}
       <div className="mb-6 rounded-xl border border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] p-[17px] shadow-[var(--jrnl-shadow)]">
