@@ -18,7 +18,7 @@ The production route map represented by the Journal navigation is:
 | Route | Purpose |
 | --- | --- |
 | `/journal` | Journal home: essays/reflections list and editor |
-| `/journal/daily-gews` | Daily GLEW reflection |
+| `/journal/daily-glew` | Daily GLEW reflection |
 | `/journal/empowering-thoughts` | Current empowering thoughts/beliefs |
 | `/journal/gratitude` | This experience; the primary implementation target |
 | `/journal/excitement` | Excitement journal |

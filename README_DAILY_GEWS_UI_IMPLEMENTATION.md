@@ -8,7 +8,7 @@ This HTML is a visual/interaction reference only. Production must preserve the e
 
 ## Routes and shared Journal shell
 
-Production route: `/journal/daily-gews`.
+Production route: `/journal/daily-glew` (old `/journal/daily-gews` URL redirects here).
 
 The page belongs inside the existing Journal shell and should retain:
 

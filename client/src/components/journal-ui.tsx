@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
  *  appears on every journal page (matches the Life OS journal reference). */
 export const JOURNAL_NAV: { label: string; path: string }[] = [
   { label: "Journal home", path: "/journal" },
-  { label: "Daily GLEW", path: "/journal/daily-gews" },
+  { label: "Daily GLEW", path: "/journal/daily-glew" },
   { label: "Gratitude", path: "/journal/gratitude" },
   { label: "Excitement", path: "/journal/excitement" },
   { label: "Empowering thoughts", path: "/journal/empowering-thoughts" },

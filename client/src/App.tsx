@@ -194,7 +194,10 @@ function Router() {
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/journal" component={JournalPage} />
-            <Route path="/journal/daily-gews" component={JournalDailyGlewPage} />
+            <Route path="/journal/daily-glew" component={JournalDailyGlewPage} />
+            <Route path="/journal/daily-gews">
+              {() => <Redirect to="/journal/daily-glew" />}
+            </Route>
             <Route path="/journal/empowering-thoughts" component={JournalEmpoweringThoughtsPage} />
             <Route path="/journal/gratitude" component={JournalGratitudePage} />
             <Route path="/journal/excitement" component={JournalExcitementPage} />

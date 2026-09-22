@@ -9,7 +9,7 @@ export type NavLink = { label: string; path: string; icon: any };
  *  pill row (see journal-ui.tsx JOURNAL_NAV), not a sidebar sub-menu. Kept here
  *  for `isJournalPath()` (active-state highlighting) and breadcrumb labels. */
 export const JOURNAL_SUBLINKS: (NavLink & { colorClass: string })[] = [
-  { label: "Daily GLEW", path: "/journal/daily-gews", icon: HeartHandshake, colorClass: "text-amber-400" },
+  { label: "Daily GLEW", path: "/journal/daily-glew", icon: HeartHandshake, colorClass: "text-amber-400" },
   { label: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, colorClass: "text-amber-400" },
   { label: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, colorClass: "text-pink-400" },
   { label: "Excitement Journal", path: "/journal/excitement", icon: Zap, colorClass: "text-orange-400" },
