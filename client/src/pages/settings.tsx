@@ -20,7 +20,7 @@ import { buildQuestlinesCSVExport } from "@/pages/campaigns";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
 import { buildExcitementCSVExport } from "@/pages/journal-excitement";
-import { buildDailyGewsCSVExport } from "@/pages/journal-daily-gews";
+import { buildDailyGlewCSVExport } from "@/pages/journal-daily-gews";
 import { buildWeeklyPlanningCSVExport } from "@/pages/journal-weekly-planning";
 import { buildEmpoweringThoughtsCSVExport } from "@/pages/journal-empowering-thoughts";
 import { buildJournalCSVExport } from "@/pages/journal";
@@ -44,7 +44,7 @@ async function exportAllAsZip() {
     Promise.resolve(buildReferenceBeliefsCSVExport()),
     Promise.resolve(buildGratitudeCSVExport()),
     Promise.resolve(buildExcitementCSVExport()),
-    Promise.resolve(buildDailyGewsCSVExport()),
+    Promise.resolve(buildDailyGlewCSVExport()),
     Promise.resolve(buildWeeklyPlanningCSVExport()),
     Promise.resolve(buildEmpoweringThoughtsCSVExport()),
     Promise.resolve(buildJournalCSVExport()),
@@ -261,7 +261,7 @@ export default function SettingsPage() {
                 <div className="min-w-0">
                   <h3 className={`${isMobile ? 'text-sm' : 'text-lg'} font-serif font-bold text-sky-100`}>Export All as CSV</h3>
                   <p className={`${isMobile ? 'text-[11px] leading-tight' : 'text-sm'} text-sky-200/70`}>
-                    One-click zip of Recipes, Accomplishments, Countries/States Traveled, Item Shop, NPCs, Finances, Tasks, Questlines, Reference Beliefs, Journal essays, Gratitude, Excitement, Daily GEWS, Weekly Planning & Empowering Thoughts journals — organized into folders by section.
+                    One-click zip of Recipes, Accomplishments, Countries/States Traveled, Item Shop, NPCs, Finances, Tasks, Questlines, Reference Beliefs, Journal essays, Gratitude, Excitement, Daily GLEW, Weekly Planning & Empowering Thoughts journals — organized into folders by section.
                   </p>
                 </div>
                 <Button

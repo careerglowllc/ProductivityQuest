@@ -1,8 +1,8 @@
-# Life OS Daily GEWS UI — implementation reference
+# Life OS Daily GLEW UI — implementation reference
 
 ## Purpose and direction
 
-`daily-gews-ui.html` is a standalone visual and interaction reference for the Daily GEWS route. It uses the crafted editorial Life OS family from `journal-ui.html`: navy shell, warm paper, Instrument Serif display type, DM Sans body text, and Space Mono metadata. The four categories use deliberate emotional color: blue for Sadnesses, ochre for Gratitudes, sage for Wins, and terracotta for Exciteds.
+`daily-gews-ui.html` is a standalone visual and interaction reference for the Daily GLEW route. It uses the crafted editorial Life OS family from `journal-ui.html`: navy shell, warm paper, Instrument Serif display type, DM Sans body text, and Space Mono metadata. The four categories use deliberate emotional color: blue for Sadnesses, ochre for Gratitudes, sage for Wins, and terracotta for Exciteds.
 
 This HTML is a visual/interaction reference only. Production must preserve the existing React logic, synced-storage behavior, `AttachmentArea`, CSV helpers, toast behavior, and `useSwipeDownToClose`. It must not replace the production page or introduce a parallel server schema.
 
@@ -13,7 +13,7 @@ Production route: `/journal/daily-gews`.
 The page belongs inside the existing Journal shell and should retain:
 
 - the Life OS desktop navigation/sidebar, profile block, breadcrumb/top bar, and mobile bottom navigation;
-- Journal-related navigation for Journal home, Daily GEWS, Gratitude, Excitement, Empowering Thoughts, and Weekly Planning;
+- Journal-related navigation for Journal home, Daily GLEW, Gratitude, Excitement, Empowering Thoughts, and Weekly Planning;
 - the existing router and route-level page composition rather than links that merely simulate navigation;
 - shared focus states, warm editorial surfaces, responsive safe-area padding, and reduced-motion behavior.
 
@@ -36,19 +36,19 @@ The demo key must never read, write, migrate, delete, or otherwise touch `journa
 Production types:
 
 ```ts
-type GewsCategory = "gratitudes" | "wins" | "exciteds" | "sadnesses";
+type GlewCategory = "gratitudes" | "wins" | "exciteds" | "sadnesses";
 
-type GewsLine = {
+type GlewLine = {
   text: string;
   attachments?: QuestAttachment[];
 };
 
-type GewsEntry = {
+type GlewEntry = {
   date: string; // YYYY-MM-DD
-  gratitudes: GewsLine[];
-  wins: GewsLine[];
-  exciteds: GewsLine[];
-  sadnesses: GewsLine[];
+  gratitudes: GlewLine[];
+  wins: GlewLine[];
+  exciteds: GlewLine[];
+  sadnesses: GlewLine[];
   updatedAt: string;
 };
 ```
@@ -56,7 +56,7 @@ type GewsEntry = {
 The exact visual and CSV category order is:
 
 ```ts
-const CATEGORY_ORDER: GewsCategory[] = [
+const CATEGORY_ORDER: GlewCategory[] = [
   "sadnesses",
   "gratitudes",
   "wins",
@@ -74,7 +74,7 @@ The primary production interaction should be a compact single-reflection compose
 - The icon opens an accessible picker with Sadness, Gratitude, Win, and Excited choices. The selected icon, accessible label, color, prompt, and placeholder update together. Category meaning must also be written as a label; color is never the sole signal.
 - The composer has an optional attachment affordance using the existing `AttachmentArea` contract.
 - Enter without Shift immediately appends one reflection to today's entry. Shift+Enter inserts a newline. The selected category remains selected after save so a user can rapidly record several reflections of the same kind; the draft and attachment selection clear.
-- If today has no entry, create today's `GewsEntry`. If today already exists, append to its selected category array. Never create a second record for today's date.
+- If today has no entry, create today's `GlewEntry`. If today already exists, append to its selected category array. Never create a second record for today's date.
 - History is individual-line-first: each saved reflection is easy to scan under its date, with a visible category label/icon, optional attachment indicator, edit action, recategorize action, and delete action. Complete-day editing remains available from the day header as a secondary path for date changes or batch cleanup, not as the normal capture flow.
 
 This is a deliberate improvement over a four-section editor: the fast path is always visible, one thought is saved at a time, and the day list explains the emotional shape of a day without forcing the user to open a form.
@@ -85,7 +85,7 @@ This is a deliberate improvement over a four-section editor: the fast path is al
 - The date control supports selecting another date. Saving an edited entry removes its original date and applies the selected date.
 - If the selected date already exists, the save collision follows the existing React behavior: the selected date is replaced by the saved form, leaving one entry for that date.
 - Each category remains an array of multiple lines even though capture is one line at a time. A line can be appended from the composer or managed in the complete-day editor.
-- Per-line edit trims and replaces text without changing category. Per-line delete removes only that line. Per-line recategorize removes it from its original array and appends the same `GewsLine` to the selected category, preserving attachments.
+- Per-line edit trims and replaces text without changing category. Per-line delete removes only that line. Per-line recategorize removes it from its original array and appends the same `GlewLine` to the selected category, preserving attachments.
 - A composer save is an immediate daily save: update `updatedAt`, persist the one date record, refresh the day list, and toast the result. The selected category should remain selected for rapid repeat capture.
 - Save must auto-commit non-empty text still sitting in any category draft input. Typed drafts must not disappear merely because the user presses Save before pressing Add.
 - Each composer line has an optional attachment affordance. Production must use `AttachmentArea` and `QuestAttachment`; the prototype only exposes a filename affordance and does not upload bytes. When a line is edited or recategorized, preserve its attachments unless `AttachmentArea` explicitly changes them.
@@ -98,7 +98,7 @@ This is a deliberate improvement over a four-section editor: the fast path is al
 
 ## CSV contract
 
-Production must use the existing `rowsToCSV` and `downloadCSV` helpers, not a replacement serializer. The Daily GEWS export is one row per line, sorted by date and then `CATEGORY_ORDER`, with these exact columns:
+Production must use the existing `rowsToCSV` and `downloadCSV` helpers, not a replacement serializer. The Daily GLEW export is one row per line, sorted by date and then `CATEGORY_ORDER`, with these exact columns:
 
 ```text
 Date,Category,Entry,Attachments
@@ -120,7 +120,7 @@ The interface should animate only transform and opacity for short hover, toast, 
 
 ## Acceptance checks
 
-1. Open `daily-gews-ui.html` directly from the workspace root; the real Daily GEWS interface appears without a build step.
+1. Open `daily-gews-ui.html` directly from the workspace root; the real Daily GLEW interface appears without a build step.
 2. Confirm the file contains no emoji codepoints; all icons are inline SVG or CSS.
 3. Run `node --check` against the HTML's extracted script. It must pass.
 4. Confirm the prototype uses only `journal-daily-gews-ui-demo-v1`; it must not read or write `journal-daily-gews-v1`.

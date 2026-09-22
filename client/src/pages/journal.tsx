@@ -35,7 +35,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
-import { buildDailyGewsCSVExport } from "@/pages/journal-daily-gews";
+import { buildDailyGlewCSVExport } from "@/pages/journal-daily-gews";
 import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
 import { buildExcitementCSVExport } from "@/pages/journal-excitement";
 import { buildEmpoweringThoughtsCSVExport } from "@/pages/journal-empowering-thoughts";
@@ -240,7 +240,7 @@ export default function JournalPage() {
       const zip = new JSZip();
       const exports = [
         buildJournalCSVExport(),
-        buildDailyGewsCSVExport(),
+        buildDailyGlewCSVExport(),
         buildGratitudeCSVExport(),
         buildExcitementCSVExport(),
         buildEmpoweringThoughtsCSVExport(),

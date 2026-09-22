@@ -28,28 +28,28 @@ import { JournalShell, JournalBackLink, JournalHero, RelatedJournalNav } from "@
 // "journal-" prefix so this rides the existing localStorage → server sync (see synced-storage.ts).
 const STORAGE_KEY = "journal-daily-gews-v1";
 
-type GewsCategory = "gratitudes" | "wins" | "exciteds" | "sadnesses";
+type GlewCategory = "gratitudes" | "wins" | "exciteds" | "sadnesses";
 
-type GewsLine = { text: string; attachments?: QuestAttachment[] };
+type GlewLine = { text: string; attachments?: QuestAttachment[] };
 
-type GewsEntry = {
+type GlewEntry = {
   date: string; // YYYY-MM-DD
-  gratitudes: GewsLine[];
-  wins: GewsLine[];
-  exciteds: GewsLine[];
-  sadnesses: GewsLine[];
+  gratitudes: GlewLine[];
+  wins: GlewLine[];
+  exciteds: GlewLine[];
+  sadnesses: GlewLine[];
   updatedAt: string;
 };
 
 // Colors/icons match the Life OS reference: blue for Lessons Learned, ochre for Gratitudes,
 // sage for Wins, terracotta for Exciteds. Category meaning is always also a label, never color-only.
-const CATEGORY_META: Record<GewsCategory, { label: string; icon: typeof Heart; color: string; prompt: string; placeholder: string }> = {
+const CATEGORY_META: Record<GlewCategory, { label: string; icon: typeof Heart; color: string; prompt: string; placeholder: string }> = {
   sadnesses: { label: "Lessons Learned", icon: Waves, color: "#768fc0", prompt: "What is weighing on you today?", placeholder: "Something that's weighing on you…" },
   gratitudes: { label: "Gratitudes", icon: Heart, color: "#c28b43", prompt: "What are you grateful for today?", placeholder: "Something you're grateful for…" },
   wins: { label: "Wins", icon: Check, color: "#5d9279", prompt: "What went well today?", placeholder: "Something that went well…" },
   exciteds: { label: "Exciteds", icon: Sparkle, color: "#b77463", prompt: "What are you looking forward to?", placeholder: "Something you're excited about…" },
 };
-const CATEGORY_ORDER: GewsCategory[] = ["sadnesses", "gratitudes", "wins", "exciteds"];
+const CATEGORY_ORDER: GlewCategory[] = ["sadnesses", "gratitudes", "wins", "exciteds"];
 
 function todayStr(): string {
   const d = new Date();
@@ -59,7 +59,7 @@ function todayStr(): string {
   return `${yy}-${mm}-${dd}`;
 }
 
-function emptyEntry(date: string): GewsEntry {
+function emptyEntry(date: string): GlewEntry {
   return { date, gratitudes: [], wins: [], exciteds: [], sadnesses: [], updatedAt: "" };
 }
 
@@ -75,7 +75,7 @@ function fmtTime(iso: string) {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-function loadEntries(): GewsEntry[] {
+function loadEntries(): GlewEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return (JSON.parse(raw) as any[]).map(normalizeEntry);
@@ -84,11 +84,11 @@ function loadEntries(): GewsEntry[] {
 }
 
 // Migrates older entries (lines stored as plain strings) into the { text, attachments } shape.
-function normalizeLine(item: string | GewsLine): GewsLine {
+function normalizeLine(item: string | GlewLine): GlewLine {
   return typeof item === "string" ? { text: item } : item;
 }
 
-function normalizeEntry(e: any): GewsEntry {
+function normalizeEntry(e: any): GlewEntry {
   return {
     date: e.date,
     gratitudes: (e.gratitudes || []).map(normalizeLine),
@@ -101,7 +101,7 @@ function normalizeEntry(e: any): GewsEntry {
 
 // Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
 // One row per logged line (across all days), since a day can have several lines per category.
-export function buildDailyGewsCSVExport(): CSVExport {
+export function buildDailyGlewCSVExport(): CSVExport {
   const entries = loadEntries();
   const headers = ["Date", "Category", "Entry", "Attachments"];
   const rows: string[][] = [];
@@ -124,9 +124,9 @@ export function buildDailyGewsCSVExport(): CSVExport {
 // Category picker: a colored icon trigger that opens a small labeled list — used both as the
 // composer's category selector (bordered box) and as a per-reflection "recategorize" action
 // (bare icon-button, matching the neighboring edit/delete buttons).
-function GewsCategoryPicker({
+function GlewCategoryPicker({
   value, onChange, size = "md", bare = false, title,
-}: { value: GewsCategory; onChange: (cat: GewsCategory) => void; size?: "sm" | "md"; bare?: boolean; title?: string }) {
+}: { value: GlewCategory; onChange: (cat: GlewCategory) => void; size?: "sm" | "md"; bare?: boolean; title?: string }) {
   const [open, setOpen] = useState(false);
   const meta = CATEGORY_META[value];
   const Icon = meta.icon;
@@ -182,24 +182,24 @@ function GewsCategoryPicker({
   );
 }
 
-export default function JournalDailyGewsPage() {
+export default function JournalDailyGlewPage() {
   const isMobile = useIsMobile();
   const { toast, dismiss } = useToast();
-  const [entries, setEntries] = useState<GewsEntry[]>(loadEntries);
+  const [entries, setEntries] = useState<GlewEntry[]>(loadEntries);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [originalDate, setOriginalDate] = useState<string | null>(null);
-  const [form, setForm] = useState<GewsEntry>(emptyEntry(todayStr()));
-  const [drafts, setDrafts] = useState<Record<GewsCategory, string>>({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
-  const [draftAttachments, setDraftAttachments] = useState<Record<GewsCategory, QuestAttachment[]>>({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
+  const [form, setForm] = useState<GlewEntry>(emptyEntry(todayStr()));
+  const [drafts, setDrafts] = useState<Record<GlewCategory, string>>({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
+  const [draftAttachments, setDraftAttachments] = useState<Record<GlewCategory, QuestAttachment[]>>({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
   const [confirmDeleteDate, setConfirmDeleteDate] = useState<string | null>(null);
-  const [editingLine, setEditingLine] = useState<{ cat: GewsCategory; idx: number } | null>(null);
+  const [editingLine, setEditingLine] = useState<{ cat: GlewCategory; idx: number } | null>(null);
   const [editingLineText, setEditingLineText] = useState("");
   const [lastUndo, setLastUndo] = useState<{ label: string; undo: () => void } | null>(null);
   const [lastRedo, setLastRedo] = useState<{ label: string; redo: () => void } | null>(null);
   const { swipeCallbackRef, style: swipeStyle } = useSwipeDownToClose(dialogOpen, setDialogOpen, isMobile);
 
   // Composer — the primary capture path: one category, one reflection at a time, appended to today.
-  const [composerCategory, setComposerCategory] = useState<GewsCategory>("wins");
+  const [composerCategory, setComposerCategory] = useState<GlewCategory>("wins");
   const [composerDraft, setComposerDraft] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<QuestAttachment[]>([]);
   const [search, setSearch] = useState("");
@@ -211,14 +211,14 @@ export default function JournalDailyGewsPage() {
   // Pick up entries added on another device (e.g. mobile) without needing a manual refresh.
   useEffect(() => subscribeUserDataRefresh(() => setEntries(loadEntries())), []);
 
-  function persist(next: GewsEntry[]) {
+  function persist(next: GlewEntry[]) {
     setEntries(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
   }
 
   // Snapshot the current list before a mutation so it can be restored via the Undo button/toast,
   // and re-applied via the Redo button if that undo is triggered.
-  function persistWithUndo(next: GewsEntry[], label: string) {
+  function persistWithUndo(next: GlewEntry[], label: string) {
     const previous = entries;
     persist(next);
     setLastRedo(null); // a fresh change invalidates any pending redo
@@ -268,7 +268,7 @@ export default function JournalDailyGewsPage() {
     setDialogOpen(true);
   }
 
-  function openEdit(e: GewsEntry) {
+  function openEdit(e: GlewEntry) {
     setForm({ ...e });
     setDrafts({ gratitudes: "", wins: "", exciteds: "", sadnesses: "" });
     setDraftAttachments({ gratitudes: [], wins: [], exciteds: [], sadnesses: [] });
@@ -277,7 +277,7 @@ export default function JournalDailyGewsPage() {
     setDialogOpen(true);
   }
 
-  function addItem(cat: GewsCategory) {
+  function addItem(cat: GlewCategory) {
     const val = drafts[cat].trim();
     if (!val) return;
     setForm({ ...form, [cat]: [...form[cat], { text: val, attachments: draftAttachments[cat] }] });
@@ -285,11 +285,11 @@ export default function JournalDailyGewsPage() {
     setDraftAttachments({ ...draftAttachments, [cat]: [] });
   }
 
-  function removeItem(cat: GewsCategory, idx: number) {
+  function removeItem(cat: GlewCategory, idx: number) {
     setForm({ ...form, [cat]: form[cat].filter((_, i) => i !== idx) });
   }
 
-  function startLineEdit(cat: GewsCategory, idx: number) {
+  function startLineEdit(cat: GlewCategory, idx: number) {
     setEditingLine({ cat, idx });
     setEditingLineText(form[cat][idx].text);
   }
@@ -313,7 +313,7 @@ export default function JournalDailyGewsPage() {
     const now = new Date().toISOString();
     // Auto-commit any typed-but-not-yet-added drafts so closing right after typing
     // never silently discards them.
-    const finalForm: GewsEntry = { ...form };
+    const finalForm: GlewEntry = { ...form };
     for (const cat of CATEGORY_ORDER) {
       const val = drafts[cat].trim();
       if (val) finalForm[cat] = [...finalForm[cat], { text: val, attachments: draftAttachments[cat] }];
@@ -341,7 +341,7 @@ export default function JournalDailyGewsPage() {
   }
 
   function handleExport() {
-    const { filename, content } = buildDailyGewsCSVExport();
+    const { filename, content } = buildDailyGlewCSVExport();
     downloadCSV(filename.replace(/\.csv$/, `_${new Date().toISOString().slice(0, 10)}.csv`), content);
   }
 
@@ -353,7 +353,7 @@ export default function JournalDailyGewsPage() {
     const today = todayStr();
     const existing = entries.find((e) => e.date === today);
     const base = existing ? { ...existing } : emptyEntry(today);
-    const updated: GewsEntry = {
+    const updated: GlewEntry = {
       ...base,
       [composerCategory]: [...base[composerCategory], { text, attachments: composerAttachments }],
       updatedAt: new Date().toISOString(),
@@ -363,11 +363,11 @@ export default function JournalDailyGewsPage() {
     setComposerAttachments([]);
   }
 
-  function lineKey(date: string, cat: GewsCategory, idx: number) {
+  function lineKey(date: string, cat: GlewCategory, idx: number) {
     return `${date}:${cat}:${idx}`;
   }
 
-  function startInlineEdit(date: string, cat: GewsCategory, idx: number, text: string) {
+  function startInlineEdit(date: string, cat: GlewCategory, idx: number, text: string) {
     setEditingKey(lineKey(date, cat, idx));
     setEditingText(text);
   }
@@ -377,7 +377,7 @@ export default function JournalDailyGewsPage() {
     setEditingText("");
   }
 
-  function saveInlineEdit(date: string, cat: GewsCategory, idx: number) {
+  function saveInlineEdit(date: string, cat: GlewCategory, idx: number) {
     const text = editingText.trim();
     if (!text) { cancelInlineEdit(); return; }
     const next = entries.map((e) =>
@@ -387,7 +387,7 @@ export default function JournalDailyGewsPage() {
     cancelInlineEdit();
   }
 
-  function recategorizeLine(date: string, cat: GewsCategory, idx: number, newCat: GewsCategory) {
+  function recategorizeLine(date: string, cat: GlewCategory, idx: number, newCat: GlewCategory) {
     if (newCat === cat) return;
     const next = entries.map((e) => {
       if (e.date !== date) return e;
@@ -397,7 +397,7 @@ export default function JournalDailyGewsPage() {
     persistWithUndo(next, "Reflection recategorized");
   }
 
-  function deleteLine(date: string, cat: GewsCategory, idx: number) {
+  function deleteLine(date: string, cat: GlewCategory, idx: number) {
     const next = entries.map((e) =>
       e.date !== date ? e : { ...e, [cat]: e[cat].filter((_, i) => i !== idx), updatedAt: new Date().toISOString() },
     );
@@ -409,7 +409,7 @@ export default function JournalDailyGewsPage() {
       <JournalBackLink />
       <JournalHero
         eyebrow="Gratitudes · Wins · Exciteds · Lessons Learned"
-        title="Daily GEWS,"
+        title="Daily GLEW,"
         emphasis="one entry a day."
         copy="A short daily check-in: what you're grateful for, what went well, what you're excited about, and what's weighing on you."
         statValue={`${sortedDesc.length} ${sortedDesc.length === 1 ? "day" : "days"}`}
@@ -424,7 +424,7 @@ export default function JournalDailyGewsPage() {
           <span className="text-[11px] text-[var(--jrnl-muted)]">Enter to add · Shift+Enter for a new line</span>
         </div>
         <div className="flex items-start gap-2">
-          <GewsCategoryPicker value={composerCategory} onChange={setComposerCategory} size="md" />
+          <GlewCategoryPicker value={composerCategory} onChange={setComposerCategory} size="md" />
           <div className="min-w-0 flex-1">
             <AttachmentArea attachments={composerAttachments} onChange={setComposerAttachments} showHint={false}>
               <Textarea
@@ -610,7 +610,7 @@ export default function JournalDailyGewsPage() {
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
-                              <GewsCategoryPicker
+                              <GlewCategoryPicker
                                 value={cat}
                                 onChange={(newCat) => recategorizeLine(e.date, cat, idx, newCat)}
                                 size="sm"
@@ -648,14 +648,14 @@ export default function JournalDailyGewsPage() {
           <DialogHeader>
             <DialogTitle className="jrnl-display text-xl text-[var(--jrnl-ink)] flex items-center gap-2">
               <HeartHandshake className="h-5 w-5 text-[var(--jrnl-rose)]" />
-              {originalDate ? "Edit Daily GEWS Entry" : "New Daily GEWS Entry"}
+              {originalDate ? "Edit Daily GLEW Entry" : "New Daily GLEW Entry"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="gews-date">Date</Label>
+              <Label htmlFor="glew-date">Date</Label>
               <Input
-                id="gews-date"
+                id="glew-date"
                 type="date"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -766,7 +766,7 @@ export default function JournalDailyGewsPage() {
             <DialogTitle>Delete this entry?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-[var(--jrnl-muted)]">
-            {confirmDeleteDate && `This will remove the Daily GEWS entry for ${fmtDateFull(confirmDeleteDate)}.`}
+            {confirmDeleteDate && `This will remove the Daily GLEW entry for ${fmtDateFull(confirmDeleteDate)}.`}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDeleteDate(null)}>Cancel</Button>
