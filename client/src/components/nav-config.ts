@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, CheckSquare, Calendar, Sparkles, DollarSign, BookOpen, Crown,
-  ShoppingCart, Users, Compass, Dumbbell, Flame, HeartHandshake, Heart, Zap, ClipboardList, BookMarked, Settings,
+  ShoppingCart, Users, Compass, Dumbbell, Flame, HeartHandshake, Heart, Zap, ClipboardList, BookMarked, Settings, Trophy,
 } from "lucide-react";
 
 export type NavLink = { label: string; path: string; icon: any };
@@ -33,6 +33,7 @@ export const PRIMARY_NAV: NavLink[] = [
   { label: "Finances", path: "/finances", icon: DollarSign },
   { label: "Journal", path: "/journal", icon: BookOpen },
   { label: "Explore", path: "/explore", icon: Compass },
+  { label: "Accomplishments", path: "/accomplishments", icon: Trophy },
   { label: "Fitness", path: "/fitness", icon: Dumbbell },
   { label: "Calorie Tracker", path: "/fitness/calories", icon: Flame },
 ];
