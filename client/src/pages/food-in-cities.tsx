@@ -678,7 +678,21 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-20T00:00:00.000Z",
     updatedAt: "2026-09-20T00:00:00.000Z",
   },
+  {
+    id: "food-jettywave-distillery-halfmoonbay",
+    name: "Jettywave Distillery",
+    city: "Half Moon Bay, CA",
+    address: "155 Broadway, Half Moon Bay, CA 94019",
+    overallRating: 4,
+    stars: { food: 4, ambience: 4.2, price: 3.5 },
+    thoughts: "Good live music and solid food and drinks. Pairs really well with a day trip — there's a nice little hike and a beach close by to make an afternoon of it.",
+    tags: ["Bar / Drinks", "Casual", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  },
 ];
+
 
 // ── Component ────────────────────────────────────────────────
 export default function FoodInCitiesPage() {
@@ -700,7 +714,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v12";
+    const key = "food-cities-seed-v13";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
