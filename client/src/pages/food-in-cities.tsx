@@ -691,6 +691,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-28T00:00:00.000Z",
     updatedAt: "2026-09-28T00:00:00.000Z",
   },
+  {
+    id: "food-taco-bell-cantina-pacifica",
+    name: "Taco Bell Cantina",
+    city: "Pacifica, CA",
+    address: "5200 Coast Highway (CA-1), Pacifica, CA 94044",
+    overallRating: 3.9,
+    stars: { food: 2.6, ambience: 4.6, price: 4.5 },
+    thoughts: "It's just Taco Bell, but slightly better quality than most locations. The real draw is the location — literally on the beach. Pacifica isn't the best beach around, but on a sunny day the vibe of eating right on the sand is genuinely cool.",
+    tags: ["Fast Food", "Mexican", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  },
 ];
 
 
@@ -714,7 +727,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v13";
+    const key = "food-cities-seed-v14";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
