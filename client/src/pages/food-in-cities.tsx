@@ -717,6 +717,45 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-28T00:00:00.000Z",
     updatedAt: "2026-09-28T00:00:00.000Z",
   },
+  {
+    id: "food-frank-pepe-chestnuthill",
+    name: "Frank Pepe Pizzeria Napoletana",
+    city: "Chestnut Hill, MA",
+    address: "199 Boylston St (inside The Mall at Chestnut Hill), Chestnut Hill, MA",
+    overallRating: 4.6,
+    stars: { food: 4.6, ambience: 0, price: 0 },
+    thoughts: "Some of the best pizza in the country. Rating based on taste — didn't factor in atmosphere or price.",
+    tags: ["Italian", "Casual", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  },
+  {
+    id: "food-frank-pepe-watertown",
+    name: "Frank Pepe Pizzeria Napoletana",
+    city: "Watertown, MA",
+    address: "24 Eldridge Ave (Arsenal Yards), Watertown, MA",
+    overallRating: 4.6,
+    stars: { food: 4.6, ambience: 0, price: 0 },
+    thoughts: "Some of the best pizza in the country. Rating based on taste — didn't factor in atmosphere or price.",
+    tags: ["Italian", "Casual", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  },
+  {
+    id: "food-frank-pepe-burlington",
+    name: "Frank Pepe Pizzeria Napoletana",
+    city: "Burlington, MA",
+    address: "75 Middlesex Turnpike (Burlington Mall), Burlington, MA",
+    overallRating: 4.6,
+    stars: { food: 4.6, ambience: 0, price: 0 },
+    thoughts: "Some of the best pizza in the country. Rating based on taste — didn't factor in atmosphere or price.",
+    tags: ["Italian", "Casual", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  },
 ];
 
 
@@ -740,7 +779,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v15";
+    const key = "food-cities-seed-v16";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
