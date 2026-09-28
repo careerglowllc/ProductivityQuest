@@ -704,6 +704,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-28T00:00:00.000Z",
     updatedAt: "2026-09-28T00:00:00.000Z",
   },
+  {
+    id: "food-state-of-mind-slice-house-paloalto",
+    name: "State of Mind Slice House",
+    city: "Palo Alto, CA",
+    address: "3850 El Camino Real, Palo Alto, CA 94306",
+    overallRating: 3.5,
+    stars: { food: 4, ambience: 3, price: 3.5 },
+    thoughts: "Nice solid thin crispy crust pizza with well-balanced cheese, tomato sauce, and bread. Not the world's greatest pizza ever, but for the Bay Area it's a solid, reliable choice. The 18-inch pizza is huge and a great deal.",
+    tags: ["Italian", "Casual", "Dinner"],
+    visitedAt: "",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  },
 ];
 
 
@@ -727,7 +740,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v14";
+    const key = "food-cities-seed-v15";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
