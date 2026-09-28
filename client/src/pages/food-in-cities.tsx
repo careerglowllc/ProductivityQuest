@@ -756,6 +756,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-28T00:00:00.000Z",
     updatedAt: "2026-09-28T00:00:00.000Z",
   },
+  {
+    id: "food-red-rock-coffee-mountainview",
+    name: "Red Rock Coffee",
+    city: "Mountain View, CA",
+    address: "201 Castro St, Mountain View, CA 94041",
+    overallRating: 4.5,
+    stars: { food: 4, ambience: 5, price: 3.5 },
+    thoughts: "Solid coffee — not a ton of seasonal stuff, but a good mix of espresso drinks and syrups that aren't too sweet. The real draw is the vibe: quiet upstairs that's great for getting work done, while the lively first floor hosts things like motorcycle club meetups and singing nights. Outdoor seating in a car-walled-off area lets you sit outside and still enjoy the buzz of people passing by.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  },
 ];
 
 
@@ -779,7 +792,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v16";
+    const key = "food-cities-seed-v17";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
