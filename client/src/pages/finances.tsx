@@ -1534,13 +1534,6 @@ export default function Finances() {
         notes: "Annual CASA audit via TAC — $720/yr amortized monthly",
       }));
     }
-    if (!financialItems.find(i => i.item === "Simply Sing")) {
-      tasks.push(create({
-        item: "Simply Sing", category: "Phone", tags: ["Subscription", "Entertainment"],
-        monthlyCost: 1499, recurType: "Monthly",
-        notes: "Simply Sing singing app — monthly subscription",
-      }));
-    }
     if (!financialItems.find(i => i.item === "Instagram Verified Checkmark (MailWisp)")) {
       tasks.push(create({
         item: "Instagram Verified Checkmark (MailWisp)", category: "Business", tags: ["Business", "Subscription"],
