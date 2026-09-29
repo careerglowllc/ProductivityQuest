@@ -1323,14 +1323,14 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // One-time migration: 2605 Plumbago Ct manual sell-price estimate updated to $640,000 (Sep 9 2026)
+  // One-time migration: 2605 Plumbago Ct manual sell-price estimate updated to $645,000 (Sep 28 2026)
   useEffect(() => {
     try {
-      const MIGRATION_KEY = "nw-migration-20260909-plumbago-value";
+      const MIGRATION_KEY = "nw-migration-20260928-plumbago-value";
       if (!localStorage.getItem(MIGRATION_KEY)) {
-        localStorage.setItem("nw-home-value", "640000");
+        localStorage.setItem("nw-home-value", "645000");
         localStorage.setItem(MIGRATION_KEY, "1");
-        setHomeEstValue(640000);
+        setHomeEstValue(645000);
       }
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1382,7 +1382,7 @@ export default function Finances() {
     try { return localStorage.getItem("nw-home-address") || "2605 Plumbago Court, Rocklin, CA 95677"; } catch { return "2605 Plumbago Court, Rocklin, CA 95677"; }
   });
   const [homeEstValue, setHomeEstValue] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-value") || "640000"); } catch { return 640000; }
+    try { return parseFloat(localStorage.getItem("nw-home-value") || "645000"); } catch { return 645000; }
   });
   const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-loan") || "607798.98"); } catch { return 607798.98; }
