@@ -105,8 +105,9 @@ export default function ExplorePage() {
             const isCountries = cat.key === "countries";
             const isStates = cat.key === "states";
             const isFood = cat.key === "food";
-            const isClickable = isCountries || isStates || isFood;
-            const href = isCountries ? "/countries-visited" : isStates ? "/us-states-visited" : isFood ? "/food-in-cities" : "#";
+            const isActivities = cat.key === "activities";
+            const isClickable = isCountries || isStates || isFood || isActivities;
+            const href = isCountries ? "/countries-visited" : isStates ? "/us-states-visited" : isFood ? "/food-in-cities" : isActivities ? "/activities-in-cities" : "#";
             const CardContent = (
               <div
                 key={cat.key}

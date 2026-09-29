@@ -54,6 +54,7 @@ import AppearanceSettingsPage from "@/pages/settings-appearance";
 import MorePage from "@/pages/more";
 import RecipesPage from "@/pages/recipes";
 import FoodInCitiesPage from "@/pages/food-in-cities";
+import ActivitiesInCitiesPage from "@/pages/activities-in-cities";
 import ReferenceBeliefsPage from "@/pages/reference-beliefs";
 installStorageSync();
 
@@ -187,6 +188,7 @@ function Router() {
             <Route path="/countries-visited" component={CountriesVisitedPage} />
             <Route path="/us-states-visited" component={USStatesVisitedPage} />
             <Route path="/food-in-cities" component={FoodInCitiesPage} />
+            <Route path="/activities-in-cities" component={ActivitiesInCitiesPage} />
             <Route path="/fitness" component={FitnessPage} />
             <Route path="/fitness/lifting" component={FitnessLiftingPage} />
             <Route path="/fitness/calories" component={FitnessCaloriesPage} />
