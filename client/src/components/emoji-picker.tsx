@@ -30,7 +30,21 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "❌", keywords: ["cross", "no", "wrong", "delete", "remove", "cancel", "error", "fail"] },
   { emoji: "❗", keywords: ["exclamation", "important", "alert", "warning", "attention", "urgent"] },
   { emoji: "❓", keywords: ["question", "ask", "help", "what", "why", "how", "unknown"] },
-  { emoji: "⚠️", keywords: ["warning", "caution", "alert", "danger", "attention"] },
+  { emoji: "⚠️", keywords: ["warning", "caution", "alert", "danger", "attention", "hazard"] },
+
+  // Hazard / Alarm / Caution
+  { emoji: "🚨", keywords: ["siren", "alarm", "alert", "police", "emergency", "urgent", "danger", "flashing", "caution"] },
+  { emoji: "🆘", keywords: ["sos", "help", "emergency", "distress", "urgent", "rescue", "alarm"] },
+  { emoji: "🛑", keywords: ["stop", "halt", "sign", "red", "no", "caution", "danger"] },
+  { emoji: "⛔", keywords: ["no entry", "stop", "prohibited", "forbidden", "blocked", "caution", "danger"] },
+  { emoji: "🚧", keywords: ["construction", "caution", "barrier", "warning", "roadwork", "under construction", "hazard"] },
+  { emoji: "☢️", keywords: ["radioactive", "nuclear", "radiation", "hazard", "danger", "caution"] },
+  { emoji: "☣️", keywords: ["biohazard", "hazard", "danger", "toxic", "contamination", "caution"] },
+  { emoji: "🧨", keywords: ["dynamite", "explosive", "bomb", "danger", "firecracker", "hazard"] },
+  { emoji: "💥", keywords: ["explosion", "collision", "boom", "impact", "crash", "danger", "hazard"] },
+  { emoji: "🚷", keywords: ["no pedestrians", "prohibited", "forbidden", "sign", "caution"] },
+  { emoji: "🚔", keywords: ["police", "car", "emergency", "cop", "siren", "alert"] },
+  { emoji: "⚕️", keywords: ["medical", "health", "symbol", "caduceus", "hospital", "emergency"] },
 
   // Hearts / Emotions
   { emoji: "❤️", keywords: ["heart", "love", "red", "like", "favorite"] },
@@ -1435,6 +1449,7 @@ const EMOJI_CATEGORIES: Record<string, string[]> = {
   "Food": ["☕", "🍕", "🍔", "🍜", "🍣", "🥑", "🍓", "🍰", "🍪", "🥤", "🍷", "🍺", "🫖", "🌮", "🍝", "🥞", "🍗", "🥩", "🍞", "🧀", "🍫", "🍩", "🍦", "🥪", "🍛", "🥦", "🥕", "🍌", "🍊", "🍇", "🍉"],
   "Nature": ["🌿", "🍃", "🪴", "🌱", "🍀", "☘️", "🍁", "🍂", "🌳", "🌲", "🌴", "🌵", "🌷", "🌸", "🌺", "🌹", "🌼", "🌊", "🏔️", "🌋", "🏝️", "🌤️", "🌧️", "🌪️", "🌩️", "☔", "☁️", "❄️", "🦋", "🐝", "🐬", "🦅", "🦉"],
   "Tools": ["⚙️", "🔧", "🔨", "🛠️", "🔑", "🔒", "📍", "🏷️", "🔖", "🚫", "♻️", "🔗", "🗑️", "✂️", "⚖️", "🔍", "🔌", "🔋", "🔦", "🧰", "🪜", "🛡️", "⚔️", "🫗", "🔻"],
+  "Hazard": ["⚠️", "🚨", "❗", "‼️", "🔺", "🛑", "⛔", "🚧", "☢️", "☣️", "🧨", "💣", "💥", "🚷", "🚫", "🆘", "🧯", "🚔", "🚑", "🚒", "⚕️", "🩸", "🔥", "⚡", "👮"],
   "Energy": ["🔆", "☀️", "🌞", "⚡", "🔋", "🪫", "🔌", "💡", "🔦", "🕯️", "🌬️", "💨", "🌊", "💧", "🏭", "🛢️", "⛽", "🔥", "♻️", "🌍", "🌡️", "🧯", "⚙️", "🧲"],
   "Shapes": ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🔘", "⭕", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜", "◼️", "◻️", "◾", "◽", "▪️", "▫️", "🔺", "🔻", "🔶", "🔷", "🔸", "🔹", "💠", "♦️", "♠️", "♣️", "♥️", "●", "○", "■", "□", "▲", "▼", "◆", "◇"],
   "Lines": ["〰️", "➰", "➿", "〽️", "✴️", "❇️", "✳️", "│", "─", "╱", "╲", "┼", "═", "║", "➡️", "⬅️", "⬆️", "⬇️", "↗️", "↘️", "↙️", "↖️", "↕️", "↔️", "🔄", "🔃"],
