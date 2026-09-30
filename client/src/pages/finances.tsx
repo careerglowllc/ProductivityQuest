@@ -4562,6 +4562,7 @@ export default function Finances() {
                 { label: "Solar inspection (6/26/26)", amount: 299 },
                 { label: "Solar panel cleaning (7/14/26)", amount: 309 },
                 { label: "Floor molding and cabinet demo and plumber visit", amount: 9835 },
+                { label: "Oak and Stone Constructions (invoice #1033)", amount: 1250 },
                 { label: "Floors", amount: 17000, tentative: true },
                 { label: "Cabinets", amount: 19000, tentative: true },
               ];
