@@ -2623,7 +2623,7 @@ export default function Finances() {
                       { name: "Cash",                  value: Math.round(checkingBalance + careerglowBalance + hsaBalance),  color: "#22D3EE" },
                       { name: "Domain Names",          value: Math.round(_domainTotal),         color: "#8B5CF6" },
                       { name: "Vehicle",               value: Math.round(_vehicleTotal),        color: "#F97316" },
-                      ...(_homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(_homeAfterTaxNetCash), color: "#EC4899" }] : []),
+                      ...(_homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(_homeAfterTaxNetCash), color: "#F59E0B" }] : []),
                     ].filter(d => d.value > 0).map(d => ({
                       ...d,
                       pct: _nwTotal > 0 ? (d.value / _nwTotal) * 100 : 0,
@@ -5282,7 +5282,7 @@ export default function Finances() {
                 { name: "Cash", value: Math.round(checkingBalance + careerglowBalance + hsaBalance), color: "#22D3EE" },
                 { name: "Domain Names", value: Math.round(domainTotal), color: "#8B5CF6" },
                 { name: "Vehicle", value: Math.round(vehicleTotal), color: "#F97316" },
-                ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#EC4899" }] : []),
+                ...(homeAfterTaxNetCash > 0 ? [{ name: "Real Estate", value: Math.round(homeAfterTaxNetCash), color: "#F59E0B" }] : []),
               ].filter(d => d.value > 0).map(d => ({
                 ...d,
                 pct: investmentTotal > 0 ? (d.value / investmentTotal) * 100 : 0,
@@ -5561,12 +5561,12 @@ export default function Finances() {
                     </Card>
 
                     {/* Real Estate — 2605 Plumbago Court */}
-                    <Card className={`bg-slate-800/60 ${homeEquity >= 0 ? "border-pink-500/30" : "border-red-500/40"}`}>
+                    <Card className={`bg-slate-800/60 ${homeEquity >= 0 ? "border-amber-500/30" : "border-red-500/40"}`}>
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs text-pink-400 font-bold tracking-wide">🏠 2605 Plumbago Ct</p>
+                              <p className={`text-xs font-bold tracking-wide ${homeEquity >= 0 ? "text-amber-400" : "text-red-400"}`}>🏠 2605 Plumbago Ct</p>
                               {homePriceIsLive
                                 ? <span className="text-[9px] text-emerald-400 border border-emerald-600/50 rounded px-1 py-0.5 leading-none">● live · redfin</span>
                                 : <span className="text-[9px] text-slate-500 border border-slate-700 rounded px-1 py-0.5 leading-none">manual · May 2026</span>
@@ -5579,7 +5579,7 @@ export default function Finances() {
                             </p>
                             <p className="text-[10px] text-slate-500 mt-0.5">est. after-tax net cash from sale</p>
                           </div>
-                          <span className={`text-[10px] border rounded px-1.5 py-0.5 mt-0.5 ${homeEquity >= 0 ? "text-pink-400 border-pink-500/30" : "text-red-400 border-red-500/30"}`}>
+                          <span className={`text-[10px] border rounded px-1.5 py-0.5 mt-0.5 ${homeEquity >= 0 ? "text-amber-400 border-amber-500/30" : "text-red-400 border-red-500/30"}`}>
                             {homeEquity >= 0 ? "equity" : "underwater"}
                           </span>
                         </div>
@@ -6132,11 +6132,11 @@ export default function Finances() {
                                 </div>
                               </div>
                               {/* Real Estate umbrella */}
-                              <div className={`rounded-lg p-3 ${homeAfterTaxNetCash >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
-                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${homeAfterTaxNetCash >= 0 ? "text-pink-400/70" : "text-red-400/70"}`}>🏠 Real Estate</p>
+                              <div className={`rounded-lg p-3 ${homeAfterTaxNetCash >= 0 ? "bg-amber-500/5 border border-amber-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
+                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${homeAfterTaxNetCash >= 0 ? "text-amber-400/70" : "text-red-400/70"}`}>🏠 Real Estate</p>
                                 <div className="rounded-md p-2 text-center bg-slate-900/30">
-                                  <p className={`text-[10px] mb-0.5 ${homeAfterTaxNetCash >= 0 ? "text-pink-400" : "text-red-400"}`}>Plumbago Ct</p>
-                                  <p className={`text-sm font-bold ${homeAfterTaxNetCash >= 0 ? "text-pink-300" : "text-red-300"}`}>
+                                  <p className={`text-[10px] mb-0.5 ${homeAfterTaxNetCash >= 0 ? "text-amber-400" : "text-red-400"}`}>Plumbago Ct</p>
+                                  <p className={`text-sm font-bold ${homeAfterTaxNetCash >= 0 ? "text-amber-300" : "text-red-300"}`}>
                                     {homeAfterTaxNetCash >= 0 ? `$${Math.round(homeAfterTaxNetCash).toLocaleString()}` : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString()}`}
                                   </p>
                                   <p className="text-[10px] text-slate-500 mt-0.5">after-tax net cash</p>
@@ -6242,12 +6242,12 @@ export default function Finances() {
                                 <p className="text-sm font-bold text-teal-300">{viiixPrice > 0 ? `$${Math.round(k401Value).toLocaleString()}` : "—"}</p>
                               </div>
                               {/* Real Estate */}
-                              <div className={`rounded-lg p-3 flex items-center justify-between ${homeAfterTaxNetCash >= 0 ? "bg-pink-500/5 border border-pink-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
+                              <div className={`rounded-lg p-3 flex items-center justify-between ${homeAfterTaxNetCash >= 0 ? "bg-amber-500/5 border border-amber-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
                                 <div>
-                                  <p className={`text-xs font-semibold ${homeAfterTaxNetCash >= 0 ? "text-pink-400" : "text-red-400"}`}>2605 Plumbago Ct</p>
+                                  <p className={`text-xs font-semibold ${homeAfterTaxNetCash >= 0 ? "text-amber-400" : "text-red-400"}`}>2605 Plumbago Ct</p>
                                   <p className="text-[10px] text-slate-500 mt-0.5">Real estate · after-tax net cash</p>
                                 </div>
-                                <p className={`text-sm font-bold ${homeAfterTaxNetCash >= 0 ? "text-pink-300" : "text-red-300"}`}>
+                                <p className={`text-sm font-bold ${homeAfterTaxNetCash >= 0 ? "text-amber-300" : "text-red-300"}`}>
                                   {homeAfterTaxNetCash >= 0 ? `$${Math.round(homeAfterTaxNetCash).toLocaleString()}` : `-$${Math.abs(Math.round(homeAfterTaxNetCash)).toLocaleString()}`}
                                 </p>
                               </div>
