@@ -1336,6 +1336,19 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One-time migration: 2605 Plumbago Ct loan payoff balance updated to $602,000 (Sep 30 2026)
+  useEffect(() => {
+    try {
+      const MIGRATION_KEY = "nw-migration-20260930-plumbago-payoff";
+      if (!localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem("nw-home-loan", "602000");
+        localStorage.setItem(MIGRATION_KEY, "1");
+        setHomeLoanBalance(602000);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Resizable table columns: [Item, Category, Monthly, Annual, Recur, Actions]
   const [colWidths, setColWidths] = useState<number[]>([320, 160, 110, 110, 150, 48]);
   const resizingCol = useRef<{ idx: number; startX: number; startW: number } | null>(null);
@@ -1385,7 +1398,7 @@ export default function Finances() {
     try { return parseFloat(localStorage.getItem("nw-home-value") || "645000"); } catch { return 645000; }
   });
   const [homeLoanBalance, setHomeLoanBalance] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem("nw-home-loan") || "607798.98"); } catch { return 607798.98; }
+    try { return parseFloat(localStorage.getItem("nw-home-loan") || "602000"); } catch { return 602000; }
   });
   // Escrow/impound balance held by the servicer — refunded to us at payoff/sale, so it's a
   // credit added back to net proceeds (not a cost).
