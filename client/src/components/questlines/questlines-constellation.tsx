@@ -164,25 +164,23 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
     return map;
   }, [topLevel]);
 
-  // Each top-level "north star" claims a contiguous wedge of the circle, sized by weight
-  // (1 slot if standalone, one slot per child if it's a grouping node) — so a group's
-  // children fan out near their own parent instead of scattering evenly around the whole
-  // ring irrespective of grouping.
-  const weightOf = (q: Questline) => Math.max(1, childrenOf.get(q.id)?.length ?? 0);
-  const outerCount = useMemo(() => topLevel.reduce((sum, q) => sum + weightOf(q), 0), [topLevel, childrenOf]);
+  // Every top-level "north star" claims an equal wedge of the circle and its children fan
+  // out inside that wedge, so each cluster stays visually attached to its own parent.
+  // (Weighting wedges by child count instead would let one big group swallow the circle.)
+  const outerCount = useMemo(
+    () => topLevel.reduce((sum, q) => sum + Math.max(1, childrenOf.get(q.id)?.length ?? 0), 0),
+    [topLevel, childrenOf],
+  );
   const outerRadius = outerCount < 4 ? 31 : 37;
   const innerRadius = 17;
 
   const wedges = useMemo(() => {
-    const total = topLevel.reduce((sum, q) => sum + weightOf(q), 0) || 1;
-    let cursor = -90;
-    return topLevel.map((questline) => {
-      const span = (weightOf(questline) / total) * 360;
-      const wedge = { questline, start: cursor, end: cursor + span, center: cursor + span / 2 };
-      cursor += span;
-      return wedge;
+    const span = 360 / Math.max(topLevel.length, 1);
+    return topLevel.map((questline, index) => {
+      const start = -90 + index * span;
+      return { questline, start, end: start + span, center: start + span / 2 };
     });
-  }, [topLevel, childrenOf]);
+  }, [topLevel]);
 
   // Grouping "north star" nodes sit on an inner ring, aimed at the center of their wedge.
   const groupPoints = useMemo(() => wedges
@@ -197,11 +195,11 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
       const angle = (angleDeg * Math.PI) / 180;
       return { questline, point: { x: center.x + Math.cos(angle) * outerRadius, y: center.y + Math.sin(angle) * outerRadius } };
     }), [wedges, childrenOf, outerRadius]);
-  // Each group's children fan out across 70% of its wedge, leaving a gap between clusters.
+  // Children fan across 66% of their parent's wedge, leaving a visible gap between clusters.
   const outerPoints = useMemo(() => wedges.flatMap(({ questline: parent, start, end, center: wedgeCenter }) => {
     const kids = childrenOf.get(parent.id);
     if (!kids?.length) return [];
-    const fanSpan = (end - start) * 0.7;
+    const fanSpan = (end - start) * 0.66;
     const angles = kids.length === 1
       ? [wedgeCenter]
       : Array.from({ length: kids.length }, (_, i) => wedgeCenter - fanSpan / 2 + (fanSpan / (kids.length - 1)) * i);
