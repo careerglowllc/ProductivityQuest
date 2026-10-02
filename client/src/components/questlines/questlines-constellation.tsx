@@ -140,7 +140,7 @@ function iconFor(value?: string | null): ReactNode {
   return value && value.length < 4 ? <span aria-hidden="true">{value}</span> : <Target size={20} aria-hidden="true" />;
 }
 
-function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[]; onSelect: (q: Questline) => void; onCreate: () => void }) {
+function Overview({ questlines, onSelect, onCreate, scope, onBack }: { questlines: Questline[]; onSelect: (q: Questline) => void; onCreate: () => void; scope?: Questline; onBack?: () => void }) {
   const center = { x: 50, y: 49 };
   const byId = useMemo(() => new Map(questlines.map((q) => [q.id, q])), [questlines]);
   // A questline is "grouped" when its parent also exists in this list — an orphaned
@@ -240,9 +240,10 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
       <div className="ql-stage__grain" />
       <header className="ql-stage__header">
         <div>
-          <span className="ql-eyebrow">Personal observatory · {topLevel.length} north star{topLevel.length === 1 ? "" : "s"}</span>
-          <h1>Questlines</h1>
-          <p>See the shape of the work you are becoming.</p>
+          {onBack && <button className="ql-back" type="button" onClick={onBack}><ArrowLeft size={16} /> All questlines</button>}
+          <span className="ql-eyebrow">{scope ? `North star · ${topLevel.length} questline${topLevel.length === 1 ? "" : "s"}` : `Personal observatory · ${topLevel.length} north star${topLevel.length === 1 ? "" : "s"}`}</span>
+          <h1>{scope ? scope.title : "Questlines"}</h1>
+          <p>{scope ? (scope.description || "The questlines gathered under this north star.") : "See the shape of the work you are becoming."}</p>
         </div>
         <button className="ql-action ql-action--primary" type="button" onClick={onCreate}><Plus size={16} /> New Questline</button>
       </header>
@@ -595,8 +596,16 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
 
 export function QuestlinesConstellation(props: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [groupId, setGroupId] = useState<number | null>(null);
   const [fallbackDirection, setFallbackDirection] = useState<"forward" | "back" | null>(null);
   const selected = props.questlines.find((questline) => questline.id === selectedId) ?? null;
+  const group = props.questlines.find((questline) => questline.id === groupId) ?? null;
+  // A "north star" has no tasks of its own, so opening it drills into a scoped overview
+  // of its children instead of a Focus map that would always be empty.
+  const hasChildren = (id: number) => props.questlines.some((questline) => questline.parentQuestlineId === id);
+  const scopedQuestlines = group
+    ? props.questlines.filter((questline) => questline.parentQuestlineId === group.id)
+    : props.questlines;
   const transitionTo = (id: number | null) => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const documentWithTransitions = document as Document & {
@@ -617,8 +626,24 @@ export function QuestlinesConstellation(props: Props) {
       flushSync(() => setSelectedId(id));
     });
   };
+  const openQuestline = (questline: Questline) => {
+    if (!group && hasChildren(questline.id)) {
+      setFallbackDirection("forward");
+      setGroupId(questline.id);
+      return;
+    }
+    transitionTo(questline.id);
+  };
   if (props.pending) return <section className="ql-stage ql-loading" aria-label="Loading questlines"><div className="ql-skeleton ql-skeleton--large" /><div className="ql-skeleton ql-skeleton--small" /><div className="ql-skeleton ql-skeleton--map" /></section>;
   return <div className={`ql-transition-shell ${fallbackDirection ? `is-${fallbackDirection}` : ""}`}>
-    {selected ? <Focus {...props} questline={selected} onBack={() => transitionTo(null)} /> : <Overview questlines={props.questlines} onSelect={(questline) => transitionTo(questline.id)} onCreate={props.onCreate} />}
+    {selected
+      ? <Focus {...props} questline={selected} onBack={() => transitionTo(null)} />
+      : <Overview
+          questlines={scopedQuestlines}
+          onSelect={openQuestline}
+          onCreate={props.onCreate}
+          scope={group ?? undefined}
+          onBack={group ? () => { setFallbackDirection("back"); setGroupId(null); } : undefined}
+        />}
   </div>;
 }
