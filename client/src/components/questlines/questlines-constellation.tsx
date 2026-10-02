@@ -25,6 +25,9 @@ export type Questline = {
   description?: string | null;
   icon?: string | null;
   completed?: boolean | null;
+  // Set when this questline is grouped beneath another one (a "north star") in the
+  // constellation overview, instead of hanging directly off Your Horizon.
+  parentQuestlineId?: number | null;
   tasks: QuestlineNode[];
 };
 
@@ -138,20 +141,108 @@ function iconFor(value?: string | null): ReactNode {
 }
 
 function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[]; onSelect: (q: Questline) => void; onCreate: () => void }) {
-  const points = useMemo(() => {
-    const center = { x: 50, y: 49 };
-    return questlines.map((questline, index) => {
-      const angle = (-90 + (360 / Math.max(questlines.length, 1)) * index) * Math.PI / 180;
-      const radius = questlines.length < 4 ? 31 : 37;
-      return { questline, point: { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius } };
+  const center = { x: 50, y: 49 };
+  const byId = useMemo(() => new Map(questlines.map((q) => [q.id, q])), [questlines]);
+  // A questline is "grouped" when its parent also exists in this list — an orphaned
+  // parentQuestlineId (deleted parent) falls back to showing it top-level, not missing.
+  const childrenOf = useMemo(() => {
+    const map = new Map<number, Questline[]>();
+    questlines.forEach((q) => {
+      if (q.parentQuestlineId != null && byId.has(q.parentQuestlineId)) {
+        map.set(q.parentQuestlineId, [...(map.get(q.parentQuestlineId) || []), q]);
+      }
     });
-  }, [questlines]);
+    return map;
+  }, [questlines, byId]);
+  const topLevel = useMemo(
+    () => questlines.filter((q) => q.parentQuestlineId == null || !byId.has(q.parentQuestlineId)),
+    [questlines, byId],
+  );
+  const toneByTopLevelId = useMemo(() => {
+    const map = new Map<number, string>();
+    topLevel.forEach((q, index) => map.set(q.id, tones[index % tones.length]));
+    return map;
+  }, [topLevel]);
+
+  // Each top-level "north star" claims a contiguous wedge of the circle, sized by weight
+  // (1 slot if standalone, one slot per child if it's a grouping node) — so a group's
+  // children fan out near their own parent instead of scattering evenly around the whole
+  // ring irrespective of grouping.
+  const weightOf = (q: Questline) => Math.max(1, childrenOf.get(q.id)?.length ?? 0);
+  const outerCount = useMemo(() => topLevel.reduce((sum, q) => sum + weightOf(q), 0), [topLevel, childrenOf]);
+  const outerRadius = outerCount < 4 ? 31 : 37;
+  const innerRadius = 17;
+
+  const wedges = useMemo(() => {
+    const total = topLevel.reduce((sum, q) => sum + weightOf(q), 0) || 1;
+    let cursor = -90;
+    return topLevel.map((questline) => {
+      const span = (weightOf(questline) / total) * 360;
+      const wedge = { questline, start: cursor, end: cursor + span, center: cursor + span / 2 };
+      cursor += span;
+      return wedge;
+    });
+  }, [topLevel, childrenOf]);
+
+  // Grouping "north star" nodes sit on an inner ring, aimed at the center of their wedge.
+  const groupPoints = useMemo(() => wedges
+    .filter(({ questline }) => (childrenOf.get(questline.id)?.length ?? 0) > 0)
+    .map(({ questline, center: angleDeg }) => {
+      const angle = (angleDeg * Math.PI) / 180;
+      return { questline, point: { x: center.x + Math.cos(angle) * innerRadius, y: center.y + Math.sin(angle) * innerRadius } };
+    }), [wedges, childrenOf]);
+  const standalonePoints = useMemo(() => wedges
+    .filter(({ questline }) => !(childrenOf.get(questline.id)?.length))
+    .map(({ questline, center: angleDeg }) => {
+      const angle = (angleDeg * Math.PI) / 180;
+      return { questline, point: { x: center.x + Math.cos(angle) * outerRadius, y: center.y + Math.sin(angle) * outerRadius } };
+    }), [wedges, childrenOf, outerRadius]);
+  // Each group's children fan out across 70% of its wedge, leaving a gap between clusters.
+  const outerPoints = useMemo(() => wedges.flatMap(({ questline: parent, start, end, center: wedgeCenter }) => {
+    const kids = childrenOf.get(parent.id);
+    if (!kids?.length) return [];
+    const fanSpan = (end - start) * 0.7;
+    const angles = kids.length === 1
+      ? [wedgeCenter]
+      : Array.from({ length: kids.length }, (_, i) => wedgeCenter - fanSpan / 2 + (fanSpan / (kids.length - 1)) * i);
+    return kids.map((kid, i) => {
+      const angle = (angles[i] * Math.PI) / 180;
+      return { questline: kid, parent, point: { x: center.x + Math.cos(angle) * outerRadius, y: center.y + Math.sin(angle) * outerRadius } };
+    });
+  }), [wedges, childrenOf, outerRadius]);
+
+  const effectiveStats = (questline: Questline) => {
+    const kids = childrenOf.get(questline.id);
+    if (kids?.length) {
+      const tasks = kids.flatMap((kid) => kid.tasks);
+      return { total: tasks.length, complete: tasks.filter(done).length, completed: kids.every((kid) => kid.completed) };
+    }
+    return { total: questline.tasks.length, complete: questline.tasks.filter(done).length, completed: Boolean(questline.completed) };
+  };
+
+  const renderNode = (questline: Questline, point: Point, tone: string, isGroup: boolean) => {
+    const stats = effectiveStats(questline);
+    return (
+      <button
+        key={questline.id}
+        type="button"
+        className={`ql-project-node ${isGroup ? "ql-project-node--group" : ""} ${stats.completed ? "is-complete" : ""}`}
+        style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tone, viewTransitionName: `questline-${questline.id}` } as CSSProperties}
+        onClick={() => onSelect(questline)}
+        aria-label={`Open ${questline.title}, ${stats.complete} of ${stats.total} quests complete`}
+      >
+        <span className="ql-project-node__orb">{iconFor(questline.icon)}</span>
+        <b>{questline.title}</b><small>{stats.complete}/{stats.total} illuminated</small>
+      </button>
+    );
+  };
+
   return (
     <section className="ql-stage" aria-label="Questline constellation overview">
       <div className="ql-stage__grain" />
       <header className="ql-stage__header">
         <div>
-          <span className="ql-eyebrow">Personal observatory · {questlines.length} north star{questlines.length === 1 ? "" : "s"}</span>
+          <span className="ql-eyebrow">Personal observatory · {topLevel.length} north star{topLevel.length === 1 ? "" : "s"}</span>
           <h1>Questlines</h1>
           <p>See the shape of the work you are becoming.</p>
         </div>
@@ -160,17 +251,18 @@ function Overview({ questlines, onSelect, onCreate }: { questlines: Questline[];
       <div className="ql-overview">
         <div className="ql-nebula" aria-hidden="true"><i /></div>
         <svg className="ql-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          {points.map(({ questline, point }) => <path key={questline.id} d={`M50 49 Q${(50 + point.x) / 2} ${(49 + point.y) / 2} ${point.x} ${point.y}`} className={questline.completed ? "is-complete" : ""} />)}
+          {standalonePoints.map(({ questline, point }) => <path key={questline.id} d={`M50 49 Q${(50 + point.x) / 2} ${(49 + point.y) / 2} ${point.x} ${point.y}`} className={effectiveStats(questline).completed ? "is-complete" : ""} />)}
+          {groupPoints.map(({ questline, point }) => <path key={`group-${questline.id}`} d={`M50 49 Q${(50 + point.x) / 2} ${(49 + point.y) / 2} ${point.x} ${point.y}`} className={effectiveStats(questline).completed ? "is-complete" : ""} />)}
+          {groupPoints.map(({ questline: group, point: groupPoint }) =>
+            outerPoints.filter((p) => p.parent?.id === group.id).map(({ questline: kid, point: kidPoint }) =>
+              <path key={`child-${kid.id}`} d={`M${groupPoint.x} ${groupPoint.y} Q${(groupPoint.x + kidPoint.x) / 2} ${(groupPoint.y + kidPoint.y) / 2} ${kidPoint.x} ${kidPoint.y}`} className={kid.completed ? "is-complete" : ""} />
+            )
+          )}
         </svg>
         <div className="ql-overview__hub"><Target size={25} /><span>YOUR<br />HORIZON</span></div>
-         {points.map(({ questline, point }, index) => {
-          const total = questline.tasks.length;
-          const complete = questline.tasks.filter(done).length;
-          return <button key={questline.id} type="button" className={`ql-project-node ${questline.completed ? "is-complete" : ""}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tone": tones[index % tones.length], viewTransitionName: `questline-${questline.id}` } as CSSProperties} onClick={() => onSelect(questline)} aria-label={`Open ${questline.title}, ${complete} of ${total} quests complete`}>
-            <span className="ql-project-node__orb">{iconFor(questline.icon)}</span>
-            <b>{questline.title}</b><small>{complete}/{total} illuminated</small>
-          </button>;
-        })}
+        {groupPoints.map(({ questline, point }) => renderNode(questline, point, toneByTopLevelId.get(questline.id) || tones[0], true))}
+        {standalonePoints.map(({ questline, point }) => renderNode(questline, point, toneByTopLevelId.get(questline.id) || tones[0], false))}
+        {outerPoints.filter((p) => p.parent).map(({ questline, point, parent }) => renderNode(questline, point, toneByTopLevelId.get(parent!.id) || tones[0], false))}
         {!questlines.length && <div className="ql-empty"><Target size={34} /><h2>Your map is waiting</h2><p>Give one meaningful project a north star, then let its branches unfold.</p><button className="ql-action ql-action--primary" type="button" onClick={onCreate}><Plus size={16} /> Create your first questline</button></div>}
       </div>
       <footer className="ql-stage__footer"><span>Each questline opens into its own constellation.</span><span>Tab to travel between stars</span></footer>

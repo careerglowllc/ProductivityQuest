@@ -596,15 +596,16 @@ export default function JournalDailyGlewPage() {
                             <span className="dash-mono normal-case" style={{ color: meta.color }}>{meta.label}</span>
                             {isEditing ? (
                               <div className="mt-1 flex items-start gap-2">
-                                <Input
+                                <Textarea
                                   value={editingText}
                                   onChange={(ev) => setEditingText(ev.target.value)}
                                   onKeyDown={(ev) => {
-                                    if (ev.key === "Enter") { ev.preventDefault(); saveInlineEdit(e.date, cat, idx); }
+                                    if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); saveInlineEdit(e.date, cat, idx); }
                                     if (ev.key === "Escape") { ev.preventDefault(); cancelInlineEdit(); }
                                   }}
                                   autoFocus
-                                  className="h-8 flex-1 border-[var(--jrnl-line)] bg-[var(--jrnl-paper-2)] text-[var(--jrnl-ink)]"
+                                  rows={3}
+                                  className="min-h-[76px] flex-1 resize-y border-[var(--jrnl-line)] bg-[var(--jrnl-paper-2)] text-[13px] text-[var(--jrnl-ink)]"
                                 />
                                 <button onClick={() => saveInlineEdit(e.date, cat, idx)} title="Save" className="text-emerald-500 hover:text-emerald-400">
                                   <Check className="h-4 w-4" />
@@ -704,15 +705,16 @@ export default function JournalDailyGlewPage() {
                           <li key={idx} className="flex items-start justify-between gap-2 bg-[var(--jrnl-paper-2)] border border-[var(--jrnl-line)] rounded-lg px-3 py-1.5 text-sm text-[var(--jrnl-ink)]">
                             {isEditingLine ? (
                               <>
-                                <Input
+                                <Textarea
                                   value={editingLineText}
                                   onChange={(e) => setEditingLineText(e.target.value)}
                                   onKeyDown={(e) => {
-                                    if (e.key === "Enter") { e.preventDefault(); saveLineEdit(); }
+                                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveLineEdit(); }
                                     if (e.key === "Escape") { e.preventDefault(); cancelLineEdit(); }
                                   }}
                                   autoFocus
-                                  className="flex-1 h-7 bg-[var(--jrnl-paper)] border-[var(--jrnl-line)] text-[var(--jrnl-ink)]"
+                                  rows={3}
+                                  className="flex-1 min-h-[76px] resize-y bg-[var(--jrnl-paper)] border-[var(--jrnl-line)] text-sm text-[var(--jrnl-ink)]"
                                 />
                                 <div className="flex items-center gap-1 shrink-0">
                                   <button onClick={saveLineEdit} title="Save" className="text-emerald-400 hover:text-emerald-300">

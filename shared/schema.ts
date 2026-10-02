@@ -118,6 +118,9 @@ export const questlines = pgTable("questlines", {
   completedAt: timestamptz("completed_at"),
   bonusAwarded: boolean("bonus_awarded").default(false), // Whether the 3× completion bonus was given
   structureRevision: integer("structure_revision").default(0).notNull(),
+  // Self-referencing FK letting one questline act as a "north star" grouping node for others
+  // in the constellation view (null = top-level, shown as a direct spoke off Your Horizon).
+  parentQuestlineId: integer("parent_questline_id"),
   createdAt: timestamptz("created_at").defaultNow(),
   updatedAt: timestamptz("updated_at").defaultNow(),
 });

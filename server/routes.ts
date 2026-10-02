@@ -4677,12 +4677,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId;
       const qlId = parseInt(req.params.id);
-      const { title, description, icon } = req.body;
+      const { title, description, icon, parentQuestlineId } = req.body;
 
       const updates: any = {};
       if (title !== undefined) updates.title = title;
       if (description !== undefined) updates.description = description;
       if (icon !== undefined) updates.icon = icon;
+      if (parentQuestlineId !== undefined) updates.parentQuestlineId = parentQuestlineId;
 
       const updated = await storage.updateQuestline(userId, qlId, updates);
       if (!updated) return res.status(404).json({ error: "Questline not found" });

@@ -627,3 +627,14 @@ html.light .ql-inspector__facts > div { border-color: #49443d20; background: #49
     bottom: 46px;
   }
 }
+
+/* "North star" grouping nodes (inner ring of the overview) read as a calmer waypoint
+   than the actual project orbs they gather, via a dashed ring and dimmer glow. */
+.ql-project-node--group .ql-project-node__orb {
+  border-style: dashed;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--tone), transparent 88%), 0 0 18px color-mix(in srgb, var(--tone), transparent 55%);
+}
+.ql-project-node--group b {
+  opacity: 0.92;
+}
+}

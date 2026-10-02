@@ -44,6 +44,7 @@ interface QuestlineData {
   completed: boolean | null;
   completedAt: string | null;
   bonusAwarded: boolean | null;
+  parentQuestlineId: number | null;
   tasks: QuestlineTask[];
 }
 
