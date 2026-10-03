@@ -140,7 +140,7 @@ function iconFor(value?: string | null): ReactNode {
   return value && value.length < 4 ? <span aria-hidden="true">{value}</span> : <Target size={20} aria-hidden="true" />;
 }
 
-function Overview({ questlines, onSelect, onCreate, scope, onBack }: { questlines: Questline[]; onSelect: (q: Questline) => void; onCreate: () => void; scope?: Questline; onBack?: () => void }) {
+function Overview({ questlines, onSelect, onCreate, scope, onBack, backLabel = "All questlines" }: { questlines: Questline[]; onSelect: (q: Questline) => void; onCreate: () => void; scope?: Questline; onBack?: () => void; backLabel?: string }) {
   const center = { x: 50, y: 49 };
   const byId = useMemo(() => new Map(questlines.map((q) => [q.id, q])), [questlines]);
   // A questline is "grouped" when its parent also exists in this list — an orphaned
@@ -155,8 +155,10 @@ function Overview({ questlines, onSelect, onCreate, scope, onBack }: { questline
     return map;
   }, [questlines, byId]);
   const topLevel = useMemo(
-    () => questlines.filter((q) => q.parentQuestlineId == null || !byId.has(q.parentQuestlineId)),
-    [questlines, byId],
+    () => scope
+      ? childrenOf.get(scope.id) ?? []
+      : questlines.filter((q) => q.parentQuestlineId == null || !byId.has(q.parentQuestlineId)),
+    [questlines, byId, childrenOf, scope],
   );
   const toneByTopLevelId = useMemo(() => {
     const map = new Map<number, string>();
@@ -209,11 +211,19 @@ function Overview({ questlines, onSelect, onCreate, scope, onBack }: { questline
     });
   }), [wedges, childrenOf, outerRadius]);
 
+  // Rolls up every nested questline so a group's count covers the whole subtree, not
+  // just its direct children (a node can now sit two or more levels below Your Horizon).
+  const descendantsOf = (questline: Questline, seen = new Set<number>()): Questline[] => {
+    if (seen.has(questline.id)) return [];
+    seen.add(questline.id);
+    return (childrenOf.get(questline.id) ?? []).flatMap((kid) => [kid, ...descendantsOf(kid, seen)]);
+  };
   const effectiveStats = (questline: Questline) => {
-    const kids = childrenOf.get(questline.id);
-    if (kids?.length) {
-      const tasks = kids.flatMap((kid) => kid.tasks);
-      return { total: tasks.length, complete: tasks.filter(done).length, completed: kids.every((kid) => kid.completed) };
+    const nested = descendantsOf(questline);
+    if (nested.length) {
+      const tasks = [questline, ...nested].flatMap((node) => node.tasks);
+      const leaves = nested.filter((node) => !childrenOf.has(node.id));
+      return { total: tasks.length, complete: tasks.filter(done).length, completed: leaves.every((leaf) => leaf.completed) };
     }
     return { total: questline.tasks.length, complete: questline.tasks.filter(done).length, completed: Boolean(questline.completed) };
   };
@@ -240,7 +250,7 @@ function Overview({ questlines, onSelect, onCreate, scope, onBack }: { questline
       <div className="ql-stage__grain" />
       <header className="ql-stage__header">
         <div>
-          {onBack && <button className="ql-back" type="button" onClick={onBack}><ArrowLeft size={16} /> All questlines</button>}
+          {onBack && <button className="ql-back" type="button" onClick={onBack}><ArrowLeft size={16} /> {backLabel}</button>}
           <span className="ql-eyebrow">{scope ? `North star · ${topLevel.length} questline${topLevel.length === 1 ? "" : "s"}` : `Personal observatory · ${topLevel.length} north star${topLevel.length === 1 ? "" : "s"}`}</span>
           <h1>{scope ? scope.title : "Questlines"}</h1>
           <p>{scope ? (scope.description || "The questlines gathered under this north star.") : "See the shape of the work you are becoming."}</p>
@@ -261,7 +271,7 @@ function Overview({ questlines, onSelect, onCreate, scope, onBack }: { questline
         <div className="ql-overview__hub"><Target size={25} /><span>YOUR<br />HORIZON</span></div>
         {groupPoints.map(({ questline, point }) => renderNode(questline, point, toneByTopLevelId.get(questline.id) || tones[0], true))}
         {standalonePoints.map(({ questline, point }) => renderNode(questline, point, toneByTopLevelId.get(questline.id) || tones[0], false))}
-        {outerPoints.filter((p) => p.parent).map(({ questline, point, parent }) => renderNode(questline, point, toneByTopLevelId.get(parent!.id) || tones[0], false))}
+        {outerPoints.filter((p) => p.parent).map(({ questline, point, parent }) => renderNode(questline, point, toneByTopLevelId.get(parent!.id) || tones[0], childrenOf.has(questline.id)))}
         {!questlines.length && <div className="ql-empty"><Target size={34} /><h2>Your map is waiting</h2><p>Give one meaningful project a north star, then let its branches unfold.</p><button className="ql-action ql-action--primary" type="button" onClick={onCreate}><Plus size={16} /> Create your first questline</button></div>}
       </div>
       <footer className="ql-stage__footer"><span>Each questline opens into its own constellation.</span><span>Tab to travel between stars</span></footer>
@@ -596,16 +606,18 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
 
 export function QuestlinesConstellation(props: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [groupId, setGroupId] = useState<number | null>(null);
+  // Drill-down trail of north-star ids, outermost first; groups can nest to any depth.
+  const [groupPath, setGroupPath] = useState<number[]>([]);
   const [fallbackDirection, setFallbackDirection] = useState<"forward" | "back" | null>(null);
   const selected = props.questlines.find((questline) => questline.id === selectedId) ?? null;
-  const group = props.questlines.find((questline) => questline.id === groupId) ?? null;
+  const trail = groupPath
+    .map((id) => props.questlines.find((questline) => questline.id === id))
+    .filter((questline): questline is Questline => Boolean(questline));
+  const group = trail[trail.length - 1] ?? null;
+  const parentOfGroup = trail[trail.length - 2] ?? null;
   // A "north star" has no tasks of its own, so opening it drills into a scoped overview
   // of its children instead of a Focus map that would always be empty.
   const hasChildren = (id: number) => props.questlines.some((questline) => questline.parentQuestlineId === id);
-  const scopedQuestlines = group
-    ? props.questlines.filter((questline) => questline.parentQuestlineId === group.id)
-    : props.questlines;
   const transitionTo = (id: number | null) => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const documentWithTransitions = document as Document & {
@@ -627,9 +639,9 @@ export function QuestlinesConstellation(props: Props) {
     });
   };
   const openQuestline = (questline: Questline) => {
-    if (!group && hasChildren(questline.id)) {
+    if (hasChildren(questline.id)) {
       setFallbackDirection("forward");
-      setGroupId(questline.id);
+      setGroupPath([...trail.map((node) => node.id), questline.id]);
       return;
     }
     transitionTo(questline.id);
@@ -639,11 +651,12 @@ export function QuestlinesConstellation(props: Props) {
     {selected
       ? <Focus {...props} questline={selected} onBack={() => transitionTo(null)} />
       : <Overview
-          questlines={scopedQuestlines}
+          questlines={props.questlines}
           onSelect={openQuestline}
           onCreate={props.onCreate}
           scope={group ?? undefined}
-          onBack={group ? () => { setFallbackDirection("back"); setGroupId(null); } : undefined}
+          backLabel={parentOfGroup ? parentOfGroup.title : "All questlines"}
+          onBack={group ? () => { setFallbackDirection("back"); setGroupPath(trail.slice(0, -1).map((node) => node.id)); } : undefined}
         />}
   </div>;
 }
