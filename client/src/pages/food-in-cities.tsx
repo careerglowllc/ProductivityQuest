@@ -769,6 +769,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-09-28T00:00:00.000Z",
     updatedAt: "2026-09-28T00:00:00.000Z",
   },
+  {
+    id: "food-ozumo-santana-row-sanjose",
+    name: "Ozumo Santana Row",
+    city: "San Jose, CA",
+    address: "355 Santana Row, San Jose, CA 95128",
+    overallRating: 2.5,
+    stars: { food: 2.5, ambience: 3, price: 2 },
+    thoughts: "Sushi is fine but not worth the fancy price tags. Nice fancy place in Santana Row, but so is everything there. Expensive for not the best quality.",
+    tags: ["Sushi", "Japanese"],
+    visitedAt: "",
+    createdAt: "2026-10-03T00:00:00.000Z",
+    updatedAt: "2026-10-03T00:00:00.000Z",
+  },
 ];
 
 
@@ -792,7 +805,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v17";
+    const key = "food-cities-seed-v18";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
