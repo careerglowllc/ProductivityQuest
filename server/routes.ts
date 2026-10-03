@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, COMPLETED_ARCHIVE_CAP } from "./storage";
 import { requireAuth } from "./auth";
 import { loginLimiter, registerLimiter, passwordResetLimiter } from "./rateLimiters";
 import { notion, findDatabaseByTitle, getTasks, createDatabaseIfNotExists, getNotionDatabases, updateTaskCompletion } from "./notion";
@@ -960,11 +960,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!completedTask) {
             const recurNormalized = (existing.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
             const isRecurring = recurNormalized !== "" && recurNormalized !== "one-time";
-            if (!isRecurring && await storage.countCompletedTasks(userId) >= 5000) {
+            if (!isRecurring && await storage.countCompletedTasks(userId) >= COMPLETED_ARCHIVE_CAP) {
               return res.status(409).json({
                 error: "Completed archive is full",
                 code: "COMPLETED_ARCHIVE_FULL",
-                limit: 5000,
+                limit: COMPLETED_ARCHIVE_CAP,
               });
             }
             return res.status(409).json({ error: "Task completion conflicted with another request" });
@@ -1105,11 +1105,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const recurNormalized = (taskBefore.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
       const isRecurring = recurNormalized !== "" && recurNormalized !== "one-time";
-      if (!isRecurring && await storage.countCompletedTasks(userId) >= 5000) {
+      if (!isRecurring && await storage.countCompletedTasks(userId) >= COMPLETED_ARCHIVE_CAP) {
         return res.status(409).json({
           error: "Completed archive is full",
           code: "COMPLETED_ARCHIVE_FULL",
-          limit: 5000,
+          limit: COMPLETED_ARCHIVE_CAP,
         });
       }
       
@@ -1137,11 +1137,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const task = await storage.completeTask(id, userId);
       if (!task) {
         const archiveCount = await storage.countCompletedTasks(userId);
-        if (!isRecurring && archiveCount >= 5000) {
+        if (!isRecurring && archiveCount >= COMPLETED_ARCHIVE_CAP) {
           return res.status(409).json({
             error: "Completed archive is full",
             code: "COMPLETED_ARCHIVE_FULL",
-            limit: 5000,
+            limit: COMPLETED_ARCHIVE_CAP,
           });
         }
         return res.status(409).json({ error: "Task was already completed" });
@@ -1380,13 +1380,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return recurNormalized === "" || recurNormalized === "one-time";
       });
       const archiveCount = await storage.countCompletedTasks(userId);
-      if (archiveCount + archiveCandidates.length > 5000) {
+      if (archiveCount + archiveCandidates.length > COMPLETED_ARCHIVE_CAP) {
         return res.status(409).json({
           error: "Completed archive does not have room for this batch",
           code: "COMPLETED_ARCHIVE_FULL",
-          limit: 5000,
+          limit: COMPLETED_ARCHIVE_CAP,
           archived: archiveCount,
-          available: Math.max(0, 5000 - archiveCount),
+          available: Math.max(0, COMPLETED_ARCHIVE_CAP - archiveCount),
         });
       }
 
@@ -2034,14 +2034,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Completed tasks are a durable, per-user archive. They remain regular task
   // rows so questlineId/parentTaskId relationships stay available to renderers.
+  // Always paged (default 50, max 200) so a large archive never ships in one response.
   app.get("/api/completed-tasks", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const completedTasks = await storage.getCompletedTasks(userId);
+      const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit), 10) || 50));
+      const offset = Math.max(0, parseInt(String(req.query.offset), 10) || 0);
+      const sinceRaw = typeof req.query.since === "string" ? new Date(req.query.since) : undefined;
+      const since = sinceRaw && !Number.isNaN(sinceRaw.getTime()) ? sinceRaw : undefined;
+      const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
+
+      const { tasks: completedTasks, matched, total } = await storage.getCompletedTasks(userId, {
+        limit,
+        offset,
+        since,
+        search: search || undefined,
+      });
       res.json({
         tasks: completedTasks,
-        count: completedTasks.length,
-        limit: 5000,
+        count: total,
+        matched,
+        limit: COMPLETED_ARCHIVE_CAP,
       });
     } catch (error) {
       console.error("Get completed tasks error:", error);

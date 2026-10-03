@@ -1,6 +1,14 @@
 import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, familyContributions, nwSnapshots, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, userKv, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type FamilyContribution, type InsertFamilyContribution, type NwSnapshot, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, isNull, inArray, gt, desc, sql } from "drizzle-orm";
+import { eq, and, or, isNull, inArray, gt, gte, desc, sql, ilike, getTableColumns } from "drizzle-orm";
+
+// Per-user ceiling on completed tasks kept in the archive. Rows stay in the tasks table, so this
+// only guards runaway growth; with the completed-at index, 100k rows is cheap to page and count.
+export const COMPLETED_ARCHIVE_CAP = 100_000;
+
+// Archive list rows leave out attachments (inline base64 media can be megabytes per task).
+export type CompletedTaskSummary = Omit<Task, "attachments">;
+export type CompletedTaskQuery = { limit: number; offset: number; since?: Date; search?: string };
 
 // Work labels that auto-file an unfiled task into a catch-all questline. Apple matches the
 // Quests page's "Apple" filter, which treats the boolean flag and work filter as equivalent.
@@ -61,7 +69,7 @@ export interface IStorage {
   completeTask(id: number, userId: string): Promise<Task | undefined>;
   uncompleteTask(id: number, userId: string): Promise<Task | undefined>;
   getRecycledTasks(userId: string): Promise<Task[]>;
-  getCompletedTasks(userId: string): Promise<Task[]>;
+  getCompletedTasks(userId: string, query: CompletedTaskQuery): Promise<{ tasks: CompletedTaskSummary[]; matched: number; total: number }>;
   countCompletedTasks(userId: string): Promise<number>;
   restoreTask(id: number, userId: string): Promise<Task | undefined>;
   permanentlyDeleteTask(id: number, userId: string): Promise<boolean>;
@@ -129,7 +137,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  static readonly COMPLETED_ARCHIVE_CAP = 5000;
   // Skill XP progression constants
   private readonly SKILL_BASE_XP = 100; // Base XP requirement for level 1->2
   private readonly SKILL_GROWTH_RATE = 0.02; // 2% growth rate per level (modular for future adjustment)
@@ -431,7 +438,7 @@ export class DatabaseStorage implements IStorage {
             from tasks as completed_archive
             where completed_archive.user_id = ${userId}
               and completed_archive.completed = true
-          ) < ${DatabaseStorage.COMPLETED_ARCHIVE_CAP}`
+          ) < ${COMPLETED_ARCHIVE_CAP}`
         ))
         .returning();
 
@@ -546,14 +553,37 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tasks.recycledAt));
   }
 
-  async getCompletedTasks(userId: string): Promise<Task[]> {
-    return await db.select().from(tasks)
-      .where(and(
-        eq(tasks.userId, userId),
-        eq(tasks.completed, true),
-        eq(tasks.recycledReason, "completed"),
-      ))
-      .orderBy(desc(tasks.completedAt));
+  // Paginated so the archive can hold far more rows than any one response ever carries.
+  // `total` is the whole archive; `matched` is the rows that pass the search/since filters.
+  async getCompletedTasks(userId: string, query: CompletedTaskQuery) {
+    const { attachments: _attachments, ...summaryColumns } = getTableColumns(tasks);
+    const archive = and(
+      eq(tasks.userId, userId),
+      eq(tasks.completed, true),
+      eq(tasks.recycledReason, "completed"),
+    );
+    const filters = [archive];
+    if (query.since) filters.push(gte(tasks.completedAt, query.since));
+    if (query.search) {
+      // Escape LIKE wildcards so a search for "50%" matches literally.
+      const pattern = `%${query.search.replace(/[\\%_]/g, "\\$&")}%`;
+      filters.push(or(
+        ilike(tasks.title, pattern),
+        ilike(tasks.description, pattern),
+        sql`${tasks.skillTags}::text ILIKE ${pattern}`,
+        sql`${tasks.questlineId}::text ILIKE ${pattern}`,
+      )!);
+    }
+    const where = and(...filters);
+
+    const [rows, [matchedRow], [totalRow]] = await Promise.all([
+      db.select(summaryColumns).from(tasks).where(where)
+        .orderBy(desc(tasks.completedAt), desc(tasks.id))
+        .limit(query.limit).offset(query.offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(tasks).where(where),
+      db.select({ count: sql<number>`count(*)::int` }).from(tasks).where(archive),
+    ]);
+    return { tasks: rows, matched: matchedRow?.count ?? 0, total: totalRow?.count ?? 0 };
   }
 
   async countCompletedTasks(userId: string): Promise<number> {

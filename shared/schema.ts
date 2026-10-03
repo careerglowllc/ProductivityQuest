@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // Helper for timestamp with timezone
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
@@ -105,7 +106,10 @@ export const tasks = pgTable("tasks", {
   // Inline media attachments embedded in the description (base64 data URLs). Stored in DB so they
   // persist across deploys and work on both web + iOS (which share the hosted server origin).
   attachments: jsonb("attachments").$type<Array<{ id: string; type: "image" | "video"; dataUrl: string; name: string; size: number }>>().default([]),
-});
+}, (table) => [
+  // Serves the completed-archive list (newest first), "completed today" lookups, and the cap count.
+  index("IDX_tasks_user_completed_at").on(table.userId, table.completedAt).where(sql`${table.completed} = true`),
+]);
 
 // Questlines — multi-stage quest chains. Each stage is a regular task with questlineId set.
 export const questlines = pgTable("questlines", {

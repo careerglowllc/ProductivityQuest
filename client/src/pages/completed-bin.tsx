@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { Archive, ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, GitBranch, Search, Trash2 } from "lucide-react";
@@ -25,38 +25,41 @@ type CompletedTask = {
 type CompletedArchiveResponse = {
   tasks: CompletedTask[];
   count: number;
+  matched: number;
   limit: number;
 };
 
 const PAGE_SIZE = 50;
+const DEFAULT_CAP = 100_000;
 
 export default function CompletedBin() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const { removeCompletedTask, isRemovingTask } = useUndoableCompletedTaskDelete();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // The server pages and searches, so the archive can be far larger than one response.
   const { data, isLoading, error } = useQuery<CompletedArchiveResponse>({
-    queryKey: ["/api/completed-tasks"],
+    queryKey: ["/api/completed-tasks", { page, search: debouncedSearch }],
     queryFn: async () => {
-      const response = await fetch("/api/completed-tasks", { credentials: "include" });
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      const response = await fetch(`/api/completed-tasks?${params}`, { credentials: "include" });
       if (!response.ok) throw new Error("Unable to load completed quests");
       return response.json();
     },
+    placeholderData: keepPreviousData,
   });
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return data?.tasks ?? [];
-    return (data?.tasks ?? []).filter((task) =>
-      task.title.toLowerCase().includes(query)
-      || task.description?.toLowerCase().includes(query)
-      || task.skillTags?.some((skill) => skill.toLowerCase().includes(query))
-      || (task.questlineId != null && String(task.questlineId).includes(query))
-    );
-  }, [data?.tasks, search]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const matched = data?.matched ?? 0;
+  const pageCount = Math.max(1, Math.ceil(matched / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
-  const visibleTasks = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const visibleTasks = data?.tasks ?? [];
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 px-4 py-6 pb-24 text-slate-100">
@@ -87,12 +90,12 @@ export default function CompletedBin() {
           <CardContent>
             <div className="flex items-center justify-between text-sm text-slate-300">
               <span>{(data?.count ?? 0).toLocaleString()} archived</span>
-              <span>{(data?.limit ?? 5000).toLocaleString()} maximum</span>
+              <span>{(data?.limit ?? DEFAULT_CAP).toLocaleString()} maximum</span>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
               <div
                 className="h-full rounded-full bg-purple-500"
-                style={{ width: `${Math.min(100, ((data?.count ?? 0) / (data?.limit ?? 5000)) * 100)}%` }}
+                style={{ width: `${Math.min(100, ((data?.count ?? 0) / (data?.limit ?? DEFAULT_CAP)) * 100)}%` }}
               />
             </div>
           </CardContent>

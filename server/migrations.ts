@@ -76,6 +76,19 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS widget_preferences JSONB DEFAULT '{}'
     `;
 
+    // Migration: Questlines can be grouped under another questline ("north star" nodes).
+    await sql`
+      ALTER TABLE questlines
+      ADD COLUMN IF NOT EXISTS parent_questline_id INTEGER
+    `;
+
+    // Migration: Partial index backing the completed-task archive (newest-first pages,
+    // "completed today" lookups, and the per-completion cap count).
+    await sql`
+      CREATE INDEX IF NOT EXISTS "IDX_tasks_user_completed_at"
+      ON tasks (user_id, completed_at) WHERE completed = true
+    `;
+
     // Migration: Add attachments column to tasks (inline base64 images/videos in the description)
     await sql`
       ALTER TABLE tasks
