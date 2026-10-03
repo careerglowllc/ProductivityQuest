@@ -8,6 +8,7 @@ export type QuestlineNode = {
   title: string;
   description?: string | null;
   completed?: boolean | null;
+  completedAt?: string | Date | null;
   recycled?: boolean | null;
   recycledReason?: string | null;
   parentTaskId?: number | null;
@@ -77,6 +78,30 @@ const statusOf = (node: QuestlineNode): NodeStatus => {
   return "not-started";
 };
 const statusLabel = (status: NodeStatus) => status === "finished" ? "Finished" : status === "in-progress" ? "In progress" : "Not started";
+
+const MAX_COMPLETED_SHOWN = 10;
+// Display-only: keeps the newest completed quests on a map so it stays readable. Stored data is
+// untouched. A completed quest that still has an unfinished or recent descendant stays on the map
+// regardless of age, otherwise its children would be orphaned.
+function capCompleted(tasks: QuestlineNode[]) {
+  const completed = tasks.filter((task) => statusOf(task) === "finished");
+  if (completed.length <= MAX_COMPLETED_SHOWN) return { visible: tasks, hidden: 0 };
+  const stamp = (task: QuestlineNode) => task.completedAt ? new Date(task.completedAt).getTime() || 0 : 0;
+  const newest = completed.slice().sort((a, b) => stamp(b) - stamp(a) || b.id - a.id).slice(0, MAX_COMPLETED_SHOWN);
+  const shown = new Set<number>([...tasks.filter((task) => statusOf(task) !== "finished"), ...newest].map((task) => task.id));
+  const byId = new Map(tasks.map((task) => [task.id, task]));
+  Array.from(shown).forEach((id) => {
+    let parentId = byId.get(id)?.parentTaskId;
+    const walked = new Set<number>();
+    while (parentId != null && byId.has(parentId) && !walked.has(parentId)) {
+      walked.add(parentId);
+      shown.add(parentId);
+      parentId = byId.get(parentId)?.parentTaskId;
+    }
+  });
+  const visible = tasks.filter((task) => shown.has(task.id));
+  return { visible, hidden: tasks.length - visible.length };
+}
 const formatDuration = (minutes?: number | null) => {
   if (!minutes || minutes <= 0) return "No estimate";
   if (minutes < 60) return `${minutes} min`;
@@ -297,7 +322,8 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
   const iconRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
   const hubIconRef = useRef<HTMLSpanElement | null>(null);
   const [visualPositions, setVisualPositions] = useState<Map<number | "hub", Point & { r: number }>>(new Map());
-  const tasks = useMemo(() => descendants(questline.tasks, null).result, [questline.tasks]);
+  const capped = useMemo(() => capCompleted(questline.tasks), [questline.tasks]);
+  const tasks = useMemo(() => descendants(capped.visible, null).result, [capped]);
   // descendants() already keeps the first occurrence of any duplicated ID.
   // Build every downstream map from that normalized list as well.
   const byId = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
@@ -600,7 +626,7 @@ function Focus({ questline, onBack, onEditQuestline, onDeleteQuestline, onToggle
        <ol className="sr-only" aria-label="Quest hierarchy">{tasks.map((task) => <li key={task.id}>{task.title} — {task.parentTaskId && byId.has(task.parentTaskId) ? `child of ${byId.get(task.parentTaskId)?.title}` : "root quest"} — {statusLabel(statusOf(task))}</li>)}</ol>
     </div>
       {selected && (() => { const due = dueDetails(selected.dueDate); return <aside id="ql-quest-detail" className="ql-inspector" role="dialog" aria-modal="false" aria-labelledby="ql-quest-detail-title"><div className="ql-inspector__topline"><span className="ql-eyebrow">{selected.parentTaskId ? "Nested quest" : "Root quest"} · {statusLabel(statusOf(selected))}</span><button ref={dialogCloseRef} type="button" onClick={closeDetails} aria-label="Close quest details">×</button></div><h2 id="ql-quest-detail-title">{selected.title}</h2><div className="ql-inspector__facts"><div className={`is-${due.state}`}><CalendarDays size={16} /><span><small>Due</small><strong>{due.label}</strong></span></div><div><Clock3 size={16} /><span><small>Estimate</small><strong>{formatDuration(selected.duration)}</strong></span></div></div><div className="ql-inspector__description"><small>Description</small><p>{selected.description || "No description has been added yet."}</p></div><div className="ql-inspector__actions">{onToggleTask && (!selected.recycled || selected.completed) && <button type="button" className="ql-action ql-action--primary" onClick={() => onToggleTask(selected)} disabled={isTaskPending?.(selected)}>{isTaskPending?.(selected) ? "Updating…" : selected.completed ? "Mark in progress" : "Mark complete"}</button>}{onEditTask && <button type="button" className="ql-action" onClick={() => onEditTask(selected)}><Edit3 size={14} /> Edit quest</button>}{done(selected) && onDeleteTask && <button type="button" className="ql-action ql-icon-action--danger" onClick={() => onDeleteTask(selected)} disabled={isTaskDeletePending?.(selected)}><Trash2 size={14} /> {isTaskDeletePending?.(selected) ? "Removing…" : "Permanently remove"}</button>}</div></aside>; })()}
-    <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete</span><span>Drag to pan · pinch, Ctrl-scroll, or use controls to zoom</span></footer>
+    <footer className="ql-stage__footer"><span>{questline.tasks.filter(done).length} of {questline.tasks.length} quests complete{capped.hidden > 0 && ` · ${capped.hidden} older completed hidden`}</span><span>Drag to pan · pinch, Ctrl-scroll, or use controls to zoom</span></footer>
   </section>;
 }
 
