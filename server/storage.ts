@@ -2,6 +2,12 @@ import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns
 import { db } from "./db";
 import { eq, and, or, isNull, inArray, gt, desc, sql } from "drizzle-orm";
 
+// Questline that collects Apple work. Matches the Quests page's "Apple" filter,
+// which treats the boolean flag and the work filter as equivalent labels.
+export const APPLE_SALARY_QUESTLINE = "Apple Salary";
+const isAppleLabeled = (task: { apple?: boolean | null; businessWorkFilter?: string | null }) =>
+  task.apple === true || task.businessWorkFilter === "Apple";
+
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
@@ -293,19 +299,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(task: InsertTask): Promise<Task> {
-    const [newTask] = await db.insert(tasks).values(task).returning();
+    const values = { ...task };
+    if (values.questlineId == null && isAppleLabeled(values)) {
+      const appleQuestlineId = await this.getAppleSalaryQuestlineId(values.userId);
+      if (appleQuestlineId != null) values.questlineId = appleQuestlineId;
+    }
+    const [newTask] = await db.insert(tasks).values(values).returning();
     return newTask;
   }
 
   async updateTask(id: number, task: Partial<Task>, userId: string): Promise<Task | undefined> {
     console.log(`🗄️ [storage.updateTask] Updating task ${id} with:`, JSON.stringify(task, null, 2));
+    const updates = { ...task };
+    // Only adopt a task that isn't already filed under a questline, so an explicit
+    // placement by the user is never silently overridden.
+    if (updates.questlineId === undefined && (updates.apple !== undefined || updates.businessWorkFilter !== undefined)) {
+      const existing = await this.getTask(id, userId);
+      if (existing && existing.questlineId == null && isAppleLabeled({ ...existing, ...updates })) {
+        const appleQuestlineId = await this.getAppleSalaryQuestlineId(userId);
+        if (appleQuestlineId != null) updates.questlineId = appleQuestlineId;
+      }
+    }
     const [updatedTask] = await db
       .update(tasks)
-      .set(task)
+      .set(updates)
       .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
       .returning();
     console.log(`🗄️ [storage.updateTask] Result - scheduledTime: ${updatedTask?.scheduledTime}, googleEventId: ${updatedTask?.googleEventId}`);
     return updatedTask;
+  }
+
+  // Mirrors the Quests page "Apple" filter so newly labeled work lands in the
+  // Apple Salary questline automatically. Returns null when the user has no such questline.
+  private async getAppleSalaryQuestlineId(userId: string): Promise<number | null> {
+    const [row] = await db.select({ id: questlines.id }).from(questlines)
+      .where(and(eq(questlines.userId, userId), eq(questlines.title, APPLE_SALARY_QUESTLINE)))
+      .limit(1);
+    return row?.id ?? null;
   }
 
   async deleteTask(id: number, userId: string): Promise<boolean> {
