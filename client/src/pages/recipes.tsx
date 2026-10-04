@@ -208,6 +208,66 @@ export default function RecipesPage() {
     localStorage.setItem(seedKey, "1");
   }, []);
 
+  // Separate seed key so earlier seeds (e.g. a deleted Chicken Milanese) are never re-added.
+  useEffect(() => {
+    const seedKey = "recipes-seed-shawarma-chicken-v1";
+    if (localStorage.getItem(seedKey)) return;
+    const existing = loadRecipes();
+    const name = "Shawarma-Spiced Grilled Chicken With Tahini-Yogurt Sauce";
+    if (!existing.some((r) => r.name === name)) {
+      const now = new Date().toISOString();
+      const shawarma: Recipe = {
+        id: crypto.randomUUID(),
+        name,
+        description: "Beginner-friendly grilled chicken marinated in yogurt and shawarma spices, served with a tahini-yogurt sauce. By Lidey Heuck, NYT Cooking.",
+        ingredients: [
+          "FOR THE CHICKEN:",
+          "1 teaspoon sweet paprika",
+          "1 teaspoon ground cumin",
+          "½ teaspoon ground coriander",
+          "½ teaspoon ground ginger",
+          "½ teaspoon ground turmeric",
+          "¼ teaspoon ground allspice",
+          "¼ teaspoon ground cinnamon",
+          "Salt and pepper",
+          "1½ cups plain yogurt",
+          "¼ cup minced yellow onion",
+          "3 tablespoons extra-virgin olive oil, plus more for the grill",
+          "2 garlic cloves, minced",
+          "3 pounds boneless, skinless chicken breasts or thighs (or a combination)",
+          "½ lemon, for serving",
+          "Fresh parsley or mint leaves (optional), for serving",
+          "",
+          "FOR THE TAHINI-YOGURT SAUCE:",
+          "1 cup plain yogurt",
+          "2 tablespoons tahini",
+          "1 tablespoon freshly squeezed lemon juice",
+          "½ garlic clove, finely grated or minced",
+          "Salt",
+        ].join("\n"),
+        instructions: [
+          "1. Make the marinade: In a large bowl, combine the paprika, cumin, coriander, ginger, turmeric, allspice and cinnamon with 1½ teaspoons salt and ½ teaspoon pepper. Add the yogurt, onion, olive oil and garlic; mix well, then set aside.",
+          "2. Pat the chicken pieces dry with a paper towel. If using breasts, cut the breasts in half crosswise, so you have one thicker, rounded piece and one thinner, triangular piece. Working in batches, place the chicken pieces on a large cutting board and cover them with a sheet of parchment paper. Using a meat mallet or rolling pin, pound the chicken until each piece is about the same thickness as the others, between ½-inch and ¾-inch-thick. (Be careful not to pound so hard that you tear the chicken.)",
+          "3. Add the chicken to the marinade and toss well. Cover and refrigerate for at least 3 hours or up to 24 hours.",
+          "4. Meanwhile, make the tahini-yogurt sauce: In a small bowl, combine the yogurt, tahini, lemon juice and garlic; season to taste with salt. Refrigerate for at least 30 minutes or up to 3 days.",
+          "5. Before grilling, let the chicken come to room temperature for 30 minutes. If using a charcoal or gas grill, clean the grates and brush them with oil. Set the grill to medium-high or heat a grill pan slicked with olive oil on the stovetop over medium-high.",
+          "6. Lift the chicken from the marinade (no need to brush off excess marinade) and grill until cooked through, 6 to 8 minutes on each side, covering the grill halfway through, if necessary, to retain the heat.",
+          "7. Transfer the chicken to a plate, sprinkle generously with salt and squeeze the lemon half over the pieces. Allow the chicken to rest for at least 10 minutes before serving. Garnish with chopped fresh parsley or mint (if using) and serve the tahini-yogurt sauce on the side.",
+        ].join("\n"),
+        prepTime: "15 min",
+        cookTime: "1 hr, plus 3 hr chilling",
+        servings: "6",
+        tags: ["High Protein", "Dinner"],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const updated = [shawarma, ...existing];
+      saveRecipes(updated);
+      setRecipes(updated);
+    }
+    localStorage.setItem(seedKey, "1");
+  }, []);
+
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
