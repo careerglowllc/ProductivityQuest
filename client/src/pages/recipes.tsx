@@ -90,6 +90,21 @@ function saveRecipes(recipes: Recipe[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
 }
 
+// Adds a built-in recipe once per seedKey, skipping it if a recipe with that name already exists.
+// Returns the updated list when something was added, otherwise null.
+function seedRecipeOnce(seedKey: string, fields: Omit<Recipe, "id" | "createdAt" | "updatedAt">): Recipe[] | null {
+  if (localStorage.getItem(seedKey)) return null;
+  const existing = loadRecipes();
+  let updated: Recipe[] | null = null;
+  if (!existing.some((r) => r.name === fields.name)) {
+    const now = new Date().toISOString();
+    updated = [{ id: crypto.randomUUID(), ...fields, createdAt: now, updatedAt: now }, ...existing];
+    saveRecipes(updated);
+  }
+  localStorage.setItem(seedKey, "1");
+  return updated;
+}
+
 // Pure builder (no side effects) so the Settings page's "Export All" master export can reuse it.
 export function buildRecipesCSVExport(): CSVExport {
   const recipes = loadRecipes();
@@ -266,6 +281,36 @@ export default function RecipesPage() {
       setRecipes(updated);
     }
     localStorage.setItem(seedKey, "1");
+  }, []);
+
+  useEffect(() => {
+    const updated = seedRecipeOnce("recipes-seed-caramelized-corn-v1", {
+      name: "Caramelized Corn with Hazelnuts, Queso, Parmigiano and Basil",
+      description: "The perfect summer salad to accompany surf or turf. Frozen corn can make this a year-round keeper. Adapted from Odette Williams.",
+      ingredients: [
+        "¼ cup extra-virgin olive oil",
+        "2 large shallots, minced",
+        "4 ears corn, shucked and kernels cut off (about 4 cups)",
+        "2 cloves garlic, minced",
+        "5 ounces queso fresco or feta, crumbled",
+        "Parmigiano-Reggiano, finely grated (to taste)",
+        "⅓ cup hazelnuts, toasted and roughly chopped",
+        "1 large jalapeño, seeded and minced",
+        "Large handful basil leaves, roughly chopped",
+        "Salt and freshly ground black pepper",
+      ].join("\n"),
+      instructions: [
+        "1. In a large cast-iron skillet, over medium-high heat, warm oil, then sauté shallots for 2 minutes.",
+        "2. Add corn and garlic and continue to sauté, stirring often, until corn is golden and caramelized, about 20 minutes.",
+        "3. Transfer corn to a large serving bowl, and let cool for about 5 minutes.",
+        "4. Add queso, Parmigiano, hazelnuts, jalapeño and basil. Toss to combine and season to taste with salt and pepper.",
+      ].join("\n"),
+      prepTime: "",
+      cookTime: "35 min total",
+      servings: "4",
+      tags: ["Vegetarian"],
+    });
+    if (updated) setRecipes(updated);
   }, []);
 
   // Dialog state
