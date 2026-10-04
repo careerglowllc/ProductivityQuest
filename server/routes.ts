@@ -1105,13 +1105,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const recurNormalized = (taskBefore.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
       const isRecurring = recurNormalized !== "" && recurNormalized !== "one-time";
-      if (!isRecurring && await storage.countCompletedTasks(userId) >= COMPLETED_ARCHIVE_CAP) {
-        return res.status(409).json({
-          error: "Completed archive is full",
-          code: "COMPLETED_ARCHIVE_FULL",
-          limit: COMPLETED_ARCHIVE_CAP,
-        });
-      }
       
       // Calculate XP gains before completion
       const skillXPGains: Array<{ skillName: string; xpGained: number; newXP: number; newLevel: number }> = [];
@@ -1372,23 +1365,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const uniqueTaskIds = Array.from(new Set(taskIds.filter((id: unknown) => Number.isInteger(id))));
-      const candidateTasks = (await Promise.all(
-        uniqueTaskIds.map((id) => storage.getTask(id as number, userId))
-      )).filter((task): task is Task => !!task && !task.completed);
-      const archiveCandidates = candidateTasks.filter((task) => {
-        const recurNormalized = (task.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
-        return recurNormalized === "" || recurNormalized === "one-time";
-      });
-      const archiveCount = await storage.countCompletedTasks(userId);
-      if (archiveCount + archiveCandidates.length > COMPLETED_ARCHIVE_CAP) {
-        return res.status(409).json({
-          error: "Completed archive does not have room for this batch",
-          code: "COMPLETED_ARCHIVE_FULL",
-          limit: COMPLETED_ARCHIVE_CAP,
-          archived: archiveCount,
-          available: Math.max(0, COMPLETED_ARCHIVE_CAP - archiveCount),
-        });
-      }
 
       let totalGold = 0;
       let completedCount = 0;

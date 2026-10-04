@@ -137,6 +137,8 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Instance field (not a bare constant) so tests can exercise eviction at a tiny cap.
+  archiveCap = COMPLETED_ARCHIVE_CAP;
   // Skill XP progression constants
   private readonly SKILL_BASE_XP = 100; // Base XP requirement for level 1->2
   private readonly SKILL_GROWTH_RATE = 0.02; // 2% growth rate per level (modular for future adjustment)
@@ -416,6 +418,7 @@ export class DatabaseStorage implements IStorage {
       return rescheduledTask;
     } else {
       // For one-time tasks: complete and recycle as before
+      await this.makeRoomInArchive(userId, 1);
       const [completedTask] = await db
         .update(tasks)
         .set({
@@ -438,7 +441,7 @@ export class DatabaseStorage implements IStorage {
             from tasks as completed_archive
             where completed_archive.user_id = ${userId}
               and completed_archive.completed = true
-          ) < ${COMPLETED_ARCHIVE_CAP}`
+          ) < ${this.archiveCap}`
         ))
         .returning();
 
@@ -592,6 +595,35 @@ export class DatabaseStorage implements IStorage {
       .from(tasks)
       .where(and(eq(tasks.userId, userId), eq(tasks.completed, true)));
     return result?.count ?? 0;
+  }
+
+  // Frees room for `needed` new archive entries by deleting the oldest completed tasks. Tasks on a
+  // questline map (questlineId set) are spared until no off-map completed task is left, so the maps
+  // keep their history. Returns how many rows were deleted.
+  async makeRoomInArchive(userId: string, needed = 1): Promise<number> {
+    const overflow = (await this.countCompletedTasks(userId)) + needed - this.archiveCap;
+    if (overflow <= 0) return 0;
+
+    const victims = await db.select({ id: tasks.id, questlineId: tasks.questlineId }).from(tasks)
+      .where(and(
+        eq(tasks.userId, userId),
+        eq(tasks.completed, true),
+        eq(tasks.recycledReason, "completed"),
+      ))
+      // false sorts before true, so off-map tasks go first; legacy rows with no timestamp count as oldest.
+      .orderBy(sql`(${tasks.questlineId} is not null)`, sql`${tasks.completedAt} asc nulls first`, tasks.id)
+      .limit(overflow);
+    if (!victims.length) return 0;
+
+    const ids = victims.map((victim) => victim.id);
+    // Children of a deleted parent become top-level rather than pointing at a missing row.
+    await db.update(tasks).set({ parentTaskId: null })
+      .where(and(eq(tasks.userId, userId), inArray(tasks.parentTaskId, ids)));
+    await db.delete(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.id, ids)));
+
+    const fromMaps = victims.filter((victim) => victim.questlineId != null).length;
+    console.log(`🗄️ [storage.makeRoomInArchive] Archive at cap (${this.archiveCap}); evicted ${ids.length} oldest completed task(s), ${fromMaps} from questline maps`);
+    return ids.length;
   }
 
   async restoreTask(id: number, userId: string): Promise<Task | undefined> {
