@@ -782,6 +782,19 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-03T00:00:00.000Z",
     updatedAt: "2026-10-03T00:00:00.000Z",
   },
+  {
+    id: "food-home-eat-cupertino",
+    name: "Home Eat",
+    city: "Cupertino, CA",
+    address: "20588 Stevens Creek Blvd, Cupertino, CA 95014",
+    overallRating: 3.3,
+    stars: { food: 3.8, ambience: 2, price: 4 },
+    thoughts: "Not the highest-quality food, but if you want that cheap Chinese food taste without it being too greasy and making you sick, it hits the perfect balance. Very dingy interior. Quality isn't bad and you get a ton of food relative to the cost.",
+    tags: ["Chinese"],
+    visitedAt: "",
+    createdAt: "2026-10-04T00:00:00.000Z",
+    updatedAt: "2026-10-04T00:00:00.000Z",
+  },
 ];
 
 
@@ -805,7 +818,7 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v18";
+    const key = "food-cities-seed-v19";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
