@@ -56,6 +56,7 @@ import RecipesPage from "@/pages/recipes";
 import FoodInCitiesPage from "@/pages/food-in-cities";
 import ActivitiesInCitiesPage from "@/pages/activities-in-cities";
 import ReferenceBeliefsPage from "@/pages/reference-beliefs";
+import CommandCenter from "@/pages/command-center";
 installStorageSync();
 
 // Shows the last crash captured by the global error/unhandledrejection listeners in
@@ -196,6 +197,7 @@ function Router() {
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
             <Route path="/journal" component={JournalPage} />
+            <Route path="/command-center" component={CommandCenter} />
             <Route path="/journal/daily-glew" component={JournalDailyGlewPage} />
             <Route path="/journal/daily-gews">
               {() => <Redirect to="/journal/daily-glew" />}

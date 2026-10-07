@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, CheckSquare, Calendar, Sparkles, DollarSign, BookOpen, Crown,
-  ShoppingCart, Users, Compass, Dumbbell, Flame, HeartHandshake, Heart, Zap, ClipboardList, BookMarked, Settings, Trophy,
+  ShoppingCart, Users, Compass, Dumbbell, Flame, HeartHandshake, Heart, Zap, ClipboardList, BookMarked, Settings, Trophy, Radar,
 } from "lucide-react";
 
 export type NavLink = { label: string; path: string; icon: any };
@@ -32,6 +32,7 @@ export const PRIMARY_NAV: NavLink[] = [
   { label: "Skills", path: "/skills", icon: Sparkles },
   { label: "Finances", path: "/finances", icon: DollarSign },
   { label: "Journal", path: "/journal", icon: BookOpen },
+  { label: "Command Center", path: "/command-center", icon: Radar },
   { label: "Explore", path: "/explore", icon: Compass },
   { label: "Accomplishments", path: "/accomplishments", icon: Trophy },
   { label: "Fitness", path: "/fitness", icon: Dumbbell },
@@ -54,6 +55,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/skills": "Skills",
   "/finances": "Finances",
   "/journal": "Journal",
+  "/command-center": "Command Center",
   "/campaigns": "Questlines",
   "/shop": "Shop",
   "/npcs": "NPCs",

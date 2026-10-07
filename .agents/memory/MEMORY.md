@@ -4,3 +4,4 @@
 - [Logout data isolation](logout-data-isolation.md) — logout must save pending synced edits and clear user-scoped browser caches before another account can hydrate.
 - [Atomic questline rewards](atomic-questline-rewards.md) — Neon HTTP lacks callback transactions; questline reward claims use one SQL statement plus a structure-revision guard.
 - [Polling budgets](polling-budget.md) — background polling can exhaust shared API limits; failed queries must not masquerade as empty data.
+- [Command Center intent](command-center-intent.md) — private macro-goal strategy journaling with visual business debriefs, not shared example content.

@@ -13,8 +13,11 @@ import { eq, and, lt, isNull } from "drizzle-orm";
 import { tasks as tasksTable } from "@shared/schema";
 import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
+import { registerCommandCenter } from "./command-center";
+import { commandStore, COMMAND_KEY_PREFIX } from "./command-center-store";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  registerCommandCenter(app, requireAuth, commandStore);
   const purgeExpiredCompletedTasks = async () => {
     try {
       const purged = await storage.purgeExpiredCompletedTaskDeletions();
@@ -522,7 +525,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId;
       const data = await storage.getUserData(userId);
-      res.json(data);
+      // Command Center uses its own authenticated API, not the localStorage mirror.
+      res.json(Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith(COMMAND_KEY_PREFIX))));
     } catch (error) {
       console.error('Error fetching user data:', error);
       res.status(500).json({ error: 'Failed to fetch user data' });
