@@ -6,6 +6,7 @@ const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { extractNotionDatabaseId } from "./notionUtils";
+import { QUEST_TYPES } from "./quest-type";
 
 // Session storage table for authentication
 export const sessions = pgTable(
@@ -103,6 +104,8 @@ export const tasks = pgTable("tasks", {
   parentTaskId: integer("parent_task_id"), // FK to parent task for subtask nesting (null = top-level)
   indentLevel: integer("indent_level").default(0), // 0 = top-level stage; positive values are nested subtask depth
   assignedTo: text("assigned_to").default("Alex"), // Person assigned to this quest
+  // reminder | deadline | general — chosen when the quest is created; older quests default to general.
+  questType: text("quest_type", { enum: QUEST_TYPES }).notNull().default("general"),
   // Inline media attachments embedded in the description (base64 data URLs). Stored in DB so they
   // persist across deploys and work on both web + iOS (which share the hosted server origin).
   attachments: jsonb("attachments").$type<Array<{ id: string; type: "image" | "video"; dataUrl: string; name: string; size: number }>>().default([]),

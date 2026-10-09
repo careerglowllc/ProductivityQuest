@@ -82,6 +82,13 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS parent_questline_id INTEGER
     `;
 
+    // Migration: Quest type chosen at creation (reminder | deadline | general). Existing quests
+    // take the default, so every row has a value.
+    await sql`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS quest_type TEXT NOT NULL DEFAULT 'general'
+    `;
+
     // Migration: Partial index backing the completed-task archive (newest-first pages,
     // "completed today" lookups, and the per-completion cap count).
     await sql`

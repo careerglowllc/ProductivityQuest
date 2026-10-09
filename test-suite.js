@@ -373,6 +373,97 @@ async function csvTests() {
 }
 
 // =============================================================================
+// 5b. QUEST TYPE (reminder / deadline / general)
+// Run on its own with: TEST_ONLY=quest-type node test-suite.js
+// =============================================================================
+async function questTypeTests() {
+  section('Quest Type');
+
+  const TYPES = ['reminder', 'deadline', 'general'];
+  const LABELS = { reminder: 'Reminder', deadline: 'Deadline', general: 'General to-do' };
+  const stamp = Date.now();
+  const created = {};
+  const base = { duration: 15, goldValue: 20, importance: 'Low' };
+  const listTasks = async () => {
+    const res = await request('GET', '/api/tasks', null, testUser.cookies);
+    assertStatus(res, 200);
+    return res.data;
+  };
+
+  for (const type of TYPES) {
+    await test(`Create a ${type} quest stores and returns its type`, async () => {
+      const res = await request('POST', '/api/tasks', { ...base, title: `QT ${type} ${stamp}`, questType: type }, testUser.cookies);
+      assertStatus(res, 200);
+      assertEqual(res.data.questType, type);
+      created[type] = res.data;
+    });
+  }
+
+  await test('A quest created without a type defaults to general', async () => {
+    const res = await request('POST', '/api/tasks', { ...base, title: `QT none ${stamp}` }, testUser.cookies);
+    assertStatus(res, 200);
+    assertEqual(res.data.questType, 'general');
+  });
+
+  await test('Create rejects an unknown quest type with 400', async () => {
+    for (const bad of ['urgent', 'Reminder', '', 7]) {
+      const res = await request('POST', '/api/tasks', { ...base, title: `QT bad ${stamp}`, questType: bad }, testUser.cookies);
+      assertEqual(res.status, 400, `questType ${JSON.stringify(bad)} should be rejected`);
+    }
+    const tasks = await listTasks();
+    assert(!tasks.some(t => t.title === `QT bad ${stamp}`), 'A rejected quest must not be saved');
+  });
+
+  await test('GET /api/tasks returns a valid quest type on every quest', async () => {
+    const tasks = await listTasks();
+    assert(tasks.length > 0, 'Should have quests');
+    for (const t of tasks) assert(TYPES.includes(t.questType), `Quest ${t.id} has invalid questType ${JSON.stringify(t.questType)}`);
+    for (const type of TYPES) assertEqual(tasks.find(t => t.id === created[type].id).questType, type);
+  });
+
+  await test('PATCH changes the quest type and it persists', async () => {
+    const res = await request('PATCH', `/api/tasks/${created.general.id}`, { questType: 'deadline' }, testUser.cookies);
+    assertStatus(res, 200);
+    assertEqual(res.data.questType, 'deadline');
+    assertEqual((await listTasks()).find(t => t.id === created.general.id).questType, 'deadline');
+  });
+
+  await test('PATCH rejects an invalid quest type and leaves the quest unchanged', async () => {
+    const res = await request('PATCH', `/api/tasks/${created.reminder.id}`, { questType: 'someday' }, testUser.cookies);
+    assert(res.status === 400 || res.status === 422, `Expected 400/422, got ${res.status}`);
+    assertEqual((await listTasks()).find(t => t.id === created.reminder.id).questType, 'reminder');
+  });
+
+  await test('CSV export has a Quest Type column with readable labels', async () => {
+    const res = await request('GET', '/api/tasks/export/csv', null, testUser.cookies);
+    assertStatus(res, 200);
+    const lines = res.data.split('\n');
+    const column = lines[0].split(',').indexOf('Quest Type');
+    assert(column > -1, 'Header should include Quest Type');
+    for (const type of ['reminder', 'deadline']) {
+      const row = lines.find(l => l.startsWith(`${created[type].id},QT ${type} ${stamp},`));
+      assert(row, `Export should include the ${type} quest`);
+      assertEqual(row.split(',')[column], LABELS[type]);
+    }
+  });
+
+  await test('CSV import reads Quest Type and defaults it when the column is missing', async () => {
+    const rows = [
+      { Title: `QT import deadline ${stamp}`, 'Quest Type': 'Deadline' },
+      { Title: `QT import reminder ${stamp}`, 'Quest Type': 'reminder' },
+      { Title: `QT import none ${stamp}` },
+    ];
+    const res = await request('POST', '/api/tasks/import/csv', { rows, skipDuplicates: false }, testUser.cookies);
+    assertStatus(res, 200);
+    assertEqual(res.data.imported, 3);
+    const tasks = await listTasks();
+    assertEqual(tasks.find(t => t.title === `QT import deadline ${stamp}`).questType, 'deadline');
+    assertEqual(tasks.find(t => t.title === `QT import reminder ${stamp}`).questType, 'reminder');
+    assertEqual(tasks.find(t => t.title === `QT import none ${stamp}`).questType, 'general');
+  });
+}
+
+// =============================================================================
 // 6. XP SYSTEM & SKILLS
 // =============================================================================
 async function xpSkillTests() {
@@ -1006,22 +1097,14 @@ async function runAllTests() {
   const start = Date.now();
 
   await authTests();
-  await taskCrudTests();
-  await taskFilteringTests();
-  await recycleBinTests();
-  await csvTests();
-  await xpSkillTests();
-  await shopTests();
-  await campaignQuestlineTests();
-  await financeTests();
-  await marketDataTests();
-  await googleCalendarTests();
-  await standaloneEventTests();
-  await notionTests();
-  await aiCategorizationTests();
-  await statsTests();
-  await addTaskToCalendarTests();
-  await gettingStartedTests();
+  const sections = process.env.TEST_ONLY === 'quest-type'
+    ? [questTypeTests]
+    : [
+        taskCrudTests, taskFilteringTests, recycleBinTests, csvTests, questTypeTests, xpSkillTests, shopTests,
+        campaignQuestlineTests, financeTests, marketDataTests, googleCalendarTests, standaloneEventTests,
+        notionTests, aiCategorizationTests, statsTests, addTaskToCalendarTests, gettingStartedTests,
+      ];
+  for (const runSection of sections) await runSection();
   await logoutTests();
 
   const duration = ((Date.now() - start) / 1000).toFixed(2);

@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { QuestTypeBadge, QuestTypeChooser } from "@/components/quest-type-chooser";
+import type { QuestType } from "@shared/quest-type";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -440,6 +442,9 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const queryClient = useQueryClient();
 
   // Form state
+  // null = the first step, where the quest type is chosen before the form appears.
+  const [questType, setQuestType] = useState<QuestType | null>(null);
+  useEffect(() => { if (open) setQuestType(null); }, [open]);
   const [title, setTitle] = useState("");
   const [taskEmoji, setTaskEmoji] = useState("📝");
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -555,6 +560,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   });
 
   const resetForm = () => {
+    setQuestType(null);
     setTitle("");
     setTaskEmoji("📝");
     setDescription("");
@@ -576,6 +582,8 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   };
 
   const handleSubmit = () => {
+    if (!questType) return;
+
     // Validation
     if (!title.trim()) {
       toast({
@@ -626,6 +634,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       delegationTask,
       velin,
       assignedTo: assignedTo.trim() || "Alex",
+      questType,
       completed: false,
       skillTags: [], // Initialize with empty array
     };
@@ -633,6 +642,24 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     saveAssignee(assignedTo.trim() || "Alex");
     createTaskMutation.mutate(taskData);
   };
+
+  if (!questType) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-xl overflow-hidden border-2 border-yellow-600/40 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-0 text-yellow-100">
+          <DialogHeader className="border-b border-yellow-600/20 px-6 pb-2 pt-6">
+            <DialogTitle className="font-serif text-2xl text-yellow-100">Create New Quest</DialogTitle>
+          </DialogHeader>
+          <QuestTypeChooser onSelect={setQuestType} />
+          <div className="border-t border-yellow-600/20 bg-slate-900/80 px-6 py-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full border-yellow-600/40 text-yellow-200 hover:bg-slate-700/50">
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -643,6 +670,12 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           <DialogTitle className="text-2xl font-serif text-yellow-100">
             Create New Quest
           </DialogTitle>
+          <div className="mt-2 flex items-center justify-between gap-3 pb-1">
+            <QuestTypeBadge type={questType} />
+            <button type="button" onClick={() => setQuestType(null)} className="text-xs font-medium text-yellow-300/80 underline-offset-4 hover:text-yellow-200 hover:underline">
+              Change type
+            </button>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-6">

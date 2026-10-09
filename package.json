@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit push",
     "test": "node test-suite.js",
+    "test:unit": "TSX_TSCONFIG_PATH=tsconfig.test.json node --import tsx --test shared/quest-type.test.ts server/tasks-csv.test.ts server/command-center.test.ts client/src/components/quest-type-chooser.test.tsx",
     "test:local": "TEST_URL=http://localhost:5001 node test-suite.js",
     "test:prod": "TEST_URL=https://your-production-url.com node test-suite.js",
     "cap:add:ios": "npx cap add ios",

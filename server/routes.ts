@@ -14,6 +14,7 @@ import { tasks as tasksTable } from "@shared/schema";
 import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 import { registerCommandCenter } from "./command-center";
+import { buildTasksCsv, parseTaskCsvRow } from "./tasks-csv";
 import { commandStore, COMMAND_KEY_PREFIX } from "./command-center-store";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -627,34 +628,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const existingTasks = await storage.getTasks(userId);
 
-      const parseBoolean = (v: string) => v?.toLowerCase() === 'yes' || v === '1' || v?.toLowerCase() === 'true';
-      const parseDate = (v: string) => (v && v.trim() ? new Date(v.trim()) : null);
-      const parseNum = (v: string, fallback: number) => {
-        const n = parseInt(v, 10);
-        return isNaN(n) ? fallback : n;
-      };
-
       // Parse each CSV row into a task shape
-      const parsed = rows.map(r => ({
-        title: r['Title']?.trim() || '',
-        description: r['Description']?.trim() || null,
-        details: r['Details']?.trim() || null,
-        duration: parseNum(r['Duration (min)'], 30),
-        goldValue: parseNum(r['Gold Value'], 10),
-        importance: r['Importance']?.trim() || 'Medium',
-        kanbanStage: r['Kanban Stage']?.trim() || 'todo',
-        recurType: r['Recurrence']?.trim() || 'none',
-        campaign: r['Campaign']?.trim() || null,
-        businessWorkFilter: r['Business/Work Filter']?.trim() || null,
-        dueDate: parseDate(r['Due Date']),
-        skillTags: r['Skill Tags'] ? r['Skill Tags'].split(';').map(s => s.trim()).filter(Boolean) : [],
-        apple: parseBoolean(r['Apple']),
-        smartPrep: parseBoolean(r['Smart Prep']),
-        delegationTask: parseBoolean(r['Delegation']),
-        velin: parseBoolean(r['Velin']),
-        assignedTo: r['Assigned To']?.trim() || 'Alex',
-        completed: false,
-      })).filter(t => t.title);
+      const parsed = rows.map(parseTaskCsvRow).filter(t => t.title);
 
       // Identify duplicates: same title + description + kanbanStage + recurType
       const isDuplicate = (t: typeof parsed[0]) =>
@@ -696,74 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const tasks = await storage.getTasks(userId);
       
-      // CSV header
-      const headers = [
-        'ID',
-        'Title',
-        'Description',
-        'Details',
-        'Duration (min)',
-        'Gold Value',
-        'Importance',
-        'Kanban Stage',
-        'Recurrence',
-        'Campaign',
-        'Business/Work Filter',
-        'Due Date',
-        'Completed',
-        'Completed At',
-        'Created At',
-        'Skill Tags',
-        'Apple',
-        'Smart Prep',
-        'Delegation',
-        'Velin',
-        'Assigned To'
-      ];
-      
-      // Escape CSV field (handle quotes and commas)
-      const escapeCSV = (field: any): string => {
-        if (field === null || field === undefined) return '';
-        const str = String(field);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-      
-      // Format date
-      const formatDate = (date: Date | null | undefined): string => {
-        if (!date) return '';
-        return new Date(date).toISOString();
-      };
-      
-      // Build CSV rows
-      const rows = tasks.map(task => [
-        task.id,
-        escapeCSV(task.title),
-        escapeCSV(task.description),
-        escapeCSV(task.details),
-        task.duration,
-        task.goldValue,
-        escapeCSV(task.importance),
-        escapeCSV(task.kanbanStage),
-        escapeCSV(task.recurType),
-        escapeCSV(task.campaign),
-        escapeCSV(task.businessWorkFilter),
-        formatDate(task.dueDate),
-        task.completed ? 'Yes' : 'No',
-        formatDate(task.completedAt),
-        formatDate(task.createdAt),
-        escapeCSV(task.skillTags?.join('; ')),
-        task.apple ? 'Yes' : 'No',
-        task.smartPrep ? 'Yes' : 'No',
-        task.delegationTask ? 'Yes' : 'No',
-        task.velin ? 'Yes' : 'No',
-        escapeCSV(task.assignedTo ?? 'Alex')
-      ].join(','));
-      
-      // Combine header and rows
-      const csv = [headers.join(','), ...rows].join('\n');
+      const csv = buildTasksCsv(tasks);
       
       // Set headers for file download
       const timestamp = new Date().toISOString().split('T')[0];

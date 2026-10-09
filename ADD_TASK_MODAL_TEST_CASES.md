@@ -1172,3 +1172,50 @@ curl -X POST http://localhost:5001/api/tasks \
 ### AT-15: Existing tasks retain Alex default
 - **Steps:** View tasks that existed before this feature was added
 - **Expected:** All show `assignedTo = "Alex"` (DB migration backfilled)
+
+---
+
+## Quest Type (Reminder / Deadline / General to-do)
+
+Automated coverage: `npm run test:unit` (shared/quest-type, tasks-csv, quest-type-chooser) and
+`TEST_ONLY=quest-type node test-suite.js` (live API, needs a running server).
+
+### QT-01: Chooser appears first
+- **Steps:** Click "Add Quest"
+- **Expected:** Dialog shows "What kind of quest is this?" with three rounded square buttons (Reminder, Deadline, General to-do), each with an icon. No title/description/date fields yet.
+
+### QT-02: Picking a type reveals the form
+- **Steps:** Click "Deadline"
+- **Expected:** Chooser disappears, the normal quest form appears, a "Deadline" badge and "Change type" link show at the top
+
+### QT-03: Change type keeps typed input
+- **Steps:** Pick Reminder, type a title, click "Change type", pick General to-do
+- **Expected:** Chooser shows again; after picking, the title is still there and the badge reads "General to-do"
+
+### QT-04: Type is saved with the quest
+- **Steps:** Pick Reminder, fill title + due date, click Create Quest; open the new quest's detail
+- **Expected:** Quest Type row shows "Reminder"
+
+### QT-05: Dialog resets after save or cancel
+- **Steps:** Create a quest (or cancel), then click "Add Quest" again
+- **Expected:** Chooser is shown again, not the previous form
+
+### QT-06: Edit type on existing quest
+- **Steps:** Open any quest detail, change Quest Type to "Deadline"
+- **Expected:** Value persists after reload; existing quests default to "General to-do"
+
+### QT-07: Phone width
+- **Steps:** Open the chooser at 375px width
+- **Expected:** All three squares fit on one row, labels not clipped, no horizontal scroll
+
+### QT-08: CSV export has Quest Type column
+- **Steps:** Export tasks to CSV
+- **Expected:** "Quest Type" column present (after Business/Work Filter) with Reminder / Deadline / General to-do labels
+
+### QT-09: CSV import
+- **Steps:** Import a CSV where Quest Type is a label ("Deadline"), a value ("reminder"), blank, or garbage
+- **Expected:** Label and value map correctly; blank and garbage become General to-do
+
+### QT-10: API rejects invalid type
+- **Steps:** POST /api/tasks with `questType: "bogus"`
+- **Expected:** 400 "Invalid task data"; omitting questType creates a "general" quest
