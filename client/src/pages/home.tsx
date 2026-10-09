@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2 } from "lucide-react";
+import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -29,8 +29,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
+import { DEFAULT_QUEST_TYPE, QUEST_TYPES, QUEST_TYPE_LABELS, compareByDueDateThenImportance, isQuestType, type QuestType } from "@shared/quest-type";
 
-type FilterType = "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `assignee-${string}`;
+type FilterType = "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `type-${QuestType}` | `assignee-${string}`;
+
+const QUEST_TYPE_FILTER_ICONS = { reminder: BellRing, deadline: CalendarClock, general: ListChecks } as const;
+
+function questTypeOfFilter(filter: string): QuestType | null {
+  if (!filter.startsWith("type-")) return null;
+  const type = filter.slice("type-".length);
+  return isQuestType(type) ? type : null;
+}
+
+const taskQuestType = (task: any): QuestType => (isQuestType(task.questType) ? task.questType : DEFAULT_QUEST_TYPE);
 type BusinessFilterType = "Apple" | "General" | "MW" | "GPR";
 type SortType = "due-date" | "importance";
 type ViewType = "list" | "grid";
@@ -93,7 +104,7 @@ export default function Home() {
   // Load saved filter preference from localStorage, default to 'all'
   const [activeFilter, setActiveFilter] = useState<FilterType>(() => {
     const savedFilter = localStorage.getItem('tasksFilter');
-    const staticFilters = ["all", "due-today", "due-3days", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw", "business-gpr"];
+    const staticFilters = ["all", "due-today", "due-3days", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw", "business-gpr", ...QUEST_TYPES.map((type) => `type-${type}`)];
     if (savedFilter && (staticFilters.includes(savedFilter) || savedFilter.startsWith("assignee-"))) {
       return savedFilter as FilterType;
     }
@@ -1626,6 +1637,10 @@ export default function Home() {
       businessGPR: activeTasks.filter((task: any) => 
         task.businessWorkFilter === "GPR"
       ).length,
+      byQuestType: QUEST_TYPES.reduce((acc, type) => {
+        acc[type] = activeTasks.filter((task: any) => taskQuestType(task) === type).length;
+        return acc;
+      }, {} as Record<QuestType, number>),
       // Assignee counts: build a map of name → count
       byAssignee: activeTasks.reduce((acc: Record<string, number>, task: any) => {
         const name = task.assignedTo ?? "Alex";
@@ -1638,6 +1653,40 @@ export default function Home() {
   const filterCounts = getFilterCounts();
   // Sorted list of unique assignees for the filter UI
   const assigneeList = Object.entries(filterCounts.byAssignee as Record<string, number>).sort((a, b) => b[1] - a[1]);
+
+  const activeQuestTypeFilter = questTypeOfFilter(activeFilter);
+  const renderQuestTypeMenu = (compact: boolean) => {
+    const ActiveIcon = activeQuestTypeFilter ? QUEST_TYPE_FILTER_ICONS[activeQuestTypeFilter] : CalendarClock;
+    const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <FilterChip compact={compact} active={activeQuestTypeFilter !== null} data-testid="quest-type-filter">
+            <ActiveIcon aria-hidden className={iconSize} />
+            {activeQuestTypeFilter
+              ? `${QUEST_TYPE_LABELS[activeQuestTypeFilter]} (${filterCounts.byQuestType[activeQuestTypeFilter]})`
+              : "Type"}
+          </FilterChip>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="border-[var(--dash-line)] bg-[var(--dash-surface)]">
+          {QUEST_TYPES.map((type) => {
+            const Icon = QUEST_TYPE_FILTER_ICONS[type];
+            return (
+              <DropdownMenuItem
+                key={type}
+                data-filter={`type-${type}`}
+                onClick={() => setActiveFilter(`type-${type}` as FilterType)}
+                className={`cursor-pointer gap-2 ${activeFilter === `type-${type}` ? "bg-[var(--dash-violet-soft)] font-semibold" : ""}`}
+              >
+                <Icon aria-hidden className="h-3.5 w-3.5" />
+                {QUEST_TYPE_LABELS[type]} ({filterCounts.byQuestType[type]})
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   const momentumValue = momentum.isLoading || momentum.totalToday === 0
     ? "—"
@@ -1752,6 +1801,12 @@ export default function Home() {
         );
       
       default:
+        const filterType = questTypeOfFilter(activeFilter);
+        if (filterType) {
+          return activeTasks
+            .filter((task: any) => taskQuestType(task) === filterType)
+            .sort(compareByDueDateThenImportance);
+        }
         // assignee-* filter
         if (activeFilter.startsWith("assignee-")) {
           const name = activeFilter.slice("assignee-".length);
@@ -1769,7 +1824,7 @@ export default function Home() {
 
     // "Due <3 Days" always sorts by priority first, then due date — regardless of the
     // list-wide due-date/importance sort toggle (its filter already applied this order).
-    if (activeFilter === "due-3days") {
+    if (activeFilter === "due-3days" || questTypeOfFilter(activeFilter)) {
       return sortedTasks;
     }
 
@@ -1804,6 +1859,13 @@ export default function Home() {
 
   // Batch tasks for grid view
   const getBatchedTasks = (sortedTasks: any[]) => {
+    // Type filters keep their due date -> importance order, so grid view shows one batch instead of regrouping.
+    const activeType = questTypeOfFilter(activeFilter);
+    if (activeType) {
+      return sortedTasks.length > 0
+        ? [{ title: QUEST_TYPE_LABELS[activeType], tasks: sortedTasks, period: "all" }]
+        : [];
+    }
     if (sortBy === "due-date") {
       // When sorted by due date, batch by priority
       const batches: { title: string; tasks: any[]; priority: string }[] = [];
@@ -2117,7 +2179,7 @@ export default function Home() {
                 <p className="dash-mono normal-case text-[var(--dash-muted)]">
                   Showing <strong className="font-bold text-[var(--dash-ink)]">{sortedTasks.length}</strong> of {filterCounts.all} quests
                   {searchQuery && ` matching "${searchQuery}"`}
-                  {activeFilter !== "all" && ` in ${activeFilter.replace(/-/g, " ")}`}
+                  {activeFilter !== "all" && ` in ${questTypeOfFilter(activeFilter) ? `${QUEST_TYPE_LABELS[questTypeOfFilter(activeFilter)!]} quests` : activeFilter.replace(/-/g, " ")}`}
                 </p>
                 {searchQuery && (
                   <button
@@ -2175,6 +2237,7 @@ export default function Home() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  {renderQuestTypeMenu(true)}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <FilterChip compact active={activeFilter.startsWith("business-")}>
@@ -2305,6 +2368,7 @@ export default function Home() {
                   <FilterChip label="Quick tasks" count={filterCounts.quickTasks} active={activeFilter === "quick-tasks"} onClick={() => setActiveFilter("quick-tasks")} />
                   <FilterChip label="High priority" count={filterCounts.highPriority} active={activeFilter === "high-priority"} onClick={() => setActiveFilter("high-priority")} />
                   <FilterChip label="Routines" count={filterCounts.routines} active={activeFilter === "routines"} onClick={() => setActiveFilter("routines")} />
+                  {renderQuestTypeMenu(false)}
 
                   {/* Business/Work Filter Dropdown */}
                   <DropdownMenu>

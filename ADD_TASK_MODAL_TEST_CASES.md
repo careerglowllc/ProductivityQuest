@@ -1219,3 +1219,19 @@ Automated coverage: `npm run test:unit` (shared/quest-type, tasks-csv, quest-typ
 ### QT-10: API rejects invalid type
 - **Steps:** POST /api/tasks with `questType: "bogus"`
 - **Expected:** 400 "Invalid task data"; omitting questType creates a "general" quest
+
+### QT-11: Type filter menu
+- **Steps:** On Quests, open the "Type" filter chip (desktop and mobile)
+- **Expected:** Lists Reminder, Deadline, General to-do, each with an icon and a count of active quests; counts sum to the "All" count
+
+### QT-12: Type filter shows only that type
+- **Steps:** Pick "Reminder" (then Deadline, then General to-do)
+- **Expected:** Only active quests of that type are listed; chip shows "<Type> (N)"; results line reads "in Reminder quests"; choice persists after reload
+
+### QT-13: Type filter ordering
+- **Steps:** Under a type filter, create quests with the same due date but different importance, plus one with a later date
+- **Expected:** Sorted by soonest due date, same-day ties by higher importance (Pareto first); the sort toggle does not reorder it; grid view shows a single batch in the same order
+
+### QT-14: Existing quests land under General to-do
+- **Steps:** Pick "General to-do" on an account that predates quest types
+- **Expected:** All pre-existing active quests appear; changing a quest's type in its detail modal moves it to the other filter

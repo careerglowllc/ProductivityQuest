@@ -27,3 +27,18 @@ export function parseQuestType(raw: string | null | undefined): QuestType {
   const byLabel = QUEST_TYPES.find((type) => QUEST_TYPE_LABELS[type].toLowerCase() === key);
   return byLabel ?? DEFAULT_QUEST_TYPE;
 }
+
+const IMPORTANCE_RANK: Record<string, number> = {
+  Pareto: 6, High: 5, "Med-High": 4, Medium: 3, "Med-Low": 2, Low: 1,
+};
+
+// Quests of one type, soonest due date first (undated last), ties broken by higher importance.
+export function compareByDueDateThenImportance(
+  a: { dueDate?: string | Date | null; importance?: string | null },
+  b: { dueDate?: string | Date | null; importance?: string | null },
+): number {
+  const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+  const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+  if (aTime !== bTime) return aTime < bTime ? -1 : 1;
+  return (IMPORTANCE_RANK[b.importance ?? ""] ?? 0) - (IMPORTANCE_RANK[a.importance ?? ""] ?? 0);
+}
