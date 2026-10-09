@@ -30,6 +30,7 @@ import MeasureWhatMattersGuidePage from "@/pages/settings-guides-measure-what-ma
 import GettingStarted from "@/pages/getting-started";
 import NPCsPage from "@/pages/npcs";
 import JournalPage from "@/pages/journal";
+import JournalHomePage from "@/pages/journal-home";
 import JournalDailyGlewPage from "@/pages/journal-daily-gews";
 import JournalEmpoweringThoughtsPage from "@/pages/journal-empowering-thoughts";
 import JournalGratitudePage from "@/pages/journal-gratitude";
@@ -196,7 +197,8 @@ function Router() {
             <Route path="/fitness/weight" component={FitnessWeightPage} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/npcs" component={NPCsPage} />
-            <Route path="/journal" component={JournalPage} />
+            <Route path="/journal" component={JournalHomePage} />
+            <Route path="/journal/essays" component={JournalPage} />
             <Route path="/command-center" component={CommandCenter} />
             <Route path="/journal/daily-glew" component={JournalDailyGlewPage} />
             <Route path="/journal/daily-gews">

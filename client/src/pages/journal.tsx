@@ -41,7 +41,7 @@ import { buildExcitementCSVExport } from "@/pages/journal-excitement";
 import { buildEmpoweringThoughtsCSVExport } from "@/pages/journal-empowering-thoughts";
 import { buildWeeklyPlanningCSVExport } from "@/pages/journal-weekly-planning";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
-import { JournalShell, JournalHero, RelatedJournalNav } from "@/components/journal-ui";
+import { JournalShell, JournalHero, JournalBackLink } from "@/components/journal-ui";
 
 // ── Constants ───────────────────────────────────────────────
 const STORAGE_KEY = "journal-v1";
@@ -291,6 +291,7 @@ export default function JournalPage() {
 
   return (
     <JournalShell>
+      <JournalBackLink />
       <JournalHero
         eyebrow="Your written essays & reflections"
         title="Journal,"
@@ -299,7 +300,6 @@ export default function JournalPage() {
         statValue={`${essays.length} ${essays.length === 1 ? "essay" : "essays"}`}
         statLabel="written so far"
       />
-      <RelatedJournalNav />
 
       {/* Toolbar */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
