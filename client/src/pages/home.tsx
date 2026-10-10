@@ -1064,6 +1064,12 @@ export default function Home() {
       return;
     }
 
+    // Select-all then Overdue→Today: drop the selection and land on the Today tab to see the result.
+    if (selectedTasks.size > 0 && selectedTasks.size >= sortedTasks.length && sortedTasks.every((t: any) => selectedTasks.has(t.id))) {
+      setSelectedTasks(new Set());
+      setActiveFilter("due-today");
+    }
+
     // Save previous dates for undo
     const previousDates = overdueTasks.map((t: any) => ({ id: t.id, dueDate: t.dueDate }));
 

@@ -1235,3 +1235,15 @@ Automated coverage: `npm run test:unit` (shared/quest-type, tasks-csv, quest-typ
 ### QT-14: Existing quests land under General to-do
 - **Steps:** Pick "General to-do" on an account that predates quest types
 - **Expected:** All pre-existing active quests appear; changing a quest's type in its detail modal moves it to the other filter
+
+### QT-15: Select all, then Overdue to Today
+- **Steps:** On Quests (any filter), click Select all so every listed quest is selected, then click Overdue to Today (with at least one overdue quest)
+- **Expected:** Overdue quests move to today; selection is cleared; view switches to the Today filter tab
+
+### QT-16: Partial selection keeps selection and filter
+- **Steps:** Select only some listed quests, then click Overdue to Today
+- **Expected:** Overdue quests move to today; selection and active filter are unchanged
+
+### QT-17: No overdue quests
+- **Steps:** Select all, click Overdue to Today when nothing is overdue
+- **Expected:** "No Overdue Tasks" toast; selection and filter unchanged
