@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { activitiesCSV } from "@/lib/explore-csv";
+import type { CSVExport } from "@/lib/csv-export";
 
 // ── Constants ────────────────────────────────────────────────
 const STORAGE_KEY = "activities-in-cities-v1";
@@ -463,6 +465,32 @@ const SEED_ENTRIES: ActivityEntry[] = [
   },
 ];
 
+const SEED_KEY = "activities-cities-seed-v3";
+const PATCH_KEY = "activities-cities-patch-v1";
+const PATCH_IDS = ["activity-standup-comedy-sushi-bayarea"];
+
+function withMissingSeeds(stored: ActivityEntry[]): ActivityEntry[] {
+  const ids = new Set(stored.map((e) => e.id));
+  const toAdd = SEED_ENTRIES.filter((e) => !ids.has(e.id));
+  return toAdd.length ? [...toAdd, ...stored] : stored;
+}
+
+// Seeding skips existing ids, so entries edited in code need overwriting once.
+function withPatchedSeeds(stored: ActivityEntry[]): ActivityEntry[] {
+  const updates = SEED_ENTRIES.filter((e) => PATCH_IDS.includes(e.id));
+  return stored.map((e) => updates.find((u) => u.id === e.id) ?? e);
+}
+
+// Seeding only runs when the page is opened, so the export applies any pending seeds itself (without saving).
+export function buildActivitiesCSVExport(): CSVExport {
+  let entries = load();
+  if (!localStorage.getItem(SEED_KEY)) entries = withMissingSeeds(entries);
+  if (!localStorage.getItem(PATCH_KEY)) entries = withPatchedSeeds(entries);
+  const regionOf = (entry: ActivityEntry) =>
+    deriveRegions(entry).map((id) => REGIONS.find((r) => r.id === id)?.label ?? "Other").join("; ");
+  return { folder: "Travel", filename: "activities-in-cities.csv", content: activitiesCSV(entries, regionOf) };
+}
+
 // ── Component ────────────────────────────────────────────────
 export default function ActivitiesInCitiesPage() {
   const isMobile = useIsMobile();
@@ -483,25 +511,19 @@ export default function ActivitiesInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "activities-cities-seed-v3";
-    if (localStorage.getItem(key)) return;
+    if (localStorage.getItem(SEED_KEY)) return;
     setEntries((prev) => {
-      const ids = new Set(prev.map((e) => e.id));
-      const toAdd = SEED_ENTRIES.filter((e) => !ids.has(e.id));
-      const next = toAdd.length ? [...toAdd, ...prev] : prev;
+      const next = withMissingSeeds(prev);
       save(next);
       return next;
     });
-    localStorage.setItem(key, "1");
+    localStorage.setItem(SEED_KEY, "1");
   }, []);
 
-  // Seeding skips existing ids, so overwrite the already-stored stand-up entry once
   useEffect(() => {
-    const key = "activities-cities-patch-v1";
-    if (localStorage.getItem(key)) return;
-    const updated = SEED_ENTRIES.find((e) => e.id === "activity-standup-comedy-sushi-bayarea");
-    if (updated) setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-    localStorage.setItem(key, "1");
+    if (localStorage.getItem(PATCH_KEY)) return;
+    setEntries((prev) => withPatchedSeeds(prev));
+    localStorage.setItem(PATCH_KEY, "1");
   }, []);
 
   useEffect(() => { save(entries); }, [entries]);

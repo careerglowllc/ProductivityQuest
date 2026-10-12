@@ -13,6 +13,8 @@ import { buildAccomplishmentsCSVExport } from "@/pages/accomplishments";
 import { buildNPCsCSVExport } from "@/pages/npcs";
 import { buildCountriesVisitedCSVExport } from "@/pages/countries-visited";
 import { buildStatesVisitedCSVExport } from "@/pages/us-states-visited";
+import { buildActivitiesCSVExport } from "@/pages/activities-in-cities";
+import { buildFoodCSVExport } from "@/pages/food-in-cities";
 import { buildShopItemsCSVExport } from "@/pages/shop";
 import { buildFinancesCSVExport } from "@/pages/finances";
 import { buildTasksCSVExport } from "@/pages/home";
@@ -37,6 +39,8 @@ async function exportAllAsZip() {
     Promise.resolve(buildNPCsCSVExport()),
     buildCountriesVisitedCSVExport(),
     buildStatesVisitedCSVExport(),
+    Promise.resolve(buildActivitiesCSVExport()),
+    Promise.resolve(buildFoodCSVExport()),
     buildShopItemsCSVExport(),
     buildFinancesCSVExport(),
     buildTasksCSVExport(),
@@ -51,12 +55,14 @@ async function exportAllAsZip() {
   ]);
 
   let successCount = 0;
+  let failedCount = 0;
   for (const result of results) {
     if (result.status === "fulfilled") {
       const exp = result.value;
       zip.folder(exp.folder)!.file(exp.filename, exp.content);
       successCount++;
     } else {
+      failedCount++;
       console.error("Export failed for one section:", result.reason);
     }
   }
@@ -71,7 +77,7 @@ async function exportAllAsZip() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  return successCount;
+  return { successCount, failedCount };
 }
 
 export default function SettingsPage() {
@@ -88,8 +94,10 @@ export default function SettingsPage() {
   const handleExportAll = async () => {
     setExporting(true);
     try {
-      const count = await exportAllAsZip();
-      toast({ title: "Export complete!", description: `Bundled ${count} CSV file(s) into a zip, organized by section.` });
+      const { successCount, failedCount } = await exportAllAsZip();
+      toast(failedCount > 0
+        ? { title: "Export finished with problems", description: `Bundled ${successCount} CSV file(s), but ${failedCount} section(s) couldn't be exported. Try again.`, variant: "destructive" }
+        : { title: "Export complete!", description: `Bundled ${successCount} CSV file(s) into a zip, organized by section.` });
     } catch (err: any) {
       toast({ title: "Export failed", description: err?.message || "Something went wrong.", variant: "destructive" });
     } finally {
@@ -261,7 +269,7 @@ export default function SettingsPage() {
                 <div className="min-w-0">
                   <h3 className={`${isMobile ? 'text-sm' : 'text-lg'} font-serif font-bold text-sky-100`}>Export All as CSV</h3>
                   <p className={`${isMobile ? 'text-[11px] leading-tight' : 'text-sm'} text-sky-200/70`}>
-                    One-click zip of Recipes, Accomplishments, Countries/States Traveled, Item Shop, NPCs, Finances, Tasks, Questlines, Reference Beliefs, Journal essays, Gratitude, Excitement, Daily GLEW, Weekly Planning & Empowering Thoughts journals — organized into folders by section.
+                    One-click zip of Recipes, Accomplishments, Countries/States Traveled, Activities & Food in Cities, Item Shop, NPCs, Finances, Tasks (open and completed), Questlines, Reference Beliefs, Journal essays, Gratitude, Excitement, Daily GLEW, Weekly Planning & Empowering Thoughts journals — organized into folders by section.
                   </p>
                 </div>
                 <Button

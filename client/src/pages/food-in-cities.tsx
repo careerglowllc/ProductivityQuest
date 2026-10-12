@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
+import { foodCSV } from "@/lib/explore-csv";
+import type { CSVExport } from "@/lib/csv-export";
 
 // ── Constants ────────────────────────────────────────────────
 const STORAGE_KEY = "food-in-cities-v1";
@@ -797,6 +799,32 @@ const SEED_ENTRIES: FoodEntry[] = [
   },
 ];
 
+const SEED_KEY = "food-cities-seed-v19";
+const PATCH_KEY = "food-cities-patch-v2";
+const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
+
+function withMissingSeeds(stored: FoodEntry[]): FoodEntry[] {
+  const ids = new Set(stored.map((e) => e.id));
+  const toAdd = SEED_ENTRIES.filter((e) => !ids.has(e.id));
+  return toAdd.length ? [...toAdd, ...stored] : stored;
+}
+
+// Seeding skips existing ids, so entries edited in code need overwriting once.
+function withPatchedSeeds(stored: FoodEntry[]): FoodEntry[] {
+  const updates = SEED_ENTRIES.filter((e) => PATCH_IDS.includes(e.id));
+  return stored.map((e) => updates.find((u) => u.id === e.id) ?? e);
+}
+
+// Seeding only runs when the page is opened, so the export applies any pending seeds itself (without saving).
+export function buildFoodCSVExport(): CSVExport {
+  let entries = load();
+  if (!localStorage.getItem(SEED_KEY)) entries = withMissingSeeds(entries);
+  if (!localStorage.getItem(PATCH_KEY)) entries = withPatchedSeeds(entries);
+  const regionOf = (entry: FoodEntry) =>
+    deriveRegions(entry).map((id) => REGIONS.find((r) => r.id === id)?.label ?? "Other").join("; ");
+  return { folder: "Travel", filename: "food-in-cities.csv", content: foodCSV(entries, regionOf) };
+}
+
 
 // ── Component ────────────────────────────────────────────────
 export default function FoodInCitiesPage() {
@@ -818,26 +846,19 @@ export default function FoodInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "food-cities-seed-v19";
-    if (localStorage.getItem(key)) return;
+    if (localStorage.getItem(SEED_KEY)) return;
     setEntries((prev) => {
-      const ids = new Set(prev.map((e) => e.id));
-      const toAdd = SEED_ENTRIES.filter((e) => !ids.has(e.id));
-      const next = toAdd.length ? [...toAdd, ...prev] : prev;
+      const next = withMissingSeeds(prev);
       save(next);
       return next;
     });
-    localStorage.setItem(key, "1");
+    localStorage.setItem(SEED_KEY, "1");
   }, []);
 
-  // Seeding skips existing ids, so overwrite these already-stored entries once
   useEffect(() => {
-    const key = "food-cities-patch-v2";
-    if (localStorage.getItem(key)) return;
-    const patchIds = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
-    const updates = SEED_ENTRIES.filter((e) => patchIds.includes(e.id));
-    setEntries((prev) => prev.map((e) => updates.find((u) => u.id === e.id) ?? e));
-    localStorage.setItem(key, "1");
+    if (localStorage.getItem(PATCH_KEY)) return;
+    setEntries((prev) => withPatchedSeeds(prev));
+    localStorage.setItem(PATCH_KEY, "1");
   }, []);
 
   useEffect(() => { save(entries); }, [entries]);
