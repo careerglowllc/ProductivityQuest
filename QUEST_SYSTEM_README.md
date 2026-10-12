@@ -110,6 +110,7 @@ When nothing qualifies, Smart Focus shows **"All clear for today"** with a hint 
 
 ### Defaults and persistence
 - Smart Focus is the default filter. The saved filter lives in `localStorage` under `tasksFilter-v2` (the v2 key resets everyone to Smart Focus once).
+- **Smart Focus must be enabled in Settings → Smart Focus.** While it is disabled the tab lists no quests (and no reminders strip) and says "Go to the Smart Focus page in settings to adjust" with a link; there is no explanation panel when it is enabled. See [AI_SMART_FOCUS.md](AI_SMART_FOCUS.md) for the AI personalization, private preferences and consent notice.
 - Search applies inside Smart Focus before the rules and cap.
 - The list-wide sort toggle (due date / importance) does not apply to Smart Focus; it has its own order.
 

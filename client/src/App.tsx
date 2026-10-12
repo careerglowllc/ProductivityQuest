@@ -52,6 +52,7 @@ import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 import CPAPPage from "@/pages/cpap";
 import AppearanceSettingsPage from "@/pages/settings-appearance";
+import SmartFocusSettingsPage from "@/pages/settings-smart-focus";
 import MorePage from "@/pages/more";
 import RecipesPage from "@/pages/recipes";
 import FoodInCitiesPage from "@/pages/food-in-cities";
@@ -226,6 +227,7 @@ function Router() {
             <Route path="/settings/guides/skill-classification" component={SkillClassificationGuidePage} />
             <Route path="/settings/guides/measure-what-matters" component={MeasureWhatMattersGuidePage} />
             <Route path="/settings/appearance" component={AppearanceSettingsPage} />
+            <Route path="/settings/smart-focus" component={SmartFocusSettingsPage} />
             <Route path="/recycling-bin" component={RecyclingBin} />
             <Route path="/completed" component={CompletedBin} />
             <Route path="/getting-started" component={GettingStarted} />

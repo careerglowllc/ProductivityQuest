@@ -152,7 +152,7 @@ Body with `"questType":"urgent"`.
 
 ## D. Smart Focus
 
-Seed quests (all open, type General unless stated) for these cases:
+Seed quests (all open, type General unless stated) for these cases. Smart Focus must be **enabled** in Settings → Smart Focus (see [AI_SMART_FOCUS_TEST_CASES.md](AI_SMART_FOCUS_TEST_CASES.md) for the on/off cases):
 
 | Name | Due | Start | Importance |
 |------|-----|-------|------------|

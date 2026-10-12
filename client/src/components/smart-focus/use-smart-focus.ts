@@ -62,6 +62,15 @@ export function useFocusRanking(enabled: boolean, fingerprint: string, aiEnabled
   return { ...ranking, refresh };
 }
 
+// Forces a new ranking from the settings page, then lets the Quests page pick up the cached result.
+export function useRefreshFocus() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => request<FocusRanking>("POST", "/api/smart-focus/rank?refresh=1", {}),
+    onSuccess: () => client.invalidateQueries({ queryKey: rankKey }),
+  });
+}
+
 export function useFocusActions() {
   const client = useQueryClient();
   const { user } = useAuth();

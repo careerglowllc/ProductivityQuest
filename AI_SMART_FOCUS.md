@@ -4,11 +4,11 @@ Smart Focus uses OpenAI's `gpt-4o-mini` plus deterministic safeguards. It is **n
 
 ## Using it
 
-1. Open Quests → Smart Focus → **Enable AI**. The consent notice explains that relevant quest content and saved feedback will be sent to OpenAI.
+1. Open **Settings → Smart Focus** and **Enable** it. The consent notice explains that relevant quest content and saved feedback will be sent to OpenAI. While Smart Focus is disabled, the Smart Focus tab on the Quests page lists no quests and shows "Go to the Smart Focus page in settings to adjust" with a link to that page; while enabled, the tab just works and has no explanation panel.
 2. Select a quest and click **AI feedback** in the existing selected-task action bar (desktop or mobile). With one selected quest the paragraph form opens directly; with several, first choose which quest the feedback concerns. It never broadcasts feedback to all selected quests. The card/detail menus also retain AI feedback. Enter a paragraph explaining priority, exclusions, missing work, or broader working preferences. It can be saved with AI off and survives restarts.
-3. **Refresh** reranks the list. Reasons appear on recommended quests. Missing tasks can be added by the AI even without due dates.
-4. **Not today** sets a non-protected quest aside until the next account-local day. Undo is offered in the confirmation toast; individual dismissal history can also be forgotten in Private preferences.
-5. Review or forget individual written preferences and signals in **Private preferences**, or confirm clearing all memory. Disabling AI retains memory but stops provider calls and implicit demotion.
+3. **Refresh now** (Settings → Smart Focus) reranks the list and shows whether the result is personalized AI or rules-based, with the reason if the provider failed. Reasons appear on recommended quests. Missing tasks can be added by the AI even without due dates.
+4. **Not today** sets a non-protected quest aside until the next account-local day. Undo is offered in the confirmation toast; individual dismissal history can also be forgotten in Private preferences (Settings → Smart Focus).
+5. Review or forget individual written preferences and signals in **Private preferences** on the Smart Focus settings page, or confirm clearing all memory. Disabling Smart Focus retains memory but stops provider calls and implicit demotion.
 
 Saving feedback does not edit a quest's importance field, dates, completion state, reminders, or other properties. It changes recommendation context. A saved preference can affect multiple tasks when its wording is general; task-specific negative feedback can exclude its non-protected target. The model's advice is never permission to hide protected work.
 

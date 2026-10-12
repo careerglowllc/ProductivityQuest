@@ -13,7 +13,7 @@ Use synthetic quests and two test accounts, A and B. Set the account timezone ex
 5. **No selection:** clear selection. The selected-task action bar disappears. The independent card/detail AI feedback menus still work.
 6. **Outside Smart Focus:** switch to All, select a quest absent from Smart Focus, and submit why it matters. Its private feedback is saved and can influence the next AI ranking.
 7. **Validation and retry:** whitespace-only input cannot submit; text is limited to 3,000 characters. Simulate a network error: retain the paragraph, show the error, and allow retry without losing the text.
-8. **Success:** submit a paragraph, check confirmation, and open Private preferences. Verify text and quest title. Reload and confirm persistence. Existing selection-bar actions remain usable.
+8. **Success:** submit a paragraph, check confirmation, and open Private preferences from Settings → Smart Focus. Verify text and quest title. Reload and confirm persistence. Existing selection-bar actions remain usable.
 
 ## Accounts and memory
 
@@ -34,9 +34,19 @@ Use synthetic quests and two test accounts, A and B. Set the account timezone ex
 
 ## Provider and fallback
 
-20. **Enable consent [manual UI]:** AI starts disabled. Enabling explains that relevant quest text and feedback go to OpenAI. Disabling stops future provider requests without deleting memory.
+20. **Enable consent [manual UI]:** Smart Focus starts disabled. Enabling it on Settings → Smart Focus first explains that relevant quest text and feedback go to OpenAI. Disabling stops future provider requests without deleting memory.
 21. **Cache/concurrency [automated API]:** identical concurrent or cached requests produce one model call, not one per request.
 22. **Failure [automated API]:** a provider failure returns an explicitly labeled rules result, preserves saved memory, and is cached briefly rather than retried continuously.
 23. **Quota [manual integration]:** exhausted credits show the provider-credit message and rules mode, not a claim of live AI ranking.
 24. **Live integration [requires funded API]:** provide synthetic tasks and feedback, refresh after cooldown, confirm an AI response passes validation, is displayed in the list, and gives reasons. Do not use actual private account data for a smoke test.
 25. **Accessibility/responsiveness [manual UI]:** navigate the selected-task button, chooser, paragraph, submit and close controls by keyboard; check readable light/dark themes and phone layout.
+
+## Settings page and the on/off state
+
+26. **Settings entry [automated + manual]:** Settings lists **Smart Focus** and opens `/settings/smart-focus` (route, list entry and notice link share one path). The page has Enable/Disable, Refresh now (only while enabled) and Private preferences.
+27. **Disabled tab [automated + manual UI]:** with Smart Focus disabled, the Smart Focus tab lists no quests and no reminders strip, shows "Smart Focus is off" with "Go to the Smart Focus page in settings to adjust" and a working link, the tab chip shows no count, and no `/api/smart-focus/rank` call is made.
+28. **Enabled tab [manual UI]:** after enabling, the tab lists quests with no explanation panel above them, and the reminders strip returns. Other filters are unaffected by the setting.
+29. **Loading and error [automated + manual UI]:** while the setting loads the tab shows a loading line (never a flash of quests); if loading fails it shows a retry message, not quests.
+30. **Panel removed [automated]:** the Quests page has no "Smart Focus / Rules-based" panel and no Disable AI, Refresh or Private preferences buttons.
+31. **Provider status [manual UI]:** with credits exhausted, Refresh now on the settings page reports "Rules-based: ... exhausted credits or quota"; the Quests tab keeps listing the rules-based quests silently.
+32. **Consent [manual UI]:** Enable shows the OpenAI notice; "Keep it off" leaves Smart Focus disabled and the tab empty.

@@ -20,7 +20,7 @@ export function FocusFeedbackDialog({ taskId, taskTitle, open, onOpenChange }: {
         </DialogHeader>
         {feedback.isSuccess ? (
           <div className="space-y-4" role="status">
-            <p className="text-sm">Preference saved. Smart Focus will use it when choosing your next quests. Review or forget it in Private preferences.</p>
+            <p className="text-sm">Preference saved. Smart Focus will use it when choosing your next quests. Review or forget it in Settings, under Smart Focus.</p>
             <Button className="sf-primary" onClick={() => onOpenChange(false)}>Done</Button>
           </div>
         ) : (
@@ -28,7 +28,7 @@ export function FocusFeedbackDialog({ taskId, taskTitle, open, onOpenChange }: {
             <label htmlFor={`focus-feedback-${taskId}`} className="text-sm font-medium">Your preference</label>
             <Textarea id={`focus-feedback-${taskId}`} className="sf-textarea min-h-32" value={text} maxLength={3000} required disabled={feedback.isPending} onChange={(event) => setText(event.target.value)} placeholder="For example: I prefer short admin quests after lunch, but this client deadline matters most this week." />
             <div className="flex justify-between gap-3 text-xs sf-muted"><span>1–3,000 characters. Stored privately on your account.</span><span>{text.length}/3000</span></div>
-            <p className="text-xs sf-muted">If you enable AI, relevant quest content and your preferences are sent to OpenAI. You can save feedback with AI off.</p>
+            <p className="text-xs sf-muted">If Smart Focus is enabled, relevant quest content and your preferences are sent to OpenAI. You can save feedback while it is off.</p>
             {feedback.isError && <p role="alert" className="sf-error">{focusError(feedback.error)} You can retry without losing your text.</p>}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" className="sf-button" disabled={feedback.isPending} onClick={() => onOpenChange(false)}>Cancel</Button>

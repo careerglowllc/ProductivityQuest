@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { SelectedFeedbackAction } from "@/components/smart-focus/selected-feedback-action";
-import { FocusControls } from "@/components/smart-focus/focus-controls";
+import { focusView } from "@/components/smart-focus/focus-gate";
+import { FocusOffNotice } from "@/components/smart-focus/focus-off-notice";
 import { useFocusRanking, useFocusState } from "@/components/smart-focus/use-smart-focus";
 import { selectFocus } from "@/components/smart-focus/select-focus";
 import { TaskDetailModal } from "@/components/task-detail-modal";
@@ -210,7 +211,9 @@ export default function Home() {
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery<any[]>({
     queryKey: ["/api/tasks"],
   });
-  const focusState = useFocusState(activeFilter === "smart" && !!user);
+  const focusState = useFocusState(!!user);
+  // The Smart Focus tab only lists quests while Smart Focus is on in settings.
+  const smartView = focusView(focusState);
   const focusDay = new Date().toLocaleDateString("en-CA", { timeZone: focusState.data?.timezone || undefined });
   // Include ranking inputs in the cache key: a task edit/completion must not reuse an old queue.
   // Memory stays server-side; this key contains only existing task data, never preferences.
@@ -225,12 +228,13 @@ export default function Home() {
     })).sort((a, b) => a.id - b.id),
   }), [tasks, user, focusDay]);
   const focusRanking = useFocusRanking(
-    activeFilter === "smart" && !!user && !tasksLoading && !!focusState.data,
+    activeFilter === "smart" && !!user && !tasksLoading && smartView === "on",
     focusFingerprint,
     focusState.data?.enabled === true,
   );
   const fullFocus = selectFocus(tasks as any[], focusRanking.data);
   const focusForTasks = (candidates: any[]) => {
+    if (smartView !== "on") return { ...fullFocus, groups: [], shown: 0, total: 0 };
     // Preserve the original search-before-cap bands while no server response exists.
     if (!focusRanking.data) return smartFocus(candidates, new Date());
     const candidateIds = new Set(candidates.map((task) => task.id));
@@ -2072,7 +2076,7 @@ export default function Home() {
 
   // Reminders live in their own compact strip above the list while Smart Focus is on (it leaves them out).
   const reminderQuery = searchQuery.trim().toLowerCase();
-  const reminderQuests = activeFilter === "smart"
+  const reminderQuests = activeFilter === "smart" && smartView === "on"
     ? sortReminders((tasks as any[]).filter((task: any) =>
         !task.completed && isReminder(task)
         && (!reminderQuery || `${task.title ?? ""} ${task.description ?? ""}`.toLowerCase().includes(reminderQuery))))
@@ -2307,7 +2311,7 @@ export default function Home() {
         </div>
 
             {/* Results Counter */}
-            {(searchQuery || activeFilter !== "all") && (
+            {(searchQuery || activeFilter !== "all") && !(activeFilter === "smart" && smartView !== "on") && (
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="dash-mono normal-case text-[var(--dash-muted)]">
                   Showing <strong className="font-bold text-[var(--dash-ink)]">{sortedTasks.length}</strong> of {filterCounts.all} quests
@@ -2335,7 +2339,7 @@ export default function Home() {
                   <FilterChip compact active={activeFilter === "smart"} onClick={() => setActiveFilter("smart")} data-testid="smart-filter">
                     <Sparkles aria-hidden className="h-3 w-3" />
                     Smart
-                    <span className="opacity-60">{filterCounts.smart}</span>
+                    {smartView === "on" && <span className="opacity-60">{filterCounts.smart}</span>}
                   </FilterChip>
                   <FilterChip compact label="All" count={filterCounts.all} active={activeFilter === "all"} onClick={() => setActiveFilter("all")} />
                   <FilterChip compact label="Today" count={filterCounts.dueToday} active={activeFilter === "due-today"} onClick={() => setActiveFilter("due-today")} />
@@ -2503,7 +2507,7 @@ export default function Home() {
                   <FilterChip active={activeFilter === "smart"} onClick={() => setActiveFilter("smart")} data-testid="smart-filter">
                     <Sparkles aria-hidden className="h-3.5 w-3.5" />
                     Smart Focus
-                    <span className="opacity-60">{filterCounts.smart}</span>
+                    {smartView === "on" && <span className="opacity-60">{filterCounts.smart}</span>}
                   </FilterChip>
                   <FilterChip label="All tasks" count={filterCounts.all} active={activeFilter === "all"} onClick={() => setActiveFilter("all")} />
                   <FilterChip label="Today" count={filterCounts.dueToday} active={activeFilter === "due-today"} onClick={() => setActiveFilter("due-today")} />
@@ -3044,7 +3048,6 @@ export default function Home() {
             )}
 
             {/* Reminders (Smart Focus only) */}
-            {activeFilter === "smart" && <FocusControls state={focusState} ranking={focusRanking} />}
             {renderReminders()}
 
             {/* Task List */}
@@ -3053,6 +3056,20 @@ export default function Home() {
                 <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--dash-muted)]">
                   <Loader2 aria-hidden className="h-4 w-4 animate-spin text-[var(--dash-violet)]" />
                   Loading your queue…
+                </div>
+              ) : activeFilter === "smart" && smartView === "off" ? (
+                <FocusOffNotice />
+              ) : activeFilter === "smart" && smartView === "loading" ? (
+                <div role="status" className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--dash-muted)]">
+                  <Loader2 aria-hidden className="h-4 w-4 animate-spin text-[var(--dash-violet)]" />
+                  Loading Smart Focus…
+                </div>
+              ) : activeFilter === "smart" && smartView === "error" ? (
+                <div role="alert" className="rounded-[10px] border border-dashed border-[var(--dash-line-strong)] bg-[var(--dash-surface)] p-10 text-center">
+                  <p className="text-sm text-[var(--dash-muted)]">Couldn't load your Smart Focus settings.</p>
+                  <Button onClick={() => focusState.refetch()} variant="outline" className="mt-3 border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]">
+                    Retry
+                  </Button>
                 </div>
               ) : tasks.length === 0 ? (
                 <div className="rounded-[10px] border border-dashed border-[var(--dash-line-strong)] bg-[var(--dash-surface)] p-14 text-center">

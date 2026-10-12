@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, Archive, DollarSign, LogOut, Download, Loader2 } from "lucide-react";
+import { Settings, ChevronRight, Database, Calendar, Bell, User, Shield, Palette, BookOpen, Trash2, Archive, DollarSign, LogOut, Download, Loader2, Sparkles } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { useToast } from "@/hooks/use-toast";
@@ -135,6 +135,13 @@ export default function SettingsPage() {
       icon: Database,
       path: "/settings/notion",
       color: "from-purple-500 to-purple-600",
+    },
+    {
+      title: "Smart Focus",
+      description: "Turn Smart Focus on or off and manage your private preferences",
+      icon: Sparkles,
+      path: "/settings/smart-focus",
+      color: "from-violet-500 to-indigo-600",
     },
     {
       title: "Completed Quests",
