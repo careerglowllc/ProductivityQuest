@@ -39,19 +39,6 @@ export const isNotStartedYet = (q: ScheduledQuest, now: Date): boolean => {
 };
 
 export type SmartBand = "urgent" | "ready" | "this-week" | "upcoming";
-export const SMART_BANDS: readonly SmartBand[] = ["urgent", "ready", "this-week", "upcoming"];
-export const SMART_BAND_LABELS: Record<SmartBand, string> = {
-  urgent: "Urgent",
-  ready: "Ready now",
-  "this-week": "Starting this week",
-  upcoming: "Upcoming",
-};
-export const SMART_BAND_HINTS: Record<SmartBand, string> = {
-  urgent: `Overdue or due within ${URGENT_WINDOW_DAYS} days`,
-  ready: "Start date reached, or no start date",
-  "this-week": `Starts within the next ${THIS_WEEK_DAYS} days`,
-  upcoming: `Starts more than ${THIS_WEEK_DAYS} days from now`,
-};
 
 // A close deadline overrides the start date: it is urgent even if the quest has not started yet.
 export function smartBand(q: ScheduledQuest, now: Date): SmartBand {
@@ -66,26 +53,58 @@ export function smartBand(q: ScheduledQuest, now: Date): SmartBand {
 const nullsLast = (t: number | null) => t ?? Infinity;
 const ascending = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1);
 
-// Urgent: nearest deadline first. Everything else: earliest start first (no start after dated ones), then due date.
-function compareWithinBand(band: SmartBand, a: ScheduledQuest, b: ScheduledQuest): number {
-  const dueOrder = ascending(nullsLast(time(a.dueDate)), nullsLast(time(b.dueDate)));
-  const startOrder = ascending(nullsLast(time(a.startDate)), nullsLast(time(b.startDate)));
-  const importanceOrder = importanceRank(b.importance) - importanceRank(a.importance);
-  return band === "urgent"
-    ? dueOrder || importanceOrder || startOrder
-    : startOrder || importanceOrder || dueOrder;
+const byDue = (a: ScheduledQuest, b: ScheduledQuest) => ascending(nullsLast(time(a.dueDate)), nullsLast(time(b.dueDate)));
+const byStart = (a: ScheduledQuest, b: ScheduledQuest) => ascending(nullsLast(time(a.startDate)), nullsLast(time(b.startDate)));
+const byImportance = (a: ScheduledQuest, b: ScheduledQuest) => importanceRank(b.importance) - importanceRank(a.importance);
+
+export const SMART_FOCUS_CAP = 10;
+export const COMING_UP_DAYS = 7;
+
+export type FocusBand = "urgent" | "today" | "coming-up";
+export const FOCUS_BANDS: readonly FocusBand[] = ["urgent", "today", "coming-up"];
+export const FOCUS_BAND_LABELS: Record<FocusBand, string> = { urgent: "Urgent", today: "Starting today", "coming-up": "Coming up" };
+export const FOCUS_BAND_HINTS: Record<FocusBand, string> = {
+  urgent: "Overdue or due today",
+  today: "Start date reached",
+  "coming-up": `High priority, due within ${COMING_UP_DAYS} days`,
+};
+
+export const isHighPriority = (q: ScheduledQuest): boolean => importanceRank(q.importance) >= importanceRank("Med-High");
+
+// Where a quest belongs in Smart Focus, or null when it doesn't belong: nothing due or starting today, and
+// anything due in the coming week only counts when it is high priority.
+export function focusBand(q: ScheduledQuest, now: Date): FocusBand | null {
+  const due = time(q.dueDate);
+  const start = time(q.startDate);
+  if (due !== null && due < dayStart(now, 1)) return "urgent";
+  if (start !== null && start < dayStart(now, 1)) return "today";
+  if (due !== null && due < dayStart(now, 1 + COMING_UP_DAYS) && isHighPriority(q)) return "coming-up";
+  return null;
 }
 
-export function sortSmart<T extends ScheduledQuest>(quests: readonly T[], now: Date): T[] {
-  return groupSmart(quests, now).flatMap((group) => group.quests);
-}
+export type SmartFocus<T> = { groups: { band: FocusBand; label: string; quests: T[] }[]; shown: number; total: number };
 
-export function groupSmart<T extends ScheduledQuest>(quests: readonly T[], now: Date): { band: SmartBand; label: string; quests: T[] }[] {
-  const byBand = new Map<SmartBand, T[]>(SMART_BANDS.map((band) => [band, []]));
-  for (const quest of quests) byBand.get(smartBand(quest, now))!.push(quest);
-  return SMART_BANDS
-    .map((band) => ({ band, label: SMART_BAND_LABELS[band], quests: byBand.get(band)!.sort((a, b) => compareWithinBand(band, a, b)) }))
-    .filter((group) => group.quests.length > 0);
+// The Smart Focus list: only what qualifies, never more than `cap`. Urgent fills first, then starting today,
+// then coming up, so the cap trims the least pressing quests. Reminders are left out (they have their own strip).
+export function smartFocus<T extends ScheduledQuest & { questType?: string | null }>(quests: readonly T[], now: Date, cap = SMART_FOCUS_CAP): SmartFocus<T> {
+  const byBand: Record<FocusBand, T[]> = { urgent: [], today: [], "coming-up": [] };
+  for (const quest of quests) {
+    if (isReminder(quest)) continue;
+    const band = focusBand(quest, now);
+    if (band) byBand[band].push(quest);
+  }
+  byBand.urgent.sort((a, b) => byDue(a, b) || byImportance(a, b) || byStart(a, b));
+  byBand.today.sort((a, b) => byStart(a, b) || byImportance(a, b) || byDue(a, b));
+  byBand["coming-up"].sort((a, b) => byDue(a, b) || byImportance(a, b) || byStart(a, b));
+
+  const total = FOCUS_BANDS.reduce((sum, band) => sum + byBand[band].length, 0);
+  let room = Math.max(0, cap);
+  const groups = FOCUS_BANDS.map((band) => {
+    const kept = byBand[band].slice(0, room);
+    room -= kept.length;
+    return { band, label: FOCUS_BAND_LABELS[band], quests: kept };
+  }).filter((group) => group.quests.length > 0);
+  return { groups, shown: groups.reduce((sum, group) => sum + group.quests.length, 0), total };
 }
 
 // Quests that have a start date still in the future, soonest first. Backs the "Upcoming" filter.
@@ -93,23 +112,16 @@ export function sortUpcoming<T extends ScheduledQuest>(quests: readonly T[], now
   const tomorrow = dayStart(now, 1);
   return quests
     .filter((q) => { const start = time(q.startDate); return start !== null && start >= tomorrow; })
-    .sort((a, b) => compareWithinBand("upcoming", a, b));
+    .sort((a, b) => byStart(a, b) || byImportance(a, b) || byDue(a, b));
 }
 
 // Reminders are standing best practices rather than work to schedule, so Smart Focus keeps them out
 // and the quests page lists them in their own compact strip instead.
 export const isReminder = (q: { questType?: string | null }): boolean => q.questType === "reminder";
 
-// The Smart Focus feed: every open quest except reminders, in feed order.
-export function smartFocusQuests<T extends ScheduledQuest & { questType?: string | null }>(quests: readonly T[], now: Date): T[] {
-  return sortSmart(quests.filter((q) => !isReminder(q)), now);
-}
-
 // Most important first, then nearest due date (undated last).
 export function sortReminders<T extends ScheduledQuest>(reminders: readonly T[]): T[] {
-  return [...reminders].sort((a, b) =>
-    importanceRank(b.importance) - importanceRank(a.importance)
-    || ascending(nullsLast(time(a.dueDate)), nullsLast(time(b.dueDate))));
+  return [...reminders].sort((a, b) => byImportance(a, b) || byDue(a, b));
 }
 
 export const DEADLINE_NEEDS_DUE_DATE = "A deadline quest needs a due date.";

@@ -30,7 +30,7 @@ import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
 import { DEFAULT_QUEST_TYPE, QUEST_TYPES, QUEST_TYPE_LABELS, compareByDueDateThenImportance, isQuestType, type QuestType } from "@shared/quest-type";
-import { SMART_BAND_HINTS, groupSmart, isOnTodaysList, isReminder, smartBand, smartFocusQuests, sortReminders, sortSmart, sortUpcoming, dayStart, type SmartBand } from "@shared/quest-schedule";
+import { FOCUS_BAND_HINTS, isOnTodaysList, isReminder, smartFocus, sortReminders, sortUpcoming, dayStart, type FocusBand } from "@shared/quest-schedule";
 
 type FilterType = "smart" | "upcoming" | "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `type-${QuestType}` | `assignee-${string}`;
 
@@ -113,7 +113,6 @@ export default function Home() {
     }
     return "smart";
   });
-  const [showUpcomingSection, setShowUpcomingSection] = useState(false);
   // The reminders strip is open by default; the choice is remembered.
   const [remindersOpen, setRemindersOpen] = useState(() => localStorage.getItem('remindersOpen') !== 'false');
   useEffect(() => { localStorage.setItem('remindersOpen', String(remindersOpen)); }, [remindersOpen]);
@@ -1603,14 +1602,11 @@ export default function Home() {
     const now = new Date();
     // Use LOCAL date to determine "today" — respects the user's phone timezone
     const todayStart = new Date(dayStart(now));
-    // Quests in the Smart Focus "Upcoming" band stay out of its count, and so do reminders (they have their own strip).
-    const smartUpcomingIds = new Set(
-      groupSmart(activeTasks, now).filter((group) => group.band === "upcoming").flatMap((group) => group.quests.map((task: any) => task.id)),
-    );
     
     return {
       all: activeTasks.length,
-      smart: activeTasks.filter((task: any) => !smartUpcomingIds.has(task.id) && !isReminder(task)).length,
+      // Smart Focus is capped, so its count is what it actually shows.
+      smart: smartFocus(activeTasks, now).shown,
       upcoming: sortUpcoming(activeTasks, now).length,
       // Today: overdue, due today, or a start date that has arrived.
       dueToday: activeTasks.filter((task: any) => isOnTodaysList(task, now)).length,
@@ -1727,7 +1723,8 @@ export default function Home() {
     // Apply category filter
     switch (activeFilter) {
       case "smart":
-        return smartFocusQuests(activeTasks, new Date());
+        // Qualification and the cap are applied after sorting, in getSortedTasks.
+        return activeTasks;
 
       case "upcoming":
         return sortUpcoming(activeTasks, new Date());
@@ -1836,11 +1833,10 @@ export default function Home() {
   const getSortedTasks = (filteredTasks: any[]) => {
     const sortedTasks = [...filteredTasks];
 
-    // Smart Focus and Upcoming keep their own order (the list-wide sort toggle doesn't apply). The
-    // Smart "Upcoming" section is collapsed by default, so its quests are left out until it's opened.
+    // Smart Focus and Upcoming keep their own order (the list-wide sort toggle doesn't apply).
+    // Smart Focus also keeps only what qualifies for today, up to its cap.
     if (activeFilter === "smart") {
-      const now = new Date();
-      return showUpcomingSection ? sortedTasks : sortedTasks.filter((task) => smartBand(task, now) !== "upcoming");
+      return smartFocus(sortedTasks, new Date()).groups.flatMap((group) => group.quests);
     }
     if (activeFilter === "upcoming") return sortedTasks;
 
@@ -2038,9 +2034,8 @@ export default function Home() {
   const sortedTasks = getSortedTasks(filteredTasks);
   const batchedTasks = getBatchedTasks(sortedTasks);
 
-  // Smart Focus: Urgent -> Ready now -> Starting this week -> Upcoming (collapsed by default).
-  const smartGroups = activeFilter === "smart" ? groupSmart(filteredTasks, new Date()) : [];
-  const smartUpcomingCount = smartGroups.find((group) => group.band === "upcoming")?.quests.length ?? 0;
+  // Smart Focus: only what's due or starting today (plus high-priority quests due this week), capped.
+  const smartResult = activeFilter === "smart" ? smartFocus(filteredTasks, new Date()) : null;
 
   // Reminders live in their own compact strip above the list while Smart Focus is on (it leaves them out).
   const reminderQuery = searchQuery.trim().toLowerCase();
@@ -2094,37 +2089,27 @@ export default function Home() {
       onQuestlineNameClick={task.questlineId ? (qlId, taskId) => { setTreeModalQuestlineId(qlId); setTreeModalFocusTaskId(taskId); } : undefined}
     />
   );
-  const renderSmartSections = () => smartGroups.map((group) => {
-    const isUpcoming = group.band === "upcoming";
-    const open = !isUpcoming || showUpcomingSection;
-    const heading = (
-      <>
-        <span className="text-[15px] font-bold tracking-tight text-[var(--dash-ink)]">{group.label}</span>
-        <span className="dash-mono font-normal text-[var(--dash-muted)]">{group.quests.length}</span>
-        <span className="hidden text-xs text-[var(--dash-muted)] sm:inline">{SMART_BAND_HINTS[group.band as SmartBand]}</span>
-      </>
-    );
-    return (
-      <section key={group.band} data-smart-band={group.band} className={isMobile ? "space-y-1.5" : "space-y-3"}>
-        {isUpcoming ? (
-          <button
-            type="button"
-            onClick={() => setShowUpcomingSection((value) => !value)}
-            aria-expanded={open}
-            className="dash-focus flex w-full items-center gap-2 rounded-md px-1 py-1 text-left"
-          >
-            {open ? <ChevronDown aria-hidden className="h-4 w-4 text-[var(--dash-muted)]" /> : <ChevronRight aria-hidden className="h-4 w-4 text-[var(--dash-muted)]" />}
-            {heading}
-          </button>
-        ) : (
-          <h3 className="flex items-baseline gap-2 px-1 pt-1">{heading}</h3>
-        )}
-        {open && (viewType === "grid"
-          ? <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>{group.quests.map((task: any) => renderQuestCard(task, true))}</div>
-          : <div className={isMobile ? "space-y-1.5" : "space-y-4"}>{group.quests.map((task: any) => renderQuestCard(task))}</div>)}
-      </section>
-    );
-  });
+  const renderSmartSections = () => !smartResult ? null : (
+    <>
+      {smartResult.groups.map((group) => (
+        <section key={group.band} data-smart-band={group.band} className={isMobile ? "space-y-1.5" : "space-y-3"}>
+          <h3 className="flex items-baseline gap-2 px-1 pt-1">
+            <span className="text-[15px] font-bold tracking-tight text-[var(--dash-ink)]">{group.label}</span>
+            <span className="dash-mono font-normal text-[var(--dash-muted)]">{group.quests.length}</span>
+            <span className="hidden text-xs text-[var(--dash-muted)] sm:inline">{FOCUS_BAND_HINTS[group.band as FocusBand]}</span>
+          </h3>
+          {viewType === "grid"
+            ? <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>{group.quests.map((task: any) => renderQuestCard(task, true))}</div>
+            : <div className={isMobile ? "space-y-1.5" : "space-y-4"}>{group.quests.map((task: any) => renderQuestCard(task))}</div>}
+        </section>
+      ))}
+      {smartResult.total > smartResult.shown && (
+        <p data-testid="smart-focus-more" className="px-1 text-xs text-[var(--dash-muted)]">
+          Showing the top {smartResult.shown} of {smartResult.total}. The rest are in the Today filter.
+        </p>
+      )}
+    </>
+  );
 
   return (
     <div className={`bg-[var(--dash-bg)] ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
@@ -3046,16 +3031,18 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
-              ) : sortedTasks.length === 0 && !(activeFilter === "smart" && smartUpcomingCount > 0) ? (
+              ) : sortedTasks.length === 0 ? (
                 <div className="rounded-[10px] border border-dashed border-[var(--dash-line-strong)] bg-[var(--dash-surface)] p-14 text-center">
                   <Search aria-hidden className="mx-auto mb-3 h-9 w-9 text-[var(--dash-violet)] opacity-50" />
                   <h3 className="text-[22px] font-bold tracking-tight text-[var(--dash-ink)]">
-                    {searchQuery ? "No quests match that search" : "Nothing in this view"}
+                    {searchQuery ? "No quests match that search" : activeFilter === "smart" ? "All clear for today" : "Nothing in this view"}
                   </h3>
                   <p className="mt-1 text-sm text-[var(--dash-muted)]">
                     {searchQuery
                       ? "Try a broader term or clear the search."
-                      : "Try adjusting your filter to see more quests."}
+                      : activeFilter === "smart"
+                        ? "Nothing is due or starting today. Check Upcoming or All for what's next."
+                        : "Try adjusting your filter to see more quests."}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
                     {searchQuery && (

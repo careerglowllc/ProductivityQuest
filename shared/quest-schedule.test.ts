@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DEADLINE_NEEDS_DUE_DATE, SMART_BANDS, START_AFTER_DUE, groupSmart, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocusQuests, sortReminders,
-  resolveQuestDatePatch, smartBand, sortSmart, sortUpcoming, validateQuestDates, type ScheduledQuest,
+  DEADLINE_NEEDS_DUE_DATE, FOCUS_BANDS, SMART_FOCUS_CAP, START_AFTER_DUE, focusBand, isHighPriority, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocus, sortReminders,
+  resolveQuestDatePatch, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
 } from "./quest-schedule";
 
 // Monday 12 Oct 2026, mid-morning. Quest dates are stored as a calendar day at UTC midnight.
@@ -40,91 +40,6 @@ test("smart band: starts within 7 days is this week, later is upcoming", () => {
 
 test("smart band: an unreadable date is ignored rather than breaking the feed", () => {
   assert.equal(smartBand({ startDate: "garbage", dueDate: "garbage" }, now), "ready");
-});
-
-test("urgent band: nearest deadline first, then importance", () => {
-  const sorted = sortSmart([
-    quest("due in 2 days", { dueDate: day(2), importance: "Pareto" }),
-    quest("overdue low", { dueDate: day(-4), importance: "Low" }),
-    quest("due today high", { dueDate: day(0), importance: "High" }),
-    quest("due today low", { dueDate: day(0), importance: "Low" }),
-    quest("overdue by 1", { dueDate: day(-1), importance: "Medium" }),
-  ], now);
-  assert.deepEqual(names(sorted), ["overdue low", "overdue by 1", "due today high", "due today low", "due in 2 days"]);
-});
-
-test("ready band: earliest start first, then importance, then due date; quests with no start come after dated ones", () => {
-  const sorted = sortSmart([
-    quest("no start, high", { importance: "High", dueDate: day(10) }),
-    quest("started today, low", { startDate: day(0), importance: "Low", dueDate: day(30) }),
-    quest("started 5 days ago, low", { startDate: day(-5), importance: "Low", dueDate: day(30) }),
-    quest("started today, high, later due", { startDate: day(0), importance: "High", dueDate: day(40) }),
-    quest("started today, high, sooner due", { startDate: day(0), importance: "High", dueDate: day(9) }),
-    quest("no start, pareto", { importance: "Pareto", dueDate: day(50) }),
-  ], now);
-  assert.deepEqual(names(sorted), [
-    "started 5 days ago, low",
-    "started today, high, sooner due",
-    "started today, high, later due",
-    "started today, low",
-    "no start, pareto",
-    "no start, high",
-  ]);
-});
-
-test("feed order: urgent, then ready now, then starting this week, then upcoming", () => {
-  const sorted = sortSmart([
-    quest("upcoming", { startDate: day(30) }),
-    quest("this week", { startDate: day(3) }),
-    quest("ready", { startDate: day(-1) }),
-    quest("urgent", { dueDate: day(1) }),
-  ], now);
-  assert.deepEqual(names(sorted), ["urgent", "ready", "this week", "upcoming"]);
-});
-
-test("starting this week and upcoming are ordered by start date, then importance", () => {
-  const sorted = sortSmart([
-    quest("late-week low", { startDate: day(6), importance: "Low" }),
-    quest("tomorrow low", { startDate: day(1), importance: "Low" }),
-    quest("tomorrow high", { startDate: day(1), importance: "High" }),
-    quest("next month", { startDate: day(40), importance: "Pareto" }),
-    quest("in 10 days", { startDate: day(10), importance: "Low" }),
-  ], now);
-  assert.deepEqual(names(sorted), ["tomorrow high", "tomorrow low", "late-week low", "in 10 days", "next month"]);
-});
-
-test("a start date earlier than the due date never outranks a nearer deadline", () => {
-  const sorted = sortSmart([
-    quest("started long ago, due next month", { startDate: day(-60), dueDate: day(25) }),
-    quest("started yesterday, due tomorrow", { startDate: day(-1), dueDate: day(1) }),
-  ], now);
-  assert.deepEqual(names(sorted), ["started yesterday, due tomorrow", "started long ago, due next month"]);
-});
-
-test("groups: labelled in feed order and empty bands are left out", () => {
-  const groups = groupSmart([quest("a", { startDate: day(3) }), quest("b", { dueDate: day(0) })], now);
-  assert.deepEqual(groups.map((g) => g.band), ["urgent", "this-week"]);
-  assert.deepEqual(groups.map((g) => g.label), ["Urgent", "Starting this week"]);
-  assert.deepEqual(groupSmart([], now), []);
-  assert.deepEqual([...SMART_BANDS], ["urgent", "ready", "this-week", "upcoming"]);
-});
-
-test("quests from before start dates existed keep a sensible order: urgent by deadline, rest by importance then due date", () => {
-  const sorted = sortSmart([
-    quest("legacy low, due in 20", { importance: "Low", dueDate: day(20) }),
-    quest("legacy high, due in 30", { importance: "High", dueDate: day(30) }),
-    quest("legacy overdue", { importance: "Low", dueDate: day(-2) }),
-    quest("legacy undated", { importance: "Medium" }),
-    quest("legacy high, due in 10", { importance: "High", dueDate: day(10) }),
-  ], now);
-  assert.deepEqual(names(sorted), ["legacy overdue", "legacy high, due in 10", "legacy high, due in 30", "legacy undated", "legacy low, due in 20"]);
-});
-
-test("sorting does not modify the list it was given", () => {
-  const input = [quest("b", { startDate: day(3) }), quest("a", { dueDate: day(0) })];
-  const copy = [...input];
-  sortSmart(input, now);
-  assert.deepEqual(input, copy);
 });
 
 test("today's list: overdue, due today, or a start date that has arrived", () => {
@@ -247,18 +162,148 @@ test("reminders have no hard dates: with or without them they never need a due o
   assert.equal(validateQuestDates({ questType: "reminder", dueDate: null, startDate: null }), null);
 });
 
-test("Smart Focus leaves reminders out, whatever their dates, and orders everything else as before", () => {
-  const feed = smartFocusQuests([
-    { name: "overdue reminder", questType: "reminder", dueDate: day(-3) },
-    { name: "reminder starting today", questType: "reminder", startDate: day(0) },
-    { name: "undated reminder", questType: "reminder" },
-    { name: "later task", questType: "general", startDate: day(-1) },
-    { name: "urgent deadline", questType: "deadline", dueDate: day(1) },
-    { name: "legacy quest", dueDate: day(20) },
-  ], now);
-  assert.deepEqual(names(feed), ["urgent deadline", "later task", "legacy quest"]);
+
+const q = (name: string, extra: Record<string, unknown> = {}) => ({ name, ...extra }) as ScheduledQuest & { name: string; questType?: string };
+const focusNames = (quests: ReturnType<typeof q>[], cap?: number) =>
+  smartFocus(quests, now, cap).groups.flatMap((g) => g.quests).map((x) => x.name);
+
+test("high priority means Med-High and above", () => {
+  for (const importance of ["Pareto", "High", "Med-High"]) assert.equal(isHighPriority({ importance }), true, importance);
+  for (const importance of ["Medium", "Med-Low", "Low", null, undefined]) assert.equal(isHighPriority({ importance }), false, String(importance));
 });
 
-test("Smart Focus with only reminders is empty", () => {
-  assert.deepEqual(smartFocusQuests([{ name: "a", questType: "reminder" }], now), []);
+test("focus: overdue and due today are in", () => {
+  assert.equal(focusBand({ dueDate: day(-9) }, now), "urgent");
+  assert.equal(focusBand({ dueDate: day(0) }, now), "urgent");
+});
+
+test("focus: a start date that has arrived is in, today or earlier", () => {
+  assert.equal(focusBand({ startDate: day(0), dueDate: day(40) }, now), "today");
+  assert.equal(focusBand({ startDate: day(-6) }, now), "today");
+});
+
+test("focus: due tomorrow through 7 days out only counts when high priority", () => {
+  for (const offset of [1, 4, 7]) {
+    assert.equal(focusBand({ dueDate: day(offset), importance: "High" }, now), "coming-up", `day ${offset}`);
+    assert.equal(focusBand({ dueDate: day(offset), importance: "Medium" }, now), null, `day ${offset} medium`);
+    assert.equal(focusBand({ dueDate: day(offset) }, now), null, `day ${offset} no importance`);
+  }
+  assert.equal(focusBand({ dueDate: day(8), importance: "Pareto" }, now), null, "8 days out is beyond the week");
+});
+
+test("focus: undated quests and future starts are out, even if high priority", () => {
+  assert.equal(focusBand({}, now), null);
+  assert.equal(focusBand({ importance: "Pareto" }, now), null);
+  assert.equal(focusBand({ startDate: day(2), dueDate: day(30), importance: "Pareto" }, now), null);
+  assert.equal(focusBand({ startDate: day(1) }, now), null);
+});
+
+test("focus: a quest that has started and is also due soon counts as starting today, not coming up", () => {
+  assert.equal(focusBand({ startDate: day(-1), dueDate: day(3), importance: "High" }, now), "today");
+});
+
+test("focus: unreadable dates are ignored", () => {
+  assert.equal(focusBand({ startDate: "garbage", dueDate: "garbage", importance: "High" }, now), null);
+});
+
+test("Smart Focus is not a sorted copy of everything: only qualifying quests appear", () => {
+  const names = focusNames([
+    q("overdue", { dueDate: day(-2) }),
+    q("due today", { dueDate: day(0) }),
+    q("starts today", { startDate: day(0), dueDate: day(30) }),
+    q("due tomorrow, high", { dueDate: day(1), importance: "High" }),
+    q("due tomorrow, medium", { dueDate: day(1), importance: "Medium" }),
+    q("due in 5 days, low", { dueDate: day(5), importance: "Low" }),
+    q("undated", {}),
+    q("legacy, due next month", { dueDate: day(30) }),
+    q("starts next week", { startDate: day(6) }),
+  ]);
+  assert.deepEqual(names, ["overdue", "due today", "starts today", "due tomorrow, high"]);
+});
+
+test("Smart Focus empties once today's work is done: nothing left means nothing shown", () => {
+  const result = smartFocus([q("later", { dueDate: day(20) }), q("someday", {}), q("medium this week", { dueDate: day(3), importance: "Medium" })], now);
+  assert.deepEqual(result.groups, []);
+  assert.equal(result.shown, 0);
+  assert.equal(result.total, 0);
+  assert.deepEqual(smartFocus([], now).groups, []);
+});
+
+test("Smart Focus order: urgent, then starting today, then coming up", () => {
+  const names = focusNames([
+    q("coming up", { dueDate: day(2), importance: "High" }),
+    q("starts today", { startDate: day(0) }),
+    q("urgent", { dueDate: day(0) }),
+  ]);
+  assert.deepEqual(names, ["urgent", "starts today", "coming up"]);
+  assert.deepEqual(smartFocus([q("urgent", { dueDate: day(0) })], now).groups.map((g) => g.band), ["urgent"]);
+  assert.deepEqual([...FOCUS_BANDS], ["urgent", "today", "coming-up"]);
+});
+
+test("Smart Focus order within a group: urgent by deadline then importance; today by start then importance; coming up by deadline", () => {
+  const urgent = focusNames([
+    q("due today, low", { dueDate: day(0), importance: "Low" }),
+    q("overdue, low", { dueDate: day(-3), importance: "Low" }),
+    q("due today, high", { dueDate: day(0), importance: "High" }),
+  ]);
+  assert.deepEqual(urgent, ["overdue, low", "due today, high", "due today, low"]);
+
+  const today = focusNames([
+    q("started today, high", { startDate: day(0), importance: "High" }),
+    q("started 5 days ago, low", { startDate: day(-5), importance: "Low" }),
+    q("started today, low", { startDate: day(0), importance: "Low" }),
+  ]);
+  assert.deepEqual(today, ["started 5 days ago, low", "started today, high", "started today, low"]);
+
+  const coming = focusNames([
+    q("in 6 days", { dueDate: day(6), importance: "Pareto" }),
+    q("in 2 days", { dueDate: day(2), importance: "Med-High" }),
+  ]);
+  assert.deepEqual(coming, ["in 2 days", "in 6 days"]);
+});
+
+test("Smart Focus is capped, and the cap trims the least pressing quests first", () => {
+  const many = [
+    ...Array.from({ length: 4 }, (_, i) => q(`urgent ${i}`, { dueDate: day(0) })),
+    ...Array.from({ length: 4 }, (_, i) => q(`today ${i}`, { startDate: day(0) })),
+    ...Array.from({ length: 4 }, (_, i) => q(`coming ${i}`, { dueDate: day(3), importance: "High" })),
+  ];
+  const result = smartFocus(many, now, 6);
+  assert.equal(result.shown, 6);
+  assert.equal(result.total, 12);
+  assert.deepEqual(result.groups.map((g) => [g.band, g.quests.length]), [["urgent", 4], ["today", 2]]);
+});
+
+test("Smart Focus: the default cap is 10", () => {
+  assert.equal(SMART_FOCUS_CAP, 10);
+  const many = Array.from({ length: 25 }, (_, i) => q(`due ${i}`, { dueDate: day(-i) }));
+  const result = smartFocus(many, now);
+  assert.equal(result.shown, 10);
+  assert.equal(result.total, 25);
+});
+
+test("Smart Focus: a cap of zero shows nothing and a large cap shows everything that qualifies", () => {
+  const some = [q("a", { dueDate: day(0) }), q("b", { dueDate: day(0) })];
+  assert.equal(smartFocus(some, now, 0).shown, 0);
+  assert.equal(smartFocus(some, now, 0).total, 2);
+  assert.equal(smartFocus(some, now, 500).shown, 2);
+});
+
+test("Smart Focus leaves reminders out, whatever their dates, and the rest still qualify normally", () => {
+  const names = focusNames([
+    q("overdue reminder", { questType: "reminder", dueDate: day(-3) }),
+    q("reminder starting today", { questType: "reminder", startDate: day(0) }),
+    q("high reminder due tomorrow", { questType: "reminder", dueDate: day(1), importance: "High" }),
+    q("urgent deadline", { questType: "deadline", dueDate: day(0) }),
+    q("started task", { questType: "general", startDate: day(-1) }),
+  ]);
+  assert.deepEqual(names, ["urgent deadline", "started task"]);
+  assert.equal(smartFocus([q("r", { questType: "reminder", dueDate: day(0) })], now).total, 0);
+});
+
+test("Smart Focus does not modify the list it was given", () => {
+  const input = [q("b", { startDate: day(0) }), q("a", { dueDate: day(0) })];
+  const copy = [...input];
+  smartFocus(input, now);
+  assert.deepEqual(input, copy);
 });
