@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { BellRing, CalendarClock, ListChecks } from "lucide-react";
-import { QUEST_TYPE_LABELS, QUEST_TYPES, type QuestType } from "@shared/quest-type";
+import { DEFAULT_QUEST_TYPE, QUEST_TYPE_LABELS, QUEST_TYPES, isQuestType, type QuestType } from "@shared/quest-type";
 
 type TypeStyle = { blurb: string; icon: ReactNode; smallIcon: ReactNode; tile: string; card: string; ring: string };
 
@@ -32,6 +32,30 @@ export const QUEST_TYPE_UI: Record<QuestType, TypeStyle> = {
   },
 };
 
+const QUEST_TYPE_ICONS = { reminder: BellRing, deadline: CalendarClock, general: ListChecks } as const;
+const QUEST_TYPE_TINT: Record<QuestType, string> = {
+  reminder: "text-amber-500/80",
+  deadline: "text-rose-500/80",
+  general: "text-emerald-500/80",
+};
+
+// Subtle icon-only marker for quest cards and lists. Unknown or missing types read as general.
+export function QuestTypeIcon({ type, className = "h-3.5 w-3.5" }: { type?: string | null; className?: string }) {
+  const resolved: QuestType = isQuestType(type) ? type : DEFAULT_QUEST_TYPE;
+  const Icon = QUEST_TYPE_ICONS[resolved];
+  return (
+    <span
+      data-quest-type-icon={resolved}
+      title={QUEST_TYPE_LABELS[resolved]}
+      aria-label={QUEST_TYPE_LABELS[resolved]}
+      role="img"
+      className="inline-flex shrink-0 items-center"
+    >
+      <Icon aria-hidden className={`${className} ${QUEST_TYPE_TINT[resolved]}`} />
+    </span>
+  );
+}
+
 // Small pill shown on the form once a type is picked.
 export function QuestTypeBadge({ type }: { type: QuestType }) {
   const ui = QUEST_TYPE_UI[type];
@@ -42,6 +66,43 @@ export function QuestTypeBadge({ type }: { type: QuestType }) {
       </span>
       {QUEST_TYPE_LABELS[type]}
     </span>
+  );
+}
+
+// One-row, three-button picker for changing the type of an existing quest. Clicking the current type is a no-op.
+export function QuestTypeSelector({
+  value,
+  onChange,
+  disabled = false,
+  compact = false,
+}: {
+  value?: string | null;
+  onChange: (type: QuestType) => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  const current: QuestType = isQuestType(value) ? value : DEFAULT_QUEST_TYPE;
+  return (
+    <div role="group" aria-label="Quest type" className="grid grid-cols-3 gap-2" data-testid="quest-type-buttons">
+      {QUEST_TYPES.map((type) => {
+        const ui = QUEST_TYPE_UI[type];
+        const selected = current === type;
+        return (
+          <button
+            key={type}
+            type="button"
+            data-quest-type={type}
+            aria-pressed={selected}
+            disabled={disabled}
+            onClick={() => { if (!selected) onChange(type); }}
+            className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 ${compact ? "py-2 text-xs" : "py-2.5 text-sm"} font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 ${ui.ring} ${selected ? `bg-slate-900/80 text-yellow-100 ${ui.card.split(" ")[0]} ring-1 ring-yellow-500/40` : "border-yellow-600/30 bg-slate-900/40 text-yellow-200/70 hover:bg-slate-900/70"}`}
+          >
+            <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gradient-to-br ${ui.tile}`}>{ui.smallIcon}</span>
+            <span className="truncate">{QUEST_TYPE_LABELS[type]}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

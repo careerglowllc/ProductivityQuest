@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { QuestTypeIcon } from "@/components/quest-type-chooser";
+import { questTypeLabel } from "@shared/quest-type";
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -47,6 +49,7 @@ interface CalendarEvent {
   description?: string;
   completed?: boolean;
   importance?: string;
+  questType?: string;
   goldValue?: number;
   campaign?: string;
   skillTags?: string[];
@@ -1682,6 +1685,7 @@ const DayColumn = React.memo(function DayColumn({
             <div className="px-2 py-0.5 h-full flex flex-col justify-start overflow-hidden" style={{ paddingTop: isInResizeMode ? 6 : 2 }}>
               <div className="flex items-center gap-1 min-w-0">
                 {ev.completed && <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />}
+                {ev.source === "productivityquest" && visHeight > 25 && <QuestTypeIcon type={ev.questType} className="h-3 w-3" />}
                 <span className={`${visHeight > 25 ? "text-xs" : "text-[10px]"} font-semibold truncate ${ev.completed ? "line-through text-gray-400" : isDark ? "text-white" : "text-gray-800"}`}>{ev.title}</span>
               </div>
               {visHeight > 30 && (
@@ -2021,6 +2025,12 @@ function EventDetailSheet({ event, isMobile, onClose, onDelete, onAdjust }: { ev
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">{sourceLabel}</Badge>
+            {event.source === "productivityquest" && (
+              <Badge variant="outline" className="gap-1 text-[10px] border-purple-500/30 text-purple-300">
+                <QuestTypeIcon type={event.questType} className="h-3 w-3" />
+                {questTypeLabel(event.questType)}
+              </Badge>
+            )}
             {event.importance && event.source === "productivityquest" && <Badge variant="outline" className="text-[10px]" style={{ borderColor: color + "60", color }}>{event.importance}</Badge>}
             {event.completed && <Badge className="text-[10px] bg-green-600/20 text-green-300 border-green-600/30">Completed</Badge>}
           </div>

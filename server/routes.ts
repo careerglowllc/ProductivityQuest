@@ -3742,6 +3742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           skillTags: task.skillTags || [],
           duration: task.duration,
           source: 'productivityquest',
+          questType: task.questType,
           calendarColor: task.calendarColor,
           recurType: task.recurType
         });

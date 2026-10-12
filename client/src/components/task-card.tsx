@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { TaskDetailModal } from "./task-detail-modal";
+import { QuestTypeIcon } from "./quest-type-chooser";
 import { SkillAdjustmentModal } from "./skill-adjustment-modal";
 import { EmojiPicker } from "./emoji-picker";
 import { getSkillIcon, SKILL_ICON_MAP } from "@/lib/skillIcons";
@@ -60,6 +61,7 @@ interface TaskCardProps {
     velin?: boolean;
     skillTags?: string[];
     emoji?: string;
+    questType?: string;
     questlineId?: number | null;
     assignedTo?: string;
   };
@@ -283,15 +285,18 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                   <span className="font-semibold">{task.goldValue}</span>
                 </Badge>
                 
-                {task.importance && (
-                  <span className="text-xs" title={task.importance}>
-                    {task.importance === "Pareto" ? "�" : 
-                     task.importance === "High" ? "�" : 
-                     task.importance === "Med-High" ? "🟠" : 
-                     task.importance === "Medium" ? "�" : 
-                     task.importance === "Med-Low" ? "�" : "�"}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  <QuestTypeIcon type={task.questType} className="h-3.5 w-3.5" />
+                  {task.importance && (
+                    <span className="text-xs" title={task.importance}>
+                      {task.importance === "Pareto" ? "�" : 
+                       task.importance === "High" ? "�" : 
+                       task.importance === "Med-High" ? "🟠" : 
+                       task.importance === "Medium" ? "�" : 
+                       task.importance === "Med-Low" ? "�" : "�"}
+                    </span>
+                  )}
+                </div>
               </div>
               
               {/* Duration and Due Date */}
@@ -429,6 +434,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                 
                 {/* Meta row: importance dot · duration · date · recurrence · skill icons */}
                 <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-yellow-300/50">
+                  <QuestTypeIcon type={task.questType} className="h-3 w-3" />
                   {/* Importance dot */}
                   <span className={cn("w-2 h-2 rounded-full flex-shrink-0", getImportanceDotColor(task.importance))} />
                   <span className="flex items-center gap-0.5">
@@ -586,6 +592,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                 </p>
               )}
               <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-yellow-300/60 mb-2">
+                <QuestTypeIcon type={task.questType} className="h-4 w-4" />
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4 flex-shrink-0" />
                   <span className="whitespace-nowrap">{formatDuration(task.duration)}</span>

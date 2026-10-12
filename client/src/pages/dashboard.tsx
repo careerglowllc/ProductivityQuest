@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { QuestTypeIcon } from "@/components/quest-type-chooser";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign, GripVertical } from "lucide-react";
@@ -1235,7 +1236,7 @@ export default function Dashboard() {
                         {index + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="mb-1 break-words text-sm font-semibold text-[var(--dash-ink)]">{task.title}</p>
+                        <p className="mb-1 flex items-start gap-1.5 break-words text-sm font-semibold text-[var(--dash-ink)]"><span className="mt-0.5"><QuestTypeIcon type={task.questType} /></span><span>{task.title}</span></p>
                         <div className="flex flex-wrap items-center gap-2">
                           {task.importance && <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>{task.importance}</Badge>}
                           {task.duration && <span className="flex items-center text-xs text-[var(--dash-muted)]"><Clock aria-hidden className="mr-1 h-3 w-3" />{task.duration} min</span>}

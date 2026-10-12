@@ -30,7 +30,7 @@ import {
   Map
 } from "lucide-react";
 import { format } from "date-fns";
-import { QUEST_TYPES, QUEST_TYPE_LABELS, isQuestType } from "@shared/quest-type";
+import { QuestTypeSelector } from "@/components/quest-type-chooser";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
@@ -965,24 +965,17 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
           {/* Additional Properties */}
           <div className={isMobile ? 'grid grid-cols-2 gap-2' : 'space-y-3'}>
             {/* Quest type */}
-            <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
+            <div className={`${isMobile ? 'col-span-2' : ''} flex flex-col gap-2 bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">
                 <Flag className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Quest Type</span>
               </div>
-              <Select
-                value={isQuestType(task.questType) ? task.questType : "general"}
-                onValueChange={(value) => updateFieldMutation.mutate({ field: 'questType', value })}
-              >
-                <SelectTrigger className={`bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-9 ${isMobile ? '' : 'w-48'}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-yellow-600/40">
-                  {QUEST_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>{QUEST_TYPE_LABELS[type]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <QuestTypeSelector
+                value={task.questType}
+                compact={isMobile}
+                disabled={updateFieldMutation.isPending}
+                onChange={(type) => updateFieldMutation.mutate({ field: 'questType', value: type })}
+              />
             </div>
             {/* Questline */}
             <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
