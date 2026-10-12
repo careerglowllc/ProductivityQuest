@@ -24,6 +24,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { foodCSV } from "@/lib/explore-csv";
+import { regionCardStyle } from "@/lib/region-card";
 import type { CSVExport } from "@/lib/csv-export";
 
 // ── Constants ────────────────────────────────────────────────
@@ -271,6 +272,7 @@ function RegionPickerView({
   onSelect: (regionId: string) => void;
 }) {
   const countFor = (id: string) => entries.filter((e) => deriveRegions(e).includes(id)).length;
+  const { isDark } = useTheme();
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mx-auto">
@@ -284,8 +286,7 @@ function RegionPickerView({
             onClick={() => onSelect(region.id)}
             className="group relative rounded-2xl border overflow-hidden text-left transition-all duration-200 hover:scale-[1.03] active:scale-95 hover:shadow-xl"
             style={{
-              borderColor: `${region.color}44`,
-              background: `linear-gradient(145deg, rgba(13,20,42,0.97) 0%, rgba(10,15,30,0.97) 100%)`,
+              ...regionCardStyle(region.color, isDark),
               minHeight: 180,
             }}
           >
