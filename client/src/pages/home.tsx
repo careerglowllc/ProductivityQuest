@@ -13,6 +13,9 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
+import { FocusControls } from "@/components/smart-focus/focus-controls";
+import { useFocusRanking, useFocusState } from "@/components/smart-focus/use-smart-focus";
+import { selectFocus } from "@/components/smart-focus/select-focus";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
@@ -203,9 +206,38 @@ export default function Home() {
     calendarQueueRef.current = calendarQueueRef.current.then(op, op);
   }, []);
 
-  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
+  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery<any[]>({
     queryKey: ["/api/tasks"],
   });
+  const focusState = useFocusState(activeFilter === "smart" && !!user);
+  const focusDay = new Date().toLocaleDateString("en-CA", { timeZone: focusState.data?.timezone || undefined });
+  // Include ranking inputs in the cache key: a task edit/completion must not reuse an old queue.
+  // Memory stays server-side; this key contains only existing task data, never preferences.
+  const focusFingerprint = useMemo(() => JSON.stringify({
+    userId: (user as { id?: string | number } | undefined)?.id,
+    day: focusDay,
+    tasks: (tasks as any[]).filter((task) => !task.completed && !isReminder(task)).map((task) => ({
+      id: task.id, title: task.title, description: task.description, details: task.details,
+      dueDate: task.dueDate, startDate: task.startDate, importance: task.importance,
+      questType: task.questType, duration: task.duration, assignedTo: task.assignedTo,
+      kanbanStage: task.kanbanStage, recurType: task.recurType,
+    })).sort((a, b) => a.id - b.id),
+  }), [tasks, user, focusDay]);
+  const focusRanking = useFocusRanking(
+    activeFilter === "smart" && !!user && !tasksLoading && !!focusState.data,
+    focusFingerprint,
+    focusState.data?.enabled === true,
+  );
+  const fullFocus = selectFocus(tasks as any[], focusRanking.data);
+  const focusForTasks = (candidates: any[]) => {
+    // Preserve the original search-before-cap bands while no server response exists.
+    if (!focusRanking.data) return smartFocus(candidates, new Date());
+    const candidateIds = new Set(candidates.map((task) => task.id));
+    const groups = fullFocus.groups.map((group) => ({
+      ...group, quests: group.quests.filter((task: any) => candidateIds.has(task.id)),
+    })).filter((group) => group.quests.length > 0);
+    return { ...fullFocus, groups, shown: groups.reduce((sum, group) => sum + group.quests.length, 0) };
+  };
 
   // Fetch questlines to build a taskId → prefix map for task card display
   // Rule: use parent stage name if task has a parent, otherwise use questline name
@@ -266,7 +298,7 @@ export default function Home() {
     localStorage.setItem('tasksSort', sortBy);
   }, [sortBy]);
 
-  const { data: progress = { goldTotal: 0, tasksCompleted: 0 }, refetch: refetchProgress } = useQuery({
+  const { data: progress = { goldTotal: 0, tasksCompleted: 0 }, refetch: refetchProgress } = useQuery<{ goldTotal: number; tasksCompleted: number }>({
     queryKey: ["/api/progress"],
   });
 
@@ -1606,7 +1638,7 @@ export default function Home() {
     return {
       all: activeTasks.length,
       // Smart Focus is capped, so its count is what it actually shows.
-      smart: smartFocus(activeTasks, now).shown,
+      smart: fullFocus.shown,
       upcoming: sortUpcoming(activeTasks, now).length,
       // Today: overdue, due today, or a start date that has arrived.
       dueToday: activeTasks.filter((task: any) => isOnTodaysList(task, now)).length,
@@ -1836,7 +1868,7 @@ export default function Home() {
     // Smart Focus and Upcoming keep their own order (the list-wide sort toggle doesn't apply).
     // Smart Focus also keeps only what qualifies for today, up to its cap.
     if (activeFilter === "smart") {
-      return smartFocus(sortedTasks, new Date()).groups.flatMap((group) => group.quests);
+      return focusForTasks(sortedTasks).groups.flatMap((group) => group.quests);
     }
     if (activeFilter === "upcoming") return sortedTasks;
 
@@ -2035,7 +2067,7 @@ export default function Home() {
   const batchedTasks = getBatchedTasks(sortedTasks);
 
   // Smart Focus: only what's due or starting today (plus high-priority quests due this week), capped.
-  const smartResult = activeFilter === "smart" ? smartFocus(filteredTasks, new Date()) : null;
+  const smartResult = activeFilter === "smart" ? focusForTasks(filteredTasks) : null;
 
   // Reminders live in their own compact strip above the list while Smart Focus is on (it leaves them out).
   const reminderQuery = searchQuery.trim().toLowerCase();
@@ -2083,6 +2115,7 @@ export default function Home() {
       key={task.id}
       task={task}
       isCompact={compact}
+      focusReason={focusRanking.data?.reasons[String(task.id)]}
       onSelect={handleTaskSelect}
       isSelected={selectedTasks.has(task.id)}
       questlineName={questlinePrefixMap.get(task.id)}
@@ -2096,16 +2129,16 @@ export default function Home() {
           <h3 className="flex items-baseline gap-2 px-1 pt-1">
             <span className="text-[15px] font-bold tracking-tight text-[var(--dash-ink)]">{group.label}</span>
             <span className="dash-mono font-normal text-[var(--dash-muted)]">{group.quests.length}</span>
-            <span className="hidden text-xs text-[var(--dash-muted)] sm:inline">{FOCUS_BAND_HINTS[group.band as FocusBand]}</span>
+            <span className="hidden text-xs text-[var(--dash-muted)] sm:inline">{group.band === "personalized" ? "Ordered for you · urgent and starting-today quests stay protected" : FOCUS_BAND_HINTS[group.band as FocusBand]}</span>
           </h3>
           {viewType === "grid"
             ? <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>{group.quests.map((task: any) => renderQuestCard(task, true))}</div>
             : <div className={isMobile ? "space-y-1.5" : "space-y-4"}>{group.quests.map((task: any) => renderQuestCard(task))}</div>}
         </section>
       ))}
-      {smartResult.total > smartResult.shown && (
+      {!searchQuery.trim() && smartResult.total > smartResult.shown && (
         <p data-testid="smart-focus-more" className="px-1 text-xs text-[var(--dash-muted)]">
-          Showing the top {smartResult.shown} of {smartResult.total}. The rest are in the Today filter.
+          Showing {smartResult.shown} of {smartResult.total}. View All to see every active quest.
         </p>
       )}
     </>
@@ -3008,6 +3041,7 @@ export default function Home() {
             )}
 
             {/* Reminders (Smart Focus only) */}
+            {activeFilter === "smart" && <FocusControls state={focusState} ranking={focusRanking} />}
             {renderReminders()}
 
             {/* Task List */}

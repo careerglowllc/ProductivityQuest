@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AttachmentArea } from "@/components/attachment-area";
+import { TaskFocusMenu } from "@/components/smart-focus/task-focus-menu";
 import type { QuestAttachment } from "@/lib/attachments";
 
 interface TaskDetailModalProps {
@@ -667,6 +668,9 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
             )}
           </DialogTitle>
         </DialogHeader>
+        <div className="mt-2 flex justify-end">
+          <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
+        </div>
 
         {/* See Questline button — shown when task belongs to a questline */}
         {parentQuestline && (

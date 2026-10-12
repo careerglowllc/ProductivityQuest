@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { TaskDetailModal } from "./task-detail-modal";
+import { TaskFocusMenu } from "./smart-focus/task-focus-menu";
 import { QuestTypeIcon } from "./quest-type-chooser";
 import { dayStart } from "@shared/quest-schedule";
 
@@ -79,11 +80,12 @@ interface TaskCardProps {
   onSelect: (taskId: number, selected: boolean) => void;
   isSelected: boolean;
   isCompact?: boolean;
+  focusReason?: string;
   questlineName?: string | null;
   onQuestlineNameClick?: (questlineId: number, taskId: number) => void;
 }
 
-export function TaskCard({ task, onSelect, isSelected, isCompact = false, questlineName, onQuestlineNameClick }: TaskCardProps) {
+export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusReason, questlineName, onQuestlineNameClick }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const queryClient = useQueryClient();
@@ -279,7 +281,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                   )}
                   {task.title}
                 </h3>
+                <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
               </div>
+              {focusReason && <p className="sf-reason">{focusReason}</p>}
               
               {/* Gold and Priority */}
               <div className="flex items-center justify-between gap-2">
@@ -533,7 +537,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                   )}
                 </div>
               </div>
+              <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
             </div>
+            {focusReason && <p className="sf-reason">{focusReason}</p>}
           </CardContent>
         </Card>
         
@@ -603,7 +609,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                     {task.title}
                   </h3>
                 </div>
+                <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
               </div>
+              {focusReason && <p className="sf-reason mb-2">{focusReason}</p>}
               {(task.description || task.details) && (
                 <p className="text-yellow-200/70 text-sm mb-2">
                   {task.description || task.details}

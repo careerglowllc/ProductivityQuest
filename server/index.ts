@@ -75,7 +75,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse && !path.startsWith("/api/command-center")) {
+      if (capturedJsonResponse && !path.startsWith("/api/command-center") && !path.startsWith("/api/smart-focus")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

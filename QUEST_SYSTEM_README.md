@@ -60,6 +60,12 @@ Dates are stored as the user's **calendar day at UTC midnight** (for example `20
 
 ## 3. Smart Focus (the default quests filter)
 
+**Current account-backed Smart Focus:** see [Personalized AI Smart Focus](AI_SMART_FOCUS.md) for feedback, private memory, OpenAI ranking, safeguards and setup. Server rules now include high-priority undated work. All overdue/due-today and start-today quests are protected, even beyond ten; AI is opt-in and its availability is labeled.
+
+### Legacy local fallback rules
+
+The rules below describe the original local fallback, used while no server ranking is available. They are not the personalized server ranking's complete eligibility or cap rules.
+
 Smart Focus answers "what should I work on today?". It is **not** a sorted copy of every quest. It only lists quests that qualify, capped at **10**.
 
 ### What qualifies

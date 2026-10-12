@@ -6,6 +6,8 @@ server/public
 # Private strategy source material must never enter the public repository.
 .local/private-command/
 attached_assets/Pasted-Got-it-more-like-an-operating-brief-command-center-memo_1791412751920.txt
+# Private API-key dashboard screenshot (retain locally, never publish).
+attached_assets/image_1791844485623.png
 vite.config.ts.*
 *.tar.gz
 

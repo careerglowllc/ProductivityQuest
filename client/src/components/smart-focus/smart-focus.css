@@ -1,0 +1,18 @@
+.sf-panel, .sf-dialog, .sf-menu {
+  color: var(--dash-ink);
+  background: var(--dash-surface);
+  border-color: var(--dash-line);
+}
+.sf-panel { border: 1px solid var(--dash-line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+.sf-dialog { max-height: 85dvh; overflow-y: auto; }
+.sf-muted { color: var(--dash-muted); }
+.sf-button { border-color: var(--dash-line); color: var(--dash-ink); background: var(--dash-surface-2); }
+.sf-button:hover { background: var(--dash-violet-soft); }
+.sf-primary { background: var(--dash-violet); color: #f6f7fb; }
+.sf-primary:hover { opacity: .9; }
+.sf-error { border: 1px solid hsl(var(--destructive) / .4); background: hsl(var(--destructive) / .08); border-radius: 6px; padding: 10px; font-size: 12px; }
+.sf-reason { font-size: 11px; color: var(--dash-muted); line-height: 1.5; padding-top: 6px; }
+.sf-memory-item { padding: 12px 0; border-bottom: 1px solid var(--dash-line); }
+.sf-textarea { background: var(--dash-surface-2); color: var(--dash-ink); border-color: var(--dash-line); }
+.sf-skeleton { height: 12px; border-radius: 4px; background: var(--dash-violet-soft); }
+@media (max-width: 767px) { .sf-panel { padding: 12px; } }

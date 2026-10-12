@@ -6,3 +6,4 @@
 - [Polling budgets](polling-budget.md) — background polling can exhaust shared API limits; failed queries must not masquerade as empty data.
 - [Command Center intent](command-center-intent.md) — private macro-goal strategy journaling with visual business debriefs, not shared example content.
 - [GitHub publishing](github-publishing.md) — use the installed App proxy when shell credentials fail; account for UTC-normalized commit hashes.
+- [Smart Focus learning intent](smart-focus-intent.md) — personalization must be private per account, explainable, and conservative about inferred preferences.

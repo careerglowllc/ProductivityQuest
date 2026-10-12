@@ -1,3 +1,7 @@
+# Personalized Smart Focus
+
+See [AI_SMART_FOCUS.md](AI_SMART_FOCUS.md) for account-specific AI feedback, preference memory, provider setup, date safeguards, and fallback behavior.
+
 # ProductivityQuest 🎮⚔️
 
 A gamified task management and productivity application that transforms your daily tasks into an RPG-style adventure. Complete tasks to earn gold, level up skills, purchase rewards, and track your progress through an immersive fantasy-themed interface.

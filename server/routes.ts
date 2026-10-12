@@ -17,9 +17,13 @@ import { registerCommandCenter } from "./command-center";
 import { buildTasksCsv, isCompletedCsvRow, parseTaskCsvRow } from "./tasks-csv";
 import { resolveQuestDatePatch, validateQuestDates } from "@shared/quest-schedule";
 import { commandStore, COMMAND_KEY_PREFIX } from "./command-center-store";
+import { registerSmartFocus } from "./smart-focus";
+import { focusStore, FOCUS_KEY_PREFIX } from "./smart-focus-store";
+import { adviseFocus } from "./smart-focus-openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerCommandCenter(app, requireAuth, commandStore);
+  registerSmartFocus(app, requireAuth, focusStore, adviseFocus);
   const purgeExpiredCompletedTasks = async () => {
     try {
       const purged = await storage.purgeExpiredCompletedTaskDeletions();
@@ -528,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const data = await storage.getUserData(userId);
       // Command Center uses its own authenticated API, not the localStorage mirror.
-      res.json(Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith(COMMAND_KEY_PREFIX))));
+      res.json(Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith(COMMAND_KEY_PREFIX) && !key.startsWith(FOCUS_KEY_PREFIX))));
     } catch (error) {
       console.error('Error fetching user data:', error);
       res.status(500).json({ error: 'Failed to fetch user data' });
