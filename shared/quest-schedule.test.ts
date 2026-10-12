@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DEADLINE_NEEDS_DUE_DATE, SMART_BANDS, START_AFTER_DUE, groupSmart, isNotStartedYet, isOnTodaysList, isOverdue,
+  DEADLINE_NEEDS_DUE_DATE, SMART_BANDS, START_AFTER_DUE, groupSmart, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocusQuests, sortReminders,
   resolveQuestDatePatch, smartBand, sortSmart, sortUpcoming, validateQuestDates, type ScheduledQuest,
 } from "./quest-schedule";
 
@@ -216,4 +216,49 @@ test("edit: moving only the due date to before the start pulls the start back to
   const result = resolveQuestDatePatch(existing, { dueDate: day(2) });
   assert.deepEqual(result, { ok: true, adjust: { startDate: day(2) } });
   assert.deepEqual(resolveQuestDatePatch(existing, { dueDate: day(8) }), { ok: true, adjust: {} });
+});
+
+test("reminders are recognised by quest type only", () => {
+  assert.equal(isReminder({ questType: "reminder" }), true);
+  for (const questType of ["deadline", "general", "", null, undefined]) assert.equal(isReminder({ questType }), false, String(questType));
+  assert.equal(isReminder({}), false);
+});
+
+test("reminders strip: most important first, then nearest due date, undated last", () => {
+  const sorted = sortReminders([
+    quest("low", { importance: "Low" }),
+    quest("high, no date", { importance: "High" }),
+    quest("high, due soon", { importance: "High", dueDate: day(2) }),
+    quest("high, due later", { importance: "High", dueDate: day(9) }),
+    quest("pareto", { importance: "Pareto" }),
+  ]);
+  assert.deepEqual(names(sorted), ["pareto", "high, due soon", "high, due later", "high, no date", "low"]);
+});
+
+test("reminders strip: sorting leaves the original list alone and copes with an empty list", () => {
+  const input = [quest("b", { importance: "Low" }), quest("a", { importance: "High" })];
+  sortReminders(input);
+  assert.deepEqual(names(input), ["b", "a"]);
+  assert.deepEqual(sortReminders([]), []);
+});
+
+test("reminders have no hard dates: with or without them they never need a due or start date", () => {
+  assert.equal(validateQuestDates({ questType: "reminder" }), null);
+  assert.equal(validateQuestDates({ questType: "reminder", dueDate: null, startDate: null }), null);
+});
+
+test("Smart Focus leaves reminders out, whatever their dates, and orders everything else as before", () => {
+  const feed = smartFocusQuests([
+    { name: "overdue reminder", questType: "reminder", dueDate: day(-3) },
+    { name: "reminder starting today", questType: "reminder", startDate: day(0) },
+    { name: "undated reminder", questType: "reminder" },
+    { name: "later task", questType: "general", startDate: day(-1) },
+    { name: "urgent deadline", questType: "deadline", dueDate: day(1) },
+    { name: "legacy quest", dueDate: day(20) },
+  ], now);
+  assert.deepEqual(names(feed), ["urgent deadline", "later task", "legacy quest"]);
+});
+
+test("Smart Focus with only reminders is empty", () => {
+  assert.deepEqual(smartFocusQuests([{ name: "a", questType: "reminder" }], now), []);
 });

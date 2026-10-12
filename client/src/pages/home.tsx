@@ -30,7 +30,7 @@ import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
 import { DEFAULT_QUEST_TYPE, QUEST_TYPES, QUEST_TYPE_LABELS, compareByDueDateThenImportance, isQuestType, type QuestType } from "@shared/quest-type";
-import { SMART_BAND_HINTS, groupSmart, isOnTodaysList, smartBand, sortSmart, sortUpcoming, dayStart, type SmartBand } from "@shared/quest-schedule";
+import { SMART_BAND_HINTS, groupSmart, isOnTodaysList, isReminder, smartBand, smartFocusQuests, sortReminders, sortSmart, sortUpcoming, dayStart, type SmartBand } from "@shared/quest-schedule";
 
 type FilterType = "smart" | "upcoming" | "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `type-${QuestType}` | `assignee-${string}`;
 
@@ -114,6 +114,9 @@ export default function Home() {
     return "smart";
   });
   const [showUpcomingSection, setShowUpcomingSection] = useState(false);
+  // The reminders strip is open by default; the choice is remembered.
+  const [remindersOpen, setRemindersOpen] = useState(() => localStorage.getItem('remindersOpen') !== 'false');
+  useEffect(() => { localStorage.setItem('remindersOpen', String(remindersOpen)); }, [remindersOpen]);
   
   // Load saved sort preference from localStorage, default to 'due-date'
   const [sortBy, setSortBy] = useState<SortType>(() => {
@@ -1600,14 +1603,14 @@ export default function Home() {
     const now = new Date();
     // Use LOCAL date to determine "today" — respects the user's phone timezone
     const todayStart = new Date(dayStart(now));
-    // Quests in the Smart Focus "Upcoming" band stay out of its count.
+    // Quests in the Smart Focus "Upcoming" band stay out of its count, and so do reminders (they have their own strip).
     const smartUpcomingIds = new Set(
       groupSmart(activeTasks, now).filter((group) => group.band === "upcoming").flatMap((group) => group.quests.map((task: any) => task.id)),
     );
     
     return {
       all: activeTasks.length,
-      smart: activeTasks.filter((task: any) => !smartUpcomingIds.has(task.id)).length,
+      smart: activeTasks.filter((task: any) => !smartUpcomingIds.has(task.id) && !isReminder(task)).length,
       upcoming: sortUpcoming(activeTasks, now).length,
       // Today: overdue, due today, or a start date that has arrived.
       dueToday: activeTasks.filter((task: any) => isOnTodaysList(task, now)).length,
@@ -1724,7 +1727,7 @@ export default function Home() {
     // Apply category filter
     switch (activeFilter) {
       case "smart":
-        return sortSmart(activeTasks, new Date());
+        return smartFocusQuests(activeTasks, new Date());
 
       case "upcoming":
         return sortUpcoming(activeTasks, new Date());
@@ -2038,6 +2041,48 @@ export default function Home() {
   // Smart Focus: Urgent -> Ready now -> Starting this week -> Upcoming (collapsed by default).
   const smartGroups = activeFilter === "smart" ? groupSmart(filteredTasks, new Date()) : [];
   const smartUpcomingCount = smartGroups.find((group) => group.band === "upcoming")?.quests.length ?? 0;
+
+  // Reminders live in their own compact strip above the list while Smart Focus is on (it leaves them out).
+  const reminderQuery = searchQuery.trim().toLowerCase();
+  const reminderQuests = activeFilter === "smart"
+    ? sortReminders((tasks as any[]).filter((task: any) =>
+        !task.completed && isReminder(task)
+        && (!reminderQuery || `${task.title ?? ""} ${task.description ?? ""}`.toLowerCase().includes(reminderQuery))))
+    : [];
+  const renderReminders = () => reminderQuests.length === 0 ? null : (
+    <section data-testid="reminders-strip" className={`rounded-[10px] border border-[var(--dash-line)] bg-[var(--dash-surface)] px-3 py-1.5 ${isMobile ? "mb-1.5" : "mb-3"}`}>
+      <button
+        type="button"
+        onClick={() => setRemindersOpen((open) => !open)}
+        aria-expanded={remindersOpen}
+        aria-controls="reminders-list"
+        className="dash-focus flex w-full items-center gap-1.5 rounded text-left"
+      >
+        {remindersOpen
+          ? <ChevronDown aria-hidden className="h-3 w-3 text-[var(--dash-muted)]" />
+          : <ChevronRight aria-hidden className="h-3 w-3 text-[var(--dash-muted)]" />}
+        <BellRing aria-hidden className="h-3 w-3 text-[var(--dash-muted)]" />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--dash-muted)]">Reminders</span>
+        <span className="dash-mono text-[11px] text-[var(--dash-muted)]">{reminderQuests.length}</span>
+      </button>
+      {remindersOpen && (
+        <ul id="reminders-list" className="mt-1.5 flex max-h-28 flex-wrap gap-x-3 gap-y-1 overflow-y-auto">
+          {reminderQuests.map((task: any) => (
+            <li key={task.id} className="max-w-full">
+              <button
+                type="button"
+                onClick={() => setDetailTaskId(task.id)}
+                title={task.title}
+                className="dash-focus max-w-full truncate rounded text-[11px] leading-tight text-[var(--dash-ink)] hover:text-[var(--dash-violet)] hover:underline"
+              >
+                {task.emoji ? `${task.emoji} ` : ""}{task.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
   const renderQuestCard = (task: any, compact = false) => (
     <TaskCard
       key={task.id}
@@ -2976,6 +3021,9 @@ export default function Home() {
                 </div>
               </>
             )}
+
+            {/* Reminders (Smart Focus only) */}
+            {renderReminders()}
 
             {/* Task List */}
             <div className={isMobile ? "space-y-1.5" : "space-y-4"}>

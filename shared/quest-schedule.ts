@@ -96,6 +96,22 @@ export function sortUpcoming<T extends ScheduledQuest>(quests: readonly T[], now
     .sort((a, b) => compareWithinBand("upcoming", a, b));
 }
 
+// Reminders are standing best practices rather than work to schedule, so Smart Focus keeps them out
+// and the quests page lists them in their own compact strip instead.
+export const isReminder = (q: { questType?: string | null }): boolean => q.questType === "reminder";
+
+// The Smart Focus feed: every open quest except reminders, in feed order.
+export function smartFocusQuests<T extends ScheduledQuest & { questType?: string | null }>(quests: readonly T[], now: Date): T[] {
+  return sortSmart(quests.filter((q) => !isReminder(q)), now);
+}
+
+// Most important first, then nearest due date (undated last).
+export function sortReminders<T extends ScheduledQuest>(reminders: readonly T[]): T[] {
+  return [...reminders].sort((a, b) =>
+    importanceRank(b.importance) - importanceRank(a.importance)
+    || ascending(nullsLast(time(a.dueDate)), nullsLast(time(b.dueDate))));
+}
+
 export const DEADLINE_NEEDS_DUE_DATE = "A deadline quest needs a due date.";
 export const START_AFTER_DUE = "The start date can't be after the due date.";
 
