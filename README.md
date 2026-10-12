@@ -16,6 +16,7 @@ A gamified task management and productivity application that transforms your dai
 - [API Documentation](#-api-documentation)
 - [UI Components & Styling](#-ui-components--styling)
 - [Skills System](#-skills-system)
+- [Quest System](#-quest-system-types-start-dates-smart-focus-reminders)
 - [Gold Calculation System](#-gold-calculation-system)
 - [AI Categorization](#-ai-categorization)
 - [Testing](#-testing)
@@ -550,7 +551,9 @@ interface Task {
   description: string | null;
   duration: number;              // minutes
   goldValue: number;             // calculated reward
-  dueDate: Date | null;
+  dueDate: Date | null;          // the hard deadline (required for questType "deadline")
+  startDate: Date | null;        // optional "start working on this from here"
+  questType: "reminder" | "deadline" | "general"; // default "general"
   completed: boolean;
   completedAt: Date | null;
   
@@ -1137,6 +1140,25 @@ See [RECURRING_TASKS_TEST_CASES.md](RECURRING_TASKS_TEST_CASES.md) for:
 - 5 edge case tests (boundaries, leap years, sequences)
 - 4 UI/UX tests (animations, recycling bin, badges)
 - **Total:** 20 comprehensive test cases
+
+---
+
+## 🗂️ Quest System: Types, Start Dates, Smart Focus, Reminders
+
+Quests come in three types, and each is treated differently:
+
+| Type | Due date | Start date | Appears in |
+|------|----------|------------|------------|
+| **Deadline** | Required | Optional | Smart Focus when due/starting |
+| **General to-do** | Optional | Optional | Smart Focus when due/starting |
+| **Reminder** | Optional | Optional | The collapsible Reminders strip, never Smart Focus |
+
+- **Due date** is the real deadline; **start date** means "start working on this from here". A start date can't be after the due date.
+- **Smart Focus** is the default Quests filter. It lists only what is overdue or due today, what has started, and high-priority quests due within 7 days, and is capped at 10. Undated quests, future starts and reminders stay out; "All clear for today" shows when nothing qualifies.
+- **Reminders** sit in a small one-click-collapsible strip above the list while Smart Focus is on.
+- Exports include completed quests; CSVs gain **Quest Type** and **Start Date** columns and older CSVs still import.
+
+Full documentation: [QUEST_SYSTEM_README.md](QUEST_SYSTEM_README.md). Test cases: [QUEST_SYSTEM_TEST_CASES.md](QUEST_SYSTEM_TEST_CASES.md) (69 cases, run the automated ones with `npm run test:unit`).
 
 ---
 
@@ -2265,6 +2287,7 @@ When running on Replit, the OAuth redirect URI automatically uses your Replit do
 
 ### Test Documentation
 - **ADD_TASK_MODAL_TEST_CASES.md** - 60 test cases for task creation feature
+- **QUEST_SYSTEM_TEST_CASES.md** - 69 test cases for quest types, start/due dates, Smart Focus, reminders, CSV and recurring behaviour
 - **CUSTOM_SKILLS_TEST_CASES.md** - 55 test cases for custom skills system
 - **RECATEGORIZE_TEST_CASES.md** - 25 test cases for task recategorization feature
 - **AUTO_CLASSIFICATION_TEST_CASES.md** - 20 test cases for automatic AI categorization
