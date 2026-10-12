@@ -88,6 +88,8 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
+  const [displayedQuestType, setDisplayedQuestType] = useState(task.questType);
+  useEffect(() => { setDisplayedQuestType(task.questType); }, [task.id, task.questType]);
   const { toast } = useToast();
 
   // Fetch questlines for the dropdown and parent quest resolution
@@ -377,6 +379,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
       return response.json();
     },
     onSuccess: (_data, variables) => {
+      if (variables.field === "questType") setDisplayedQuestType(variables.value);
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/questlines'] });
       const fieldLabels: Record<string, string> = {
@@ -1052,7 +1055,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Quest Type</span>
               </div>
               <QuestTypeSelector
-                value={task.questType}
+                value={displayedQuestType}
                 compact={isMobile}
                 disabled={updateFieldMutation.isPending}
                 onChange={(type) => {

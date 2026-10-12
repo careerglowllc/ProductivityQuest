@@ -135,6 +135,7 @@ test("selector: renders real markup with three labelled buttons", () => {
   assert.equal((html.match(/<button/g) ?? []).length, 3);
   for (const label of Object.values(QUEST_TYPE_LABELS)) assert.ok(html.includes(label));
   assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 1);
+  assert.equal((html.match(/data-selected-check/g) ?? []).length, 1);
 });
 
 test("all three categories: each has a label, icon, colour, description and selector button", () => {

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BellRing, CalendarClock, ListChecks } from "lucide-react";
+import { BellRing, CalendarClock, ListChecks, Check } from "lucide-react";
 import { DEFAULT_QUEST_TYPE, QUEST_TYPE_LABELS, QUEST_TYPES, isQuestType, type QuestType } from "@shared/quest-type";
 
 type TypeStyle = { blurb: string; icon: ReactNode; smallIcon: ReactNode; tile: string; card: string; ring: string };
@@ -99,6 +99,7 @@ export function QuestTypeSelector({
           >
             <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gradient-to-br ${ui.tile}`}>{ui.smallIcon}</span>
             <span className="truncate">{QUEST_TYPE_LABELS[type]}</span>
+            {selected && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden data-selected-check />}
           </button>
         );
       })}
