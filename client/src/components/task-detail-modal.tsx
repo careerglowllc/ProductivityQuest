@@ -45,9 +45,25 @@ interface TaskDetailModalProps {
   onSeeQuestline?: (questlineId: number, taskId: number) => void;
 }
 
+// Uses the server's validation message (e.g. "A deadline quest needs a due date.") when it sent one.
+async function failureMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = await response.json();
+    return typeof body?.error === "string" && body.error ? body.error : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const formatStoredDay = (value: string) => {
+  const d = new Date(value);
+  return format(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), 'MMM dd, yyyy');
+};
+
 export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: TaskDetailModalProps) {
   const isMobile = useIsMobile();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isStartPickerOpen, setIsStartPickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
   const [durationValue, setDurationValue] = useState<number>(task?.duration || 30);
@@ -138,18 +154,18 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
     }
   }, [detailsValue, isEditingDetails, open]);
 
-  const updateDueDateMutation = useMutation({
-    mutationFn: async (newDate: Date) => {
+  const updateDateMutation = useMutation({
+    mutationFn: async ({ field, date }: { field: 'dueDate' | 'startDate'; date: Date | null }) => {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ dueDate: newDate.toISOString() }),
+        body: JSON.stringify({ [field]: date ? date.toISOString() : null }),
       });
-      if (!response.ok) throw new Error('Failed to update due date');
+      if (!response.ok) throw new Error(await failureMessage(response, `Failed to update ${field === 'dueDate' ? 'due date' : 'start date'}`));
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, { field, date }) => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       // Invalidate all calendar event queries (matches any year/month params)
       queryClient.invalidateQueries({ 
@@ -157,15 +173,17 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
           query.queryKey[0]?.toString().startsWith('/api/google-calendar/events') || false
       });
       setIsDatePickerOpen(false);
+      setIsStartPickerOpen(false);
+      const label = field === 'dueDate' ? 'Due Date' : 'Start Date';
       toast({
-        title: "📅 Due Date Updated",
-        description: "Quest due date has been changed successfully.",
+        title: date ? `📅 ${label} Updated` : `📅 ${label} Cleared`,
+        description: date ? `Quest ${label.toLowerCase()} has been changed successfully.` : `Quest ${label.toLowerCase()} has been removed.`,
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to update due date",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -354,7 +372,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
         credentials: 'include',
         body: JSON.stringify({ [field]: value }),
       });
-      if (!response.ok) throw new Error(`Failed to update ${field}`);
+      if (!response.ok) throw new Error(await failureMessage(response, `Failed to update ${field}`));
       return response.json();
     },
     onSuccess: (_data, variables) => {
@@ -376,10 +394,10 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
         description: variables.field === 'emoji' ? `Changed to ${variables.value}` : `Changed to "${variables.value}"`,
       });
     },
-    onError: (_err, variables) => {
+    onError: (err, variables) => {
       toast({
         title: "Error",
-        description: `Failed to update ${variables.field}`,
+        description: err instanceof Error && err.message ? err.message : `Failed to update ${variables.field}`,
         variant: "destructive",
       });
     },
@@ -763,17 +781,65 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
 
           {/* Key Information Grid */}
           <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-4'}`}>
-            {/* Due Date */}
-            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
+            {/* Start Date */}
+            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`} data-testid="start-date-card">
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
                 <Calendar className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Due Date</span>
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Start Date</span>
               </div>
               <div className="flex items-center gap-2">
                 <p className="text-yellow-100 flex-1">
-                  {task.dueDate 
-                    ? (() => { const d = new Date(task.dueDate); return format(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), 'MMM dd, yyyy'); })()
-                    : 'No due date'}
+                  {task.startDate ? formatStoredDay(task.startDate) : 'Available now'}
+                </p>
+                <Popover open={isStartPickerOpen} onOpenChange={setIsStartPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 hover:bg-yellow-600/20 text-yellow-400 hover:text-yellow-300"
+                      aria-label="Edit start date"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-slate-900 border-yellow-600/30" align="end">
+                    <CalendarComponent
+                      mode="single"
+                      selected={task.startDate ? new Date(task.startDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) updateDateMutation.mutate({ field: 'startDate', date });
+                      }}
+                      initialFocus
+                      className="rounded-md border-0"
+                    />
+                    {task.startDate && (
+                      <div className="border-t border-yellow-600/20 p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-yellow-200/80 hover:bg-yellow-600/20 hover:text-yellow-100"
+                          onClick={() => updateDateMutation.mutate({ field: 'startDate', date: null })}
+                        >
+                          Clear start date
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            {/* Due Date */}
+            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`} data-testid="due-date-card">
+              <div className="flex items-center gap-2 text-yellow-400 mb-2">
+                <Calendar className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>
+                  Due Date{task.questType === 'deadline' && <span className="text-red-400"> *</span>}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-yellow-100 flex-1">
+                  {task.dueDate ? formatStoredDay(task.dueDate) : 'No due date'}
                 </p>
                 <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                   <PopoverTrigger asChild>
@@ -781,6 +847,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 hover:bg-yellow-600/20 text-yellow-400 hover:text-yellow-300"
+                      aria-label="Edit due date"
                     >
                       <Edit2 className="w-4 h-4" />
                     </Button>
@@ -790,13 +857,23 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                       mode="single"
                       selected={task.dueDate ? new Date(task.dueDate) : undefined}
                       onSelect={(date) => {
-                        if (date) {
-                          updateDueDateMutation.mutate(date);
-                        }
+                        if (date) updateDateMutation.mutate({ field: 'dueDate', date });
                       }}
                       initialFocus
                       className="rounded-md border-0"
                     />
+                    {task.dueDate && task.questType !== 'deadline' && (
+                      <div className="border-t border-yellow-600/20 p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-yellow-200/80 hover:bg-yellow-600/20 hover:text-yellow-100"
+                          onClick={() => updateDateMutation.mutate({ field: 'dueDate', date: null })}
+                        >
+                          Clear due date
+                        </Button>
+                      </div>
+                    )}
                   </PopoverContent>
                 </Popover>
               </div>
@@ -938,7 +1015,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
             </div>
 
             {/* Importance */}
-            <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
+            <div className={`col-span-2 bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
                 <AlertTriangle className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Importance</span>
@@ -974,7 +1051,17 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                 value={task.questType}
                 compact={isMobile}
                 disabled={updateFieldMutation.isPending}
-                onChange={(type) => updateFieldMutation.mutate({ field: 'questType', value: type })}
+                onChange={(type) => {
+                  if (type === 'deadline' && !task.dueDate) {
+                    toast({
+                      title: "Set a due date first",
+                      description: "A deadline quest needs a due date. Add one, then switch the type.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  updateFieldMutation.mutate({ field: 'questType', value: type });
+                }}
               />
             </div>
             {/* Questline */}

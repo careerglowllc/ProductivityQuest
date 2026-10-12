@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks } from "lucide-react";
+import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -30,8 +30,9 @@ import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
 import { DEFAULT_QUEST_TYPE, QUEST_TYPES, QUEST_TYPE_LABELS, compareByDueDateThenImportance, isQuestType, type QuestType } from "@shared/quest-type";
+import { SMART_BAND_HINTS, groupSmart, isOnTodaysList, smartBand, sortSmart, sortUpcoming, dayStart, type SmartBand } from "@shared/quest-schedule";
 
-type FilterType = "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `type-${QuestType}` | `assignee-${string}`;
+type FilterType = "smart" | "upcoming" | "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `type-${QuestType}` | `assignee-${string}`;
 
 const QUEST_TYPE_FILTER_ICONS = { reminder: BellRing, deadline: CalendarClock, general: ListChecks } as const;
 
@@ -50,6 +51,7 @@ type ViewType = "list" | "grid";
 // export can reuse the server's task CSV endpoint without the Tasks page being mounted.
 export async function buildTasksCSVExport(): Promise<CSVExport> {
   const r = await fetch("/api/tasks/export/csv", { credentials: "include" });
+  if (!r.ok) throw new Error(`Quest export failed (${r.status})`);
   const content = await r.text();
   return { folder: "Tasks", filename: "tasks.csv", content };
 }
@@ -101,15 +103,17 @@ export default function Home() {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [leveledUpSkills, setLeveledUpSkills] = useState<any[]>([]);
   
-  // Load saved filter preference from localStorage, default to 'all'
+  // Load saved filter preference from localStorage; Smart Focus is the default.
+  // (v2 key: earlier saved values were chosen before Smart Focus existed.)
   const [activeFilter, setActiveFilter] = useState<FilterType>(() => {
-    const savedFilter = localStorage.getItem('tasksFilter');
-    const staticFilters = ["all", "due-today", "due-3days", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw", "business-gpr", ...QUEST_TYPES.map((type) => `type-${type}`)];
+    const savedFilter = localStorage.getItem('tasksFilter-v2');
+    const staticFilters = ["smart", "upcoming", "all", "due-today", "due-3days", "high-reward", "quick-tasks", "high-priority", "routines", "business-apple", "business-general", "business-mw", "business-gpr", ...QUEST_TYPES.map((type) => `type-${type}`)];
     if (savedFilter && (staticFilters.includes(savedFilter) || savedFilter.startsWith("assignee-"))) {
       return savedFilter as FilterType;
     }
-    return "all";
+    return "smart";
   });
+  const [showUpcomingSection, setShowUpcomingSection] = useState(false);
   
   // Load saved sort preference from localStorage, default to 'due-date'
   const [sortBy, setSortBy] = useState<SortType>(() => {
@@ -252,7 +256,7 @@ export default function Home() {
 
   // Save filter preference whenever it changes
   useEffect(() => {
-    localStorage.setItem('tasksFilter', activeFilter);
+    localStorage.setItem('tasksFilter-v2', activeFilter);
   }, [activeFilter]);
   
   // Save sort preference whenever it changes
@@ -1368,7 +1372,7 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "✅ Import Complete",
-        description: `${data.imported} task${data.imported !== 1 ? 's' : ''} imported${data.skipped > 0 ? `, ${data.skipped} duplicate${data.skipped !== 1 ? 's' : ''} skipped` : ''}.`,
+        description: `${data.imported} task${data.imported !== 1 ? 's' : ''} imported${data.skipped > 0 ? `, ${data.skipped} duplicate${data.skipped !== 1 ? 's' : ''} skipped` : ''}${data.completedSkipped > 0 ? `, ${data.completedSkipped} completed skipped` : ''}.`,
       });
     } catch (err: any) {
       toast({ title: "Import Failed", description: err.message, variant: "destructive" });
@@ -1410,7 +1414,7 @@ export default function Home() {
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
         toast({
           title: "✅ Import Complete",
-          description: `${data.imported} task${data.imported !== 1 ? 's' : ''} imported.`,
+          description: `${data.imported} task${data.imported !== 1 ? 's' : ''} imported${data.completedSkipped > 0 ? `, ${data.completedSkipped} completed skipped` : ''}.`,
         });
       }
     };
@@ -1595,17 +1599,18 @@ export default function Home() {
     
     const now = new Date();
     // Use LOCAL date to determine "today" — respects the user's phone timezone
-    const todayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const tomorrowStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+    const todayStart = new Date(dayStart(now));
+    // Quests in the Smart Focus "Upcoming" band stay out of its count.
+    const smartUpcomingIds = new Set(
+      groupSmart(activeTasks, now).filter((group) => group.band === "upcoming").flatMap((group) => group.quests.map((task: any) => task.id)),
+    );
     
     return {
       all: activeTasks.length,
-      dueToday: activeTasks.filter((task: any) => {
-        if (!task.dueDate) return false;
-        const taskDate = new Date(task.dueDate);
-        // Due today or overdue (before end of today in local time)
-        return taskDate.getTime() < tomorrowStart.getTime();
-      }).length,
+      smart: activeTasks.filter((task: any) => !smartUpcomingIds.has(task.id)).length,
+      upcoming: sortUpcoming(activeTasks, now).length,
+      // Today: overdue, due today, or a start date that has arrived.
+      dueToday: activeTasks.filter((task: any) => isOnTodaysList(task, now)).length,
       due3Days: activeTasks.filter((task: any) => {
         if (!task.dueDate) return false;
         const taskDate = new Date(task.dueDate);
@@ -1718,16 +1723,16 @@ export default function Home() {
     
     // Apply category filter
     switch (activeFilter) {
+      case "smart":
+        return sortSmart(activeTasks, new Date());
+
+      case "upcoming":
+        return sortUpcoming(activeTasks, new Date());
+
       case "due-today": {
         const nowDT = new Date();
-        // Use LOCAL date — respects the user's phone timezone
-        const tomorrowDT = new Date(Date.UTC(nowDT.getFullYear(), nowDT.getMonth(), nowDT.getDate() + 1));
-        
-        return activeTasks.filter((task: any) => {
-          if (!task.dueDate) return false;
-          const taskDate = new Date(task.dueDate);
-          return taskDate.getTime() < tomorrowDT.getTime(); // Include today and all overdue (local time)
-        });
+        // Overdue, due today, or start date reached — use LOCAL date
+        return activeTasks.filter((task: any) => isOnTodaysList(task, nowDT));
       }
 
       case "due-3days": {
@@ -1828,6 +1833,14 @@ export default function Home() {
   const getSortedTasks = (filteredTasks: any[]) => {
     const sortedTasks = [...filteredTasks];
 
+    // Smart Focus and Upcoming keep their own order (the list-wide sort toggle doesn't apply). The
+    // Smart "Upcoming" section is collapsed by default, so its quests are left out until it's opened.
+    if (activeFilter === "smart") {
+      const now = new Date();
+      return showUpcomingSection ? sortedTasks : sortedTasks.filter((task) => smartBand(task, now) !== "upcoming");
+    }
+    if (activeFilter === "upcoming") return sortedTasks;
+
     // "Due <3 Days" always sorts by priority first, then due date — regardless of the
     // list-wide due-date/importance sort toggle (its filter already applied this order).
     if (activeFilter === "due-3days" || questTypeOfFilter(activeFilter)) {
@@ -1865,6 +1878,10 @@ export default function Home() {
 
   // Batch tasks for grid view
   const getBatchedTasks = (sortedTasks: any[]) => {
+    // Upcoming keeps its start-date order in one batch. (Smart Focus renders its own sections.)
+    if (activeFilter === "upcoming") {
+      return sortedTasks.length > 0 ? [{ title: "Upcoming", tasks: sortedTasks, period: "all" }] : [];
+    }
     // Type filters keep their due date -> importance order, so grid view shows one batch instead of regrouping.
     const activeType = questTypeOfFilter(activeFilter);
     if (activeType) {
@@ -2017,6 +2034,52 @@ export default function Home() {
   const filteredTasks = getFilteredTasks();
   const sortedTasks = getSortedTasks(filteredTasks);
   const batchedTasks = getBatchedTasks(sortedTasks);
+
+  // Smart Focus: Urgent -> Ready now -> Starting this week -> Upcoming (collapsed by default).
+  const smartGroups = activeFilter === "smart" ? groupSmart(filteredTasks, new Date()) : [];
+  const smartUpcomingCount = smartGroups.find((group) => group.band === "upcoming")?.quests.length ?? 0;
+  const renderQuestCard = (task: any, compact = false) => (
+    <TaskCard
+      key={task.id}
+      task={task}
+      isCompact={compact}
+      onSelect={handleTaskSelect}
+      isSelected={selectedTasks.has(task.id)}
+      questlineName={questlinePrefixMap.get(task.id)}
+      onQuestlineNameClick={task.questlineId ? (qlId, taskId) => { setTreeModalQuestlineId(qlId); setTreeModalFocusTaskId(taskId); } : undefined}
+    />
+  );
+  const renderSmartSections = () => smartGroups.map((group) => {
+    const isUpcoming = group.band === "upcoming";
+    const open = !isUpcoming || showUpcomingSection;
+    const heading = (
+      <>
+        <span className="text-[15px] font-bold tracking-tight text-[var(--dash-ink)]">{group.label}</span>
+        <span className="dash-mono font-normal text-[var(--dash-muted)]">{group.quests.length}</span>
+        <span className="hidden text-xs text-[var(--dash-muted)] sm:inline">{SMART_BAND_HINTS[group.band as SmartBand]}</span>
+      </>
+    );
+    return (
+      <section key={group.band} data-smart-band={group.band} className={isMobile ? "space-y-1.5" : "space-y-3"}>
+        {isUpcoming ? (
+          <button
+            type="button"
+            onClick={() => setShowUpcomingSection((value) => !value)}
+            aria-expanded={open}
+            className="dash-focus flex w-full items-center gap-2 rounded-md px-1 py-1 text-left"
+          >
+            {open ? <ChevronDown aria-hidden className="h-4 w-4 text-[var(--dash-muted)]" /> : <ChevronRight aria-hidden className="h-4 w-4 text-[var(--dash-muted)]" />}
+            {heading}
+          </button>
+        ) : (
+          <h3 className="flex items-baseline gap-2 px-1 pt-1">{heading}</h3>
+        )}
+        {open && (viewType === "grid"
+          ? <div className={`grid ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3'}`}>{group.quests.map((task: any) => renderQuestCard(task, true))}</div>
+          : <div className={isMobile ? "space-y-1.5" : "space-y-4"}>{group.quests.map((task: any) => renderQuestCard(task))}</div>)}
+      </section>
+    );
+  });
 
   return (
     <div className={`bg-[var(--dash-bg)] ${isMobile ? 'fixed inset-0 overflow-hidden' : 'min-h-screen pt-16'}`} style={isMobile ? { top: 'env(safe-area-inset-top, 0px)', bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
@@ -2185,7 +2248,7 @@ export default function Home() {
                 <p className="dash-mono normal-case text-[var(--dash-muted)]">
                   Showing <strong className="font-bold text-[var(--dash-ink)]">{sortedTasks.length}</strong> of {filterCounts.all} quests
                   {searchQuery && ` matching "${searchQuery}"`}
-                  {activeFilter !== "all" && ` in ${questTypeOfFilter(activeFilter) ? `${QUEST_TYPE_LABELS[questTypeOfFilter(activeFilter)!]} quests` : activeFilter.replace(/-/g, " ")}`}
+                  {activeFilter !== "all" && ` in ${activeFilter === "smart" ? "Smart Focus" : questTypeOfFilter(activeFilter) ? `${QUEST_TYPE_LABELS[questTypeOfFilter(activeFilter)!]} quests` : activeFilter.replace(/-/g, " ")}`}
                 </p>
                 {searchQuery && (
                   <button
@@ -2205,9 +2268,15 @@ export default function Home() {
                 <div className="flex w-full flex-col gap-1.5">
                   {/* Row 1: Filter badges */}
                   <div className="flex w-full items-center gap-1.5 flex-wrap">
+                  <FilterChip compact active={activeFilter === "smart"} onClick={() => setActiveFilter("smart")} data-testid="smart-filter">
+                    <Sparkles aria-hidden className="h-3 w-3" />
+                    Smart
+                    <span className="opacity-60">{filterCounts.smart}</span>
+                  </FilterChip>
                   <FilterChip compact label="All" count={filterCounts.all} active={activeFilter === "all"} onClick={() => setActiveFilter("all")} />
                   <FilterChip compact label="Today" count={filterCounts.dueToday} active={activeFilter === "due-today"} onClick={() => setActiveFilter("due-today")} />
                   <FilterChip compact label="<3 Days" count={filterCounts.due3Days} active={activeFilter === "due-3days"} onClick={() => setActiveFilter("due-3days")} />
+                  <FilterChip compact label="Upcoming" count={filterCounts.upcoming} active={activeFilter === "upcoming"} onClick={() => setActiveFilter("upcoming")} data-testid="upcoming-filter" />
                   <FilterChip compact label="Priority" count={filterCounts.highPriority} active={activeFilter === "high-priority"} onClick={() => setActiveFilter("high-priority")} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -2367,9 +2436,15 @@ export default function Home() {
                 /* Desktop layout */
               <div className="flex w-full flex-wrap items-center gap-2">
                 <div className="flex flex-wrap gap-1.5">
+                  <FilterChip active={activeFilter === "smart"} onClick={() => setActiveFilter("smart")} data-testid="smart-filter">
+                    <Sparkles aria-hidden className="h-3.5 w-3.5" />
+                    Smart Focus
+                    <span className="opacity-60">{filterCounts.smart}</span>
+                  </FilterChip>
                   <FilterChip label="All tasks" count={filterCounts.all} active={activeFilter === "all"} onClick={() => setActiveFilter("all")} />
-                  <FilterChip label="Due today" count={filterCounts.dueToday} active={activeFilter === "due-today"} onClick={() => setActiveFilter("due-today")} />
+                  <FilterChip label="Today" count={filterCounts.dueToday} active={activeFilter === "due-today"} onClick={() => setActiveFilter("due-today")} />
                   <FilterChip label="Due in 3 days" count={filterCounts.due3Days} active={activeFilter === "due-3days"} onClick={() => setActiveFilter("due-3days")} />
+                  <FilterChip label="Upcoming" count={filterCounts.upcoming} active={activeFilter === "upcoming"} onClick={() => setActiveFilter("upcoming")} data-testid="upcoming-filter" />
                   <FilterChip label="High reward" count={filterCounts.highReward} active={activeFilter === "high-reward"} onClick={() => setActiveFilter("high-reward")} />
                   <FilterChip label="Quick tasks" count={filterCounts.quickTasks} active={activeFilter === "quick-tasks"} onClick={() => setActiveFilter("quick-tasks")} />
                   <FilterChip label="High priority" count={filterCounts.highPriority} active={activeFilter === "high-priority"} onClick={() => setActiveFilter("high-priority")} />
@@ -2923,7 +2998,7 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
-              ) : sortedTasks.length === 0 ? (
+              ) : sortedTasks.length === 0 && !(activeFilter === "smart" && smartUpcomingCount > 0) ? (
                 <div className="rounded-[10px] border border-dashed border-[var(--dash-line-strong)] bg-[var(--dash-surface)] p-14 text-center">
                   <Search aria-hidden className="mx-auto mb-3 h-9 w-9 text-[var(--dash-violet)] opacity-50" />
                   <h3 className="text-[22px] font-bold tracking-tight text-[var(--dash-ink)]">
@@ -2945,6 +3020,8 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
+              ) : activeFilter === "smart" ? (
+                renderSmartSections()
               ) : viewType === "list" ? (
                 sortedTasks.map((task: any) => (
                   <TaskCard

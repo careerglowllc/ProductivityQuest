@@ -32,6 +32,8 @@ const IMPORTANCE_RANK: Record<string, number> = {
   Pareto: 6, High: 5, "Med-High": 4, Medium: 3, "Med-Low": 2, Low: 1,
 };
 
+export const importanceRank = (importance: string | null | undefined): number => IMPORTANCE_RANK[importance ?? ""] ?? 0;
+
 // Quests of one type, soonest due date first (undated last), ties broken by higher importance.
 export function compareByDueDateThenImportance(
   a: { dueDate?: string | Date | null; importance?: string | null },

@@ -14,7 +14,8 @@ import { tasks as tasksTable } from "@shared/schema";
 import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 import { registerCommandCenter } from "./command-center";
-import { buildTasksCsv, parseTaskCsvRow } from "./tasks-csv";
+import { buildTasksCsv, isCompletedCsvRow, parseTaskCsvRow } from "./tasks-csv";
+import { resolveQuestDatePatch, validateQuestDates } from "@shared/quest-schedule";
 import { commandStore, COMMAND_KEY_PREFIX } from "./command-center-store";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -628,8 +629,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const existingTasks = await storage.getTasks(userId);
 
-      // Parse each CSV row into a task shape
-      const parsed = rows.map(parseTaskCsvRow).filter(t => t.title);
+      // Parse each CSV row into a task shape. Completed rows (present in full exports) are history, not new work.
+      const openRows = rows.filter(r => !isCompletedCsvRow(r));
+      const parsed = openRows.map(parseTaskCsvRow).filter(t => t.title);
 
       // Identify duplicates: same title + description + kanbanStage + recurType
       const isDuplicate = (t: typeof parsed[0]) =>
@@ -658,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`📥 [CSV IMPORT] Imported ${imported} tasks for user ${userId} (skipped ${parsed.length - imported} duplicates)`);
-      res.json({ imported, skipped: parsed.length - imported, total: parsed.length });
+      res.json({ imported, skipped: parsed.length - imported, total: parsed.length, completedSkipped: rows.length - openRows.length });
     } catch (error: any) {
       console.error('❌ [CSV IMPORT] Error:', error.message);
       res.status(500).json({ error: "Failed to import tasks from CSV" });
@@ -669,8 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📊 [CSV EXPORT] Starting export for user:', req.session.userId);
       const userId = req.session.userId;
-      const tasks = await storage.getTasks(userId);
-      
+      const tasks = await storage.getTasksForExport(userId);
       const csv = buildTasksCsv(tasks);
       
       // Set headers for file download
@@ -697,6 +698,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (bodyData.dueDate && typeof bodyData.dueDate === 'string') {
         bodyData.dueDate = new Date(bodyData.dueDate);
       }
+      if (bodyData.startDate && typeof bodyData.startDate === 'string') {
+        bodyData.startDate = new Date(bodyData.startDate);
+      }
       
       // Auto-calculate gold value based on duration and importance
       if (bodyData.duration) {
@@ -704,6 +708,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const taskData = insertTaskSchema.parse(bodyData);
+      const dateError = validateQuestDates(taskData);
+      if (dateError) return res.status(400).json({ error: dateError, code: "INVALID_QUEST_DATES" });
       const task = await storage.createTask(taskData);
       
       // Auto-categorize with AI in background
@@ -847,6 +853,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (bodyData.dueDate && typeof bodyData.dueDate === 'string') {
         bodyData.dueDate = new Date(bodyData.dueDate);
       }
+      if (bodyData.startDate && typeof bodyData.startDate === 'string') {
+        bodyData.startDate = new Date(bodyData.startDate);
+      }
       if (bodyData.scheduledTime && typeof bodyData.scheduledTime === 'string') {
         bodyData.scheduledTime = new Date(bodyData.scheduledTime);
       }
@@ -860,6 +869,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           code: "TASK_PENDING_PERMANENT_DELETE",
         });
       }
+
+      const dateCheck = resolveQuestDatePatch(existing, updateData);
+      if (!dateCheck.ok) return res.status(400).json({ error: dateCheck.error, code: "INVALID_QUEST_DATES" });
+      Object.assign(updateData, dateCheck.adjust);
 
       // Keep the long-standing generic PATCH contract for existing clients, but
       // route completion through the same authoritative storage operation as the

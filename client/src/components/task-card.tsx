@@ -9,6 +9,16 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { TaskDetailModal } from "./task-detail-modal";
 import { QuestTypeIcon } from "./quest-type-chooser";
+import { dayStart } from "@shared/quest-schedule";
+
+// "Starts Oct 15" while the start date is still ahead; nothing once it has arrived.
+function upcomingStartLabel(startDate: string | null | undefined): string | null {
+  if (!startDate) return null;
+  const d = new Date(startDate);
+  if (Number.isNaN(d.getTime()) || d.getTime() < dayStart(new Date(), 1)) return null;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `Starts ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
 import { SkillAdjustmentModal } from "./skill-adjustment-modal";
 import { EmojiPicker } from "./emoji-picker";
 import { getSkillIcon, SKILL_ICON_MAP } from "@/lib/skillIcons";
@@ -49,6 +59,7 @@ interface TaskCardProps {
     duration: number;
     goldValue: number;
     dueDate: string | null;
+    startDate?: string | null;
     completed: boolean;
     completedAt: string | null;
     importance?: string;
@@ -304,6 +315,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                 <div className="flex items-center space-x-1">
                   <Clock className="w-3 h-3" />
                   <span>{formatDuration(task.duration)}</span>
+                  {upcomingStartLabel(task.startDate) && <span className="text-yellow-300/40" data-testid="start-label">· {upcomingStartLabel(task.startDate)}</span>}
                 </div>
                 {task.dueDate && (
                   <div className="flex items-center space-x-1 truncate">
@@ -441,6 +453,12 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                     <Clock className="w-3 h-3" />
                     {formatDuration(task.duration)}
                   </span>
+                  {upcomingStartLabel(task.startDate) && (
+                    <>
+                      <span className="text-yellow-600/30">·</span>
+                      <span data-testid="start-label">{upcomingStartLabel(task.startDate)}</span>
+                    </>
+                  )}
                   {task.dueDate && (
                     <>
                       <span className="text-yellow-600/30">·</span>
@@ -601,6 +619,11 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, questl
                   <Calendar className="w-4 h-4 flex-shrink-0" />
                   <span className="whitespace-nowrap">{formatDate(task.dueDate)}</span>
                 </div>
+                {upcomingStartLabel(task.startDate) && (
+                  <div className="flex items-center gap-1.5" data-testid="start-label">
+                    <span className="whitespace-nowrap">{upcomingStartLabel(task.startDate)}</span>
+                  </div>
+                )}
                 {task.importance && (
                   <div className="flex items-center gap-1.5">
                     <span className="flex-shrink-0">{task.importance === "Pareto" ? "�" : task.importance === "High" ? "�" : task.importance === "Med-High" ? "🟠" : task.importance === "Medium" ? "�" : task.importance === "Med-Low" ? "�" : "�"}</span>

@@ -1,5 +1,6 @@
 import { tasks, shopItems, userProgress, userSkills, purchases, users, campaigns, financialItems, familyContributions, nwSnapshots, passwordResetTokens, mlSortingFeedback, mlSortingPreferences, calendarEvents, questlines, userKv, type Task, type InsertTask, type ShopItem, type InsertShopItem, type UserProgress, type InsertUserProgress, type UserSkill, type InsertUserSkill, type Purchase, type InsertPurchase, type User, type UpsertUser, type Campaign, type InsertCampaign, type FinancialItem, type InsertFinancialItem, type FamilyContribution, type InsertFamilyContribution, type NwSnapshot, type CalendarEvent, type InsertCalendarEvent, type Questline, type InsertQuestline } from "@shared/schema";
 import { db } from "./db";
+import { nextRecurringDate, nextRecurringStart } from "./recurrence";
 import { eq, and, or, isNull, inArray, gt, gte, desc, sql, ilike, getTableColumns } from "drizzle-orm";
 
 // Per-user ceiling on completed tasks kept in the archive. Rows stay in the tasks table, so this
@@ -62,6 +63,7 @@ export interface IStorage {
   
   // Task operations
   getTasks(userId: string): Promise<Task[]>;
+  getTasksForExport(userId: string): Promise<Omit<Task, "attachments">[]>;
   getTask(id: number, userId: string): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, task: Partial<Task>, userId: string): Promise<Task | undefined>;
@@ -305,6 +307,21 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Every quest worth exporting: active ones plus the completed archive (which is stored as recycled
+  // rows). Quests the user deleted stay out. Attachments are skipped; they are inline base64 media.
+  async getTasksForExport(userId: string): Promise<Omit<Task, "attachments">[]> {
+    const { attachments: _attachments, ...columns } = getTableColumns(tasks);
+    return db.select(columns).from(tasks)
+      .where(and(
+        eq(tasks.userId, userId),
+        or(
+          eq(tasks.recycled, false),
+          and(eq(tasks.completed, true), eq(tasks.recycledReason, "completed")),
+        ),
+      ))
+      .orderBy(tasks.createdAt, tasks.id);
+  }
+
   async getTask(id: number, userId: string): Promise<Task | undefined> {
     const [task] = await db.select().from(tasks)
       .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
@@ -381,11 +398,13 @@ export class DatabaseStorage implements IStorage {
     if (isRecurring) {
       // For recurring tasks: award rewards but reschedule instead of completing
       const nextDueDate = this.calculateNextDueDate(task.dueDate, task.recurType);
+      const nextStartDate = nextRecurringStart(task.startDate, task.recurType, nextDueDate);
       
       const [rescheduledTask] = await db
         .update(tasks)
         .set({
           dueDate: nextDueDate,
+          ...(nextStartDate ? { startDate: nextStartDate } : {}),
           // Don't mark as completed, just reschedule — but stamp completedAt so
           // today's-completion stats/widgets can still credit this occurrence.
           completedAt: new Date(),
@@ -488,61 +507,7 @@ export class DatabaseStorage implements IStorage {
    * Calculate the next due date for a recurring task
    */
   private calculateNextDueDate(currentDueDate: Date | null, recurType: string | null): Date {
-    const baseDate = currentDueDate ? new Date(currentDueDate) : new Date();
-    const nextDate = new Date(baseDate);
-
-    switch (recurType) {
-      case 'daily':
-        nextDate.setDate(nextDate.getDate() + 1);
-        break;
-      case 'every other day':
-        nextDate.setDate(nextDate.getDate() + 2);
-        break;
-      case '2x week':
-        // Twice a week = approximately every 3-4 days
-        nextDate.setDate(nextDate.getDate() + 3);
-        break;
-      case '3x week':
-        // Three times a week = approximately every 2-3 days
-        nextDate.setDate(nextDate.getDate() + 2);
-        break;
-      case 'weekly':
-        nextDate.setDate(nextDate.getDate() + 7);
-        break;
-      case '2x month':
-        // Twice a month = approximately every 15 days
-        nextDate.setDate(nextDate.getDate() + 15);
-        break;
-      case 'monthly':
-        nextDate.setMonth(nextDate.getMonth() + 1);
-        break;
-      case 'every 2 months':
-        nextDate.setMonth(nextDate.getMonth() + 2);
-        break;
-      case 'quarterly':
-        nextDate.setMonth(nextDate.getMonth() + 3);
-        break;
-      case 'every 6 months':
-        nextDate.setMonth(nextDate.getMonth() + 6);
-        break;
-      case 'yearly':
-        nextDate.setFullYear(nextDate.getFullYear() + 1);
-        break;
-      case 'every 2 years':
-        nextDate.setFullYear(nextDate.getFullYear() + 2);
-        break;
-      case 'every 3 years':
-        nextDate.setFullYear(nextDate.getFullYear() + 3);
-        break;
-      case 'every 5 years':
-        nextDate.setFullYear(nextDate.getFullYear() + 5);
-        break;
-      default:
-        // Default to next day if unknown recur type
-        nextDate.setDate(nextDate.getDate() + 1);
-    }
-
-    return nextDate;
+    return nextRecurringDate(currentDueDate, recurType);
   }
 
   async getRecycledTasks(userId: string): Promise<Task[]> {

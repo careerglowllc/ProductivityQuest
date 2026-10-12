@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuestTypeBadge, QuestTypeChooser } from "@/components/quest-type-chooser";
 import type { QuestType } from "@shared/quest-type";
+import { DEADLINE_NEEDS_DUE_DATE, validateQuestDates } from "@shared/quest-schedule";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -437,6 +438,66 @@ interface AddTaskModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const daysFromToday = (days: number) => { const d = startOfToday(); d.setDate(d.getDate() + days); return d; };
+
+// Date picker row shared by Start Date and Due Date. Optional dates can be cleared.
+function QuestDateField({ label, required, hint, value, onChange, shortcuts, testId }: {
+  label: string;
+  required?: boolean;
+  hint: string;
+  value: Date | undefined;
+  onChange: (date: Date | undefined) => void;
+  shortcuts?: { label: string; date: Date }[];
+  testId: string;
+}) {
+  return (
+    <div className="space-y-2" data-testid={testId}>
+      <Label className="text-yellow-200">{label} {required && <span className="text-red-400">*</span>}</Label>
+      <div className="flex gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "flex-1 justify-start text-left font-normal bg-slate-800/50 border-yellow-600/30 text-yellow-100 hover:bg-slate-700/50 hover:text-yellow-100",
+                required && !value && "text-red-400/80 border-red-500/40",
+                !required && !value && "text-yellow-200/60",
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {value ? format(value, "PPP") : <span>{required ? "Pick a date (required)" : "Optional"}</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 bg-slate-800 border-yellow-600/40">
+            <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="bg-slate-800 text-yellow-100" />
+          </PopoverContent>
+        </Popover>
+        {!required && value && (
+          <Button type="button" variant="ghost" onClick={() => onChange(undefined)} className="text-yellow-200/70 hover:bg-slate-700/50 hover:text-yellow-100">
+            Clear
+          </Button>
+        )}
+      </div>
+      {shortcuts && (
+        <div className="flex flex-wrap gap-1.5">
+          {shortcuts.map((shortcut) => (
+            <button
+              key={shortcut.label}
+              type="button"
+              onClick={() => onChange(shortcut.date)}
+              className="rounded-full border border-yellow-600/30 bg-slate-800/50 px-2.5 py-1 text-xs text-yellow-200/80 transition-colors hover:border-yellow-500/60 hover:text-yellow-100"
+            >
+              {shortcut.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="text-xs text-yellow-400/60">{hint}</p>
+    </div>
+  );
+}
+
 export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -472,6 +533,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     : DURATION_SNAPS.indexOf(parseInt(duration));
   const setDurationByIndex = (idx: number) => setDuration(String(DURATION_SNAPS[Math.max(0, Math.min(idx, DURATION_SNAPS.length - 1))]));
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [importance, setImportance] = useState<string>("Medium");
   const [kanbanStage, setKanbanStage] = useState<string>("To Do");
   const [recurType, setRecurType] = useState<string>("one-time");
@@ -568,6 +630,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setDuration("30");
     // goldValue is auto-calculated, no need to reset
     setDueDate(undefined);
+    setStartDate(undefined);
     setImportance("Medium");
     setKanbanStage("To Do");
     setRecurType("one-time");
@@ -594,10 +657,12 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       return;
     }
 
-    if (!dueDate) {
+    // Deadlines need a due date; reminders and general to-dos can go without one.
+    const dateError = validateQuestDates({ questType, dueDate, startDate });
+    if (dateError) {
       toast({
-        title: "Due Date Required",
-        description: "Please select a due date for this quest.",
+        title: dateError === DEADLINE_NEEDS_DUE_DATE ? "Due Date Required" : "Check Your Dates",
+        description: dateError === DEADLINE_NEEDS_DUE_DATE ? "A deadline quest needs a due date." : dateError,
         variant: "destructive",
       });
       return;
@@ -624,6 +689,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       duration: durationNum,
       goldValue, // Use auto-calculated value
       dueDate: dueDate ? dueDate.toISOString() : null,
+      startDate: startDate ? startDate.toISOString() : null,
       importance,
       kanbanStage,
       recurType,
@@ -825,33 +891,29 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           </div>
 
 
+          {/* Start Date */}
+          <QuestDateField
+            testId="start-date-field"
+            label="Start Date"
+            value={startDate}
+            onChange={setStartDate}
+            shortcuts={[
+              { label: "Today", date: startOfToday() },
+              { label: "Tomorrow", date: daysFromToday(1) },
+              { label: "Next week", date: daysFromToday(7) },
+            ]}
+            hint="Start working on this from here. Leave blank to make it available now."
+          />
+
           {/* Due Date */}
-          <div className="space-y-2">
-            <Label className="text-yellow-200">Due Date <span className="text-red-400">*</span></Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal bg-slate-800/50 border-yellow-600/30 text-yellow-100 hover:bg-slate-700/50 hover:text-yellow-100",
-                    !dueDate && "text-red-400/80 border-red-500/40"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dueDate ? format(dueDate, "PPP") : <span>Pick a date (required)</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-slate-800 border-yellow-600/40">
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={setDueDate}
-                  initialFocus
-                  className="bg-slate-800 text-yellow-100"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <QuestDateField
+            testId="due-date-field"
+            label="Due Date"
+            required={questType === "deadline"}
+            value={dueDate}
+            onChange={setDueDate}
+            hint={questType === "deadline" ? "The deadline this has to be done by." : "Optional. The deadline this has to be done by."}
+          />
 
           {/* Importance */}
           <div className="space-y-2">

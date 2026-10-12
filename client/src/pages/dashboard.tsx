@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { QuestTypeIcon } from "@/components/quest-type-chooser";
+import { isNotStartedYet } from "@shared/quest-schedule";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign, GripVertical } from "lucide-react";
@@ -953,9 +954,10 @@ export default function Dashboard() {
     if (!Array.isArray(safeTasks)) {
       return [];
     }
-    const incompleteTasks = (safeTasks as any[]).filter((task: any) => !task.completed);
-    // Use local midnight for "today" so comparisons are relative to the user's calendar day
     const now = new Date();
+    // Quests that start later (and aren't close to their deadline) stay out of the top tasks.
+    const incompleteTasks = (safeTasks as any[]).filter((task: any) => !task.completed && !isNotStartedYet(task, now));
+    // Use local midnight for "today" so comparisons are relative to the user's calendar day
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayTime = today.getTime();
     

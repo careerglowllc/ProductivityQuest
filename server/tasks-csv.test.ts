@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Task } from "../shared/schema";
 import { insertTaskSchema } from "../shared/schema";
 import { QUEST_TYPES } from "../shared/quest-type";
-import { TASK_CSV_HEADERS, buildTasksCsv, escapeCsvField, parseTaskCsvRow } from "./tasks-csv";
+import { TASK_CSV_HEADERS, buildTasksCsv, escapeCsvField, isCompletedCsvRow, parseTaskCsvRow } from "./tasks-csv";
 
 // Splits CSV text into rows of fields, honouring quoted commas, doubled quotes and newlines.
 function parseCsv(text: string): string[][] {
@@ -31,7 +31,7 @@ const asRecords = (text: string) => {
 const task = (overrides: Partial<Task>): Task => ({
   id: 1, userId: "u1", title: "Sample", description: "", details: null, duration: 30, goldValue: 45,
   importance: "Medium", kanbanStage: "To Do", recurType: "one-time", campaign: "unassigned", businessWorkFilter: "General",
-  questType: "general", dueDate: null, completed: false, completedAt: null, createdAt: new Date("2026-10-01T00:00:00Z"),
+  questType: "general", startDate: null, dueDate: null, completed: false, completedAt: null, createdAt: new Date("2026-10-01T00:00:00Z"),
   skillTags: [], apple: false, smartPrep: false, delegationTask: false, velin: false, assignedTo: "Alex",
   ...overrides,
 } as Task);
@@ -75,7 +75,8 @@ test("escapeCsvField quotes only when needed", () => {
 });
 
 test("CSV import: reads Quest Type from labels or values and falls back to general", () => {
-  const read = (value: string | undefined) => parseTaskCsvRow({ Title: "T", ...(value === undefined ? {} : { "Quest Type": value }) }).questType;
+  // A due date is included because a Deadline can't exist without one.
+  const read = (value: string | undefined) => parseTaskCsvRow({ Title: "T", "Due Date": "2026-11-01T00:00:00.000Z", ...(value === undefined ? {} : { "Quest Type": value }) }).questType;
   assert.equal(read("Reminder"), "reminder");
   assert.equal(read("deadline"), "deadline");
   assert.equal(read("General to-do"), "general");
@@ -85,7 +86,8 @@ test("CSV import: reads Quest Type from labels or values and falls back to gener
 });
 
 test("CSV round trip: export then import keeps every quest's type", () => {
-  const original = QUEST_TYPES.map((questType, i) => task({ id: i + 1, title: `Quest ${questType}`, questType }));
+  // A deadline always has a due date, so the round trip uses one.
+  const original = QUEST_TYPES.map((questType, i) => task({ id: i + 1, title: `Quest ${questType}`, questType, dueDate: new Date("2026-11-01T00:00:00Z") }));
   const imported = asRecords(buildTasksCsv(original)).map(parseTaskCsvRow);
   assert.deepEqual(imported.map((t) => t.questType), ["reminder", "deadline", "general"]);
   assert.deepEqual(imported.map((t) => t.title), original.map((t) => t.title));
@@ -105,4 +107,69 @@ test("update schema: a partial update can set the quest type but cannot set an i
   assert.equal(update.parse({ questType: "deadline" }).questType, "deadline");
   assert.deepEqual(update.parse({ title: "Renamed" }), { title: "Renamed" });
   assert.equal(update.safeParse({ questType: "soon" }).success, false);
+});
+
+test("CSV export: Start Date sits right before Due Date and is blank when a quest has none", () => {
+  const header = parseCsv(buildTasksCsv([]))[0];
+  assert.equal(header.indexOf("Start Date"), header.indexOf("Due Date") - 1);
+  const [withStart, without] = asRecords(buildTasksCsv([
+    task({ id: 1, startDate: new Date("2026-10-15T00:00:00Z"), dueDate: new Date("2026-10-20T00:00:00Z") }),
+    task({ id: 2 }),
+  ]));
+  assert.equal(withStart["Start Date"], "2026-10-15T00:00:00.000Z");
+  assert.equal(without["Start Date"], "");
+});
+
+test("CSV import: reads Start Date, and a CSV exported before the column existed still imports", () => {
+  assert.equal(parseTaskCsvRow({ Title: "T", "Start Date": "2026-10-15T00:00:00.000Z" }).startDate?.toISOString(), "2026-10-15T00:00:00.000Z");
+  assert.equal(parseTaskCsvRow({ Title: "T" }).startDate, null);
+  assert.equal(parseTaskCsvRow({ Title: "T", "Start Date": "not a date" }).startDate, null, "junk is ignored instead of failing the import");
+});
+
+test("CSV import: a start date after the due date is dropped; the same day is kept", () => {
+  const read = (start: string, due: string) => parseTaskCsvRow({ Title: "T", "Start Date": start, "Due Date": due }).startDate;
+  assert.equal(read("2026-10-25T00:00:00.000Z", "2026-10-20T00:00:00.000Z"), null);
+  assert.ok(read("2026-10-20T07:00:00.000Z", "2026-10-20T00:00:00.000Z"));
+});
+
+test("CSV import: a Deadline with no due date can't be saved, so it imports as a general to-do", () => {
+  const read = (row: Record<string, string>) => parseTaskCsvRow({ Title: "T", ...row }).questType;
+  assert.equal(read({ "Quest Type": "Deadline" }), "general");
+  assert.equal(read({ "Quest Type": "Deadline", "Due Date": "2026-10-20T00:00:00.000Z" }), "deadline");
+  assert.equal(read({ "Quest Type": "Reminder" }), "reminder", "reminders don't need a due date");
+});
+
+test("CSV round trip: start and due dates survive export then import", () => {
+  const [imported] = asRecords(buildTasksCsv([
+    task({ questType: "deadline", startDate: new Date("2026-10-15T00:00:00Z"), dueDate: new Date("2026-10-20T00:00:00Z") }),
+  ])).map(parseTaskCsvRow);
+  assert.equal(imported.startDate?.toISOString(), "2026-10-15T00:00:00.000Z");
+  assert.equal(imported.dueDate?.toISOString(), "2026-10-20T00:00:00.000Z");
+});
+
+test("CSV export: completed quests are included and marked, so Export All isn't missing history", () => {
+  const csv = buildTasksCsv([
+    task({ id: 1, title: "Open quest" }),
+    task({ id: 2, title: "Finished quest", completed: true, completedAt: new Date("2026-10-05T12:00:00Z") }),
+  ]);
+  const records = asRecords(csv);
+  assert.deepEqual(records.map((r) => r["Title"]), ["Open quest", "Finished quest"]);
+  assert.deepEqual(records.map((r) => r["Completed"]), ["No", "Yes"]);
+  assert.equal(records[1]["Completed At"], "2026-10-05T12:00:00.000Z");
+});
+
+test("CSV import: completed rows from a full export are recognised so they aren't revived as open quests", () => {
+  const [open, done] = asRecords(buildTasksCsv([task({ title: "Open" }), task({ title: "Done", completed: true })]));
+  assert.equal(isCompletedCsvRow(open), false);
+  assert.equal(isCompletedCsvRow(done), true);
+  assert.equal(isCompletedCsvRow({ Title: "Old export, no Completed column" }), false);
+});
+
+test("create and update schemas: startDate accepts a date or null and rejects anything else", () => {
+  const base = { userId: "u1", title: "New quest", duration: 30, goldValue: 45 };
+  assert.ok(insertTaskSchema.parse({ ...base, startDate: new Date("2026-10-15T00:00:00Z") }).startDate instanceof Date);
+  assert.equal(insertTaskSchema.parse({ ...base, startDate: null }).startDate, null);
+  assert.equal(insertTaskSchema.parse(base).startDate, undefined, "omitting it leaves the database default (no start date)");
+  assert.equal(insertTaskSchema.safeParse({ ...base, startDate: "soon" }).success, false);
+  assert.equal(insertTaskSchema.partial().parse({ startDate: null }).startDate, null);
 });

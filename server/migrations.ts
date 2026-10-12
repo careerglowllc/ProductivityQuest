@@ -89,6 +89,13 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS quest_type TEXT NOT NULL DEFAULT 'general'
     `;
 
+    // Migration: Optional start date ("start working on this from here"). Nullable and not
+    // backfilled, so existing quests keep their current behaviour.
+    await sql`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ
+    `;
+
     // Migration: Partial index backing the completed-task archive (newest-first pages,
     // "completed today" lookups, and the per-completion cap count).
     await sql`

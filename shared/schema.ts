@@ -77,6 +77,8 @@ export const tasks = pgTable("tasks", {
   duration: integer("duration").notNull(), // in minutes
   goldValue: integer("gold_value").notNull(),
   dueDate: timestamptz("due_date"),
+  // When to start working on the quest; null = no start-based scheduling (available now).
+  startDate: timestamptz("start_date"),
   scheduledTime: timestamptz("scheduledTime"), // Timestamp when task is scheduled in calendar (if null, defaults to 9 AM on due date)
   completed: boolean("completed").default(false),
   completedAt: timestamptz("completed_at"),

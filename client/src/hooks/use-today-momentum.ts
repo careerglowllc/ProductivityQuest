@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { isOnTodaysList } from "@shared/quest-schedule";
 
 export function useTodayMomentum() {
   const now = new Date();
@@ -32,7 +33,7 @@ export function useTodayMomentum() {
   };
 
   const openToday = safeTasks.filter(
-    (task: any) => !task.completed && task.dueDate && new Date(task.dueDate).getTime() < tomorrow.getTime(),
+    (task: any) => !task.completed && isOnTodaysList(task, now),
   );
   const completedTodayRecurring = safeTasks.filter(
     (task: any) => isRecurring(task) && isCompletedToday(task),
