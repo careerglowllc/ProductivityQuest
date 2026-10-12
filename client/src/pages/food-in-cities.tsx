@@ -24,6 +24,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { foodCSV } from "@/lib/explore-csv";
+import { mergeChainEntries, type ChainMerge } from "@/lib/merge-chains";
 import { PreciseStarPicker } from "@/components/precise-star-picker";
 import { regionCardStyle } from "@/lib/region-card";
 import type { CSVExport } from "@/lib/csv-export";
@@ -406,30 +407,17 @@ const SEED_ENTRIES: FoodEntry[] = [
     updatedAt: "2026-08-12T00:00:00.000Z",
   },
   {
-    id: "food-nirvana-soul-coffee-sanjose",
+    id: "food-nirvana-soul-coffee",
     name: "Nirvana Soul Coffee",
-    city: "San Jose, CA",
-    address: "315 S 1st St, San Jose, CA 95113",
+    city: "San Jose & Cupertino, CA",
+    address: "315 S 1st St, San Jose, CA 95113 · 19700 Vallco Pkwy, Unit 190, Cupertino, CA 95014",
     overallRating: 4.2,
     stars: { food: 4.2, ambience: 4, price: 3.5 },
     thoughts: "Focus on specialty drinks and they deliver — consistently good quality. Great spot to find nice seasonal specialty drinks worth seeking out.",
     tags: ["Coffee / Cafe", "Casual"],
     visitedAt: "",
     createdAt: "2026-09-28T00:00:00.000Z",
-    updatedAt: "2026-09-28T00:00:00.000Z",
-  },
-  {
-    id: "food-nirvana-soul-coffee-cupertino",
-    name: "Nirvana Soul Coffee",
-    city: "Cupertino, CA",
-    address: "19700 Vallco Pkwy, Unit 190, Cupertino, CA 95014",
-    overallRating: 4.2,
-    stars: { food: 4.2, ambience: 4, price: 3.5 },
-    thoughts: "Focus on specialty drinks and they deliver — consistently good quality. Great spot to find nice seasonal specialty drinks worth seeking out.",
-    tags: ["Coffee / Cafe", "Casual"],
-    visitedAt: "",
-    createdAt: "2026-09-28T00:00:00.000Z",
-    updatedAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
   },
   {
     id: "food-tuk-tuk-chicken-rice-sanjose",
@@ -704,43 +692,17 @@ const SEED_ENTRIES: FoodEntry[] = [
     updatedAt: "2026-09-28T00:00:00.000Z",
   },
   {
-    id: "food-frank-pepe-chestnuthill",
+    id: "food-frank-pepe",
     name: "Frank Pepe Pizzeria Napoletana",
-    city: "Chestnut Hill, MA",
-    address: "199 Boylston St (inside The Mall at Chestnut Hill), Chestnut Hill, MA",
+    city: "Chestnut Hill, Watertown & Burlington, MA",
+    address: "199 Boylston St (inside The Mall at Chestnut Hill), Chestnut Hill, MA · 24 Eldridge Ave (Arsenal Yards), Watertown, MA · 75 Middlesex Turnpike (Burlington Mall), Burlington, MA",
     overallRating: 4.6,
     stars: { food: 4.6, ambience: 0, price: 0 },
     thoughts: "Some of the best pizza in the country. Rating based on taste — didn't factor in atmosphere or price.",
     tags: ["Italian", "Casual", "Dinner"],
     visitedAt: "",
     createdAt: "2026-09-28T00:00:00.000Z",
-    updatedAt: "2026-09-28T00:00:00.000Z",
-  },
-  {
-    id: "food-frank-pepe-watertown",
-    name: "Frank Pepe Pizzeria Napoletana",
-    city: "Watertown, MA",
-    address: "24 Eldridge Ave (Arsenal Yards), Watertown, MA",
-    overallRating: 4.6,
-    stars: { food: 4.6, ambience: 0, price: 0 },
-    thoughts: "Some of the best pizza in the country. Rating based on taste — didn't factor in atmosphere or price.",
-    tags: ["Italian", "Casual", "Dinner"],
-    visitedAt: "",
-    createdAt: "2026-09-28T00:00:00.000Z",
-    updatedAt: "2026-09-28T00:00:00.000Z",
-  },
-  {
-    id: "food-frank-pepe-burlington",
-    name: "Frank Pepe Pizzeria Napoletana",
-    city: "Burlington, MA",
-    address: "75 Middlesex Turnpike (Burlington Mall), Burlington, MA",
-    overallRating: 4.6,
-    stars: { food: 4.6, ambience: 0, price: 0 },
-    thoughts: "Some of the best pizza in the country. Rating based on taste — didn't factor in atmosphere or price.",
-    tags: ["Italian", "Casual", "Dinner"],
-    visitedAt: "",
-    createdAt: "2026-09-28T00:00:00.000Z",
-    updatedAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
   },
   {
     id: "food-red-rock-coffee-mountainview",
@@ -799,11 +761,19 @@ function withPatchedSeeds(stored: FoodEntry[]): FoodEntry[] {
   return stored.map((e) => updates.find((u) => u.id === e.id) ?? e);
 }
 
+// A chain with several locations is one entry that lists them all, so older per-location entries fold into it once.
+const MERGE_KEY = "food-cities-merge-v1";
+const MERGES: ChainMerge[] = [
+  { into: "food-nirvana-soul-coffee", from: ["food-nirvana-soul-coffee-sanjose", "food-nirvana-soul-coffee-cupertino"] },
+  { into: "food-frank-pepe", from: ["food-frank-pepe-chestnuthill", "food-frank-pepe-watertown", "food-frank-pepe-burlington"] },
+];
+
 // Seeding only runs when the page is opened, so the export applies any pending seeds itself (without saving).
 export function buildFoodCSVExport(): CSVExport {
   let entries = load();
   if (!localStorage.getItem(SEED_KEY)) entries = withMissingSeeds(entries);
   if (!localStorage.getItem(PATCH_KEY)) entries = withPatchedSeeds(entries);
+  if (!localStorage.getItem(MERGE_KEY)) entries = mergeChainEntries(entries, SEED_ENTRIES, MERGES);
   const regionOf = (entry: FoodEntry) =>
     deriveRegions(entry).map((id) => REGIONS.find((r) => r.id === id)?.label ?? "Other").join("; ");
   return { folder: "Travel", filename: "food-in-cities.csv", content: foodCSV(entries, regionOf) };
@@ -843,6 +813,12 @@ export default function FoodInCitiesPage() {
     if (localStorage.getItem(PATCH_KEY)) return;
     setEntries((prev) => withPatchedSeeds(prev));
     localStorage.setItem(PATCH_KEY, "1");
+  }, []);
+
+  useEffect(() => {
+    if (localStorage.getItem(MERGE_KEY)) return;
+    setEntries((prev) => mergeChainEntries(prev, SEED_ENTRIES, MERGES));
+    localStorage.setItem(MERGE_KEY, "1");
   }, []);
 
   useEffect(() => { save(entries); }, [entries]);
