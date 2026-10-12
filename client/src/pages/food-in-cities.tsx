@@ -24,6 +24,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { foodCSV } from "@/lib/explore-csv";
+import { PreciseStarPicker } from "@/components/precise-star-picker";
 import { regionCardStyle } from "@/lib/region-card";
 import type { CSVExport } from "@/lib/csv-export";
 
@@ -241,24 +242,6 @@ function StarDisplay({ value, max = 5 }: { value: number; max?: number }) {
         );
       })}
       <span className="text-xs text-slate-400 ml-1">{value.toFixed(1)}</span>
-    </span>
-  );
-}
-
-// ── Star picker ──────────────────────────────────────────────
-function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  return (
-    <span className="inline-flex gap-1">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange(n === value ? 0 : n)}
-          className={`text-xl transition-colors ${n <= value ? "text-yellow-400" : "text-slate-600 hover:text-yellow-400/50"}`}
-        >
-          ★
-        </button>
-      ))}
     </span>
   );
 }
@@ -1177,11 +1160,11 @@ export default function FoodInCitiesPage() {
                 ] as [string, keyof StarRatings][]).map(([label, field]) => (
                   <div key={field} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-2">
                     <span className="text-sm text-slate-300">{label}</span>
-                    <StarPicker value={form.stars[field]} onChange={(v) => setStars(field, v)} />
+                    <PreciseStarPicker label={label} value={form.stars[field]} onChange={(v) => setStars(field, v)} />
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-slate-500">Overall avg: {avg(form.stars).toFixed(1)} / 5</p>
+              <p className="text-xs text-slate-500">Click or drag across the stars, or type a rating. Overall avg: {avg(form.stars).toFixed(1)} / 5</p>
             </div>
             <div>
               <Label className="text-pink-200 text-sm mb-2 block">Tags</Label>
