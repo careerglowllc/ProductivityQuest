@@ -68,7 +68,7 @@ const REGIONS = [
     citiesMatch: [
       "sacramento", "roseville", "rocklin", "dixon", "stockton", "modesto",
       "elk grove", "davis", "woodland", "vacaville", "fairfield", "vallejo",
-      "folsom", "rancho cordova", "citrus heights", "auburn",
+      "folsom", "rancho cordova", "citrus heights", "auburn", "pleasant grove",
     ],
   },
   {
@@ -304,11 +304,11 @@ const SEED_ENTRIES: ActivityEntry[] = [
   },
   {
     id: "activity-standup-comedy-sushi-bayarea",
-    name: "Sushi Dinner + Stand-Up Comedy Show",
+    name: "Stand-Up Comedy + Sushi / Sandwich Spot",
     city: "Bay Area, CA",
     overallRating: 4.3,
     stars: { fun: 4.5, atmosphere: 4, value: 4.5 },
-    thoughts: "Stand-up comedy shows pop up all around the Bay Area and are often free or very cheap. Pair one with sushi beforehand for a great low-cost, high-fun night out — food and a good laugh in one evening.",
+    thoughts: "Free, not-bad comedy shows hosted at local sushi or sandwich spots all over the Bay, usually on weekdays. Not the funniest comedians ever, but still good laughs and a good time. Grab food there and make it a good little date night.",
     tags: ["Comedy Show", "Date Idea", "Free Sometimes"],
     visitedAt: "",
     createdAt: "2026-09-28T00:00:00.000Z",
@@ -375,6 +375,92 @@ const SEED_ENTRIES: ActivityEntry[] = [
     createdAt: "2026-09-28T00:00:00.000Z",
     updatedAt: "2026-09-28T00:00:00.000Z",
   },
+  {
+    id: "activity-wake-island-pleasant-grove",
+    name: "Wake Island Waterpark (Wakeboarding)",
+    city: "Pleasant Grove, CA",
+    address: "7633 Locust Rd, Pleasant Grove, CA 95668",
+    overallRating: 0,
+    stars: { fun: 0, atmosphere: 0, value: 0 },
+    thoughts: "Boat-less cable wakeboarding park. Seasonal (about 6 months a year) and online reservations are required.",
+    tags: ["Outdoor"],
+    visitedAt: "",
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  },
+  {
+    id: "activity-rocklin-quarry-yard",
+    name: "Rocklin Quarry Yard",
+    city: "Rocklin, CA",
+    overallRating: 0,
+    stars: { fun: 0, atmosphere: 0, value: 0 },
+    thoughts: "",
+    tags: ["Outdoor"],
+    visitedAt: "",
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  },
+  {
+    id: "activity-folsom-lake",
+    name: "Folsom Lake",
+    city: "Folsom, CA",
+    overallRating: 0,
+    stars: { fun: 0, atmosphere: 0, value: 0 },
+    thoughts: "",
+    tags: ["Beach", "Outdoor"],
+    visitedAt: "",
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  },
+  {
+    id: "activity-mammoth-bar-auburn",
+    name: "Mammoth Bar",
+    city: "Auburn, CA",
+    overallRating: 0,
+    stars: { fun: 0, atmosphere: 0, value: 0 },
+    thoughts: "",
+    tags: ["Outdoor"],
+    visitedAt: "",
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  },
+  {
+    id: "activity-lake-clementine-auburn",
+    name: "Lake Clementine",
+    city: "Auburn, CA",
+    overallRating: 0,
+    stars: { fun: 0, atmosphere: 0, value: 0 },
+    thoughts: "",
+    tags: ["Beach", "Outdoor"],
+    visitedAt: "",
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  },
+  {
+    id: "activity-dirtbike-track-auburn",
+    name: "Dirt Bike Track",
+    city: "Auburn, CA",
+    overallRating: 0,
+    stars: { fun: 0, atmosphere: 0, value: 0 },
+    thoughts: "",
+    tags: ["Outdoor"],
+    visitedAt: "",
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  },
+  {
+    id: "activity-san-jose-improv",
+    name: "San Jose Improv",
+    city: "San Jose, CA",
+    address: "62 S 2nd St, San Jose, CA 95113",
+    overallRating: 0,
+    stars: { fun: 0, atmosphere: 0, value: 0 },
+    thoughts: "Really good comedy venue — super small and intimate, which makes for great comedy shows.",
+    tags: ["Comedy Show", "Indoor", "Date Idea"],
+    visitedAt: "",
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -397,7 +483,7 @@ export default function ActivitiesInCitiesPage() {
 
   // Seed once
   useEffect(() => {
-    const key = "activities-cities-seed-v1";
+    const key = "activities-cities-seed-v3";
     if (localStorage.getItem(key)) return;
     setEntries((prev) => {
       const ids = new Set(prev.map((e) => e.id));
@@ -406,6 +492,15 @@ export default function ActivitiesInCitiesPage() {
       save(next);
       return next;
     });
+    localStorage.setItem(key, "1");
+  }, []);
+
+  // Seeding skips existing ids, so overwrite the already-stored stand-up entry once
+  useEffect(() => {
+    const key = "activities-cities-patch-v1";
+    if (localStorage.getItem(key)) return;
+    const updated = SEED_ENTRIES.find((e) => e.id === "activity-standup-comedy-sushi-bayarea");
+    if (updated) setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
     localStorage.setItem(key, "1");
   }, []);
 

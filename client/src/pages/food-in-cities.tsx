@@ -73,7 +73,7 @@ const REGIONS = [
     citiesMatch: [
       "sacramento", "roseville", "rocklin", "dixon", "stockton", "modesto",
       "elk grove", "davis", "woodland", "vacaville", "fairfield", "vallejo",
-      "folsom", "rancho cordova", "citrus heights", "auburn",
+      "folsom", "rancho cordova", "citrus heights", "auburn", "newcastle",
     ],
   },
   {
@@ -502,13 +502,13 @@ const SEED_ENTRIES: FoodEntry[] = [
     name: "North Fork Chai Co.",
     city: "Newcastle, CA",
     address: "661 Newcastle Rd Suite B, Newcastle, CA 95658",
-    overallRating: 4.3,
+    overallRating: 4,
     stars: { food: 5, ambience: 3.5, price: 3.5 },
-    thoughts: "Great specialty coffee. Excellent taste — one of the better specialty coffee spots in the area.",
-    tags: ["Coffee / Cafe", "Casual"],
+    thoughts: "Great seasonal drinks, solid regular ones, and good breakfast sandwiches.",
+    tags: ["Coffee / Cafe", "Casual", "Breakfast"],
     visitedAt: "",
     createdAt: "2026-08-01T00:00:00.000Z",
-    updatedAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
   },
   {
     id: "food-wallys-cafe-rocklin",
@@ -554,13 +554,13 @@ const SEED_ENTRIES: FoodEntry[] = [
     name: "Oakhouse",
     city: "Auburn, CA",
     address: "130 Maple St Suite 100, Auburn, CA 95603",
-    overallRating: 3.5,
-    stars: { food: 4, ambience: 3.5, price: 3 },
-    thoughts: "Solid and fancy but I've had better fine dining. Good steakhouse experience for Auburn — well-executed, nice atmosphere, just doesn't quite reach the top tier.",
+    overallRating: 3.6,
+    stars: { food: 4, ambience: 4, price: 2.8 },
+    thoughts: "Food is nice and fancy but not incredible, and not worth the price tag. Many of the cocktails were overly sweetened.",
     tags: ["Steakhouse", "Fine Dining", "American", "Dinner"],
     visitedAt: "",
     createdAt: "2026-08-01T00:00:00.000Z",
-    updatedAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
   },
   {
     id: "food-taqueria-la-rana-rocklin",
@@ -827,6 +827,16 @@ export default function FoodInCitiesPage() {
       save(next);
       return next;
     });
+    localStorage.setItem(key, "1");
+  }, []);
+
+  // Seeding skips existing ids, so overwrite these already-stored entries once
+  useEffect(() => {
+    const key = "food-cities-patch-v2";
+    if (localStorage.getItem(key)) return;
+    const patchIds = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
+    const updates = SEED_ENTRIES.filter((e) => patchIds.includes(e.id));
+    setEntries((prev) => prev.map((e) => updates.find((u) => u.id === e.id) ?? e));
     localStorage.setItem(key, "1");
   }, []);
 
