@@ -13,6 +13,7 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
+import { SelectedFeedbackAction } from "@/components/smart-focus/selected-feedback-action";
 import { FocusControls } from "@/components/smart-focus/focus-controls";
 import { useFocusRanking, useFocusState } from "@/components/smart-focus/use-smart-focus";
 import { selectFocus } from "@/components/smart-focus/select-focus";
@@ -2673,6 +2674,7 @@ export default function Home() {
                         <span className={`text-xs font-medium ${isDark ? 'text-blue-200' : 'text-blue-700'}`}>
                           {selectedTasks.size} selected
                         </span>
+                        <SelectedFeedbackAction quests={(tasks as any[]).filter(task => selectedTasks.has(task.id))} />
                         <Button
                           onClick={() => setSelectedTasks(new Set())}
                           variant="ghost"
@@ -2852,6 +2854,7 @@ export default function Home() {
                         <X className="w-4 h-4" />
                       </Button>
                       <div className="flex gap-2 flex-wrap">
+                        <SelectedFeedbackAction quests={(tasks as any[]).filter(task => selectedTasks.has(task.id))} />
                         <Button
                           onClick={handleCompleteSelected}
                           className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white border border-blue-400/50"

@@ -1,5 +1,7 @@
 # Quest System Test Cases — Types, Start/Due Dates, Smart Focus, Reminders
 
+For the personalized AI ranking and selected-task feedback flow, also see [AI Smart Focus Test Cases](AI_SMART_FOCUS_TEST_CASES.md). The original local-rule cases below remain regression coverage for the legacy fallback.
+
 **Feature:** Quest types (Reminder / Deadline / General to-do), start dates, Smart Focus, Reminders strip, CSV and recurring behaviour  
 **Documentation:** [QUEST_SYSTEM_README.md](QUEST_SYSTEM_README.md)  
 **Last Updated:** October 2026  

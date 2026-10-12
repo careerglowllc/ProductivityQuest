@@ -5,7 +5,7 @@ Smart Focus uses OpenAI's `gpt-4o-mini` plus deterministic safeguards. It is **n
 ## Using it
 
 1. Open Quests → Smart Focus → **Enable AI**. The consent notice explains that relevant quest content and saved feedback will be sent to OpenAI.
-2. Any quest card or quest-detail menu includes **AI feedback**. Enter a paragraph explaining priority, exclusions, missing work, or broader working preferences. It can be saved with AI off and survives restarts.
+2. Select a quest and click **AI feedback** in the existing selected-task action bar (desktop or mobile). With one selected quest the paragraph form opens directly; with several, first choose which quest the feedback concerns. It never broadcasts feedback to all selected quests. The card/detail menus also retain AI feedback. Enter a paragraph explaining priority, exclusions, missing work, or broader working preferences. It can be saved with AI off and survives restarts.
 3. **Refresh** reranks the list. Reasons appear on recommended quests. Missing tasks can be added by the AI even without due dates.
 4. **Not today** sets a non-protected quest aside until the next account-local day. Undo is offered in the confirmation toast; individual dismissal history can also be forgotten in Private preferences.
 5. Review or forget individual written preferences and signals in **Private preferences**, or confirm clearing all memory. Disabling AI retains memory but stops provider calls and implicit demotion.
@@ -56,3 +56,5 @@ All `/api/smart-focus/*` routes require the authenticated session and use its ac
 - `DELETE /preferences/:id`, `/signals/:taskId`, or `/memory`
 
 Tests: `shared/smart-focus-ai.test.ts`, `server/smart-focus.test.ts`, and `client/src/components/smart-focus/select-focus.test.ts`. They cover protective rules, cap overflow, account isolation, timezone boundaries, explicit feedback exclusions, signal thresholds/expiry, Undo, caching, and provider failure. Tests use synthetic tasks and mocked provider advice; live provider access must be checked separately.
+
+See [AI_SMART_FOCUS_TEST_CASES.md](AI_SMART_FOCUS_TEST_CASES.md) for step-by-step UI, API, provider and regression cases, with automated coverage clearly distinguished from manual acceptance checks.
