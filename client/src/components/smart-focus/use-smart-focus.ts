@@ -2,7 +2,7 @@ import { useEffect, useReducer } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import type { FocusAction } from "@shared/smart-focus-ai";
+import type { FocusAction, FocusProfile } from "@shared/smart-focus-ai";
 import { FOCUS_RANK_STALE_MS, FOCUS_TICK_MS, focusRefreshDue } from "./focus-refresh";
 
 export interface FocusState {
@@ -11,6 +11,7 @@ export interface FocusState {
   preferences: { id: string; taskId: number; taskTitle: string; text: string; createdAt: string; action?: FocusAction; inFocus?: boolean }[];
   signals: { taskId: number; taskTitle: string; days: number }[];
   timezone: string;
+  profile?: FocusProfile | null;
 }
 export interface FocusRanking {
   ids: number[];

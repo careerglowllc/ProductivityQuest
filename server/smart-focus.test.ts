@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import { registerSmartFocus, type FocusStore } from "./smart-focus";
-import { emptyFocusMemory, type FocusMemory } from "../shared/smart-focus-ai";
+import { APPLE_WEEKDAY_PROFILE, emptyFocusMemory, type FocusMemory } from "../shared/smart-focus-ai";
 test("Smart Focus API isolates accounts, persists feedback, protects dates, caches requests and forgets memories", async () => {
   const memories = new Map<string, FocusMemory>();
   const store: FocusStore = {
@@ -152,5 +152,32 @@ test("feedback carries an action and where the quest was; actions change the ran
 
     const plain = await (await post("/feedback", { taskId: 3, text: "Just context." })).json();
     assert.equal(plain.preference.action, undefined);
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+
+test("the account's work-filter profile is returned, survives Forget everything, and shapes the ranking by weekday", async () => {
+  const memories = new Map<string, FocusMemory>([["u", { ...emptyFocusMemory(), profile: APPLE_WEEKDAY_PROFILE }]]);
+  const quests = [
+    { id: 1, title: "General", importance: "Medium", startDate: "2026-10-01", businessWorkFilter: "General" },
+    { id: 2, title: "Apple", importance: "Medium", startDate: "2026-10-01", businessWorkFilter: "Apple" },
+  ];
+  let now = new Date("2026-10-13T17:00:00Z"); // Tuesday
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "u" } as any; next(); }, {
+    tasks: async () => quests, timezone: async () => "UTC",
+    read: async () => structuredClone(memories.get("u") ?? emptyFocusMemory()),
+    change: async (_id, change) => { const m = structuredClone(memories.get("u") ?? emptyFocusMemory()); change(m); memories.set("u", m); },
+  }, async () => [], () => false, () => now);
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus`;
+    const rank = async () => (await (await fetch(base + "/rank", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json()).ids;
+    assert.deepEqual((await (await fetch(base + "/state")).json()).profile, APPLE_WEEKDAY_PROFILE);
+    assert.deepEqual(await rank(), [2, 1], "Apple first on a Tuesday");
+    now = new Date("2026-10-17T17:00:00Z"); // Saturday
+    assert.deepEqual(await rank(), [1, 2], "Apple after the others on a Saturday");
+    await fetch(base + "/memory", { method: "DELETE" });
+    assert.deepEqual(memories.get("u")?.profile, APPLE_WEEKDAY_PROFILE, "forgetting preferences keeps the profile");
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });

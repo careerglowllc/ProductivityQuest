@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { existsSync, readFileSync } from "node:fs";
 import { SMART_FOCUS_SETTINGS_PATH, focusView, showsSortControl } from "./focus-gate";
 import { FOCUS_MIN_GAP_MS, focusRefreshDue } from "./focus-refresh";
+import { describeWorkPriorities } from "./work-priorities";
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
@@ -65,4 +66,12 @@ test("Smart Focus re-reads quests only once they are a few minutes old, never wh
   assert.equal(focusRefreshDue(now - 60_000, now), false);
   assert.equal(focusRefreshDue(now - FOCUS_MIN_GAP_MS, now), true);
   assert.equal(focusRefreshDue(now - 3 * 60 * 60_000, now), true);
+});
+
+test("work priorities are described in plain words, and only when something is set", () => {
+  assert.deepEqual(describeWorkPriorities(null), []);
+  assert.deepEqual(describeWorkPriorities({}), []);
+  assert.deepEqual(describeWorkPriorities({ workFilters: { General: { weekday: 0, weekend: 0 } } }), []);
+  assert.deepEqual(describeWorkPriorities({ workFilters: { Apple: { weekday: 1, weekend: -1 } } }), ["Apple: up 1 importance level on weekdays, down 1 importance level on weekends"]);
+  assert.deepEqual(describeWorkPriorities({ workFilters: { MW: { weekday: 2, weekend: 0 } } }), ["MW: up 2 importance levels on weekdays, no change on weekends"]);
 });

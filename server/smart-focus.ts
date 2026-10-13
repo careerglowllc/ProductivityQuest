@@ -32,7 +32,7 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
   app.get("/api/smart-focus/state", auth, handler(async (req, res) => {
     const id = req.session.userId, memory = await store.read(id);
     const { day, timezone } = await dayFor(id);
-    res.json({ enabled: memory.enabled, available: available(), preferences: memory.preferences, signals: focusSignals(memory, day), timezone });
+    res.json({ enabled: memory.enabled, available: available(), preferences: memory.preferences, signals: focusSignals(memory, day), timezone, profile: memory.profile ?? null });
   }));
   app.patch("/api/smart-focus/settings", auth, handler(async (req, res) => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body), id = req.session.userId;

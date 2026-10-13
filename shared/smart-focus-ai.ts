@@ -6,6 +6,7 @@ export type FocusQuest = {
   dueDate?: string | Date | null; startDate?: string | Date | null;
   importance?: string | null; questType?: string | null; completed?: boolean | null; recycled?: boolean | null;
   duration?: number | null; recurType?: string | null;
+  businessWorkFilter?: string | null; apple?: boolean | null; // the work filter: "Apple", "General", "MW", ...
 };
 // What the user did with a quest when giving feedback: moved it into Smart Focus, took it off, or confirmed where it already was.
 export type FocusAction = "include" | "exclude" | "keep";
@@ -16,7 +17,12 @@ export type FocusPreference = {
   inFocus?: boolean; // where the quest was when the user gave the feedback
 };
 export type FocusEvent = { taskId: number; taskTitle: string; day: string };
-export type FocusMemory = { enabled: boolean; preferences: FocusPreference[]; dismissals: FocusEvent[] };
+// How much a work filter counts, in importance levels added to (or taken from) its quests, split by weekday and weekend.
+export type FocusWorkFilterWeight = { weekday: number; weekend: number };
+export type FocusProfile = { workFilters?: Record<string, FocusWorkFilterWeight> };
+export type FocusMemory = { enabled: boolean; preferences: FocusPreference[]; dismissals: FocusEvent[]; profile?: FocusProfile };
+// Preloaded for the owner's account: Apple work counts a level higher Monday to Friday and a level lower on weekends.
+export const APPLE_WEEKDAY_PROFILE: FocusProfile = { workFilters: { Apple: { weekday: 1, weekend: -1 } } };
 export const emptyFocusMemory = (): FocusMemory => ({ enabled: false, preferences: [], dismissals: [] });
 export type FocusAdvice = { taskId: number; include: boolean; score: number; reason: string };
 export type WorkloadLevel = "light" | "normal" | "busy" | "heavy";
@@ -84,6 +90,20 @@ export function isRoutine(q: FocusQuest): boolean {
   const recur = (q.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
   return recur !== "" && recur !== "one-time" && recur !== "none";
 }
+// The quest's work filter name; the older "apple" flag counts as Apple.
+export const workFilterOf = (q: Pick<FocusQuest, "businessWorkFilter" | "apple">): string =>
+  q.apple === true ? "Apple" : (q.businessWorkFilter ?? "").trim();
+// Saturday and Sunday, from a YYYY-MM-DD day.
+export const isWeekendDay = (day: string): boolean => { const d = new Date(`${day}T12:00:00Z`).getUTCDay(); return d === 0 || d === 6; };
+export const weekdayName = (day: string): string => ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date(`${day}T12:00:00Z`).getUTCDay()];
+// Importance levels this quest's work filter adds (or takes) on this day, limited to three either way.
+export function workFilterStep(profile: FocusProfile | undefined, q: Pick<FocusQuest, "businessWorkFilter" | "apple">, day: string): number {
+  const name = workFilterOf(q).toLowerCase();
+  if (!name || !profile?.workFilters) return 0;
+  const entry = Object.entries(profile.workFilters).find(([key]) => key.trim().toLowerCase() === name)?.[1];
+  const step = Number(isWeekendDay(day) ? entry?.weekend : entry?.weekday);
+  return Number.isFinite(step) ? Math.max(-3, Math.min(3, Math.round(step))) : 0;
+}
 // How heavy today is, from the quests already committed (overdue, due today, starting today): their number,
 // total minutes, and how many are high priority. Optional work never counts toward it.
 export function focusWorkload(quests: FocusQuest[], day: string, tuning: FocusTuning = DEFAULT_FOCUS_TUNING): FocusWorkload {
@@ -103,6 +123,9 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const dismissed = new Set(memory.dismissals.filter(e => e.day === day).map(e => e.taskId));
   const stances = focusStances(memory);
   const reasons: Record<string, string> = {};
+  // Importance, adjusted by the account's work-filter weighting (such as Apple counting more on weekdays).
+  const effectiveImportance = (q: FocusQuest) => importanceRank(q.importance) + workFilterStep(memory.profile, q, day);
+  const highPriority = (q: FocusQuest) => effectiveImportance(q) >= importanceRank("Med-High");
   const candidates = quests.filter(q => {
     if (q.completed || q.recycled || isReminder(q)) return false;
     // The user's own take-off or move-in is honored over dates, the model and today's dismissals; plain text feedback and the model alone cannot hide due work.
@@ -115,7 +138,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     // Explicit feedback can exclude its non-protected target; inferred signals alone cannot.
     if (ai.get(q.id)?.include === false && memory.preferences.some(p => p.taskId === q.id)) return false;
     // AI can add previously missing work, but cannot exclude protected dates.
-    return !!focusBand(q, now) || isHighPriority(q) || ai.get(q.id)?.include === true;
+    return !!focusBand(q, now) || highPriority(q) || ai.get(q.id)?.include === true;
   });
   // A confirmed placement nudges the order a little among otherwise equal quests; a move into Smart Focus ranks above other optional work.
   const stanceNudge = (q: FocusQuest) => {
@@ -139,7 +162,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     band(b) - band(a)
     || Number(stances.get(b.id)?.action === "include") - Number(stances.get(a.id)?.action === "include")
     || (dateOnly(a.dueDate) || "9999-12-31").localeCompare(dateOnly(b.dueDate) || "9999-12-31")
-    || importanceRank(b.importance) - importanceRank(a.importance)
+    || effectiveImportance(b) - effectiveImportance(a)
     || tieScore(b) - tieScore(a)
     || a.id - b.id;
   candidates.sort(compare);
@@ -153,7 +176,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     if (stance?.action === "include" || (stance?.action === "keep" && stance.inFocus === true)) return true;
     return ai.get(q.id)?.include === true && memory.preferences.some(p => p.taskId === q.id);
   };
-  const optionalLow = (q: FocusQuest) => !protectedFocus(q, day) && !isHighPriority(q) && !askedFor(q);
+  const optionalLow = (q: FocusQuest) => !protectedFocus(q, day) && !highPriority(q) && !askedFor(q);
   const lowPicks = candidates.filter(optionalLow)
     .sort((a, b) => Number(isRoutine(a)) - Number(isRoutine(b)) || Number(b.questType === "deadline") - Number(a.questType === "deadline") || compare(a, b))
     .filter(q => tuning.routinesAllowed[workload.level] || !isRoutine(q))
@@ -182,7 +205,9 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     reasons[q.id] = protectedFocus(q, day)
       ? due && due <= day ? "Protected: overdue or due today." : "Protected: starts today."
       : stanceReason || ai.get(q.id)?.reason || (fillerIds.has(q.id) ? "Added because your list has room: the next most important quest."
-        : isHighPriority(q) ? "High-priority work ready to start." : "Start date reached or important deadline approaching.");
+        : highPriority(q) ? "High-priority work ready to start." : "Start date reached or important deadline approaching.");
+    const step = workFilterStep(memory.profile, q, day);
+    if (step !== 0) reasons[q.id] += ` ${workFilterOf(q)} work counts ${step > 0 ? "for more" : "for less"} ${isWeekendDay(day) ? "on weekends" : "on weekdays"}.`;
     if (!protectedFocus(q, day) && memory.enabled && (signals.get(q.id) ?? 0) >= 3) {
       reasons[q.id] += " Slightly lowered after removals on at least 3 distinct days; this is not a permanent exclusion.";
     }

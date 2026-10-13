@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, type FocusAction, type FocusQuest } from "./smart-focus-ai";
+import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
 const day = "2026-10-12";
 const task = (id: number, extra: Partial<FocusQuest> = {}): FocusQuest => ({ id, title: `Task ${id}`, ...extra });
 test("all urgent and start-today tasks survive the cap and hostile AI advice", () => {
@@ -399,4 +399,68 @@ test("routines are only topped up on days that allow them", () => {
   assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids.sort(), [100, 101]);
   const tuning = { ...DEFAULT_FOCUS_TUNING, routinesAllowed: { light: false, normal: false, busy: false, heavy: false } };
   assert.deepEqual(rankFocus(quests, day, emptyFocusMemory(), undefined, tuning).ids, [101]);
+});
+
+// ── Work-filter weighting: Apple counts a level higher on weekdays and a level lower on weekends ──
+const MONDAY = "2026-10-12", FRIDAY = "2026-10-16", SATURDAY = "2026-10-17", SUNDAY = "2026-10-18";
+const appleMemory = (): FocusMemory => ({ ...emptyFocusMemory(), profile: APPLE_WEEKDAY_PROFILE });
+const started = (id: number, workFilter: string, importance = "Medium", extra: Partial<FocusQuest> = {}) =>
+  task(id, { startDate: "2026-10-01", importance, businessWorkFilter: workFilter, ...extra });
+const rankOn = (quests: FocusQuest[], onDay: string, memory = appleMemory()) => rankFocus(quests, onDay, memory);
+
+test("the preloaded profile weights Apple up on every weekday", () => {
+  const quests = [started(1, "General"), started(2, "MW"), started(3, "Apple"), started(4, "GPR")];
+  for (const weekday of [MONDAY, FRIDAY]) assert.deepEqual(rankOn(quests, weekday).ids, [3, 1, 2, 4], weekday);
+});
+
+test("on weekends Apple counts for less than the other work filters", () => {
+  const quests = [started(1, "General"), started(2, "MW"), started(3, "Apple"), started(4, "GPR")];
+  for (const weekend of [SATURDAY, SUNDAY]) assert.deepEqual(rankOn(quests, weekend).ids, [1, 2, 4, 3], weekend);
+});
+
+test("the weight is a level, not an override: due date and bigger importance gaps still win", () => {
+  const quests = [started(1, "Apple", "Low"), started(2, "General", "Medium"), started(3, "General", "High"), started(4, "Apple", "Medium", { dueDate: "2026-12-01T00:00:00.000Z" })];
+  assert.deepEqual(rankOn(quests, MONDAY).ids, [4, 3, 2, 1]);
+  const sameDay = [started(1, "General", "Med-High"), started(2, "Apple", "Medium")];
+  assert.deepEqual(rankOn(sameDay, MONDAY).ids, [1, 2], "a tie on weighted importance falls to the usual tie-break");
+});
+
+test("with no profile, work filters change nothing", () => {
+  const quests = [started(1, "General"), started(2, "MW"), started(3, "Apple")];
+  assert.deepEqual(rankOn(quests, MONDAY, emptyFocusMemory()).ids, [1, 2, 3]);
+  assert.deepEqual(rankOn(quests, SATURDAY, emptyFocusMemory()).ids, [1, 2, 3]);
+});
+
+test("the older Apple flag and loose spelling both count as Apple", () => {
+  assert.equal(workFilterOf({ apple: true, businessWorkFilter: "General" }), "Apple");
+  const quests = [started(1, "General"), task(2, { startDate: "2026-10-01", importance: "Medium", apple: true }), started(3, " apple ")];
+  assert.deepEqual(rankOn(quests, MONDAY).ids, [2, 3, 1]);
+});
+
+test("the step is clamped and bad values count as nothing", () => {
+  const profile = (weekday: unknown, weekend: unknown) => ({ workFilters: { Apple: { weekday, weekend } as never } });
+  const apple = { businessWorkFilter: "Apple" };
+  assert.equal(workFilterStep(profile(10, -10), apple, MONDAY), 3);
+  assert.equal(workFilterStep(profile(10, -10), apple, SATURDAY), -3);
+  assert.equal(workFilterStep(profile("x", undefined), apple, MONDAY), 0);
+  assert.equal(workFilterStep(profile(1.6, 0), apple, MONDAY), 2);
+  assert.equal(workFilterStep(undefined, apple, MONDAY), 0);
+  assert.equal(workFilterStep(profile(1, 1), { businessWorkFilter: null }, MONDAY), 0);
+  assert.equal(isWeekendDay(SATURDAY) && isWeekendDay(SUNDAY) && !isWeekendDay(FRIDAY) && !isWeekendDay(MONDAY), true);
+});
+
+test("an Apple quest says why it moved: counts for more on weekdays, for less on weekends", () => {
+  const quests = [started(1, "Apple"), started(2, "General")];
+  assert.match(rankOn(quests, MONDAY).reasons[1], /Apple work counts for more on weekdays\./);
+  assert.match(rankOn(quests, SATURDAY).reasons[1], /Apple work counts for less on weekends\./);
+  assert.doesNotMatch(rankOn(quests, MONDAY).reasons[2], /counts for/);
+  assert.doesNotMatch(rankOn(quests, MONDAY, emptyFocusMemory()).reasons[1], /counts for/);
+});
+
+test("a weighted-up Apple quest also counts as high priority, so a busy day does not hold it back", () => {
+  const heavy = committed(6, 90, 3);
+  const extras = [started(150, "Apple", "Medium"), started(151, "General", "Medium")];
+  const weekday = rankOn([...heavy, ...extras], MONDAY);
+  assert.equal(weekday.workload?.level, "heavy");
+  assert.ok(weekday.ids.includes(150) && !weekday.ids.includes(151));
 });

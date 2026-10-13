@@ -70,6 +70,14 @@ Smart Focus is not a once-a-day list. The server re-ranks from your current ques
 
 As the essentials are finished, the list makes room. After the protected quests, high-priority work and quests you asked for, any space left up to the list size (10, or more when many quests are protected) is filled with the next most important eligible quests that did not qualify before, in the usual order (earliest due date, then importance, then the model's tie-break). This uses the same low-priority budget as the workload rules, so a busy or heavy day adds nothing, a full day adds a few, and a light day fills the list. It never adds quests with a future start date, ones taken off Smart Focus, ones dismissed today, or ones the model said no to, and routines come in only on days that allow them. Added quests say "Added because your list has room".
 
+## Work-filter priorities
+
+An account can carry a small profile that weights quests by their work filter (Apple, General, MW, ...). Each filter has a weekday and a weekend weight, in importance levels: a quest's importance is shifted by that many levels (limited to three either way) before Smart Focus orders and qualifies it. The weighted importance is used for the usual order (due date, then importance, then the model's tie-break), for whether a quest counts as high priority, and for which optional quests a busy day holds back. It never overrides the hard safeguards: overdue, due-today and starting-today quests stay listed.
+
+The owner's account is preloaded with Apple at +1 on weekdays (Monday to Friday) and -1 on weekends (Saturday and Sunday), judged in the account's timezone. So an Apple Medium ranks level with a Med-High on weekdays, and a General Medium outranks an Apple Medium on weekends. An Apple quest's reason says so ("Apple work counts for more on weekdays."). The older Apple checkbox counts as the Apple filter, and filter names are matched without regard to case. The profile is sent to the model with each quest's work filter, and is read-only on Settings, under Smart Focus, "Work priorities". It is kept when preferences are forgotten, and accounts without a profile are unaffected.
+
+Stored in the account's Smart Focus memory as `profile.workFilters`, for example `{"Apple": {"weekday": 1, "weekend": -1}}`. `add-smart-focus-apple-priority.cjs` writes it (merging, idempotent, `--dry` to preview).
+
 ## Persistence and privacy
 
 Memory is stored under an account-scoped `smart-focus:` key in the existing `user_kv` table. No new schema or migration is required. Compare-and-swap updates prevent simultaneous requests from silently overwriting each other.

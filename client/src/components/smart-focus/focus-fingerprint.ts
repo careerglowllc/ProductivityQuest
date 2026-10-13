@@ -10,7 +10,7 @@ export function focusFingerprint(userId: string | number | undefined, day: strin
       id: task.id, title: task.title, description: task.description, details: task.details,
       dueDate: task.dueDate, startDate: task.startDate, importance: task.importance,
       questType: task.questType, duration: task.duration, assignedTo: task.assignedTo,
-      kanbanStage: task.kanbanStage, recurType: task.recurType,
+      kanbanStage: task.kanbanStage, recurType: task.recurType, businessWorkFilter: task.businessWorkFilter, apple: task.apple,
     })).sort((a, b) => a.id - b.id),
   });
 }

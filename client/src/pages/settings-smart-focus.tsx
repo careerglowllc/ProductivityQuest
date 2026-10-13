@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { FocusMemoryDialog } from "@/components/smart-focus/memory-dialog";
 import { focusError, useFocusActions, useFocusState, useRefreshFocus } from "@/components/smart-focus/use-smart-focus";
+import { describeWorkPriorities } from "@/components/smart-focus/work-priorities";
 import "@/components/smart-focus/smart-focus.css";
 
 export default function SmartFocusSettingsPage() {
@@ -17,6 +18,7 @@ export default function SmartFocusSettingsPage() {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [enableNotice, setEnableNotice] = useState(false);
   const enabled = state.data?.enabled === true;
+  const workPriorities = describeWorkPriorities(state.data?.profile);
   const error = state.error || settings.error || refresh.error;
 
   return (
@@ -108,6 +110,16 @@ export default function SmartFocusSettingsPage() {
               </Button>
             </div>
           </section>
+
+          {workPriorities.length > 0 && (
+            <section className="sf-panel" aria-label="Work priorities">
+              <h2 className="text-sm font-semibold">Work priorities</h2>
+              <p className="mt-1 text-xs sf-muted">Built in for your account. They shift how important a quest counts in Smart Focus, by its work filter.</p>
+              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs">
+                {workPriorities.map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            </section>
+          )}
 
           {error && (
             <div role="alert" className="sf-error">
