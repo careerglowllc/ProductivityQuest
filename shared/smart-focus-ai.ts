@@ -104,14 +104,14 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const stances = focusStances(memory);
   const reasons: Record<string, string> = {};
   const candidates = quests.filter(q => {
+    if (q.completed || q.recycled || isReminder(q)) return false;
+    // The user's own take-off or move-in is honored over dates, the model and today's dismissals; plain text feedback and the model alone cannot hide due work.
+    const action = stances.get(q.id)?.action;
+    if (action === "exclude") return false;
+    if (action === "include") return true;
     if (!eligibleFocus(q, day)) return false;
-    // The user's own take-off is honored even for work due or starting today; the model and plain text feedback cannot hide it.
-    if (stances.get(q.id)?.action === "exclude") return false;
     if (protectedFocus(q, day)) return true;
     if (dismissed.has(q.id)) return false;
-    // The user's own move wins over the model; protected quests were handled above.
-    const action = stances.get(q.id)?.action;
-    if (action === "include") return true;
     // Explicit feedback can exclude its non-protected target; inferred signals alone cannot.
     if (ai.get(q.id)?.include === false && memory.preferences.some(p => p.taskId === q.id)) return false;
     // AI can add previously missing work, but cannot exclude protected dates.
@@ -161,7 +161,8 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const allowedLow = new Set(lowPicks.map(q => q.id));
   const listed = candidates.filter(q => !optionalLow(q) || allowedLow.has(q.id));
   const heldBack = candidates.length - listed.length;
-  const kept = listed.slice(0, Math.max(10, protectedCount));
+  // The list is capped, but never at the expense of a quest the user moved in themselves.
+  const kept = listed.filter((q, index) => index < Math.max(10, protectedCount) || stances.get(q.id)?.action === "include");
   for (const q of kept) {
     const due = dateOnly(q.dueDate);
     const stance = stances.get(q.id);

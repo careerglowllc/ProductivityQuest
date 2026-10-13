@@ -198,13 +198,36 @@ test("a move into Smart Focus beats the model saying no, and outranks other opti
   assert.deepEqual(rankFocus(quests, day, memory, advice).ids, [1, 2]);
 });
 
-test("a move into Smart Focus survives a heavy day, but cannot bring in a future start", () => {
+test("a move into Smart Focus survives a heavy day", () => {
   const heavy = committed(6, 90, 3);
   const result = rankFocus([...heavy, task(150, { importance: "Low" }), task(151, { importance: "Low" })], day, withAction(150, "include", false));
   assert.equal(result.workload?.level, "heavy");
   assert.ok(result.ids.includes(150));
   assert.ok(!result.ids.includes(151));
-  assert.deepEqual(rankFocus([task(7, { startDate: "2026-10-20" })], day, withAction(7, "include", false)).ids, []);
+});
+
+test("a move into Smart Focus brings in a quest that has not started yet", () => {
+  const quests = [task(7, { startDate: "2026-10-20", importance: "Low" })];
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids, []);
+  assert.deepEqual(rankFocus(quests, day, withAction(7, "include", false)).ids, [7]);
+});
+
+test("a move into Smart Focus beats today's Not today, but never revives finished work or reminders", () => {
+  const memory = withAction(1, "include", false);
+  memory.dismissals = [{ taskId: 1, taskTitle: "Task 1", day }];
+  assert.deepEqual(rankFocus([task(1, { startDate: "2026-10-01", importance: "Low" })], day, memory).ids, [1]);
+  const gone = [task(2, { completed: true }), task(3, { recycled: true }), task(4, { questType: "reminder" })];
+  const more = { ...emptyFocusMemory(), preferences: [2, 3, 4].map(id => withAction(id, "include").preferences[0]) };
+  assert.deepEqual(rankFocus(gone, day, more).ids, []);
+});
+
+test("a moved-in quest is not cut off by the list cap", () => {
+  const many = Array.from({ length: 12 }, (_, index) => task(index + 1, { dueDate: day }));
+  const mine = task(99, { startDate: "2026-10-01", importance: "Low", dueDate: "2027-01-01T00:00:00.000Z" });
+  const result = rankFocus([...many, mine], day, withAction(99, "include", false));
+  assert.equal(result.protectedCount, 12);
+  assert.equal(result.ids.length, 13);
+  assert.equal(result.ids.at(-1), 99);
 });
 
 test("taking a quest off Smart Focus removes it, even high-priority work and against the model", () => {
