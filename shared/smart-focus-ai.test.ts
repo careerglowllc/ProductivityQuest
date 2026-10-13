@@ -18,13 +18,15 @@ test("future starts, reminders, completed and recycled tasks cannot be added by 
   assert.deepEqual(rankFocus(quests, day, emptyFocusMemory(), advice).ids, [5]);
   assert.equal(eligibleFocus(task(6, { startDate: "2026-10-20", dueDate: day }), day), true);
 });
-test("written AI recommendations can include missing undated work; dismissal is temporary and undoable", () => {
+test("AI can include undated work; dismissal is temporary and undoable", () => {
   const memory = emptyFocusMemory(), quests = [task(1)];
   const advice = [{ taskId: 1, include: true, score: 80, reason: "User explained its importance." }];
-  assert.deepEqual(rankFocus(quests, day, memory).ids, []);
-  assert.deepEqual(rankFocus(quests, day, memory, advice).ids, [1]);
+  const result = rankFocus(quests, day, memory, advice);
+  assert.deepEqual(result.ids, [1]);
+  assert.equal(result.reasons[1], "User explained its importance.");
   memory.dismissals.push({ taskId: 1, taskTitle: "Task", day });
   assert.deepEqual(rankFocus(quests, day, memory, advice).ids, []);
+  assert.deepEqual(rankFocus(quests, day, memory).ids, [], "dismissed work is not topped up either");
   assert.deepEqual(rankFocus(quests, "2026-10-13", memory, advice).ids, [1]);
 });
 test("implicit evidence counts distinct days, expires, never hides a task permanently", () => {
@@ -183,11 +185,13 @@ const withAction = (taskId: number, action: FocusAction, inFocus?: boolean) => {
   return memory;
 };
 
-test("moving a quest into Smart Focus lists it even though nothing else qualifies it", () => {
-  const quests = [task(1, { importance: "Low" })];
-  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids, []);
+const fullList = () => Array.from({ length: 10 }, (_, index) => task(index + 10, { importance: "High" }));
+
+test("moving a quest into Smart Focus lists it even when the list is full and nothing else qualifies it", () => {
+  const quests = [...fullList(), task(1, { importance: "Low" })];
+  assert.ok(!rankFocus(quests, day, emptyFocusMemory()).ids.includes(1));
   const result = rankFocus(quests, day, withAction(1, "include", false));
-  assert.deepEqual(result.ids, [1]);
+  assert.ok(result.ids.includes(1));
   assert.equal(result.reasons[1], "You moved this into Smart Focus.");
 });
 
@@ -333,4 +337,66 @@ test("quests a user moved in still lead their group, ahead of higher importance"
   const memory = { ...emptyFocusMemory(), enabled: true, preferences: [{ id: "p", taskId: 2, taskTitle: "Task 2", text: "wanted", createdAt: "2026-10-12T00:00:00.000Z", action: "include" as const }] };
   const quests = [ready(1, { importance: "Pareto" }), task(2, { startDate: "2026-10-01", importance: "Low" })];
   assert.deepEqual(rankFocus(quests, day, memory).ids, [2, 1]);
+});
+
+// ── Keeps refreshing: when the essentials are done there is room, so the next most important quests come in ──
+const dueToday = (count: number, firstId = 1) => Array.from({ length: count }, (_, index) => task(firstId + index, { dueDate: `${day}T00:00:00.000Z`, importance: "High" }));
+const backlog = (count: number, firstId = 100) => Array.from({ length: count }, (_, index) => task(firstId + index, { importance: "Low" }));
+const backlogIds = (ids: number[]) => ids.filter(id => id >= 100);
+
+test("a full day of committed work leaves no room, so the backlog stays out", () => {
+  const result = rankFocus([...dueToday(12), ...backlog(8)], day, emptyFocusMemory());
+  assert.equal(result.ids.length, 12);
+  assert.deepEqual(backlogIds(result.ids), []);
+});
+
+test("finishing the essentials lets the next most important quests in, up to the list size", () => {
+  const all = [...dueToday(12), ...backlog(20)];
+  const morning = rankFocus(all, day, emptyFocusMemory());
+  const done = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  const evening = rankFocus(all.map(q => done.has(q.id) ? { ...q, completed: true } : q), day, emptyFocusMemory());
+  assert.equal(morning.workload?.level, "heavy");
+  assert.equal(evening.workload?.level, "light");
+  assert.deepEqual(evening.ids.slice(0, 3), [10, 11, 12]);
+  assert.equal(evening.ids.length, 10);
+  assert.equal(backlogIds(evening.ids).length, 7);
+  assert.match(evening.message, /7 more added because your list has room/);
+  assert.equal(evening.reasons[100], "Added because your list has room: the next most important quest.");
+});
+
+test("what comes in next follows the same order: earlier due date, then importance", () => {
+  const quests = [
+    task(1, { importance: "Low", dueDate: "2026-12-01T00:00:00.000Z" }),
+    task(2, { importance: "Medium" }),
+    task(3, { importance: "Low", dueDate: "2026-11-01T00:00:00.000Z" }),
+    task(4, { importance: "Low" }),
+  ];
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids, [3, 1, 2, 4]);
+});
+
+test("the list never grows past its size or the day's low-priority budget", () => {
+  assert.equal(rankFocus(backlog(30), day, emptyFocusMemory()).ids.length, 10);
+  const heavy = committed(6, 90, 3);
+  const result = rankFocus([...heavy, ...backlog(20)], day, emptyFocusMemory());
+  assert.equal(result.workload?.level, "heavy");
+  assert.deepEqual(backlogIds(result.ids), []);
+});
+
+test("top-up skips what cannot or should not be listed", () => {
+  const memory = withAction(103, "exclude", true);
+  memory.dismissals = [{ taskId: 102, taskTitle: "Task 102", day }];
+  const quests = [
+    task(100, { importance: "Low" }), task(101, { importance: "Low", startDate: "2026-10-20" }), task(102, { importance: "Low" }),
+    task(103, { importance: "Low" }), task(104, { importance: "Low" }), task(105, { importance: "Low", completed: true }),
+    task(106, { importance: "Low", questType: "reminder" }), task(107, { importance: "Low" }),
+  ];
+  const advice = [{ taskId: 104, include: false, score: -50, reason: "Skip" }];
+  assert.deepEqual(rankFocus(quests, day, memory, advice).ids.sort(), [100, 107]);
+});
+
+test("routines are only topped up on days that allow them", () => {
+  const quests = [task(100, { importance: "Low", recurType: "Weekly" }), task(101, { importance: "Low" })];
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids.sort(), [100, 101]);
+  const tuning = { ...DEFAULT_FOCUS_TUNING, routinesAllowed: { light: false, normal: false, busy: false, heavy: false } };
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory(), undefined, tuning).ids, [101]);
 });

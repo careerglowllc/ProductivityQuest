@@ -162,7 +162,18 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const listed = candidates.filter(q => !optionalLow(q) || allowedLow.has(q.id));
   const heldBack = candidates.length - listed.length;
   // The list is capped, but never at the expense of a quest the user moved in themselves.
-  const kept = listed.filter((q, index) => index < Math.max(10, protectedCount) || stances.get(q.id)?.action === "include");
+  const cap = Math.max(10, protectedCount);
+  const core = listed.filter((q, index) => index < cap || stances.get(q.id)?.action === "include");
+  // Once the essentials are done there is room: bring in the next most important quests that did not qualify
+  // before, within the same low-priority budget the day allows (so a busy day still adds nothing).
+  const considered = new Set(candidates.map(q => q.id));
+  const room = Math.min(cap - core.length, tuning.lowPriorityExtras[workload.level] - core.filter(optionalLow).length);
+  const filler = room > 0
+    ? quests.filter(q => !considered.has(q.id) && eligibleFocus(q, day) && !dismissed.has(q.id) && stances.get(q.id)?.action !== "exclude"
+        && ai.get(q.id)?.include !== false && (tuning.routinesAllowed[workload.level] || !isRoutine(q))).sort(compare).slice(0, room)
+    : [];
+  const fillerIds = new Set(filler.map(q => q.id));
+  const kept = [...core, ...filler].sort(compare);
   for (const q of kept) {
     const due = dateOnly(q.dueDate);
     const stance = stances.get(q.id);
@@ -170,14 +181,16 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
       : stance?.action === "keep" && stance.inFocus === true ? "You confirmed this belongs in Smart Focus." : "";
     reasons[q.id] = protectedFocus(q, day)
       ? due && due <= day ? "Protected: overdue or due today." : "Protected: starts today."
-      : stanceReason || ai.get(q.id)?.reason || (isHighPriority(q) ? "High-priority work ready to start." : "Start date reached or important deadline approaching.");
+      : stanceReason || ai.get(q.id)?.reason || (fillerIds.has(q.id) ? "Added because your list has room: the next most important quest."
+        : isHighPriority(q) ? "High-priority work ready to start." : "Start date reached or important deadline approaching.");
     if (!protectedFocus(q, day) && memory.enabled && (signals.get(q.id) ?? 0) >= 3) {
       reasons[q.id] += " Slightly lowered after removals on at least 3 distinct days; this is not a permanent exclusion.";
     }
   }
   const base = advice ? "AI-assisted order with date and priority safeguards." : "Rules-based focus. AI has not ranked this list.";
   const dayLabel = { light: "Light", normal: "Full", busy: "Busy", heavy: "Heavy" }[workload.level];
-  const note = heldBack > 0 ? ` ${dayLabel} day: ${heldBack} lower-priority ${heldBack === 1 ? "quest" : "quests"} held back.` : "";
-  return { ids: kept.map(q => q.id), reasons, day, total: listed.length, protectedCount, workload, heldBack,
+  const note = (heldBack > 0 ? ` ${dayLabel} day: ${heldBack} lower-priority ${heldBack === 1 ? "quest" : "quests"} held back.` : "")
+    + (filler.length > 0 ? ` ${filler.length} more added because your list has room.` : "");
+  return { ids: kept.map(q => q.id), reasons, day, total: listed.length + filler.length, protectedCount, workload, heldBack,
     mode: advice ? "ai" : "rules", message: base + note };
 }

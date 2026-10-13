@@ -64,6 +64,12 @@ Worked examples: 3 quests of 30 minutes, none high priority, is 2.1 (light). 5 q
 
 **The model and the rules.** The model is told the day's workload (level, pressure, minutes, counts) plus each quest's duration and whether it is routine, and is asked to favor high-priority work on busy days. The limits above are applied by the server after the model's advice, so advice cannot bring held-back quests back. The ranking response includes `workload` and `heldBack`, and its message says, for example, "Busy day: 3 lower-priority quests held back." (visible after Refresh now on the Smart Focus settings page).
 
+## Keeps refreshing
+
+Smart Focus is not a once-a-day list. The server re-ranks from your current quests every time it is asked, and the app asks whenever it opens, whenever you come back to it after at least 5 minutes, and every 15 minutes while it stays open and visible. It also re-reads your quest list at those moments, so changes from another device show up. Finishing, adding or editing a quest changes the ranking on its own.
+
+As the essentials are finished, the list makes room. After the protected quests, high-priority work and quests you asked for, any space left up to the list size (10, or more when many quests are protected) is filled with the next most important eligible quests that did not qualify before, in the usual order (earliest due date, then importance, then the model's tie-break). This uses the same low-priority budget as the workload rules, so a busy or heavy day adds nothing, a full day adds a few, and a light day fills the list. It never adds quests with a future start date, ones taken off Smart Focus, ones dismissed today, or ones the model said no to, and routines come in only on days that allow them. Added quests say "Added because your list has room".
+
 ## Persistence and privacy
 
 Memory is stored under an account-scoped `smart-focus:` key in the existing `user_kv` table. No new schema or migration is required. Compare-and-swap updates prevent simultaneous requests from silently overwriting each other.

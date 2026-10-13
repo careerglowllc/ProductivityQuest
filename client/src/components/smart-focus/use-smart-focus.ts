@@ -1,7 +1,9 @@
+import { useEffect, useReducer } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import type { FocusAction } from "@shared/smart-focus-ai";
+import { FOCUS_RANK_STALE_MS, FOCUS_TICK_MS, focusRefreshDue } from "./focus-refresh";
 
 export interface FocusState {
   enabled: boolean;
@@ -49,14 +51,42 @@ export function useFocusState(enabled = true) {
   });
 }
 
+// Smart Focus never goes stale: reopening the app, coming back to it, or leaving it open re-reads your quests
+// (and so brings in the next most important ones as you finish things) without needing a manual refresh.
+function useFocusAutoRefresh(enabled: boolean) {
+  const client = useQueryClient();
+  const [, rerender] = useReducer((count: number) => count + 1, 0);
+  useEffect(() => {
+    if (!enabled) return;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!focusRefreshDue(client.getQueryState(["/api/tasks"])?.dataUpdatedAt, Date.now())) return;
+      client.invalidateQueries({ queryKey: ["/api/tasks"] });
+      client.invalidateQueries({ queryKey: rankKey });
+      rerender(); // the page recomputes "today" even when no quest changed, such as after midnight
+    };
+    refresh();
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, FOCUS_TICK_MS);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(timer);
+    };
+  }, [enabled, client]);
+}
+
 export function useFocusRanking(enabled: boolean, fingerprint: string, aiEnabled: boolean) {
   const client = useQueryClient();
   const queryKey = [...rankKey, fingerprint, aiEnabled];
+  useFocusAutoRefresh(enabled);
   const ranking = useQuery<FocusRanking>({
     queryKey,
     queryFn: () => request("POST", "/api/smart-focus/rank", {}),
     enabled,
     ...queryOptions,
+    staleTime: FOCUS_RANK_STALE_MS,
   });
   const refresh = useMutation({
     mutationFn: () => request<FocusRanking>("POST", "/api/smart-focus/rank?refresh=1", {}),

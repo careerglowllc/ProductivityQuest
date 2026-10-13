@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { existsSync, readFileSync } from "node:fs";
 import { SMART_FOCUS_SETTINGS_PATH, focusView, showsSortControl } from "./focus-gate";
+import { FOCUS_MIN_GAP_MS, focusRefreshDue } from "./focus-refresh";
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
@@ -55,4 +56,13 @@ test("Quests page: the old Smart Focus explanation panel is gone and the tab is 
 test("the sort control is hidden on Smart Focus only", () => {
   assert.equal(showsSortControl("smart"), false);
   for (const filter of ["all", "due-today", "high-priority", "routines", "upcoming", "assignee-alex"]) assert.equal(showsSortControl(filter), true);
+});
+
+test("Smart Focus re-reads quests only once they are a few minutes old, never while first loading", () => {
+  const now = 1_000_000_000;
+  assert.equal(focusRefreshDue(undefined, now), false);
+  assert.equal(focusRefreshDue(0, now), false);
+  assert.equal(focusRefreshDue(now - 60_000, now), false);
+  assert.equal(focusRefreshDue(now - FOCUS_MIN_GAP_MS, now), true);
+  assert.equal(focusRefreshDue(now - 3 * 60 * 60_000, now), true);
 });
