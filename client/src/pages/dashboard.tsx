@@ -12,6 +12,7 @@ import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calenda
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { allExpanded, readPanelOpen, setAllExpanded, writePanelOpen } from "@/lib/questline-panel";
 import React from "react";
 import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -889,6 +890,11 @@ export default function Dashboard() {
     }));
   };
 
+  const [panelOpen, setPanelOpen] = useState(() => readPanelOpen());
+  const togglePanel = () => { const next = !panelOpen; setPanelOpen(next); writePanelOpen(next); };
+  const campaignIds = selectedCampaigns.map((q: any) => q.id);
+  const everyOpen = allExpanded(campaignIds, expandedCampaigns);
+
   const { data: tasks = [] } = useQuery({
     queryKey: ["/api/tasks"],
   });
@@ -1274,11 +1280,33 @@ export default function Dashboard() {
       className={`rounded-[10px] border p-[18px] ${className}`}
       style={{ borderColor: "var(--dash-violet)", background: "var(--dash-violet-soft)" }}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--dash-ink)]">
-          <Target aria-hidden className="h-4 w-4 text-[var(--dash-violet)]" />
-          Active questlines
+      <div className={`flex items-center justify-between gap-3 ${panelOpen ? "mb-3" : ""}`}>
+        <h2 className="min-w-0 flex-1 text-sm font-bold text-[var(--dash-ink)]">
+          <button
+            type="button"
+            onClick={togglePanel}
+            aria-expanded={panelOpen}
+            className="dash-focus flex min-h-[44px] w-full items-center gap-2 rounded text-left"
+          >
+            <Target aria-hidden className="h-4 w-4 shrink-0 text-[var(--dash-violet)]" />
+            <span>Active questlines</span>
+            {!panelOpen && selectedCampaigns.length > 0 && (
+              <span className="text-[11px] font-semibold text-[var(--dash-muted)]">({selectedCampaigns.length})</span>
+            )}
+            {panelOpen
+              ? <ChevronUp aria-hidden className="h-4 w-4 shrink-0 text-[var(--dash-muted)]" />
+              : <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-[var(--dash-muted)]" />}
+          </button>
         </h2>
+        {panelOpen && selectedCampaigns.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpandedCampaigns(setAllExpanded(campaignIds, !everyOpen))}
+            className="dash-focus shrink-0 rounded px-1 text-[11px] font-semibold text-[var(--dash-blue)] hover:underline"
+          >
+            {everyOpen ? "Collapse all" : "Expand all"}
+          </button>
+        )}
         <Link href="/campaigns">
           <a className="dash-focus shrink-0 rounded text-[11px] font-semibold text-[var(--dash-blue)] hover:underline">
             Manage ↗
@@ -1286,7 +1314,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {selectedCampaigns.length === 0 ? (
+      {!panelOpen ? null : selectedCampaigns.length === 0 ? (
         <div className="py-6 text-center">
           <Target aria-hidden className="mx-auto mb-2 h-9 w-9 text-[var(--dash-violet)] opacity-40" />
           <p className="mb-3 text-sm text-[var(--dash-muted)]">
