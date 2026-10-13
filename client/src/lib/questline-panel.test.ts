@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allExpanded, readPanelOpen, setAllExpanded, writePanelOpen } from "./questline-panel";
+import { allExpanded, readPanelOpen, setAllExpanded, toggleAll, writePanelOpen } from "./questline-panel";
 
 const memory = () => {
   const data = new Map<string, string>();
@@ -36,4 +36,16 @@ test("allExpanded is true only when every questline is open", () => {
   assert.equal(allExpanded([1, 2], { 1: true, 2: true }), true);
   assert.equal(allExpanded([1, 2], { 1: true }), false);
   assert.equal(allExpanded([], {}), false);
+});
+
+test("collapse all folds every questline and the whole panel into one row", () => {
+  const next = toggleAll([1, 2], true);
+  assert.equal(next.panelOpen, false);
+  assert.deepEqual(next.expanded, { 1: false, 2: false });
+});
+
+test("expand all opens the panel and every questline", () => {
+  const next = toggleAll([1, 2], false);
+  assert.equal(next.panelOpen, true);
+  assert.deepEqual(next.expanded, { 1: true, 2: true });
 });

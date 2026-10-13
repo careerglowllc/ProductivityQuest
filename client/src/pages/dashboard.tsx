@@ -12,7 +12,7 @@ import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calenda
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { allExpanded, readPanelOpen, setAllExpanded, writePanelOpen } from "@/lib/questline-panel";
+import { allExpanded, readPanelOpen, toggleAll, writePanelOpen } from "@/lib/questline-panel";
 import { useTopFocus } from "@/components/smart-focus/use-top-focus";
 import React from "react";
 import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
@@ -1284,7 +1284,7 @@ export default function Dashboard() {
   const renderQuestlines = (className = "") => (
     <section
       aria-label="Active questlines"
-      className={`rounded-[10px] border p-[18px] ${className}`}
+      className={`rounded-[10px] border ${panelOpen ? "p-[18px]" : "px-[14px] py-0.5"} ${className}`}
       style={{ borderColor: "var(--dash-violet)", background: "var(--dash-violet-soft)" }}
     >
       <div className={`flex items-center justify-between gap-3 ${panelOpen ? "mb-3" : ""}`}>
@@ -1293,7 +1293,7 @@ export default function Dashboard() {
             type="button"
             onClick={togglePanel}
             aria-expanded={panelOpen}
-            className="dash-focus flex min-h-[44px] w-full items-center gap-2 rounded text-left"
+            className={`dash-focus flex w-full items-center gap-2 rounded text-left ${panelOpen ? "min-h-[44px]" : "min-h-[36px]"}`}
           >
             <Target aria-hidden className="h-4 w-4 shrink-0 text-[var(--dash-violet)]" />
             <span>Active questlines</span>
@@ -1308,17 +1308,24 @@ export default function Dashboard() {
         {panelOpen && selectedCampaigns.length > 0 && (
           <button
             type="button"
-            onClick={() => setExpandedCampaigns(setAllExpanded(campaignIds, !everyOpen))}
+            onClick={() => {
+              const next = toggleAll(campaignIds, everyOpen);
+              setExpandedCampaigns(next.expanded);
+              setPanelOpen(next.panelOpen);
+              writePanelOpen(next.panelOpen);
+            }}
             className="dash-focus shrink-0 rounded px-1 text-[11px] font-semibold text-[var(--dash-blue)] hover:underline"
           >
             {everyOpen ? "Collapse all" : "Expand all"}
           </button>
         )}
-        <Link href="/campaigns">
-          <a className="dash-focus shrink-0 rounded text-[11px] font-semibold text-[var(--dash-blue)] hover:underline">
-            Manage ↗
-          </a>
-        </Link>
+        {panelOpen && (
+          <Link href="/campaigns">
+            <a className="dash-focus shrink-0 rounded text-[11px] font-semibold text-[var(--dash-blue)] hover:underline">
+              Manage ↗
+            </a>
+          </Link>
+        )}
       </div>
 
       {!panelOpen ? null : selectedCampaigns.length === 0 ? (

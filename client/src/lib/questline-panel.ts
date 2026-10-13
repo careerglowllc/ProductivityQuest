@@ -17,3 +17,9 @@ export const allExpanded = (ids: Array<string | number>, expanded: Record<string
 
 export const setAllExpanded = (ids: Array<string | number>, open: boolean) =>
   Object.fromEntries(ids.map(id => [String(id), open]));
+
+// "Collapse all" folds everything, panel included, into one small row; "Expand all" opens every questline.
+export const toggleAll = (ids: Array<string | number>, everyOpen: boolean) => ({
+  panelOpen: !everyOpen,
+  expanded: setAllExpanded(ids, !everyOpen),
+});
