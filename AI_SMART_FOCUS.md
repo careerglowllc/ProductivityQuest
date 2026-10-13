@@ -25,6 +25,20 @@ Saving feedback does not edit a quest's importance field, dates, completion stat
 - Completion, filtering/search, changing dates, and ignoring a task are **not** treated as dislike signals.
 - Zero false positives cannot be guaranteed. Users can inspect and clear signals.
 
+## Feedback with an action
+
+Under the paragraph box in **AI feedback** there are three buttons. Pick one, explain why, then **Submit**:
+
+| Choice | What it does |
+|--------|--------------|
+| **Move into Smart Focus** | Lists the quest even if nothing else would qualify it, ranks it above other optional work, and keeps it through busy-day trimming. The model cannot veto it, and a future-start quest still cannot be brought in. |
+| **Take off Smart Focus** | Removes the quest, even high-priority work and even if the model says include. Quests that are overdue, due today or starting today stay (the response says so) and the preference applies once that passes. |
+| **Keep it where it is** | Confirms the current placement as correct. Kept in: protected from busy-day trimming with a small boost and a "you confirmed this" reason. Kept out: a small order penalty, not a hard exclusion. |
+
+Move into and Take off are disabled when they would change nothing (the quest is already in, or already out). The selection is optional: a plain paragraph still saves as context. The latest action on a quest replaces an earlier one, and Forget in Private preferences removes its effect.
+
+The saved preference records the `action` and where the quest was (`inFocus`). The model receives both with the written explanation and is told to treat them as positive or negative corrective examples: learn the reasoning for similar quests, but apply the action only to that quest. Move and Take off are enforced by the server after the model's advice, so they work even when AI is unavailable.
+
 ## Workload-aware focus
 
 A busy day should be focused on what matters, so Smart Focus lists fewer optional low-priority quests when today is already full. This is one of the general rules every account gets; the numbers live in `DEFAULT_FOCUS_TUNING` (`shared/smart-focus-ai.ts`) and `rankFocus` accepts a tuning argument so a per-account override can be added later.

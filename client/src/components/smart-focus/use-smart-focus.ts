@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
+import type { FocusAction } from "@shared/smart-focus-ai";
 
 export interface FocusState {
   enabled: boolean;
   available: boolean;
-  preferences: { id: string; taskId: number; taskTitle: string; text: string; createdAt: string }[];
+  preferences: { id: string; taskId: number; taskTitle: string; text: string; createdAt: string; action?: FocusAction; inFocus?: boolean }[];
   signals: { taskId: number; taskTitle: string; days: number }[];
   timezone: string;
 }
@@ -64,6 +65,13 @@ export function useFocusRanking(enabled: boolean, fingerprint: string, aiEnabled
   return { ...ranking, refresh };
 }
 
+// Whether the quest is in the Smart Focus list the user last saw; undefined when no list has loaded yet.
+export function useFocusPlacement(taskId: number): boolean | undefined {
+  const client = useQueryClient();
+  const ranking = client.getQueriesData<FocusRanking>({ queryKey: rankKey }).map(([, data]) => data).find(Boolean);
+  return ranking ? ranking.ids.includes(taskId) : undefined;
+}
+
 // Forces a new ranking from the settings page, then lets the Quests page pick up the cached result.
 export function useRefreshFocus() {
   const client = useQueryClient();
@@ -83,7 +91,7 @@ export function useFocusActions() {
     ]);
   };
   const feedback = useMutation({
-    mutationFn: (data: { taskId: number; text: string }) => request("POST", "/api/smart-focus/feedback", data),
+    mutationFn: (data: { taskId: number; text: string; action?: FocusAction; inFocus?: boolean }) => request<{ message?: string; staysInFocus?: boolean }>("POST", "/api/smart-focus/feedback", data),
     onSuccess: invalidate,
   });
   const settings = useMutation({

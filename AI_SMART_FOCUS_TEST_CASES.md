@@ -66,3 +66,18 @@ See "Workload-aware focus" in [AI_SMART_FOCUS.md](AI_SMART_FOCUS.md) for the for
 41. **Tuning override [automated]:** passing a custom tuning changes the level thresholds and extras limits (the hook for per-account tuning later).
 42. **API [automated]:** `POST /api/smart-focus/rank` returns `workload` and `heldBack`, and the model request receives the workload.
 43. **Live feel [manual]:** with 7 long quests due today, Refresh now on Settings → Smart Focus reports a busy day, and the Smart Focus tab shows few low-priority routines; after finishing most of them and refreshing, more optional quests return.
+
+## Feedback actions (move in, take off, keep)
+
+44. **Choices under the explanation [automated + manual UI]:** open AI feedback for a quest. Directly under the paragraph box are three buttons: **Move into Smart Focus**, **Take off Smart Focus**, and **Keep it where it is** (worded "Keep it in" / "Keep it out of" Smart Focus once placement is known). There is a **Submit** button and a Cancel button.
+45. **Highlight [automated + manual UI]:** clicking a choice highlights it (pressed state); clicking it again, or another one, changes or clears the selection. Choosing nothing still allows a text-only preference.
+46. **Placement-aware choices [automated]:** for a quest already in Smart Focus, Move is disabled; for one that is not, Take off is disabled. When placement is unknown all three are enabled.
+47. **Explanation prompt [automated]:** the placeholder and label change with the choice (why move it in, why take it off, why keep it here).
+48. **Submit sends the action [automated API]:** `POST /api/smart-focus/feedback` accepts `action` (`include`, `exclude`, `keep`) and optional `inFocus`; an unknown action or non-boolean `inFocus` returns 400. When `inFocus` is omitted for an action, the server works it out from the last ranking or the rules.
+49. **Move into Smart Focus [automated]:** a low-priority quest with no dates is listed after "move in", ranks above other optional work, survives the model saying no and a heavy day, and shows "You moved this into Smart Focus." A future-start quest still cannot be brought in.
+50. **Take off [automated]:** a high-priority quest taken off disappears even if the model says include. A quest that is due, overdue or starting today stays, the response says `staysInFocus: true` with "it stays in Smart Focus; your preference applies once that passes."
+51. **Keep it in [automated]:** the quest is not held back on a busy day and shows "You confirmed this belongs in Smart Focus."
+52. **Keep it out [automated]:** a small order penalty only; it is not a hard exclusion.
+53. **Latest action wins [automated]:** move in, then later take off: the quest is off. Older text-only preferences have no action and change nothing by themselves.
+54. **Teaching the model [manual with a funded key]:** after a few actions with explanations, refresh on Settings → Smart Focus. The request to the model includes each preference's `action` and `inFocus`; confirm the next ranking reflects the reasoning on similar quests without applying the action to other quests.
+55. **Private preferences [manual UI]:** Settings → Smart Focus → Private preferences lists each preference with a badge ("Moved into Smart Focus", "Taken off Smart Focus", "Kept in/out of Smart Focus"); Forget removes the effect.

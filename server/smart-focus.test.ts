@@ -109,3 +109,49 @@ test("rank reports the day's workload and holds back low-priority extras on a bu
     assert.equal((seen[0] as { level: string }).level, "busy", "the model is told how heavy the day is");
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test("feedback carries an action and where the quest was; actions change the ranking; protected work cannot be taken off", async () => {
+  const memories = new Map<string, FocusMemory>();
+  const quests = [
+    { id: 1, title: "Due today", dueDate: "2026-10-12", importance: "Low" },
+    { id: 2, title: "Important", importance: "High", startDate: "2026-10-10" },
+    { id: 3, title: "Unqualified", importance: "Low" },
+  ];
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "u" } as any; next(); }, {
+    tasks: async () => quests, timezone: async () => "UTC",
+    read: async () => structuredClone(memories.get("u") ?? emptyFocusMemory()),
+    change: async (_id, change) => { const m = structuredClone(memories.get("u") ?? emptyFocusMemory()); change(m); memories.set("u", m); },
+  }, async () => [], () => false, () => new Date("2026-10-12T12:00:00Z"));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus`;
+    const post = (path: string, body: unknown) => fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    assert.equal((await post("/feedback", { taskId: 2, text: "x", action: "teleport" })).status, 400);
+    assert.equal((await post("/feedback", { taskId: 2, text: "x", inFocus: "yes" })).status, 400);
+
+    const kept = await (await post("/feedback", { taskId: 2, text: "Right call, this client matters.", action: "keep" })).json();
+    assert.equal(kept.preference.action, "keep");
+    assert.equal(kept.preference.inFocus, true, "placement is worked out server-side when the client doesn't send it");
+
+    const moved = await (await post("/feedback", { taskId: 3, text: "This needs attention.", action: "include", inFocus: false })).json();
+    assert.equal(moved.preference.inFocus, false);
+    let ranked = await (await post("/rank", {})).json();
+    assert.ok(ranked.ids.includes(3), "moved into Smart Focus");
+
+    const off = await (await post("/feedback", { taskId: 2, text: "Not for this week.", action: "exclude", inFocus: true })).json();
+    assert.equal(off.staysInFocus, false);
+    ranked = await (await post("/rank", {})).json();
+    assert.ok(!ranked.ids.includes(2), "taken off Smart Focus");
+
+    const protectedOff = await (await post("/feedback", { taskId: 1, text: "Remove it.", action: "exclude", inFocus: true })).json();
+    assert.equal(protectedOff.staysInFocus, true);
+    assert.match(protectedOff.message, /due or starts today, so it stays in Smart Focus/);
+    ranked = await (await post("/rank", {})).json();
+    assert.ok(ranked.ids.includes(1));
+
+    const plain = await (await post("/feedback", { taskId: 3, text: "Just context." })).json();
+    assert.equal(plain.preference.action, undefined);
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

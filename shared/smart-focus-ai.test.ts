@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, type FocusQuest } from "./smart-focus-ai";
+import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, type FocusAction, type FocusQuest } from "./smart-focus-ai";
 const day = "2026-10-12";
 const task = (id: number, extra: Partial<FocusQuest> = {}): FocusQuest => ({ id, title: `Task ${id}`, ...extra });
 test("all urgent and start-today tasks survive the cap and hostile AI advice", () => {
@@ -174,4 +174,85 @@ test("a day with nothing committed has no workload pressure and holds nothing ba
   assert.deepEqual(result.workload, { level: "light", pressure: 0, committedMinutes: 0, questCount: 0, highPriorityCount: 0 });
   assert.equal(result.heldBack, 0);
   assert.deepEqual(result.ids.sort(), [101, 102]);
+});
+
+// ── Feedback with an action: move into Smart Focus, take off, or keep where it is ──
+const withAction = (taskId: number, action: FocusAction, inFocus?: boolean) => {
+  const memory = emptyFocusMemory();
+  memory.preferences = [{ id: `p${taskId}${action}`, taskId, taskTitle: `Task ${taskId}`, text: "Because.", createdAt: day, action, ...(inFocus === undefined ? {} : { inFocus }) }];
+  return memory;
+};
+
+test("moving a quest into Smart Focus lists it even though nothing else qualifies it", () => {
+  const quests = [task(1, { importance: "Low" })];
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids, []);
+  const result = rankFocus(quests, day, withAction(1, "include", false));
+  assert.deepEqual(result.ids, [1]);
+  assert.equal(result.reasons[1], "You moved this into Smart Focus.");
+});
+
+test("a move into Smart Focus beats the model saying no, and outranks other optional work", () => {
+  const quests = [task(1, { importance: "Low" }), task(2, { importance: "Pareto", startDate: "2026-10-10" })];
+  const memory = withAction(1, "include", false);
+  const advice = [{ taskId: 1, include: false, score: -100, reason: "Skip" }];
+  assert.deepEqual(rankFocus(quests, day, memory, advice).ids, [1, 2]);
+});
+
+test("a move into Smart Focus survives a heavy day, but cannot bring in a future start", () => {
+  const heavy = committed(6, 90, 3);
+  const result = rankFocus([...heavy, task(150, { importance: "Low" }), task(151, { importance: "Low" })], day, withAction(150, "include", false));
+  assert.equal(result.workload?.level, "heavy");
+  assert.ok(result.ids.includes(150));
+  assert.ok(!result.ids.includes(151));
+  assert.deepEqual(rankFocus([task(7, { startDate: "2026-10-20" })], day, withAction(7, "include", false)).ids, []);
+});
+
+test("taking a quest off Smart Focus removes it, even high-priority work and against the model", () => {
+  const quests = [task(1, { importance: "Pareto" }), task(2, { importance: "High" })];
+  const advice = quests.map(q => ({ taskId: q.id, include: true, score: 100, reason: "Include" }));
+  assert.deepEqual(rankFocus(quests, day, withAction(1, "exclude", true), advice).ids, [2]);
+});
+
+test("taking a quest off cannot hide work that is due or starting today", () => {
+  const quests = [task(1, { dueDate: day }), task(2, { startDate: day })];
+  const memory = withAction(1, "exclude", true);
+  memory.preferences.push({ ...memory.preferences[0], id: "again", taskId: 2 });
+  assert.deepEqual(rankFocus(quests, day, memory).ids.sort(), [1, 2]);
+});
+
+test("keeping a quest in Smart Focus protects it from being held back and is explained", () => {
+  const heavy = committed(6, 90, 3);
+  const result = rankFocus([...heavy, task(150, { importance: "Low", startDate: "2026-10-10" }), task(151, { importance: "Low", startDate: "2026-10-10" })], day, withAction(150, "keep", true));
+  assert.ok(result.ids.includes(150));
+  assert.ok(!result.ids.includes(151));
+  assert.equal(result.reasons[150], "You confirmed this belongs in Smart Focus.");
+});
+
+test("keeping a quest out only nudges its order; it is not a hard exclusion", () => {
+  const quests = [task(1, { importance: "High", startDate: "2026-10-10" }), task(2, { importance: "High", startDate: "2026-10-10" })];
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids, [1, 2]);
+  assert.deepEqual(rankFocus(quests, day, withAction(1, "keep", false)).ids, [2, 1]);
+});
+
+test("the latest action on a quest wins", () => {
+  const memory = withAction(1, "include", false);
+  memory.preferences.push({ id: "later", taskId: 1, taskTitle: "Task 1", text: "Changed my mind.", createdAt: day, action: "exclude", inFocus: true });
+  assert.equal(focusStances(memory).get(1)?.action, "exclude");
+  assert.deepEqual(rankFocus([task(1, { importance: "High" })], day, memory).ids, []);
+});
+
+test("older text-only preferences have no action and change nothing by themselves", () => {
+  const memory = emptyFocusMemory();
+  memory.preferences = [{ id: "old", taskId: 1, taskTitle: "Task 1", text: "Context only.", createdAt: day }];
+  assert.equal(focusStances(memory).size, 0);
+  assert.deepEqual(rankFocus([task(1, { importance: "High" })], day, memory).ids, [1]);
+});
+
+test("each action is described in plain words", () => {
+  assert.equal(focusActionLabel({ action: "include" }), "Moved into Smart Focus");
+  assert.equal(focusActionLabel({ action: "exclude" }), "Taken off Smart Focus");
+  assert.equal(focusActionLabel({ action: "keep", inFocus: true }), "Kept in Smart Focus");
+  assert.equal(focusActionLabel({ action: "keep", inFocus: false }), "Kept out of Smart Focus");
+  assert.equal(focusActionLabel({ action: "keep" }), "Kept where it was");
+  assert.equal(focusActionLabel({}), null);
 });

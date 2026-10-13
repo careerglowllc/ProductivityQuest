@@ -3,6 +3,7 @@ import { ShieldCheck, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { focusError, useFocusActions, useFocusState } from "./use-smart-focus";
+import { focusActionLabel } from "@shared/smart-focus-ai";
 import "./smart-focus.css";
 
 export function FocusMemoryDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -28,7 +29,7 @@ export function FocusMemoryDialog({ open, onOpenChange }: { open: boolean; onOpe
             <h3 className="text-sm font-semibold">Explicit preferences <span className="sf-muted font-normal">({data.preferences.length})</span></h3>
             {!data.preferences.length && <p className="mt-2 text-xs sf-muted">No saved feedback. Use AI feedback in any quest menu to tell Smart Focus what matters.</p>}
             {data.preferences.map((preference) => <div key={preference.id} className="sf-memory-item flex items-start justify-between gap-3">
-              <div className="min-w-0"><p className="text-xs font-semibold break-words">{preference.taskTitle}</p><p className="mt-1 text-sm whitespace-pre-wrap break-words">{preference.text}</p><p className="mt-1 text-[11px] sf-muted">{new Date(preference.createdAt).toLocaleDateString()}</p></div>
+              <div className="min-w-0"><p className="text-xs font-semibold break-words">{preference.taskTitle}{focusActionLabel(preference) && <span data-testid="preference-action" className="ml-2 rounded border border-[var(--dash-line)] px-1.5 py-0.5 text-[10px] font-normal sf-muted">{focusActionLabel(preference)}</span>}</p><p className="mt-1 text-sm whitespace-pre-wrap break-words">{preference.text}</p><p className="mt-1 text-[11px] sf-muted">{new Date(preference.createdAt).toLocaleDateString()}</p></div>
               <Button variant="outline" size="sm" className="sf-button shrink-0" disabled={forget.isPending} onClick={() => forget.mutate(`preferences/${preference.id}`)}>Forget</Button>
             </div>)}
           </section>

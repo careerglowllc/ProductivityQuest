@@ -7,7 +7,14 @@ export type FocusQuest = {
   importance?: string | null; questType?: string | null; completed?: boolean | null; recycled?: boolean | null;
   duration?: number | null; recurType?: string | null;
 };
-export type FocusPreference = { id: string; taskId: number; taskTitle: string; text: string; createdAt: string };
+// What the user did with a quest when giving feedback: moved it into Smart Focus, took it off, or confirmed where it already was.
+export type FocusAction = "include" | "exclude" | "keep";
+export const FOCUS_ACTIONS: readonly FocusAction[] = ["include", "exclude", "keep"];
+export type FocusPreference = {
+  id: string; taskId: number; taskTitle: string; text: string; createdAt: string;
+  action?: FocusAction;
+  inFocus?: boolean; // where the quest was when the user gave the feedback
+};
 export type FocusEvent = { taskId: number; taskTitle: string; day: string };
 export type FocusMemory = { enabled: boolean; preferences: FocusPreference[]; dismissals: FocusEvent[] };
 export const emptyFocusMemory = (): FocusMemory => ({ enabled: false, preferences: [], dismissals: [] });
@@ -60,6 +67,18 @@ export function focusSignals(memory: FocusMemory, day: string) {
   }
   return Array.from(byTask.values()).map(s => ({ taskId: s.taskId, taskTitle: s.taskTitle, days: s.dates.size }));
 }
+// The user's latest action on each quest (a later one replaces an earlier one).
+export function focusStances(memory: FocusMemory): Map<number, FocusPreference & { action: FocusAction }> {
+  const latest = new Map<number, FocusPreference & { action: FocusAction }>();
+  for (const p of memory.preferences) if (p.action) latest.set(p.taskId, p as FocusPreference & { action: FocusAction });
+  return latest;
+}
+export function focusActionLabel(p: Pick<FocusPreference, "action" | "inFocus">): string | null {
+  if (p.action === "include") return "Moved into Smart Focus";
+  if (p.action === "exclude") return "Taken off Smart Focus";
+  if (p.action === "keep") return p.inFocus === true ? "Kept in Smart Focus" : p.inFocus === false ? "Kept out of Smart Focus" : "Kept where it was";
+  return null;
+}
 // A quest that repeats on a schedule (anything but one-time or none).
 export function isRoutine(q: FocusQuest): boolean {
   const recur = (q.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
@@ -82,22 +101,36 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const ai = new Map((advice ?? []).map(a => [a.taskId, a]));
   const signals = new Map(focusSignals(memory, day).map(s => [s.taskId, s.days]));
   const dismissed = new Set(memory.dismissals.filter(e => e.day === day).map(e => e.taskId));
+  const stances = focusStances(memory);
   const reasons: Record<string, string> = {};
   const candidates = quests.filter(q => {
     if (!eligibleFocus(q, day)) return false;
     if (protectedFocus(q, day)) return true;
     if (dismissed.has(q.id)) return false;
+    // The user's own move or take-off wins over the model; protected quests were handled above.
+    const action = stances.get(q.id)?.action;
+    if (action === "exclude") return false;
+    if (action === "include") return true;
     // Explicit feedback can exclude its non-protected target; inferred signals alone cannot.
     if (ai.get(q.id)?.include === false && memory.preferences.some(p => p.taskId === q.id)) return false;
     // AI can add previously missing work, but cannot exclude protected dates.
     return !!focusBand(q, now) || isHighPriority(q) || ai.get(q.id)?.include === true;
   });
+  // A confirmed placement nudges the order a little; a move into Smart Focus ranks above other optional work.
+  const stanceWeight = (q: FocusQuest) => {
+    const stance = stances.get(q.id);
+    if (stance?.action === "include") return 150;
+    if (stance?.action === "keep") return stance.inFocus === true ? 15 : stance.inFocus === false ? -15 : 0;
+    return 0;
+  };
   const weight = (q: FocusQuest) => {
     const due = dateOnly(q.dueDate);
     const band = due && due <= day ? 3 : dateOnly(q.startDate) === day ? 2 : 1;
     const base = importanceRank(q.importance) * 20 + (q.questType === "deadline" ? 10 : 0);
     const signalPenalty = memory.enabled && (signals.get(q.id) ?? 0) >= 3 ? 10 : 0;
-    return band * 10000 + base + (ai.get(q.id)?.score ?? 0) - signalPenalty;
+    // The model's score does not count against something the user moved in themselves.
+    const modelScore = stances.get(q.id)?.action === "include" ? 0 : ai.get(q.id)?.score ?? 0;
+    return band * 10000 + base + modelScore - signalPenalty + stanceWeight(q);
   };
   candidates.sort((a, b) => {
     if (protectedFocus(a, day) && protectedFocus(b, day)) {
@@ -113,7 +146,11 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   // or non-deadline ones go first. Protected quests, high-priority work, and quests the user explicitly asked
   // for are never trimmed.
   const workload = focusWorkload(quests, day, tuning);
-  const askedFor = (q: FocusQuest) => ai.get(q.id)?.include === true && memory.preferences.some(p => p.taskId === q.id);
+  const askedFor = (q: FocusQuest) => {
+    const stance = stances.get(q.id);
+    if (stance?.action === "include" || (stance?.action === "keep" && stance.inFocus === true)) return true;
+    return ai.get(q.id)?.include === true && memory.preferences.some(p => p.taskId === q.id);
+  };
   const optionalLow = (q: FocusQuest) => !protectedFocus(q, day) && !isHighPriority(q) && !askedFor(q);
   const lowPicks = candidates.filter(optionalLow)
     .sort((a, b) => Number(isRoutine(a)) - Number(isRoutine(b)) || Number(b.questType === "deadline") - Number(a.questType === "deadline") || weight(b) - weight(a) || a.id - b.id)
@@ -125,9 +162,12 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const kept = listed.slice(0, Math.max(10, protectedCount));
   for (const q of kept) {
     const due = dateOnly(q.dueDate);
+    const stance = stances.get(q.id);
+    const stanceReason = stance?.action === "include" ? "You moved this into Smart Focus."
+      : stance?.action === "keep" && stance.inFocus === true ? "You confirmed this belongs in Smart Focus." : "";
     reasons[q.id] = protectedFocus(q, day)
       ? due && due <= day ? "Protected: overdue or due today." : "Protected: starts today."
-      : ai.get(q.id)?.reason || (isHighPriority(q) ? "High-priority work ready to start." : "Start date reached or important deadline approaching.");
+      : stanceReason || ai.get(q.id)?.reason || (isHighPriority(q) ? "High-priority work ready to start." : "Start date reached or important deadline approaching.");
     if (!protectedFocus(q, day) && memory.enabled && (signals.get(q.id) ?? 0) >= 3) {
       reasons[q.id] += " Slightly lowered after removals on at least 3 distinct days; this is not a permanent exclusion.";
     }

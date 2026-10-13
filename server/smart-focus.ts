@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { eligibleFocus, protectedFocus, focusSignals, focusWorkload, rankFocus, type FocusMemory, type FocusQuest, type FocusAdvice, type FocusRanking, type FocusWorkload } from "../shared/smart-focus-ai";
+import { eligibleFocus, protectedFocus, focusSignals, focusWorkload, rankFocus, FOCUS_ACTIONS, type FocusAction, type FocusMemory, type FocusQuest, type FocusAdvice, type FocusRanking, type FocusWorkload } from "../shared/smart-focus-ai";
 
 export interface FocusStore {
   tasks(id: string): Promise<FocusQuest[]>;
@@ -39,11 +39,23 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
     await store.change(id, m => { m.enabled = enabled; }); forget(id); res.json({ enabled });
   }));
   app.post("/api/smart-focus/feedback", auth, handler(async (req, res) => {
-    const input = z.object({ taskId: z.number().int().positive(), text: z.string().trim().min(1).max(3000) }).parse(req.body);
+    const input = z.object({
+      taskId: z.number().int().positive(), text: z.string().trim().min(1).max(3000),
+      action: z.enum(FOCUS_ACTIONS as [FocusAction, ...FocusAction[]]).optional(), inFocus: z.boolean().optional(),
+    }).parse(req.body);
     const id = req.session.userId;
-    const task = (await store.tasks(id)).find(q => q.id === input.taskId);
+    const quests = await store.tasks(id);
+    const task = quests.find(q => q.id === input.taskId);
     if (!task) return res.status(404).json({ message: "Quest not found." });
-    const preference = { id: randomUUID(), taskId: task.id, taskTitle: task.title, text: input.text, createdAt: clock().toISOString() };
+    const { day } = await dayFor(id);
+    // Where the quest sat when the user gave feedback: what they saw, else the last ranking, else the rules.
+    let inFocus = input.inFocus;
+    if (input.action && inFocus === undefined) {
+      const cached = cache.get(id)?.result;
+      inFocus = cached ? cached.ids.includes(task.id) : rankFocus(quests, day, await store.read(id)).ids.includes(task.id);
+    }
+    const preference = { id: randomUUID(), taskId: task.id, taskTitle: task.title, text: input.text, createdAt: clock().toISOString(),
+      ...(input.action ? { action: input.action, inFocus } : {}) };
     try {
       await store.change(id, m => {
         if (m.preferences.length >= 100 || m.preferences.reduce((sum, p) => sum + p.text.length, 0) + input.text.length > 30000)
@@ -55,7 +67,10 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
         return res.status(409).json({ message: "Preference memory is full. Forget an old preference before adding more." });
       throw error;
     }
-    forget(id); res.status(201).json({ preference, message: "Feedback saved privately. Refresh AI focus to apply it; date safeguards still apply." });
+    const staysInFocus = input.action === "exclude" && protectedFocus(task, day);
+    forget(id); res.status(201).json({ preference, staysInFocus, message: staysInFocus
+      ? "Feedback saved. This quest is due or starts today, so it stays in Smart Focus; your preference applies once that passes."
+      : "Feedback saved privately. Smart Focus will use it; date safeguards still apply." });
   }));
   app.post("/api/smart-focus/dismiss", auth, handler(async (req, res) => {
     const input = z.object({ taskId: z.number().int().positive(), undo: z.boolean().optional() }).parse(req.body);
