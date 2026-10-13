@@ -105,11 +105,12 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const reasons: Record<string, string> = {};
   const candidates = quests.filter(q => {
     if (!eligibleFocus(q, day)) return false;
+    // The user's own take-off is honored even for work due or starting today; the model and plain text feedback cannot hide it.
+    if (stances.get(q.id)?.action === "exclude") return false;
     if (protectedFocus(q, day)) return true;
     if (dismissed.has(q.id)) return false;
-    // The user's own move or take-off wins over the model; protected quests were handled above.
+    // The user's own move wins over the model; protected quests were handled above.
     const action = stances.get(q.id)?.action;
-    if (action === "exclude") return false;
     if (action === "include") return true;
     // Explicit feedback can exclude its non-protected target; inferred signals alone cannot.
     if (ai.get(q.id)?.include === false && memory.preferences.some(p => p.taskId === q.id)) return false;

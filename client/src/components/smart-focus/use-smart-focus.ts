@@ -91,7 +91,7 @@ export function useFocusActions() {
     ]);
   };
   const feedback = useMutation({
-    mutationFn: (data: { taskId: number; text: string; action?: FocusAction; inFocus?: boolean }) => request<{ message?: string; staysInFocus?: boolean }>("POST", "/api/smart-focus/feedback", data),
+    mutationFn: (data: { taskId: number; text: string; action?: FocusAction; inFocus?: boolean }) => request<{ message?: string }>("POST", "/api/smart-focus/feedback", data),
     onSuccess: invalidate,
   });
   const settings = useMutation({

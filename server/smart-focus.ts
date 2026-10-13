@@ -67,9 +67,8 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
         return res.status(409).json({ message: "Preference memory is full. Forget an old preference before adding more." });
       throw error;
     }
-    const staysInFocus = input.action === "exclude" && protectedFocus(task, day);
-    forget(id); res.status(201).json({ preference, staysInFocus, message: staysInFocus
-      ? "Feedback saved. This quest is due or starts today, so it stays in Smart Focus; your preference applies once that passes."
+    forget(id); res.status(201).json({ preference, message: input.action === "exclude"
+      ? "Feedback saved. This quest is now off Smart Focus; restore it any time in Settings, under Smart Focus."
       : "Feedback saved privately. Smart Focus will use it; date safeguards still apply." });
   }));
   app.post("/api/smart-focus/dismiss", auth, handler(async (req, res) => {

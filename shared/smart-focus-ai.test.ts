@@ -213,11 +213,22 @@ test("taking a quest off Smart Focus removes it, even high-priority work and aga
   assert.deepEqual(rankFocus(quests, day, withAction(1, "exclude", true), advice).ids, [2]);
 });
 
-test("taking a quest off cannot hide work that is due or starting today", () => {
-  const quests = [task(1, { dueDate: day }), task(2, { startDate: day })];
+test("taking a quest off removes work that is due or starting today, but the model alone cannot", () => {
+  const quests = [task(1, { dueDate: day }), task(2, { startDate: day }), task(3, { dueDate: day })];
   const memory = withAction(1, "exclude", true);
   memory.preferences.push({ ...memory.preferences[0], id: "again", taskId: 2 });
-  assert.deepEqual(rankFocus(quests, day, memory).ids.sort(), [1, 2]);
+  const advice = quests.map(q => ({ taskId: q.id, include: false, score: -100, reason: "Exclude" }));
+  assert.deepEqual(rankFocus(quests, day, memory).ids, [3]);
+  assert.deepEqual(rankFocus(quests, day, memory, advice).ids, [3]);
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory(), advice).ids.sort(), [1, 2, 3]);
+});
+
+test("moving a taken-off quest back in brings overdue work back", () => {
+  const quests = [task(1, { dueDate: "2026-10-01T00:00:00.000Z" })];
+  const memory = withAction(1, "exclude", true);
+  assert.deepEqual(rankFocus(quests, day, memory).ids, []);
+  memory.preferences.push({ ...memory.preferences[0], id: "back", action: "include", inFocus: false });
+  assert.deepEqual(rankFocus(quests, day, memory).ids, [1]);
 });
 
 test("keeping a quest in Smart Focus protects it from being held back and is explained", () => {

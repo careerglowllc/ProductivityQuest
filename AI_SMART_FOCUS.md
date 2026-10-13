@@ -32,7 +32,7 @@ Under the paragraph box in **AI feedback** there are three buttons. Pick one, ex
 | Choice | What it does |
 |--------|--------------|
 | **Move into Smart Focus** | Lists the quest even if nothing else would qualify it, ranks it above other optional work, and keeps it through busy-day trimming. The model cannot veto it, and a future-start quest still cannot be brought in. |
-| **Take off Smart Focus** | Removes the quest, even high-priority work and even if the model says include. Quests that are overdue, due today or starting today stay (the response says so) and the preference applies once that passes. |
+| **Take off Smart Focus** | Removes the quest, even high-priority work and even if the model says include. This also applies to quests that are overdue, due today or starting today, because the choice is the user's own; the model and plain-text feedback still cannot hide them. Moving the quest back in, or Forget in Settings, restores it. |
 | **Keep it where it is** | Confirms the current placement as correct. Kept in: protected from busy-day trimming with a small boost and a "you confirmed this" reason. Kept out: a small order penalty, not a hard exclusion. |
 
 Move into and Take off are disabled when they would change nothing (the quest is already in, or already out). The selection is optional: a plain paragraph still saves as context. The latest action on a quest replaces an earlier one, and Forget in Private preferences removes its effect.

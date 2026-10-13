@@ -141,15 +141,14 @@ test("feedback carries an action and where the quest was; actions change the ran
     assert.ok(ranked.ids.includes(3), "moved into Smart Focus");
 
     const off = await (await post("/feedback", { taskId: 2, text: "Not for this week.", action: "exclude", inFocus: true })).json();
-    assert.equal(off.staysInFocus, false);
+    assert.match(off.message, /off Smart Focus/);
     ranked = await (await post("/rank", {})).json();
     assert.ok(!ranked.ids.includes(2), "taken off Smart Focus");
 
     const protectedOff = await (await post("/feedback", { taskId: 1, text: "Remove it.", action: "exclude", inFocus: true })).json();
-    assert.equal(protectedOff.staysInFocus, true);
-    assert.match(protectedOff.message, /due or starts today, so it stays in Smart Focus/);
+    assert.match(protectedOff.message, /off Smart Focus/);
     ranked = await (await post("/rank", {})).json();
-    assert.ok(ranked.ids.includes(1));
+    assert.ok(!ranked.ids.includes(1), "an explicit take-off also removes work due today");
 
     const plain = await (await post("/feedback", { taskId: 3, text: "Just context." })).json();
     assert.equal(plain.preference.action, undefined);
