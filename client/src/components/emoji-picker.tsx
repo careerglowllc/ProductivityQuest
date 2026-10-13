@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/contexts/theme-context";
+import { QUEST_EMOJI_ENTRIES, QUEST_EMOJI_SETS, mergeEmojiEntries } from "@/lib/quest-emoji-sets";
 
 // Comprehensive keyword-searchable emoji database
-const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
+const BASE_EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   // Common / General
   { emoji: "📝", keywords: ["note", "memo", "write", "writing", "pencil", "paper", "document", "task"] },
   { emoji: "📋", keywords: ["clipboard", "list", "task", "checklist", "todo", "plan"] },
@@ -1429,6 +1430,8 @@ const EMOJI_DATA: Array<{ emoji: string; keywords: string[] }> = [
   { emoji: "👅", keywords: ["tongue", "taste", "lick", "body", "mouth"] },
 ];
 
+const EMOJI_DATA = mergeEmojiEntries(BASE_EMOJI_DATA, QUEST_EMOJI_ENTRIES);
+
 const EMOJI_CATEGORIES: Record<string, string[]> = {
   "Common": ["📝", "📋", "📌", "✏️", "📖", "📚", "💡", "🎯", "⭐", "🌟", "💪", "🚀", "🔥", "⚡", "💎", "🏆", "🎉", "✅", "❤️", "💛", "💚", "💙", "💜", "🧡", "❗", "❓", "😀", "😊", "😎", "🤔", "✨", "💯", "👀", "🫶"],
   "Appearance": ["💇", "💇‍♂️", "💇‍♀️", "💈", "🪮", "💆", "💆‍♂️", "💆‍♀️", "🧖", "🪒", "💅", "💄", "🪞", "🧴", "🧼", "🧑", "👨", "👩", "🧔", "🧔‍♂️", "👱‍♂️", "👱‍♀️", "👨‍🦰", "👩‍🦰", "👨‍🦱", "👩‍🦱", "👨‍🦳", "👩‍🦳", "👨‍🦲", "👩‍🦲", "🧑‍🦰", "🧑‍🦱", "🧑‍🦳", "🧑‍🦲", "😀", "🙂", "😎", "🤳", "👤", "🕶️", "👓", "🧢", "🎩", "👒", "👔", "👗", "👠", "💍"],
@@ -1454,6 +1457,7 @@ const EMOJI_CATEGORIES: Record<string, string[]> = {
   "Shapes": ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🔘", "⭕", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜", "◼️", "◻️", "◾", "◽", "▪️", "▫️", "🔺", "🔻", "🔶", "🔷", "🔸", "🔹", "💠", "♦️", "♠️", "♣️", "♥️", "●", "○", "■", "□", "▲", "▼", "◆", "◇"],
   "Lines": ["〰️", "➰", "➿", "〽️", "✴️", "❇️", "✳️", "│", "─", "╱", "╲", "┼", "═", "║", "➡️", "⬅️", "⬆️", "⬇️", "↗️", "↘️", "↙️", "↖️", "↕️", "↔️", "🔄", "🔃"],
   "Symbols": ["♾️", "💲", "⚛️", "☮️", "☯️", "💯", "‼️", "⁉️", "❌", "©️", "®️", "™️", "🏁", "🚩"],
+  ...Object.fromEntries(QUEST_EMOJI_SETS.map(set => [set.label, set.entries.map(entry => entry.emoji)])),
 };
 
 interface EmojiPickerProps {
