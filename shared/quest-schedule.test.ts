@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DEADLINE_NEEDS_DUE_DATE, FOCUS_BANDS, SMART_FOCUS_CAP, START_AFTER_DUE, focusBand, isHighPriority, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocus, sortReminders,
+  DEADLINE_NEEDS_DUE_DATE, FOCUS_BANDS, SMART_FOCUS_CAP, START_AFTER_DUE, focusBand, isHighPriority, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocus, sortReminders, remindersForToday,
   resolveQuestDatePatch, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
 } from "./quest-schedule";
 
@@ -306,4 +306,21 @@ test("Smart Focus does not modify the list it was given", () => {
   const copy = [...input];
   smartFocus(input, now);
   assert.deepEqual(input, copy);
+});
+
+test("today's reminders: open reminders whose start has arrived, most important first", () => {
+  const r = (name: string, extra: Record<string, unknown> = {}) => ({ name, questType: "reminder", ...extra });
+  const shown = remindersForToday([
+    r("low", { importance: "Low" }),
+    r("high", { importance: "High" }),
+    r("starts later", { importance: "Pareto", startDate: day(3) }),
+    r("started", { importance: "Medium", startDate: day(-2) }),
+    r("starts today", { importance: "Med-High", startDate: day(0) }),
+    r("done", { importance: "High", completed: true }),
+    r("recycled", { importance: "High", recycled: true }),
+    { name: "deadline", questType: "deadline", importance: "Pareto", dueDate: day(0) },
+    { name: "general", questType: "general", importance: "Pareto" },
+  ], now);
+  assert.deepEqual(names(shown), ["high", "starts today", "started", "low"]);
+  assert.deepEqual(remindersForToday([], now), []);
 });

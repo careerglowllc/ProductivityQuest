@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import { Link } from "wouter";
-import { ArrowRight, BookMarked, BookOpen, ClipboardList, Heart, HeartHandshake, Radar, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, BookMarked, BookOpen, ClipboardList, Heart, HeartHandshake, Quote, Radar, Sparkles, Zap } from "lucide-react";
 import { JournalShell, JournalHero } from "@/components/journal-ui";
 
 type Destination = { title: string; description: string; path: string; icon: ComponentType<{ className?: string }>; tone: "sage" | "rose" };
@@ -10,6 +10,7 @@ const DESTINATIONS: Destination[] = [
   { title: "Daily GLEW", description: "Gratitudes, wins, exciteds, and lessons learned — one day at a time.", path: "/journal/daily-glew", icon: HeartHandshake, tone: "rose" },
   { title: "Gratitude Journal", description: "A running list of things you're grateful for.", path: "/journal/gratitude", icon: Heart, tone: "rose" },
   { title: "Sparks", description: "What you're excited about and the empowering thoughts you're reinforcing, with every Daily GLEW Excited.", path: "/journal/sparks", icon: Zap, tone: "sage" },
+  { title: "Inspirational Quotes", description: "Your collection of quotes, with one picked at random each day for the dashboard.", path: "/journal/quotes", icon: Quote, tone: "rose" },
   { title: "Weekly Deep Planning", description: "One deep-dive reflection and plan per week.", path: "/journal/weekly-planning", icon: ClipboardList, tone: "rose" },
   { title: "Reference Beliefs", description: "Principles and reference notes worth re-reading when you need them.", path: "/reference-beliefs", icon: BookMarked, tone: "sage" },
 ];

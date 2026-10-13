@@ -24,6 +24,7 @@ import {
   Zap,
   ClipboardList,
   Archive,
+  Quote,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
@@ -65,6 +66,7 @@ const SECTIONS: { title: string; links: NavLink[] }[] = [
       { name: "Journal Essays", path: "/journal/essays", icon: BookOpen, color: "orange", description: "Essays & reflections" },
       { name: "Daily GLEW", path: "/journal/daily-glew", icon: HeartHandshake, color: "orange", description: "Gratitudes, wins, exciteds & lessons learned" },
       { name: "Sparks", path: "/journal/sparks", icon: Zap, color: "orange", description: "Excitement, empowering thoughts & Daily GLEW exciteds" },
+      { name: "Inspirational Quotes", path: "/journal/quotes", icon: Quote, color: "orange", description: "Your quotes, with one picked each day" },
       { name: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, color: "orange", description: "A running list of things you're grateful for" },
       { name: "Weekly Deep Planning", path: "/journal/weekly-planning", icon: ClipboardList, color: "orange", description: "One deep-dive reflection & plan per week" },
       { name: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, color: "orange", description: "Principles & reference notes" },

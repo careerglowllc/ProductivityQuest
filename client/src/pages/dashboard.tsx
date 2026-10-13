@@ -14,6 +14,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { allExpanded, readPanelOpen, toggleAll, writePanelOpen } from "@/lib/questline-panel";
 import { useTopFocus } from "@/components/smart-focus/use-top-focus";
+import { TodaysReminders } from "@/components/todays-reminders";
+import { QuoteOfTheDay } from "@/components/quote-of-the-day";
 import React from "react";
 import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -1476,6 +1478,10 @@ export default function Dashboard() {
 
         {/* Active questlines */}
         {renderQuestlines("mb-[18px]")}
+
+        {/* Today's reminders, then the quote of the day */}
+        <TodaysReminders tasks={safeTasks as any[]} className="mb-[18px]" />
+        <QuoteOfTheDay className="mb-[18px]" />
 
         {/* Quick links — mobile only; desktop already has these in the sidebar rail */}
         <nav aria-label="Quick links" className="mb-[18px] grid grid-cols-4 gap-2 md:hidden">

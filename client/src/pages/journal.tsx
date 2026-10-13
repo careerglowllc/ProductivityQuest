@@ -38,6 +38,7 @@ import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 import { buildDailyGlewCSVExport } from "@/pages/journal-daily-gews";
 import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
 import { buildExcitementCSVExport, buildEmpoweringThoughtsCSVExport } from "@/lib/journal-sparks";
+import { buildQuotesCSVExport } from "@/lib/quotes";
 import { buildWeeklyPlanningCSVExport } from "@/pages/journal-weekly-planning";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 import { JournalShell, JournalHero, JournalBackLink } from "@/components/journal-ui";
@@ -243,6 +244,7 @@ export default function JournalPage() {
         buildGratitudeCSVExport(),
         buildExcitementCSVExport(),
         buildEmpoweringThoughtsCSVExport(),
+        buildQuotesCSVExport(),
         buildWeeklyPlanningCSVExport(),
         buildReferenceBeliefsCSVExport(),
       ];

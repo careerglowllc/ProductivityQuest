@@ -124,6 +124,13 @@ export function sortReminders<T extends ScheduledQuest>(reminders: readonly T[])
   return [...reminders].sort((a, b) => byImportance(a, b) || byDue(a, b));
 }
 
+// The reminders to show on today's dashboard: open ones whose start date, if any, has arrived.
+export function remindersForToday<T extends ScheduledQuest & { questType?: string | null; completed?: boolean | null; recycled?: boolean | null }>(quests: readonly T[], now: Date): T[] {
+  const tomorrow = dayStart(now, 1);
+  const started = (q: T) => { const start = time(q.startDate); return start === null || start < tomorrow; };
+  return sortReminders(quests.filter((q) => isReminder(q) && !q.completed && !q.recycled && started(q)));
+}
+
 export const DEADLINE_NEEDS_DUE_DATE = "A deadline quest needs a due date.";
 export const START_AFTER_DUE = "The start date can't be after the due date.";
 

@@ -9,6 +9,7 @@ export const JOURNAL_NAV: { label: string; path: string }[] = [
   { label: "Daily GLEW", path: "/journal/daily-glew" },
   { label: "Gratitude", path: "/journal/gratitude" },
   { label: "Sparks", path: "/journal/sparks" },
+  { label: "Inspirational quotes", path: "/journal/quotes" },
   { label: "Weekly planning", path: "/journal/weekly-planning" },
   { label: "Reference beliefs", path: "/reference-beliefs" },
 ];

@@ -24,6 +24,7 @@ import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
 import { buildDailyGlewCSVExport } from "@/pages/journal-daily-gews";
 import { buildWeeklyPlanningCSVExport } from "@/pages/journal-weekly-planning";
 import { buildExcitementCSVExport, buildEmpoweringThoughtsCSVExport } from "@/lib/journal-sparks";
+import { buildQuotesCSVExport } from "@/lib/quotes";
 import { buildJournalCSVExport } from "@/pages/journal";
 
 const APP_VERSION = "v1.0.67";
@@ -50,6 +51,7 @@ async function exportAllAsZip() {
     Promise.resolve(buildDailyGlewCSVExport()),
     Promise.resolve(buildWeeklyPlanningCSVExport()),
     Promise.resolve(buildEmpoweringThoughtsCSVExport()),
+    Promise.resolve(buildQuotesCSVExport()),
     Promise.resolve(buildJournalCSVExport()),
   ]);
 

@@ -33,6 +33,7 @@ import JournalPage from "@/pages/journal";
 import JournalHomePage from "@/pages/journal-home";
 import JournalDailyGlewPage from "@/pages/journal-daily-gews";
 import JournalSparksPage from "@/pages/journal-sparks";
+import JournalQuotesPage from "@/pages/journal-quotes";
 import JournalGratitudePage from "@/pages/journal-gratitude";
 import JournalWeeklyPlanningPage from "@/pages/journal-weekly-planning";
 import RecyclingBin from "@/pages/recycling-bin";
@@ -205,6 +206,7 @@ function Router() {
               {() => <Redirect to="/journal/daily-glew" />}
             </Route>
             <Route path="/journal/sparks" component={JournalSparksPage} />
+            <Route path="/journal/quotes" component={JournalQuotesPage} />
             <Route path="/journal/empowering-thoughts">
               {() => <Redirect to="/journal/sparks" />}
             </Route>
