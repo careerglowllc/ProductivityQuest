@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { SelectedFeedbackAction } from "@/components/smart-focus/selected-feedback-action";
-import { focusView } from "@/components/smart-focus/focus-gate";
+import { focusView, showsSortControl } from "@/components/smart-focus/focus-gate";
 import { FocusOffNotice } from "@/components/smart-focus/focus-off-notice";
 import { useFocusRanking, useFocusState } from "@/components/smart-focus/use-smart-focus";
 import { selectFocus } from "@/components/smart-focus/select-focus";
@@ -2464,6 +2464,7 @@ export default function Home() {
                         ) : null}
                       </>
                     )}
+                    {showsSortControl(activeFilter) && (
                     <button
                       type="button"
                       onClick={() => setSortBy(sortBy === "due-date" ? "importance" : "due-date")}
@@ -2477,6 +2478,7 @@ export default function Home() {
                         <AlertTriangle aria-hidden className="h-3 w-3" />
                       )}
                     </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setViewType(viewType === "list" ? "grid" : "list")}
@@ -2623,6 +2625,7 @@ export default function Home() {
                     )}
                   </button>
 
+                  {showsSortControl(activeFilter) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -2652,6 +2655,7 @@ export default function Home() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </div>
               </div>
               )}

@@ -7,3 +7,6 @@ export function focusView(state: { isError: boolean; data?: { enabled: boolean }
   if (state.data) return state.data.enabled ? "on" : "off";
   return state.isError ? "error" : "loading";
 }
+
+// Smart Focus orders its own list, so the due date / importance sort control is hidden there.
+export const showsSortControl = (filter: string): boolean => filter !== "smart";

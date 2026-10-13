@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { existsSync, readFileSync } from "node:fs";
-import { SMART_FOCUS_SETTINGS_PATH, focusView } from "./focus-gate";
+import { SMART_FOCUS_SETTINGS_PATH, focusView, showsSortControl } from "./focus-gate";
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
@@ -50,4 +50,9 @@ test("Quests page: the old Smart Focus explanation panel is gone and the tab is 
   assert.ok(home.includes("focusView(focusState)"));
   assert.ok(home.includes("<FocusOffNotice />"));
   assert.match(home, /smartView === "on"/);
+});
+
+test("the sort control is hidden on Smart Focus only", () => {
+  assert.equal(showsSortControl("smart"), false);
+  for (const filter of ["all", "due-today", "high-priority", "routines", "upcoming", "assignee-alex"]) assert.equal(showsSortControl(filter), true);
 });
