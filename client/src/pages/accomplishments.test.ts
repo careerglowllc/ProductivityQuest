@@ -18,3 +18,9 @@ test("the export keeps its header and one row per accomplishment", () => {
   assert.ok(lines[0].startsWith('"Year","Year End","Title"'));
   assert.ok(lines.length > 50);
 });
+
+test("the 2026 health fix entry notes it was around December 2026", () => {
+  const row = csv().split("\n").find(line => line.includes("Solved ED"));
+  assert.ok(row, "entry is present");
+  assert.ok(row.includes("(Around December 2026.)"));
+});
