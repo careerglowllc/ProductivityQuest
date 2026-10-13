@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { allExpanded, readPanelOpen, setAllExpanded, writePanelOpen } from "@/lib/questline-panel";
+import { useTopFocus } from "@/components/smart-focus/use-top-focus";
 import React from "react";
 import type { UserProgress, UserSkill, FinancialItem } from "@/../../shared/schema";
 import { getSkillIcon } from "@/lib/skillIcons";
@@ -895,7 +896,7 @@ export default function Dashboard() {
   const campaignIds = selectedCampaigns.map((q: any) => q.id);
   const everyOpen = allExpanded(campaignIds, expandedCampaigns);
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ["/api/tasks"],
   });
 
@@ -954,7 +955,7 @@ export default function Dashboard() {
     return priorityMap[importance || ''] || 0;
   };
 
-  // Get top 4 uncompleted tasks with advanced priority logic
+  // Get top 3 uncompleted tasks with advanced priority logic (only used if Smart Focus cannot load)
   const getTopTasks = () => {
     // Ensure tasks is an array before filtering
     if (!Array.isArray(safeTasks)) {
@@ -1041,7 +1042,7 @@ export default function Dashboard() {
         sortTier(categorizedTasks[tier as keyof typeof categorizedTasks]);
     });
     
-    // Combine tiers in order and take first 4
+    // Combine tiers in order and take first 3
     return [
       ...categorizedTasks.tier1,
       ...categorizedTasks.tier2,
@@ -1049,10 +1050,11 @@ export default function Dashboard() {
       ...categorizedTasks.tier4,
       ...categorizedTasks.tier5,
       ...categorizedTasks.tier6,
-    ].slice(0, 4);
+    ].slice(0, 3);
   };
 
-  const topTasks = getTopTasks();
+  const topFocus = useTopFocus(safeTasks, tasksLoading, 3);
+  const topTasks = topFocus.status === "ready" ? topFocus.tasks : topFocus.status === "error" ? getTopTasks() : [];
 
   // ── Dashboard widget drag-to-reorder ────────────────────────────────────
   type DashWidgetKey = "skills" | "schedule" | "tasks" | "finance";
@@ -1229,7 +1231,9 @@ export default function Dashboard() {
         {dragHandleBar}
         <DashCardHead title="Top priority tasks" href="/tasks" linkLabel="View all" />
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {topTasks.length === 0 ? (
+          {topFocus.status === "loading" ? (
+            <p className="py-8 text-center text-sm text-[var(--dash-muted)]">Ranking your most important quests…</p>
+          ) : topTasks.length === 0 ? (
             <div className="py-8 text-center">
               <CheckCircle aria-hidden className="mx-auto mb-3 h-10 w-10 text-[var(--dash-mint)] opacity-50" />
               <p className="text-sm text-[var(--dash-muted)]">Nothing pending — you're clear.</p>
@@ -1250,6 +1254,9 @@ export default function Dashboard() {
                           {task.duration && <span className="flex items-center text-xs text-[var(--dash-muted)]"><Clock aria-hidden className="mr-1 h-3 w-3" />{task.duration} min</span>}
                           {task.dueDate && <span className="flex items-center text-xs text-[var(--dash-muted)]"><Calendar aria-hidden className="mr-1 h-3 w-3" />{(() => { const d = new Date(task.dueDate); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(); })()}</span>}
                         </div>
+                        {topFocus.status === "ready" && topFocus.reasons[task.id] && (
+                          <p className="mt-1.5 line-clamp-2 text-[11px] text-[var(--dash-muted)]">{topFocus.reasons[task.id]}</p>
+                        )}
                       </div>
                       {task.goldValue ? (
                         <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[var(--dash-amber)]">+{task.goldValue}</span>

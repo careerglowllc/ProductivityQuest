@@ -16,3 +16,8 @@ export function selectFocus<T extends FocusTask>(tasks: readonly T[], ranking: F
     total: Math.max(quests.length, ranking.total),
   };
 }
+
+// The few most important quests for a compact widget, in Smart Focus order.
+export function topFocus<T extends FocusTask>(tasks: readonly T[], ranking: FocusRanking, limit: number) {
+  return selectFocus(tasks, ranking).groups.flatMap((group) => group.quests).slice(0, limit);
+}

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { selectFocus } from "./select-focus";
+import { selectFocus, topFocus } from "./select-focus";
+import { focusFingerprint } from "./focus-fingerprint";
 import type { FocusRanking } from "./use-smart-focus";
 
 const ranking = (ids: number[]): FocusRanking => ({
@@ -35,4 +36,29 @@ test("without a response the existing rules and bands are preserved", () => {
   ], undefined, new Date(2026, 2, 12, 12));
   assert.equal(focus.shown, 1);
   assert.equal(focus.groups[0].band, "urgent");
+});
+test("the widget shows the top three in Smart Focus order, not by raw priority", () => {
+  const tasks = [
+    { id: 1, completed: false, questType: "general", importance: "High" },
+    { id: 2, completed: false, questType: "general", importance: "Low" },
+    { id: 3, completed: false, questType: "general", importance: "Medium" },
+    { id: 4, completed: false, questType: "deadline", importance: "Pareto" },
+  ];
+  assert.deepEqual(topFocus(tasks, ranking([2, 4, 3, 1]), 3).map((task) => task.id), [2, 4, 3]);
+});
+test("the widget skips stale ids and shows fewer when fewer exist", () => {
+  const tasks = [{ id: 1, completed: true, questType: "general" }, { id: 2, completed: false, questType: "general" }];
+  assert.deepEqual(topFocus(tasks, ranking([1, 99, 2]), 3).map((task) => task.id), [2]);
+  assert.deepEqual(topFocus([], ranking([]), 3), []);
+});
+test("the widget and the Quests page share one cache key", () => {
+  const tasks = [
+    { id: 2, title: "b", completed: false }, { id: 1, title: "a", completed: false },
+    { id: 3, title: "done", completed: true }, { id: 4, title: "r", completed: false, questType: "reminder" },
+  ];
+  const key = focusFingerprint(7, "2026-10-13", tasks);
+  assert.equal(key, focusFingerprint(7, "2026-10-13", [...tasks].reverse()));
+  assert.equal(JSON.parse(key).tasks.map((task: { id: number }) => task.id).join(), "1,2");
+  assert.notEqual(key, focusFingerprint(7, "2026-10-14", tasks));
+  assert.notEqual(key, focusFingerprint(7, "2026-10-13", [{ ...tasks[0], title: "edited" }, tasks[1]]));
 });

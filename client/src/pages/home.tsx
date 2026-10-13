@@ -18,6 +18,7 @@ import { focusView } from "@/components/smart-focus/focus-gate";
 import { FocusOffNotice } from "@/components/smart-focus/focus-off-notice";
 import { useFocusRanking, useFocusState } from "@/components/smart-focus/use-smart-focus";
 import { selectFocus } from "@/components/smart-focus/select-focus";
+import { focusFingerprint as buildFocusFingerprint } from "@/components/smart-focus/focus-fingerprint";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
 import { CalendarSyncModal } from "@/components/calendar-sync-modal";
@@ -215,18 +216,10 @@ export default function Home() {
   // The Smart Focus tab only lists quests while Smart Focus is on in settings.
   const smartView = focusView(focusState);
   const focusDay = new Date().toLocaleDateString("en-CA", { timeZone: focusState.data?.timezone || undefined });
-  // Include ranking inputs in the cache key: a task edit/completion must not reuse an old queue.
-  // Memory stays server-side; this key contains only existing task data, never preferences.
-  const focusFingerprint = useMemo(() => JSON.stringify({
-    userId: (user as { id?: string | number } | undefined)?.id,
-    day: focusDay,
-    tasks: (tasks as any[]).filter((task) => !task.completed && !isReminder(task)).map((task) => ({
-      id: task.id, title: task.title, description: task.description, details: task.details,
-      dueDate: task.dueDate, startDate: task.startDate, importance: task.importance,
-      questType: task.questType, duration: task.duration, assignedTo: task.assignedTo,
-      kanbanStage: task.kanbanStage, recurType: task.recurType,
-    })).sort((a, b) => a.id - b.id),
-  }), [tasks, user, focusDay]);
+  const focusFingerprint = useMemo(
+    () => buildFocusFingerprint((user as { id?: string | number } | undefined)?.id, focusDay, tasks as any[]),
+    [tasks, user, focusDay],
+  );
   const focusRanking = useFocusRanking(
     activeFilter === "smart" && !!user && !tasksLoading && smartView === "on",
     focusFingerprint,
