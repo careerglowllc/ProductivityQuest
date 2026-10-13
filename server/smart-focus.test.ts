@@ -83,3 +83,29 @@ test("provider failure is explicit and cached, no repeated paid retry", async ()
     assert.equal(calls, 1);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test("rank reports the day's workload and holds back low-priority extras on a busy day", async () => {
+  const quests = [
+    ...Array.from({ length: 7 }, (_, i) => ({ id: i + 1, title: `Due ${i + 1}`, dueDate: "2026-10-12", duration: 60, importance: i < 2 ? "High" : "Medium" })),
+    ...[101, 102, 103].map(id => ({ id, title: `Extra ${id}`, startDate: "2026-10-10", importance: "Low", duration: 15 })),
+  ];
+  const seen: unknown[] = [];
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "test" } as any; next(); }, {
+    tasks: async () => quests, timezone: async () => "UTC",
+    read: async () => ({ ...emptyFocusMemory(), enabled: true }), change: async () => {},
+  }, async (input) => { seen.push(input.workload); return []; }, () => true, () => new Date("2026-10-12T12:00:00Z"));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus/rank`;
+    const result = await (await fetch(url, { method: "POST" })).json();
+    assert.equal(result.workload.level, "busy");
+    assert.equal(result.workload.questCount, 7);
+    assert.equal(result.workload.committedMinutes, 420);
+    assert.equal(result.heldBack, 1);
+    assert.equal(result.ids.filter((id: number) => id > 100).length, 2);
+    assert.match(result.message, /Busy day: 1 lower-priority quest held back\./);
+    assert.equal((seen[0] as { level: string }).level, "busy", "the model is told how heavy the day is");
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

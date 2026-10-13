@@ -17,6 +17,8 @@ export interface FocusRanking {
   day: string;
   total: number;
   protectedCount: number;
+  workload?: { level: "light" | "normal" | "busy" | "heavy"; pressure: number; committedMinutes: number; questCount: number; highPriorityCount: number };
+  heldBack?: number;
 }
 const stateKey = ["/api/smart-focus/state"] as const;
 const rankKey = ["/api/smart-focus/rank"] as const;

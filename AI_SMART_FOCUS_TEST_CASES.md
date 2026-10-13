@@ -50,3 +50,19 @@ Use synthetic quests and two test accounts, A and B. Set the account timezone ex
 30. **Panel removed [automated]:** the Quests page has no "Smart Focus / Rules-based" panel and no Disable AI, Refresh or Private preferences buttons.
 31. **Provider status [manual UI]:** with credits exhausted, Refresh now on the settings page reports "Rules-based: ... exhausted credits or quota"; the Quests tab keeps listing the rules-based quests silently.
 32. **Consent [manual UI]:** Enable shows the OpenAI notice; "Keep it off" leaves Smart Focus disabled and the tab empty.
+
+## Workload-aware focus
+
+See "Workload-aware focus" in [AI_SMART_FOCUS.md](AI_SMART_FOCUS.md) for the formula and limits. Optional low-priority quests below have a start date in the past, importance Low, and are not due or starting today.
+
+33. **Light day keeps extras [automated]:** 2 quests due today (30 min each), 6 optional low-priority quests. All 6 are listed; no "held back" text; `workload.level` is `light`.
+34. **Full day trims to 4 [automated]:** 5 quests due today (30 min, 2 high priority) and 7 optional low-priority quests. Only 4 are listed, 3 are held back, message says "Full day: 3 lower-priority quests held back."
+35. **Busy day [automated]:** 7 quests due today (60 min, 2 high priority) with 3 non-routine and 2 daily low-priority extras. Only 2 non-routine extras are listed; no routine is listed.
+36. **Heavy day [automated]:** 6 quests due today (90 min, 3 high priority), 3 low-priority extras and one Pareto extra. Only the Pareto extra is listed.
+37. **Routines go last [automated]:** on a full day with 5 weekly routines and 2 one-time low-priority extras, both one-time quests are listed and routines fill only the remaining slots. With a tighter tuning, a deadline-type quest beats a general one.
+38. **Never held back [automated]:** low-priority routines that are themselves due today stay listed on a heavy day; a quest the user explicitly wrote feedback about (and the model included) also stays.
+39. **AI cannot override [automated]:** on a heavy day, advice with include=true and score 100 for the low-priority extras does not list them.
+40. **Load inputs [automated]:** more high-priority quests, more quests, or longer quests each raise the pressure; reminders, completed, optional and future-start quests do not; a missing duration counts as 30 minutes.
+41. **Tuning override [automated]:** passing a custom tuning changes the level thresholds and extras limits (the hook for per-account tuning later).
+42. **API [automated]:** `POST /api/smart-focus/rank` returns `workload` and `heldBack`, and the model request receives the workload.
+43. **Live feel [manual]:** with 7 long quests due today, Refresh now on Settings → Smart Focus reports a busy day, and the Smart Focus tab shows few low-priority routines; after finishing most of them and refreshing, more optional quests return.

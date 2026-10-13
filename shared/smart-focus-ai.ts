@@ -5,13 +5,39 @@ export type FocusQuest = {
   id: number; title: string; description?: string | null; details?: string | null;
   dueDate?: string | Date | null; startDate?: string | Date | null;
   importance?: string | null; questType?: string | null; completed?: boolean | null; recycled?: boolean | null;
+  duration?: number | null; recurType?: string | null;
 };
 export type FocusPreference = { id: string; taskId: number; taskTitle: string; text: string; createdAt: string };
 export type FocusEvent = { taskId: number; taskTitle: string; day: string };
 export type FocusMemory = { enabled: boolean; preferences: FocusPreference[]; dismissals: FocusEvent[] };
 export const emptyFocusMemory = (): FocusMemory => ({ enabled: false, preferences: [], dismissals: [] });
 export type FocusAdvice = { taskId: number; include: boolean; score: number; reason: string };
-export type FocusRanking = { ids: number[]; reasons: Record<string, string>; mode: "ai" | "rules"; message: string; day: string; total: number; protectedCount: number };
+export type WorkloadLevel = "light" | "normal" | "busy" | "heavy";
+export type FocusWorkload = { level: WorkloadLevel; pressure: number; committedMinutes: number; questCount: number; highPriorityCount: number };
+export type FocusRanking = {
+  ids: number[]; reasons: Record<string, string>; mode: "ai" | "rules"; message: string; day: string; total: number; protectedCount: number;
+  workload?: FocusWorkload; heldBack?: number;
+};
+
+// How a day's committed workload (quests due or starting today) limits the optional, lower-priority extras.
+// These are the general defaults; a per-account override can be passed to rankFocus later.
+export type FocusTuning = {
+  defaultMinutes: number;                       // assumed length of a quest with no duration
+  pointsPerHighPriority: number;                // extra pressure for each Med-High or higher committed quest
+  pointsPerQuest: number;                       // extra pressure per committed quest, whatever its length
+  levelStarts: { normal: number; busy: number; heavy: number }; // pressure at which each level begins
+  lowPriorityExtras: Record<WorkloadLevel, number>;             // how many optional low-priority quests may be listed
+  routinesAllowed: Record<WorkloadLevel, boolean>;              // whether routine extras may be listed at all
+};
+export const DEFAULT_FOCUS_TUNING: FocusTuning = {
+  defaultMinutes: 30,
+  pointsPerHighPriority: 0.5,
+  pointsPerQuest: 0.2,
+  levelStarts: { normal: 4, busy: 7, heavy: 10 },
+  lowPriorityExtras: { light: Infinity, normal: 4, busy: 2, heavy: 0 },
+  routinesAllowed: { light: true, normal: true, busy: false, heavy: false },
+};
+
 const dateOnly = (value: FocusQuest["dueDate"]) => value ? new Date(value).toISOString().slice(0, 10) : "";
 export function protectedFocus(q: FocusQuest, day: string): boolean {
   if (q.completed || q.recycled || isReminder(q)) return false;
@@ -34,8 +60,24 @@ export function focusSignals(memory: FocusMemory, day: string) {
   }
   return Array.from(byTask.values()).map(s => ({ taskId: s.taskId, taskTitle: s.taskTitle, days: s.dates.size }));
 }
+// A quest that repeats on a schedule (anything but one-time or none).
+export function isRoutine(q: FocusQuest): boolean {
+  const recur = (q.recurType || "").toLowerCase().replace(/[^a-z-]/g, "");
+  return recur !== "" && recur !== "one-time" && recur !== "none";
+}
+// How heavy today is, from the quests already committed (overdue, due today, starting today): their number,
+// total minutes, and how many are high priority. Optional work never counts toward it.
+export function focusWorkload(quests: FocusQuest[], day: string, tuning: FocusTuning = DEFAULT_FOCUS_TUNING): FocusWorkload {
+  const committed = quests.filter(q => protectedFocus(q, day));
+  const committedMinutes = committed.reduce((sum, q) => sum + (q.duration && q.duration > 0 ? q.duration : tuning.defaultMinutes), 0);
+  const highPriorityCount = committed.filter(q => isHighPriority(q)).length;
+  const pressure = Math.round((committedMinutes / 60 + highPriorityCount * tuning.pointsPerHighPriority + committed.length * tuning.pointsPerQuest) * 10) / 10;
+  const { normal, busy, heavy } = tuning.levelStarts;
+  const level: WorkloadLevel = pressure >= heavy ? "heavy" : pressure >= busy ? "busy" : pressure >= normal ? "normal" : "light";
+  return { level, pressure, committedMinutes, questCount: committed.length, highPriorityCount };
+}
 // The model advises; deterministic code owns dates, exclusions, caps, and task identity.
-export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory, advice?: FocusAdvice[]): FocusRanking {
+export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory, advice?: FocusAdvice[], tuning: FocusTuning = DEFAULT_FOCUS_TUNING): FocusRanking {
   const now = new Date(`${day}T12:00:00`);
   const ai = new Map((advice ?? []).map(a => [a.taskId, a]));
   const signals = new Map(focusSignals(memory, day).map(s => [s.taskId, s.days]));
@@ -67,7 +109,20 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     return weight(b) - weight(a) || a.id - b.id;
   });
   const protectedCount = candidates.filter(q => protectedFocus(q, day)).length;
-  const kept = candidates.slice(0, Math.max(10, protectedCount));
+  // A busy day makes room for what matters: only so many optional low-priority quests are listed, and routine
+  // or non-deadline ones go first. Protected quests, high-priority work, and quests the user explicitly asked
+  // for are never trimmed.
+  const workload = focusWorkload(quests, day, tuning);
+  const askedFor = (q: FocusQuest) => ai.get(q.id)?.include === true && memory.preferences.some(p => p.taskId === q.id);
+  const optionalLow = (q: FocusQuest) => !protectedFocus(q, day) && !isHighPriority(q) && !askedFor(q);
+  const lowPicks = candidates.filter(optionalLow)
+    .sort((a, b) => Number(isRoutine(a)) - Number(isRoutine(b)) || Number(b.questType === "deadline") - Number(a.questType === "deadline") || weight(b) - weight(a) || a.id - b.id)
+    .filter(q => tuning.routinesAllowed[workload.level] || !isRoutine(q))
+    .slice(0, tuning.lowPriorityExtras[workload.level]);
+  const allowedLow = new Set(lowPicks.map(q => q.id));
+  const listed = candidates.filter(q => !optionalLow(q) || allowedLow.has(q.id));
+  const heldBack = candidates.length - listed.length;
+  const kept = listed.slice(0, Math.max(10, protectedCount));
   for (const q of kept) {
     const due = dateOnly(q.dueDate);
     reasons[q.id] = protectedFocus(q, day)
@@ -77,6 +132,9 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
       reasons[q.id] += " Slightly lowered after removals on at least 3 distinct days; this is not a permanent exclusion.";
     }
   }
-  return { ids: kept.map(q => q.id), reasons, day, total: candidates.length, protectedCount,
-    mode: advice ? "ai" : "rules", message: advice ? "AI-assisted order with date and priority safeguards." : "Rules-based focus. AI has not ranked this list." };
+  const base = advice ? "AI-assisted order with date and priority safeguards." : "Rules-based focus. AI has not ranked this list.";
+  const dayLabel = { light: "Light", normal: "Full", busy: "Busy", heavy: "Heavy" }[workload.level];
+  const note = heldBack > 0 ? ` ${dayLabel} day: ${heldBack} lower-priority ${heldBack === 1 ? "quest" : "quests"} held back.` : "";
+  return { ids: kept.map(q => q.id), reasons, day, total: listed.length, protectedCount, workload, heldBack,
+    mode: advice ? "ai" : "rules", message: base + note };
 }

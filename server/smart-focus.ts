@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { eligibleFocus, protectedFocus, focusSignals, rankFocus, type FocusMemory, type FocusQuest, type FocusAdvice, type FocusRanking } from "../shared/smart-focus-ai";
+import { eligibleFocus, protectedFocus, focusSignals, focusWorkload, rankFocus, type FocusMemory, type FocusQuest, type FocusAdvice, type FocusRanking, type FocusWorkload } from "../shared/smart-focus-ai";
 
 export interface FocusStore {
   tasks(id: string): Promise<FocusQuest[]>;
@@ -9,7 +9,7 @@ export interface FocusStore {
   read(id: string): Promise<FocusMemory>;
   change(id: string, change: (memory: FocusMemory) => void): Promise<void>;
 }
-type Advice = (input: { quests: FocusQuest[]; memory: FocusMemory; day: string }) => Promise<FocusAdvice[]>;
+type Advice = (input: { quests: FocusQuest[]; memory: FocusMemory; day: string; workload?: FocusWorkload }) => Promise<FocusAdvice[]>;
 export function registerSmartFocus(app: Express, auth: RequestHandler, store: FocusStore, advise: Advice,
   available = () => !!process.env.OPENAI_API_KEY, clock = () => new Date()) {
   const cache = new Map<string, { hash: string; until: number; result: FocusRanking }>();
@@ -111,7 +111,7 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
           const feedbackTargets = new Set(memory.preferences.map(p => p.taskId));
           const priority = (q: FocusQuest) => feedbackTargets.has(q.id) ? -1 : order.get(q.id) ?? 1000;
           const candidates = eligible.sort((a, b) => priority(a) - priority(b) || a.id - b.id).slice(0, 100);
-          const advice = await advise({ quests: candidates, memory, day });
+          const advice = await advise({ quests: candidates, memory, day, workload: focusWorkload(quests, day) });
           result = rankFocus(quests, day, memory, advice);
           if (eligible.length > 100) result.message += " AI reviewed 100 candidates; safeguards cover all quests.";
         } catch (error) {

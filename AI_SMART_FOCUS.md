@@ -25,6 +25,31 @@ Saving feedback does not edit a quest's importance field, dates, completion stat
 - Completion, filtering/search, changing dates, and ignoring a task are **not** treated as dislike signals.
 - Zero false positives cannot be guaranteed. Users can inspect and clear signals.
 
+## Workload-aware focus
+
+A busy day should be focused on what matters, so Smart Focus lists fewer optional low-priority quests when today is already full. This is one of the general rules every account gets; the numbers live in `DEFAULT_FOCUS_TUNING` (`shared/smart-focus-ai.ts`) and `rankFocus` accepts a tuning argument so a per-account override can be added later.
+
+**How heavy today is.** Only quests already committed to today count: overdue, due today, or starting today (reminders, completed and optional work do not). Pressure is:
+
+`pressure = committed hours + 0.5 × high-priority quests + 0.2 × quests`
+
+High priority means Med-High, High or Pareto. A quest with no duration counts as 30 minutes.
+
+| Level | Pressure | Optional low-priority extras listed | Routine extras |
+|-------|----------|--------------------------------------|----------------|
+| Light | under 4 | all (as before) | allowed |
+| Full | 4 to under 7 | up to 4 | allowed, after non-routine ones |
+| Busy | 7 to under 10 | up to 2 | held back |
+| Heavy | 10 or more | none | held back |
+
+Worked examples: 3 quests of 30 minutes, none high priority, is 2.1 (light). 5 quests of 30 minutes with 2 high priority is 4.5 (full). 7 quests of 60 minutes with 2 high priority is 9.4 (busy). 6 quests of 90 minutes with 3 high priority is 11.7 (heavy).
+
+**What counts as an optional low-priority extra:** an eligible quest that is not due or starting today, is not high priority, and is not something the user explicitly asked for in feedback. When slots are limited, routine quests (anything that repeats) and quests that are not deadline-type go last. Held-back quests are not backfilled, so the list gets shorter on a busy day.
+
+**Never held back:** quests due, overdue or starting today (even low-priority routines), high-priority work, and quests the user wrote feedback about and the model chose to include.
+
+**The model and the rules.** The model is told the day's workload (level, pressure, minutes, counts) plus each quest's duration and whether it is routine, and is asked to favor high-priority work on busy days. The limits above are applied by the server after the model's advice, so advice cannot bring held-back quests back. The ranking response includes `workload` and `heldBack`, and its message says, for example, "Busy day: 3 lower-priority quests held back." (visible after Refresh now on the Smart Focus settings page).
+
 ## Persistence and privacy
 
 Memory is stored under an account-scoped `smart-focus:` key in the existing `user_kv` table. No new schema or migration is required. Compare-and-swap updates prevent simultaneous requests from silently overwriting each other.
