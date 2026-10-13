@@ -9,8 +9,7 @@ const DESTINATIONS: Destination[] = [
   { title: "Journal Essays", description: "Long-form essays, reflections, and stories — the ideas worth writing all the way out.", path: "/journal/essays", icon: BookOpen, tone: "sage" },
   { title: "Daily GLEW", description: "Gratitudes, wins, exciteds, and lessons learned — one day at a time.", path: "/journal/daily-glew", icon: HeartHandshake, tone: "rose" },
   { title: "Gratitude Journal", description: "A running list of things you're grateful for.", path: "/journal/gratitude", icon: Heart, tone: "rose" },
-  { title: "Excitement Journal", description: "A running list of things you're excited about.", path: "/journal/excitement", icon: Zap, tone: "sage" },
-  { title: "Empowering Thoughts", description: "The thoughts and beliefs you're reinforcing right now.", path: "/journal/empowering-thoughts", icon: Sparkles, tone: "sage" },
+  { title: "Sparks", description: "What you're excited about and the empowering thoughts you're reinforcing, with every Daily GLEW Excited.", path: "/journal/sparks", icon: Zap, tone: "sage" },
   { title: "Weekly Deep Planning", description: "One deep-dive reflection and plan per week.", path: "/journal/weekly-planning", icon: ClipboardList, tone: "rose" },
   { title: "Reference Beliefs", description: "Principles and reference notes worth re-reading when you need them.", path: "/reference-beliefs", icon: BookMarked, tone: "sage" },
 ];

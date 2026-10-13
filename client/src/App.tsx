@@ -32,9 +32,8 @@ import NPCsPage from "@/pages/npcs";
 import JournalPage from "@/pages/journal";
 import JournalHomePage from "@/pages/journal-home";
 import JournalDailyGlewPage from "@/pages/journal-daily-gews";
-import JournalEmpoweringThoughtsPage from "@/pages/journal-empowering-thoughts";
+import JournalSparksPage from "@/pages/journal-sparks";
 import JournalGratitudePage from "@/pages/journal-gratitude";
-import JournalExcitementPage from "@/pages/journal-excitement";
 import JournalWeeklyPlanningPage from "@/pages/journal-weekly-planning";
 import RecyclingBin from "@/pages/recycling-bin";
 import CompletedBin from "@/pages/completed-bin";
@@ -205,9 +204,14 @@ function Router() {
             <Route path="/journal/daily-gews">
               {() => <Redirect to="/journal/daily-glew" />}
             </Route>
-            <Route path="/journal/empowering-thoughts" component={JournalEmpoweringThoughtsPage} />
+            <Route path="/journal/sparks" component={JournalSparksPage} />
+            <Route path="/journal/empowering-thoughts">
+              {() => <Redirect to="/journal/sparks" />}
+            </Route>
             <Route path="/journal/gratitude" component={JournalGratitudePage} />
-            <Route path="/journal/excitement" component={JournalExcitementPage} />
+            <Route path="/journal/excitement">
+              {() => <Redirect to="/journal/sparks" />}
+            </Route>
             <Route path="/journal/weekly-planning" component={JournalWeeklyPlanningPage} />
             <Route path="/reference-beliefs" component={ReferenceBeliefsPage} />
             <Route path="/recipes" component={RecipesPage} />

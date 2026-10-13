@@ -8,8 +8,7 @@ export const JOURNAL_NAV: { label: string; path: string }[] = [
   { label: "Essays", path: "/journal/essays" },
   { label: "Daily GLEW", path: "/journal/daily-glew" },
   { label: "Gratitude", path: "/journal/gratitude" },
-  { label: "Excitement", path: "/journal/excitement" },
-  { label: "Empowering thoughts", path: "/journal/empowering-thoughts" },
+  { label: "Sparks", path: "/journal/sparks" },
   { label: "Weekly planning", path: "/journal/weekly-planning" },
   { label: "Reference beliefs", path: "/reference-beliefs" },
 ];

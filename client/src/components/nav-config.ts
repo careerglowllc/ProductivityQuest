@@ -11,9 +11,8 @@ export type NavLink = { label: string; path: string; icon: any };
 export const JOURNAL_SUBLINKS: (NavLink & { colorClass: string })[] = [
   { label: "Essays", path: "/journal/essays", icon: BookOpen, colorClass: "text-amber-400" },
   { label: "Daily GLEW", path: "/journal/daily-glew", icon: HeartHandshake, colorClass: "text-amber-400" },
-  { label: "Current Empowering Thoughts/Beliefs", path: "/journal/empowering-thoughts", icon: Sparkles, colorClass: "text-amber-400" },
+  { label: "Sparks (Excitement & Empowering Thoughts)", path: "/journal/sparks", icon: Zap, colorClass: "text-orange-400" },
   { label: "Gratitude Journal", path: "/journal/gratitude", icon: Heart, colorClass: "text-pink-400" },
-  { label: "Excitement Journal", path: "/journal/excitement", icon: Zap, colorClass: "text-orange-400" },
   { label: "Weekly Deep Planning", path: "/journal/weekly-planning", icon: ClipboardList, colorClass: "text-amber-400" },
   { label: "Reference Beliefs", path: "/reference-beliefs", icon: BookMarked, colorClass: "text-amber-400" },
 ];

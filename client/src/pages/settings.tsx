@@ -21,10 +21,9 @@ import { buildTasksCSVExport } from "@/pages/home";
 import { buildQuestlinesCSVExport } from "@/pages/campaigns";
 import { buildReferenceBeliefsCSVExport } from "@/pages/reference-beliefs";
 import { buildGratitudeCSVExport } from "@/pages/journal-gratitude";
-import { buildExcitementCSVExport } from "@/pages/journal-excitement";
 import { buildDailyGlewCSVExport } from "@/pages/journal-daily-gews";
 import { buildWeeklyPlanningCSVExport } from "@/pages/journal-weekly-planning";
-import { buildEmpoweringThoughtsCSVExport } from "@/pages/journal-empowering-thoughts";
+import { buildExcitementCSVExport, buildEmpoweringThoughtsCSVExport } from "@/lib/journal-sparks";
 import { buildJournalCSVExport } from "@/pages/journal";
 
 const APP_VERSION = "v1.0.67";
