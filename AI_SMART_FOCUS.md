@@ -19,7 +19,7 @@ Saving feedback does not edit a quest's importance field, dates, completion stat
 - All protected quests are shown even when there are more than ten. Otherwise the target list size is ten.
 - Completed/recycled quests and standing **reminder-type quests** stay out of the work queue. Reminders keep their separate strip.
 - Future-start quests cannot enter unless already due/overdue. Missing dates do not block high-priority work.
-- High-priority ready work, reached start dates, and important near-term deadlines qualify under server rules. Model scores can reorder non-protected work; deadline type receives an additional priority weight.
+- High-priority ready work, reached start dates, and important near-term deadlines qualify under server rules. Default order: due or overdue today, then starting today, then the rest; within each, earliest due date (undated last), then importance (Pareto, High, Med-High, Medium, Med-Low, Low). Only quests tied on both are ordered by the model score, with deadline type as a small extra tie-break weight.
 - An explicit dismissal lasts only for that day. Repeating it several times on one day counts once.
 - Implicit learning requires at least **three distinct dismissal days within 30 days**. It applies only a small, reversible penalty to that exact quest, and only while AI is enabled. It never creates a category-wide preference or permanently excludes a task.
 - Completion, filtering/search, changing dates, and ignoring a task are **not** treated as dislike signals.

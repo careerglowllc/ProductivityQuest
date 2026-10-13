@@ -116,31 +116,32 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     // AI can add previously missing work, but cannot exclude protected dates.
     return !!focusBand(q, now) || isHighPriority(q) || ai.get(q.id)?.include === true;
   });
-  // A confirmed placement nudges the order a little; a move into Smart Focus ranks above other optional work.
-  const stanceWeight = (q: FocusQuest) => {
+  // A confirmed placement nudges the order a little among otherwise equal quests; a move into Smart Focus ranks above other optional work.
+  const stanceNudge = (q: FocusQuest) => {
     const stance = stances.get(q.id);
-    if (stance?.action === "include") return 150;
     if (stance?.action === "keep") return stance.inFocus === true ? 15 : stance.inFocus === false ? -15 : 0;
     return 0;
   };
-  const weight = (q: FocusQuest) => {
+  const band = (q: FocusQuest) => {
     const due = dateOnly(q.dueDate);
-    const band = due && due <= day ? 3 : dateOnly(q.startDate) === day ? 2 : 1;
-    const base = importanceRank(q.importance) * 20 + (q.questType === "deadline" ? 10 : 0);
+    return due && due <= day ? 3 : dateOnly(q.startDate) === day ? 2 : 1;
+  };
+  // Only breaks ties between quests with the same due date and importance: the model's judgment, the user's nudges, past removals.
+  const tieScore = (q: FocusQuest) => {
     const signalPenalty = memory.enabled && (signals.get(q.id) ?? 0) >= 3 ? 10 : 0;
     // The model's score does not count against something the user moved in themselves.
     const modelScore = stances.get(q.id)?.action === "include" ? 0 : ai.get(q.id)?.score ?? 0;
-    return band * 10000 + base + modelScore - signalPenalty + stanceWeight(q);
+    return modelScore - signalPenalty + stanceNudge(q) + (q.questType === "deadline" ? 10 : 0);
   };
-  candidates.sort((a, b) => {
-    if (protectedFocus(a, day) && protectedFocus(b, day)) {
-      const ad = dateOnly(a.dueDate), bd = dateOnly(b.dueDate);
-      const au = !!ad && ad <= day, bu = !!bd && bd <= day;
-      if (au !== bu) return au ? -1 : 1;
-      if (au && bu && ad !== bd) return ad.localeCompare(bd);
-    }
-    return weight(b) - weight(a) || a.id - b.id;
-  });
+  // Due or starting today first, then what the user moved in, then earliest due date, then importance, then the model's tie-break.
+  const compare = (a: FocusQuest, b: FocusQuest) =>
+    band(b) - band(a)
+    || Number(stances.get(b.id)?.action === "include") - Number(stances.get(a.id)?.action === "include")
+    || (dateOnly(a.dueDate) || "9999-12-31").localeCompare(dateOnly(b.dueDate) || "9999-12-31")
+    || importanceRank(b.importance) - importanceRank(a.importance)
+    || tieScore(b) - tieScore(a)
+    || a.id - b.id;
+  candidates.sort(compare);
   const protectedCount = candidates.filter(q => protectedFocus(q, day)).length;
   // A busy day makes room for what matters: only so many optional low-priority quests are listed, and routine
   // or non-deadline ones go first. Protected quests, high-priority work, and quests the user explicitly asked
@@ -153,7 +154,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   };
   const optionalLow = (q: FocusQuest) => !protectedFocus(q, day) && !isHighPriority(q) && !askedFor(q);
   const lowPicks = candidates.filter(optionalLow)
-    .sort((a, b) => Number(isRoutine(a)) - Number(isRoutine(b)) || Number(b.questType === "deadline") - Number(a.questType === "deadline") || weight(b) - weight(a) || a.id - b.id)
+    .sort((a, b) => Number(isRoutine(a)) - Number(isRoutine(b)) || Number(b.questType === "deadline") - Number(a.questType === "deadline") || compare(a, b))
     .filter(q => tuning.routinesAllowed[workload.level] || !isRoutine(q))
     .slice(0, tuning.lowPriorityExtras[workload.level]);
   const allowedLow = new Set(lowPicks.map(q => q.id));

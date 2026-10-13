@@ -256,3 +256,47 @@ test("each action is described in plain words", () => {
   assert.equal(focusActionLabel({ action: "keep" }), "Kept where it was");
   assert.equal(focusActionLabel({}), null);
 });
+
+const orderOf = (quests: FocusQuest[], advice?: { taskId: number; include: boolean; score: number; reason: string }[]) =>
+  rankFocus(quests, day, emptyFocusMemory(), advice).ids;
+const ready = (id: number, extra: Partial<FocusQuest> = {}) => task(id, { startDate: "2026-10-01", importance: "High", ...extra });
+const ask = (taskId: number, score: number) => ({ taskId, include: true, score, reason: "r" });
+
+test("the same due date is ordered by importance, whatever the model says", () => {
+  const due = "2026-10-12T00:00:00.000Z";
+  const quests = [ready(1, { importance: "Low", dueDate: due }), ready(2, { importance: "High", dueDate: due }), ready(3, { importance: "Medium", dueDate: due })];
+  assert.deepEqual(orderOf(quests), [2, 3, 1]);
+  assert.deepEqual(orderOf(quests, [ask(1, 100), ask(2, -100), ask(3, 0)]), [2, 3, 1]);
+});
+
+test("the model breaks ties only between the same due date and importance", () => {
+  const due = "2026-10-12T00:00:00.000Z";
+  const quests = [ready(1, { dueDate: due }), ready(2, { dueDate: due }), ready(3, { dueDate: due })];
+  assert.deepEqual(orderOf(quests, [ask(1, -20), ask(2, 60), ask(3, 10)]), [2, 3, 1]);
+  assert.deepEqual(orderOf(quests), [1, 2, 3]);
+});
+
+test("an earlier due date comes first, and undated work comes after dated work", () => {
+  const quests = [
+    ready(1, { importance: "Pareto" }),
+    ready(2, { importance: "Low", dueDate: "2026-10-20T00:00:00.000Z" }),
+    ready(3, { importance: "Low", dueDate: "2026-10-15T00:00:00.000Z" }),
+  ];
+  assert.deepEqual(orderOf(quests), [3, 2, 1]);
+});
+
+test("overdue and due-today come first, then quests starting today, then the rest", () => {
+  const quests = [
+    ready(1, { importance: "Pareto" }),
+    ready(2, { importance: "Low", startDate: day }),
+    ready(3, { importance: "Low", dueDate: "2026-10-12T00:00:00.000Z" }),
+    ready(4, { importance: "Low", dueDate: "2026-10-10T00:00:00.000Z" }),
+  ];
+  assert.deepEqual(orderOf(quests, [ask(1, 100)]), [4, 3, 2, 1]);
+});
+
+test("quests a user moved in still lead their group, ahead of higher importance", () => {
+  const memory = { ...emptyFocusMemory(), enabled: true, preferences: [{ id: "p", taskId: 2, taskTitle: "Task 2", text: "wanted", createdAt: "2026-10-12T00:00:00.000Z", action: "include" as const }] };
+  const quests = [ready(1, { importance: "Pareto" }), task(2, { startDate: "2026-10-01", importance: "Low" })];
+  assert.deepEqual(rankFocus(quests, day, memory).ids, [2, 1]);
+});
