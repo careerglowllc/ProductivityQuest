@@ -1,6 +1,6 @@
 # Personalized AI Smart Focus
 
-Smart Focus uses OpenAI's `gpt-4o-mini` plus deterministic safeguards. It is **not a separately trained model** and does not use a person's ChatGPT account. One server-side `OPENAI_API_KEY` serves the application; preference memory is private to each authenticated app account.
+Smart Focus uses OpenAI's `gpt-6-luna` (about $0.10 in / $0.50 out per million tokens, well under half a cent per ranking) plus deterministic safeguards. If the API refuses a parameter, the request is retried with relaxed settings and finally with `gpt-4o-mini`; billing and rate-limit errors are never retried. Set `OPENAI_MODEL` to choose another model. Skill auto-classification uses the same model setting. It is **not a separately trained model** and does not use a person's ChatGPT account. One server-side `OPENAI_API_KEY` serves the application; preference memory is private to each authenticated app account.
 
 ## Using it
 

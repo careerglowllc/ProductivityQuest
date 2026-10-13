@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { UserSkill } from "../shared/schema";
+import { createJsonCompletion } from "./openai-model";
 
 let openai: OpenAI | null = null;
 
@@ -103,8 +104,8 @@ Respond with a JSON object in this exact format:
   "reasoning": "Brief explanation of why these skills were chosen"
 }`;
 
-    const completion = await getOpenAIClient().chat.completions.create({
-      model: "gpt-4o-mini", // Using the faster, cheaper model
+    const client = getOpenAIClient();
+    const completion = await createJsonCompletion((params) => client.chat.completions.create(params), {
       messages: [
         {
           role: "system",
@@ -115,9 +116,8 @@ Respond with a JSON object in this exact format:
           content: prompt
         }
       ],
-      response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 300
+      maxTokens: 300
     });
 
     const responseContent = completion.choices[0]?.message?.content;
