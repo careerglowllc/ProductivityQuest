@@ -67,9 +67,10 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
         return res.status(409).json({ message: "Preference memory is full. Forget an old preference before adding more." });
       throw error;
     }
-    forget(id); res.status(201).json({ preference, message: input.action === "exclude"
-      ? "Feedback saved. This quest is now off Smart Focus; restore it any time in Settings, under Smart Focus."
-      : "Feedback saved privately. Smart Focus will use it; date safeguards still apply." });
+    const message = input.action === "exclude" ? "Feedback saved. This quest is now off Smart Focus; restore it any time in Settings, under Smart Focus."
+      : input.action === "higher" || input.action === "lower" ? `Feedback saved. This quest now ranks ${input.action} in Smart Focus, and your reason helps rank similar quests.`
+      : "Feedback saved privately. Smart Focus will use it; date safeguards still apply.";
+    forget(id); res.status(201).json({ preference, message });
   }));
   app.post("/api/smart-focus/dismiss", auth, handler(async (req, res) => {
     const input = z.object({ taskId: z.number().int().positive(), undo: z.boolean().optional() }).parse(req.body);

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
+import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, focusOrders, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
 const day = "2026-10-12";
 const task = (id: number, extra: Partial<FocusQuest> = {}): FocusQuest => ({ id, title: `Task ${id}`, ...extra });
 test("all urgent and start-today tasks survive the cap and hostile AI advice", () => {
@@ -463,4 +463,62 @@ test("a weighted-up Apple quest also counts as high priority, so a busy day does
   const weekday = rankOn([...heavy, ...extras], MONDAY);
   assert.equal(weekday.workload?.level, "heavy");
   assert.ok(weekday.ids.includes(150) && !weekday.ids.includes(151));
+});
+
+// ── Rank higher / rank lower: the user steers the order, not just what is listed ──
+const asked = (...entries: [number, FocusAction][]): FocusMemory => ({
+  ...emptyFocusMemory(),
+  preferences: entries.map(([taskId, action], index) => ({ id: `o${index}`, taskId, taskTitle: `Task ${taskId}`, text: "Because.", createdAt: day, action, inFocus: true })),
+});
+const trio = () => [started(1, "General", "High"), started(2, "General", "Medium"), started(3, "General", "Low")];
+
+test("rank higher moves a quest to the front of its group, ahead of importance", () => {
+  assert.deepEqual(rankFocus(trio(), day, emptyFocusMemory()).ids, [1, 2, 3]);
+  assert.deepEqual(rankFocus(trio(), day, asked([3, "higher"])).ids, [3, 1, 2]);
+});
+
+test("rank lower moves a quest to the back of its group", () => {
+  assert.deepEqual(rankFocus(trio(), day, asked([1, "lower"])).ids, [2, 3, 1]);
+});
+
+test("rank higher beats an earlier due date, but not work that is overdue or due today", () => {
+  const quests = [started(1, "General", "High", { dueDate: "2026-11-01T00:00:00.000Z" }), started(2, "General", "Low", { dueDate: "2026-12-01T00:00:00.000Z" }), task(3, { dueDate: `${day}T00:00:00.000Z`, importance: "Low" })];
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids, [3, 1, 2]);
+  assert.deepEqual(rankFocus(quests, day, asked([2, "higher"])).ids, [3, 2, 1]);
+});
+
+test("within today's committed work, rank higher and lower reorder it", () => {
+  const quests = dueToday(4);
+  assert.deepEqual(rankFocus(quests, day, emptyFocusMemory()).ids, [1, 2, 3, 4]);
+  assert.deepEqual(rankFocus(quests, day, asked([4, "higher"], [1, "lower"])).ids, [4, 2, 3, 1]);
+});
+
+test("the latest ranking request wins, and it does not disturb placement actions", () => {
+  assert.deepEqual(rankFocus(trio(), day, asked([3, "higher"], [3, "lower"])).ids, [1, 2, 3]);
+  assert.deepEqual([...focusOrders(asked([3, "higher"], [3, "lower"], [2, "higher"]))], [[3, "lower"], [2, "higher"]]);
+  const memory = asked([2, "include"], [2, "higher"]);
+  assert.equal(focusStances(memory).get(2)?.action, "include", "a ranking request does not replace a move-in");
+  assert.equal(focusOrders(memory).get(2), "higher");
+  const lowered = asked([2, "include"], [2, "lower"], [1, "higher"]);
+  assert.deepEqual(rankFocus([started(1, "General", "Low"), started(2, "General", "Low")], day, lowered).ids, [2, 1], "a moved-in quest still leads, even when ranked lower");
+});
+
+test("a ranked quest explains itself and is never trimmed from the list", () => {
+  const result = rankFocus(trio(), day, asked([3, "higher"], [1, "lower"]));
+  assert.match(result.reasons[3], /You asked for this to rank higher\./);
+  assert.match(result.reasons[1], /You asked for this to rank lower\./);
+  assert.doesNotMatch(result.reasons[2], /You asked/);
+  const heavy = committed(6, 90, 3);
+  const extras = [started(150, "General", "Low"), started(151, "General", "Low")];
+  const busy = rankFocus([...heavy, ...extras], day, asked([150, "lower"]));
+  assert.equal(busy.workload?.level, "heavy");
+  assert.ok(busy.ids.includes(150) && !busy.ids.includes(151), "a quest the user ranked is not held back");
+  const crowded = [...dueToday(12), started(99, "General", "Low")];
+  const full = rankFocus(crowded, day, asked([99, "lower"]));
+  assert.equal(full.ids.at(-1), 99, "past the list size, still listed");
+});
+
+test("rank higher and lower are described in plain words", () => {
+  assert.equal(focusActionLabel({ action: "higher" }), "Ranked higher in Smart Focus");
+  assert.equal(focusActionLabel({ action: "lower" }), "Ranked lower in Smart Focus");
 });

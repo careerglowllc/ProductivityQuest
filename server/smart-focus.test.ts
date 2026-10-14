@@ -181,3 +181,37 @@ test("the account's work-filter profile is returned, survives Forget everything,
     assert.deepEqual(memories.get("u")?.profile, APPLE_WEEKDAY_PROFILE, "forgetting preferences keeps the profile");
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test("feedback accepts rank higher and rank lower, and the ranking follows the latest one", async () => {
+  const memories = new Map<string, FocusMemory>();
+  const quests = [
+    { id: 1, title: "First", importance: "High", startDate: "2026-10-01" },
+    { id: 2, title: "Second", importance: "Medium", startDate: "2026-10-01" },
+    { id: 3, title: "Third", importance: "Low", startDate: "2026-10-01" },
+  ];
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "u" } as any; next(); }, {
+    tasks: async () => quests, timezone: async () => "UTC",
+    read: async () => structuredClone(memories.get("u") ?? emptyFocusMemory()),
+    change: async (_id, change) => { const m = structuredClone(memories.get("u") ?? emptyFocusMemory()); change(m); memories.set("u", m); },
+  }, async () => [], () => false, () => new Date("2026-10-13T17:00:00Z"));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus`;
+    const post = (path: string, body: unknown) => fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const order = async () => (await (await post("/rank", {})).json()).ids;
+    assert.deepEqual(await order(), [1, 2, 3]);
+    const up = await (await post("/feedback", { taskId: 3, text: "It unblocks the launch.", action: "higher" })).json();
+    assert.equal(up.preference.action, "higher");
+    assert.equal(up.preference.inFocus, true, "placement is worked out when the client does not send it");
+    assert.match(up.message, /now ranks higher in Smart Focus/);
+    assert.deepEqual(await order(), [3, 1, 2]);
+    const down = await (await post("/feedback", { taskId: 1, text: "This can wait a few days.", action: "lower" })).json();
+    assert.match(down.message, /now ranks lower/);
+    assert.deepEqual(await order(), [3, 2, 1]);
+    assert.equal((await post("/feedback", { taskId: 2, text: "x", action: "sideways" })).status, 400);
+    const state = await (await fetch(base + "/state")).json();
+    assert.deepEqual(state.preferences.map((p: { action: string }) => p.action), ["higher", "lower"]);
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

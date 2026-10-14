@@ -27,15 +27,16 @@ Saving feedback does not edit a quest's importance field, dates, completion stat
 
 ## Feedback with an action
 
-Under the paragraph box in **AI feedback** there are three buttons. Pick one, explain why, then **Submit**:
+Under the paragraph box in **AI feedback** there are five buttons. Pick one, explain why, then **Submit**:
 
 | Choice | What it does |
 |--------|--------------|
 | **Move into Smart Focus** | Lists the quest even if nothing else would qualify it, ranks it above other optional work, and keeps it through busy-day trimming. The model cannot veto it, and neither can a future start date, an earlier "Not today", or the list size. Completed, recycled and reminder quests still cannot be brought in. |
 | **Take off Smart Focus** | Removes the quest, even high-priority work and even if the model says include. This also applies to quests that are overdue, due today or starting today, because the choice is the user's own; the model and plain-text feedback still cannot hide them. Moving the quest back in, or Forget in Settings, restores it. |
+| **Rank higher** / **Rank lower** | For a quest already in the list, moves it up or down the order. It goes to the front (or back) of its group, ahead of due date and importance, but quests that are overdue, due today or starting today still come before everything else, and a moved-in quest still leads. The quest is never trimmed by the list size or a busy day, and its reason says "You asked for this to rank higher." The model also gets your reason: it is told to learn what made the quest more or less important or urgent and let that shape its tie-break scores for similar quests. This is separate from placement, so it does not replace an earlier Move into or Take off; the latest rank request replaces an earlier one. |
 | **Keep it where it is** | Confirms the current placement as correct. Kept in: protected from busy-day trimming with a small boost and a "you confirmed this" reason. Kept out: a small order penalty, not a hard exclusion. |
 
-Move into and Take off are disabled when they would change nothing (the quest is already in, or already out). The selection is optional: a plain paragraph still saves as context. The latest action on a quest replaces an earlier one, and Forget in Private preferences removes its effect.
+Move into and Take off are disabled when they would change nothing (the quest is already in, or already out), and Rank higher and Rank lower are disabled for a quest that is not in the list. The selection is optional: a plain paragraph still saves as context. The latest action on a quest replaces an earlier one, and Forget in Private preferences removes its effect.
 
 The saved preference records the `action` and where the quest was (`inFocus`). The model receives both with the written explanation and is told to treat them as positive or negative corrective examples: learn the reasoning for similar quests, but apply the action only to that quest. Move and Take off are enforced by the server after the model's advice, so they work even when AI is unavailable.
 
