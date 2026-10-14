@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, CheckCircle2, Circle, X, GripVertical, MoreVertical, HelpCircle, Edit2, Check } from "lucide-react";
 import { calculateGoldValue } from "@/lib/goldCalculation";
+import { childrenAtStake, type ChildrenAtStake, type ChildrenChoice } from "@shared/questline-delete";
+import { DeleteChildrenDialog } from "@/components/quest-delete-children-dialog";
 
 const QUESTLINE_ICONS = [
   // Fantasy / RPG
@@ -324,19 +326,35 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
   }, [reorderMutation]);
 
   const deleteTaskMutation = useMutation({
-    mutationFn: async (taskId: number) => {
-      return await apiRequest("DELETE", `/api/tasks/${taskId}`);
+    mutationFn: async ({ taskId, children }: { taskId: number; children?: ChildrenChoice }) => {
+      const response = await apiRequest("DELETE", `/api/tasks/${taskId}${children ? `?children=${children}` : ""}`);
+      return (await response.json()) as { deletedIds?: number[]; reparented?: Array<{ id: number; parentTaskId: number | null; indentLevel: number }> };
     },
-    onSuccess: (_data, taskId) => {
-      setOrderedTasks(prev => prev.filter(t => t.id !== taskId));
+    onSuccess: (data, { taskId }) => {
+      const gone = new Set(data?.deletedIds?.length ? data.deletedIds : [taskId]);
+      const moved = new Map((data?.reparented ?? []).map((move) => [move.id, move]));
+      setOrderedTasks(prev => prev
+        .filter(t => !gone.has(t.id))
+        .map(t => moved.has(t.id) ? { ...t, parentTaskId: moved.get(t.id)!.parentTaskId, indentLevel: moved.get(t.id)!.indentLevel } : t));
       queryClient.invalidateQueries({ queryKey: ["/api/questlines"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "🗑️ Quest removed", description: "Moved to recycling bin." });
+      toast({
+        title: gone.size > 1 ? `🗑️ ${gone.size} quests removed` : "🗑️ Quest removed",
+        description: `Moved to recycling bin.${moved.size > 0 ? " The quests after it moved up." : ""}`,
+      });
     },
     onError: () => {
       toast({ title: "Failed to remove quest", variant: "destructive" });
     },
   });
+
+  // A stage with stages after it asks first: remove those too, or keep them and move them up.
+  const [deletePrompt, setDeletePrompt] = useState<{ taskId: number; stake: ChildrenAtStake } | null>(null);
+  const requestDeleteTask = (taskId: number) => {
+    const stake = childrenAtStake(orderedTasks, [taskId]);
+    if (stake) setDeletePrompt({ taskId, stake });
+    else deleteTaskMutation.mutate({ taskId });
+  };
 
   // Inline edit state for existing tasks
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
@@ -594,6 +612,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950 border-2 border-purple-500/40 text-yellow-100 overflow-hidden">
         <DialogHeader className="shrink-0">
@@ -776,7 +795,7 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
                               <DropdownMenuSeparator className="bg-purple-500/20" />
                               <DropdownMenuItem
                                 className="text-red-400 hover:text-red-300 hover:bg-red-500/15 cursor-pointer flex items-center gap-2"
-                                onClick={() => deleteTaskMutation.mutate(task.id)}
+                                onClick={() => requestDeleteTask(task.id)}
                                 disabled={deleteTaskMutation.isPending}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1353,5 +1372,15 @@ export function EditQuestlineModal({ open, onOpenChange, questline }: EditQuestl
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <DeleteChildrenDialog
+      stake={deletePrompt?.stake ?? null}
+      onCancel={() => setDeletePrompt(null)}
+      onChoose={(choice) => {
+        const prompt = deletePrompt;
+        setDeletePrompt(null);
+        if (prompt) deleteTaskMutation.mutate({ taskId: prompt.taskId, children: choice });
+      }}
+    />
+    </>
   );
 }

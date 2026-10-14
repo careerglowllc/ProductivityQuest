@@ -38,6 +38,8 @@ import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
 import { DEFAULT_QUEST_TYPE, QUEST_TYPES, QUEST_TYPE_LABELS, compareByDueDateThenImportance, isQuestType, type QuestType } from "@shared/quest-type";
 import { FOCUS_BAND_HINTS, isOnTodaysList, isReminder, smartFocus, sortReminders, sortUpcoming, dayStart, type FocusBand } from "@shared/quest-schedule";
+import { childrenAtStake, planChildren, type ChildrenAtStake, type ChildrenChoice } from "@shared/questline-delete";
+import { DeleteChildrenDialog } from "@/components/quest-delete-children-dialog";
 
 type FilterType = "smart" | "upcoming" | "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `type-${QuestType}` | `assignee-${string}`;
 
@@ -176,6 +178,8 @@ export default function Home() {
   
   // Delete from Notion confirmation state
   const [showDeleteNotionConfirm, setShowDeleteNotionConfirm] = useState(false);
+  // Set while asking what to do with the quests after a quest that is being deleted (delete them too, or move them up).
+  const [deletePrompt, setDeletePrompt] = useState<ChildrenAtStake | null>(null);
   const [deleteNotionTaskCount, setDeleteNotionTaskCount] = useState(0);
   
   // Undo functionality state
@@ -494,7 +498,14 @@ export default function Home() {
     }
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
+    if (selectedTasks.size === 0) return;
+    const stake = childrenAtStake(tasks as any[], Array.from(selectedTasks));
+    if (stake) { setDeletePrompt(stake); return; }
+    void deleteSelectedQuests();
+  };
+
+  const deleteSelectedQuests = async (children?: ChildrenChoice) => {
     if (selectedTasks.size === 0) return;
 
     const selectedTaskIds = Array.from(selectedTasks);
@@ -503,19 +514,20 @@ export default function Home() {
     }).filter(Boolean);
 
     if (tasksToDelete.length === 0) return;
+    const plan = planChildren(tasks as any[], selectedTaskIds, children ?? "promote");
 
     // OPTIMISTIC UI: Update immediately
     setSelectedTasks(new Set());
 
     // Show toast immediately
     toast({
-      title: `${tasksToDelete.length} Quest${tasksToDelete.length > 1 ? 's' : ''} Deleted`,
-      description: `Task${tasksToDelete.length > 1 ? 's' : ''} moved to recycling bin without earning gold or XP.`,
+      title: `${plan.deleteIds.length} Quest${plan.deleteIds.length > 1 ? 's' : ''} Deleted`,
+      description: `Task${plan.deleteIds.length > 1 ? 's' : ''} moved to recycling bin without earning gold or XP.${plan.reparent.length > 0 ? ' The quests after it moved up.' : ''}`,
     });
 
     try {
       // Call backend to actually update database
-      const response = await apiRequest("POST", "/api/tasks/delete-batch", { 
+      const response = await apiRequest("POST", "/api/tasks/delete-batch", { ...(children ? { children } : {}), 
         taskIds: selectedTaskIds 
       });
       
@@ -526,7 +538,7 @@ export default function Home() {
       // Track for undo
       setLastAction({
         type: 'delete-notion', // Reusing the delete-notion type for undo
-        taskIds: selectedTaskIds
+        taskIds: plan.deleteIds
       });
       
       // Refresh data after backend completes
@@ -3413,6 +3425,11 @@ export default function Home() {
       </Dialog>
 
       {/* Delete from Notion Confirmation Modal */}
+      <DeleteChildrenDialog
+        stake={deletePrompt}
+        onCancel={() => setDeletePrompt(null)}
+        onChoose={(choice) => { setDeletePrompt(null); void deleteSelectedQuests(choice); }}
+      />
       <Dialog open={showDeleteNotionConfirm} onOpenChange={setShowDeleteNotionConfirm}>
         <DialogContent className="bg-slate-800 border-2 border-red-600/40">
           <DialogHeader>

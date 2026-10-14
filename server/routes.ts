@@ -21,6 +21,45 @@ import { registerSmartFocus } from "./smart-focus";
 import { focusStore, FOCUS_KEY_PREFIX } from "./smart-focus-store";
 import { adviseFocus } from "./smart-focus-openai";
 import { registerFitnessAi } from "./fitness-ai";
+import { planChildren, type ChildrenChoice } from "@shared/questline-delete";
+
+// Which quests a delete removes and which move up, when a quest being deleted has others after it in its
+// questline. Quests outside a questline are deleted exactly as asked.
+async function planQuestDelete(userId: string, ids: number[], choice: ChildrenChoice) {
+  const questlineIds = new Set<number>();
+  for (const id of ids) {
+    const task = await storage.getTask(id, userId);
+    if (task && !task.completed && !task.recycled && task.questlineId != null) questlineIds.add(task.questlineId);
+  }
+  const inQuestlines = (await Promise.all(Array.from(questlineIds).map((id) => storage.getQuestlineTasks(userId, id)))).flat();
+  const known = new Set(inQuestlines.map((task) => task.id));
+  const plan = planChildren(inQuestlines, ids.filter((id) => known.has(id)), choice);
+  const deleteIds = Array.from(new Set([...ids.filter((id) => !known.has(id)), ...plan.deleteIds]));
+  return { deleteIds, reparent: plan.reparent };
+}
+
+// Moves one quest to the recycling bin (no gold or XP) and removes its Google Calendar event.
+async function recycleQuest(userId: string, taskId: number): Promise<boolean> {
+  const task = await storage.getTask(taskId, userId);
+  if (!task || task.completed) return false;
+  if (task.googleEventId) {
+    const user = await storage.getUserById(userId);
+    const hasGoogleAuth = user && (
+      (user.googleCalendarAccessToken && user.googleCalendarRefreshToken) ||
+      (user.googleAccessToken && user.googleRefreshToken)
+    );
+    if (hasGoogleAuth) {
+      try {
+        await googleCalendar.deleteEvent(user!, task.googleEventId, task.googleCalendarId || 'primary');
+      } catch (error: any) {
+        console.error(`⚠️ Failed to delete GCal event for task "${task.title}": ${error.message}`);
+      }
+    }
+  }
+  const done = await storage.deleteTask(taskId, userId);
+  if (done && task.googleEventId) await storage.updateTask(taskId, { googleEventId: null, googleCalendarId: null }, userId);
+  return done;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerCommandCenter(app, requireAuth, commandStore);
@@ -1479,6 +1518,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let deletedCount = 0;
       const deletedTasks = [];
 
+      // Quests after a deleted one in its questline are deleted too (children: "delete") or move up (the default).
+      const choice: ChildrenChoice = req.body?.children === "delete" ? "delete" : "promote";
+      const plan = await planQuestDelete(userId, taskIds.filter((id: unknown): id is number => Number.isInteger(id)), choice);
+
       // Get user for Google Calendar cleanup
       const user = await storage.getUserById(userId);
       const hasGoogleAuth = user && (
@@ -1487,7 +1530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // Move all tasks to recycling bin
-      for (const taskId of taskIds) {
+      for (const taskId of plan.deleteIds) {
         const task = await storage.getTask(taskId, userId);
         
         if (task && !task.completed) {
@@ -1518,11 +1561,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      for (const move of plan.reparent) {
+        await storage.updateTask(move.id, { parentTaskId: move.parentTaskId, indentLevel: move.indentLevel }, userId);
+      }
+
       console.log(`🗑️ Deleted ${deletedCount} tasks (moved to recycling bin)`);
 
       res.json({
         deletedCount,
-        tasks: deletedTasks
+        tasks: deletedTasks,
+        deletedIds: deletedTasks.map((task) => task.id),
+        reparented: plan.reparent,
       });
     } catch (error) {
       console.error("Batch deletion error:", error);
@@ -1910,6 +1959,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Quests after this one in its questline are deleted too (?children=delete) or move up (the default).
+      const choice: ChildrenChoice = req.query.children === "delete" ? "delete" : "promote";
+      const plan = await planQuestDelete(userId, [id], choice);
+
       const success = await storage.deleteTask(id, userId);
       if (!success) {
         return res.status(404).json({ error: "Task not found" });
@@ -1920,7 +1973,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateTask(id, { googleEventId: null, googleCalendarId: null }, userId);
       }
 
-      res.json({ success: true });
+      const deletedIds = [id];
+      for (const childId of plan.deleteIds.filter((other) => other !== id)) {
+        if (await recycleQuest(userId, childId)) deletedIds.push(childId);
+      }
+      for (const move of plan.reparent) {
+        await storage.updateTask(move.id, { parentTaskId: move.parentTaskId, indentLevel: move.indentLevel }, userId);
+      }
+
+      res.json({ success: true, deletedIds, reparented: plan.reparent });
     } catch (error) {
       console.error("Task deletion error:", error);
       res.status(500).json({ error: "Failed to delete task" });
