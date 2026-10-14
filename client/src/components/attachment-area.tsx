@@ -1,16 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, X, Maximize2, Download } from "lucide-react";
+import { Paperclip, X, Maximize2, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
+  dataUrlToBlob,
   filesToAttachments,
   formatBytes,
   MAX_IMAGE_BYTES,
+  MAX_PDF_BYTES,
   MAX_VIDEO_BYTES,
   MEDIA_ACCEPT,
   type QuestAttachment,
 } from "@/lib/attachments";
+
+// A PDF in the lightbox: shown through a blob URL, since browsers will not open a data URL as a page.
+function PdfFrame({ attachment }: { attachment: QuestAttachment }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let made: string | null = null;
+    try { made = URL.createObjectURL(dataUrlToBlob(attachment.dataUrl)); } catch { /* shown as unreadable below */ }
+    setUrl(made);
+    return () => { if (made) URL.revokeObjectURL(made); };
+  }, [attachment.dataUrl]);
+  return (
+    <div className="flex h-full w-full max-w-4xl flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+      {url ? (
+        <>
+          <iframe src={url} title={attachment.name} className="min-h-0 w-full flex-1 rounded-md bg-white" />
+          <a href={url} target="_blank" rel="noopener noreferrer" className="self-center text-xs text-white/70 underline hover:text-white">
+            Open in a new tab
+          </a>
+        </>
+      ) : (
+        <p className="m-auto text-sm text-white/70">This PDF can't be shown. Use the download button instead.</p>
+      )}
+    </div>
+  );
+}
 
 interface AttachmentAreaProps {
   attachments: QuestAttachment[];
@@ -169,8 +196,8 @@ export function AttachmentArea({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            title="Attach image or video"
-            aria-label="Attach image or video"
+            title="Attach image, video or PDF"
+            aria-label="Attach image, video or PDF"
             className={cn(
               "absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-md",
               "text-yellow-300/50 hover:text-yellow-200 hover:bg-yellow-600/20",
@@ -186,7 +213,7 @@ export function AttachmentArea({
         {isDragging && !disabled && (
           <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center rounded-md border-2 border-dashed border-yellow-400/70 bg-slate-900/80 backdrop-blur-sm">
             <Paperclip className="mb-1 h-6 w-6 text-yellow-300" />
-            <span className="text-sm font-medium text-yellow-200">Drop image or video to embed</span>
+            <span className="text-sm font-medium text-yellow-200">Drop image, video or PDF to embed</span>
           </div>
         )}
 
@@ -203,8 +230,8 @@ export function AttachmentArea({
       {showHint && (
         <p className="text-[11px] text-yellow-400/50">
           <Paperclip className="mr-1 inline h-3 w-3 align-[-1px]" />
-          Attach or drag &amp; drop to embed media · images ≤ {formatBytes(MAX_IMAGE_BYTES)}, videos ≤{" "}
-          {formatBytes(MAX_VIDEO_BYTES)}
+          Attach or drag &amp; drop to embed files · images ≤ {formatBytes(MAX_IMAGE_BYTES)}, videos ≤{" "}
+          {formatBytes(MAX_VIDEO_BYTES)}, PDFs ≤ {formatBytes(MAX_PDF_BYTES)}
         </p>
       )}
 
@@ -216,7 +243,18 @@ export function AttachmentArea({
               key={att.id}
               className="group relative overflow-hidden rounded-md border border-yellow-600/30 bg-slate-950/60"
             >
-              {att.type === "image" ? (
+              {att.type === "pdf" ? (
+                <button
+                  type="button"
+                  onClick={() => setLightbox(att)}
+                  title="Click to view PDF"
+                  aria-label={`View ${att.name}`}
+                  className="flex h-32 w-full cursor-pointer flex-col items-center justify-center gap-1 bg-slate-900/60 text-yellow-200/80 transition-colors hover:bg-slate-800/70 hover:text-yellow-100"
+                >
+                  <FileText className="h-9 w-9" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wide">PDF</span>
+                </button>
+              ) : att.type === "image" ? (
                 <button
                   type="button"
                   onClick={() => setLightbox(att)}
@@ -299,8 +337,10 @@ export function AttachmentArea({
             </div>
 
             {/* Media — click on the media itself does NOT close the lightbox */}
-            <div className="flex flex-1 items-center justify-center overflow-auto p-4 pt-0">
-              {lightbox.type === "image" ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4 pt-0">
+              {lightbox.type === "pdf" ? (
+                <PdfFrame attachment={lightbox} />
+              ) : lightbox.type === "image" ? (
                 <img
                   src={lightbox.dataUrl}
                   alt={lightbox.name}

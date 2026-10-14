@@ -108,9 +108,9 @@ export const tasks = pgTable("tasks", {
   assignedTo: text("assigned_to").default("Alex"), // Person assigned to this quest
   // reminder | deadline | general — chosen when the quest is created; older quests default to general.
   questType: text("quest_type", { enum: QUEST_TYPES }).notNull().default("general"),
-  // Inline media attachments embedded in the description (base64 data URLs). Stored in DB so they
+  // Inline attachments embedded in the description (images, videos and PDFs as base64 data URLs). Stored in DB so they
   // persist across deploys and work on both web + iOS (which share the hosted server origin).
-  attachments: jsonb("attachments").$type<Array<{ id: string; type: "image" | "video"; dataUrl: string; name: string; size: number }>>().default([]),
+  attachments: jsonb("attachments").$type<Array<{ id: string; type: "image" | "video" | "pdf"; dataUrl: string; name: string; size: number }>>().default([]),
 }, (table) => [
   // Serves the completed-archive list (newest first), "completed today" lookups, and the cap count.
   index("IDX_tasks_user_completed_at").on(table.userId, table.completedAt).where(sql`${table.completed} = true`),
