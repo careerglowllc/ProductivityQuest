@@ -65,11 +65,33 @@ Worked examples: 3 quests of 30 minutes, none high priority, is 2.1 (light). 5 q
 
 **The model and the rules.** The model is told the day's workload (level, pressure, minutes, counts) plus each quest's duration and whether it is routine, and is asked to favor high-priority work on busy days. The limits above are applied by the server after the model's advice, so advice cannot bring held-back quests back. The ranking response includes `workload` and `heldBack`, and its message says, for example, "Busy day: 3 lower-priority quests held back." (visible after Refresh now on the Smart Focus settings page).
 
-## Keeps refreshing
+## When it refreshes, and when it holds still
 
-Smart Focus is not a once-a-day list. The server re-ranks from your current quests every time it is asked, and the app asks when you open the Smart Focus view and when you come back to the app after being away at least 5 minutes. It also re-reads your quest list at those moments, so changes from another device show up. It does not refresh on a timer or while you are on the page: use the Refresh button above the list for that. Finishing, adding or editing a quest changes the ranking on its own, except while you are editing.
+Smart Focus re-reads your quests and re-ranks only when you ask, or when something you did calls for it. It never reshuffles the list under your hands.
 
-While a quest dialog or the feedback dialog is open, or a text box has focus, Smart Focus holds still: nothing re-ranks, the list does not change, and no AI call is made. When the dialog closes the list catches up once. A description you were still typing is saved when the dialog closes.
+| What happens | What Smart Focus does |
+| --- | --- |
+| You open the Smart Focus view and the quest list was loaded 5 or more minutes ago | Re-reads your quests, then re-ranks. Opened sooner than that, it reuses what it has. |
+| You come back to the app after being away 5 or more minutes (tab hidden, phone locked) | The same. A short look away does nothing. |
+| You press **Refresh** above the list | Forces a new ranking (`POST /api/smart-focus/rank?refresh=1`), skipping the server's 15-minute cache. |
+| You finish, add or change a quest | Re-ranks at once, because its inputs changed. |
+| You give AI feedback | The list changes instantly; about 65 seconds later it asks once more so the AI can read your reason. |
+| You stay on the page, click in another window, or leave it open | Nothing. There is no timer and no refresh on window focus. |
+| A quest dialog or the feedback dialog is open, or a text box has focus | It holds still, as below. |
+
+**Holding still.** While you are editing, the list is frozen, so an edit is never cut off by a re-rank:
+
+- What holds it: the quest details dialog while open, the AI feedback dialog while open, and any focused text box (inputs, text areas and editable text; not buttons, checkboxes or sliders). Holds overlap, and it lets go when the last one ends. The logic is in `client/src/components/smart-focus/focus-hold.ts`.
+- While held, no ranking request is made (so no AI call and no cost), the list shows exactly what it showed when the hold began even if a ranking was already on its way, and coming back to the app does not refresh it.
+- When it lets go, the list catches up once if something changed (a description edit changes the ranking's inputs, so it asks once). If nothing changed and the last ranking is under 5 minutes old, nothing is requested.
+
+**Why this exists.** A description autosave used to change the ranking's inputs, and while the new ranking loaded the page dropped to a fallback layout. The quest card was rebuilt in the new layout, and the editor you had open went with it. Now the last ranking stays on screen while a new one loads (for every re-rank, so finishing a quest no longer flashes the fallback layout), and the hold stops the request from starting mid-edit at all.
+
+**Saving.** A description edit is saved 0.8 seconds after you stop typing. Closing the dialog saves any edit still waiting right away, and does not repeat one that was already saved.
+
+The server side is unchanged: a 15-minute per-account cache, and at most one AI call a minute (see Reliability and cost). The timings are in `client/src/components/smart-focus/focus-refresh.ts`: `FOCUS_AWAY_MS` (5 minutes away), `FOCUS_MIN_GAP_MS` (5 minutes since quests were loaded), `FOCUS_RANK_STALE_MS` (5 minutes) and `FOCUS_FOLLOW_UP_MS` (65 seconds).
+
+## Making room as quests finish
 
 As the essentials are finished, the list makes room. After the protected quests, high-priority work and quests you asked for, any space left up to the list size (10, or more when many quests are protected) is filled with the next most important eligible quests that did not qualify before, in the usual order (earliest due date, then importance, then the model's tie-break). This uses the same low-priority budget as the workload rules, so a busy or heavy day adds nothing, a full day adds a few, and a light day fills the list. It never adds quests with a future start date, ones taken off Smart Focus, ones dismissed today, or ones the model said no to, and routines come in only on days that allow them. Added quests say "Added because your list has room".
 
@@ -100,7 +122,7 @@ Limits: 3,000 characters per feedback item; 100 items / 30,000 total feedback ch
 ## Reliability and cost
 
 - Input-sensitive, per-account ranking cache: 15 minutes. Quest edits, account-local date changes, and memory changes invalidate results.
-- No background polling. Same-account concurrent ranking calls are combined; at most one paid generation is started per account per minute.
+- No background polling and no timers on the page. Same-account concurrent ranking calls are combined; at most one paid generation is started per account per minute.
 - Provider timeout: 20 seconds, no automatic provider retries. Failures are cached briefly to avoid retry storms.
 - Missing keys, exhausted API credits, rate limits, malformed model output, or provider errors produce an explicitly labeled **rules-based** list. Saved feedback is preserved.
 - After feedback during the one-minute cooldown, Refresh may temporarily return rules. Refresh after the minute to obtain a new AI result.
@@ -117,6 +139,6 @@ All `/api/smart-focus/*` routes require the authenticated session and use its ac
 - `POST /dismiss` with `{taskId, undo?}`
 - `DELETE /preferences/:id`, `/signals/:taskId`, or `/memory`
 
-Tests: `shared/smart-focus-ai.test.ts`, `server/smart-focus.test.ts`, and `client/src/components/smart-focus/select-focus.test.ts`. They cover protective rules, cap overflow, account isolation, timezone boundaries, explicit feedback exclusions, signal thresholds/expiry, Undo, caching, and provider failure. Tests use synthetic tasks and mocked provider advice; live provider access must be checked separately.
+Tests: `shared/smart-focus-ai.test.ts`, `server/smart-focus.test.ts`, `client/src/components/smart-focus/select-focus.test.ts` and `client/src/components/smart-focus/focus-hold.test.ts` (the refresh policy, the edit hold, and the wiring that keeps dialogs from being interrupted). They cover protective rules, cap overflow, account isolation, timezone boundaries, explicit feedback exclusions, signal thresholds/expiry, Undo, caching, provider failure, and the refresh and hold rules above. Tests use synthetic tasks and mocked provider advice; live provider access must be checked separately.
 
 See [AI_SMART_FOCUS_TEST_CASES.md](AI_SMART_FOCUS_TEST_CASES.md) for step-by-step UI, API, provider and regression cases, with automated coverage clearly distinguished from manual acceptance checks.

@@ -1,6 +1,6 @@
 # Personalized Smart Focus
 
-See [AI_SMART_FOCUS.md](AI_SMART_FOCUS.md) for account-specific AI feedback, preference memory, provider setup, date safeguards, and fallback behavior.
+See [AI_SMART_FOCUS.md](AI_SMART_FOCUS.md) for account-specific AI feedback, preference memory, provider setup, date safeguards, fallback behavior, and when the list refreshes or holds still while you edit (test cases in [AI_SMART_FOCUS_TEST_CASES.md](AI_SMART_FOCUS_TEST_CASES.md)).
 
 # ProductivityQuest 🎮⚔️
 
