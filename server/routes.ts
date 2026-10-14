@@ -20,10 +20,12 @@ import { commandStore, COMMAND_KEY_PREFIX } from "./command-center-store";
 import { registerSmartFocus } from "./smart-focus";
 import { focusStore, FOCUS_KEY_PREFIX } from "./smart-focus-store";
 import { adviseFocus } from "./smart-focus-openai";
+import { registerFitnessAi } from "./fitness-ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerCommandCenter(app, requireAuth, commandStore);
   registerSmartFocus(app, requireAuth, focusStore, adviseFocus);
+  registerFitnessAi(app, requireAuth);
   const purgeExpiredCompletedTasks = async () => {
     try {
       const purged = await storage.purgeExpiredCompletedTaskDeletions();

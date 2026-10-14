@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
-import { Dumbbell, ArrowLeft, TrendingUp, TrendingDown, Minus, CalendarDays, ListChecks, Flame, Layers } from "lucide-react";
+import { Dumbbell, ArrowLeft, TrendingUp, TrendingDown, Minus, CalendarDays, ListChecks, Flame, Layers, Trash2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
 import { loadCalorieLog, ensureCalorieLogSeeded, type CalorieDayLog } from "@/lib/calorie-log";
+import {
+  addWorkoutEntries, recentWorkoutLoggings, removeWorkoutLogging, sessionSummaries, workoutToLogEntries,
+  type MetricKind, type WorkoutLogEntry as LogEntry, type WorkoutType,
+} from "@shared/fitness-log";
+import { LogEntryBox } from "@/components/fitness/log-entry-box";
+import { newLogId, type ParseResult } from "@/lib/fitness-entry";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PPL (Push / Pull / Legs) Weightlifting Log
@@ -16,23 +24,6 @@ import { loadCalorieLog, ensureCalorieLogSeeded, type CalorieDayLog } from "@/li
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "workout-ppl-log-v1";
-
-type WorkoutType = "Push" | "Pull" | "Legs";
-type MetricKind = "weight" | "reps" | "time";
-
-interface LogEntry {
-  date: string; // YYYY-MM-DD
-  workoutType: WorkoutType;
-  exercise: string;
-  setsRaw: string; // exact "working sets" text, kept for the detailed table
-  warmup?: string;
-  notes?: string;
-  metric: {
-    kind: MetricKind;
-    value: number; // lb for "weight", reps for "reps", seconds for "time"
-    approx?: boolean;
-  } | null;
-}
 
 const SEED_ENTRIES: LogEntry[] = [
   { date: "2026-06-11", workoutType: "Pull", exercise: "Machine Biceps Curl", setsRaw: "60 lb: 8 / 8 / 8", notes: "Older partial record", metric: { kind: "weight", value: 60 } },
@@ -194,7 +185,8 @@ function metricAxisLabel(kind: MetricKind): string {
 export default function FitnessLiftingPage() {
   const isMobile = useIsMobile();
   const { isDark } = useTheme();
-  const [entries] = useState<LogEntry[]>(() => loadEntries());
+  const { toast, dismiss } = useToast();
+  const [entries, setEntries] = useState<LogEntry[]>(() => loadEntries());
   const [activeType, setActiveType] = useState<WorkoutType | "All">("All");
   const [selectedExercise, setSelectedExercise] = useState<string>(DEFAULT_EXERCISE.Push);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
@@ -210,6 +202,28 @@ export default function FitnessLiftingPage() {
     } catch { /* ignore */ }
     ensureCalorieLogSeeded();
   }, []);
+
+  // Saves the whole log (including the starter entries) and shows it.
+  function persistEntries(next: LogEntry[]) {
+    setEntries(next);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage full or blocked */ }
+  }
+
+  // The checked workout becomes that day's rows, so the charts below pick it up straight away.
+  function handleLogged(result: ParseResult) {
+    if (result.kind !== "workout") return;
+    const previous = entries;
+    const added = workoutToLogEntries(result.workout, newLogId("lift"));
+    persistEntries(addWorkoutEntries(entries, added));
+    toast({
+      title: `Logged ${added.length} ${added.length === 1 ? "exercise" : "exercises"} for ${formatDateFull(result.workout.date)}`,
+      duration: 8000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); persistEntries(previous); }}>Undo</ToastAction>,
+    });
+  }
+
+  const recentLoggings = useMemo(() => recentWorkoutLoggings(entries), [entries]);
+  const sessions = useMemo(() => sessionSummaries(entries), [entries]);
 
   const entriesForType = useMemo(
     () => (activeType === "All" ? entries : entries.filter((e) => e.workoutType === activeType)),
@@ -238,23 +252,27 @@ export default function FitnessLiftingPage() {
     return map;
   }, [calorieEntries]);
 
-  const chartEntries = useMemo(() => {
+  // The start of the chosen time window, counted back from the most recent logged day.
+  const windowCutoff = useMemo(() => {
     const windowDef = TIME_WINDOWS.find((w) => w.key === timeWindow);
-    let cutoff: string | null = null;
-    if (windowDef?.days) {
-      const latestDate = entries.reduce((max, e) => (e.date > max ? e.date : max), entries[0]?.date ?? "");
-      if (latestDate) {
-        const [y, m, d] = latestDate.split("-").map(Number);
-        const dt = new Date(y, m - 1, d);
-        dt.setDate(dt.getDate() - windowDef.days);
-        const yy = dt.getFullYear();
-        const mm = String(dt.getMonth() + 1).padStart(2, "0");
-        const dd = String(dt.getDate()).padStart(2, "0");
-        cutoff = `${yy}-${mm}-${dd}`;
-      }
+    if (!windowDef?.days) return null;
+    const latestDate = entries.reduce((max, e) => (e.date > max ? e.date : max), entries[0]?.date ?? "");
+    if (!latestDate) return null;
+    const [y, m, d] = latestDate.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() - windowDef.days);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+  }, [entries, timeWindow]);
+
+  const chartEntries = useMemo(() => {
+    // More than one logging of an exercise on a day is one point: that day's best.
+    const bestPerDay = new Map<string, LogEntry>();
+    for (const e of entries) {
+      if (e.exercise !== selectedExercise || e.metric === null || (windowCutoff && e.date < windowCutoff)) continue;
+      const earlier = bestPerDay.get(e.date);
+      if (!earlier || e.metric.value > earlier.metric!.value) bestPerDay.set(e.date, e);
     }
-    return entries
-      .filter((e) => e.exercise === selectedExercise && e.metric !== null && (!cutoff || e.date >= cutoff))
+    return Array.from(bestPerDay.values())
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((e) => ({
         date: e.date,
@@ -264,7 +282,12 @@ export default function FitnessLiftingPage() {
         setsRaw: e.setsRaw,
         calories: caloriesByDate.get(e.date) ?? null,
       }));
-  }, [entries, selectedExercise, timeWindow, caloriesByDate]);
+  }, [entries, selectedExercise, windowCutoff, caloriesByDate]);
+
+  const sessionChart = useMemo(
+    () => sessions.filter((s) => !windowCutoff || s.date >= windowCutoff).map((s) => ({ ...s, label: formatDateShort(s.date) })),
+    [sessions, windowCutoff],
+  );
 
   const selectedExerciseMetricKind: MetricKind = useMemo(() => {
     const match = entries.find((e) => e.exercise === selectedExercise && e.metric);
@@ -365,6 +388,30 @@ export default function FitnessLiftingPage() {
             <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Most Recent</p>
           </div>
         </div>
+
+        <LogEntryBox kind="workout" accent="#34D399" onSave={handleLogged} />
+
+        {recentLoggings.length > 0 && (
+          <div className="mb-8 -mt-4" data-testid="recent-loggings">
+            <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><Sparkles className="h-3 w-3" /> Logged with AI</p>
+            <ul className="space-y-1.5">
+              {recentLoggings.map((l) => (
+                <li key={l.logId} className="flex items-center justify-between gap-3 rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-slate-300"><span className="text-slate-500">{formatDateShort(l.date)}</span> · {l.exercises.join(", ")}</span>
+                  <button
+                    type="button"
+                    onClick={() => persistEntries(removeWorkoutLogging(entries, l.logId))}
+                    aria-label={`Remove the workout logged for ${formatDateShort(l.date)}`}
+                    title="Remove this logging"
+                    className="shrink-0 text-slate-500 hover:text-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Workout type tabs */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -496,6 +543,38 @@ export default function FitnessLiftingPage() {
           )}
         </div>
 
+        {/* Session volume */}
+        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8" data-testid="session-volume">
+          <div className="flex items-center gap-2 text-white font-bold mb-1">
+            <Layers className="h-4 w-4 text-cyan-400" />
+            Session Volume
+          </div>
+          <p className="text-xs text-slate-500 mb-3">Total weight lifted per session (weight x reps over every set), for the time window above.</p>
+          {sessionChart.some((s) => s.volume > 0) ? (
+            <div style={{ width: "100%", height: isMobile ? 200 : 260 }}>
+              <ResponsiveContainer>
+                <BarChart data={sessionChart} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                  <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} label={{ value: "Volume (lb)", angle: -90, position: "insideLeft", fill: "#64748B", fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#0F172A", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: "#E2E8F0" }}
+                    formatter={(value: number) => [`${value.toLocaleString()} lb`, "Volume"]}
+                    labelFormatter={(_label, payload) => {
+                      const p = payload?.[0]?.payload;
+                      return p ? `${formatDateFull(p.date)} · ${p.exercises} exercises · ${p.sets} sets` : "";
+                    }}
+                  />
+                  <Bar dataKey="volume" fill="#22D3EE" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm text-center py-8">No sessions with weights and reps in this time window.</p>
+          )}
+        </div>
+
         {/* Current Bests table */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-white font-bold mb-3">
@@ -592,7 +671,7 @@ export default function FitnessLiftingPage() {
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-10">
-          Data imported from PPL workout log (Jun–Aug 2026). Values marked with "~" are approximate reps/sets from the original notes.
+          Starter data imported from the PPL workout log (Jun–Aug 2026); newer sessions are logged with the box above. Values marked with "~" are approximate reps/sets.
         </p>
       </div>
     </div>

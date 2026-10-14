@@ -2419,6 +2419,17 @@ npm run db:push      # Apply database migrations
   - Share task lists with team members
 - **Test Cases:** See `CSV_EXPORT_TEST_CASES.md`
 
+### AI Fitness Logging
+**Type or speak what you lifted or ate; the AI fills in the logs**
+
+- **Where:** a chat-style entry box on the Lifting and Calories pages, with voice typing
+- **Flow:** write a note, check the preview (and fix the date), save; undo or remove later
+- **Lifting:** weight, reps, date and notes saved per day, shown in the progression chart and a new Session Volume chart
+- **Calories:** calories, macros, calcium and other nutrients saved per day, with new Macro Split and Nutrient Trend charts
+- **Endpoint:** `POST /api/fitness/parse` (30 requests per 10 minutes per user)
+- **Needs:** OpenAI credits on the account
+- **Docs:** `FITNESS_AI_LOGGING.md`, test cases in `FITNESS_AI_LOGGING_TEST_CASES.md`
+
 ### Manual Skill Editing (November 2025)
 **Full control over your skill progression**
 

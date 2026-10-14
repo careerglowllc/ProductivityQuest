@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
-import { Flame, ArrowLeft, TrendingUp, ListChecks, CalendarDays, Utensils } from "lucide-react";
+import { Flame, ArrowLeft, TrendingUp, ListChecks, CalendarDays, Utensils, Trash2, Sparkles, PieChart } from "lucide-react";
 import { Link } from "wouter";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
 } from "recharts";
 import {
   type CalorieDayLog as DayLog,
@@ -12,7 +12,14 @@ import {
   CALORIE_GOAL,
   loadCalorieLog as loadLog,
   ensureCalorieLogSeeded,
+  saveCalorieLog,
 } from "@/lib/calorie-log";
+import { addMealToDay, dayFoodDetails, recentMeals, removeMealFromDay, NUTRIENT_INFO, type NutrientKey } from "@shared/fitness-log";
+import { aggregateNutrition, formatDateShort, monthLabel, type Granularity } from "@/lib/nutrition-chart";
+import { LogEntryBox } from "@/components/fitness/log-entry-box";
+import { newLogId, type ParseResult } from "@/lib/fitness-entry";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Calorie / Nutrition Log
@@ -23,41 +30,10 @@ import {
 // a single source of truth.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Granularity = "day" | "week" | "month";
-
-function formatDateShort(dateStr: string) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 function formatDateFull(dateStr: string) {
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
   return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-}
-
-// Monday-start ISO-ish week key, e.g. "2026-06-15" (the Monday of that week)
-function weekKey(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  const day = dt.getDay(); // 0 = Sun
-  const diffToMonday = (day + 6) % 7;
-  dt.setDate(dt.getDate() - diffToMonday);
-  const yy = dt.getFullYear();
-  const mm = String(dt.getMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}
-
-function monthKey(dateStr: string): string {
-  return dateStr.slice(0, 7); // YYYY-MM
-}
-
-function monthLabel(key: string): string {
-  const [y, m] = key.split("-").map(Number);
-  const dt = new Date(y, m - 1, 1);
-  return dt.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
 const CONFIDENCE_COLOR: Record<Confidence, string> = {
@@ -69,65 +45,39 @@ const CONFIDENCE_COLOR: Record<Confidence, string> = {
 export default function FitnessCaloriesPage() {
   const isMobile = useIsMobile();
   const { isDark } = useTheme();
-  const [log] = useState<DayLog[]>(() => loadLog());
+  const { toast, dismiss } = useToast();
+  const [log, setLog] = useState<DayLog[]>(() => loadLog());
   const [granularity, setGranularity] = useState<Granularity>("day");
+  const [nutrient, setNutrient] = useState<NutrientKey>("calcium");
 
   useEffect(() => {
     ensureCalorieLogSeeded();
   }, []);
 
+  // Saves the whole log (including the older entries) and shows it.
+  function persistLog(next: DayLog[]) {
+    setLog(next);
+    saveCalorieLog(next);
+  }
+
+  // The checked meal is added to its day's totals, so every chart below picks it up straight away.
+  function handleLogged(result: ParseResult, sourceText: string) {
+    if (result.kind !== "meal") return;
+    const previous = log;
+    persistLog(addMealToDay(log, result.meal, newLogId("meal"), new Date().toISOString(), sourceText));
+    toast({
+      title: `Logged ${Math.round(result.meal.totals.calories).toLocaleString()} kcal for ${formatDateFull(result.meal.date)}`,
+      description: result.meal.description,
+      duration: 8000,
+      action: <ToastAction altText="Undo" onClick={() => { dismiss(); persistLog(previous); }}>Undo</ToastAction>,
+    });
+  }
+
+  const loggedMeals = useMemo(() => recentMeals(log), [log]);
+
   const sortedLog = useMemo(() => [...log].sort((a, b) => a.date.localeCompare(b.date)), [log]);
 
-  const chartData = useMemo(() => {
-    if (granularity === "day") {
-      return sortedLog.map((d) => ({
-        key: d.date,
-        label: formatDateShort(d.date),
-        calories: d.calories,
-        protein: d.protein,
-        count: 1,
-      }));
-    }
-    if (granularity === "week") {
-      const groups = new Map<string, { total: number; count: number; protein: number }>();
-      for (const d of sortedLog) {
-        const k = weekKey(d.date);
-        const g = groups.get(k) ?? { total: 0, count: 0, protein: 0 };
-        g.total += d.calories;
-        g.protein += d.protein;
-        g.count += 1;
-        groups.set(k, g);
-      }
-      return Array.from(groups.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([k, g]) => ({
-          key: k,
-          label: `Wk of ${formatDateShort(k)}`,
-          calories: Math.round(g.total / g.count),
-          protein: Math.round(g.protein / g.count),
-          count: g.count,
-        }));
-    }
-    // month
-    const groups = new Map<string, { total: number; count: number; protein: number }>();
-    for (const d of sortedLog) {
-      const k = monthKey(d.date);
-      const g = groups.get(k) ?? { total: 0, count: 0, protein: 0 };
-      g.total += d.calories;
-      g.protein += d.protein;
-      g.count += 1;
-      groups.set(k, g);
-    }
-    return Array.from(groups.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([k, g]) => ({
-        key: k,
-        label: monthLabel(k),
-        calories: Math.round(g.total / g.count),
-        protein: Math.round(g.protein / g.count),
-        count: g.count,
-      }));
-  }, [sortedLog, granularity]);
+  const chartData = useMemo(() => aggregateNutrition(sortedLog, granularity), [sortedLog, granularity]);
 
   const summary = useMemo(() => {
     const n = sortedLog.length;
@@ -196,6 +146,32 @@ export default function FitnessCaloriesPage() {
           </div>
         </div>
 
+        <LogEntryBox kind="meal" accent="#F87171" onSave={handleLogged} />
+
+        {loggedMeals.length > 0 && (
+          <div className="mb-8 -mt-4" data-testid="recent-meals">
+            <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><Sparkles className="h-3 w-3" /> Logged with AI</p>
+            <ul className="space-y-1.5">
+              {loggedMeals.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-slate-300">
+                    <span className="text-slate-500">{formatDateShort(m.date)}</span> · {m.description} <span className="text-rose-300">({Math.round(m.calories).toLocaleString()} kcal)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => persistLog(removeMealFromDay(log, m.date, m.id))}
+                    aria-label={`Remove the meal logged for ${formatDateShort(m.date)}`}
+                    title="Remove this meal"
+                    className="shrink-0 text-slate-500 hover:text-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Line chart with granularity filters */}
         <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
@@ -256,20 +232,91 @@ export default function FitnessCaloriesPage() {
           </div>
         </div>
 
+        {/* Macro split */}
+        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8" data-testid="macro-chart">
+          <div className="flex items-center gap-2 text-white font-bold mb-1">
+            <PieChart className="h-4 w-4 text-amber-400" />
+            Where the Calories Come From
+          </div>
+          <p className="text-xs text-slate-500 mb-3">Calories from protein, carbs and fat{granularity !== "day" ? `, averaged per ${granularity}` : ""} (protein and carbs 4 kcal per gram, fat 9).</p>
+          <div style={{ width: "100%", height: isMobile ? 220 : 280 }}>
+            <ResponsiveContainer>
+              <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} label={{ value: "kcal", angle: -90, position: "insideLeft", fill: "#64748B", fontSize: 11 }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#0F172A", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: "#E2E8F0" }}
+                  formatter={(value: number, name: string) => [`${value.toLocaleString()} kcal`, name]}
+                />
+                <Legend wrapperStyle={{ fontSize: 11, color: "#94A3B8" }} />
+                <Bar dataKey="proteinKcal" name="Protein" stackId="macros" fill="#34D399" />
+                <Bar dataKey="carbsKcal" name="Carbs" stackId="macros" fill="#FBBF24" />
+                <Bar dataKey="fatKcal" name="Fat" stackId="macros" fill="#F87171" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Nutrient trend */}
+        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8" data-testid="nutrient-chart">
+          <div className="flex items-center gap-2 text-white font-bold mb-3">
+            <TrendingUp className="h-4 w-4 text-cyan-400" />
+            Nutrient Trend
+          </div>
+          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+            {(["protein", "carbs", "fat", "satFat", "fiber", "sugar", "sodium", "calcium", "magnesium", "potassium", "iron", "vitaminC", "vitaminA"] as NutrientKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setNutrient(key)}
+                aria-pressed={nutrient === key}
+                className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
+                style={
+                  nutrient === key
+                    ? { backgroundColor: "#22D3EE22", borderColor: "#22D3EE88", color: "#22D3EE" }
+                    : { backgroundColor: "transparent", borderColor: "#334155", color: "#94A3B8" }
+                }
+              >
+                {NUTRIENT_INFO[key].label}
+              </button>
+            ))}
+          </div>
+          {chartData.some((p) => typeof p[nutrient] === "number") ? (
+            <div style={{ width: "100%", height: isMobile ? 220 : 260 }}>
+              <ResponsiveContainer>
+                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                  <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} label={{ value: NUTRIENT_INFO[nutrient].unit, angle: -90, position: "insideLeft", fill: "#64748B", fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#0F172A", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: "#E2E8F0" }}
+                    formatter={(value: number) => [`${value.toLocaleString()} ${NUTRIENT_INFO[nutrient].unit}`, NUTRIENT_INFO[nutrient].label]}
+                  />
+                  <Line type="monotone" dataKey={nutrient} stroke="#22D3EE" strokeWidth={2.25} dot={{ r: 3, fill: "#22D3EE" }} activeDot={{ r: 5 }} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm text-center py-8">No {NUTRIENT_INFO[nutrient].label.toLowerCase()} recorded yet. Days logged with the AI box above include it.</p>
+          )}
+        </div>
+
         {/* Extremes callouts */}
         <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-3 mb-8`}>
           {summary.maxDay && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
               <p className="text-[11px] text-slate-400 uppercase tracking-wide">Highest Day</p>
               <p className="text-lg font-bold text-amber-300">{summary.maxDay.calories.toLocaleString()} kcal <span className="text-slate-500 text-xs font-normal">({formatDateShort(summary.maxDay.date)})</span></p>
-              <p className="text-xs text-slate-500 mt-1 truncate">{summary.maxDay.foodDetails}</p>
+              <p className="text-xs text-slate-500 mt-1 truncate">{dayFoodDetails(summary.maxDay)}</p>
             </div>
           )}
           {summary.minDay && (
             <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
               <p className="text-[11px] text-slate-400 uppercase tracking-wide">Lowest Day</p>
               <p className="text-lg font-bold text-cyan-300">{summary.minDay.calories.toLocaleString()} kcal <span className="text-slate-500 text-xs font-normal">({formatDateShort(summary.minDay.date)})</span></p>
-              <p className="text-xs text-slate-500 mt-1 truncate">{summary.minDay.foodDetails}</p>
+              <p className="text-xs text-slate-500 mt-1 truncate">{dayFoodDetails(summary.minDay)}</p>
             </div>
           )}
         </div>
@@ -305,7 +352,7 @@ export default function FitnessCaloriesPage() {
                     <td className="px-3 py-2 text-right text-slate-300">{d.protein}g</td>
                     <td className="px-3 py-2 text-right text-slate-300">{d.carbs}g</td>
                     <td className="px-3 py-2 text-right text-slate-300">{d.fat}g</td>
-                    <td className="px-3 py-2 text-slate-500 hidden lg:table-cell max-w-md">{d.foodDetails}</td>
+                    <td className="px-3 py-2 text-slate-500 hidden lg:table-cell max-w-md">{dayFoodDetails(d)}</td>
                     <td className="px-3 py-2">
                       <span
                         className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 border"
@@ -322,7 +369,7 @@ export default function FitnessCaloriesPage() {
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-10">
-          Data imported from daily food log (Jun 15 – Aug 13, 2026). Some days are partial/estimated logs — see the Confidence column.
+          Older days were imported from a daily food log (Jun 15 – Aug 13, 2026); newer meals are estimated by AI from what you type or say. Some days are partial/estimated — see the Confidence column.
           Chart's dashed goal line reflects a rough {CALORIE_GOAL.toLocaleString()} kcal/day reference.
         </p>
       </div>

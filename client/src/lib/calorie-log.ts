@@ -13,25 +13,9 @@
 export const CALORIE_STORAGE_KEY = "calories-daily-log-v1";
 export const CALORIE_GOAL = 2200; // rough daily target reference line for the chart
 
-export type Completeness = "unknown/partial" | "explicitly complete";
-export type Confidence = "low" | "medium" | "high";
-
-export interface CalorieDayLog {
-  date: string; // YYYY-MM-DD
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  sodium: number;
-  magnesium: number;
-  calcium: number;
-  vitaminC: number;
-  vitaminA: number;
-  foodDetails: string;
-  completeness: Completeness;
-  confidence: Confidence;
-  notes?: string;
-}
+// The shapes live in shared/fitness-log.ts so the server's AI logging and this log agree on them.
+export type { Completeness, Confidence, CalorieDayLog } from "@shared/fitness-log";
+import type { CalorieDayLog } from "@shared/fitness-log";
 
 export const CALORIE_SEED_LOG: CalorieDayLog[] = [
   { date: "2026-06-15", calories: 825, protein: 51, carbs: 94, fat: 26.5, sodium: 1365, magnesium: 67, calcium: 525, vitaminC: 2, vitaminA: 800, foodDetails: "3 slices Trader Joe's sourdough; 3 Trader Joe's mini Brie; 1 scoop Optimum Nutrition vanilla whey; ~1.5 tbsp apricot jam", completeness: "unknown/partial", confidence: "medium", notes: "Macros and micros largely taken from the running total logged that day." },
@@ -76,6 +60,13 @@ export function loadCalorieLog(): CalorieDayLog[] {
     }
   } catch { /* ignore */ }
   return CALORIE_SEED_LOG;
+}
+
+/** Persist the whole calorie log (one entry per date). */
+export function saveCalorieLog(days: CalorieDayLog[]) {
+  try {
+    localStorage.setItem(CALORIE_STORAGE_KEY, JSON.stringify(days));
+  } catch { /* ignore */ }
 }
 
 /** Seed localStorage once so this log is part of the synced "calories-" store. Safe to call from multiple pages. */
