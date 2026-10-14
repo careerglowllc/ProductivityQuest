@@ -2,7 +2,7 @@ import { useEffect, useReducer } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import type { FocusAction, FocusProfile, FocusQuest } from "@shared/smart-focus-ai";
+import { focusOrderShifts, type FocusAction, type FocusPreference, type FocusProfile, type FocusQuest } from "@shared/smart-focus-ai";
 import { FOCUS_FOLLOW_UP_MS, FOCUS_RANK_STALE_MS, FOCUS_TICK_MS, focusRefreshDue } from "./focus-refresh";
 import { applyFocusAction } from "./apply-focus-action";
 import { useToast } from "@/hooks/use-toast";
@@ -131,7 +131,9 @@ export function useFocusActions() {
       if (variables.action) {
         const action = variables.action;
         const tasks = client.getQueryData<FocusQuest[]>(["/api/tasks"]) ?? [];
-        client.setQueriesData<FocusRanking>({ queryKey: rankKey }, (old) => old ? applyFocusAction(old, variables.taskId, action, tasks) : old);
+        const saved = client.getQueriesData<FocusState>({ queryKey: stateKey }).map(([, state]) => state).find(Boolean)?.preferences ?? [];
+        const shiftBefore = focusOrderShifts({ preferences: saved as FocusPreference[] }).get(variables.taskId) ?? 0;
+        client.setQueriesData<FocusRanking>({ queryKey: rankKey }, (old) => old ? applyFocusAction(old, variables.taskId, action, tasks, shiftBefore) : old);
         // The quest's card (and this dialog with it) can disappear as the list updates, so confirm in a toast too.
         toast({ title: "Smart Focus updated", description: data?.message, duration: 6000 });
       }

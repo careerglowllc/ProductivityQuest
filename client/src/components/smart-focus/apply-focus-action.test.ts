@@ -29,16 +29,26 @@ test("moving a quest in puts it at the front of the main group, below what is du
   assert.deepEqual(applyFocusAction(base(), 5, "include", tasks).ids, base().ids, "already listed: no change");
 });
 
-test("rank higher moves a quest to the front of its own group only", () => {
-  assert.deepEqual(applyFocusAction(base(), 6, "higher", tasks).ids, [1, 2, 3, 6, 4, 5]);
-  assert.deepEqual(applyFocusAction(base(), 2, "higher", tasks).ids, [2, 1, 3, 4, 5, 6], "stays in the due-today group");
-  assert.deepEqual(applyFocusAction(base(), 3, "higher", tasks).ids, [1, 2, 3, 4, 5, 6], "the starts-today group stays below due-today");
+test("rank higher moves a quest up a whole group: front of the next group above", () => {
+  assert.deepEqual(applyFocusAction(base(), 6, "higher", tasks).ids, [1, 2, 6, 3, 4, 5], "main group to starts-today, ahead of its quests");
+  assert.deepEqual(applyFocusAction(base(), 3, "higher", tasks).ids, [3, 1, 2, 4, 5, 6], "starts-today to the very front");
+  assert.deepEqual(applyFocusAction(base(), 2, "higher", tasks).ids, [2, 1, 3, 4, 5, 6], "due-today quests reorder among themselves");
 });
 
-test("rank lower moves a quest to the back of its own group only", () => {
-  assert.deepEqual(applyFocusAction(base(), 4, "lower", tasks).ids, [1, 2, 3, 5, 6, 4]);
-  assert.deepEqual(applyFocusAction(base(), 1, "lower", tasks).ids, [2, 1, 3, 4, 5, 6], "stays inside the due-today group");
-  assert.deepEqual(applyFocusAction(base(), 3, "lower", tasks).ids, [1, 2, 3, 4, 5, 6]);
+test("each further request moves it another group, so repeated requests keep working", () => {
+  assert.deepEqual(applyFocusAction(base(), 6, "higher", tasks, 1).ids, [6, 1, 2, 3, 4, 5], "second request: past everything due today");
+  assert.deepEqual(applyFocusAction(base(), 6, "higher", tasks, 3).ids, [6, 1, 2, 3, 4, 5], "three steps is the most");
+});
+
+test("rank lower moves a quest down a whole group: back of the next group below", () => {
+  assert.deepEqual(applyFocusAction(base(), 1, "lower", tasks).ids, [2, 3, 1, 4, 5, 6], "due-today to the back of starts-today");
+  assert.deepEqual(applyFocusAction(base(), 1, "lower", tasks, -1).ids, [2, 3, 4, 5, 6, 1], "second request: into the main group");
+  assert.deepEqual(applyFocusAction(base(), 4, "lower", tasks).ids, [1, 2, 3, 5, 6, 4], "the bottom group goes to the back");
+});
+
+test("a request that cancels an earlier one leaves the list for the server to put right", () => {
+  assert.deepEqual(applyFocusAction(base(), 4, "lower", tasks, 1).ids, base().ids);
+  assert.deepEqual(applyFocusAction(base(), 4, "higher", tasks, -1).ids, base().ids);
 });
 
 test("ranking notes are added to the reason once, keeping what was there", () => {

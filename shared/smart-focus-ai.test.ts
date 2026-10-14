@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, focusOrders, focusGroup, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
+import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, focusOrderShifts, focusGroup, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
 const day = "2026-10-12";
 const task = (id: number, extra: Partial<FocusQuest> = {}): FocusQuest => ({ id, title: `Task ${id}`, ...extra });
 test("all urgent and start-today tasks survive the cap and hostile AI advice", () => {
@@ -493,14 +493,46 @@ test("within today's committed work, rank higher and lower reorder it", () => {
   assert.deepEqual(rankFocus(quests, day, asked([4, "higher"], [1, "lower"])).ids, [4, 2, 3, 1]);
 });
 
-test("the latest ranking request wins, and it does not disturb placement actions", () => {
-  assert.deepEqual(rankFocus(trio(), day, asked([3, "higher"], [3, "lower"])).ids, [1, 2, 3]);
-  assert.deepEqual([...focusOrders(asked([3, "higher"], [3, "lower"], [2, "higher"]))], [[3, "lower"], [2, "higher"]]);
+test("ranking requests add up, and opposite ones cancel", () => {
+  assert.deepEqual(rankFocus(trio(), day, asked([3, "higher"], [3, "lower"])).ids, [1, 2, 3], "higher then lower is back to normal");
+  assert.deepEqual([...focusOrderShifts(asked([3, "higher"], [3, "lower"], [2, "higher"]))], [[2, 1]], "no net push is left out");
+  assert.deepEqual([...focusOrderShifts(asked([3, "higher"], [3, "higher"], [2, "lower"]))].sort(), [[2, -1], [3, 2]]);
+  assert.equal(focusOrderShifts(asked(...Array.from({ length: 6 }, () => [3, "higher"] as [number, FocusAction]))).get(3), 3, "three steps at most");
+  assert.equal(focusOrderShifts(asked(...Array.from({ length: 6 }, () => [3, "lower"] as [number, FocusAction]))).get(3), -3);
+});
+
+test("a ranking request does not disturb placement actions", () => {
   const memory = asked([2, "include"], [2, "higher"]);
   assert.equal(focusStances(memory).get(2)?.action, "include", "a ranking request does not replace a move-in");
-  assert.equal(focusOrders(memory).get(2), "higher");
+  assert.equal(focusOrderShifts(memory).get(2), 1);
   const lowered = asked([2, "include"], [2, "lower"], [1, "higher"]);
-  assert.deepEqual(rankFocus([started(1, "General", "Low"), started(2, "General", "Low")], day, lowered).ids, [2, 1], "a moved-in quest still leads, even when ranked lower");
+  assert.deepEqual(rankFocus([started(1, "General", "Low"), started(2, "General", "Low")], day, lowered).ids, [1, 2], "ranking steps move even a moved-in quest");
+});
+
+// The real case: a quest that starts today, behind ten that are due today. One step never got past them.
+const behindDueToday = () => [...dueToday(10), task(50, { startDate: `${day}T07:00:00.000Z`, importance: "Medium" })];
+
+test("rank higher on a starts-today quest first lifts it past everything due today, not only within its own group", () => {
+  assert.equal(rankFocus(behindDueToday(), day, emptyFocusMemory()).ids.at(-1), 50, "starts at the back of the list");
+  assert.equal(rankFocus(behindDueToday(), day, asked([50, "higher"])).ids[0], 50, "one request moves it to the front");
+});
+
+test("each further request moves a quest up another group", () => {
+  const quests = [...dueToday(3), task(40, { startDate: `${day}T07:00:00.000Z` }), started(60, "General", "Low")];
+  const at = (steps: number) => rankFocus(quests, day, asked(...Array.from({ length: steps }, () => [60, "higher"] as [number, FocusAction]))).ids.indexOf(60);
+  assert.equal(at(0), 4, "the main group, after everything above it");
+  assert.equal(at(1), 3, "ahead of the main group's other quests, after starts-today");
+  assert.equal(at(2), 0, "past starts-today and everything due today");
+  assert.equal(at(3), 0);
+});
+
+test("each request down moves a quest down a group too, so an overdue quest can end up last", () => {
+  const quests = [...dueToday(3), task(40, { startDate: `${day}T07:00:00.000Z` }), started(60, "General", "Low")];
+  const ids = (steps: number) => rankFocus(quests, day, asked(...Array.from({ length: steps }, () => [1, "lower"] as [number, FocusAction]))).ids;
+  assert.deepEqual(ids(0), [1, 2, 3, 40, 60]);
+  assert.deepEqual(ids(1), [2, 3, 40, 1, 60], "down into starts-today, at the back of it");
+  assert.deepEqual(ids(2), [2, 3, 40, 60, 1], "down into the main group, at the back of it");
+  assert.deepEqual(ids(3), [2, 3, 40, 60, 1], "and never past the end");
 });
 
 test("a ranked quest explains itself and is never trimmed from the list", () => {

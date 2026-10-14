@@ -87,11 +87,14 @@ export function focusStances(memory: FocusMemory): Map<number, FocusPreference &
   for (const p of memory.preferences) if (p.action && !isFocusOrder(p.action)) latest.set(p.taskId, p as FocusPreference & { action: FocusAction });
   return latest;
 }
-// The user's latest request to rank a quest higher or lower; independent of whether it is listed.
-export function focusOrders(memory: FocusMemory): Map<number, FocusOrder> {
-  const latest = new Map<number, FocusOrder>();
-  for (const p of memory.preferences) if (isFocusOrder(p.action)) latest.set(p.taskId, p.action);
-  return latest;
+// How far the user has pushed a quest up (positive) or down (negative): each "rank higher" adds one step and each
+// "rank lower" takes one away, up to three either way. Quests with no net push are left out.
+export const MAX_RANK_SHIFT = 3;
+export function focusOrderShifts(memory: Pick<FocusMemory, "preferences">): Map<number, number> {
+  const net = new Map<number, number>();
+  for (const p of memory.preferences) if (isFocusOrder(p.action)) net.set(p.taskId, Math.max(-MAX_RANK_SHIFT, Math.min(MAX_RANK_SHIFT, (net.get(p.taskId) ?? 0) + (p.action === "higher" ? 1 : -1))));
+  net.forEach((shift, taskId) => { if (shift === 0) net.delete(taskId); });
+  return net;
 }
 export function focusActionLabel(p: Pick<FocusPreference, "action" | "inFocus">): string | null {
   if (p.action === "include") return "Moved into Smart Focus";
@@ -138,11 +141,12 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const signals = new Map(focusSignals(memory, day).map(s => [s.taskId, s.days]));
   const dismissed = new Set(memory.dismissals.filter(e => e.day === day).map(e => e.taskId));
   const stances = focusStances(memory);
-  const orders = focusOrders(memory);
+  const shifts = focusOrderShifts(memory);
   const reasons: Record<string, string> = {};
   // What the user asked for beats every default: moved-in quests lead their group, and "rank higher" or "rank lower"
   // moves a quest up or down within it, ahead of due date and importance.
-  const lift = (q: FocusQuest) => (stances.get(q.id)?.action === "include" ? 10 : 0) + (orders.get(q.id) === "higher" ? 1 : orders.get(q.id) === "lower" ? -1 : 0);
+  const shift = (q: FocusQuest) => shifts.get(q.id) ?? 0;
+  const lift = (q: FocusQuest) => (stances.get(q.id)?.action === "include" ? 10 : 0) + shift(q);
   // Importance, adjusted by the account's work-filter weighting (such as Apple counting more on weekdays).
   const effectiveImportance = (q: FocusQuest) => importanceRank(q.importance) + workFilterStep(memory.profile, q, day);
   const highPriority = (q: FocusQuest) => effectiveImportance(q) >= importanceRank("Med-High");
@@ -166,7 +170,9 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     if (stance?.action === "keep") return stance.inFocus === true ? 15 : stance.inFocus === false ? -15 : 0;
     return 0;
   };
-  const band = (q: FocusQuest) => focusGroup(q, day);
+  // Each step the user pushed a quest up or down moves it one whole group: from the main list into starts-today,
+  // then into overdue and due-today, then above everything. Pushing down mirrors that.
+  const tier = (q: FocusQuest) => focusGroup(q, day) + shift(q);
   // Only breaks ties between quests with the same due date and importance: the model's judgment, the user's nudges, past removals.
   const tieScore = (q: FocusQuest) => {
     const signalPenalty = memory.enabled && (signals.get(q.id) ?? 0) >= 3 ? 10 : 0;
@@ -176,7 +182,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   };
   // Due or starting today first, then what the user moved in, then earliest due date, then importance, then the model's tie-break.
   const compare = (a: FocusQuest, b: FocusQuest) =>
-    band(b) - band(a)
+    tier(b) - tier(a)
     || lift(b) - lift(a)
     || (dateOnly(a.dueDate) || "9999-12-31").localeCompare(dateOnly(b.dueDate) || "9999-12-31")
     || effectiveImportance(b) - effectiveImportance(a)
@@ -190,7 +196,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const workload = focusWorkload(quests, day, tuning);
   const askedFor = (q: FocusQuest) => {
     const stance = stances.get(q.id);
-    if (stance?.action === "include" || (stance?.action === "keep" && stance.inFocus === true) || orders.has(q.id)) return true;
+    if (stance?.action === "include" || (stance?.action === "keep" && stance.inFocus === true) || shifts.has(q.id)) return true;
     return ai.get(q.id)?.include === true && memory.preferences.some(p => p.taskId === q.id);
   };
   const optionalLow = (q: FocusQuest) => !protectedFocus(q, day) && !highPriority(q) && !askedFor(q);
@@ -203,7 +209,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   const heldBack = candidates.length - listed.length;
   // The list is capped, but never at the expense of a quest the user moved in themselves.
   const cap = Math.max(10, protectedCount);
-  const core = listed.filter((q, index) => index < cap || stances.get(q.id)?.action === "include" || orders.has(q.id));
+  const core = listed.filter((q, index) => index < cap || stances.get(q.id)?.action === "include" || shifts.has(q.id));
   // Once the essentials are done there is room: bring in the next most important quests that did not qualify
   // before, within the same low-priority budget the day allows (so a busy day still adds nothing).
   const considered = new Set(candidates.map(q => q.id));
@@ -223,8 +229,8 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
       ? due && due <= day ? "Protected: overdue or due today." : "Protected: starts today."
       : stanceReason || ai.get(q.id)?.reason || (fillerIds.has(q.id) ? "Added because your list has room: the next most important quest."
         : highPriority(q) ? "High-priority work ready to start." : "Start date reached or important deadline approaching.");
-    const order = orders.get(q.id);
-    if (order) reasons[q.id] += ` You asked for this to rank ${order}.`;
+    const pushed = shift(q);
+    if (pushed) reasons[q.id] += ` You asked for this to rank ${pushed > 0 ? "higher" : "lower"}.`;
     const step = workFilterStep(memory.profile, q, day);
     if (step !== 0) reasons[q.id] += ` ${workFilterOf(q)} work counts ${step > 0 ? "for more" : "for less"} ${isWeekendDay(day) ? "on weekends" : "on weekdays"}.`;
     if (!protectedFocus(q, day) && memory.enabled && (signals.get(q.id) ?? 0) >= 3) {
