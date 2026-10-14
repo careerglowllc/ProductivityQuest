@@ -674,20 +674,24 @@ html.light {
   .dash-content { padding-top: 18px; }
 }
 
-/* Progress metric grid: 3-up → 2-up (first full width) → 1-up */
+/* Progress metric grid: two tiles side by side (thin strips on desktop), stacked on narrow screens */
 .dash-stats {
   display: grid;
   gap: 14px;
-  grid-template-columns: 1.35fr 1fr 1fr;
+  grid-template-columns: 1.35fr 1fr;
   margin-bottom: 18px;
 }
-@media (max-width: 900px) {
+@media (min-width: 768px) {
+  .dash-stats { gap: 10px; }
+}
+@media (min-width: 768px) and (max-width: 900px) {
+  .dash-stats { grid-template-columns: 1fr; }
+}
+@media (max-width: 767px) {
   .dash-stats { grid-template-columns: 1fr 1fr; }
-  .dash-stats > :first-child { grid-column: 1 / -1; }
 }
 @media (max-width: 480px) {
   .dash-stats { grid-template-columns: 1fr; }
-  .dash-stats > :first-child { grid-column: auto; }
 }
 
 /* Module grid: two columns on desktop, one full-width column on mobile */

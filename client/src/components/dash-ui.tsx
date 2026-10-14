@@ -51,28 +51,28 @@ export function StatCard({ label, value, unit, pct, tone, caption, featured = fa
     <section
       aria-label={label}
       aria-busy={loading || undefined}
-      className={`flex min-h-[122px] flex-col justify-between rounded-[10px] border bg-[var(--dash-surface)] p-[19px] shadow-[var(--dash-shadow)] ${
+      className={`flex min-h-[122px] flex-col justify-between rounded-[10px] border bg-[var(--dash-surface)] p-[19px] shadow-[var(--dash-shadow)] md:min-h-0 md:flex-row md:items-center md:justify-start md:gap-3.5 md:px-3.5 md:py-2.5 ${
         featured ? "" : "border-[var(--dash-line)]"
       }`}
       style={featured ? { borderColor: toneVar } : undefined}
     >
-      <p className="dash-mono text-[var(--dash-muted)]">{label}</p>
+      <p className="dash-mono text-[var(--dash-muted)] md:shrink-0">{label}</p>
       {loading ? (
-        <div className="flex flex-1 items-center gap-2 py-1.5">
+        <div className="flex flex-1 items-center gap-2 py-1.5 md:py-0">
           <Loader2 aria-hidden className="h-5 w-5 shrink-0 animate-spin" style={{ color: toneVar }} />
           <span className="text-xs text-[var(--dash-muted)]">Calculating…</span>
         </div>
       ) : (
         <>
-          <p className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="text-[30px] font-bold leading-none tracking-[-0.04em] text-[var(--dash-ink)]">{value}</span>
+          <p className="mt-1.5 flex items-baseline gap-1.5 md:mt-0 md:shrink-0">
+            <span className="text-[30px] font-bold leading-none tracking-[-0.04em] text-[var(--dash-ink)] md:text-[20px]">{value}</span>
             {unit && <span className="text-[13px] font-medium" style={{ color: toneVar }}>{unit}</span>}
           </p>
-          {caption && <p className="mt-1 truncate text-[11px] text-[var(--dash-muted)]">{caption}</p>}
+          {caption && <p className="mt-1 truncate text-[11px] text-[var(--dash-muted)] md:mt-0 md:min-w-0 md:flex-1">{caption}</p>}
         </>
       )}
       <div
-        className={`dash-meter mt-2.5 ${tone === "mint" ? "mint" : tone === "amber" ? "amber" : ""}`}
+        className={`dash-meter mt-2.5 md:mt-0 md:w-28 md:shrink-0 ${tone === "mint" ? "mint" : tone === "amber" ? "amber" : ""}`}
         role="progressbar"
         aria-valuenow={loading ? undefined : Math.round(clamped)}
         aria-valuemin={0}

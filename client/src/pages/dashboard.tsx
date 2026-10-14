@@ -929,14 +929,6 @@ export default function Dashboard() {
   const momentum = useTodayMomentum();
   const fire = useFireGoal();
 
-  // Skill progress: average of each skill's xp toward its next level.
-  const skillProgressPct = safeSkills.length
-    ? (safeSkills.reduce((s, sk) => s + Math.min(1, (sk.xp || 0) / Math.max(1, sk.maxXp || 100)), 0) / safeSkills.length) * 100
-    : 0;
-  const avgSkillLevel = safeSkills.length
-    ? safeSkills.reduce((s, sk) => s + (sk.level || 1), 0) / safeSkills.length
-    : 0;
-
   const now = new Date();
   const hour = now.getHours();
   const greetingWord = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -1458,14 +1450,6 @@ export default function Dashboard() {
               : "Nothing due today"}
             pct={momentum.pct}
             loading={momentum.isLoading}
-          />
-          <StatCard
-            tone="violet"
-            label="Skill progress"
-            value={safeSkills.length ? String(safeSkills.length) : "—"}
-            unit={safeSkills.length ? "skills" : undefined}
-            caption={safeSkills.length ? `Avg level ${avgSkillLevel.toFixed(1)} · ${Math.round(skillProgressPct)}% to next` : "No skills yet"}
-            pct={skillProgressPct}
           />
           <StatCard
             tone="amber"
