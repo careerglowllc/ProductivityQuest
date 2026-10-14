@@ -35,6 +35,8 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/contexts/theme-context";
+import { detailsFadeClass } from "./details-fade";
 import { AttachmentArea } from "@/components/attachment-area";
 import { TaskFocusMenu } from "@/components/smart-focus/task-focus-menu";
 import type { QuestAttachment } from "@/lib/attachments";
@@ -63,6 +65,7 @@ const formatStoredDay = (value: string) => {
 
 export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: TaskDetailModalProps) {
   const isMobile = useIsMobile();
+  const { isDark } = useTheme();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isStartPickerOpen, setIsStartPickerOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
@@ -755,7 +758,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                   {detailsValue || 'Add details...'}
                 </div>
                 {isTruncated && detailsValue && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-800/95 via-slate-800/80 to-transparent rounded-b-lg pt-8 pb-2 px-2.5 flex justify-center">
+                  <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${detailsFadeClass(isDark)} rounded-b-lg pt-8 pb-2 px-2.5 flex justify-center`}>
                     <button
                       onClick={() => setShowFullDetails(true)}
                       className="text-yellow-400 text-xs font-semibold hover:text-yellow-300 transition-colors bg-slate-800/90 px-3 py-1 rounded-full border border-yellow-600/30"
