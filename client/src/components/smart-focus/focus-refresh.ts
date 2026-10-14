@@ -2,6 +2,8 @@
 export const FOCUS_TICK_MS = 15 * 60 * 1000;
 export const FOCUS_MIN_GAP_MS = 5 * 60 * 1000;
 export const FOCUS_RANK_STALE_MS = 5 * 60 * 1000;
+// After feedback: when to ask again, just past the server's one-minute pause between AI calls.
+export const FOCUS_FOLLOW_UP_MS = 65 * 1000;
 
 // True when the quest list was loaded long enough ago to re-read it; false while it is still loading for the first time.
 export function focusRefreshDue(updatedAt: number | undefined, now: number, minGapMs = FOCUS_MIN_GAP_MS): boolean {

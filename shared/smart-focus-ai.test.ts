@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, focusOrders, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
+import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, focusOrders, focusGroup, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
 const day = "2026-10-12";
 const task = (id: number, extra: Partial<FocusQuest> = {}): FocusQuest => ({ id, title: `Task ${id}`, ...extra });
 test("all urgent and start-today tasks survive the cap and hostile AI advice", () => {
@@ -521,4 +521,13 @@ test("a ranked quest explains itself and is never trimmed from the list", () => 
 test("rank higher and lower are described in plain words", () => {
   assert.equal(focusActionLabel({ action: "higher" }), "Ranked higher in Smart Focus");
   assert.equal(focusActionLabel({ action: "lower" }), "Ranked lower in Smart Focus");
+});
+
+test("a quest's group is 3 when overdue or due today, 2 when it starts today, otherwise 1", () => {
+  assert.equal(focusGroup(task(1, { dueDate: "2026-10-01T00:00:00.000Z" }), day), 3);
+  assert.equal(focusGroup(task(1, { dueDate: `${day}T00:00:00.000Z` }), day), 3);
+  assert.equal(focusGroup(task(1, { startDate: `${day}T00:00:00.000Z` }), day), 2);
+  assert.equal(focusGroup(task(1, { startDate: `${day}T00:00:00.000Z`, dueDate: "2026-12-01T00:00:00.000Z" }), day), 2);
+  assert.equal(focusGroup(task(1, { dueDate: "2026-12-01T00:00:00.000Z", startDate: "2026-10-01T00:00:00.000Z" }), day), 1);
+  assert.equal(focusGroup(task(1), day), 1);
 });

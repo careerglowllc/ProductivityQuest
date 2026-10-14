@@ -79,6 +79,12 @@ The owner's account is preloaded with Apple at +1 on weekdays (Monday to Friday)
 
 Stored in the account's Smart Focus memory as `profile.workFilters`, for example `{"Apple": {"weekday": 1, "weekend": -1}}`. `add-smart-focus-apple-priority.cjs` writes it (merging, idempotent, `--dry` to preview).
 
+## Feedback takes effect immediately
+
+When you submit AI feedback with a choice, the change is made on the list you are looking at right away: Take off removes the quest, Move into adds it just below what is overdue, due or starting today, and Rank higher or Rank lower moves it to the front or back of its group. A "Smart Focus updated" message confirms it even if the quest's card disappears. The app then asks the server to re-rank, and that answer replaces the instant one.
+
+On the server, saving feedback clears the cached ranking, and a ranking that started before the feedback is never reused after it, even if the AI call was still running. The AI is called at most once a minute per account. Inside that minute, your change is applied on top of the model's last scores (kept in memory, and dropped when preferences are forgotten or Smart Focus is turned off), so the rest of the order does not reshuffle. About 65 seconds after feedback the app asks again, which is when the AI reads your written reason.
+
 ## Persistence and privacy
 
 Memory is stored under an account-scoped `smart-focus:` key in the existing `user_kv` table. No new schema or migration is required. Compare-and-swap updates prevent simultaneous requests from silently overwriting each other.

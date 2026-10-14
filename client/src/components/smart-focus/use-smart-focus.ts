@@ -2,8 +2,10 @@ import { useEffect, useReducer } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import type { FocusAction, FocusProfile } from "@shared/smart-focus-ai";
-import { FOCUS_RANK_STALE_MS, FOCUS_TICK_MS, focusRefreshDue } from "./focus-refresh";
+import type { FocusAction, FocusProfile, FocusQuest } from "@shared/smart-focus-ai";
+import { FOCUS_FOLLOW_UP_MS, FOCUS_RANK_STALE_MS, FOCUS_TICK_MS, focusRefreshDue } from "./focus-refresh";
+import { applyFocusAction } from "./apply-focus-action";
+import { useToast } from "@/hooks/use-toast";
 
 export interface FocusState {
   enabled: boolean;
@@ -115,6 +117,7 @@ export function useRefreshFocus() {
 export function useFocusActions() {
   const client = useQueryClient();
   const { user } = useAuth();
+  const { toast } = useToast();
   const invalidate = async () => {
     await Promise.all([
       client.invalidateQueries({ queryKey: stateKey }),
@@ -123,7 +126,19 @@ export function useFocusActions() {
   };
   const feedback = useMutation({
     mutationFn: (data: { taskId: number; text: string; action?: FocusAction; inFocus?: boolean }) => request<{ message?: string }>("POST", "/api/smart-focus/feedback", data),
-    onSuccess: invalidate,
+    onSuccess: (data, variables) => {
+      // Show the change at once, in every ranking on screen; the server's re-rank then replaces it.
+      if (variables.action) {
+        const action = variables.action;
+        const tasks = client.getQueryData<FocusQuest[]>(["/api/tasks"]) ?? [];
+        client.setQueriesData<FocusRanking>({ queryKey: rankKey }, (old) => old ? applyFocusAction(old, variables.taskId, action, tasks) : old);
+        // The quest's card (and this dialog with it) can disappear as the list updates, so confirm in a toast too.
+        toast({ title: "Smart Focus updated", description: data?.message, duration: 6000 });
+      }
+      void invalidate();
+      // The AI can only re-read your reason once its one-minute pause is over, so look again then.
+      window.setTimeout(() => { void client.invalidateQueries({ queryKey: rankKey }); }, FOCUS_FOLLOW_UP_MS);
+    },
   });
   const settings = useMutation({
     mutationFn: (enabled: boolean) => request("PATCH", "/api/smart-focus/settings", { enabled }),

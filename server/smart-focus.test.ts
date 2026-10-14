@@ -215,3 +215,68 @@ test("feedback accepts rank higher and rank lower, and the ranking follows the l
     assert.deepEqual(state.preferences.map((p: { action: string }) => p.action), ["higher", "lower"]);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test("after feedback the change shows up straight away, on top of the AI's last scores", async () => {
+  const memories = new Map<string, FocusMemory>([["u", { ...emptyFocusMemory(), enabled: true }]]);
+  const quests = [1, 2, 3].map(id => ({ id, title: `Quest ${id}`, importance: "Medium", startDate: "2026-10-01" }));
+  let calls = 0;
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "u" } as any; next(); }, {
+    tasks: async () => quests, timezone: async () => "UTC",
+    read: async () => structuredClone(memories.get("u") ?? emptyFocusMemory()),
+    change: async (_id, change) => { const m = structuredClone(memories.get("u") ?? emptyFocusMemory()); change(m); memories.set("u", m); },
+  }, async () => { calls++; return [{ taskId: 3, include: true, score: 60, reason: "r" }, { taskId: 1, include: true, score: 10, reason: "r" }, { taskId: 2, include: true, score: 0, reason: "r" }]; },
+  () => true, () => new Date("2026-10-13T17:00:00Z"));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus`;
+    const post = (path: string, body: unknown) => fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const rank = async () => (await post("/rank", {})).json();
+    let result = await rank();
+    assert.deepEqual(result.ids, [3, 1, 2]); assert.equal(result.mode, "ai"); assert.equal(calls, 1);
+
+    await post("/feedback", { taskId: 2, text: "It unblocks the rest.", action: "higher" });
+    result = await rank();
+    assert.deepEqual(result.ids, [2, 3, 1], "ranked higher at once, and the AI's order for the others is kept");
+    assert.equal(result.mode, "ai"); assert.equal(calls, 1, "no new AI call inside the one-minute pause");
+    assert.match(result.message, /latest changes are applied now/);
+
+    await post("/feedback", { taskId: 3, text: "Not this week.", action: "exclude" });
+    assert.deepEqual((await rank()).ids, [2, 1], "taken off at once");
+    await post("/feedback", { taskId: 3, text: "Actually it matters.", action: "include" });
+    assert.ok((await rank()).ids.includes(3), "moved back in at once");
+
+    await fetch(base + "/memory", { method: "DELETE" });
+    result = await rank();
+    assert.equal(result.mode, "rules", "forgetting also drops the remembered AI scores");
+    assert.deepEqual(result.ids, [1, 2, 3]);
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+
+test("a ranking that started before your feedback is never handed back after it", async () => {
+  const memories = new Map<string, FocusMemory>([["u", { ...emptyFocusMemory(), enabled: true }]]);
+  const quests = [1, 2, 3].map(id => ({ id, title: `Quest ${id}`, importance: "Medium", startDate: "2026-10-01" }));
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "u" } as any; next(); }, {
+    tasks: async () => quests, timezone: async () => "UTC",
+    read: async () => structuredClone(memories.get("u") ?? emptyFocusMemory()),
+    change: async (_id, change) => { const m = structuredClone(memories.get("u") ?? emptyFocusMemory()); change(m); memories.set("u", m); },
+  }, async () => { await gate; return []; }, () => true, () => new Date("2026-10-13T17:00:00Z"));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus`;
+    const post = (path: string, body: unknown) => fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const slow = post("/rank", {}).then(r => r.json());       // waiting on the AI
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await post("/feedback", { taskId: 3, text: "Do this first.", action: "higher" });
+    const fresh = await (await post("/rank", {})).json();     // must not wait for, or reuse, the slow one
+    assert.equal(fresh.ids[0], 3, "the new ranking already reflects the feedback");
+    release();
+    const late = await slow;
+    assert.equal(late.ids[0], 3, "even the slow one is corrected for feedback saved while it ran");
+  } finally { release(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

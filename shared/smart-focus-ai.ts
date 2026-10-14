@@ -60,6 +60,11 @@ export function protectedFocus(q: FocusQuest, day: string): boolean {
   const due = dateOnly(q.dueDate);
   return (!!due && due <= day) || dateOnly(q.startDate) === day;
 }
+// Which group a quest sits in: 3 = overdue or due today, 2 = starts today, 1 = everything else. Higher groups list first.
+export const focusGroup = (q: FocusQuest, day: string): 1 | 2 | 3 => {
+  const due = dateOnly(q.dueDate);
+  return due && due <= day ? 3 : dateOnly(q.startDate) === day ? 2 : 1;
+};
 export function eligibleFocus(q: FocusQuest, day: string): boolean {
   if (q.completed || q.recycled || isReminder(q)) return false;
   if (protectedFocus(q, day)) return true;
@@ -161,10 +166,7 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
     if (stance?.action === "keep") return stance.inFocus === true ? 15 : stance.inFocus === false ? -15 : 0;
     return 0;
   };
-  const band = (q: FocusQuest) => {
-    const due = dateOnly(q.dueDate);
-    return due && due <= day ? 3 : dateOnly(q.startDate) === day ? 2 : 1;
-  };
+  const band = (q: FocusQuest) => focusGroup(q, day);
   // Only breaks ties between quests with the same due date and importance: the model's judgment, the user's nudges, past removals.
   const tieScore = (q: FocusQuest) => {
     const signalPenalty = memory.enabled && (signals.get(q.id) ?? 0) >= 3 ? 10 : 0;

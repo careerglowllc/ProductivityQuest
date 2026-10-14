@@ -13,9 +13,14 @@ type Advice = (input: { quests: FocusQuest[]; memory: FocusMemory; day: string; 
 export function registerSmartFocus(app: Express, auth: RequestHandler, store: FocusStore, advise: Advice,
   available = () => !!process.env.OPENAI_API_KEY, clock = () => new Date()) {
   const cache = new Map<string, { hash: string; until: number; result: FocusRanking }>();
-  const inFlight = new Map<string, Promise<FocusRanking>>();
+  const inFlight = new Map<string, { version: number; work: Promise<FocusRanking> }>();
+  const versions = new Map<string, number>(); // bumped on every change, so a ranking that started before it is never reused after it
   const cooldown = new Map<string, number>();
-  const forget = (id: string) => cache.delete(id);
+  // The model's last scores, kept so a change you make can be applied on top of them right away instead of waiting
+  // for the next AI call. Dropped whenever preferences are removed or Smart Focus is turned off.
+  const lastAdvice = new Map<string, FocusAdvice[]>();
+  const forget = (id: string) => { versions.set(id, (versions.get(id) ?? 0) + 1); cache.delete(id); };
+  const forgetAdvice = (id: string) => { lastAdvice.delete(id); forget(id); };
   const handler = (fn: (req: any, res: any) => Promise<unknown>): RequestHandler => async (req, res) => {
     res.setHeader("Cache-Control", "private, no-store");
     try { await fn(req, res); } catch (error) {
@@ -36,7 +41,7 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
   }));
   app.patch("/api/smart-focus/settings", auth, handler(async (req, res) => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body), id = req.session.userId;
-    await store.change(id, m => { m.enabled = enabled; }); forget(id); res.json({ enabled });
+    await store.change(id, m => { m.enabled = enabled; }); forgetAdvice(id); res.json({ enabled });
   }));
   app.post("/api/smart-focus/feedback", auth, handler(async (req, res) => {
     const input = z.object({
@@ -90,22 +95,24 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
   app.delete("/api/smart-focus/preferences/:id", auth, handler(async (req, res) => {
     const id = req.session.userId;
     await store.change(id, m => { m.preferences = m.preferences.filter(p => p.id !== req.params.id); });
-    forget(id); res.json({ success: true });
+    forgetAdvice(id); res.json({ success: true });
   }));
   app.delete("/api/smart-focus/signals/:taskId", auth, handler(async (req, res) => {
     const taskId = z.coerce.number().int().positive().parse(req.params.taskId), id = req.session.userId;
     await store.change(id, m => { m.dismissals = m.dismissals.filter(e => e.taskId !== taskId); });
-    forget(id); res.json({ success: true });
+    forgetAdvice(id); res.json({ success: true });
   }));
   app.delete("/api/smart-focus/memory", auth, handler(async (req, res) => {
     const id = req.session.userId;
     await store.change(id, m => { m.preferences = []; m.dismissals = []; });
-    forget(id); res.json({ success: true });
+    forgetAdvice(id); res.json({ success: true });
   }));
   app.post("/api/smart-focus/rank", auth, handler(async (req, res) => {
     const id = req.session.userId;
     // Serialize requests per account, including forced refreshes (no duplicate paid calls).
-    if (inFlight.has(id)) return res.json(await inFlight.get(id));
+    const joined = inFlight.get(id);
+    if (joined && joined.version === (versions.get(id) ?? 0)) return res.json(await joined.work);
+    const startedAt = versions.get(id) ?? 0;
     const work = (async () => {
       const [quests, memory, { day }] = await Promise.all([store.tasks(id), store.read(id), dayFor(id)]);
       const hash = createHash("sha256").update(JSON.stringify([quests, memory, day, available()])).digest("hex");
@@ -116,7 +123,13 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
       if (!memory.enabled) result.message = "Rules-based focus. Enable AI to use your private preferences.";
       else if (!available()) result.message = "Rules-based focus: OpenAI is not configured on this server.";
       else if ((cooldown.get(id) || 0) > Date.now()) {
-        result.message = "Rules-based focus: wait up to one minute before another AI refresh."; ttl = 30 * 1000;
+        // Too soon for another AI call: apply the latest changes on top of the model's last scores.
+        const earlier = lastAdvice.get(id);
+        if (earlier) {
+          result = rankFocus(quests, day, memory, earlier);
+          result.message = "AI-assisted order. Your latest changes are applied now; the AI re-reads them within a minute.";
+        } else result.message = "Rules-based focus: wait up to one minute before another AI refresh.";
+        ttl = 30 * 1000;
       } else {
         cooldown.set(id, Date.now() + 60000);
         try {
@@ -128,6 +141,8 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
           const candidates = eligible.sort((a, b) => priority(a) - priority(b) || a.id - b.id).slice(0, 100);
           const advice = await advise({ quests: candidates, memory, day, workload: focusWorkload(quests, day) });
           result = rankFocus(quests, day, memory, advice);
+          if (lastAdvice.size > 1000) lastAdvice.delete(lastAdvice.keys().next().value!);
+          lastAdvice.set(id, advice);
           if (eligible.length > 100) result.message += " AI reviewed 100 candidates; safeguards cover all quests.";
         } catch (error) {
           const code = (error as { code?: string })?.code;
@@ -140,7 +155,9 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
       // Do not retain a result if memory changed/was forgotten while OpenAI was running.
       const [latest, latestQuests, latestDate] = await Promise.all([store.read(id), store.tasks(id), dayFor(id)]);
       if (JSON.stringify(latest) !== JSON.stringify(memory) || JSON.stringify(latestQuests) !== JSON.stringify(quests) || latestDate.day !== day) {
-        const safe = rankFocus(latestQuests, latestDate.day, latest); safe.message = "Quests or preferences changed during ranking. Refresh to apply AI.";
+        const earlier = lastAdvice.get(id);
+        const safe = rankFocus(latestQuests, latestDate.day, latest, earlier);
+        safe.message = "Quests or preferences changed during ranking. Your latest changes are applied; refresh to have the AI re-read them.";
         return safe;
       }
       if (cache.size > 1000) cache.delete(cache.keys().next().value!);
@@ -148,7 +165,7 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
       cache.set(id, { hash, until: Date.now() + ttl, result });
       return result;
     })();
-    inFlight.set(id, work);
-    try { res.json(await work); } finally { inFlight.delete(id); }
+    inFlight.set(id, { version: startedAt, work });
+    try { res.json(await work); } finally { if (inFlight.get(id)?.work === work) inFlight.delete(id); }
   }));
 }
