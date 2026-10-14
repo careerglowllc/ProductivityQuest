@@ -33,6 +33,7 @@ export type FocusWorkload = { level: WorkloadLevel; pressure: number; committedM
 export type FocusRanking = {
   ids: number[]; reasons: Record<string, string>; mode: "ai" | "rules"; message: string; day: string; total: number; protectedCount: number;
   workload?: FocusWorkload; heldBack?: number;
+  aiPending?: boolean; // the AI has not read the latest changes yet, because it was asked less than a minute ago
 };
 
 // How a day's committed workload (quests due or starting today) limits the optional, lower-priority extras.

@@ -254,6 +254,31 @@ test("after feedback the change shows up straight away, on top of the AI's last 
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
 
+test("a quest added inside the AI's pause is ranked at once by the rules and flagged so the AI can weigh it afterwards", async () => {
+  const quests: Array<{ id: number; title: string; importance?: string; startDate?: string; dueDate?: string }> = [1, 2].map(id => ({ id, title: `Quest ${id}`, importance: "Medium", startDate: "2026-10-01" }));
+  let calls = 0;
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "u" } as any; next(); }, {
+    tasks: async () => quests.map(q => ({ ...q })), timezone: async () => "UTC",
+    read: async () => ({ ...emptyFocusMemory(), enabled: true }), change: async () => {},
+  }, async () => { calls++; return [{ taskId: 2, include: true, score: 50, reason: "r" }, { taskId: 1, include: true, score: 10, reason: "r" }]; },
+  () => true, () => new Date("2026-10-13T17:00:00Z"));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const rank = async () => (await fetch(`http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus/rank`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
+    const first = await rank();
+    assert.equal(first.mode, "ai"); assert.equal(first.aiPending, undefined, "the AI read everything"); assert.equal(calls, 1);
+
+    quests.push({ id: 9, title: "Just added", importance: "Med-High", startDate: "2026-10-13", dueDate: "2026-10-13" });
+    const second = await rank();
+    assert.equal(second.ids[0], 9, "due and starting today, so it leads at once");
+    assert.deepEqual(second.ids.slice(1), [2, 1], "the AI's order for the others is kept");
+    assert.equal(second.aiPending, true, "the AI has not seen it yet");
+    assert.equal(calls, 1, "no second AI call inside the pause");
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+
 test("a ranking that started before your feedback is never handed back after it", async () => {
   const memories = new Map<string, FocusMemory>([["u", { ...emptyFocusMemory(), enabled: true }]]);
   const quests = [1, 2, 3].map(id => ({ id, title: `Quest ${id}`, importance: "Medium", startDate: "2026-10-01" }));

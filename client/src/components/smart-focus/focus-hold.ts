@@ -5,6 +5,8 @@ import { useEffect, useSyncExternalStore } from "react";
 const holds = new Set<symbol>();
 const listeners = new Set<() => void>();
 let typing = false;
+let typingTarget: Element | null = null;
+let removalWatcher: MutationObserver | null = null;
 let watching = false;
 let held = false;
 
@@ -44,11 +46,29 @@ export function onFocusHoldChange(listener: () => void): () => void {
 function watchTyping() {
   if (watching || typeof document === "undefined") return;
   watching = true;
-  document.addEventListener("focusin", (event) => { typing = isTypingTarget(event.target as HTMLElement | null); update(); });
+  document.addEventListener("focusin", (event) => setTyping(isTypingTarget(event.target as HTMLElement | null) ? (event.target as Element) : null));
   // Focus moves from one box to the next through a gap with nothing focused, so look again once it settles.
   document.addEventListener("focusout", () => {
-    window.setTimeout(() => { typing = isTypingTarget(document.activeElement as HTMLElement | null); update(); }, 0);
+    window.setTimeout(() => {
+      const active = document.activeElement;
+      setTyping(isTypingTarget(active as HTMLElement | null) ? active : null);
+    }, 0);
   });
+}
+
+// A text box that is removed while focused (a dialog closing after Save) sends no focus event, so watch for that,
+// or Smart Focus would stay held still until the next click.
+function setTyping(target: Element | null) {
+  typingTarget = target;
+  typing = target !== null;
+  if (target && !removalWatcher && typeof MutationObserver !== "undefined") {
+    removalWatcher = new MutationObserver(() => { if (typingTarget && !typingTarget.isConnected) setTyping(null); });
+    removalWatcher.observe(document.body, { childList: true, subtree: true });
+  } else if (!target && removalWatcher) {
+    removalWatcher.disconnect();
+    removalWatcher = null;
+  }
+  update();
 }
 
 // Holds Smart Focus while `active` is true, such as for as long as a quest dialog is open.

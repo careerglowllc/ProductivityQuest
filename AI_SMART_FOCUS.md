@@ -38,6 +38,8 @@ Under the paragraph box in **AI feedback** there are five buttons. Pick one, exp
 
 Move into and Take off are disabled when they would change nothing (the quest is already in, or already out), and Rank higher and Rank lower are disabled for a quest that is not in the list. The selection is optional: a plain paragraph still saves as context. The latest action on a quest replaces an earlier one, and Forget in Private preferences removes its effect.
 
+"In the list" is judged from the newest ranking the app has. Every change to a quest starts a new ranking and the older ones stay in memory for a few minutes, so the dialog uses the one that arrived last and updates if a newer one arrives while it is open. (It used to read whichever came first, which for a quest you had just added was a ranking from before the quest existed, so it wrongly said "not in your Smart Focus list" and disabled Rank higher, Rank lower and Take off.) With no ranking loaded yet, nothing is disabled.
+
 The saved preference records the `action` and where the quest was (`inFocus`). The model receives both with the written explanation and is told to treat them as positive or negative corrective examples: learn the reasoning for similar quests, but apply the action only to that quest. Move and Take off are enforced by the server after the model's advice, so they work even when AI is unavailable.
 
 ## Workload-aware focus
@@ -74,7 +76,7 @@ Smart Focus re-reads your quests and re-ranks only when you ask, or when somethi
 | You open the Smart Focus view and the quest list was loaded 5 or more minutes ago | Re-reads your quests, then re-ranks. Opened sooner than that, it reuses what it has. |
 | You come back to the app after being away 5 or more minutes (tab hidden, phone locked) | The same. A short look away does nothing. |
 | You press **Refresh** above the list | Forces a new ranking (`POST /api/smart-focus/rank?refresh=1`), skipping the server's 15-minute cache. |
-| You finish, add or change a quest | Re-ranks at once, because its inputs changed. |
+| You finish, add or change a quest | Re-ranks at once, because its inputs changed. A new quest that is due or starting today is listed by the rules straight away. If the AI was asked less than a minute earlier, it has not seen the change yet (the ranking says `aiPending`), so Smart Focus asks once more after the pause and the AI weighs it too. |
 | You give AI feedback | The list changes instantly; about 65 seconds later it asks once more so the AI can read your reason. |
 | You stay on the page, click in another window, or leave it open | Nothing. There is no timer and no refresh on window focus. |
 | A quest dialog or the feedback dialog is open, or a text box has focus | It holds still, as below. |
@@ -84,6 +86,7 @@ Smart Focus re-reads your quests and re-ranks only when you ask, or when somethi
 - What holds it: the quest details dialog while open, the AI feedback dialog while open, and any focused text box (inputs, text areas and editable text; not buttons, checkboxes or sliders). Holds overlap, and it lets go when the last one ends. The logic is in `client/src/components/smart-focus/focus-hold.ts`.
 - While held, no ranking request is made (so no AI call and no cost), the list shows exactly what it showed when the hold began even if a ranking was already on its way, and coming back to the app does not refresh it.
 - When it lets go, the list catches up once if something changed (a description edit changes the ranking's inputs, so it asks once). If nothing changed and the last ranking is under 5 minutes old, nothing is requested.
+- A text box that is removed while it has focus (a dialog closing after Save) sends no focus event, so the hold also watches for the box leaving the page. Otherwise a quest added through the Add Quest dialog could leave Smart Focus held still.
 
 **Why this exists.** A description autosave used to change the ranking's inputs, and while the new ranking loaded the page dropped to a fallback layout. The quest card was rebuilt in the new layout, and the editor you had open went with it. Now the last ranking stays on screen while a new one loads (for every re-rank, so finishing a quest no longer flashes the fallback layout), and the hold stops the request from starting mid-edit at all.
 

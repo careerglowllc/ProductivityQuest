@@ -1,10 +1,11 @@
-import { useEffect, useReducer, useRef } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useReducer, useRef, useSyncExternalStore } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { focusOrderShifts, type FocusAction, type FocusPreference, type FocusProfile, type FocusQuest } from "@shared/smart-focus-ai";
 import { FOCUS_FOLLOW_UP_MS, FOCUS_RANK_STALE_MS, autoRefreshOnReturn, focusRefreshDue } from "./focus-refresh";
 import { isFocusHeld, useFocusHeld } from "./focus-hold";
+import { freshestRanking, placementOf } from "./focus-placement";
 import { applyFocusAction } from "./apply-focus-action";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +27,7 @@ export interface FocusRanking {
   protectedCount: number;
   workload?: { level: "light" | "normal" | "busy" | "heavy"; pressure: number; committedMinutes: number; questCount: number; highPriorityCount: number };
   heldBack?: number;
+  aiPending?: boolean; // the AI has not read the latest changes yet, because it was asked less than a minute ago
 }
 const stateKey = ["/api/smart-focus/state"] as const;
 const rankKey = ["/api/smart-focus/rank"] as const;
@@ -101,14 +103,30 @@ export function useFocusRanking(enabled: boolean, fingerprint: string, aiEnabled
     mutationFn: () => request<FocusRanking>("POST", "/api/smart-focus/rank?refresh=1", {}),
     onSuccess: (data) => client.setQueryData(queryKey, data),
   });
+  // A change you made (a new quest, an edit) was ranked by the rules alone because the AI had just been asked.
+  // Ask once more when its pause is over so the AI weighs it too, unless you are in the middle of editing.
+  const waitingForAi = enabled && !held && ranking.data?.aiPending === true && !ranking.isPlaceholderData;
+  useEffect(() => {
+    if (!waitingForAi) return;
+    const timer = window.setTimeout(() => { void client.invalidateQueries({ queryKey: rankKey }); }, FOCUS_FOLLOW_UP_MS);
+    return () => window.clearTimeout(timer);
+  }, [waitingForAi, ranking.dataUpdatedAt, client]);
   return { ...ranking, data: held ? frozen.current : ranking.data, refresh };
 }
 
-// Whether the quest is in the Smart Focus list the user last saw; undefined when no list has loaded yet.
+const currentRanking = (client: QueryClient) => freshestRanking(
+  client.getQueryCache().findAll({ queryKey: rankKey }).map((query) => ({ data: query.state.data as FocusRanking | undefined, updatedAt: query.state.dataUpdatedAt })),
+);
+
+// Whether the quest is in the Smart Focus list right now; undefined when no list has loaded yet. Follows the newest
+// ranking and updates when a newer one arrives, so a quest you just added is judged by a list that knows about it.
 export function useFocusPlacement(taskId: number): boolean | undefined {
   const client = useQueryClient();
-  const ranking = client.getQueriesData<FocusRanking>({ queryKey: rankKey }).map(([, data]) => data).find(Boolean);
-  return ranking ? ranking.ids.includes(taskId) : undefined;
+  return useSyncExternalStore(
+    (notify) => client.getQueryCache().subscribe(notify),
+    () => placementOf(currentRanking(client), taskId),
+    () => undefined,
+  );
 }
 
 // Forces a new ranking from the settings page, then lets the Quests page pick up the cached result.

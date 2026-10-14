@@ -45,6 +45,39 @@ test("it re-reads quests on return only after being away a while, and never mid-
   assert.equal(autoRefreshOnReturn({ ...base, tasksUpdatedAt: undefined }), false, "still loading");
 });
 
+test("a text box that disappears while focused (a dialog closing after Save) does not leave Smart Focus held", () => {
+  const handlers: Record<string, (event: any) => void> = {};
+  const fakeDocument = { activeElement: null as any, body: {}, addEventListener: (type: string, handler: (event: any) => void) => { handlers[type] = handler; } };
+  const watchers: Array<{ run: () => void; disconnected: boolean }> = [];
+  class FakeObserver {
+    watcher: { run: () => void; disconnected: boolean };
+    constructor(run: () => void) { this.watcher = { run, disconnected: false }; watchers.push(this.watcher); }
+    observe() {}
+    disconnect() { this.watcher.disconnected = true; }
+  }
+  Object.assign(globalThis, { document: fakeDocument, window: { setTimeout: (run: () => void) => { run(); return 0; } }, MutationObserver: FakeObserver });
+  const stop = onFocusHoldChange(() => {});
+  try {
+    const box = { tagName: "TEXTAREA", isConnected: true };
+    handlers.focusin({ target: box });
+    assert.equal(isFocusHeld(), true, "typing holds it");
+    box.isConnected = false;
+    watchers[0].run();
+    assert.equal(isFocusHeld(), false, "the box is gone, so it lets go without waiting for a click");
+    assert.equal(watchers[0].disconnected, true, "and stops watching");
+
+    const other = { tagName: "INPUT", type: "text", isConnected: true };
+    handlers.focusin({ target: other });
+    assert.equal(isFocusHeld(), true);
+    fakeDocument.activeElement = null;
+    handlers.focusout({});
+    assert.equal(isFocusHeld(), false, "clicking away from the box lets go");
+  } finally {
+    stop();
+    for (const name of ["document", "window", "MutationObserver"]) delete (globalThis as any)[name];
+  }
+});
+
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const hook = read("./use-smart-focus.ts");
 

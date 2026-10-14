@@ -129,6 +129,7 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
           result = rankFocus(quests, day, memory, earlier);
           result.message = "AI-assisted order. Your latest changes are applied now; the AI re-reads them within a minute.";
         } else result.message = "Rules-based focus: wait up to one minute before another AI refresh.";
+        result.aiPending = true;
         ttl = 30 * 1000;
       } else {
         cooldown.set(id, Date.now() + 60000);
