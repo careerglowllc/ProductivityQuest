@@ -43,6 +43,7 @@ Return ONLY JSON in this shape:
 Units: calories in kcal; protein, carbs, fat, satFat, fiber and sugar in grams; sodium, calcium, magnesium, potassium, iron and vitaminC in milligrams; vitaminA in micrograms.
 Rules:
 - One item per food or drink. "2 eggs" is one item with quantity "2" and the numbers for both eggs. Break composite meals into their main parts when the person lists them.
+- "name" is the food alone ("everything bagel"); "quantity" is only the amount ("1", "2 tbsp", "12 oz", "1/5 slice"), never repeating the food's name.
 - Use 0 for a nutrient a food has none of, and your best estimate otherwise. Do not leave numbers out.
 - "date" is the day the food was eaten. Resolve words like today, yesterday or Monday from today's date given in the input; if no day is mentioned use today.
 - Set "dayComplete" true only if the person says that is everything they ate that day.`;
