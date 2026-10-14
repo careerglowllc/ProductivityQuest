@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network, Eye } from "lucide-react";
+import { CheckCircle, Clock, Calendar, Coins, AlertTriangle, Zap, Repeat, Apple, Brain, Users, DollarSign, Target, Mountain, Zap as Power, Activity, Info, Wrench, Palette, Briefcase, Sword, Book, Network, Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { TaskDetailModal } from "./task-detail-modal";
 import { TaskFocusMenu } from "./smart-focus/task-focus-menu";
 import { QuestTypeIcon } from "./quest-type-chooser";
+import { canExpandTask, taskDescription } from "./task-card-expand";
 import { dayStart } from "@shared/quest-schedule";
 
 // "Starts Oct 15" while the start date is still ahead; nothing once it has arrived.
@@ -88,6 +89,8 @@ interface TaskCardProps {
 export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusReason, questlineName, onQuestlineNameClick }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
+  // Cards start collapsed: a few lines of description, and the arrow on the right shows the rest.
+  const [expanded, setExpanded] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { isDark } = useTheme();
@@ -226,6 +229,22 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
       default: return "bg-slate-500";
     }
   };
+
+  const description = taskDescription(task);
+  const canExpand = canExpandTask(task, isMobile);
+  const expandToggle = (className: string, iconClass: string) => canExpand ? (
+    <button
+      type="button"
+      data-testid="expand-quest"
+      aria-expanded={expanded}
+      aria-label={expanded ? "Collapse quest" : "Expand quest"}
+      title={expanded ? "Show less" : "Show more"}
+      className={cn("grid place-items-center rounded-md text-yellow-300/70 hover:text-yellow-100 hover:bg-slate-700/60 transition-colors", className)}
+      onClick={(e) => { e.stopPropagation(); setExpanded((open) => !open); }}
+    >
+      {expanded ? <ChevronUp aria-hidden className={iconClass} /> : <ChevronDown aria-hidden className={iconClass} />}
+    </button>
+  ) : null;
 
   // Compact grid view version
   if (isCompact) {
@@ -538,8 +557,12 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                 </div>
               </div>
               <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
+              {expandToggle("h-8 w-8 flex-shrink-0", "h-4 w-4")}
             </div>
             {focusReason && <p className="sf-reason">{focusReason}</p>}
+            {description && (
+              <p className={cn("mt-1.5 text-xs text-yellow-200/70 whitespace-pre-wrap break-words", !expanded && "line-clamp-1")}>{description}</p>
+            )}
           </CardContent>
         </Card>
         
@@ -612,9 +635,9 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                 <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
               </div>
               {focusReason && <p className="sf-reason mb-2">{focusReason}</p>}
-              {(task.description || task.details) && (
-                <p className="text-yellow-200/70 text-sm mb-2">
-                  {task.description || task.details}
+              {description && (
+                <p className={cn("text-yellow-200/70 text-sm mb-2", !expanded && "line-clamp-2")}>
+                  {description}
                 </p>
               )}
               <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-yellow-300/60 mb-2">
@@ -652,7 +675,8 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                 )}
               </div>
               
-              <div className="flex items-center flex-wrap gap-2">
+              {expanded && (
+              <div className="flex items-center flex-wrap gap-2" data-testid="quest-badges">
                 {task.importance && (
                   <Badge variant="outline" className={cn(
                     "text-xs border",
@@ -732,6 +756,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                   )}
                 </div>
               </div>
+              )}
             </div>
             
             <div className="flex flex-col items-end gap-2 flex-shrink-0">
@@ -760,6 +785,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                 <Eye className="w-3.5 h-3.5 mr-1" />
                 View Full
               </Button>
+              {expandToggle("h-7 w-7", "h-4 w-4")}
             </div>
           </div>
         </CardContent>
