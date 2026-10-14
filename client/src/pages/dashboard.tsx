@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Coins, Trophy, CheckCircle, TrendingUp, User, Settings, LogOut, Calendar, Sparkles, ShoppingCart, Trash2, Clock, ArrowRight, Maximize2, Wrench, Palette, Brain, Briefcase, Sword, Book, Activity, Network, Users as UsersIcon, Crown, Target, ChevronDown, ChevronUp, Plus, DollarSign, GripVertical } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { moveWidget } from "@/lib/dash-widget-order";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { allExpanded, readPanelOpen, toggleAll, writePanelOpen } from "@/lib/questline-panel";
 import { useTopFocus } from "@/components/smart-focus/use-top-focus";
@@ -1068,6 +1069,11 @@ export default function Dashboard() {
   });
   const [dashDragOverIdx, setDashDragOverIdx] = useState<number | null>(null);
   const dashDragSrcIdx = useRef<number | null>(null);
+  // Phones cannot drag widgets (touch has no HTML5 drag and drop), so they reorder with up/down buttons instead.
+  const [reorderMode, setReorderMode] = useState(false);
+  const DASH_WIDGET_LABELS: Record<DashWidgetKey, string> = {
+    skills: "Skills overview", schedule: "Today's calendar", tasks: "Top priority tasks", finance: "Finances",
+  };
 
   // Server-persisted dashboard widget preferences
   const dashWidgetPrefsDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1115,16 +1121,23 @@ export default function Dashboard() {
     if (dashDragSrcIdx.current === null || dashDragSrcIdx.current === idx) {
       setDashDragOverIdx(null); return;
     }
-    const next = [...dashWidgetOrder];
-    const [removed] = next.splice(dashDragSrcIdx.current, 1);
-    next.splice(idx, 0, removed);
-    setDashWidgetOrder(next);
-    try { localStorage.setItem("dash-widget-order", JSON.stringify(next)); } catch {}
-    saveDashWidgetPrefs(next);
+    moveDashWidget(dashDragSrcIdx.current, idx);
     dashDragSrcIdx.current = null;
     setDashDragOverIdx(null);
   };
   const handleDashDragEnd = () => { dashDragSrcIdx.current = null; setDashDragOverIdx(null); };
+  function moveDashWidget(from: number, to: number) {
+    const next = moveWidget(dashWidgetOrder, from, to);
+    setDashWidgetOrder(next);
+    try { localStorage.setItem("dash-widget-order", JSON.stringify(next)); } catch {}
+    saveDashWidgetPrefs(next);
+  }
+  // The moved widget can land off screen, so bring it back into view.
+  const nudgeDashWidget = (idx: number, delta: -1 | 1) => {
+    const key = dashWidgetOrder[idx];
+    moveDashWidget(idx, idx + delta);
+    window.setTimeout(() => document.querySelector(`[data-dash-widget="${key}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+  };
 
   const getImportanceBadgeColor = (importance: string | null) => {
     switch (importance) {
@@ -1141,7 +1154,7 @@ export default function Dashboard() {
   // Render a dashboard widget by key — used for drag-to-reorder
   const renderDashWidget = (key: DashWidgetKey, idx: number) => {
     const isDraggingOver = dashDragOverIdx === idx && dashDragSrcIdx.current !== idx;
-    const dragHandleBar = (
+    const dragHandleBar = isMobile ? null : (
       <div
         className="absolute right-2 top-2 z-10 flex cursor-grab select-none items-center text-[var(--dash-muted-2)] transition-colors hover:text-[var(--dash-violet)] active:cursor-grabbing"
         title="Drag to reorder"
@@ -1154,7 +1167,7 @@ export default function Dashboard() {
     const wrapCard = (children: React.ReactNode, extraClass = "") => (
       <div
         className={`relative h-full p-2 ${extraClass}`}
-        draggable
+        draggable={!isMobile}
         onDragStart={e => handleDashDragStart(e, idx)}
         onDragOver={e => handleDashDragOver(e, idx)}
         onDrop={e => handleDashDrop(e, idx)}
@@ -1482,11 +1495,49 @@ export default function Dashboard() {
 
         {/* Dashboard modules — two columns on desktop, one full-width column on mobile */}
         {isMobile ? (
-          <div className="dash-modules">
-            {dashWidgetOrder.map((key, i) => (
-              <div key={key} className="min-h-[340px]">{renderDashWidget(key, i)}</div>
-            ))}
-          </div>
+          <>
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setReorderMode((on) => !on)}
+                aria-pressed={reorderMode}
+                data-testid="reorder-widgets-toggle"
+                className="dash-focus inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[var(--dash-line)] bg-[var(--dash-surface)] px-3 text-xs font-semibold text-[var(--dash-ink)]"
+              >
+                <GripVertical aria-hidden className="h-4 w-4 text-[var(--dash-violet)]" />
+                {reorderMode ? "Done" : "Reorder widgets"}
+              </button>
+            </div>
+            <div className="dash-modules">
+              {dashWidgetOrder.map((key, i) => (
+                <div key={key} data-dash-widget={key}>
+                  {reorderMode && (
+                    <div
+                      data-testid={`reorder-bar-${key}`}
+                      className="mb-1.5 flex items-center justify-between gap-2 rounded-[10px] border border-[var(--dash-violet)] bg-[var(--dash-violet-soft)] py-1 pl-3 pr-1"
+                    >
+                      <span className="min-w-0 truncate text-xs font-semibold text-[var(--dash-ink)]">{DASH_WIDGET_LABELS[key]}</span>
+                      <div className="flex shrink-0 gap-1.5">
+                        {([[-1, "up", ChevronUp], [1, "down", ChevronDown]] as const).map(([delta, name, Icon]) => (
+                          <button
+                            key={name}
+                            type="button"
+                            aria-label={`Move ${DASH_WIDGET_LABELS[key]} ${name}`}
+                            disabled={i + delta < 0 || i + delta >= dashWidgetOrder.length}
+                            onClick={() => nudgeDashWidget(i, delta)}
+                            className="dash-focus grid h-11 w-11 place-items-center rounded-lg border border-[var(--dash-line)] bg-[var(--dash-surface)] text-[var(--dash-ink)] disabled:opacity-30"
+                          >
+                            <Icon aria-hidden className="h-5 w-5" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="min-h-[340px]">{renderDashWidget(key, i)}</div>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           /* Desktop: resizable module grid */
           <div className="min-h-[620px]" style={{ height: 'calc(100vh - 340px)' }}>
