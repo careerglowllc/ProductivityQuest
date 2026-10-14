@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
+import { Trophy, Calendar, ShoppingCart, TrendingUp, Clock, ArrowUpDown, CalendarDays, AlertTriangle, Download, Upload, CheckCircle, Trash2, Search, Tag, FileSpreadsheet, CheckSquare, XSquare, LayoutGrid, List, ArrowRight, X, Filter, MoreHorizontal, CalendarClock, Briefcase, User, Check, Loader2, BellRing, ListChecks, Sparkles, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { SelectedFeedbackAction } from "@/components/smart-focus/selected-feedback-action";
 import { focusView, showsSortControl } from "@/components/smart-focus/focus-gate";
@@ -2123,6 +2123,19 @@ export default function Home() {
   );
   const renderSmartSections = () => !smartResult ? null : (
     <>
+      {/* Smart Focus only re-reads your quests when you open it or return after a while, so this is how to do it on demand. */}
+      <div className="flex items-center justify-end px-1">
+        <button
+          type="button"
+          data-testid="smart-focus-refresh"
+          onClick={() => focusRanking.refresh.mutate()}
+          disabled={focusRanking.refresh.isPending}
+          className="dash-focus inline-flex min-h-[32px] items-center gap-1.5 rounded-md border border-[var(--dash-line)] bg-[var(--dash-surface)] px-2.5 text-[11px] font-semibold text-[var(--dash-muted)] transition-colors hover:text-[var(--dash-violet)] disabled:opacity-60"
+        >
+          <RefreshCw aria-hidden className={`h-3 w-3 ${focusRanking.refresh.isPending ? "animate-spin" : ""}`} />
+          {focusRanking.refresh.isPending ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
       {smartResult.groups.map((group) => (
         <section key={group.band} data-smart-band={group.band} className={isMobile ? "space-y-1.5" : "space-y-3"}>
           <h3 className="flex items-baseline gap-2 px-1 pt-1">

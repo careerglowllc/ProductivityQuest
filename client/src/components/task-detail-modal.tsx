@@ -39,6 +39,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { detailsFadeClass } from "./details-fade";
 import { AttachmentArea } from "@/components/attachment-area";
 import { TaskFocusMenu } from "@/components/smart-focus/task-focus-menu";
+import { useFocusHold } from "@/components/smart-focus/focus-hold";
 import type { QuestAttachment } from "@/lib/attachments";
 
 interface TaskDetailModalProps {
@@ -94,8 +95,9 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   const [displayedQuestType, setDisplayedQuestType] = useState(task.questType);
   useEffect(() => { setDisplayedQuestType(task.questType); }, [task.id, task.questType]);
   const { toast } = useToast();
+  // Smart Focus keeps its list still while this dialog is open, so an edit is never cut off by a re-rank.
+  useFocusHold(open);
 
-  // Fetch questlines for the dropdown and parent quest resolution
   const { data: questlines = [] } = useQuery<{
     id: number;
     title: string;
@@ -144,9 +146,14 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
     }
   }, [durationMode]);
 
-  // When modal closes, reset editing state
+  // When modal closes, reset editing state and save a description edit that is still waiting on its pause
   useEffect(() => {
     if (!open) {
+      if (detailsTimeoutRef.current) {
+        clearTimeout(detailsTimeoutRef.current);
+        detailsTimeoutRef.current = null;
+        updateDetailsMutation.mutate(detailsValue);
+      }
       setIsEditingDetails(false);
       setIsEditingTitle(false);
     }
@@ -283,6 +290,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
     setDetailsValue(value);
     if (detailsTimeoutRef.current) clearTimeout(detailsTimeoutRef.current);
     detailsTimeoutRef.current = setTimeout(() => {
+      detailsTimeoutRef.current = null;
       updateDetailsMutation.mutate(value);
     }, 800);
   };

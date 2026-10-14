@@ -1,9 +1,10 @@
-import { useEffect, useReducer } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useReducer, useRef } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { focusOrderShifts, type FocusAction, type FocusPreference, type FocusProfile, type FocusQuest } from "@shared/smart-focus-ai";
-import { FOCUS_FOLLOW_UP_MS, FOCUS_RANK_STALE_MS, FOCUS_TICK_MS, focusRefreshDue } from "./focus-refresh";
+import { FOCUS_FOLLOW_UP_MS, FOCUS_RANK_STALE_MS, autoRefreshOnReturn, focusRefreshDue } from "./focus-refresh";
+import { isFocusHeld, useFocusHeld } from "./focus-hold";
 import { applyFocusAction } from "./apply-focus-action";
 import { useToast } from "@/hooks/use-toast";
 
@@ -54,48 +55,53 @@ export function useFocusState(enabled = true) {
   });
 }
 
-// Smart Focus never goes stale: reopening the app, coming back to it, or leaving it open re-reads your quests
-// (and so brings in the next most important ones as you finish things) without needing a manual refresh.
+// Smart Focus re-reads your quests when you open it, or when you come back to the app after being away a while.
+// It never does while you are on the page, and never while a quest is being edited; use the Refresh button for that.
 function useFocusAutoRefresh(enabled: boolean) {
   const client = useQueryClient();
   const [, rerender] = useReducer((count: number) => count + 1, 0);
   useEffect(() => {
     if (!enabled) return;
     const refresh = () => {
-      if (document.visibilityState !== "visible") return;
-      if (!focusRefreshDue(client.getQueryState(["/api/tasks"])?.dataUpdatedAt, Date.now())) return;
       client.invalidateQueries({ queryKey: ["/api/tasks"] });
       client.invalidateQueries({ queryKey: rankKey });
-      rerender(); // the page recomputes "today" even when no quest changed, such as after midnight
+      rerender(); // the page recomputes "today", such as after midnight
     };
-    refresh();
-    document.addEventListener("visibilitychange", refresh);
-    window.addEventListener("focus", refresh);
-    const timer = window.setInterval(refresh, FOCUS_TICK_MS);
-    return () => {
-      document.removeEventListener("visibilitychange", refresh);
-      window.removeEventListener("focus", refresh);
-      window.clearInterval(timer);
+    if (!isFocusHeld() && focusRefreshDue(client.getQueryState(["/api/tasks"])?.dataUpdatedAt, Date.now())) refresh();
+    let hiddenAt: number | undefined;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") { hiddenAt = Date.now(); return; }
+      const due = autoRefreshOnReturn({ hiddenAt, now: Date.now(), held: isFocusHeld(), tasksUpdatedAt: client.getQueryState(["/api/tasks"])?.dataUpdatedAt });
+      hiddenAt = undefined;
+      if (due) refresh();
     };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [enabled, client]);
 }
 
 export function useFocusRanking(enabled: boolean, fingerprint: string, aiEnabled: boolean) {
   const client = useQueryClient();
   const queryKey = [...rankKey, fingerprint, aiEnabled];
+  const held = useFocusHeld();
   useFocusAutoRefresh(enabled);
   const ranking = useQuery<FocusRanking>({
     queryKey,
     queryFn: () => request("POST", "/api/smart-focus/rank", {}),
-    enabled,
+    enabled: enabled && !held,
     ...queryOptions,
     staleTime: FOCUS_RANK_STALE_MS,
+    // While a new ranking loads, keep showing the last one instead of dropping to the fallback layout.
+    placeholderData: keepPreviousData,
   });
+  // While you are editing, the list shows exactly what it showed when you started, even if a ranking arrives.
+  const frozen = useRef<FocusRanking | undefined>(undefined);
+  if (!held) frozen.current = ranking.data;
   const refresh = useMutation({
     mutationFn: () => request<FocusRanking>("POST", "/api/smart-focus/rank?refresh=1", {}),
     onSuccess: (data) => client.setQueryData(queryKey, data),
   });
-  return { ...ranking, refresh };
+  return { ...ranking, data: held ? frozen.current : ranking.data, refresh };
 }
 
 // Whether the quest is in the Smart Focus list the user last saw; undefined when no list has loaded yet.

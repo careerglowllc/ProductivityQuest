@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { focusError, useFocusActions, useFocusPlacement } from "./use-smart-focus";
+import { useFocusHold } from "./focus-hold";
 import { feedbackLabel, feedbackPlaceholder, focusActionOptions } from "./feedback-actions";
 import type { FocusAction } from "@shared/smart-focus-ai";
 import "./smart-focus.css";
@@ -14,6 +15,7 @@ export function FocusFeedbackDialog({ taskId, taskTitle, open, onOpenChange }: {
   const [action, setAction] = useState<FocusAction | null>(null);
   const inFocus = useFocusPlacement(taskId);
   const { feedback } = useFocusActions();
+  useFocusHold(open);
   const valid = text.trim().length >= 1 && text.length <= 3000;
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!feedback.isPending) { onOpenChange(next); if (!next) { setText(""); setAction(null); feedback.reset(); } } }}>

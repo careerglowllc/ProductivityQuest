@@ -67,7 +67,9 @@ Worked examples: 3 quests of 30 minutes, none high priority, is 2.1 (light). 5 q
 
 ## Keeps refreshing
 
-Smart Focus is not a once-a-day list. The server re-ranks from your current quests every time it is asked, and the app asks whenever it opens, whenever you come back to it after at least 5 minutes, and every 15 minutes while it stays open and visible. It also re-reads your quest list at those moments, so changes from another device show up. Finishing, adding or editing a quest changes the ranking on its own.
+Smart Focus is not a once-a-day list. The server re-ranks from your current quests every time it is asked, and the app asks when you open the Smart Focus view and when you come back to the app after being away at least 5 minutes. It also re-reads your quest list at those moments, so changes from another device show up. It does not refresh on a timer or while you are on the page: use the Refresh button above the list for that. Finishing, adding or editing a quest changes the ranking on its own, except while you are editing.
+
+While a quest dialog or the feedback dialog is open, or a text box has focus, Smart Focus holds still: nothing re-ranks, the list does not change, and no AI call is made. When the dialog closes the list catches up once. A description you were still typing is saved when the dialog closes.
 
 As the essentials are finished, the list makes room. After the protected quests, high-priority work and quests you asked for, any space left up to the list size (10, or more when many quests are protected) is filled with the next most important eligible quests that did not qualify before, in the usual order (earliest due date, then importance, then the model's tie-break). This uses the same low-priority budget as the workload rules, so a busy or heavy day adds nothing, a full day adds a few, and a light day fills the list. It never adds quests with a future start date, ones taken off Smart Focus, ones dismissed today, or ones the model said no to, and routines come in only on days that allow them. Added quests say "Added because your list has room".
 
