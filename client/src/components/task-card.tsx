@@ -10,7 +10,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { TaskDetailModal } from "./task-detail-modal";
 import { TaskFocusMenu } from "./smart-focus/task-focus-menu";
 import { QuestTypeIcon } from "./quest-type-chooser";
-import { canExpandTask, taskDescription } from "./task-card-expand";
+import { canExpandTask, compactDueDate, hasBadgeRow, taskDescription } from "./task-card-expand";
 import { dayStart } from "@shared/quest-schedule";
 
 // "Starts Oct 15" while the start date is still ahead; nothing once it has arrived.
@@ -322,13 +322,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                 <div className="flex items-center gap-1.5">
                   <QuestTypeIcon type={task.questType} className="h-3.5 w-3.5" />
                   {task.importance && (
-                    <span className="text-xs" title={task.importance}>
-                      {task.importance === "Pareto" ? "�" : 
-                       task.importance === "High" ? "�" : 
-                       task.importance === "Med-High" ? "🟠" : 
-                       task.importance === "Medium" ? "�" : 
-                       task.importance === "Med-Low" ? "�" : "�"}
-                    </span>
+                    <span aria-hidden title={task.importance} className={cn("h-2.5 w-2.5 rounded-full", getImportanceDotColor(task.importance))} />
                   )}
                 </div>
               </div>
@@ -604,190 +598,128 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
         )}
         onClick={handleCardClick}
       >
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-2 mb-1">
+        <CardContent className="px-4 py-3">
+          {/* Row 1: emoji, title, then the gold amount and the actions, all on one line */}
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+              <EmojiPicker value={task.emoji || "📝"} onChange={(emoji: string) => updateEmojiMutation.mutate(emoji)} size="sm" />
+            </span>
+            <h3 className={cn("min-w-0 flex-1 pt-1 text-base font-semibold leading-snug text-yellow-100", task.completed && "line-through text-yellow-400/60")}>
+              {questlineName && (
                 <span
-                  className="flex-shrink-0 cursor-pointer"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <EmojiPicker
-                    value={task.emoji || "📝"}
-                    onChange={(emoji: string) => updateEmojiMutation.mutate(emoji)}
-                    size="md"
-                  />
-                </span>
-                <div className="flex-1 min-w-0 pt-1">
-                  <h3 className={cn(
-                    "text-lg font-semibold text-yellow-100",
-                    task.completed && "line-through text-yellow-400/60"
-                  )}>
-                    {questlineName && (
-                      <span
-                        className={`text-purple-300/80 font-medium ${onQuestlineNameClick && task.questlineId ? "cursor-pointer hover:text-purple-200 hover:underline underline-offset-2" : ""}`}
-                        onClick={onQuestlineNameClick && task.questlineId ? (e) => { e.stopPropagation(); onQuestlineNameClick(task.questlineId!, task.id); } : undefined}
-                      >{questlineName}: </span>
-                    )}
-                    {task.title}
-                  </h3>
-                </div>
-                <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
-              </div>
-              {focusReason && <p className="sf-reason mb-2">{focusReason}</p>}
-              {description && (
-                <p className={cn("text-yellow-200/70 text-sm mb-2", !expanded && "line-clamp-2")}>
-                  {description}
-                </p>
+                  className={`text-purple-300/80 font-medium ${onQuestlineNameClick && task.questlineId ? "cursor-pointer hover:text-purple-200 hover:underline underline-offset-2" : ""}`}
+                  onClick={onQuestlineNameClick && task.questlineId ? (e) => { e.stopPropagation(); onQuestlineNameClick(task.questlineId!, task.id); } : undefined}
+                >{questlineName}: </span>
               )}
-              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-yellow-300/60 mb-2">
-                <QuestTypeIcon type={task.questType} className="h-4 w-4" />
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">{formatDuration(task.duration)}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">{formatDate(task.dueDate)}</span>
-                </div>
-                {upcomingStartLabel(task.startDate) && (
-                  <div className="flex items-center gap-1.5" data-testid="start-label">
-                    <span className="whitespace-nowrap">{upcomingStartLabel(task.startDate)}</span>
-                  </div>
-                )}
-                {task.importance && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="flex-shrink-0">{task.importance === "Pareto" ? "�" : task.importance === "High" ? "�" : task.importance === "Med-High" ? "🟠" : task.importance === "Medium" ? "�" : task.importance === "Med-Low" ? "�" : "�"}</span>
-                    <span className="whitespace-nowrap">{task.importance}</span>
-                  </div>
-                )}
-                {task.recurType && task.recurType.toLowerCase().replace(/[^a-z-]/g, '') !== "one-time" && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="flex-shrink-0">🔄</span>
-                    <span className="whitespace-nowrap">{task.recurType}</span>
-                  </div>
-                )}
-                {task.completed && task.completedAt && (
-                  <div className="flex items-center gap-1.5 text-green-400">
-                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">Completed</span>
-                  </div>
-                )}
-              </div>
-              
-              {expanded && (
-              <div className="flex items-center flex-wrap gap-2" data-testid="quest-badges">
-                {task.importance && (
-                  <Badge variant="outline" className={cn(
-                    "text-xs border",
-                    task.importance === "Pareto" && "bg-red-900/40 text-red-200 border-red-600/40",
-                    task.importance === "High" && "bg-red-900/40 text-red-200 border-red-600/40",
-                    task.importance === "Med-High" && "bg-orange-900/40 text-orange-200 border-orange-600/40",
-                    task.importance === "Medium" && "bg-yellow-900/40 text-yellow-200 border-yellow-600/40",
-                    task.importance === "Med-Low" && "bg-blue-900/40 text-blue-200 border-blue-600/40",
-                    task.importance === "Low" && "bg-green-900/40 text-green-200 border-green-600/40"
-                  )}>
-                    {task.importance === "Pareto" && <Zap className="w-3 h-3 mr-1" />}
-                    {task.importance === "High" && <AlertTriangle className="w-3 h-3 mr-1" />}
-                    {task.importance}
-                  </Badge>
-                )}
-                
-                {task.recurType && task.recurType.toLowerCase().replace(/[^a-z-]/g, '') !== "one-time" && (
-                  <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
-                    <Repeat className="w-3 h-3 mr-1" />
-                    {task.recurType}
-                  </Badge>
-                )}
-                
-                {/* Skill Tags */}
-                {task.skillTags && task.skillTags.length > 0 && task.skillTags.map((skillName) => {
-                  const SkillIcon = getSkillIconComponent(skillName);
-                  const skill = getSkillByName(skillName);
-                  
-                  return (
-                    <Badge 
-                      key={skillName} 
-                      variant="outline" 
-                      className={cn("text-xs border cursor-pointer hover:brightness-125 transition-all", getSkillColor(skillName))}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowSkillModal(true);
-                      }}
-                    >
-                      <SkillIcon className="w-3 h-3 mr-1" />
-                      {skillName}
-                      {skill?.isCustom && (
-                        <span className="ml-1 text-[9px] opacity-60">(custom)</span>
-                      )}
-                    </Badge>
-                  );
-                })}
-                
-                {/* Checkbox indicators */}
-                <div className="flex items-center space-x-1">
-                  {task.apple && (
-                    <Badge variant="outline" className="text-xs bg-slate-700/40 text-slate-200 border-slate-600/40">
-                      <Apple className="w-3 h-3 mr-1" />
-                      Apple
-                    </Badge>
-                  )}
-                  {task.smartPrep && (
-                    <Badge variant="outline" className="text-xs bg-blue-900/40 text-blue-200 border-blue-600/40">
-                      <Brain className="w-3 h-3 mr-1" />
-                      SmartPrep
-                    </Badge>
-                  )}
-                  {task.delegationTask && (
-                    <Badge variant="outline" className="text-xs bg-green-900/40 text-green-200 border-green-600/40">
-                      <Users className="w-3 h-3 mr-1" />
-                      Delegation
-                    </Badge>
-                  )}
-                  {task.velin && (
-                    <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">
-                      Velin
-                    </Badge>
-                  )}
-                  {task.assignedTo && task.assignedTo !== "Alex" && (
-                    <Badge variant="outline" className="text-xs bg-indigo-900/40 text-indigo-200 border-indigo-600/40">
-                      👤 {task.assignedTo}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              )}
-            </div>
-            
-            <div className="flex flex-col items-end gap-2 flex-shrink-0">
-              <Badge 
+              {task.title}
+            </h3>
+            <div className="flex flex-shrink-0 items-center gap-0.5">
+              <Badge
                 variant={task.completed ? "secondary" : "default"}
                 className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1",
-                  task.completed 
+                  "mr-1 flex items-center gap-1 px-2 py-0.5 text-xs",
+                  task.completed
                     ? "bg-green-900/40 text-green-200 border border-green-600/40"
                     : "bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 text-yellow-100 border border-yellow-600/50"
                 )}
               >
-                <Coins className="w-4 h-4 flex-shrink-0" />
+                <Coins className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="font-semibold whitespace-nowrap">{task.goldValue}</span>
               </Badge>
-              
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2.5 text-xs text-yellow-300/70 hover:text-yellow-100 hover:bg-slate-700/60"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDetailModal(true);
-                }}
+                className="h-7 px-2 text-xs text-yellow-300/70 hover:text-yellow-100 hover:bg-slate-700/60"
+                onClick={(e) => { e.stopPropagation(); setShowDetailModal(true); }}
               >
                 <Eye className="w-3.5 h-3.5 mr-1" />
                 View Full
               </Button>
               {expandToggle("h-7 w-7", "h-4 w-4")}
+              <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
             </div>
           </div>
+
+          {/* Row 2: everything about the quest on one wrapping line, lined up under the title */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-10 text-xs text-yellow-300/60">
+            <QuestTypeIcon type={task.questType} className="h-3.5 w-3.5" />
+            <span className="flex items-center gap-1 whitespace-nowrap"><Clock className="w-3.5 h-3.5 flex-shrink-0" />{formatDuration(task.duration)}</span>
+            <span className="flex items-center gap-1 whitespace-nowrap"><Calendar className="w-3.5 h-3.5 flex-shrink-0" />{compactDueDate(task.dueDate)}</span>
+            {upcomingStartLabel(task.startDate) && <span className="whitespace-nowrap" data-testid="start-label">{upcomingStartLabel(task.startDate)}</span>}
+            {task.importance && (
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <span aria-hidden className={cn("h-2 w-2 flex-shrink-0 rounded-full", getImportanceDotColor(task.importance))} />
+                {task.importance}
+              </span>
+            )}
+            {task.recurType && task.recurType.toLowerCase().replace(/[^a-z-]/g, '') !== "one-time" && (
+              <span className="flex items-center gap-1 whitespace-nowrap"><Repeat className="w-3.5 h-3.5 flex-shrink-0 text-purple-400/70" />{task.recurType}</span>
+            )}
+            {task.completed && task.completedAt && (
+              <span className="flex items-center gap-1 whitespace-nowrap text-green-400"><CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />Completed</span>
+            )}
+            {!expanded && (
+              <span className="flex items-center gap-1.5" data-testid="quest-tags-compact">
+                {(task.skillTags ?? []).slice(0, 4).map((skillName) => {
+                  const SkillIcon = getSkillIconComponent(skillName);
+                  const skill = getSkillByName(skillName);
+                  return (
+                    <button
+                      key={skillName}
+                      type="button"
+                      title={skillName}
+                      aria-label={`Skill: ${skillName}`}
+                      className="grid place-items-center hover:brightness-125"
+                      onClick={(e) => { e.stopPropagation(); setShowSkillModal(true); }}
+                    >
+                      {skill?.skillIcon && typeof skill.skillIcon === 'string' && !(skill.skillIcon in SKILL_ICON_MAP)
+                        ? <span className="text-xs leading-none">{skill.skillIcon}</span>
+                        : <SkillIcon className="w-3.5 h-3.5 text-purple-300/80" />}
+                    </button>
+                  );
+                })}
+                {(task.skillTags?.length ?? 0) > 4 && <span className="text-[10px] text-yellow-400/50">+{task.skillTags!.length - 4}</span>}
+                {task.apple && <Apple aria-label="Apple" className="w-3.5 h-3.5 text-slate-300/80"><title>Apple</title></Apple>}
+                {task.smartPrep && <Brain aria-label="SmartPrep" className="w-3.5 h-3.5 text-blue-300/80"><title>SmartPrep</title></Brain>}
+                {task.delegationTask && <Users aria-label="Delegation" className="w-3.5 h-3.5 text-green-300/80"><title>Delegation</title></Users>}
+                {task.velin && <span className="text-[10px] font-semibold text-purple-300/80">Velin</span>}
+                {task.assignedTo && task.assignedTo !== "Alex" && <span className="whitespace-nowrap text-indigo-300/80">👤 {task.assignedTo}</span>}
+              </span>
+            )}
+            {focusReason && <span className="text-[11px] text-[var(--dash-muted)]">{focusReason}</span>}
+          </div>
+
+          {description && (
+            <p className={cn("mt-1 pl-10 text-[13px] leading-snug text-yellow-200/70", !expanded && "line-clamp-2")}>
+              {description}
+            </p>
+          )}
+
+          {expanded && hasBadgeRow(task) && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-10" data-testid="quest-badges">
+              {(task.skillTags ?? []).map((skillName) => {
+                const SkillIcon = getSkillIconComponent(skillName);
+                const skill = getSkillByName(skillName);
+                return (
+                  <Badge
+                    key={skillName}
+                    variant="outline"
+                    className={cn("text-xs border cursor-pointer hover:brightness-125 transition-all", getSkillColor(skillName))}
+                    onClick={(e) => { e.stopPropagation(); setShowSkillModal(true); }}
+                  >
+                    <SkillIcon className="w-3 h-3 mr-1" />
+                    {skillName}
+                    {skill?.isCustom && <span className="ml-1 text-[9px] opacity-60">(custom)</span>}
+                  </Badge>
+                );
+              })}
+              {task.apple && <Badge variant="outline" className="text-xs bg-slate-700/40 text-slate-200 border-slate-600/40"><Apple className="w-3 h-3 mr-1" />Apple</Badge>}
+              {task.smartPrep && <Badge variant="outline" className="text-xs bg-blue-900/40 text-blue-200 border-blue-600/40"><Brain className="w-3 h-3 mr-1" />SmartPrep</Badge>}
+              {task.delegationTask && <Badge variant="outline" className="text-xs bg-green-900/40 text-green-200 border-green-600/40"><Users className="w-3 h-3 mr-1" />Delegation</Badge>}
+              {task.velin && <Badge variant="outline" className="text-xs bg-purple-900/40 text-purple-200 border-purple-600/40">Velin</Badge>}
+              {task.assignedTo && task.assignedTo !== "Alex" && <Badge variant="outline" className="text-xs bg-indigo-900/40 text-indigo-200 border-indigo-600/40">👤 {task.assignedTo}</Badge>}
+            </div>
+          )}
         </CardContent>
       </Card>
       
