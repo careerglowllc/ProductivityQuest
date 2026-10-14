@@ -14,6 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { allExpanded, readPanelOpen, toggleAll, writePanelOpen } from "@/lib/questline-panel";
 import { useTopFocus } from "@/components/smart-focus/use-top-focus";
+import { visibleFocusReason } from "@/components/smart-focus/focus-reason";
 import { TodaysReminders } from "@/components/todays-reminders";
 import { QuoteOfTheDay } from "@/components/quote-of-the-day";
 import React from "react";
@@ -1256,8 +1257,8 @@ export default function Dashboard() {
                           {task.duration && <span className="flex items-center text-xs text-[var(--dash-muted)]"><Clock aria-hidden className="mr-1 h-3 w-3" />{task.duration} min</span>}
                           {task.dueDate && <span className="flex items-center text-xs text-[var(--dash-muted)]"><Calendar aria-hidden className="mr-1 h-3 w-3" />{(() => { const d = new Date(task.dueDate); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(); })()}</span>}
                         </div>
-                        {topFocus.status === "ready" && topFocus.reasons[task.id] && (
-                          <p className="mt-1.5 line-clamp-2 text-[11px] text-[var(--dash-muted)]">{topFocus.reasons[task.id]}</p>
+                        {topFocus.status === "ready" && visibleFocusReason(topFocus.reasons[task.id]) && (
+                          <p className="mt-1.5 line-clamp-2 text-[11px] text-[var(--dash-muted)]">{visibleFocusReason(topFocus.reasons[task.id])}</p>
                         )}
                       </div>
                       {task.goldValue ? (

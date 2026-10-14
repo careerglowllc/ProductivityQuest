@@ -18,6 +18,7 @@ import { focusView, showsSortControl } from "@/components/smart-focus/focus-gate
 import { FocusOffNotice } from "@/components/smart-focus/focus-off-notice";
 import { useFocusRanking, useFocusState } from "@/components/smart-focus/use-smart-focus";
 import { selectFocus } from "@/components/smart-focus/select-focus";
+import { visibleFocusReason } from "@/components/smart-focus/focus-reason";
 import { focusFingerprint as buildFocusFingerprint } from "@/components/smart-focus/focus-fingerprint";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { ItemShopModal } from "@/components/item-shop-modal";
@@ -2113,7 +2114,7 @@ export default function Home() {
       key={task.id}
       task={task}
       isCompact={compact}
-      focusReason={focusRanking.data?.reasons[String(task.id)]}
+      focusReason={visibleFocusReason(focusRanking.data?.reasons[String(task.id)]) || undefined}
       onSelect={handleTaskSelect}
       isSelected={selectedTasks.has(task.id)}
       questlineName={questlinePrefixMap.get(task.id)}
