@@ -2419,6 +2419,15 @@ npm run db:push      # Apply database migrations
   - Share task lists with team members
 - **Test Cases:** See `CSV_EXPORT_TEST_CASES.md`
 
+### Quest Attachments
+**Attach images, videos and PDFs; preview and download them**
+
+- **Where:** the paperclip in a quest's details (also journal, weekly planning and beliefs)
+- **Preview:** PDFs show their first page and page count on the tile; a click opens every page in a full-screen viewer
+- **Download:** a download button on every attachment and in the viewer, for PDFs, videos and images
+- **Limits:** images 8 MB, videos 25 MB, PDFs 10 MB
+- **Docs:** `ATTACHMENTS.md`, test cases in `ATTACHMENTS_TEST_CASES.md`
+
 ### AI Fitness Logging
 **Type or speak what you lifted or ate; the AI fills in the logs**
 

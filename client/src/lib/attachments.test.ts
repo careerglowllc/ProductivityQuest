@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  MAX_IMAGE_BYTES, MAX_PDF_BYTES, MAX_VIDEO_BYTES, MEDIA_ACCEPT,
-  dataUrlToBlob, fileToAttachment, filesToAttachments, getMediaType, pdfDataUrl, validateMediaFile,
+  MAX_IMAGE_BYTES, MAX_PDF_BYTES, MAX_VIDEO_BYTES, MEDIA_ACCEPT, type QuestAttachment,
+  attachmentFileName, dataUrlToBlob, dataUrlToBytes, downloadAttachment, fileToAttachment, filesToAttachments, getMediaType, pdfDataUrl, validateMediaFile,
 } from "./attachments";
 
 const file = (name: string, type: string, bytes = 4) => new File([new Uint8Array(bytes)], name, { type });
@@ -78,13 +78,72 @@ test("a stored PDF can be turned back into the exact file for the viewer", async
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("the attachment area shows a PDF tile, opens it in a viewer, and says PDFs are welcome", () => {
+const stored = (name: string, type: QuestAttachment["type"], dataUrl: string): QuestAttachment => ({ id: "a1", name, type, dataUrl, size: 3 });
+const PDF_URL = "data:application/pdf;base64,JVBERg=="; // "%PDF"
+
+test("a downloaded file keeps its own name, and gets an extension when it had none", () => {
+  assert.equal(attachmentFileName(stored("OSA_Summary.pdf", "pdf", PDF_URL)), "OSA_Summary.pdf");
+  assert.equal(attachmentFileName(stored("scan", "pdf", PDF_URL)), "scan.pdf");
+  assert.equal(attachmentFileName(stored("", "pdf", PDF_URL)), "document.pdf");
+  assert.equal(attachmentFileName(stored("IMG_1", "image", "data:image/jpeg;base64,AAAA")), "IMG_1.jpg");
+  assert.equal(attachmentFileName(stored("clip", "video", "data:video/quicktime;base64,AAAA")), "clip.mov");
+  assert.equal(attachmentFileName(stored("clip.mp4", "video", "data:video/mp4;base64,AAAA")), "clip.mp4");
+  assert.equal(attachmentFileName(stored("a/b:c?.pdf", "pdf", PDF_URL)), "a_b_c_.pdf", "characters a file name cannot hold are replaced");
+});
+
+test("the bytes of a stored file come back exactly", () => {
+  assert.deepEqual(Array.from(dataUrlToBytes(PDF_URL)), [37, 80, 68, 70]);
+});
+
+test("downloading saves the file under its name through a short-lived link, for any kind of attachment", async () => {
+  const clicked: Array<{ href: string; download: string; rel: string }> = [];
+  let appended = 0, removed = 0;
+  const link = { href: "", download: "", rel: "", click() { clicked.push({ href: this.href, download: this.download, rel: this.rel }); }, remove() { removed++; } };
+  (globalThis as any).document = { createElement: () => link, body: { appendChild: () => { appended++; } } };
+  const timers: Array<() => void> = [];
+  const realSetTimeout = globalThis.setTimeout;
+  (globalThis as any).setTimeout = (fn: () => void) => { timers.push(fn); return 0; };
+  const revoked: string[] = [];
+  const realRevoke = URL.revokeObjectURL;
+  URL.revokeObjectURL = (url: string) => { revoked.push(url); };
+  try {
+    for (const attachment of [stored("Report.pdf", "pdf", PDF_URL), stored("Photo.png", "image", "data:image/png;base64,AAAA"), stored("Clip.mp4", "video", "data:video/mp4;base64,AAAA")]) {
+      downloadAttachment(attachment);
+    }
+    assert.deepEqual(clicked.map((c) => c.download), ["Report.pdf", "Photo.png", "Clip.mp4"]);
+    assert.ok(clicked.every((c) => c.href.startsWith("blob:") && c.rel === "noopener"));
+    assert.equal(appended, 3);
+    assert.equal(removed, 3);
+    assert.deepEqual(revoked, [], "the file is not released before the browser has started saving it");
+    timers.forEach((run) => run());
+    assert.equal(revoked.length, 3);
+  } finally {
+    (globalThis as any).setTimeout = realSetTimeout;
+    URL.revokeObjectURL = realRevoke;
+    delete (globalThis as any).document;
+  }
+});
+
+test("the attachment area shows a PDF preview tile, opens it in the PDF.js viewer, and says PDFs are welcome", () => {
   const area = read("../components/attachment-area.tsx");
   assert.ok(area.includes('att.type === "pdf"') && area.includes('lightbox.type === "pdf"'));
-  assert.ok(area.includes("<iframe") && area.includes("URL.revokeObjectURL"), "viewer frees its URL");
+  assert.ok(area.includes("<PdfThumb attachment={att} />") && area.includes("pdfPreview(attachment.id, attachment.dataUrl)"));
+  assert.ok(area.includes("<PdfViewer attachment={lightbox} />") && area.includes("renderPdfPage(doc, number, width, canvas)"));
+  assert.ok(!area.includes("<iframe"), "the browser's own PDF viewer is not used, so Chrome's download-only setting cannot break it");
+  assert.ok(area.includes("Showing the first {MAX_VIEWER_PAGES} of {state.total} pages"));
+  assert.ok(area.includes("This PDF can't be previewed. Use Download to open it."));
   assert.ok(area.includes('aria-label="Attach image, video or PDF"'));
   assert.ok(area.includes("Drop image, video or PDF to embed"));
   assert.ok(area.includes("PDFs ≤ {formatBytes(MAX_PDF_BYTES)}"));
+});
+
+test("every attachment has a Download button, also when the area is read-only, and the viewer has a labelled one", () => {
+  const area = read("../components/attachment-area.tsx");
+  const tile = area.slice(area.indexOf("Inline media previews"), area.indexOf("Full-screen lightbox"));
+  assert.ok(tile.includes("downloadAttachment(att)") && tile.includes("aria-label={`Download ${att.name}`}"));
+  assert.ok(tile.indexOf("downloadAttachment(att)") < tile.indexOf("{!disabled && ("), "download is not inside the editable-only part");
+  const viewer = area.slice(area.indexOf("Full-screen lightbox"));
+  assert.ok(viewer.includes("downloadAttachment(lightbox)") && viewer.includes("<span>Download</span>"));
 });
 
 test("the stored shape allows PDFs", () => {

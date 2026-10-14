@@ -64,14 +64,47 @@ export function validateMediaFile(file: File): string | null {
 /** A PDF read from a file with no type comes back as a generic data URL; this makes it a PDF one so it can be shown. */
 export const pdfDataUrl = (dataUrl: string): string => dataUrl.replace(/^data:[^;,]*/, "data:application/pdf");
 
-/** Turns one of our base64 data URLs back into a Blob, for opening a PDF in the browser's viewer. */
-export function dataUrlToBlob(dataUrl: string): Blob {
-  const comma = dataUrl.indexOf(",");
-  const mime = dataUrl.slice(5, comma).split(";")[0] || "application/octet-stream";
-  const binary = atob(dataUrl.slice(comma + 1));
+/** The bytes of one of our base64 data URLs. */
+export function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const binary = atob(dataUrl.slice(dataUrl.indexOf(",") + 1));
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
+  return bytes;
+}
+
+/** Turns one of our base64 data URLs back into a Blob, for downloading it or showing it. */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const mime = dataUrl.slice(5, dataUrl.indexOf(",")).split(";")[0] || "application/octet-stream";
+  return new Blob([dataUrlToBytes(dataUrl)], { type: mime });
+}
+
+const EXTENSIONS: Record<string, string> = {
+  "application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/heic": "heic",
+  "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm",
+};
+
+/** The name a downloaded attachment is saved under: its own name, with an extension if it had none. */
+export function attachmentFileName(attachment: Pick<QuestAttachment, "name" | "type" | "dataUrl">): string {
+  const name = (attachment.name || "").trim().replace(/[\\/:*?"<>|]+/g, "_") || (attachment.type === "pdf" ? "document" : attachment.type);
+  if (/\.[A-Za-z0-9]{2,5}$/.test(name)) return name;
+  const mime = attachment.dataUrl.slice(5, attachment.dataUrl.indexOf(",")).split(";")[0];
+  const extension = EXTENSIONS[mime] ?? (attachment.type === "pdf" ? "pdf" : "");
+  return extension ? `${name}.${extension}` : name;
+}
+
+/** Saves an attachment to the device. Works for images, videos and PDFs alike. */
+export function downloadAttachment(attachment: QuestAttachment): void {
+  // A blob URL, because browsers refuse or cut off downloads from very long data URLs.
+  const url = URL.createObjectURL(dataUrlToBlob(attachment.dataUrl));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = attachmentFileName(attachment);
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Revoked later, since some browsers start the download after click returns.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 function makeId(): string {

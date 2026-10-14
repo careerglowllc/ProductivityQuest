@@ -4,7 +4,7 @@ import { Paperclip, X, Maximize2, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
-  dataUrlToBlob,
+  downloadAttachment,
   filesToAttachments,
   formatBytes,
   MAX_IMAGE_BYTES,
@@ -13,28 +13,68 @@ import {
   MEDIA_ACCEPT,
   type QuestAttachment,
 } from "@/lib/attachments";
+import { MAX_VIEWER_PAGES, openPdf, pdfPreview, renderPdfPage, type OpenPdf, type PdfPreview } from "@/lib/pdf-render";
 
-// A PDF in the lightbox: shown through a blob URL, since browsers will not open a data URL as a page.
-function PdfFrame({ attachment }: { attachment: QuestAttachment }) {
-  const [url, setUrl] = useState<string | null>(null);
+// The tile for a PDF: a picture of its first page, with its page count.
+function PdfThumb({ attachment }: { attachment: QuestAttachment }) {
+  const [preview, setPreview] = useState<PdfPreview | null | undefined>(undefined); // undefined while it is being made
   useEffect(() => {
-    let made: string | null = null;
-    try { made = URL.createObjectURL(dataUrlToBlob(attachment.dataUrl)); } catch { /* shown as unreadable below */ }
-    setUrl(made);
-    return () => { if (made) URL.revokeObjectURL(made); };
+    let live = true;
+    setPreview(undefined);
+    pdfPreview(attachment.id, attachment.dataUrl).then((made) => { if (live) setPreview(made); });
+    return () => { live = false; };
+  }, [attachment.id, attachment.dataUrl]);
+  return (
+    <>
+      {preview ? (
+        <img src={preview.url} alt={`First page of ${attachment.name}`} className="h-full w-full object-cover object-top" />
+      ) : (
+        <FileText aria-hidden className={cn("h-9 w-9", preview === undefined && "animate-pulse")} />
+      )}
+      <span className="absolute bottom-1 left-1 rounded bg-slate-900/80 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-100">
+        PDF{preview ? ` · ${preview.pages} ${preview.pages === 1 ? "page" : "pages"}` : ""}
+      </span>
+    </>
+  );
+}
+
+// A PDF in the lightbox: every page drawn by PDF.js, so it looks the same in every browser and app.
+function PdfViewer({ attachment }: { attachment: QuestAttachment }) {
+  const pages = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState<{ status: "loading" } | { status: "ready"; total: number } | { status: "failed" }>({ status: "loading" });
+  useEffect(() => {
+    let cancelled = false;
+    let opened: OpenPdf | null = null;
+    setState({ status: "loading" });
+    (async () => {
+      let drawn = 0;
+      try {
+        opened = await openPdf(attachment.dataUrl);
+        if (cancelled) { void opened.close(); return; }
+        const doc = opened.doc;
+        setState({ status: "ready", total: doc.numPages });
+        const width = Math.min(pages.current?.clientWidth || 800, 900);
+        for (let number = 1; number <= Math.min(doc.numPages, MAX_VIEWER_PAGES) && !cancelled; number++) {
+          const canvas = document.createElement("canvas");
+          canvas.className = "mx-auto mb-3 block max-w-full rounded bg-white shadow-lg";
+          pages.current?.appendChild(canvas);
+          await renderPdfPage(doc, number, width, canvas);
+          drawn++;
+        }
+      } catch {
+        if (!cancelled && drawn === 0) setState({ status: "failed" });
+      }
+    })();
+    return () => { cancelled = true; pages.current?.replaceChildren(); void opened?.close(); };
   }, [attachment.dataUrl]);
   return (
     <div className="flex h-full w-full max-w-4xl flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-      {url ? (
-        <>
-          <iframe src={url} title={attachment.name} className="min-h-0 w-full flex-1 rounded-md bg-white" />
-          <a href={url} target="_blank" rel="noopener noreferrer" className="self-center text-xs text-white/70 underline hover:text-white">
-            Open in a new tab
-          </a>
-        </>
-      ) : (
-        <p className="m-auto text-sm text-white/70">This PDF can't be shown. Use the download button instead.</p>
+      {state.status === "loading" && <p role="status" className="text-center text-sm text-white/70">Loading PDF…</p>}
+      {state.status === "failed" && <p role="alert" className="m-auto text-sm text-white/70">This PDF can't be previewed. Use Download to open it.</p>}
+      {state.status === "ready" && state.total > MAX_VIEWER_PAGES && (
+        <p className="text-center text-xs text-white/60">Showing the first {MAX_VIEWER_PAGES} of {state.total} pages. Download the file to read the rest.</p>
       )}
+      <div ref={pages} data-testid="pdf-pages" className="min-h-0 flex-1 overflow-y-auto" />
     </div>
   );
 }
@@ -249,10 +289,9 @@ export function AttachmentArea({
                   onClick={() => setLightbox(att)}
                   title="Click to view PDF"
                   aria-label={`View ${att.name}`}
-                  className="flex h-32 w-full cursor-pointer flex-col items-center justify-center gap-1 bg-slate-900/60 text-yellow-200/80 transition-colors hover:bg-slate-800/70 hover:text-yellow-100"
+                  className="relative flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden bg-white text-slate-600 transition-opacity hover:opacity-90"
                 >
-                  <FileText className="h-9 w-9" />
-                  <span className="text-[11px] font-semibold uppercase tracking-wide">PDF</span>
+                  <PdfThumb attachment={att} />
                 </button>
               ) : att.type === "image" ? (
                 <button
@@ -276,6 +315,20 @@ export function AttachmentArea({
               ) : (
                 <video src={att.dataUrl} controls preload="metadata" className="h-32 w-full bg-black object-contain" />
               )}
+
+              {/* Download works for every kind of attachment, including when the area is read-only. */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadAttachment(att);
+                }}
+                title="Download"
+                aria-label={`Download ${att.name}`}
+                className="absolute left-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/80 text-yellow-200 shadow-sm transition-all hover:bg-yellow-600/90 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </button>
 
               {!disabled && (
                 <button
@@ -314,16 +367,19 @@ export function AttachmentArea({
             <div className="flex items-center justify-between gap-2 px-4 py-3 text-white">
               <span className="truncate text-sm font-medium">{lightbox.name}</span>
               <div className="flex shrink-0 items-center gap-2">
-                <a
-                  href={lightbox.dataUrl}
-                  download={lightbox.name}
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadAttachment(lightbox);
+                  }}
                   title="Download"
-                  aria-label="Download"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                  aria-label={`Download ${lightbox.name}`}
+                  className="flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3 text-sm font-medium text-white transition-colors hover:bg-white/20"
                 >
                   <Download className="h-4 w-4" />
-                </a>
+                  <span>Download</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setLightbox(null)}
@@ -339,7 +395,7 @@ export function AttachmentArea({
             {/* Media — click on the media itself does NOT close the lightbox */}
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4 pt-0">
               {lightbox.type === "pdf" ? (
-                <PdfFrame attachment={lightbox} />
+                <PdfViewer attachment={lightbox} />
               ) : lightbox.type === "image" ? (
                 <img
                   src={lightbox.dataUrl}
