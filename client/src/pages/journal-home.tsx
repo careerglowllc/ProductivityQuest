@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import { Link } from "wouter";
-import { ArrowRight, BookMarked, BookOpen, ClipboardList, Heart, HeartHandshake, Quote, Radar, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, BookMarked, BookOpen, ClipboardList, Dumbbell, Flame, Heart, HeartHandshake, Quote, Radar, Sparkles, Weight, Zap } from "lucide-react";
 import { JournalShell, JournalHero } from "@/components/journal-ui";
 
 type Destination = { title: string; description: string; path: string; icon: ComponentType<{ className?: string }>; tone: "sage" | "rose" };
@@ -13,6 +13,12 @@ const DESTINATIONS: Destination[] = [
   { title: "Inspirational Quotes", description: "Your collection of quotes, with one picked at random each day for the dashboard.", path: "/journal/quotes", icon: Quote, tone: "rose" },
   { title: "Weekly Deep Planning", description: "One deep-dive reflection and plan per week.", path: "/journal/weekly-planning", icon: ClipboardList, tone: "rose" },
   { title: "Reference Beliefs", description: "Principles and reference notes worth re-reading when you need them.", path: "/reference-beliefs", icon: BookMarked, tone: "sage" },
+];
+
+export const BODY_LOGS: { label: string; path: string; icon: ComponentType<{ className?: string }> }[] = [
+  { label: "Weightlifting log", path: "/fitness/lifting", icon: Dumbbell },
+  { label: "Calorie log", path: "/fitness/calories", icon: Flame },
+  { label: "Weight log", path: "/fitness/weight", icon: Weight },
 ];
 
 const TONES = {
@@ -64,6 +70,23 @@ export default function JournalHomePage() {
           <Open />
         </Link>
       </nav>
+
+      <section aria-label="Body logs" className="mt-8">
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--jrnl-sage-deep)]">Body logs</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          {BODY_LOGS.map(({ label, path, icon: Icon }) => (
+            <Link
+              key={path}
+              href={path}
+              className="dash-focus inline-flex items-center gap-2 rounded-full border border-[var(--jrnl-line)] bg-[var(--jrnl-paper)] px-4 py-2.5 text-[13px] font-semibold text-[var(--jrnl-ink)] shadow-[var(--jrnl-shadow)] transition-colors hover:border-[var(--jrnl-rose)] hover:text-[var(--jrnl-rose)]"
+            >
+              <Icon aria-hidden className="h-4 w-4" />
+              {label}
+              <ArrowRight aria-hidden className="h-3.5 w-3.5" />
+            </Link>
+          ))}
+        </div>
+      </section>
     </JournalShell>
   );
 }
