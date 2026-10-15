@@ -2439,7 +2439,8 @@ npm run db:push      # Apply database migrations
 **Type or speak what you lifted or ate; the AI fills in the logs**
 
 - **Where:** a chat-style entry box on the Lifting and Calories pages, with voice typing
-- **Flow:** write a note, check the preview (and fix the date), save; undo or remove later
+- **Flow:** the first message starts the day; each later message updates one summary box (new exercise, next set, a correction, more food); every change is saved at once; **End today's workout** / **End day** puts the day in the charts and the next message starts a new day
+- **Editing:** undo the last entry, remove single items, change the date, and reopen any saved day with the pencil in "Logged with AI"
 - **Lifting:** weight, reps, date and notes saved per day, shown in the progression chart and a new Session Volume chart
 - **Calories:** calories, macros, calcium and other nutrients saved per day, with new Macro Split and Nutrient Trend charts
 - **Endpoint:** `POST /api/fitness/parse` (30 requests per 10 minutes per user)

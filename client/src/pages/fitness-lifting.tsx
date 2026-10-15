@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
-import { Dumbbell, ArrowLeft, TrendingUp, TrendingDown, Minus, CalendarDays, ListChecks, Flame, Layers, Trash2, Sparkles } from "lucide-react";
+import { Dumbbell, ArrowLeft, TrendingUp, TrendingDown, Minus, CalendarDays, ListChecks, Flame, Layers, Trash2, Sparkles, Pencil } from "lucide-react";
 import { Link } from "wouter";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
 import { loadCalorieLog, ensureCalorieLogSeeded, type CalorieDayLog } from "@/lib/calorie-log";
 import {
-  addWorkoutEntries, recentWorkoutLoggings, removeWorkoutLogging, sessionSummaries, workoutToLogEntries,
+  addWorkoutEntries, finishWorkout, recentWorkoutLoggings, removeWorkoutLogging, sessionSummaries, workoutFromEntries, workoutToLogEntries,
   type MetricKind, type WorkoutLogEntry as LogEntry, type WorkoutType,
 } from "@shared/fitness-log";
-import { LogEntryBox } from "@/components/fitness/log-entry-box";
-import { newLogId, type ParseResult } from "@/lib/fitness-entry";
+import { adoptNewerDraft, newDraft, type WorkoutDraft } from "@shared/fitness-session";
+import { subscribeUserDataRefresh } from "@/lib/synced-storage";
+import { FitnessSessionPanel } from "@/components/fitness/session-panel";
+import { loadWorkoutDraft, saveWorkoutDraft } from "@/lib/fitness-draft";
+import type { FitnessDraft } from "@/lib/fitness-entry";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 
@@ -192,6 +195,8 @@ export default function FitnessLiftingPage() {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
   const [showCalorieOverlay, setShowCalorieOverlay] = useState(false);
   const [calorieEntries] = useState<CalorieDayLog[]>(() => loadCalorieLog());
+  // The day being built up. It is saved after every change and only reaches the charts when it is ended.
+  const [draft, setDraft] = useState<WorkoutDraft | null>(() => loadWorkoutDraft());
 
   // Seed localStorage once so this log is part of the synced "workout-" store.
   useEffect(() => {
@@ -209,17 +214,40 @@ export default function FitnessLiftingPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage full or blocked */ }
   }
 
-  // The checked workout becomes that day's rows, so the charts below pick it up straight away.
-  function handleLogged(result: ParseResult) {
-    if (result.kind !== "workout") return;
-    const previous = entries;
-    const added = workoutToLogEntries(result.workout, newLogId("lift"));
-    persistEntries(addWorkoutEntries(entries, added));
+  // Another device may have added to the open day; take its newer copy so this page never types over it.
+  useEffect(() => subscribeUserDataRefresh(() => setDraft((current) => adoptNewerDraft(current, loadWorkoutDraft()))), []);
+
+  function updateDraft(next: WorkoutDraft | null) {
+    setDraft(next);
+    saveWorkoutDraft(next);
+  }
+
+  // Ending the day writes it as that day's rows. A day that was reopened replaces the rows it saved before.
+  function endWorkout(done: FitnessDraft) {
+    const finished = done as WorkoutDraft;
+    const workout = finishWorkout(finished.summary);
+    if (workout.exercises.length === 0) return;
+    const next = addWorkoutEntries(removeWorkoutLogging(entries, finished.id), workoutToLogEntries(workout, finished.id));
+    persistEntries(next);
+    updateDraft(null);
     toast({
-      title: `Logged ${added.length} ${added.length === 1 ? "exercise" : "exercises"} for ${formatDateFull(result.workout.date)}`,
+      title: `${finished.reopened ? "Updated" : "Saved"} ${workout.exercises.length} ${workout.exercises.length === 1 ? "exercise" : "exercises"} for ${formatDateFull(workout.date)}`,
+      description: "It now shows in your charts.",
       duration: 8000,
-      action: <ToastAction altText="Undo" onClick={() => { dismiss(); persistEntries(previous); }}>Undo</ToastAction>,
+      action: <ToastAction altText="Edit again" onClick={() => { dismiss(); reopen(finished.id, next); }}>Edit again</ToastAction>,
     });
+  }
+
+  // Opens a saved day again. The saved version stays in the charts until the changes are saved.
+  function reopen(logId: string, rows: LogEntry[] = entries) {
+    if (loadWorkoutDraft()) {
+      toast({ title: "You have a workout open", description: "End it or discard it first, then open another day to edit." });
+      return;
+    }
+    const workout = workoutFromEntries(rows, logId);
+    if (!workout) return;
+    updateDraft(newDraft(logId, new Date(), null, workout, true));
+    requestAnimationFrame(() => document.querySelector('[data-testid="session-workout"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
   }
 
   const recentLoggings = useMemo(() => recentWorkoutLoggings(entries), [entries]);
@@ -389,7 +417,7 @@ export default function FitnessLiftingPage() {
           </div>
         </div>
 
-        <LogEntryBox kind="workout" accent="#34D399" onSave={handleLogged} />
+        <FitnessSessionPanel kind="workout" accent="#34D399" draft={draft} onDraftChange={(next) => updateDraft(next as WorkoutDraft | null)} onEnd={endWorkout} />
 
         {recentLoggings.length > 0 && (
           <div className="mb-8 -mt-4" data-testid="recent-loggings">
@@ -398,15 +426,26 @@ export default function FitnessLiftingPage() {
               {recentLoggings.map((l) => (
                 <li key={l.logId} className="flex items-center justify-between gap-3 rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-sm">
                   <span className="min-w-0 truncate text-slate-300"><span className="text-slate-500">{formatDateShort(l.date)}</span> · {l.exercises.join(", ")}</span>
-                  <button
-                    type="button"
-                    onClick={() => persistEntries(removeWorkoutLogging(entries, l.logId))}
-                    aria-label={`Remove the workout logged for ${formatDateShort(l.date)}`}
-                    title="Remove this logging"
-                    className="shrink-0 text-slate-500 hover:text-red-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => reopen(l.logId)}
+                      aria-label={`Edit the workout logged for ${formatDateShort(l.date)}`}
+                      title="Open this workout to edit it"
+                      className="text-slate-500 hover:text-emerald-300"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => persistEntries(removeWorkoutLogging(entries, l.logId))}
+                      aria-label={`Remove the workout logged for ${formatDateShort(l.date)}`}
+                      title="Remove this logging"
+                      className="text-slate-500 hover:text-red-300"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>

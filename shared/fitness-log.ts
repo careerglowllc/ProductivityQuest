@@ -89,10 +89,12 @@ const rawWorkout = z.object({ date: z.any().optional(), workoutType: z.any().opt
 
 const MAX_EXERCISES = 40;
 const MAX_SETS = 30;
+const METRIC_KINDS: readonly string[] = ["weight", "reps", "time"];
 
 // Checks the model's answer for a workout and turns it into clean, bounded data. Throws FitnessParseError when
-// nothing usable is in it.
-export function normalizeWorkout(raw: unknown, today: string): ParsedWorkout {
+// nothing usable is in it. `keepEmpty` is for a workout still being built up: an exercise that has been named
+// (perhaps with a warm-up) but has no working sets yet is kept instead of dropped.
+export function normalizeWorkout(raw: unknown, today: string, options: { keepEmpty?: boolean } = {}): ParsedWorkout {
   const parsed = rawWorkout.safeParse(raw);
   if (!parsed.success) throw new FitnessParseError("The answer did not look like a workout.");
   const date = resolveLogDate(parsed.data.date, today);
@@ -121,10 +123,11 @@ export function normalizeWorkout(raw: unknown, today: string): ParsedWorkout {
       });
     }
     const notes = text(item.notes);
-    if (sets.length === 0 && !notes) continue;
+    if (sets.length === 0 && !notes && !options.keepEmpty) continue;
     // Held for time (a plank, a hang, the treadmill) is a time even when weight is added; anything with reps is by weight or reps.
     const timed = sets.some((s) => s.seconds !== undefined) && !sets.some((s) => s.reps !== undefined);
-    const kind: MetricKind = timed ? "time" : sets.some((s) => s.weight) ? "weight" : "reps";
+    const declared = typeof item.kind === "string" && METRIC_KINDS.includes(item.kind) ? (item.kind as MetricKind) : "reps";
+    const kind: MetricKind = sets.length === 0 ? declared : timed ? "time" : sets.some((s) => s.weight) ? "weight" : "reps";
     exercises.push({
       name, kind, sets, ...(text(item.warmup) ? { warmup: text(item.warmup) } : {}), ...(notes ? { notes } : {}),
       workoutType: asWorkoutType(item.workoutType) ?? inferWorkoutType(name) ?? "Push",
@@ -143,8 +146,8 @@ export function normalizeWorkout(raw: unknown, today: string): ParsedWorkout {
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
 
 // "225 lb: 6 / 6 / 6", "BW: 8 / 6 / 3", "70 lb: 5 / 5; 65 lb: 6", "BW: 45 sec", "~8" for a rough count.
-export function formatSets(exercise: Pick<ParsedExercise, "sets">): string {
-  if (exercise.sets.length === 0) return "Notes only";
+export function formatSets(exercise: Pick<ParsedExercise, "sets"> & Partial<Pick<ParsedExercise, "warmup" | "notes">>): string {
+  if (exercise.sets.length === 0) return exercise.notes ? "Notes only" : exercise.warmup ? "Warm-up only" : "No sets yet";
   const groups: { head: string; parts: string[] }[] = [];
   for (const s of exercise.sets) {
     const head = s.weight ? `${fmt(s.weight)} lb` : s.bodyweight || s.reps !== undefined || s.seconds !== undefined ? "BW" : "";
@@ -180,6 +183,45 @@ export function workoutToLogEntries(workout: ParsedWorkout, logId: string): Work
 // New rows are added next to the existing ones, tagged so the logging can be undone. A day can hold several loggings.
 export const addWorkoutEntries = (log: WorkoutLogEntry[], entries: WorkoutLogEntry[]): WorkoutLogEntry[] => [...log, ...entries];
 export const removeWorkoutLogging = (log: WorkoutLogEntry[], logId: string): WorkoutLogEntry[] => log.filter((e) => e.logId !== logId);
+
+// What is saved when a workout is ended: an exercise that was named but never got a set, a warm-up or a note is
+// left out, so the log has no empty rows.
+export function finishWorkout(workout: ParsedWorkout): ParsedWorkout {
+  return { ...workout, exercises: workout.exercises.filter((e) => e.sets.length > 0 || e.warmup || e.notes) };
+}
+
+export const removeExercise = (workout: ParsedWorkout, index: number): ParsedWorkout =>
+  ({ ...workout, exercises: workout.exercises.filter((_, i) => i !== index) });
+
+// A row's notes are the exercise's own notes followed by any notes on single sets (see workoutToLogEntries); this
+// takes the set notes off again.
+function exerciseNotesOf(entry: WorkoutLogEntry): string | undefined {
+  const setNotes = (entry.sets ?? []).map((s) => s.note).filter(Boolean).join("; ");
+  const notes = entry.notes ?? "";
+  if (!setNotes) return notes || undefined;
+  if (notes === setNotes) return undefined;
+  if (notes.endsWith(` · ${setNotes}`)) return notes.slice(0, -(setNotes.length + 3)) || undefined;
+  return notes;
+}
+
+// Turns the rows of one AI logging back into a workout that can be edited and saved again. Null when there are no
+// such rows, or when some row was not logged with AI (it has no exact sets to edit).
+export function workoutFromEntries(log: readonly WorkoutLogEntry[], logId: string): ParsedWorkout | null {
+  const rows = log.filter((e) => e.logId === logId);
+  if (rows.length === 0 || rows.some((e) => !Array.isArray(e.sets))) return null;
+  const exercises: ParsedExercise[] = rows.map((e) => {
+    const sets = (e.sets ?? []).map((s) => ({ ...s }));
+    const notes = exerciseNotesOf(e);
+    return {
+      name: e.exercise, workoutType: e.workoutType, kind: e.metric?.kind ?? (sets.some((s) => s.seconds !== undefined) ? "time" : "reps"), sets,
+      ...(e.warmup ? { warmup: e.warmup } : {}), ...(notes ? { notes } : {}),
+    };
+  });
+  const counts = new Map<WorkoutType, number>();
+  exercises.forEach((e) => counts.set(e.workoutType, (counts.get(e.workoutType) ?? 0) + 1));
+  const workoutType = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+  return { date: rows[0].date, workoutType, exercises };
+}
 
 export interface SessionSummary { date: string; exercises: number; sets: number; volume: number }
 const SETS_RAW = /^~?(\d+(?:\.\d+)?)\s*lb[^:]*:\s*(.+)$/i;
@@ -308,6 +350,25 @@ export function removeMealFromDay(days: readonly CalorieDayLog[], date: string, 
   if (day.meals.length === 0) delete day.meals;
   const empty = !day.meals && day.calories === 0 && !day.foodDetails;
   return [...days.filter((d) => d.date !== date), ...(empty ? [] : [day])].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Takes a logged meal out of whichever day holds it (the day may have been changed since it was saved).
+export function removeMealEverywhere(days: readonly CalorieDayLog[], mealId: string): CalorieDayLog[] {
+  const holder = days.find((d) => d.meals?.some((m) => m.id === mealId));
+  return holder ? removeMealFromDay(days, holder.date, mealId) : [...days];
+}
+
+// A meal with its items changed: the totals, description and confidence are worked out again from the items.
+// Unlike normalizeMeal this accepts no items at all, for a day's food list that has been emptied.
+export function rebuildMeal(meal: ParsedMeal, items: ParsedFoodItem[]): ParsedMeal {
+  return { ...meal, items, totals: sumNutrients(items), description: mealDescription(items), confidence: items.length ? lowest(items.map((i) => i.confidence)) : "medium" };
+}
+
+export const removeFoodItem = (meal: ParsedMeal, index: number): ParsedMeal => rebuildMeal(meal, meal.items.filter((_, i) => i !== index));
+
+// A meal that was saved to a day, as an editable meal again.
+export function mealFromLogged(day: Pick<CalorieDayLog, "date">, meal: LoggedMeal): ParsedMeal {
+  return { date: day.date, items: meal.items.map((i) => ({ ...i })), totals: sumNutrients(meal.items), description: meal.description, confidence: meal.confidence, dayComplete: false };
 }
 
 // Everything eaten that day, for tables and callouts: the older description plus each meal logged with AI.

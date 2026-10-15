@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
-import { Flame, ArrowLeft, TrendingUp, ListChecks, CalendarDays, Utensils, Trash2, Sparkles, PieChart } from "lucide-react";
+import { Flame, ArrowLeft, TrendingUp, ListChecks, CalendarDays, Utensils, Trash2, Sparkles, PieChart, Pencil } from "lucide-react";
 import { Link } from "wouter";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
@@ -14,10 +14,13 @@ import {
   ensureCalorieLogSeeded,
   saveCalorieLog,
 } from "@/lib/calorie-log";
-import { addMealToDay, dayFoodDetails, recentMeals, removeMealFromDay, NUTRIENT_INFO, type NutrientKey } from "@shared/fitness-log";
+import { addMealToDay, dayFoodDetails, mealFromLogged, recentMeals, removeMealEverywhere, removeMealFromDay, NUTRIENT_INFO, type NutrientKey } from "@shared/fitness-log";
 import { aggregateNutrition, formatDateShort, monthLabel, type Granularity } from "@/lib/nutrition-chart";
-import { LogEntryBox } from "@/components/fitness/log-entry-box";
-import { newLogId, type ParseResult } from "@/lib/fitness-entry";
+import { adoptNewerDraft, newDraft, type MealDraft } from "@shared/fitness-session";
+import { subscribeUserDataRefresh } from "@/lib/synced-storage";
+import { FitnessSessionPanel } from "@/components/fitness/session-panel";
+import { loadMealDraft, saveMealDraft } from "@/lib/fitness-draft";
+import type { FitnessDraft } from "@/lib/fitness-entry";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 
@@ -47,6 +50,8 @@ export default function FitnessCaloriesPage() {
   const { isDark } = useTheme();
   const { toast, dismiss } = useToast();
   const [log, setLog] = useState<DayLog[]>(() => loadLog());
+  // The day's food being built up. It is saved after every change and only reaches the charts when the day is ended.
+  const [draft, setDraft] = useState<MealDraft | null>(() => loadMealDraft());
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [nutrient, setNutrient] = useState<NutrientKey>("calcium");
 
@@ -60,17 +65,42 @@ export default function FitnessCaloriesPage() {
     saveCalorieLog(next);
   }
 
-  // The checked meal is added to its day's totals, so every chart below picks it up straight away.
-  function handleLogged(result: ParseResult, sourceText: string) {
-    if (result.kind !== "meal") return;
-    const previous = log;
-    persistLog(addMealToDay(log, result.meal, newLogId("meal"), new Date().toISOString(), sourceText));
+  // Another device may have added to the open day; take its newer copy so this page never types over it.
+  useEffect(() => subscribeUserDataRefresh(() => setDraft((current) => adoptNewerDraft(current, loadMealDraft()))), []);
+
+  function updateDraft(next: MealDraft | null) {
+    setDraft(next);
+    saveMealDraft(next);
+  }
+
+  // Ending the day writes its food into that day's totals as one entry. A day that was reopened replaces what it saved
+  // before, even when it was moved to another date. Ending the day also marks it as everything eaten that day.
+  function endDay(done: FitnessDraft) {
+    const finished = done as MealDraft;
+    if (finished.summary.items.length === 0) return;
+    const meal = { ...finished.summary, dayComplete: true };
+    const next = addMealToDay(removeMealEverywhere(log, finished.id), meal, finished.id, new Date().toISOString(), finished.messages.join("\n"));
+    persistLog(next);
+    updateDraft(null);
     toast({
-      title: `Logged ${Math.round(result.meal.totals.calories).toLocaleString()} kcal for ${formatDateFull(result.meal.date)}`,
-      description: result.meal.description,
+      title: `${finished.reopened ? "Updated" : "Saved"} ${Math.round(meal.totals.calories).toLocaleString()} kcal for ${formatDateFull(meal.date)}`,
+      description: "It now shows in your charts.",
       duration: 8000,
-      action: <ToastAction altText="Undo" onClick={() => { dismiss(); persistLog(previous); }}>Undo</ToastAction>,
+      action: <ToastAction altText="Edit again" onClick={() => { dismiss(); reopen(finished.id, next); }}>Edit again</ToastAction>,
     });
+  }
+
+  // Opens a saved day's food again. The saved version stays in the charts until the changes are saved.
+  function reopen(mealId: string, days: DayLog[] = log) {
+    if (loadMealDraft()) {
+      toast({ title: "You have a day open", description: "End it or discard it first, then open another day to edit." });
+      return;
+    }
+    const day = days.find((d) => d.meals?.some((m) => m.id === mealId));
+    const meal = day?.meals?.find((m) => m.id === mealId);
+    if (!day || !meal) return;
+    updateDraft(newDraft(mealId, new Date(), null, mealFromLogged(day, meal), true));
+    requestAnimationFrame(() => document.querySelector('[data-testid="session-meal"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
   }
 
   const loggedMeals = useMemo(() => recentMeals(log), [log]);
@@ -146,7 +176,7 @@ export default function FitnessCaloriesPage() {
           </div>
         </div>
 
-        <LogEntryBox kind="meal" accent="#F87171" onSave={handleLogged} />
+        <FitnessSessionPanel kind="meal" accent="#F87171" draft={draft} onDraftChange={(next) => updateDraft(next as MealDraft | null)} onEnd={endDay} />
 
         {loggedMeals.length > 0 && (
           <div className="mb-8 -mt-4" data-testid="recent-meals">
@@ -157,6 +187,15 @@ export default function FitnessCaloriesPage() {
                   <span className="min-w-0 truncate text-slate-300">
                     <span className="text-slate-500">{formatDateShort(m.date)}</span> · {m.description} <span className="text-rose-300">({Math.round(m.calories).toLocaleString()} kcal)</span>
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => reopen(m.id)}
+                    aria-label={`Edit the food logged for ${formatDateShort(m.date)}`}
+                    title="Open this day to edit it"
+                    className="shrink-0 text-slate-500 hover:text-rose-300"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => persistLog(removeMealFromDay(log, m.date, m.id))}

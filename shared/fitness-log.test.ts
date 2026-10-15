@@ -59,7 +59,7 @@ test("set text matches the format already in the lifting log", () => {
   assert.equal(text[4], "25 lb: 45 sec / 45 sec");
   assert.equal(formatSets({ sets: [{ weight: 225, reps: 6 }, { weight: 225, reps: 6 }, { weight: 225, reps: 6 }] }), "225 lb: 6 / 6 / 6");
   assert.equal(formatSets({ sets: [{ weight: 100, reps: 8, approx: true }, { weight: 100, reps: 8 }] }), "100 lb: ~8 / 8");
-  assert.equal(formatSets({ sets: [] }), "Notes only");
+  assert.equal(formatSets({ sets: [], notes: "felt tight" }), "Notes only");
 });
 
 test("each exercise's chart value is its top weight, reps or time", () => {

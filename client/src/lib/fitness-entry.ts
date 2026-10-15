@@ -1,6 +1,10 @@
 import { apiRequest } from "@/lib/queryClient";
 import { localDay } from "@/lib/quotes";
-import { NUTRIENT_INFO, formatSets, isIsoDate, type NutrientKey, type ParsedMeal, type ParsedWorkout } from "@shared/fitness-log";
+import { NUTRIENT_INFO, formatSets, removeExercise, removeFoodItem, type NutrientKey, type ParsedMeal, type ParsedWorkout } from "@shared/fitness-log";
+import {
+  addEntry, describeMealChange, describeWorkoutChange, mealHasContent, newDraft, recentMessages, setDraftDate, undoEntry, workoutHasContent,
+  type MealDraft, type WorkoutDraft,
+} from "@shared/fitness-session";
 
 export type FitnessKind = "workout" | "meal";
 export type ParseResult = { kind: "workout"; workout: ParsedWorkout } | { kind: "meal"; meal: ParsedMeal };
@@ -25,16 +29,20 @@ export function fitnessErrorMessage(error: unknown): string {
   return "Could not reach the AI. Check your connection and try again.";
 }
 
-export async function requestParse(kind: FitnessKind, text: string, today = localToday()): Promise<ParseResult> {
-  const response = await apiRequest("POST", "/api/fitness/parse", { kind, text, today });
+export type FitnessDraft = WorkoutDraft | MealDraft;
+
+// Sends what was just typed, together with the day so far and the messages before it, and gets back the whole updated day.
+export async function requestSessionUpdate(kind: FitnessKind, text: string, draft: FitnessDraft | null, today = localToday()): Promise<ParseResult> {
+  const context = draft ? { current: draft.summary, recent: recentMessages(draft) } : {};
+  const response = await apiRequest("POST", "/api/fitness/parse", { kind, text, today, session: true, ...context });
   return response.json();
 }
 
-// Plain-language lines for the confirmation step, so nothing is saved that you have not seen.
+// Plain-language lines for each exercise of the day so far.
 export function describeWorkout(workout: ParsedWorkout): { title: string; detail: string }[] {
   return workout.exercises.map((ex) => ({
     title: `${ex.name} · ${ex.workoutType}`,
-    detail: [formatSets(ex), ex.warmup ? `Warm-up: ${ex.warmup}` : "", ex.notes ?? ""].filter(Boolean).join(" — "),
+    detail: [ex.sets.length ? formatSets(ex) : "No sets yet", ex.warmup ? `Warm-up: ${ex.warmup}` : "", ex.notes ?? ""].filter(Boolean).join(" — "),
   }));
 }
 
@@ -49,10 +57,52 @@ export function describeMeal(meal: ParsedMeal): { title: string; detail: string 
   }));
 }
 
-// The date can be corrected on the confirmation step; anything that is not a real date leaves the answer as it was.
-export function withEditedDate(result: ParseResult, date: string): ParseResult {
-  if (!isIsoDate(date)) return result;
-  return result.kind === "workout" ? { kind: "workout", workout: { ...result.workout, date } } : { kind: "meal", meal: { ...result.meal, date } };
+export const newLogId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+// ── The day being built up ──────────────────────────────────────────────────
+export const draftLines = (kind: FitnessKind, draft: FitnessDraft): { title: string; detail: string }[] =>
+  kind === "workout" ? describeWorkout((draft as WorkoutDraft).summary) : describeMeal((draft as MealDraft).summary);
+
+export const draftHasContent = (kind: FitnessKind, draft: FitnessDraft): boolean =>
+  kind === "workout" ? workoutHasContent((draft as WorkoutDraft).summary) : mealHasContent((draft as MealDraft).summary);
+
+// Applies the AI's updated day. The first message starts a new day; a later one replaces the summary and keeps one step
+// to undo. When the answer changes nothing the draft is returned as it was, with no changes listed.
+export function applyUpdate(kind: FitnessKind, draft: FitnessDraft | null, result: ParseResult, text: string, now: Date, newId: () => string): { draft: FitnessDraft; changes: string[] } {
+  if (result.kind !== kind) throw new Error("The AI answered with the wrong kind of log.");
+  if (result.kind === "workout") {
+    const before = draft ? (draft as WorkoutDraft).summary : null;
+    const changes = describeWorkoutChange(before, result.workout);
+    if (!draft) return { draft: newDraft(newId(), now, text, result.workout), changes };
+    return changes.length ? { draft: addEntry(draft as WorkoutDraft, now, text, result.workout), changes } : { draft, changes };
+  }
+  const before = draft ? (draft as MealDraft).summary : null;
+  const changes = describeMealChange(before, result.meal);
+  if (!draft) return { draft: newDraft(newId(), now, text, result.meal), changes };
+  return changes.length ? { draft: addEntry(draft as MealDraft, now, text, result.meal), changes } : { draft, changes };
 }
 
-export const newLogId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+// Takes one exercise or food item out of the day by hand.
+export function removeDraftItem(kind: FitnessKind, draft: FitnessDraft, index: number, now: Date): FitnessDraft {
+  return kind === "workout"
+    ? addEntry(draft as WorkoutDraft, now, null, removeExercise((draft as WorkoutDraft).summary, index))
+    : addEntry(draft as MealDraft, now, null, removeFoodItem((draft as MealDraft).summary, index));
+}
+
+// Undo and moving the day work the same for both kinds; these keep the draft's type for the page.
+export const undoDraft = (draft: FitnessDraft, now: Date): FitnessDraft => undoEntry(draft as WorkoutDraft, now);
+export const moveDraft = (draft: FitnessDraft, now: Date, date: string): FitnessDraft => setDraftDate(draft as WorkoutDraft, now, date);
+
+const dateOf = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+export const formatDayLabel = (iso: string): string => dateOf(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+export const formatDayShort = (iso: string): string => dateOf(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+// "Today's pull day" or "Today's food" for today, with the date for an earlier day.
+export function draftTitle(kind: FitnessKind, draft: FitnessDraft, today: string): string {
+  const isToday = draft.date === today;
+  if (kind === "workout") {
+    const type = (draft as WorkoutDraft).summary.workoutType.toLowerCase();
+    return isToday ? `Today's ${type} day` : `${type[0].toUpperCase()}${type.slice(1)} day · ${formatDayLabel(draft.date)}`;
+  }
+  return isToday ? "Today's food" : `Food · ${formatDayLabel(draft.date)}`;
+}
