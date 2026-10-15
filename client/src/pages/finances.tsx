@@ -29,6 +29,7 @@ import { rowsToCSV, type CSVExport } from "@/lib/csv-export";
 import { rothIraTrueAfterPenalty, rothIraEffectiveMultiplier, ROTH_TOTAL_BASIS } from "@/lib/roth-ira-tax";
 import { brokerageAfterTax } from "@/lib/brokerage-tax";
 import { coinbaseBtcTax, ledgerBtcTax } from "@/lib/btc-tax";
+import { domainAccountDetail, domainAfterTax } from "@/lib/domain-value";
 
 const CATEGORIES = [
   "General", "Business", "Entertainment", "Food", "Investment Property Housing", "Personal Housing", "Transportation",
@@ -1857,7 +1858,7 @@ export default function Finances() {
   const _vanguardAfterTax = brokerageAfterTax(_vooValue, _vtsaxValue, _vxusValue, vanguardSettlement);
   // Domain: only taxable gains above purchase price; currently at a loss so $0 tax
   const _domainCapGain = Math.max(0, velunaDomainValue - velunaDomainPurchasePrice);
-  const _domainAfterTax = velunaDomainValue - _domainCapGain * 0.15;
+  const _domainAfterTax = domainAfterTax(velunaDomainValue, velunaDomainPurchasePrice);
   // HSA: 20% early-withdrawal penalty + ~22% income tax = 42% haircut for non-medical use before 65
   const _hsaAfterPenalty = hsaBalance * 0.58;
   const overviewNetWorth = _btcAfterTax + _vanguardAfterTax + _rothIraAfterPenalty + _k401AfterPenalty + _homeAfterTaxNetCash + checkingBalance + careerglowBalance + _hsaAfterPenalty + _domainAfterTax + eTradeRsuValue + fordExplorerValue + trialByFireInvestment;
@@ -7087,7 +7088,7 @@ export default function Finances() {
                     {
                       name: "GoDaddy — veluna.com",
                       institution: "GoDaddy",
-                      detail: "Domain registrar · veluna.com · est. value $2,500",
+                      detail: domainAccountDetail(velunaDomainValue, velunaDomainPurchasePrice),
                       category: "domain",
                       status: "active",
                       color: "border-violet-500/30 bg-violet-500/5",
