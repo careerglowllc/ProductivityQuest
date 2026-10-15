@@ -38,7 +38,7 @@ export function JournalBackLink() {
 /** Editorial hero: eyebrow + serif display title + supporting copy, with an
  *  optional "streak"/count box on the trailing edge. */
 export function JournalHero({
-  eyebrow, title, emphasis, copy, statValue, statLabel,
+  eyebrow, title, emphasis, copy, statValue, statLabel, compactOnMobile = false,
 }: {
   eyebrow: string;
   title: string;
@@ -46,15 +46,16 @@ export function JournalHero({
   copy: string;
   statValue?: string;
   statLabel?: string;
+  compactOnMobile?: boolean;
 }) {
   return (
-    <section className="mb-6 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
+    <section className={`${compactOnMobile ? "mb-3 gap-3" : "mb-6 gap-5"} flex flex-col items-start justify-between sm:mb-6 sm:flex-row sm:items-end sm:gap-5`}>
       <div className="min-w-0">
         <p className="jrnl-display text-[11px] font-bold uppercase tracking-[0.11em] text-[var(--jrnl-rose)]">{eyebrow}</p>
-        <h1 className="jrnl-display mt-1 text-[42px] leading-none tracking-tight text-[var(--jrnl-ink)] sm:text-[51px]">
+        <h1 className={`jrnl-display mt-1 ${compactOnMobile ? "text-[30px]" : "text-[42px]"} leading-none tracking-tight text-[var(--jrnl-ink)] sm:text-[51px]`}>
           {title}{emphasis && <> <em className="italic text-[var(--jrnl-rose)]">{emphasis}</em></>}
         </h1>
-        <p className="mt-2 max-w-[420px] text-sm text-[var(--jrnl-muted)]">{copy}</p>
+        <p className={`${compactOnMobile ? "mt-1 text-xs" : "mt-2 text-sm"} max-w-[420px] text-[var(--jrnl-muted)] sm:mt-2 sm:text-sm`}>{copy}</p>
       </div>
       {statValue && (
         <div className="min-w-[150px] border-t border-[var(--jrnl-line)] pt-3 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
