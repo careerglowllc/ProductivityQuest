@@ -36,6 +36,17 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York'
     `;
 
+    // Migration: Per-account switch that moves overdue quests to today at midnight (off by default),
+    // and the last day it ran so it runs once per local day.
+    await sql`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS auto_roll_due_dates BOOLEAN DEFAULT false
+    `;
+    await sql`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS last_due_roll_day TEXT
+    `;
+
     // Migration: Create questlines table if it doesn't exist
     await sql`
       CREATE TABLE IF NOT EXISTS questlines (

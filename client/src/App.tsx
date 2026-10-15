@@ -24,6 +24,7 @@ import GoogleCalendarIntegration from "@/pages/google-calendar-integration";
 import CalendarPage from "@/pages/calendar";
 import CalendarSettingsPage from "@/pages/settings-calendar";
 import TimezoneSettingsPage from "@/pages/settings-timezone";
+import { useDayRolloverRefresh } from "@/hooks/use-day-rollover-refresh";
 import SettingsGuidesPage from "@/pages/settings-guides";
 import SkillClassificationGuidePage from "@/pages/settings-guides-skill-classification";
 import MeasureWhatMattersGuidePage from "@/pages/settings-guides-measure-what-matters";
@@ -99,6 +100,7 @@ function LastCrashBanner() {
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
+  useDayRolloverRefresh();
 
   // Once authenticated, pull this user's server-stored data into localStorage BEFORE the
   // synced pages (Finances / CPAP / NPCs) mount, so they always render the latest

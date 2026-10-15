@@ -2419,6 +2419,13 @@ npm run db:push      # Apply database migrations
   - Share task lists with team members
 - **Test Cases:** See `CSV_EXPORT_TEST_CASES.md`
 
+### Move Overdue Quests to Today
+**An optional per-account switch in Settings**
+
+- **What it does:** at midnight in your timezone, active quests whose due date has passed get today's date (finished and deleted quests are never changed)
+- **Off by default.** Turning it on starts with the next new day; the Quests page's Move Overdue to Today button still works any time
+- **Docs:** `AUTO_ROLL_DUE_DATES.md`, test cases in `AUTO_ROLL_DUE_DATES_TEST_CASES.md`
+
 ### Quest Attachments
 **Attach images, videos and PDFs; preview and download them**
 

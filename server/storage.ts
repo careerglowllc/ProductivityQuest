@@ -51,6 +51,8 @@ export interface IStorage {
     googleCalendarSyncEnabled?: boolean;
     googleCalendarSyncDirection?: string;
     timezone?: string;
+    autoRollDueDates?: boolean;
+    lastDueRollDay?: string | null;
     widgetPreferences?: {
       overviewOrder?: string[];
       overviewVisible?: Record<string, boolean>;
@@ -251,6 +253,9 @@ export class DatabaseStorage implements IStorage {
       googleCalendarTokenExpiry?: Date | null;
       googleCalendarSyncEnabled?: boolean;
       googleCalendarSyncDirection?: string;
+      timezone?: string;
+      autoRollDueDates?: boolean;
+      lastDueRollDay?: string | null;
       widgetPreferences?: {
         overviewOrder?: string[];
         overviewVisible?: Record<string, boolean>;
@@ -278,6 +283,9 @@ export class DatabaseStorage implements IStorage {
     if (settings.googleCalendarTokenExpiry !== undefined) updateData.googleCalendarTokenExpiry = settings.googleCalendarTokenExpiry;
     if (settings.googleCalendarSyncEnabled !== undefined) updateData.googleCalendarSyncEnabled = settings.googleCalendarSyncEnabled;
     if (settings.googleCalendarSyncDirection !== undefined) updateData.googleCalendarSyncDirection = settings.googleCalendarSyncDirection;
+    if (settings.timezone !== undefined) updateData.timezone = settings.timezone;
+    if (settings.autoRollDueDates !== undefined) updateData.autoRollDueDates = settings.autoRollDueDates;
+    if (settings.lastDueRollDay !== undefined) updateData.lastDueRollDay = settings.lastDueRollDay;
     if (settings.widgetPreferences !== undefined) updateData.widgetPreferences = settings.widgetPreferences;
     
     const [user] = await db

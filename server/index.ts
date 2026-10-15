@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { runStartupMigrations } from "./migrations";
+import { rolloverScheduler } from "./due-date-rollover-store";
 import { apiLimiter } from "./rateLimiters";
 
 const app = express();
@@ -120,5 +121,7 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+    // Quests that went overdue while the server was down are caught up, then it sleeps until the next midnight.
+    void rolloverScheduler.start();
   });
 })();

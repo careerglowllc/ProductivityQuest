@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { useToast } from "@/hooks/use-toast";
 import { useEditableNickname } from "@/hooks/use-nickname";
+import { AutoRollSetting } from "@/components/auto-roll-setting";
 import { buildRecipesCSVExport } from "@/pages/recipes";
 import { buildAccomplishmentsCSVExport } from "@/pages/accomplishments";
 import { buildNPCsCSVExport } from "@/pages/npcs";
@@ -269,6 +270,9 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Move overdue quests to today at midnight */}
+          <AutoRollSetting isMobile={isMobile} />
 
           {/* Export All */}
           <Card className={`bg-slate-800/60 backdrop-blur-md border border-sky-600/30 ${isMobile ? 'mb-3' : 'mb-6'}`}>

@@ -22,6 +22,9 @@ import { focusStore, FOCUS_KEY_PREFIX } from "./smart-focus-store";
 import { adviseFocus } from "./smart-focus-openai";
 import { registerFitnessAi } from "./fitness-ai";
 import { planChildren, type ChildrenChoice } from "@shared/questline-delete";
+import { localDay } from "@shared/due-date-rollover";
+import { rollOverdueIfNewDay } from "./due-date-rollover";
+import { rolloverStore, rolloverScheduler } from "./due-date-rollover-store";
 
 // Which quests a delete removes and which move up, when a quest being deleted has others after it in its
 // questline. Quests outside a questline are deleted exactly as asked.
@@ -616,10 +619,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({
         timezone: user.timezone || 'America/New_York',
+        autoRollDueDates: user.autoRollDueDates === true,
       });
     } catch (error) {
       console.error("Error fetching settings:", error);
       res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  // Per-account switch: at midnight in the account's timezone, quests whose due date has passed move to the new day.
+  app.post('/api/settings/auto-roll-due-dates', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const input = z.object({ enabled: z.boolean() }).safeParse(req.body);
+      if (!input.success) return res.status(400).json({ error: "enabled must be true or false" });
+      const user = await storage.getUserById(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      // Turning it on starts with the next new day, so today's overdue quests are left for the Move Overdue to Today button.
+      await storage.updateUserSettings(userId, {
+        autoRollDueDates: input.data.enabled,
+        ...(input.data.enabled ? { lastDueRollDay: localDay(new Date(), user.timezone) } : {}),
+      });
+      void rolloverScheduler.refresh();
+      res.json({ autoRollDueDates: input.data.enabled });
+    } catch (error) {
+      console.error("Error updating auto-roll setting:", error);
+      res.status(500).json({ error: "Failed to update setting" });
     }
   });
 
@@ -633,6 +658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = await storage.updateUserSettings(userId, { timezone });
+      void rolloverScheduler.refresh(); // midnight is in a different place now
       
       res.json({
         message: "Timezone updated successfully",
@@ -649,6 +675,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📋 [GET /api/tasks] Fetching tasks for user:', req.session.userId);
       const userId = req.session.userId;
+      // On a new day, quests that became overdue move to today first, for accounts that turned that on.
+      await rollOverdueIfNewDay(rolloverStore, userId).catch((error) => console.error('⚠️ [GET /api/tasks] due-date rollover failed:', error));
       const tasks = await storage.getTasks(userId);
       console.log('📋 [GET /api/tasks] Successfully fetched', tasks.length, 'tasks');
       res.json(tasks);

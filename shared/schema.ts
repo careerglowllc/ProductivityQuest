@@ -53,6 +53,9 @@ export const users = pgTable("users", {
   googleCalendarInstantSync: boolean("google_calendar_instant_sync").default(false),
   googleCalendarLastSync: timestamp("google_calendar_last_sync"),
   timezone: text("timezone").default("America/New_York"),
+  // When on, quests whose due date has passed move to today at midnight in the account's timezone.
+  autoRollDueDates: boolean("auto_roll_due_dates").default(false),
+  lastDueRollDay: text("last_due_roll_day"), // the last local day (YYYY-MM-DD) that roll ran, so it runs once a day
   widgetPreferences: jsonb("widget_preferences").$type<{
     overviewOrder?: string[];
     overviewVisible?: Record<string, boolean>;
