@@ -110,8 +110,17 @@ test("the Calories page's goals widget is handed to the entry box, so it sits ri
   assert.ok(calories.includes("previewLog = useMemo(() => mealLogWithDraft(log, draft), [log, draft])"));
   assert.ok(calories.includes('"vitaminC", "vitaminA", "vitaminD"] as NutrientKey[]'), "vitamin D can be charted over time too");
   assert.ok(box.includes("{below?.(parts, updating)}") && box.indexOf("</section>") < box.indexOf("{below?.(parts, updating)}"), "drawn straight after the box");
-  assert.ok(box.includes('{kind === "workout" && draft && ('), "the summary box is for workouts only");
+  assert.ok(!box.includes("session-summary") && !box.includes("draftTitle"), "no summary box in the panel for either kind of day");
   assert.ok(!box.includes("Today's food") && !box.includes("Total so far"));
+});
+
+test("the Lifting page's bests widget is handed to the entry box, so it sits right under it and holds the open day's controls", () => {
+  assert.ok(/<FitnessSessionPanel\s+kind="workout"[^]*?below=\{\(parts, updating\) => <LiftBests entries=\{entries\} today=\{today\} parts=\{parts\} updating=\{updating\} \/>\}/.test(lifting), "from every logged row, so the bests include lifts outside the routine");
+  const order = ["<h1", "{panel}", "{statsWidget}", "{/* Progression chart */}"].map((marker) => lifting.indexOf(marker));
+  assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2] && order[2] < order[3], "title, box with its bests, Stats, then Progression");
+  assert.ok(lifting.includes('import { LiftBests } from "@/components/fitness/lift-bests"'));
+  const widget = read("components/fitness/lift-bests.tsx");
+  assert.ok(widget.includes("liftCards({") && widget.includes("parts?.actions") && widget.includes("parts?.planLine") && widget.includes("parts?.onRemove(index)"));
 });
 
 test("Enter sends at once: the box clears and is never disabled, and the text goes into a queue instead of waiting for the AI", () => {
@@ -149,14 +158,14 @@ test("the day has an End button, undo, discard, a date, removal of single items,
   assert.ok(box.includes('data-testid="undo-entry"') && box.includes("Undo last entry"));
   assert.ok(box.includes('data-testid="discard-session"') && box.includes("window.confirm("));
   assert.ok(box.includes('aria-label="Day this belongs to"') && box.includes("max={today}"));
-  assert.ok(box.includes("removeDraftItem(kind, draft, i, new Date())"));
+  assert.ok(box.includes("removeDraftItem(kind, draft, index, new Date())"));
   assert.ok(box.includes("Saved automatically at"));
   assert.ok(goals.includes("best estimates, not measurements"), "meal numbers are labelled as estimates");
   assert.ok(box.includes("draftHasContent(kind, draft)"), "an empty day cannot be ended");
 });
 
 test("the lifting page keeps the open day, saves it after every change, and ends it into that day's rows", () => {
-  assert.ok(lifting.includes('<FitnessSessionPanel kind="workout"'));
+  assert.ok(/<FitnessSessionPanel\s+kind="workout"/.test(lifting));
   assert.ok(lifting.includes("loadWorkoutDraft()") && lifting.includes("saveWorkoutDraft(next)"));
   assert.ok(lifting.includes("adoptNewerDraft(current, loadWorkoutDraft())"), "a newer copy from another device is picked up");
   assert.ok(lifting.includes("finishWorkout(finished.summary)"));

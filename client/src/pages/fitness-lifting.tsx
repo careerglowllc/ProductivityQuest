@@ -14,6 +14,7 @@ import {
 import { adoptNewerDraft, newDraft, type WorkoutDraft } from "@shared/fitness-session";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { FitnessSessionPanel } from "@/components/fitness/session-panel";
+import { LiftBests } from "@/components/fitness/lift-bests";
 import { loadWorkoutDraft, saveWorkoutDraft } from "@/lib/fitness-draft";
 import { localToday, type FitnessDraft } from "@/lib/fitness-entry";
 import { CollapsibleSection } from "@/components/fitness/collapsible-section";
@@ -366,7 +367,20 @@ export default function FitnessLiftingPage() {
   };
   const week = useMemo(() => liftWeek(previewEntries, today), [previewEntries, today]);
   const allTime = useMemo(() => allTimeLifting(entries), [entries]);
-  const panel = <FitnessSessionPanel kind="workout" accent="#34D399" compact={isMobile} plan={plan} draft={draft} onDraftChange={(next) => updateDraft(next as WorkoutDraft | null)} onEnd={endWorkout} />;
+  // The bests widget sits right under the entry box and is the open day's live summary and controls: a bar for every set of every
+  // exercise against the best from other days (all the logged rows, not only the routine's lifts).
+  const panel = (
+    <FitnessSessionPanel
+      kind="workout"
+      accent="#34D399"
+      compact={isMobile}
+      plan={plan}
+      draft={draft}
+      onDraftChange={(next) => updateDraft(next as WorkoutDraft | null)}
+      onEnd={endWorkout}
+      below={(parts, updating) => <LiftBests entries={entries} today={today} parts={parts} updating={updating} />}
+    />
+  );
   const statsWidget = <LiftStats week={week} today={today} accent="#34D399" allTime={allTime} todayLog={todayLog} />;
 
   return (

@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { Send, Undo2, Flag, Trash2, X } from "lucide-react";
 import {
-  applyUpdate, draftHasContent, draftLines, draftTitle, formatDayShort, localToday, newLogId, planCheckText,
+  applyUpdate, draftHasContent, draftLines, formatDayShort, localToday, newLogId, planCheckText,
   moveDraft, removeDraftItem, requestSessionUpdate, undoDraft, type FitnessDraft, type FitnessKind,
 } from "@/lib/fitness-entry";
 import { canAdd, isProcessing, nextToSend, queueReducer, runMessage, MAX_WAITING, type QueuedMessage } from "@/lib/fitness-queue";
@@ -29,21 +29,24 @@ const COPY: Record<FitnessKind, { title: string; intro: string; placeholder: str
   },
 };
 
-// What a food day hands to the widget under the box: the day's own controls, already wired to the box's state.
+// What an open day hands to the widget under the box: the day's own controls, already wired to the box's state.
 export interface SessionParts {
   draft: FitnessDraft;
   tag: ReactNode; // "In progress" or "Editing a saved day"
   meta: ReactNode; // the Day field, the saved note, and the stale-day notice
   last: ReactNode; // what the last message changed
-  foods: ReactNode; // the foods so far, each with a remove button; null when there are none
-  foodCount: number;
+  foods: ReactNode; // food days: the foods so far, each with a remove button; null when there are none (and for workouts)
+  foodCount: number; // how many foods or exercises the day holds
+  planLine: string | null; // workouts: how much of the day's plan is done and what is still to do
+  locked: boolean; // a message is being worked in, so the day must not be changed by hand
+  onRemove: (index: number) => void; // takes one food or exercise out of the day
   actions: ReactNode; // the note about the charts, and End / Undo / Discard
 }
 
 // A chat-style box for one day. Pressing Enter sends at once: the box clears and can be typed in again while the message is
 // worked into the day, and further messages wait their turn. The first message starts the day and each later one updates it,
-// and every change is saved at once. A workout day shows its summary above the box; a food day shows it in the widget `below`
-// the box. Ending the day is what puts it in the charts.
+// and every change is saved at once. The day itself is shown by the widget `below` the box, which gets the day's controls.
+// Ending the day is what puts it in the charts.
 export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false, plan, below }: {
   kind: FitnessKind;
   draft: FitnessDraft | null;
@@ -52,7 +55,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   accent?: string;
   compact?: boolean; // the phone layout: no heading or explanation above the box, and less space below it
   plan?: RoutinePlan; // what a Push, Pull and Legs day usually hold (workouts only)
-  below?: (parts: SessionParts | null, updating: boolean) => ReactNode; // food days: drawn right under the box, with the open day's controls (null when no day is open) and whether a message is still being added
+  below?: (parts: SessionParts | null, updating: boolean) => ReactNode; // drawn right under the box, with the open day's controls (null when no day is open) and whether a message is still being added
 }) {
   const copy = COPY[kind];
   const [text, setText] = useState("");
@@ -116,6 +119,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
 
   // A change made by hand (undo, remove, another day) is not a message, so the "last entry" line no longer applies.
   const edit = (next: FitnessDraft | null) => { setLast(null); onDraftChange(next); };
+  const removeItem = (index: number) => { if (draft) edit(removeDraftItem(kind, draft, index, new Date())); };
 
   const lines = draft ? draftLines(kind, draft) : [];
   const planLine = kind === "workout" && draft ? planCheckText(plan, draft) : null;
@@ -155,39 +159,26 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
     </>
   );
 
-  const items = draft && lines.length > 0 && (
+  const items = meal && lines.length > 0 && (
     <ul className="space-y-1.5" data-testid="session-items">
-      {lines.map((line, i) => {
-        const remove = (
-          <button
-            type="button"
-            disabled={locked}
-            onClick={() => edit(removeDraftItem(kind, draft, i, new Date()))}
-            aria-label={`Remove ${line.title}`}
-            title="Remove"
-            className="mt-0.5 shrink-0 text-slate-500 hover:text-red-300 disabled:opacity-40"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        );
-        return meal ? (
-          <li key={i} data-testid="meal-item" className="rounded-lg border border-slate-700/60 bg-slate-800/60 px-2.5 py-2 text-sm">
-            <div className="flex items-start justify-between gap-2">
-              <span className="min-w-0 font-medium text-slate-100">{line.title}</span>
-              {remove}
-            </div>
-            {meal.items[i] && <NutrientChips totals={meal.items[i]} />}
-          </li>
-        ) : (
-          <li key={i} className="flex items-start justify-between gap-2 text-sm">
-            <span className="min-w-0">
-              <span className="font-medium text-slate-100">{line.title}</span>
-              {line.detail && <span className="block text-xs text-slate-400">{line.detail}</span>}
-            </span>
-            {remove}
-          </li>
-        );
-      })}
+      {lines.map((line, i) => (
+        <li key={i} data-testid="meal-item" className="rounded-lg border border-slate-700/60 bg-slate-800/60 px-2.5 py-2 text-sm">
+          <div className="flex items-start justify-between gap-2">
+            <span className="min-w-0 font-medium text-slate-100">{line.title}</span>
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() => removeItem(i)}
+              aria-label={`Remove ${line.title}`}
+              title="Remove"
+              className="mt-0.5 shrink-0 text-slate-500 hover:text-red-300 disabled:opacity-40"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {meal.items[i] && <NutrientChips totals={meal.items[i]} />}
+        </li>
+      ))}
     </ul>
   );
 
@@ -231,30 +222,13 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
     </>
   );
 
-  const parts: SessionParts | null = kind === "meal" && draft ? { draft, tag, meta, last: lastEntry, foods: items, foodCount: lines.length, actions } : null;
+  const parts: SessionParts | null = draft ? { draft, tag, meta, last: lastEntry, foods: items, foodCount: lines.length, planLine, locked, onRemove: removeItem, actions } : null;
 
   return (
     <>
     <section aria-label={copy.title} data-testid={`session-${kind}`} className={`rounded-2xl border border-slate-700/60 bg-slate-900/50 ${compact || below ? "p-3 sm:p-5 mb-4" : "p-4 sm:p-5 mb-8"}`}>
       {!compact && <div className="mb-1 font-bold text-white">{copy.title}</div>}
       {!draft && !compact && <p className="mb-3 text-xs text-slate-400">{copy.intro}</p>}
-
-      {kind === "workout" && draft && (
-        <div className="mb-4 mt-2 rounded-xl border bg-slate-800/50 p-3" style={{ borderColor: `${accent}66` }} data-testid="session-summary">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-white" data-testid="session-title">{draftTitle(kind, draft, today)}</span>
-            <span className="flex items-center gap-2">
-              {updating && <span data-testid="session-updating" className="animate-pulse text-[11px] text-slate-400">Updating…</span>}
-              {tag}
-            </span>
-          </div>
-          {meta}
-          <div className="mt-3">{items || <p className="text-sm text-slate-400">Nothing in it yet.</p>}</div>
-          {planLine && <p data-testid="plan-check" className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-300">{planLine}</p>}
-          {lastEntry}
-          {actions}
-        </div>
-      )}
 
       <div className="relative">
         <textarea

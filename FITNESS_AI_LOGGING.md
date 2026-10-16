@@ -15,10 +15,11 @@ into the same logs the charts already read.
 2. Press Enter (or the send arrow). Shift+Enter adds a new line where the keyboard has it; a phone keyboard shows a
    Send key. The message is shown as sent at once and the box empties, ready for the next one (see "Sending while
    earlier messages are still going in" below).
-3. The day so far appears. On Lifting a summary box ("Today's pull day") appears above the text box and lists each
-   exercise with its sets and warm-up. On Calories there is no separate food box: **Today vs your goals**, right under
-   the text box, is the summary. Its bars move with every message, and a fold-away **Foods logged** list shows each
-   food with calories, protein, carbs, fat, calcium, sugar and fiber. A "Last entry" line says what the message changed.
+3. The day so far appears. On Lifting, **Today vs your bests**, right under the text box, shows every exercise with a
+   bar for each set against your personal best. On Calories, **Today vs your goals**, right under the text box, shows
+   bars that move with every message and a fold-away **Foods logged** list that shows each
+   food with calories, protein, carbs, fat, calcium, sugar and fiber. There is no separate summary box above the text
+   box on either page. A "Last entry" line says what the message changed.
 4. Keep sending. The AI is given the day so far and your earlier messages, so "120 for 8" means a set of the exercise
    you are on, "same again" repeats the last set, and "actually the latte was oat milk" corrects only the latte.
 5. Every change is saved at once ("Saved automatically at ..."). Close the page and come back, or open it on another
@@ -29,7 +30,7 @@ into the same logs the charts already read.
 
 While a day is open it is **not in the charts yet**. The box says so.
 
-In the summary box (Lifting) or in Today vs your goals (Calories) you can also:
+In Today vs your bests (Lifting) or Today vs your goals (Calories) you can also:
 
 - **Undo last entry** (up to five steps back, including the message that caused it).
 - Remove a single exercise or food with the x beside it.
@@ -42,7 +43,7 @@ Pressing Enter sends at once. The box empties and can be typed in again straight
 the box as "Adding it now…". Anything sent while it is still working waits its turn ("Waiting its turn"). The AI is asked
 about one message at a time, in the order typed, because each answer is the whole updated day and the next message has
 to build on it. When a message finishes, the day is saved and the bars, foods and charts update; Today vs your goals (and
-the Lifting summary) say "Updating…" while anything is still going in.
+the Lifting widget) say "Updating…" while anything is still going in.
 
 - While a message is going in, **Undo**, **End**, **Discard**, the Day field and the remove buttons are switched off, so
   the day cannot be changed underneath it.
@@ -113,7 +114,7 @@ Older days (and food saved before fiber, sugar and vitamin D were tracked) read 
 **Lifting**, on a phone and on larger screens, runs in this order:
 
 1. The title.
-2. The entry box.
+2. The entry box, with **Today vs your bests** right under it (below).
 3. The **Stats** widget, open by default, with the same saved open or closed choice: this week's tiles, the seven-day
    bar chart, then a **Today** block with the day's type, exercises, sets and volume and every exercise done today with
    its sets (or "No workout yet"), then highlights, the weekly log and the all-time line. The Today block counts the
@@ -127,6 +128,32 @@ Older days (and food saved before fiber, sugar and vitamin D were tracked) read 
 There are no Push / Pull / Legs tabs, no separate thin Today row and no count cards on this page; the Today block and the
 all-time line of the Stats widget cover them. Bests are grouped under Push, Pull and Legs headings, and the Full Workout
 Log lists every logged exercise.
+
+### Today vs your bests (Lifting page)
+
+Right under the entry box, always there, one card for each exercise of the day being logged and one bar for each working
+set, so you can see at a glance how every set compares with your personal best. It is the live summary of the day, so
+there is no separate summary box, and it moves with every message.
+
+- **A card** has the exercise name, its type (Push, Pull or Legs), and one line of words: "Top 130 lb · New best!", "Top
+  120 lb · matches your best", "Top 100 lb · best 125 lb (Jan 17)", "Top 100 lb · first time logged", or "No sets yet".
+  Warm-ups and notes sit under the bars.
+- **A bar** fills to that set: its weight ("120 lb × 8"), or for pull-ups and other rep lifts its reps, and for
+  holds its seconds. The **faint fill** behind the bar and the **dashed vertical line** mark your best on any other day.
+  A set that goes past it turns **gold** with a star. Each card has its own scale, a little longer than the longer of
+  your best and your top set, so the dashed line is never at the very edge.
+- **Weight / Volume** switch: Volume draws each set's volume instead (weight times reps, doubled for sets
+  done each side), against your best single-set volume. It only changes lifts done for weight.
+- **Your best** is the highest number on any other day in the whole log, not only the routine's lifts, and the same lift
+  written differently ("Incline DB Press", "incline dumbbell presses") counts as one. Older rows that were not logged
+  with AI are read from their text ("225 lb: 5 / 5 / 5"); a row that cannot be read counts as one set at its top number.
+  Today's own sets are never part of the best they are compared with.
+- While a day is open the card also holds that day's controls, as Today vs your goals does: the tag, the **Day** field
+  and saved note, the plan check (if you have a routine), the "Last entry" line, an x on each exercise of the open day
+  to remove it, and **End today's workout**, **Undo last entry** and **Discard this workout** (**Save changes** and
+  **Discard changes** on a reopened day).
+- If the open day is not today the title names that date. With no day open it shows what was saved today, without
+  controls, and an invitation when nothing was lifted.
 
 ### Your routine (Lifting page)
 
@@ -145,7 +172,7 @@ What it is used for:
    and to use it to tell which kind of day it was. It must not add exercises, sets or weights you did not say.
    After the AI answers, the server also lines up each exercise with the routine (the same lift in other words, or a name
    with two or more words in common that points to only one routine exercise), so names and day types are consistent.
-2. **A plan check** under the workout summary: `Pull plan: 2 of 5 done · still to do: Face Pull, Biceps Curl · not in the
+2. **A plan check** in Today vs your bests, under the exercises: `Pull plan: 2 of 5 done · still to do: Face Pull, Biceps Curl · not in the
    plan: Neck Raise`.
 3. **The lift charts.** Once a routine has exercises, the Progression chart, Session Volume and Current Bests use only lifts
    that are in it (different spellings of one lift are one lift). Other logged exercises stay in the Full Workout Log, the
@@ -154,7 +181,7 @@ What it is used for:
 
 ### Editing a saved day
 
-Under **Logged with AI** every saved day has a pencil button. It opens the day again in the summary box (Lifting) or in Today vs your goals (Calories), tagged "Editing a
+Under **Logged with AI** every saved day has a pencil button. It opens the day again in Today vs your bests (Lifting) or Today vs your goals (Calories), tagged "Editing a
 saved day"; the button now says **Save changes**. The saved version stays in the charts until you save, and
 **Discard changes** leaves it exactly as it was. Saving replaces the earlier version (same id), so there is never a second
 copy. Only one day can be open at a time; opening another asks you to end or discard the open one first.
@@ -251,17 +278,19 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `shared/fitness-routine.ts` | The routine: reading the typed text, matching exercises to it, lining up an AI answer, the plan check, and which logged rows the lift charts use |
 | `shared/fitness-today.ts` | Today's running totals with the open day included, and the words in the thin Today row |
 | `shared/fitness-goals.ts` | The daily goals, and how far a day's totals are from them (percent, bar length, to go or over, wording) |
+| `shared/fitness-bests.ts` | Today's lifts against your bests: reading sets from older rows, the number each bar is drawn to, the best on other days, one card per exercise |
 | `shared/fitness-stats.ts` | The week's numbers for the Stats widget: seven days, streak, averages, volume against last week |
 | `shared/fitness-session.ts` | The open day: start, add an entry, undo, change date, what a message changed, stored-draft checks, newer-copy rule, End button wording |
 | `server/fitness-ai.ts` | The endpoint, prompts (including the day-update rules), rate limit |
 | `client/src/lib/fitness-entry.ts` | Request, applying an answer to the day, titles, error messages |
 | `client/src/lib/fitness-queue.ts`, `client/src/components/fitness/pending-messages.tsx` | The waiting messages: the queue rules, running one message into the day, and the list under the box |
 | `client/src/lib/fitness-draft.ts` | Saving and loading the open day |
-| `client/src/components/fitness/session-panel.tsx` | The chat-style text box, the Lifting summary box and its buttons, and the open food day's controls handed to the goals widget |
+| `client/src/components/fitness/session-panel.tsx` | The chat-style text box, and the open day's controls (food or workout) handed to the widget under it |
 | `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |
 | `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The Calories page's Today row, and the Stats widget (with the Lifting page's Today block) |
 | `client/src/components/fitness/collapsible-section.tsx` | The closed-until-tapped cards for Session Volume, Current Bests and the Full Workout Log |
 | `client/src/components/fitness/daily-goals.tsx`, `nutrient-chips.tsx` | The Today vs your goals bars and the open food day's controls, and the calories / protein / carbs / fat / calcium / sugar / fiber tiles for each food |
+| `client/src/components/fitness/lift-bests.tsx` | The Today vs your bests cards and set bars, and the open workout's controls |
 | `client/src/lib/stats-open.ts`, `client/src/hooks/use-stats-open.ts` | Remembering whether the Stats widget is open |
 | `client/src/lib/fitness-stats-text.ts` | The wording and chart values for the Stats widget |
 | `client/src/lib/nutrition-chart.ts` | Day, week and month averaging for the charts |
@@ -269,6 +298,6 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 
 ## Tests
 
-- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `shared/fitness-goals.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/components/fitness/collapsible-section.test.tsx`, `client/src/components/fitness/daily-goals.test.tsx`, `client/src/components/fitness/nutrient-chips.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
+- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `shared/fitness-goals.test.ts`, `shared/fitness-bests.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/components/fitness/collapsible-section.test.tsx`, `client/src/components/fitness/daily-goals.test.tsx`, `client/src/components/fitness/lift-bests.test.tsx`, `client/src/components/fitness/nutrient-chips.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
 - `npm run test:focus` runs `server/fitness-ai.test.ts` (the endpoint with a fake AI).
 - Manual steps: see [FITNESS_AI_LOGGING_TEST_CASES.md](FITNESS_AI_LOGGING_TEST_CASES.md).

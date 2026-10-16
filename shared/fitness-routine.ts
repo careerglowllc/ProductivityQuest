@@ -112,6 +112,12 @@ export function exerciseTokens(name: string): Set<string> {
 const subset = (small: Set<string>, large: Set<string>) => Array.from(small).every((t) => large.has(t));
 const sameTokens = (a: Set<string>, b: Set<string>) => a.size === b.size && subset(a, b);
 
+// Whether two names are the same lift written differently ("Incline DB Press" and "Incline Dumbbell Press").
+export function sameExercise(a: string, b: string): boolean {
+  const first = exerciseTokens(a);
+  return first.size > 0 && sameTokens(first, exerciseTokens(b));
+}
+
 export interface RoutineMatch { type: WorkoutType; name: string }
 
 // The routine exercise a name refers to: the same exercise written differently ("Incline DB Press" for "Incline Dumbbell

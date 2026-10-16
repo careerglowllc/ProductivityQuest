@@ -26,7 +26,7 @@ const render = (kind: FitnessKind, draft: FitnessDraft | null, compact = false, 
   renderToStaticMarkup(createElement(FitnessSessionPanel, { kind, draft, compact, plan, onDraftChange: () => {}, onEnd: () => {} }));
 const button = (html: string, testId: string) => html.match(new RegExp(`<button[^>]*data-testid="${testId}"[^>]*>`))?.[0] ?? "";
 
-test("with no day open there is a box to start one and an explanation, but no summary or end button", () => {
+test("with no day open there is a box to start one and an explanation, but no end button", () => {
   const html = render("workout", null);
   assert.match(html, /Log today&#x27;s workout/);
   assert.match(html, /Send your first exercise and its warm-up/);
@@ -37,68 +37,9 @@ test("with no day open there is a box to start one and an explanation, but no su
   assert.match(render("meal", null), /Press End day when you are done eating/);
 });
 
-test("an open workout shows today's summary with each exercise, its sets and warm-up, and says it saves itself", () => {
-  const html = render("workout", newDraft("lift-1", now, "lat pulldown, warm-up 60 for 12", pull()));
-  assert.match(html, /data-testid="session-title">Today&#x27;s pull day</);
-  assert.match(html, /In progress/);
-  assert.match(html, /Saved automatically at/);
-  assert.match(html, /Lat Pulldown · Pull/);
-  assert.match(html, /120 lb: 8 \/ 7 — Warm-up: 60 lb x12/);
-  assert.match(html, /Seated Row · Pull/);
-  assert.match(html, /No sets yet — Warm-up: 80 lb x10/);
-  assert.match(html, /It is not in your charts until you end the workout/);
-  assert.match(html, /placeholder="Next set or next exercise/);
-  assert.match(html, /aria-label="Add to this day"/);
-  assert.match(html, /aria-label="Remove Lat Pulldown · Pull"/);
-});
-
-test("End today's workout is there once the day holds something, and Undo only when there is a step to undo", () => {
-  const draft = newDraft("lift-1", now, "first", pull());
-  const html = render("workout", draft);
-  assert.match(html, /<\/svg> End today&#x27;s workout<\/button>/);
-  assert.doesNotMatch(button(html, "end-session"), / disabled=""/);
-  assert.match(button(html, "undo-entry"), / disabled=""/, "nothing to undo after the first message");
-  assert.match(button(html, "discard-session"), /type="button"/);
-  assert.match(html, /<\/svg> Discard this workout<\/button>/);
-
-  const second = addEntry(draft, now, "120 for 6", pull());
-  assert.doesNotMatch(button(render("workout", second), "undo-entry"), / disabled=""/);
-});
-
-test("a day with nothing in it cannot be ended", () => {
-  const empty = newDraft("lift-1", now, null, { ...pull(), exercises: [{ name: "Seated Row", workoutType: "Pull" as const, kind: "reps" as const, sets: [] }] });
-  const html = render("workout", empty);
-  assert.match(button(html, "end-session"), / disabled=""/);
-  assert.match(html, /No sets yet/);
-});
-
-test("a day left open from an earlier date says so and names that date on the button", () => {
-  const html = render("workout", newDraft("lift-1", now, "x", pull("2026-03-02")));
-  assert.match(html, /data-testid="session-stale"/);
-  assert.match(html, /This day is from Mar 2 and was never ended/);
-  assert.match(html, /<\/svg> End Mar 2 workout<\/button>/);
-  assert.match(html, /Pull day · Mon, Mar 2, 2026/);
-  assert.doesNotMatch(render("workout", newDraft("lift-1", now, "x", pull())), /session-stale/);
-});
-
-test("a saved day opened for editing says so, saves changes, and keeps the saved version until then", () => {
-  const html = render("workout", newDraft("lift-1", now, null, pull(), true));
-  assert.match(html, /Editing a saved day/);
-  assert.match(html, /<\/svg> Save changes<\/button>/);
-  assert.match(html, /<\/svg> Discard changes<\/button>/);
-  assert.match(html, /Your saved version stays in the charts until you save your changes/);
-  assert.doesNotMatch(html, /session-stale/);
-});
-
-test("the day can be moved to another date, but not into the future", () => {
-  const html = render("workout", newDraft("lift-1", now, "x", pull()));
-  assert.match(html, /<input[^>]*type="date"[^>]*aria-label="Day this belongs to"/);
-  assert.ok(html.includes(`value="${today}"`));
-  assert.ok(html.includes(`max="${today}"`));
-});
-
-const renderFood = (draft: FitnessDraft | null, below?: (parts: SessionParts | null) => ReactNode, compact = false) =>
-  renderToStaticMarkup(createElement(FitnessSessionPanel, { kind: "meal", draft, compact, below, onDraftChange: () => {}, onEnd: () => {} }));
+const renderWith = (kind: FitnessKind, draft: FitnessDraft | null, below?: (parts: SessionParts | null) => ReactNode, compact = false, plan?: RoutinePlan) =>
+  renderToStaticMarkup(createElement(FitnessSessionPanel, { kind, draft, compact, plan, below, onDraftChange: () => {}, onEnd: () => {} }));
+const renderFood = (draft: FitnessDraft | null, below?: (parts: SessionParts | null) => ReactNode, compact = false) => renderWith("meal", draft, below, compact);
 
 test("a food day has no summary box of its own: the open day goes to the widget handed in as `below`, right under the box", () => {
   const seen: (SessionParts | null)[] = [];
@@ -122,9 +63,9 @@ test("the box is a little tighter above a widget", () => {
   assert.match(renderFood(null), /p-4 sm:p-5 mb-8/);
 });
 
-const partsOf = (draft: FitnessDraft): SessionParts => {
+const partsOf = (draft: FitnessDraft, kind: FitnessKind = "meal", plan?: RoutinePlan): SessionParts => {
   const seen: { parts: SessionParts | null } = { parts: null };
-  renderFood(draft, (p) => { seen.parts = p; return null; });
+  renderWith(kind, draft, (p) => { seen.parts = p; return null; }, false, plan);
   assert.ok(seen.parts);
   return seen.parts;
 };
@@ -176,7 +117,55 @@ test("food saved before sugar, fiber and vitamin D were tracked still lists, wit
   assert.equal(chipText(foods, "fiber"), "0 g Fiber");
 });
 
-test("workouts show no nutrient chips", () => {
+test("a workout day has no summary box of its own either: its controls go to the widget under the box", () => {
+  const seen: (SessionParts | null)[] = [];
+  const draft = newDraft("lift-1", now, "lat pulldown, warm-up 60 for 12", pull());
+  const html = renderWith("workout", draft, (parts) => { seen.push(parts); return createElement("aside", { "data-testid": "below" }, "widget"); });
+  assert.doesNotMatch(html, /session-summary|session-title|end-session|undo-entry|plan-check|Today&#x27;s pull day/);
+  assert.ok(html.endsWith("</section><aside data-testid=\"below\">widget</aside>"));
+  assert.match(html, /placeholder="Next set or next exercise/);
+  assert.match(html, /aria-label="Add to this day"/);
+  assert.equal(seen[0]?.draft.id, "lift-1");
+  assert.equal(seen[0]?.foodCount, 2, "two exercises");
+  assert.equal(seen[0]?.locked, false);
+  assert.equal(typeof seen[0]?.onRemove, "function");
+  assert.ok(!seen[0]?.foods, "the exercises are drawn by the widget, so there is no food list");
+});
+
+test("the parts for a workout day: the Day field and saved note, then End today's workout, Undo and Discard", () => {
+  const draft = newDraft("lift-1", now, "first", pull());
+  const parts = partsOf(draft, "workout");
+  const meta = html(parts.meta);
+  assert.match(meta, /<input[^>]*type="date"[^>]*aria-label="Day this belongs to"/);
+  assert.ok(meta.includes(`value="${today}"`) && meta.includes(`max="${today}"`), "not into the future");
+  assert.match(meta, /Saved automatically at/);
+  assert.doesNotMatch(meta, /session-stale/);
+  assert.match(html(parts.tag), /In progress/);
+  const actions = html(parts.actions);
+  assert.match(actions, /<\/svg> End today&#x27;s workout<\/button>/);
+  assert.doesNotMatch(button(actions, "end-session"), / disabled=""/);
+  assert.match(button(actions, "undo-entry"), / disabled=""/, "nothing to undo after the first message");
+  assert.match(actions, /<\/svg> Discard this workout<\/button>/);
+  assert.match(actions, /It is not in your charts until you end the workout/);
+  const second = addEntry(draft, now, "120 for 6", pull());
+  assert.doesNotMatch(button(html(partsOf(second, "workout").actions), "undo-entry"), / disabled=""/);
+});
+
+test("a workout with nothing in it cannot be ended; a stale or reopened one says so", () => {
+  const empty = newDraft("lift-1", now, null, { ...pull(), exercises: [{ name: "Seated Row", workoutType: "Pull" as const, kind: "reps" as const, sets: [] }] });
+  assert.match(button(html(partsOf(empty, "workout").actions), "end-session"), / disabled=""/);
+  const stale = partsOf(newDraft("lift-1", now, "x", pull("2026-03-02")), "workout");
+  assert.match(html(stale.meta), /This day is from Mar 2 and was never ended/);
+  assert.match(html(stale.actions), /<\/svg> End Mar 2 workout<\/button>/);
+  const reopened = partsOf(newDraft("lift-1", now, null, pull(), true), "workout");
+  assert.match(html(reopened.tag), /Editing a saved day/);
+  assert.match(html(reopened.actions), /<\/svg> Save changes<\/button>/);
+  assert.match(html(reopened.actions), /<\/svg> Discard changes<\/button>/);
+  assert.match(html(reopened.actions), /Your saved version stays in the charts until you save your changes/);
+});
+
+test("workouts hand over no food list or nutrient chips", () => {
+  assert.ok(!partsOf(newDraft("lift-1", now, "x", pull()), "workout").foods);
   assert.doesNotMatch(render("workout", newDraft("lift-1", now, "x", pull())), /nutrient-chips|meal-item/);
 });
 
@@ -200,25 +189,21 @@ test("the phone layout drops the heading and explanation, keeps the box, and use
   assert.match(html, /rows="2"/);
 });
 
-test("the keyboard's return key says Send, and an open day still shows its summary on the phone layout", () => {
+test("the keyboard's return key says Send on both pages", () => {
   assert.match(render("workout", null), /enterKeyHint="send"/);
-  const html = render("workout", newDraft("lift-1", now, "x", pull()), true);
-  assert.match(html, /data-testid="session-title">Today&#x27;s pull day</);
-  assert.match(html, /enterKeyHint="send"/);
+  assert.match(render("meal", null, true), /enterKeyHint="send"/);
+  assert.match(render("workout", newDraft("lift-1", now, "x", pull()), true), /enterKeyHint="send"/);
 });
 
-test("under a workout summary the plan check shows what is done and what is still to do, when there is a plan", () => {
+test("a workout's plan check shows what is done and what is still to do, when there is a plan", () => {
   const plan = planFromRoutine({ ...emptyRoutine(), Pull: { exercises: "Lat Pulldown 3x8\nSeated Row 3x10\nFace Pull 3x15", notes: "" } });
   const draft = newDraft("lift-1", now, "x", pull());
-  const html = render("workout", draft, false, plan);
-  assert.match(html, /data-testid="plan-check"/);
-  assert.match(html, /Pull plan: 1 of 3 done/);
-  assert.match(html, /still to do: Seated Row, Face Pull/);
-  assert.doesNotMatch(render("workout", draft), /plan-check/, "no plan, no line");
-  assert.doesNotMatch(render("workout", null, false, plan), /plan-check/, "no open day, no line");
+  assert.equal(partsOf(draft, "workout", plan).planLine, "Pull plan: 1 of 3 done · still to do: Seated Row, Face Pull");
+  assert.equal(partsOf(draft, "workout").planLine, null, "no plan, no line");
+  assert.doesNotMatch(render("workout", draft, false, plan), /plan-check/, "the line is drawn by the widget, not the box");
 });
 
-test("food days never show a plan line", () => {
+test("food days never have a plan line", () => {
   const plan = planFromRoutine({ ...emptyRoutine(), Pull: { exercises: "Lat Pulldown 3x8", notes: "" } });
-  assert.doesNotMatch(render("meal", newDraft("meal-1", now, "x", food()), false, plan), /plan-check/);
+  assert.equal(partsOf(newDraft("meal-1", now, "x", food()), "meal", plan).planLine, null);
 });
