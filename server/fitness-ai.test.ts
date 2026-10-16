@@ -75,6 +75,35 @@ test("a meal is estimated by the AI and its totals are added up by the server", 
   assert.match(seen!.system, /calcium/);
 });
 
+test("the AI is asked for fiber, sugar and vitamins A, C and D, and the server adds vitamin D up too", async () => {
+  const answer = JSON.stringify({ date: "2026-10-13", items: [
+    { name: "salmon", quantity: "6 oz", calories: 350, protein: 38, fiber: 0, sugar: 0, calcium: 20, vitaminD: 15 },
+    { name: "oatmeal", calories: 150, protein: 5, carbs: 27, fiber: 4, sugar: 1, calcium: 20, vitaminD: 0 },
+    { name: "milk", calories: 120, protein: 8, carbs: 12, fiber: 0, sugar: 12, calcium: 300, vitaminD: 3, vitaminA: 150 },
+  ] });
+  let seen = "";
+  await withServer({ complete: async (system) => { seen = system; return answer; } }, async (call) => {
+    const result = await call({ kind: "meal", text: "salmon, oatmeal and milk", today: "2026-10-13" });
+    assert.equal(result.status, 200);
+    assert.equal(result.json.meal.totals.vitaminD, 18);
+    assert.equal(result.json.meal.totals.fiber, 4);
+    assert.equal(result.json.meal.totals.sugar, 13);
+    assert.equal(result.json.meal.items[1].vitaminD, 0);
+  });
+  assert.match(seen, /"vitaminD":number/);
+  assert.match(seen, /vitaminA and vitaminD in micrograms/);
+  assert.match(seen, /"fiber":number,"sugar":number/);
+});
+
+test("a day started before vitamin D was tracked is still accepted, and comes back with vitamin D at zero", async () => {
+  const older = { date: "2026-10-13", items: [{ name: "egg", quantity: "2", confidence: "high", calories: 140, protein: 12, carbs: 1, fat: 10, calcium: 50 }] };
+  await withServer({ complete: async () => mealJson }, async (call) => {
+    const result = await call({ kind: "meal", session: true, current: older, text: "and toast", today: "2026-10-13" });
+    assert.equal(result.status, 200);
+    assert.equal(result.json.meal.totals.vitaminD, 0);
+  });
+});
+
 test("the app's own date is used when it is close to the server's, and ignored when it is not", async () => {
   const dates: string[] = [];
   await withServer({ complete: async (_system, user) => { dates.push(/Today's date is (\d{4}-\d{2}-\d{2})/.exec(user)![1]); return workoutJson; } }, async (call) => {

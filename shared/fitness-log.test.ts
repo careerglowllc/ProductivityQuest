@@ -259,6 +259,22 @@ test("several meals on one day add up, and removing one takes exactly its share 
   assert.deepEqual(removeMealFromDay(afterRemoving, "2026-10-12", "b"), [], "a day with nothing left is removed");
 });
 
+test("vitamin D is added up like the other nutrients, and a meal saved before it was tracked can still be removed cleanly", () => {
+  const salmon = normalizeMeal({ date: "2026-10-12", items: [food("salmon", 350, { protein: 38, vitaminD: 15 }), food("milk", 120, { vitaminD: 3.4 })] }, today);
+  assert.equal(salmon.totals.vitaminD, 18);
+  const first = normalizeMeal({ date: "2026-10-12", items: [food("egg", 140, { protein: 12 })] }, today);
+  let days = addMealToDay([], first, "a", "t1", "egg");
+  const { vitaminD: _never, ...oldTotals } = first.totals;
+  days[0].meals![0].totals = oldTotals as typeof first.totals;
+  delete days[0].vitaminD;
+  days = addMealToDay(days, salmon, "b", "t2", "salmon");
+  assert.equal(days[0].vitaminD, 18);
+  const removed = removeMealFromDay(days, "2026-10-12", "a");
+  assert.equal(removed[0].vitaminD, 18);
+  assert.equal(removed[0].calories, 470);
+  assert.ok(Object.values(removed[0]).every((v) => typeof v !== "number" || Number.isFinite(v)), "no NaN anywhere on the day");
+});
+
 test("removing a meal never empties an older day and ignores unknown meals", () => {
   const meal = normalizeMeal(mealAnswer, today);
   const days = addMealToDay([seedDay("2026-10-12")], meal, "m", "t", "x");

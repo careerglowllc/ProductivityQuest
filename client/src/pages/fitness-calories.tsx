@@ -23,6 +23,7 @@ import { loadMealDraft, saveMealDraft } from "@/lib/fitness-draft";
 import { localToday, type FitnessDraft } from "@/lib/fitness-entry";
 import { TodayStrip } from "@/components/fitness/today-strip";
 import { CalorieStats } from "@/components/fitness/stats-card";
+import { DailyGoals } from "@/components/fitness/daily-goals";
 import { mealLogWithDraft, mealStripText, todayMeals } from "@shared/fitness-today";
 import { allTimeCalories, calorieWeek } from "@shared/fitness-stats";
 import { useToast } from "@/hooks/use-toast";
@@ -141,6 +142,8 @@ export default function FitnessCaloriesPage() {
   const allTime = useMemo(() => allTimeCalories(log), [log]);
   const panel = <FitnessSessionPanel kind="meal" accent="#F87171" compact={isMobile} draft={draft} onDraftChange={(next) => updateDraft(next as MealDraft | null)} onEnd={endDay} />;
   const statsWidget = <CalorieStats week={week} today={today} goal={CALORIE_GOAL} accent="#F87171" allTime={allTime} />;
+  // Today's bars against the goals, counting the food still being logged.
+  const goalsWidget = <DailyGoals day={previewLog.find((d) => d.date === today)} includesOpenDay={draft !== null && draft.date === today} />;
 
   return (
     <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-rose-950" : "bg-gray-50"} ${!isMobile ? "pt-16" : "pt-2"} pb-24 relative overflow-hidden`}>
@@ -170,6 +173,7 @@ export default function FitnessCaloriesPage() {
 
         {isMobile && <TodayStrip kind="meal" text={stripText} accent="#F87171" progress={todayStat.hasAny ? todayStat.calories / CALORIE_GOAL : 0} inProgress={draft !== null && draft.date === today} />}
         {isMobile && panel}
+        {isMobile && goalsWidget}
         {isMobile && statsWidget}
 
         {!isMobile && (
@@ -199,9 +203,10 @@ export default function FitnessCaloriesPage() {
         )}
 
         {!isMobile && panel}
+        {!isMobile && goalsWidget}
 
         {loggedMeals.length > 0 && (
-          <div className={`mb-8 ${isMobile ? "" : "-mt-4"}`} data-testid="recent-meals">
+          <div className="mb-8" data-testid="recent-meals">
             <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><Sparkles className="h-3 w-3" /> Logged with AI</p>
             <ul className="space-y-1.5">
               {loggedMeals.map((m) => (
@@ -327,7 +332,7 @@ export default function FitnessCaloriesPage() {
             Nutrient Trend
           </div>
           <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-            {(["protein", "carbs", "fat", "satFat", "fiber", "sugar", "sodium", "calcium", "magnesium", "potassium", "iron", "vitaminC", "vitaminA"] as NutrientKey[]).map((key) => (
+            {(["protein", "carbs", "fat", "satFat", "fiber", "sugar", "sodium", "calcium", "magnesium", "potassium", "iron", "vitaminC", "vitaminA", "vitaminD"] as NutrientKey[]).map((key) => (
               <button
                 key={key}
                 onClick={() => setNutrient(key)}

@@ -98,9 +98,18 @@ test("the page says when charts are limited to the routine, when no routine is s
   assert.ok(lifting.includes("None of the lifts in your routine are logged yet."));
 });
 
-test("the desktop calories layout keeps the count cards above the entry box, and the Logged-with-AI list sits tight under the box", () => {
+test("the desktop calories layout keeps the count cards above the entry box, with the goals under it and then the Logged-with-AI list", () => {
   assert.ok(calories.includes("Days Logged"));
-  assert.ok(calories.includes('${isMobile ? "" : "-mt-4"}'));
+  assert.ok(calories.indexOf("{!isMobile && panel}") < calories.indexOf("{!isMobile && goalsWidget}") && calories.indexOf("{!isMobile && goalsWidget}") < calories.indexOf('data-testid="recent-meals"'));
+  assert.ok(!calories.includes('"-mt-4"'), "the list no longer pulls up under the box, as the goals sit between");
+});
+
+test("the Calories page puts today's goals right under the entry box, on a phone and on a desktop, counting the open day", () => {
+  const phone = ["{isMobile && panel}", "{isMobile && goalsWidget}", "{isMobile && statsWidget}"].map((marker) => calories.indexOf(marker));
+  assert.ok(phone.every((i) => i > 0) && phone[0] < phone[1] && phone[1] < phone[2], "box, goals, then Stats");
+  assert.ok(calories.includes("<DailyGoals day={previewLog.find((d) => d.date === today)} includesOpenDay={draft !== null && draft.date === today} />"), "from today's day in the log plus the open day");
+  assert.ok(calories.includes("previewLog = useMemo(() => mealLogWithDraft(log, draft), [log, draft])"));
+  assert.ok(calories.includes('"vitaminC", "vitaminA", "vitaminD"] as NutrientKey[]'), "vitamin D can be charted over time too");
 });
 
 test("every answer is saved to the open day straight away, and a failed request keeps what was typed", () => {

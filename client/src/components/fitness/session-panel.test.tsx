@@ -100,17 +100,57 @@ test("the day can be moved to another date, but not into the future", () => {
   assert.ok(html.includes(`max="${today}"`));
 });
 
-test("today's food shows each item, the running total for the day, and an End day button", () => {
+test("today's food shows each item with its numbers, the running total for the day, and an End day button", () => {
   const html = render("meal", newDraft("meal-1", now, "eggs and a latte", food()));
   assert.match(html, /data-testid="session-title">Today&#x27;s food</);
   assert.match(html, /2 egg/);
   assert.match(html, /12 oz latte \(rough guess\)/);
-  assert.match(html, /Total so far:<\/span> Calories 290/);
   assert.match(html, /best estimates, not measurements/);
   assert.match(html, /<\/svg> End day<\/button>/);
   assert.match(html, /<\/svg> Discard this day<\/button>/);
   assert.match(html, /placeholder="Add more: a chicken burrito bowl/);
   assert.match(html, /It is not in your charts until you end the day/);
+});
+
+const chipText = (html: string, key: string) => (html.match(new RegExp(`<div[^>]*data-testid="chip-${key}".*?</p></div>`))?.[0] ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+test("each food shows calories, protein, carbs, fat, calcium, sugar and fiber, and its own remove button", () => {
+  const html = render("meal", newDraft("meal-1", now, "eggs and a latte", food()));
+  const items = html.match(/<li[^>]*data-testid="meal-item".*?<\/li>/g) ?? [];
+  assert.equal(items.length, 2);
+  assert.match(items[0], /2 egg/);
+  assert.deepEqual(Array.from(items[0].matchAll(/data-testid="chip-(\w+)"/g)).map((m) => m[1]), ["calories", "protein", "carbs", "fat", "calcium", "sugar", "fiber"]);
+  assert.equal(chipText(items[0], "calories"), "140 kcal");
+  assert.equal(chipText(items[0], "protein"), "12 g Protein");
+  assert.equal(chipText(items[1], "carbs"), "12 g Carbs");
+  assert.match(items[1], /aria-label="Remove 12 oz latte \(rough guess\)"/);
+  assert.doesNotMatch(items[0], /Calories 140 ·/, "no longer one line of text");
+});
+
+test("the day's total is a block of bigger tiles, under a Total so far heading", () => {
+  const html = render("meal", newDraft("meal-1", now, "eggs and a latte", food()));
+  const total = html.match(/data-testid="meal-total".*?best estimates/)?.[0] ?? "";
+  assert.match(total, /Total so far/);
+  assert.match(total, /data-testid="nutrient-chips-total"/);
+  assert.equal(chipText(total, "calories"), "290 kcal");
+  assert.equal(chipText(total, "protein"), "20 g Protein");
+  assert.equal(chipText(total, "fat"), "18 g Fat");
+  assert.equal(chipText(total, "sugar"), "0 g Sugar");
+  assert.equal(chipText(total, "fiber"), "0 g Fiber");
+  assert.equal(chipText(total, "calcium"), "0 mg Calcium");
+});
+
+test("a day with no food has no total block, and workouts show no nutrient chips", () => {
+  assert.doesNotMatch(render("meal", newDraft("meal-1", now, null, { ...food(), items: [], description: "" })), /meal-total|nutrient-chips/);
+  assert.doesNotMatch(render("workout", newDraft("lift-1", now, "x", pull())), /nutrient-chips|meal-item/);
+});
+
+test("food saved before sugar, fiber and vitamin D were tracked still shows, with zeros", () => {
+  const old = food();
+  const stripped = { ...old, items: old.items.map(({ sugar: _s, fiber: _f, vitaminD: _d, ...rest }) => rest as typeof old.items[number]), totals: { ...old.totals, sugar: undefined as unknown as number } };
+  const html = render("meal", newDraft("meal-1", now, "x", stripped));
+  assert.equal(chipText(html, "sugar"), "0 g Sugar");
+  assert.equal(chipText(html, "fiber"), "0 g Fiber");
 });
 
 test("the microphone and send buttons are part of the box", () => {

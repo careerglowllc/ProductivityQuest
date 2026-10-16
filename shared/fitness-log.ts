@@ -247,7 +247,7 @@ export function sessionSummaries(entries: readonly WorkoutLogEntry[]): SessionSu
 }
 
 // ── Nutrition ───────────────────────────────────────────────────────────────
-export const NUTRIENTS = ["calories", "protein", "carbs", "fat", "satFat", "fiber", "sugar", "sodium", "calcium", "magnesium", "potassium", "iron", "vitaminC", "vitaminA"] as const;
+export const NUTRIENTS = ["calories", "protein", "carbs", "fat", "satFat", "fiber", "sugar", "sodium", "calcium", "magnesium", "potassium", "iron", "vitaminC", "vitaminA", "vitaminD"] as const;
 export type NutrientKey = (typeof NUTRIENTS)[number];
 export type NutrientTotals = Record<NutrientKey, number>;
 export const NUTRIENT_INFO: Record<NutrientKey, { label: string; unit: string; limit: number }> = {
@@ -258,6 +258,7 @@ export const NUTRIENT_INFO: Record<NutrientKey, { label: string; unit: string; l
   calcium: { label: "Calcium", unit: "mg", limit: 6000 }, magnesium: { label: "Magnesium", unit: "mg", limit: 3000 },
   potassium: { label: "Potassium", unit: "mg", limit: 15000 }, iron: { label: "Iron", unit: "mg", limit: 200 },
   vitaminC: { label: "Vitamin C", unit: "mg", limit: 5000 }, vitaminA: { label: "Vitamin A", unit: "mcg", limit: 20000 },
+  vitaminD: { label: "Vitamin D", unit: "mcg", limit: 1000 },
 };
 
 export interface ParsedFoodItem extends NutrientTotals { name: string; quantity?: string; confidence: Confidence }
@@ -268,7 +269,7 @@ export interface LoggedMeal { id: string; loggedAt: string; text: string; descri
 export interface CalorieDayLog {
   date: string; // YYYY-MM-DD
   calories: number; protein: number; carbs: number; fat: number; sodium: number; magnesium: number; calcium: number; vitaminC: number; vitaminA: number;
-  satFat?: number; fiber?: number; sugar?: number; potassium?: number; iron?: number;
+  satFat?: number; fiber?: number; sugar?: number; potassium?: number; iron?: number; vitaminD?: number;
   foodDetails: string; // what was eaten before AI logging; meals logged with AI are described in `meals`
   completeness: Completeness; confidence: Confidence; notes?: string;
   meals?: LoggedMeal[];
@@ -319,7 +320,7 @@ export const mealDescription = (items: readonly Pick<ParsedFoodItem, "name" | "q
 const copyDay = (day: CalorieDayLog): CalorieDayLog => ({ ...day });
 const addTo = (day: CalorieDayLog, totals: NutrientTotals, sign: 1 | -1) => {
   for (const key of NUTRIENTS) {
-    const next = Math.max(0, roundNutrient(key, ((day[key] as number | undefined) ?? 0) + sign * totals[key]));
+    const next = Math.max(0, roundNutrient(key, ((day[key] as number | undefined) ?? 0) + sign * (totals[key] ?? 0)));
     (day as unknown as Record<string, number>)[key] = next;
   }
 };

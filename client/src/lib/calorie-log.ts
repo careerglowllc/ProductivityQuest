@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CALORIE_STORAGE_KEY = "calories-daily-log-v1";
-export const CALORIE_GOAL = 2200; // rough daily target reference line for the chart
+export { CALORIE_GOAL } from "@shared/fitness-goals"; // the daily calorie goal: 2,400
 
 // The shapes live in shared/fitness-log.ts so the server's AI logging and this log agree on them.
 export type { Completeness, Confidence, CalorieDayLog } from "@shared/fitness-log";

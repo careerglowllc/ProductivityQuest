@@ -15,7 +15,8 @@ into the same logs the charts already read.
 2. Press Enter (or the send arrow). Shift+Enter adds a new line where the keyboard has it; a phone keyboard shows a
    Send key.
 3. A summary box appears above the text box ("Today's pull day", "Today's food"). It lists each exercise with its sets
-   and warm-up, or each food with its calories and macros, and a "Last entry" line says what the message changed.
+   and warm-up, or each food with a row of small tiles (calories, protein, carbs, fat, calcium, sugar and fiber) and a
+   bigger **Total so far** block of the same seven, and a "Last entry" line says what the message changed.
 4. Keep sending. The AI is given the day so far and your earlier messages, so "120 for 8" means a set of the exercise
    you are on, "same again" repeats the last set, and "actually the latte was oat milk" corrects only the latte.
 5. Every change is saved at once ("Saved automatically at ..."). Close the page and come back, or open it on another
@@ -37,18 +38,44 @@ In the summary box you can also:
 **Calories, on a phone**, is laid out for logging first:
 
 1. The title, kept small.
-2. A very thin **Today** row: today's running totals (calories and macros with a hairline toward the 2,200 kcal
-   reference), or a dashed placeholder ("Nothing logged yet") when there is nothing. It counts the open day too, so it
+2. A very thin **Today** row: today's running totals (calories and macros with a hairline toward the 2,400 kcal
+   goal), or a dashed placeholder ("Nothing logged yet") when there is nothing. It counts the open day too, so it
    changes with every message, and a pulsing dot says the day is still open.
 3. The entry box, with no heading or explanation above it.
-4. A collapsible **Stats** widget, open by default: this week's tiles, a seven-day bar chart with the goal line,
+4. **Today vs your goals** (below), right under the entry box.
+5. A collapsible **Stats** widget, open by default: this week's tiles, a seven-day bar chart with the goal line,
    highlights (streak, best protein day and the change from last week), the weekly log (today first) and an all-time
    line. While it is collapsed, one line of the week is shown instead. Tapping the header opens or collapses it.
    The choice is saved on the account (`workout-stats-open-v1`, `calories-stats-open-v1`), so it is the same after
    logging out and in, and on another device.
 
 The big count cards that used to sit above the entry box are shown on larger screens only; their all-time numbers are
-the last line of the Stats widget. Larger screens keep the layout they had.
+the last line of the Stats widget. On larger screens the order is the count cards, the entry box, Today vs your goals,
+Logged with AI, then the charts.
+
+### Today vs your goals (Calories page)
+
+Right under the entry box, one bar for each of today's calories, protein, carbs, fat, fiber, calcium and vitamins A, C
+and D. Each bar shows the percent of its goal and the amounts, for example "Protein 55%" over "82 of 150 g · 68 to go".
+It counts the food still being logged (the line at the bottom says so), so it moves with every message. With nothing
+logged the bars are empty and a line invites the first meal.
+
+| Nutrient | Goal | Why |
+| --- | --- | --- |
+| Calories | 2,400 kcal | Your target. Also the dashed goal line and the Today row's hairline (it was 2,200). |
+| Protein | 150 g | 25% of the calories |
+| Carbs | 270 g | 45% of the calories |
+| Fat | 80 g | 30% of the calories |
+| Fiber | 28 g | FDA daily value |
+| Calcium | 1,300 mg | FDA daily value |
+| Vitamin A | 900 mcg | FDA daily value (RAE) |
+| Vitamin C | 90 mg | FDA daily value |
+| Vitamin D | 20 mcg | FDA daily value (800 IU) |
+
+Calories, carbs and fat are budgets: past the goal the bar turns amber and says how far over. The others are minimums:
+at 100% the bar is full with a check mark and "goal reached", and going past is fine. A bar never grows past full, but
+the percent keeps counting (156%). The goals live in one list, `DAILY_GOALS` in `shared/fitness-goals.ts`.
+Older days (and food saved before fiber, sugar and vitamin D were tracked) read 0 for what they never recorded.
 
 **Lifting**, on a phone and on larger screens, runs in this order:
 
@@ -120,7 +147,7 @@ Voice typing uses the browser's speech recognition where it exists (Chrome, Edge
 ## What the AI is asked to do
 
 - **Workouts:** keep names as said, use the real weight and reps, convert kg to lb (x 2.20462, rounded to 0.5), treat holds and cardio as timed sets (5:30 is 330 seconds), keep warm-ups and notes, and mark bodyweight sets. Push, Pull or Legs is taken from the AI and corrected from the exercise name when it is missing.
-- **Meals:** estimate each item's calories, protein, carbs, fat and the other nutrients, with a confidence of low, medium or high. Items marked low show "(rough guess)" in the preview. Nutrition numbers are estimates, not measurements.
+- **Meals:** estimate each item's calories, protein, carbs, fat, fiber, sugar, calcium, vitamins A, C and D and the other nutrients, with a confidence of low, medium or high. Items marked low show "(rough guess)" in the preview. Nutrition numbers are estimates, not measurements.
 - **Updating a day:** the AI gets the day so far as JSON and returns the *complete* updated day. It is told to keep
   everything already there unless corrected, to add new exercises (with `sets: []` until sets are given) or foods, to
   attach bare weights and reps to the latest exercise, and to apply corrections and removals only to what was named.
@@ -135,7 +162,7 @@ Voice typing uses the browser's speech recognition where it exists (Chrome, Edge
 | Your routine | `workout-routine-v1` | `{ Push, Pull, Legs: { exercises: string, notes: string } }`, the text as typed. |
 | Stats widget open or collapsed | `workout-stats-open-v1`, `calories-stats-open-v1` | `"1"` or `"0"`; open when missing. |
 | Lifting log | `workout-ppl-log-v1` | `WorkoutLogEntry[]`. Entries logged with AI carry `logId` (the draft's id, so ending again replaces them) and `sets` (exact sets, which is also what lets a saved day be reopened). |
-| Calorie log | `calories-daily-log-v1` | `CalorieDayLog[]`. Totals include every ended day; `meals` lists them (`id` is the draft's id, plus text, items, totals) so one can be taken out or reopened. Older days without the extra nutrients (`satFat`, `fiber`, `sugar`, `potassium`, `iron`) are fine; those are optional. |
+| Calorie log | `calories-daily-log-v1` | `CalorieDayLog[]`. Totals include every ended day; `meals` lists them (`id` is the draft's id, plus text, items, totals) so one can be taken out or reopened. Older days without the extra nutrients (`satFat`, `fiber`, `sugar`, `potassium`, `iron`, `vitaminD`) are fine; those are optional. |
 
 All four keys use the `workout-` and `calories-` prefixes, so they already sync to the server and across devices. A page
 that is open when another device adds to the same open day takes the newer copy (same id, newer `updatedAt`); an older
@@ -194,6 +221,7 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `shared/fitness-log.ts` | Shared pure logic: validation, unit conversion, totals, add/remove, session summaries, finishing a workout, rebuilding a saved day for editing |
 | `shared/fitness-routine.ts` | The routine: reading the typed text, matching exercises to it, lining up an AI answer, the plan check, and which logged rows the lift charts use |
 | `shared/fitness-today.ts` | Today's running totals with the open day included, and the words in the thin Today row |
+| `shared/fitness-goals.ts` | The daily goals, and how far a day's totals are from them (percent, bar length, to go or over, wording) |
 | `shared/fitness-stats.ts` | The week's numbers for the Stats widget: seven days, streak, averages, volume against last week |
 | `shared/fitness-session.ts` | The open day: start, add an entry, undo, change date, what a message changed, stored-draft checks, newer-copy rule, End button wording |
 | `server/fitness-ai.ts` | The endpoint, prompts (including the day-update rules), rate limit |
@@ -204,6 +232,7 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |
 | `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The Calories page's Today row, and the Stats widget (with the Lifting page's Today block) |
 | `client/src/components/fitness/collapsible-section.tsx` | The closed-until-tapped cards for Session Volume, Current Bests and the Full Workout Log |
+| `client/src/components/fitness/daily-goals.tsx`, `nutrient-chips.tsx` | The Today vs your goals bars, and the calories / protein / carbs / fat / calcium / sugar / fiber tiles in the food summary |
 | `client/src/lib/stats-open.ts`, `client/src/hooks/use-stats-open.ts` | Remembering whether the Stats widget is open |
 | `client/src/lib/fitness-stats-text.ts` | The wording and chart values for the Stats widget |
 | `client/src/lib/nutrition-chart.ts` | Day, week and month averaging for the charts |
@@ -211,6 +240,6 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 
 ## Tests
 
-- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/components/fitness/collapsible-section.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
+- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `shared/fitness-goals.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/components/fitness/collapsible-section.test.tsx`, `client/src/components/fitness/daily-goals.test.tsx`, `client/src/components/fitness/nutrient-chips.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
 - `npm run test:focus` runs `server/fitness-ai.test.ts` (the endpoint with a fake AI).
 - Manual steps: see [FITNESS_AI_LOGGING_TEST_CASES.md](FITNESS_AI_LOGGING_TEST_CASES.md).

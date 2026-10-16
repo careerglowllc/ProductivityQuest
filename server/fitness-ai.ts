@@ -40,8 +40,8 @@ Return ONLY JSON in this shape:
 {"date":"YYYY-MM-DD","dayComplete":boolean,"notes":string|null,
  "items":[{"name":string,"quantity":string|null,"confidence":"high"|"medium"|"low",
    "calories":number,"protein":number,"carbs":number,"fat":number,"satFat":number,"fiber":number,"sugar":number,
-   "sodium":number,"calcium":number,"magnesium":number,"potassium":number,"iron":number,"vitaminC":number,"vitaminA":number}]}
-Units: calories in kcal; protein, carbs, fat, satFat, fiber and sugar in grams; sodium, calcium, magnesium, potassium, iron and vitaminC in milligrams; vitaminA in micrograms.
+   "sodium":number,"calcium":number,"magnesium":number,"potassium":number,"iron":number,"vitaminC":number,"vitaminA":number,"vitaminD":number}]}
+Units: calories in kcal; protein, carbs, fat, satFat, fiber and sugar in grams; sodium, calcium, magnesium, potassium, iron and vitaminC in milligrams; vitaminA and vitaminD in micrograms.
 Rules:
 - One item per food or drink. "2 eggs" is one item with quantity "2" and the numbers for both eggs. Break composite meals into their main parts when the person lists them.
 - "name" is the food alone ("everything bagel"); "quantity" is only the amount ("1", "2 tbsp", "12 oz", "1/5 slice"), never repeating the food's name.

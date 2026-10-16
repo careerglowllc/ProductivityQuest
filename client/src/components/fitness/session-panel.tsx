@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, MicOff, Send, Undo2, Flag, Trash2, X } from "lucide-react";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import {
-  applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, joinTranscript, localToday, newLogId, nutrientText, planCheckText,
+  applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, joinTranscript, localToday, newLogId, planCheckText,
   moveDraft, removeDraftItem, requestSessionUpdate, undoDraft, type FitnessDraft, type FitnessKind,
 } from "@/lib/fitness-entry";
+import { NutrientChips } from "@/components/fitness/nutrient-chips";
 import { canUndo, endButtonLabel, isStaleDraft, type MealDraft } from "@shared/fitness-session";
 import type { RoutinePlan } from "@shared/fitness-routine";
 
@@ -122,12 +123,8 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
             <p className="mt-3 text-sm text-slate-400">Nothing in it yet.</p>
           ) : (
             <ul className="mt-3 space-y-1.5" data-testid="session-items">
-              {lines.map((line, i) => (
-                <li key={i} className="flex items-start justify-between gap-2 text-sm">
-                  <span className="min-w-0">
-                    <span className="font-medium text-slate-100">{line.title}</span>
-                    {line.detail && <span className="block text-xs text-slate-400">{line.detail}</span>}
-                  </span>
+              {lines.map((line, i) => {
+                const remove = (
                   <button
                     type="button"
                     disabled={locked}
@@ -138,16 +135,34 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
                   >
                     <X className="h-4 w-4" />
                   </button>
-                </li>
-              ))}
+                );
+                return meal ? (
+                  <li key={i} data-testid="meal-item" className="rounded-lg border border-slate-700/60 bg-slate-800/60 px-2.5 py-2 text-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0 font-medium text-slate-100">{line.title}</span>
+                      {remove}
+                    </div>
+                    {meal.items[i] && <NutrientChips totals={meal.items[i]} variant="item" />}
+                  </li>
+                ) : (
+                  <li key={i} className="flex items-start justify-between gap-2 text-sm">
+                    <span className="min-w-0">
+                      <span className="font-medium text-slate-100">{line.title}</span>
+                      {line.detail && <span className="block text-xs text-slate-400">{line.detail}</span>}
+                    </span>
+                    {remove}
+                  </li>
+                );
+              })}
             </ul>
           )}
           {planLine && <p data-testid="plan-check" className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-300">{planLine}</p>}
           {meal && meal.items.length > 0 && (
-            <>
-              <p className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-300"><span className="font-semibold">Total so far:</span> {nutrientText(meal.totals)}</p>
-              <p className="mt-1 text-[11px] text-slate-500">Nutrition numbers are the AI's best estimates, not measurements.</p>
-            </>
+            <div data-testid="meal-total" className="mt-3 border-t border-slate-700 pt-2">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">Total so far</p>
+              <NutrientChips totals={meal.totals} variant="total" />
+              <p className="mt-1.5 text-[11px] text-slate-500">Nutrition numbers are the AI's best estimates, not measurements.</p>
+            </div>
           )}
           {draft && last && last.id === draft.id && last.lines.length > 0 && (
             <p className="mt-2 text-xs text-emerald-300" data-testid="session-last-entry">Last entry: {last.lines.join(" · ")}</p>
