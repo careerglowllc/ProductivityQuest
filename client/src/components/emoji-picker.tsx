@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/contexts/theme-context";
@@ -1466,38 +1466,15 @@ interface EmojiPickerProps {
   size?: "sm" | "md" | "lg";
 }
 
+// On a phone or tablet the search box is not focused on open: that raises the keyboard over the emoji list.
+export const isTouchInput = (): boolean =>
+  typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+
 export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) {
   const { isDark } = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Common");
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const touchStartY = useRef<number | null>(null);
-
-  // Close popover when the page scrolls (iOS: swiping over popover should scroll page)
-  useEffect(() => {
-    if (!open) return;
-    const onScroll = () => setOpen(false);
-    // Listen on the nearest scrollable ancestor and window
-    window.addEventListener("scroll", onScroll, true);
-    return () => window.removeEventListener("scroll", onScroll, true);
-  }, [open]);
-
-  // On touch: if the user swipes vertically over the popover (outside the emoji grid),
-  // close it so the page scroll can take over
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (touchStartY.current === null) return;
-    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
-    if (dy > 10) {
-      // User is swiping vertically — close picker so page scrolls
-      setOpen(false);
-      touchStartY.current = null;
-    }
-  }, []);
 
   const sizeClasses = {
     sm: "text-lg w-8 h-8",
@@ -1553,12 +1530,10 @@ export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) 
         </button>
       </PopoverTrigger>
       <PopoverContent
-        ref={popoverRef}
-        className="w-[320px] p-0 bg-slate-900 border-yellow-600/30"
+        className="w-[320px] max-w-[calc(100vw-1rem)] p-0 bg-slate-900 border-yellow-600/30"
         align="start"
+        collisionPadding={8}
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="p-3 pb-2">
@@ -1567,7 +1542,7 @@ export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 bg-slate-800/50 border-yellow-600/20 text-yellow-100 text-sm placeholder:text-yellow-200/30"
-            autoFocus
+            autoFocus={!isTouchInput()}
           />
         </div>
 
@@ -1604,7 +1579,7 @@ export function EmojiPicker({ value, onChange, size = "md" }: EmojiPickerProps) 
         )}
 
         {/* Emoji grid */}
-        <div className="h-[200px] overflow-y-auto px-3 pb-3">
+        <div className="h-[200px] overflow-y-auto overscroll-contain px-3 pb-3" style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
           <div className="grid grid-cols-8 gap-1">
             {displayedEmojis.map((emoji, idx) => (
               <button
