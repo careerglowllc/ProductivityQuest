@@ -196,3 +196,23 @@ test("messages typed while others are going in are queued behind them and still 
   assert.deepEqual(left, []);
   assert.deepEqual((store.draft as MealDraft).summary.items.map((i) => i.name), ["a bagel", "a latte", "salmon"]);
 });
+
+test("photos ride along with their message through the queue and into the request", async () => {
+  const shots = ["data:image/jpeg;base64,AAAA", "data:image/jpeg;base64,BBBB"];
+  let queue = run([add("1", "this plate"), add("2", "and this")]);
+  queue = queueReducer([], { type: "add", id: "1", text: "this plate", photos: shots });
+  assert.deepEqual(queue[0].photos, shots);
+  queue = run([{ type: "start", id: "1" }, { type: "fail", id: "1", error: "x" }], queue);
+  assert.deepEqual(queue[0].photos, shots, "a failed message keeps its photos");
+  queue = queueReducer(queue, { type: "retry", id: "1" });
+  assert.deepEqual([queue[0].status, queue[0].photos, queue[0].error], ["queued", shots, undefined]);
+  assert.equal(queueReducer([], { type: "add", id: "3", text: "no photos" })[0].photos, undefined);
+
+  const store: { draft: FitnessDraft | null } = { draft: null };
+  const sent: string[][] = [];
+  const outcome = await runMessage({ ...io("this plate", store), photos: shots, send: async (message, current, photos) => { sent.push(photos); return mealResult(current, message); } });
+  assert.equal(outcome.ok, true);
+  assert.deepEqual(sent, [shots]);
+  await runMessage({ ...io("no photos", store), send: async (message, current, photos) => { sent.push(photos); return mealResult(current, message); } });
+  assert.deepEqual(sent[1], [], "a message without photos sends an empty list");
+});

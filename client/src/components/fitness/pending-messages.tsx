@@ -1,5 +1,6 @@
-import { AlertCircle, Clock, Loader2, Pencil, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Clock, ImageIcon, Loader2, Pencil, RotateCcw, X } from "lucide-react";
 import { isBlocked, type QueuedMessage } from "@/lib/fitness-queue";
+import { photoNote } from "@/lib/fitness-photo";
 
 // What was typed but is not in the day yet: the message being added now, the ones waiting behind it, and any that failed
 // (which can be retried, put back in the box to edit, or removed).
@@ -22,7 +23,8 @@ export function PendingMessages({ queue, onRetry, onEdit, onRemove }: {
           </span>
           <span className="min-w-0 flex-1">
             <span data-testid="pending-text" className="block truncate text-slate-200" title={m.text}>{m.text}</span>
-            <span className={`block text-[11px] ${m.status === "failed" ? "text-red-300" : "text-slate-500"}`}>
+            <span className={`flex items-center gap-1 text-[11px] ${m.status === "failed" ? "text-red-300" : "text-slate-500"}`}>
+              {m.photos?.length ? <span data-testid="pending-photos" className="flex shrink-0 items-center gap-0.5"><ImageIcon aria-hidden className="h-3 w-3" />{photoNote(m.photos.length)} ·</span> : null}
               {m.status === "sending" ? "Adding it now…" : m.status === "queued" ? (blocked ? "Waiting for the message above to be sorted out" : "Waiting its turn") : m.error}
             </span>
           </span>

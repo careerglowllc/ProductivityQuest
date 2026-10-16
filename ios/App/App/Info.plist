@@ -43,6 +43,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of your food so the app can log it.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Attach a photo of your food from your library so the app can log it.</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 </dict>

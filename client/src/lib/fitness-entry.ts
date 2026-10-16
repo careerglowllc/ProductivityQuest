@@ -24,12 +24,13 @@ export function fitnessErrorMessage(error: unknown): string {
 
 export type FitnessDraft = WorkoutDraft | MealDraft;
 
-// Sends what was just typed, together with the day so far and the messages before it, and gets back the whole updated day.
-export async function requestSessionUpdate(kind: FitnessKind, text: string, draft: FitnessDraft | null, today = localToday(), plan?: RoutinePlan): Promise<ParseResult> {
+// Sends what was just typed, together with any photos, the day so far and the messages before it, and gets back the whole updated day.
+export async function requestSessionUpdate(kind: FitnessKind, text: string, draft: FitnessDraft | null, today = localToday(), plan?: RoutinePlan, photos: string[] = []): Promise<ParseResult> {
   const context = draft ? { current: draft.summary, recent: recentMessages(draft) } : {};
   // What a Push, Pull and Legs day usually hold, so the AI can recognise the lifts and the day.
   const routine = kind === "workout" && planHasContent(plan) ? { routine: plan } : {};
-  const response = await apiRequest("POST", "/api/fitness/parse", { kind, text, today, session: true, ...context, ...routine });
+  const images = photos.length ? { images: photos } : {};
+  const response = await apiRequest("POST", "/api/fitness/parse", { kind, text, today, session: true, ...context, ...routine, ...images });
   return response.json();
 }
 

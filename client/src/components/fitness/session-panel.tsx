@@ -1,10 +1,11 @@
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
-import { Send, Undo2, Flag, Trash2, X } from "lucide-react";
+import { Camera, ImagePlus, Send, Undo2, Flag, Trash2, X } from "lucide-react";
 import {
   applyUpdate, draftHasContent, draftLines, formatDayShort, localToday, newLogId, planCheckText,
   moveDraft, removeDraftItem, requestSessionUpdate, undoDraft, type FitnessDraft, type FitnessKind,
 } from "@/lib/fitness-entry";
 import { canAdd, isProcessing, nextToSend, queueReducer, runMessage, MAX_WAITING, type QueuedMessage } from "@/lib/fitness-queue";
+import { MAX_PHOTOS, PHOTO_ONLY_TEXT, photoErrorMessage, photoFromFile, roomForPhotos, type Photo } from "@/lib/fitness-photo";
 import { NutrientChips } from "@/components/fitness/nutrient-chips";
 import { PendingMessages } from "@/components/fitness/pending-messages";
 import { canUndo, endButtonLabel, isStaleDraft, type MealDraft } from "@shared/fitness-session";
@@ -47,7 +48,7 @@ export interface SessionParts {
 // worked into the day, and further messages wait their turn. The first message starts the day and each later one updates it,
 // and every change is saved at once. The day itself is shown by the widget `below` the box, which gets the day's controls.
 // Ending the day is what puts it in the charts.
-export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false, plan, below }: {
+export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false, plan, photos = false, below }: {
   kind: FitnessKind;
   draft: FitnessDraft | null;
   onDraftChange: (draft: FitnessDraft | null) => void;
@@ -55,13 +56,18 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   accent?: string;
   compact?: boolean; // the phone layout: no heading or explanation above the box, and less space below it
   plan?: RoutinePlan; // what a Push, Pull and Legs day usually hold (workouts only)
+  photos?: boolean; // offer a camera and an attach button, so a picture can be sent with the message
   below?: (parts: SessionParts | null, updating: boolean) => ReactNode; // drawn right under the box, with the open day's controls (null when no day is open) and whether a message is still being added
 }) {
   const copy = COPY[kind];
   const [text, setText] = useState("");
+  const [attached, setAttached] = useState<Photo[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [queue, dispatch] = useReducer(queueReducer, [] as QueuedMessage[]);
   const [last, setLast] = useState<{ id: string; lines: string[] } | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const libraryInput = useRef<HTMLInputElement>(null);
   const today = localToday();
 
   // The day as it is right now, so a message that starts after another finished builds on that one's result.
@@ -79,8 +85,9 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
     dispatch({ type: "start", id: next.id });
     void runMessage({
       text: next.text,
+      photos: next.photos,
       readDraft: () => draftRef.current,
-      send: (message, current) => requestSessionUpdate(kind, message, current, localToday(), plan),
+      send: (message, current, pictures) => requestSessionUpdate(kind, message, current, localToday(), plan, pictures),
       apply: (current, result, message) => applyUpdate(kind, current, result, message, new Date(), () => newLogId(kind === "workout" ? "lift" : "meal")),
       commit: (updated) => { draftRef.current = updated; onDraftChange(updated); },
     }).then((outcome) => {
@@ -101,13 +108,32 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
     return () => window.removeEventListener("beforeunload", warn);
   }, [queue]);
 
-  // Enter: the message is shown as sent, the box is empty and ready for the next one.
+  // Enter: the message is shown as sent, the box is empty and ready for the next one. A photo on its own is enough to send.
   function submit() {
-    const message = text.trim();
-    if (message.length < 2 || !canAdd(queue)) return;
-    dispatch({ type: "add", id: newLogId("msg"), text: message });
+    const typed = text.trim();
+    const message = typed.length >= 2 ? typed : attached.length > 0 ? PHOTO_ONLY_TEXT[kind] : "";
+    if (!message || !canAdd(queue)) return;
+    dispatch({ type: "add", id: newLogId("msg"), text: message, photos: attached.map((p) => p.url) });
     setText("");
+    setAttached([]);
+    setPhotoError(null);
     box.current?.focus();
+  }
+
+  // Pictures taken with the camera or picked from the library are shrunk here, so what is sent stays small.
+  async function addPhotos(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const room = roomForPhotos(attached.length);
+    if (room === 0) { setPhotoError(photoErrorMessage("full")); return; }
+    setPhotoError(files.length > room ? photoErrorMessage("full") : null);
+    for (const file of Array.from(files).slice(0, room)) {
+      try {
+        const photo = await photoFromFile(file);
+        setAttached((current) => (current.length < MAX_PHOTOS ? [...current, photo] : current));
+      } catch (e) {
+        setPhotoError(photoErrorMessage((e as Error).message === "type" ? "type" : (e as Error).message === "size" ? "size" : "read"));
+      }
+    }
   }
 
   // A message that failed goes back in the box in front of whatever has been typed since.
@@ -231,6 +257,24 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
       {!draft && !compact && <p className="mb-3 text-xs text-slate-400">{copy.intro}</p>}
 
       <div className="relative">
+        {photos && attached.length > 0 && (
+          <ul data-testid="attached-photos" aria-label="Photos on this message" className="mb-2 flex flex-wrap gap-2">
+            {attached.map((photo) => (
+              <li key={photo.id} className="relative">
+                <img src={photo.url} alt="Attached photo" className="h-16 w-16 rounded-lg border border-slate-600 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setAttached((current) => current.filter((p) => p.id !== photo.id))}
+                  aria-label="Remove this photo"
+                  title="Remove"
+                  className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full border border-slate-500 bg-slate-900 text-slate-300 hover:text-red-300"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <textarea
           ref={box}
           value={text}
@@ -243,14 +287,42 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
           enterKeyHint="send"
           placeholder={draft ? copy.next : copy.placeholder}
           aria-label={draft ? "Add to this day" : copy.title}
-          className="w-full resize-y rounded-xl border border-slate-600 bg-slate-800/70 px-3 py-2.5 pr-12 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1"
+          className={`w-full resize-y rounded-xl border border-slate-600 bg-slate-800/70 px-3 py-2.5 ${photos ? "pb-11" : ""} pr-12 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1`}
           style={{ ["--tw-ring-color" as string]: accent }}
         />
+        {photos && (
+          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1">
+            <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="sr-only" aria-hidden tabIndex={-1} onChange={(e) => { void addPhotos(e.target.files); e.target.value = ""; }} />
+            <input ref={libraryInput} type="file" accept="image/*" multiple className="sr-only" aria-hidden tabIndex={-1} onChange={(e) => { void addPhotos(e.target.files); e.target.value = ""; }} />
+            <button
+              type="button"
+              data-testid="take-photo"
+              onClick={() => cameraInput.current?.click()}
+              disabled={attached.length >= MAX_PHOTOS}
+              aria-label="Take a photo"
+              title="Take a photo"
+              className="grid h-8 w-8 place-items-center rounded-full border border-slate-600 text-slate-300 hover:text-white disabled:opacity-40"
+            >
+              <Camera className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              data-testid="attach-photo"
+              onClick={() => libraryInput.current?.click()}
+              disabled={attached.length >= MAX_PHOTOS}
+              aria-label="Attach a photo"
+              title="Attach a photo"
+              className="grid h-8 w-8 place-items-center rounded-full border border-slate-600 text-slate-300 hover:text-white disabled:opacity-40"
+            >
+              <ImagePlus className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         <div className="absolute bottom-2.5 right-2.5">
           <button
             type="button"
             onClick={submit}
-            disabled={text.trim().length < 2 || !canAdd(queue)}
+            disabled={(text.trim().length < 2 && attached.length === 0) || !canAdd(queue)}
             aria-label="Send to AI"
             title="Send"
             className="grid h-8 w-8 place-items-center rounded-full text-slate-900 transition-opacity disabled:opacity-40"
@@ -261,6 +333,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
         </div>
       </div>
       <PendingMessages queue={queue} onRetry={(id) => dispatch({ type: "retry", id })} onEdit={bringBack} onRemove={(id) => dispatch({ type: "remove", id })} />
+      {photoError && <p role="alert" data-testid="photo-error" className="mt-2 text-xs text-amber-300">{photoError}</p>}
       {!canAdd(queue) && <p role="status" data-testid="queue-full" className="mt-2 text-xs text-amber-300">{MAX_WAITING} messages are waiting. You can add more once some have gone in.</p>}
     </section>
     {below?.(parts, updating)}

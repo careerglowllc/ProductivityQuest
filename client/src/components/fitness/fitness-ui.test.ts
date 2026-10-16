@@ -15,7 +15,7 @@ test("the entry box is a chat-style text area with a send button and no micropho
   assert.ok(box.includes('aria-label="Send to AI"'));
   assert.ok(!/Mic|voice typing|speech|dictat|microphone/i.test(box), "typed text only: no microphone, voice typing or dictation hints");
   assert.ok(!read("lib/fitness-entry.ts").includes("joinTranscript"));
-  assert.ok(box.includes("requestSessionUpdate(kind, message, current, localToday(), plan)"), "the AI is given the day so far and the routine");
+  assert.ok(box.includes("requestSessionUpdate(kind, message, current, localToday(), plan, pictures)"), "the AI is given the day so far and the routine");
   assert.ok(box.includes("applyUpdate(kind, current, result, message"));
 });
 
@@ -123,8 +123,23 @@ test("the Lifting page's bests widget is handed to the entry box, so it sits rig
   assert.ok(widget.includes("liftCards({") && widget.includes("parts?.actions") && widget.includes("parts?.planLine") && widget.includes("parts?.onRemove(index)"));
 });
 
+test("the Calories box offers the camera and the photo library, and the Lifting box does not", () => {
+  assert.ok(/<FitnessSessionPanel[^]*?\n\s+photos\n/.test(calories), "photos are on for food");
+  assert.ok(!/<FitnessSessionPanel[^]*?\n\s+photos\n/.test(lifting));
+  assert.ok(box.includes('accept="image/*" capture="environment"'), "the camera button opens the camera on a phone");
+  assert.ok(box.includes('accept="image/*" multiple'), "the attach button opens the library");
+  assert.ok(box.includes('data-testid="take-photo"') && box.includes('aria-label="Take a photo"'));
+  assert.ok(box.includes('data-testid="attach-photo"') && box.includes('aria-label="Attach a photo"'));
+  assert.ok(box.includes("photoFromFile(file)"), "pictures are shrunk on the device before they are sent");
+  assert.ok(box.includes('dispatch({ type: "add", id: newLogId("msg"), text: message, photos: attached.map((p) => p.url) })'));
+  assert.ok(box.includes("attached.length > 0 ? PHOTO_ONLY_TEXT[kind]"), "a photo on its own can be sent");
+  assert.ok(box.includes('data-testid="attached-photos"') && box.includes('aria-label="Remove this photo"'));
+  const plist = readFileSync(new URL("../../../../ios/App/App/Info.plist", import.meta.url), "utf8");
+  assert.ok(plist.includes("NSCameraUsageDescription") && plist.includes("NSPhotoLibraryUsageDescription"), "iOS asks for the camera and the library with a reason");
+});
+
 test("Enter sends at once: the box clears and is never disabled, and the text goes into a queue instead of waiting for the AI", () => {
-  const submit = box.slice(box.indexOf("function submit()"), box.indexOf("// A message that failed goes back"));
+  const submit = box.slice(box.indexOf("function submit()"), box.indexOf("// Pictures taken with the camera"));
   assert.ok(submit.includes('dispatch({ type: "add"') && submit.includes('setText("")'), "added to the queue and the box emptied");
   assert.ok(!submit.includes("await") && !submit.includes("requestSessionUpdate"), "sending the text does not wait for the AI");
   assert.ok(submit.includes("!canAdd(queue)"), "only a long backlog holds a message back");
@@ -138,7 +153,7 @@ test("queued messages go in one at a time, each built on the day as it is when i
   const effect = box.slice(box.indexOf("// Sends the next waiting message"), box.indexOf("// Leaving or reloading"));
   assert.ok(effect.includes("const next = nextToSend(queue)") && effect.includes('dispatch({ type: "start", id: next.id })'));
   assert.ok(effect.includes("readDraft: () => draftRef.current") && box.includes("draftRef.current = draft;"), "the latest day, not the one from when the text was typed");
-  assert.ok(effect.includes("requestSessionUpdate(kind, message, current, localToday(), plan)"), "the AI is given the day so far and the routine");
+  assert.ok(effect.includes("requestSessionUpdate(kind, message, current, localToday(), plan, pictures)"), "the AI is given the day so far, the routine and any photos");
   assert.ok(effect.includes("commit: (updated) => { draftRef.current = updated; onDraftChange(updated); }"), "saved after each message, and the next one sees it");
   assert.ok(effect.includes('dispatch({ type: "done", id: next.id })') && effect.includes('dispatch({ type: "fail", id: next.id, error: outcome.error })'));
   assert.ok(box.includes("const locked = updating") && box.includes("const updating = isProcessing(queue)"), "the day is not edited by hand while a message is going in");

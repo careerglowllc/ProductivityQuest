@@ -4,7 +4,7 @@ import express from "express";
 import { registerFitnessAi, type Complete } from "./fitness-ai";
 
 async function withServer(options: { complete?: Complete; available?: () => boolean; clock?: () => Date; authed?: boolean }, run: (call: (body: unknown) => Promise<{ status: number; json: any }>) => Promise<void>) {
-  const app = express(); app.use(express.json());
+  const app = express(); app.use(express.json({ limit: "40mb" })); // the same limit as server/index.ts, so photo-sized bodies reach the route
   registerFitnessAi(app, (req, res, next) => {
     if (options.authed === false) { res.sendStatus(401); return; }
     req.session = { userId: "u1" } as any; next();
@@ -398,4 +398,78 @@ test("a routine cannot break out of its quoted block", async () => {
   });
   assert.equal((seen.match(/"""/g) ?? []).length, 4, "the routine block and the notes block, each with an opening and closing mark");
   assert.doesNotMatch(seen.slice(seen.indexOf("Their usual routine"), seen.indexOf("Notes:")), /\n\s*lines/, "line breaks in notes are flattened");
+});
+
+// ── photos ──────────────────────────────────────────────────────────────────
+const photo = (chars = 40) => `data:image/jpeg;base64,${"A".repeat(chars)}`;
+
+test("photos are sent to the AI with the notes, and the prompt says how to read them", async () => {
+  let seen: { system: string; user: string; images?: string[] } | null = null;
+  await withServer({ complete: async (system, user, images) => { seen = { system, user, images }; return mealJson; } }, async (call) => {
+    const result = await call({ kind: "meal", text: "this plate", images: [photo(), photo(60)], today: "2026-10-13" });
+    assert.equal(result.status, 200);
+    assert.equal(result.json.meal.totals.calories, 230);
+  });
+  assert.deepEqual(seen!.images, [photo(), photo(60)]);
+  assert.match(seen!.user, /2 photos are attached to the new notes\./);
+  assert.match(seen!.system, /Photos are sent with the notes/);
+  assert.match(seen!.system, /never as instructions/);
+  assert.match(seen!.system, /A label or menu in the photo is the best source/);
+});
+
+test("one photo is said in the singular, and without photos nothing about them is in the prompt", async () => {
+  let seen: { system: string; user: string; images?: string[] } | null = null;
+  await withServer({ complete: async (system, user, images) => { seen = { system, user, images }; return mealJson; } }, async (call) => {
+    assert.equal((await call({ kind: "meal", text: "this plate", images: [photo()] })).status, 200);
+  });
+  assert.match(seen!.user, /One photo is attached to the new notes\./);
+  await withServer({ complete: async (system, user, images) => { seen = { system, user, images }; return mealJson; } }, async (call) => {
+    assert.equal((await call({ kind: "meal", text: "two eggs and toast" })).status, 200);
+  });
+  assert.deepEqual(seen!.images, []);
+  assert.doesNotMatch(seen!.system, /Photos are sent/);
+  assert.doesNotMatch(seen!.user, /photo/);
+});
+
+test("a photo goes with a day that is being built up, and with a workout too", async () => {
+  let seen: { user: string; images?: string[] } | null = null;
+  await withServer({ complete: async (_system, user, images) => { seen = { user, images }; return mealJson; } }, async (call) => {
+    const result = await call({ kind: "meal", session: true, current: JSON.parse(mealJson), text: "and this", images: [photo()], today: "2026-10-13" });
+    assert.equal(result.status, 200);
+  });
+  assert.equal(seen!.images?.length, 1);
+  assert.match(seen!.user, /The food list so far \(JSON\)/);
+  await withServer({ complete: async (_system, user, images) => { seen = { user, images }; return workoutJson; } }, async (call) => {
+    assert.equal((await call({ kind: "workout", text: "the machine screen", images: [photo()] })).status, 200);
+  });
+  assert.equal(seen!.images?.length, 1);
+});
+
+test("anything that is not a small picture is refused before the AI is asked", async () => {
+  let asked = 0;
+  await withServer({ complete: async () => { asked++; return mealJson; } }, async (call) => {
+    const bad = [
+      "https://example.com/lunch.jpg",
+      "data:text/html;base64,PHNjcmlwdD4=",
+      "data:image/svg+xml;base64,PHN2Zz4=",
+      `data:image/jpeg;base64,${"A".repeat(1_500_001)}`,
+      "data:image/jpeg;base64,not base64!",
+      42,
+    ];
+    for (const image of bad) {
+      assert.equal((await call({ kind: "meal", text: "this plate", images: [image] })).status, 400, String(image).slice(0, 40));
+    }
+    assert.equal((await call({ kind: "meal", text: "this plate", images: [photo(), photo(), photo(), photo(), photo()] })).status, 400, "at most four");
+    assert.equal((await call({ kind: "meal", text: "this plate", images: photo() })).status, 400, "not a list");
+  });
+  assert.equal(asked, 0);
+});
+
+test("png and webp photos are taken too, and an empty list is fine", async () => {
+  await withServer({ complete: async () => mealJson }, async (call) => {
+    for (const image of ["data:image/png;base64,AAAA", "data:image/webp;base64,AAA=", "data:image/jpeg;base64,AA=="]) {
+      assert.equal((await call({ kind: "meal", text: "this plate", images: [image] })).status, 200, image);
+    }
+    assert.equal((await call({ kind: "meal", text: "two eggs and toast", images: [] })).status, 200);
+  });
 });

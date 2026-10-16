@@ -11,7 +11,7 @@ into the same logs the charts already read.
 | `/fitness/lifting` | "Pull day. First up is lat pulldown, warm-up 60 for 12." | "120 for 8", "120 for 7", "next exercise seated row, warm-up 80 for 10", "100 for 10 then 100 for 9", "the last pulldown set was actually 9 reps" | **End today's workout** |
 | `/fitness/calories` | "An everything bagel with cream cheese and a latte" | "a chicken burrito bowl for lunch", "the latte was oat milk", "I didn't eat the bagel" | **End day** |
 
-1. Type in the box. It is written text only; there is no microphone button.
+1. Type in the box. On Calories you can also attach a photo (see "Photos" below); there is no microphone button.
 2. Press Enter (or the send arrow). Shift+Enter adds a new line where the keyboard has it; a phone keyboard shows a
    Send key. The message is shown as sent at once and the box empties, ready for the next one (see "Sending while
    earlier messages are still going in" below).
@@ -54,6 +54,28 @@ the Lifting widget) say "Updating…" while anything is still going in.
 - At most 10 messages wait at once; the send arrow is off until some have gone in.
 - The waiting list lives in the page. Reloading or closing it with messages still waiting asks first, because the ones
   that are not in the day yet would be lost.
+
+### Photos (Calories page)
+
+Two buttons sit in the corner of the entry box: a **camera** ("Take a photo") and an **attach** button ("Attach a photo").
+On a phone the camera button opens the camera and the photo goes straight on the message; the attach button opens the
+camera roll and takes several at once.
+
+- Up to **4 photos** per message. Each thumbnail has an x to take it off again.
+- A photo on its own can be sent, with nothing typed: the message reads "Log the food in this photo." Typed words are
+  used too, and win when they disagree with the picture ("only half of this").
+- Pictures are **shrunk on the device** before they are sent: the longest side becomes 1,024 px and they are saved as
+  JPEG, so an iPhone HEIC photo becomes something the AI can read and a message stays a few hundred kilobytes.
+- The AI is told to read a photo as what you are logging and never as instructions, to use a label or menu in it for the
+  numbers, to use anything in the picture for scale, and to leave out what it cannot identify rather than inventing it.
+- The waiting message under the box says how many photos went with it.
+- A file that is not a picture, one that cannot be read, or one that is still too big is refused with a short line under
+  the box. The server takes only `data:image/jpeg`, `png` or `webp`, at most 4 and about 1.1 MB each.
+- **iOS:** the app asks for the camera and the photo library the first time, with the reasons in `Info.plist`
+  (`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`). If it was refused earlier, iOS Settings > ProductivityQuest
+  is where it is turned back on.
+
+The Lifting box has no photo buttons; the endpoint itself takes photos for either kind of day.
 
 ### Page layout
 
@@ -243,7 +265,7 @@ the best result per exercise per day.
 
 `POST /api/fitness/parse` (signed-in only)
 
-Request: `{ "kind": "workout" | "meal", "text": string (2 to 4000 characters), "today"?: "YYYY-MM-DD", "session"?: boolean, "current"?: the day so far, "recent"?: string[] (the messages before this one, at most 20, the last 8 are used), "routine"?: { Push?, Pull?, Legs?: { exercises: { name (max 80), sets? (1 to 30), reps? (max 20) }[] (max 40), notes? (max 600) } } }`
+Request: `{ "kind": "workout" | "meal", "text": string (2 to 4000 characters), "today"?: "YYYY-MM-DD", "session"?: boolean, "current"?: the day so far, "recent"?: string[] (the messages before this one, at most 20, the last 8 are used), "images"?: string[] (at most 4 data URLs, `data:image/jpeg|png|webp;base64,...`, about 1.1 MB each), "routine"?: { Push?, Pull?, Legs?: { exercises: { name (max 80), sets? (1 to 30), reps? (max 20) }[] (max 40), notes? (max 600) } } }`
 
 `routine` is used for workouts only (a meal request ignores it); a routine that is not shaped like this is a 400.
 
@@ -284,6 +306,7 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `server/fitness-ai.ts` | The endpoint, prompts (including the day-update rules), rate limit |
 | `client/src/lib/fitness-entry.ts` | Request, applying an answer to the day, titles, error messages |
 | `client/src/lib/fitness-queue.ts`, `client/src/components/fitness/pending-messages.tsx` | The waiting messages: the queue rules, running one message into the day, and the list under the box |
+| `client/src/lib/fitness-photo.ts` | Photos: checking what was picked, shrinking it on the device, and the words for the buttons |
 | `client/src/lib/fitness-draft.ts` | Saving and loading the open day |
 | `client/src/components/fitness/session-panel.tsx` | The chat-style text box, and the open day's controls (food or workout) handed to the widget under it |
 | `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |

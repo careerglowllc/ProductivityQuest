@@ -2439,6 +2439,7 @@ npm run db:push      # Apply database migrations
 **Type or speak what you lifted or ate; the AI fills in the logs**
 
 - **Where:** a chat-style entry box on the Lifting and Calories pages (typed text, sent with Enter or the send arrow)
+- **Photos (Calories):** a camera button that opens the phone's camera and an attach button for the camera roll, up to 4 per message. A photo can be sent on its own, is shrunk on the device before it is sent, and the AI reads the plate or the label to estimate it
 - **Instant sending:** Enter shows the message as sent and empties the box at once, so the next one can be typed right away; messages sent while one is still going in wait in a short queue and are worked in one at a time, in order, with the bars, foods and charts updating as each finishes (a failed one waits for a retry, edit or remove)
 - **Flow:** the first message starts the day; each later message updates one summary (new exercise, next set, a correction, more food), which is the Today vs your bests card on Lifting and the Today vs your goals card on Calories, right under the text box; every change is saved at once; **End today's workout** / **End day** puts the day in the charts and the next message starts a new day
 - **Editing:** undo the last entry, remove single items, change the date, and reopen any saved day with the pencil in "Logged with AI"

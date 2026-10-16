@@ -3,10 +3,10 @@
 import { fitnessErrorMessage, type FitnessDraft, type ParseResult } from "@/lib/fitness-entry";
 
 export type QueueStatus = "queued" | "sending" | "failed";
-export interface QueuedMessage { id: string; text: string; status: QueueStatus; error?: string }
+export interface QueuedMessage { id: string; text: string; status: QueueStatus; error?: string; photos?: string[] }
 
 export type QueueAction =
-  | { type: "add"; id: string; text: string }
+  | { type: "add"; id: string; text: string; photos?: string[] }
   | { type: "start"; id: string }
   | { type: "done"; id: string }
   | { type: "fail"; id: string; error: string }
@@ -17,13 +17,16 @@ export const MAX_WAITING = 10;
 
 export const canAdd = (queue: readonly QueuedMessage[]): boolean => queue.length < MAX_WAITING;
 
+const keep = (m: QueuedMessage, status: QueueStatus, error?: string): QueuedMessage =>
+  ({ id: m.id, text: m.text, status, ...(error ? { error } : {}), ...(m.photos?.length ? { photos: m.photos } : {}) });
+
 export function queueReducer(queue: QueuedMessage[], action: QueueAction): QueuedMessage[] {
   switch (action.type) {
-    case "add": return canAdd(queue) ? [...queue, { id: action.id, text: action.text, status: "queued" }] : queue;
+    case "add": return canAdd(queue) ? [...queue, { id: action.id, text: action.text, status: "queued", ...(action.photos?.length ? { photos: action.photos } : {}) }] : queue;
     case "start": return queue.map((m) => (m.id === action.id && m.status === "queued" ? { ...m, status: "sending" } : m));
     case "done": return queue.filter((m) => m.id !== action.id);
-    case "fail": return queue.map((m) => (m.id === action.id ? { id: m.id, text: m.text, status: "failed", error: action.error } : m));
-    case "retry": return queue.map((m) => (m.id === action.id && m.status === "failed" ? { id: m.id, text: m.text, status: "queued" } : m));
+    case "fail": return queue.map((m) => (m.id === action.id ? keep(m, "failed", action.error) : m));
+    case "retry": return queue.map((m) => (m.id === action.id && m.status === "failed" ? keep(m, "queued") : m));
     case "remove": return queue.filter((m) => m.id !== action.id || m.status === "sending");
   }
 }
@@ -46,8 +49,9 @@ const keyOf = (draft: FitnessDraft | null) => (draft ? `${draft.id}:${draft.upda
 
 export interface RunIo {
   text: string;
+  photos?: string[]; // pictures sent with this message
   readDraft: () => FitnessDraft | null; // the day as it is right now, including earlier messages that just finished
-  send: (text: string, draft: FitnessDraft | null) => Promise<ParseResult>;
+  send: (text: string, draft: FitnessDraft | null, photos: string[]) => Promise<ParseResult>;
   apply: (draft: FitnessDraft | null, result: ParseResult, text: string) => { draft: FitnessDraft; changes: string[] };
   commit: (draft: FitnessDraft) => void; // saves the updated day
 }
@@ -58,7 +62,7 @@ export type RunOutcome = { ok: true; draft: FitnessDraft; changes: string[] } | 
 export async function runMessage(io: RunIo): Promise<RunOutcome> {
   const base = io.readDraft();
   try {
-    const result = await io.send(io.text, base);
+    const result = await io.send(io.text, base, io.photos ?? []);
     if (keyOf(io.readDraft()) !== keyOf(base)) return { ok: false, error: DAY_CHANGED };
     const update = io.apply(base, result, io.text);
     if (update.changes.length === 0) return { ok: false, error: NOT_CHANGED };

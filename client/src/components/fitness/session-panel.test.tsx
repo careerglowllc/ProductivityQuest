@@ -207,3 +207,20 @@ test("food days never have a plan line", () => {
   const plan = planFromRoutine({ ...emptyRoutine(), Pull: { exercises: "Lat Pulldown 3x8", notes: "" } });
   assert.equal(partsOf(newDraft("meal-1", now, "x", food()), "meal", plan).planLine, null);
 });
+
+test("with photos on, the box has a camera button, an attach button and their hidden file inputs", () => {
+  const html = renderToStaticMarkup(createElement(FitnessSessionPanel, { kind: "meal", draft: null, photos: true, onDraftChange: () => {}, onEnd: () => {} }));
+  assert.match(html, /<button[^>]*data-testid="take-photo"[^>]*aria-label="Take a photo"/);
+  assert.match(html, /<button[^>]*data-testid="attach-photo"[^>]*aria-label="Attach a photo"/);
+  assert.match(html, /<input[^>]*type="file"[^>]*accept="image\/\*"[^>]*capture="environment"[^>]*class="sr-only"/, "the camera button opens the camera on a phone");
+  assert.match(html, /<input[^>]*type="file"[^>]*accept="image\/\*"[^>]*multiple=""/, "the attach button takes several at once");
+  assert.doesNotMatch(html, /attached-photos|photo-error/, "nothing is attached yet");
+  assert.doesNotMatch(button(html, "take-photo"), / disabled=""/, "the camera is ready");
+});
+
+test("without photos the box is as it was: no camera, no attach, no file inputs", () => {
+  for (const html of [render("meal", null), render("workout", null)]) {
+    assert.doesNotMatch(html, /take-photo|attach-photo|type="file"/);
+    assert.equal((html.match(/<button/g) ?? []).length, 1, "only the send button");
+  }
+});

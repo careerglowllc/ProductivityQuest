@@ -147,6 +147,7 @@ export default function FitnessCaloriesPage() {
       kind="meal"
       accent="#F87171"
       compact={isMobile}
+      photos
       draft={draft}
       onDraftChange={(next) => updateDraft(next as MealDraft | null)}
       onEnd={endDay}
