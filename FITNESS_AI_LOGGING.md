@@ -12,8 +12,8 @@ into the same logs the charts already read.
 | `/fitness/calories` | "An everything bagel with cream cheese and a latte" | "a chicken burrito bowl for lunch", "the latte was oat milk", "I didn't eat the bagel" | **End day** |
 
 1. Type in the box, or tap the microphone and speak. Dictated words are added to what is already typed.
-2. Press the send arrow (Enter on a computer, Shift+Enter for a new line; on a phone Enter is a new line, or use
-   Ctrl/Cmd+Enter).
+2. Press Enter (or the send arrow). Shift+Enter adds a new line where the keyboard has it; a phone keyboard shows a
+   Send key.
 3. A summary box appears above the text box ("Today's pull day", "Today's food"). It lists each exercise with its sets
    and warm-up, or each food with its calories and macros, and a "Last entry" line says what the message changed.
 4. Keep sending. The AI is given the day so far and your earlier messages, so "120 for 8" means a set of the exercise
@@ -31,6 +31,26 @@ In the summary box you can also:
 - Remove a single exercise or food with the x beside it.
 - Change the **Day** with the date field (not into the future).
 - **Discard** the open day.
+
+### Phone layout
+
+On a phone both pages are laid out for logging first:
+
+1. The title, kept small.
+2. A very thin **Today** row: today's running totals (calories and macros with a hairline toward the 2,200 kcal
+   reference; or the day's type, exercises, sets and volume for lifting), or a dashed placeholder ("Nothing logged yet",
+   "No workout yet") when there is nothing. It counts the open day too, so it changes with every message, and a pulsing
+   dot says the day is still open.
+3. The entry box, with no heading or explanation above it.
+4. A collapsible **Stats** widget, open by default: this week's tiles, a seven-day bar chart (with the goal line for
+   calories), highlights (streak, best protein day and the change from last week for food; workouts, volume against
+   last week, the heaviest lift and the Push / Pull / Legs split for lifting), the weekly log (today first) and an
+   all-time line. While it is collapsed, one line of the week is shown instead. Tapping the header opens or collapses it.
+   The choice is saved on the account (`workout-stats-open-v1`, `calories-stats-open-v1`), so it is the same after
+   logging out and in, and on another device.
+
+The big count cards that used to sit above the entry box are shown on larger screens only; their all-time numbers are
+the last line of the Stats widget. Larger screens keep the layout they had.
 
 ### Editing a saved day
 
@@ -72,6 +92,7 @@ Voice typing uses the browser's speech recognition where it exists (Chrome, Edge
 | --- | --- | --- |
 | The open workout day | `workout-session-v1` | `SessionDraft<ParsedWorkout>`: `id`, `date`, `messages`, `summary`, `undo` steps, `reopened`. Removed when the day ends or is discarded. |
 | The open food day | `calories-session-v1` | `SessionDraft<ParsedMeal>`, the same shape. |
+| Stats widget open or collapsed | `workout-stats-open-v1`, `calories-stats-open-v1` | `"1"` or `"0"`; open when missing. |
 | Lifting log | `workout-ppl-log-v1` | `WorkoutLogEntry[]`. Entries logged with AI carry `logId` (the draft's id, so ending again replaces them) and `sets` (exact sets, which is also what lets a saved day be reopened). |
 | Calorie log | `calories-daily-log-v1` | `CalorieDayLog[]`. Totals include every ended day; `meals` lists them (`id` is the draft's id, plus text, items, totals) so one can be taken out or reopened. Older days without the extra nutrients (`satFat`, `fiber`, `sugar`, `potassium`, `iron`) are fine; those are optional. |
 
@@ -128,17 +149,22 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | File | Role |
 | --- | --- |
 | `shared/fitness-log.ts` | Shared pure logic: validation, unit conversion, totals, add/remove, session summaries, finishing a workout, rebuilding a saved day for editing |
+| `shared/fitness-today.ts` | Today's running totals with the open day included, and the words in the thin Today row |
+| `shared/fitness-stats.ts` | The week's numbers for the Stats widget: seven days, streak, averages, volume against last week |
 | `shared/fitness-session.ts` | The open day: start, add an entry, undo, change date, what a message changed, stored-draft checks, newer-copy rule, End button wording |
 | `server/fitness-ai.ts` | The endpoint, prompts (including the day-update rules), rate limit |
 | `client/src/lib/fitness-entry.ts` | Request, applying an answer to the day, titles, error messages |
 | `client/src/lib/fitness-draft.ts` | Saving and loading the open day |
 | `client/src/hooks/use-speech-to-text.ts` | Voice typing |
 | `client/src/components/fitness/session-panel.tsx` | The summary box, buttons and chat-style text box |
+| `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The phone layout's Today row and Stats widget |
+| `client/src/lib/stats-open.ts`, `client/src/hooks/use-stats-open.ts` | Remembering whether the Stats widget is open |
+| `client/src/lib/fitness-stats-text.ts` | The wording and chart values for the Stats widget |
 | `client/src/lib/nutrition-chart.ts` | Day, week and month averaging for the charts |
 | `client/src/pages/fitness-lifting.tsx`, `fitness-calories.tsx` | The pages: keep the open day, end it into the log, reopen saved days |
 
 ## Tests
 
-- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
+- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
 - `npm run test:focus` runs `server/fitness-ai.test.ts` (the endpoint with a fake AI).
 - Manual steps: see [FITNESS_AI_LOGGING_TEST_CASES.md](FITNESS_AI_LOGGING_TEST_CASES.md).

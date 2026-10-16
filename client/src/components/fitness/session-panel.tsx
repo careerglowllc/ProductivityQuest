@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, MicOff, Send, Undo2, Flag, Trash2, X } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import {
   applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, joinTranscript, localToday, newLogId, nutrientText,
@@ -29,14 +28,14 @@ const COPY: Record<FitnessKind, { title: string; intro: string; placeholder: str
 
 // A chat-style box for one day. The first message starts the day, each later message updates the same summary above the
 // box, and every change is saved at once. Ending the day is what puts it in the charts.
-export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399" }: {
+export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false }: {
   kind: FitnessKind;
   draft: FitnessDraft | null;
   onDraftChange: (draft: FitnessDraft | null) => void;
   onEnd: (draft: FitnessDraft) => void;
   accent?: string;
+  compact?: boolean; // the phone layout: no heading or explanation above the box, and less space below it
 }) {
-  const isMobile = useIsMobile();
   const copy = COPY[kind];
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,9 +82,9 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   const locked = busy;
 
   return (
-    <section aria-label={copy.title} data-testid={`session-${kind}`} className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8">
-      <div className="mb-1 font-bold text-white">{copy.title}</div>
-      {!draft && <p className="mb-3 text-xs text-slate-400">{copy.intro}</p>}
+    <section aria-label={copy.title} data-testid={`session-${kind}`} className={`rounded-2xl border border-slate-700/60 bg-slate-900/50 ${compact ? "p-3 sm:p-5 mb-4" : "p-4 sm:p-5 mb-8"}`}>
+      {!compact && <div className="mb-1 font-bold text-white">{copy.title}</div>}
+      {!draft && !compact && <p className="mb-3 text-xs text-slate-400">{copy.intro}</p>}
 
       {draft && (
         <div className="mb-4 mt-2 rounded-xl border bg-slate-800/50 p-3" style={{ borderColor: `${accent}66` }} data-testid="session-summary">
@@ -190,10 +189,11 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && (!isMobile || e.metaKey || e.ctrlKey)) { e.preventDefault(); void submit(); }
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submit(); }
           }}
-          rows={draft ? 2 : 3}
+          rows={draft || compact ? 2 : 3}
           maxLength={4000}
+          enterKeyHint="send"
           placeholder={draft ? copy.next : copy.placeholder}
           aria-label={draft ? "Add to this day" : copy.title}
           disabled={busy}

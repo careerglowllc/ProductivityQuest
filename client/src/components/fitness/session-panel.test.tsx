@@ -21,8 +21,8 @@ const food = (date = today): ParsedMeal => normalizeMeal({ date, items: [
   { name: "latte", quantity: "12 oz", confidence: "low", calories: 150, protein: 8, carbs: 12, fat: 8 },
 ] }, date);
 
-const render = (kind: FitnessKind, draft: FitnessDraft | null) =>
-  renderToStaticMarkup(createElement(FitnessSessionPanel, { kind, draft, onDraftChange: () => {}, onEnd: () => {} }));
+const render = (kind: FitnessKind, draft: FitnessDraft | null, compact = false) =>
+  renderToStaticMarkup(createElement(FitnessSessionPanel, { kind, draft, compact, onDraftChange: () => {}, onEnd: () => {} }));
 const button = (html: string, testId: string) => html.match(new RegExp(`<button[^>]*data-testid="${testId}"[^>]*>`))?.[0] ?? "";
 
 test("with no day open there is a box to start one and an explanation, but no summary or end button", () => {
@@ -116,4 +116,22 @@ test("the microphone and send buttons are part of the box", () => {
   const html = render("meal", null);
   assert.match(html, /aria-label="Send to AI"/);
   assert.match(html, /keyboard to dictate/, "where voice typing is missing the keyboard's dictation is suggested");
+});
+
+test("the phone layout drops the heading and explanation, keeps the box, and uses less space", () => {
+  const html = render("meal", null, true);
+  assert.doesNotMatch(html, /Log what you ate today<\/div>/);
+  assert.doesNotMatch(html, /Press End day when you are done eating/);
+  assert.match(html, /placeholder="An everything bagel/);
+  assert.match(html, /aria-label="Log what you ate today"/, "the box is still labelled for screen readers");
+  assert.match(html, /p-3 sm:p-5 mb-4/);
+  assert.match(render("meal", null, false), /p-4 sm:p-5 mb-8/);
+  assert.match(html, /rows="2"/);
+});
+
+test("the keyboard's return key says Send, and an open day still shows its summary on the phone layout", () => {
+  assert.match(render("workout", null), /enterKeyHint="send"/);
+  const html = render("workout", newDraft("lift-1", now, "x", pull()), true);
+  assert.match(html, /data-testid="session-title">Today&#x27;s pull day</);
+  assert.match(html, /enterKeyHint="send"/);
 });

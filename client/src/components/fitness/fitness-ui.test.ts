@@ -20,8 +20,36 @@ test("the entry box is a chat-style text area with a send button and a microphon
   assert.ok(box.includes("applyUpdate(kind, draft, result, text"));
 });
 
-test("Enter sends on a computer (Shift+Enter is a new line), while on a phone it is a new line unless Ctrl or Cmd is held", () => {
-  assert.ok(box.includes('e.key === "Enter" && !e.shiftKey && (!isMobile || e.metaKey || e.ctrlKey)'));
+test("Enter sends the message on every device (Shift+Enter is a new line), and a phone keyboard shows a Send key", () => {
+  assert.ok(box.includes('e.key === "Enter" && !e.shiftKey'));
+  assert.ok(!box.includes("isMobile"), "no special case for phones");
+  assert.ok(box.includes('enterKeyHint="send"'));
+});
+
+test("on a phone each page shows the title, the thin today row, the entry box and then the Stats widget, before anything else", () => {
+  for (const [name, page] of [["lifting", lifting], ["calories", calories]] as const) {
+    const strip = page.indexOf("{isMobile && <TodayStrip");
+    const panel = page.indexOf("{isMobile && panel}");
+    const stats = page.indexOf("{isMobile && statsWidget}");
+    const cards = page.indexOf("{!isMobile && (");
+    const desktopPanel = page.indexOf("{!isMobile && panel}");
+    assert.ok(page.indexOf("<h1") < strip, `${name}: the row comes right after the title`);
+    assert.ok(strip > 0 && strip < panel && panel < stats && stats < cards && cards < desktopPanel, `${name}: row, entry box, Stats, then the desktop layout`);
+    assert.ok(page.includes("compact={isMobile}"), `${name}: the entry box is compact on a phone`);
+    assert.ok(page.includes("draft !== null && draft.date === today"), `${name}: the row shows when today's log is still open`);
+    assert.ok(page.includes("{!isMobile && <p className=\"text-slate-400 italic text-sm\">"), `${name}: the long subtitle is left out on a phone`);
+  }
+});
+
+test("the row and the Stats widget follow the open day, so they change with every message", () => {
+  assert.ok(lifting.includes("workoutLogWithDraft(entries, draft)") && lifting.includes("liftStripText(todayLift(previewEntries, today))") && lifting.includes("liftWeek(previewEntries, today)"));
+  assert.ok(calories.includes("mealLogWithDraft(log, draft)") && calories.includes("mealStripText(todayStat)") && calories.includes("calorieWeek(previewLog, today, CALORIE_GOAL)"));
+  assert.ok(calories.includes("todayStat.calories / CALORIE_GOAL"), "the hairline fills toward the calorie goal");
+});
+
+test("the desktop layout keeps the count cards above the entry box, and the Logged-with-AI list sits tight under the box only there", () => {
+  assert.ok(lifting.includes("Sessions Logged") && calories.includes("Days Logged"));
+  assert.ok(lifting.includes('${isMobile ? "" : "-mt-4"}') && calories.includes('${isMobile ? "" : "-mt-4"}'));
 });
 
 test("every answer is saved to the open day straight away, and a failed request keeps what was typed", () => {

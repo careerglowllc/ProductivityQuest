@@ -12,6 +12,8 @@ Automated coverage is listed first; the manual cases need a browser and OpenAI c
 | Client helpers | `client/src/lib/fitness-entry.test.ts` | dictation joining, server error text, voice error text, summary lines, applying an answer (new day, update, no change, wrong kind), hand removal, move day, undo, titles for today and earlier days, local today, unique ids |
 | Saved open day | `client/src/lib/fitness-draft.test.ts` | saved under the synced prefixes, saved after each change and found again, removed when ended, damaged values ignored, blocked storage never throws |
 | Panel markup | `client/src/components/fitness/session-panel.test.tsx` | no open day: box and explanation only; open day: title, items, auto-save note, End / Undo / Discard states; empty day cannot be ended; stale day notice and dated button; reopened day wording; date field not into the future; food total and estimates note |
+| Today row and Stats (logic) | `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts` | today's totals include the open day (new messages, hand edits, undo, a reopened day replacing its saved copy, a day moved to another date), empty and other-day drafts add nothing, the saved log is never changed, strip wording and placeholders; the seven-day week across month ends, averages over days logged only, streak from today or yesterday, comparison with last week, days under goal, volume change, heaviest lift, Push / Pull / Legs split, all-time numbers |
+| Today row and Stats (screen) | `client/src/components/fitness/today-strip.test.tsx`, `stats-card.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts` | thin row, dashed placeholder, in-progress dot, clamped progress hairline; widget open by default, collapsed state and its one-line summary, tiles, seven bars with today marked, goal line only for calories, highlights, weekly log, empty-week placeholders; the choice saved under the synced prefixes, separately per page, never throws; chart and highlight wording |
 | Chart data | `client/src/lib/nutrition-chart.test.ts` | day, week (Monday start) and month averages, gaps for missing nutrients, macro calories |
 | Wiring | `client/src/components/fitness/fitness-ui.test.ts` | box, mic, Enter behaviour, every answer saved to the open day, failed request keeps the text, End / undo / discard / date / item removal, both pages end into the log with replace-by-id, reopen with edit buttons, newer copy picked up, charts present, synced storage prefixes, route registered |
 
@@ -58,7 +60,7 @@ Pick Calcium, then Fiber; switch Day, Week and Month. **Expect:** the chart foll
 In Chrome or Safari press the microphone, say an entry, press it again. **Expect:** the words appear in the box (added after existing text). Deny the microphone permission. **Expect:** a message that access is blocked. In a browser without speech recognition, **Expect:** no microphone and a tip to use the keyboard's dictation.
 
 ### FL-11: Keyboard
-Computer: Enter sends, Shift+Enter adds a line. Phone: Enter adds a line, send arrow sends.
+Enter sends on a computer and on a phone (the phone keyboard's return key says Send); Shift+Enter adds a line where available. The send arrow sends too.
 
 ### FL-12: Failure messages
 - No OpenAI key: "AI logging is not set up on this server." No credits: a message that the provider reports exhausted credits. The open day is unchanged and the typed text stays in the box.
@@ -71,3 +73,15 @@ End a day on one device, reload on another signed in to the same account. **Expe
 
 ### FL-14: Old data
 With existing entries from before this feature, open both pages. **Expect:** no errors, old rows and days look the same, and new logging works alongside them. Days logged before the day-building flow can be reopened; older rows that were not logged with AI have no pencil.
+
+### FL-15: Phone layout
+On a phone (or a window under 768 px wide) open Calories, then Lifting. **Expect:** the title, then a thin Today row, then the entry box, then the Stats widget, then everything else (Logged with AI, charts, tables). There is no long subtitle and no big count cards. On a larger screen **Expect:** the previous layout, with no Today row or Stats widget.
+
+### FL-16: Today row
+With nothing logged today **Expect:** a dashed row saying "Nothing logged yet" / "No workout yet" with a hint. Send a message. **Expect:** the row fills in (kcal and macros, or type, exercises, sets and volume), a dot pulses while the day is open, and each further message, undo, removal or date change updates it. End the day. **Expect:** the same totals, no dot. Reopen the day and remove an item. **Expect:** the total drops (the saved copy is not counted twice). Move the open day to yesterday. **Expect:** today's row empties.
+
+### FL-17: Stats widget
+**Expect:** open by default with this week's tiles, a seven-day bar chart (today in the strongest colour; the dashed goal line on Calories only), highlights, the weekly log with today first, and the all-time line. Tap the header. **Expect:** it collapses to one line summarizing the week. Tap again. **Expect:** it opens. With an empty week **Expect:** placeholders and an invitation, not zeros or errors.
+
+### FL-18: Stats widget memory
+Collapse it on Calories and leave it open on Lifting. Reload; sign out and back in; open the app on another device with the same account. **Expect:** Calories is collapsed and Lifting is open each time. Open Calories on the second device and collapse or open it; after the next refresh **Expect:** the first device follows.

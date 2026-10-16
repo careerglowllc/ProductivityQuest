@@ -20,7 +20,11 @@ import { adoptNewerDraft, newDraft, type MealDraft } from "@shared/fitness-sessi
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { FitnessSessionPanel } from "@/components/fitness/session-panel";
 import { loadMealDraft, saveMealDraft } from "@/lib/fitness-draft";
-import type { FitnessDraft } from "@/lib/fitness-entry";
+import { localToday, type FitnessDraft } from "@/lib/fitness-entry";
+import { TodayStrip } from "@/components/fitness/today-strip";
+import { CalorieStats } from "@/components/fitness/stats-card";
+import { mealLogWithDraft, mealStripText, todayMeals } from "@shared/fitness-today";
+import { allTimeCalories, calorieWeek } from "@shared/fitness-stats";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 
@@ -128,6 +132,16 @@ export default function FitnessCaloriesPage() {
 
   const tableSortedDesc = useMemo(() => [...sortedLog].sort((a, b) => b.date.localeCompare(a.date)), [sortedLog]);
 
+  // On a phone the top of the page works from the log plus the open day, so it changes with every message.
+  const today = localToday();
+  const previewLog = useMemo(() => mealLogWithDraft(log, draft), [log, draft]);
+  const todayStat = todayMeals(previewLog, today);
+  const stripText = mealStripText(todayStat);
+  const week = useMemo(() => calorieWeek(previewLog, today, CALORIE_GOAL), [previewLog, today]);
+  const allTime = useMemo(() => allTimeCalories(log), [log]);
+  const panel = <FitnessSessionPanel kind="meal" accent="#F87171" compact={isMobile} draft={draft} onDraftChange={(next) => updateDraft(next as MealDraft | null)} onEnd={endDay} />;
+  const statsWidget = <CalorieStats week={week} today={today} goal={CALORIE_GOAL} accent="#F87171" allTime={allTime} />;
+
   return (
     <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-rose-950" : "bg-gray-50"} ${!isMobile ? "pt-16" : "pt-2"} pb-24 relative overflow-hidden`}>
       <div className="absolute inset-0 opacity-20 pointer-events-none">
@@ -138,48 +152,56 @@ export default function FitnessCaloriesPage() {
 
       <div className={`relative ${isMobile ? "max-w-5xl mx-auto px-4 pt-4" : "max-w-5xl mx-auto px-6 pt-10"}`}>
         <Link href="/fitness">
-          <a className="inline-flex items-center gap-2 text-slate-400 hover:text-rose-300 text-sm mb-6 transition-colors">
+          <a className={`inline-flex items-center gap-2 text-slate-400 hover:text-rose-300 transition-colors ${isMobile ? "text-xs mb-2" : "text-sm mb-6"}`}>
             <ArrowLeft className="h-4 w-4" /> Back to Fitness
           </a>
         </Link>
 
-        <div className="text-center mb-8 space-y-2">
+        <div className={`text-center ${isMobile ? "mb-3" : "mb-8 space-y-2"}`}>
           <div className="flex items-center justify-center gap-3">
-            <Flame className="h-7 w-7 text-rose-400" />
-            <h1 className={`${isMobile ? "text-2xl" : "text-4xl"} font-serif font-bold text-white tracking-wide`}>
+            <Flame className={`${isMobile ? "h-5 w-5" : "h-7 w-7"} text-rose-400`} />
+            <h1 className={`${isMobile ? "text-xl" : "text-4xl"} font-serif font-bold text-white tracking-wide`}>
               Calorie Log
             </h1>
-            <Flame className="h-7 w-7 text-rose-400" />
+            <Flame className={`${isMobile ? "h-5 w-5" : "h-7 w-7"} text-rose-400`} />
           </div>
-          <p className="text-slate-400 italic text-sm">Daily nutrition tracking — calories, macros, and micros over time</p>
+          {!isMobile && <p className="text-slate-400 italic text-sm">Daily nutrition tracking — calories, macros, and micros over time</p>}
         </div>
 
-        {/* Summary stat cards */}
-        <div className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-4"} gap-3 mb-8`}>
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-center">
-            <p className="text-2xl font-bold text-rose-300">{summary.days}</p>
-            <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Days Logged</p>
-          </div>
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
-            <p className="text-2xl font-bold text-amber-300">{summary.avgCal.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Avg Calories/Day</p>
-          </div>
-          <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-center">
-            <p className="text-2xl font-bold text-cyan-300">{summary.avgProtein}g</p>
-            <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Avg Protein/Day</p>
-          </div>
-          <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4 text-center">
-            <p className="text-sm font-bold text-violet-300">
-              {summary.firstDate && formatDateShort(summary.firstDate)} – {summary.lastDate && formatDateShort(summary.lastDate)}
-            </p>
-            <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Date Range</p>
-          </div>
-        </div>
+        {isMobile && <TodayStrip kind="meal" text={stripText} accent="#F87171" progress={todayStat.hasAny ? todayStat.calories / CALORIE_GOAL : 0} inProgress={draft !== null && draft.date === today} />}
+        {isMobile && panel}
+        {isMobile && statsWidget}
 
-        <FitnessSessionPanel kind="meal" accent="#F87171" draft={draft} onDraftChange={(next) => updateDraft(next as MealDraft | null)} onEnd={endDay} />
+        {!isMobile && (
+          <>
+          {/* Summary stat cards */}
+          <div className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-4"} gap-3 mb-8`}>
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-center">
+              <p className="text-2xl font-bold text-rose-300">{summary.days}</p>
+              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Days Logged</p>
+            </div>
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
+              <p className="text-2xl font-bold text-amber-300">{summary.avgCal.toLocaleString()}</p>
+              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Avg Calories/Day</p>
+            </div>
+            <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-center">
+              <p className="text-2xl font-bold text-cyan-300">{summary.avgProtein}g</p>
+              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Avg Protein/Day</p>
+            </div>
+            <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4 text-center">
+              <p className="text-sm font-bold text-violet-300">
+                {summary.firstDate && formatDateShort(summary.firstDate)} – {summary.lastDate && formatDateShort(summary.lastDate)}
+              </p>
+              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Date Range</p>
+            </div>
+          </div>
+          </>
+        )}
+
+        {!isMobile && panel}
 
         {loggedMeals.length > 0 && (
-          <div className="mb-8 -mt-4" data-testid="recent-meals">
+          <div className={`mb-8 ${isMobile ? "" : "-mt-4"}`} data-testid="recent-meals">
             <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><Sparkles className="h-3 w-3" /> Logged with AI</p>
             <ul className="space-y-1.5">
               {loggedMeals.map((m) => (
