@@ -1,6 +1,7 @@
 import { apiRequest } from "@/lib/queryClient";
 import { localDay } from "@/lib/quotes";
 import { NUTRIENT_INFO, formatSets, removeExercise, removeFoodItem, type NutrientKey, type ParsedMeal, type ParsedWorkout } from "@shared/fitness-log";
+import { planCheck, planHasContent, type RoutinePlan } from "@shared/fitness-routine";
 import {
   addEntry, describeMealChange, describeWorkoutChange, mealHasContent, newDraft, recentMessages, setDraftDate, undoEntry, workoutHasContent,
   type MealDraft, type WorkoutDraft,
@@ -32,9 +33,11 @@ export function fitnessErrorMessage(error: unknown): string {
 export type FitnessDraft = WorkoutDraft | MealDraft;
 
 // Sends what was just typed, together with the day so far and the messages before it, and gets back the whole updated day.
-export async function requestSessionUpdate(kind: FitnessKind, text: string, draft: FitnessDraft | null, today = localToday()): Promise<ParseResult> {
+export async function requestSessionUpdate(kind: FitnessKind, text: string, draft: FitnessDraft | null, today = localToday(), plan?: RoutinePlan): Promise<ParseResult> {
   const context = draft ? { current: draft.summary, recent: recentMessages(draft) } : {};
-  const response = await apiRequest("POST", "/api/fitness/parse", { kind, text, today, session: true, ...context });
+  // What a Push, Pull and Legs day usually hold, so the AI can recognise the lifts and the day.
+  const routine = kind === "workout" && planHasContent(plan) ? { routine: plan } : {};
+  const response = await apiRequest("POST", "/api/fitness/parse", { kind, text, today, session: true, ...context, ...routine });
   return response.json();
 }
 
@@ -105,4 +108,18 @@ export function draftTitle(kind: FitnessKind, draft: FitnessDraft, today: string
     return isToday ? `Today's ${type} day` : `${type[0].toUpperCase()}${type.slice(1)} day · ${formatDayLabel(draft.date)}`;
   }
   return isToday ? "Today's food" : `Food · ${formatDayLabel(draft.date)}`;
+}
+
+// One line under the workout summary: how much of this type of day's plan is done, and what is still to do.
+export function planCheckText(plan: RoutinePlan | undefined, draft: FitnessDraft): string | null {
+  const summary = (draft as WorkoutDraft).summary;
+  if (!planHasContent(plan) || !summary.exercises) return null;
+  const check = planCheck(plan, summary.workoutType, summary.exercises);
+  if (check.planned === 0) return null;
+  const more = (names: string[]) => (names.length > 4 ? `${names.slice(0, 4).join(", ")} +${names.length - 4} more` : names.join(", "));
+  return [
+    `${summary.workoutType} plan: ${check.done.length} of ${check.planned} done`,
+    check.remaining.length ? `still to do: ${more(check.remaining)}` : "all done",
+    ...(check.extra.length ? [`not in the plan: ${more(check.extra)}`] : []),
+  ].join(" · ");
 }

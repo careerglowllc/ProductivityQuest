@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  applyUpdate, describeMeal, describeWorkout, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayLabel, formatDayShort, joinTranscript,
+  planCheckText, requestSessionUpdate, applyUpdate, describeMeal, describeWorkout, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayLabel, formatDayShort, joinTranscript,
   localToday, moveDraft, newLogId, nutrientText, removeDraftItem, undoDraft, type FitnessDraft, type ParseResult,
 } from "./fitness-entry";
 import { speechErrorMessage } from "@/hooks/use-speech-to-text";
@@ -146,4 +146,51 @@ test("today is the local calendar day, and log ids are unique and prefixed", () 
   const ids = new Set(Array.from({ length: 50 }, () => newLogId("meal")));
   assert.equal(ids.size, 50);
   assert.ok([...ids].every((id) => id.startsWith("meal-")));
+});
+
+// ── The routine ─────────────────────────────────────────────────────────────
+import { planFromRoutine, emptyRoutine } from "@shared/fitness-routine";
+import { newDraft } from "@shared/fitness-session";
+
+const plan = planFromRoutine({ ...emptyRoutine(), Pull: { exercises: "Lat Pulldown 3x8-10\nSeated Cable Row 3x10\nFace Pull 3x15\nPull-Ups 3x6\nBiceps Curl 3x12\nShrugs", notes: "" } });
+const pullDay = (exercises: { name: string; sets: number }[]) => newDraft("lift-1", new Date("2026-10-15T12:00:00Z"), "x", normalizeWorkout({
+  date: "2026-10-15", workoutType: "Pull",
+  exercises: exercises.map((e) => ({ name: e.name, sets: Array.from({ length: e.sets }, () => ({ weight: 100, reps: 8 })) })),
+}, "2026-10-15", { keepEmpty: true }));
+
+test("under a workout summary one line says how much of the plan is done and what is still to do", () => {
+  const draft = pullDay([{ name: "Lat Pulldown", sets: 3 }, { name: "Cable Row", sets: 2 }, { name: "Neck Raise", sets: 2 }]);
+  assert.equal(planCheckText(plan, draft), "Pull plan: 2 of 6 done · still to do: Face Pull, Pull-Ups, Biceps Curl, Shrugs · not in the plan: Neck Raise");
+});
+
+test("a finished plan says all done, and a long list of what is left is shortened", () => {
+  const all = pullDay(["Lat Pulldown", "Seated Cable Row", "Face Pull", "Pull-Ups", "Biceps Curl", "Shrugs"].map((name) => ({ name, sets: 3 })));
+  assert.equal(planCheckText(plan, all), "Pull plan: 6 of 6 done · all done");
+  const few = pullDay([{ name: "Lat Pulldown", sets: 3 }]);
+  assert.match(planCheckText(plan, few)!, /still to do: Seated Cable Row, Face Pull, Pull-Ups, Biceps Curl \+1 more/);
+});
+
+test("there is no plan line without a plan for that kind of day", () => {
+  const draft = pullDay([{ name: "Lat Pulldown", sets: 3 }]);
+  assert.equal(planCheckText(undefined, draft), null);
+  assert.equal(planCheckText(planFromRoutine(emptyRoutine()), draft), null);
+  const legs = planFromRoutine({ ...emptyRoutine(), Legs: { exercises: "Back Squat 4x6", notes: "" } });
+  assert.equal(planCheckText(legs, draft), null, "the plan has no Pull day");
+});
+
+async function sentBody(kind: "workout" | "meal", routinePlan: typeof plan | undefined) {
+  const original = globalThis.fetch;
+  let body: any = null;
+  globalThis.fetch = (async (_url: string, init: { body: string }) => { body = JSON.parse(init.body); return new Response(JSON.stringify({ kind, workout: workout, meal: meal }), { status: 200 }); }) as any;
+  try { await requestSessionUpdate(kind, "squats", null, "2026-10-15", routinePlan); } finally { globalThis.fetch = original; }
+  return body;
+}
+
+test("the routine goes along with a workout message, but not with food or an empty routine", async () => {
+  const withRoutine = await sentBody("workout", plan);
+  assert.equal(withRoutine.session, true);
+  assert.deepEqual(withRoutine.routine.Pull.exercises[0], { name: "Lat Pulldown", sets: 3, reps: "8-10" });
+  assert.equal("routine" in (await sentBody("meal", plan)), false, "food ignores it");
+  assert.equal("routine" in (await sentBody("workout", undefined)), false);
+  assert.equal("routine" in (await sentBody("workout", planFromRoutine(emptyRoutine()))), false, "an empty routine is not sent");
 });

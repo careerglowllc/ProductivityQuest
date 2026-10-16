@@ -52,6 +52,30 @@ On a phone both pages are laid out for logging first:
 The big count cards that used to sit above the entry box are shown on larger screens only; their all-time numbers are
 the last line of the Stats widget. Larger screens keep the layout they had.
 
+### Your routine (Lifting page)
+
+Under the All / Push / Pull / Legs tabs there is a **Your routine** section where you describe what each day usually holds.
+It starts open until something is set, and collapsed after that.
+
+- Pick Push, Pull or Legs (choosing a tab above shows that day here), press **Edit**, and type the exercises one per line.
+  Sets are optional and read from forms like `3x8-10`, `3 x 8`, `4×12`, `3 sets of 8` or `3 sets`. A live read-out shows
+  what was understood. Add notes in your own words ("heavy presses first"). **Save** keeps that day.
+- It is saved on your account under `workout-routine-v1` as the text you typed, so it follows you across devices.
+
+What it is used for:
+
+1. **The AI.** Each workout message carries the routine as context (never as instructions). The AI is told to use the
+   routine's exact exercise name and the day's type when you mention one of those lifts, even in shorthand ("incline DB"),
+   and to use it to tell which kind of day it was. It must not add exercises, sets or weights you did not say.
+   After the AI answers, the server also lines up each exercise with the routine (the same lift in other words, or a name
+   with two or more words in common that points to only one routine exercise), so names and day types are consistent.
+2. **A plan check** under the workout summary: `Pull plan: 2 of 5 done · still to do: Face Pull, Biceps Curl · not in the
+   plan: Neck Raise`.
+3. **The lift charts.** Once a routine has exercises, the Progression chart, Session Volume and Current Bests use only lifts
+   that are in it (different spellings of one lift are one lift). Other logged exercises stay in the Full Workout Log, the
+   Today row and the Stats widget, and a note under Progression says how many are left out. With no routine set, every
+   logged lift is shown, as before.
+
 ### Editing a saved day
 
 Under **Logged with AI** every saved day has a pencil button. It opens the day again in the summary box ("Editing a
@@ -92,6 +116,7 @@ Voice typing uses the browser's speech recognition where it exists (Chrome, Edge
 | --- | --- | --- |
 | The open workout day | `workout-session-v1` | `SessionDraft<ParsedWorkout>`: `id`, `date`, `messages`, `summary`, `undo` steps, `reopened`. Removed when the day ends or is discarded. |
 | The open food day | `calories-session-v1` | `SessionDraft<ParsedMeal>`, the same shape. |
+| Your routine | `workout-routine-v1` | `{ Push, Pull, Legs: { exercises: string, notes: string } }`, the text as typed. |
 | Stats widget open or collapsed | `workout-stats-open-v1`, `calories-stats-open-v1` | `"1"` or `"0"`; open when missing. |
 | Lifting log | `workout-ppl-log-v1` | `WorkoutLogEntry[]`. Entries logged with AI carry `logId` (the draft's id, so ending again replaces them) and `sets` (exact sets, which is also what lets a saved day be reopened). |
 | Calorie log | `calories-daily-log-v1` | `CalorieDayLog[]`. Totals include every ended day; `meals` lists them (`id` is the draft's id, plus text, items, totals) so one can be taken out or reopened. Older days without the extra nutrients (`satFat`, `fiber`, `sugar`, `potassium`, `iron`) are fine; those are optional. |
@@ -119,7 +144,9 @@ the best result per exercise per day.
 
 `POST /api/fitness/parse` (signed-in only)
 
-Request: `{ "kind": "workout" | "meal", "text": string (2 to 4000 characters), "today"?: "YYYY-MM-DD", "session"?: boolean, "current"?: the day so far, "recent"?: string[] (the messages before this one, at most 20, the last 8 are used) }`
+Request: `{ "kind": "workout" | "meal", "text": string (2 to 4000 characters), "today"?: "YYYY-MM-DD", "session"?: boolean, "current"?: the day so far, "recent"?: string[] (the messages before this one, at most 20, the last 8 are used), "routine"?: { Push?, Pull?, Legs?: { exercises: { name (max 80), sets? (1 to 30), reps? (max 20) }[] (max 40), notes? (max 600) } } }`
+
+`routine` is used for workouts only (a meal request ignores it); a routine that is not shaped like this is a 400.
 
 With `session: true` the notes are read as one more message of a day being built: `current` is the summary so far, checked the
 same way as an answer (400 if it is not a workout or food list, or is over 40,000 characters), and the answer is the
@@ -149,6 +176,7 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | File | Role |
 | --- | --- |
 | `shared/fitness-log.ts` | Shared pure logic: validation, unit conversion, totals, add/remove, session summaries, finishing a workout, rebuilding a saved day for editing |
+| `shared/fitness-routine.ts` | The routine: reading the typed text, matching exercises to it, lining up an AI answer, the plan check, and which logged rows the lift charts use |
 | `shared/fitness-today.ts` | Today's running totals with the open day included, and the words in the thin Today row |
 | `shared/fitness-stats.ts` | The week's numbers for the Stats widget: seven days, streak, averages, volume against last week |
 | `shared/fitness-session.ts` | The open day: start, add an entry, undo, change date, what a message changed, stored-draft checks, newer-copy rule, End button wording |
@@ -157,6 +185,7 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `client/src/lib/fitness-draft.ts` | Saving and loading the open day |
 | `client/src/hooks/use-speech-to-text.ts` | Voice typing |
 | `client/src/components/fitness/session-panel.tsx` | The summary box, buttons and chat-style text box |
+| `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |
 | `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The phone layout's Today row and Stats widget |
 | `client/src/lib/stats-open.ts`, `client/src/hooks/use-stats-open.ts` | Remembering whether the Stats widget is open |
 | `client/src/lib/fitness-stats-text.ts` | The wording and chart values for the Stats widget |
@@ -165,6 +194,6 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 
 ## Tests
 
-- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
+- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
 - `npm run test:focus` runs `server/fitness-ai.test.ts` (the endpoint with a fake AI).
 - Manual steps: see [FITNESS_AI_LOGGING_TEST_CASES.md](FITNESS_AI_LOGGING_TEST_CASES.md).

@@ -2441,6 +2441,7 @@ npm run db:push      # Apply database migrations
 - **Where:** a chat-style entry box on the Lifting and Calories pages, with voice typing
 - **Flow:** the first message starts the day; each later message updates one summary box (new exercise, next set, a correction, more food); every change is saved at once; **End today's workout** / **End day** puts the day in the charts and the next message starts a new day
 - **Editing:** undo the last entry, remove single items, change the date, and reopen any saved day with the pencil in "Logged with AI"
+- **Your routine:** on the Lifting page, describe what a Push, Pull and Legs day hold (one exercise per line, with sets if you like). The AI uses it to recognise your lifts and the day, the entry box shows a plan check, and the Progression, Session Volume and Current Bests charts only use lifts that are in it
 - **Phone layout:** title, a thin Today row with running totals (or a placeholder), the entry box (Enter sends), then a collapsible Stats widget (open by default, remembered on your account) with the week's bars, highlights and weekly log
 - **Lifting:** weight, reps, date and notes saved per day, shown in the progression chart and a new Session Volume chart
 - **Calories:** calories, macros, calcium and other nutrients saved per day, with new Macro Split and Nutrient Trend charts

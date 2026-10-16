@@ -6,6 +6,7 @@ import { FitnessSessionPanel } from "./session-panel";
 import { localToday, type FitnessDraft, type FitnessKind } from "@/lib/fitness-entry";
 import { addEntry, newDraft } from "@shared/fitness-session";
 import { normalizeMeal, normalizeWorkout, type ParsedMeal, type ParsedWorkout } from "@shared/fitness-log";
+import { emptyRoutine, planFromRoutine, type RoutinePlan } from "@shared/fitness-routine";
 
 const today = localToday();
 const now = new Date("2026-10-13T12:00:00Z");
@@ -21,8 +22,8 @@ const food = (date = today): ParsedMeal => normalizeMeal({ date, items: [
   { name: "latte", quantity: "12 oz", confidence: "low", calories: 150, protein: 8, carbs: 12, fat: 8 },
 ] }, date);
 
-const render = (kind: FitnessKind, draft: FitnessDraft | null, compact = false) =>
-  renderToStaticMarkup(createElement(FitnessSessionPanel, { kind, draft, compact, onDraftChange: () => {}, onEnd: () => {} }));
+const render = (kind: FitnessKind, draft: FitnessDraft | null, compact = false, plan?: RoutinePlan) =>
+  renderToStaticMarkup(createElement(FitnessSessionPanel, { kind, draft, compact, plan, onDraftChange: () => {}, onEnd: () => {} }));
 const button = (html: string, testId: string) => html.match(new RegExp(`<button[^>]*data-testid="${testId}"[^>]*>`))?.[0] ?? "";
 
 test("with no day open there is a box to start one and an explanation, but no summary or end button", () => {
@@ -134,4 +135,20 @@ test("the keyboard's return key says Send, and an open day still shows its summa
   const html = render("workout", newDraft("lift-1", now, "x", pull()), true);
   assert.match(html, /data-testid="session-title">Today&#x27;s pull day</);
   assert.match(html, /enterKeyHint="send"/);
+});
+
+test("under a workout summary the plan check shows what is done and what is still to do, when there is a plan", () => {
+  const plan = planFromRoutine({ ...emptyRoutine(), Pull: { exercises: "Lat Pulldown 3x8\nSeated Row 3x10\nFace Pull 3x15", notes: "" } });
+  const draft = newDraft("lift-1", now, "x", pull());
+  const html = render("workout", draft, false, plan);
+  assert.match(html, /data-testid="plan-check"/);
+  assert.match(html, /Pull plan: 1 of 3 done/);
+  assert.match(html, /still to do: Seated Row, Face Pull/);
+  assert.doesNotMatch(render("workout", draft), /plan-check/, "no plan, no line");
+  assert.doesNotMatch(render("workout", null, false, plan), /plan-check/, "no open day, no line");
+});
+
+test("food days never show a plan line", () => {
+  const plan = planFromRoutine({ ...emptyRoutine(), Pull: { exercises: "Lat Pulldown 3x8", notes: "" } });
+  assert.doesNotMatch(render("meal", newDraft("meal-1", now, "x", food()), false, plan), /plan-check/);
 });

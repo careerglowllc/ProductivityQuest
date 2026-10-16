@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, MicOff, Send, Undo2, Flag, Trash2, X } from "lucide-react";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import {
-  applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, joinTranscript, localToday, newLogId, nutrientText,
+  applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, joinTranscript, localToday, newLogId, nutrientText, planCheckText,
   moveDraft, removeDraftItem, requestSessionUpdate, undoDraft, type FitnessDraft, type FitnessKind,
 } from "@/lib/fitness-entry";
 import { canUndo, endButtonLabel, isStaleDraft, type MealDraft } from "@shared/fitness-session";
+import type { RoutinePlan } from "@shared/fitness-routine";
 
 const COPY: Record<FitnessKind, { title: string; intro: string; placeholder: string; next: string; end: string; discard: string }> = {
   workout: {
@@ -28,13 +29,14 @@ const COPY: Record<FitnessKind, { title: string; intro: string; placeholder: str
 
 // A chat-style box for one day. The first message starts the day, each later message updates the same summary above the
 // box, and every change is saved at once. Ending the day is what puts it in the charts.
-export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false }: {
+export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false, plan }: {
   kind: FitnessKind;
   draft: FitnessDraft | null;
   onDraftChange: (draft: FitnessDraft | null) => void;
   onEnd: (draft: FitnessDraft) => void;
   accent?: string;
   compact?: boolean; // the phone layout: no heading or explanation above the box, and less space below it
+  plan?: RoutinePlan; // what a Push, Pull and Legs day usually hold (workouts only)
 }) {
   const copy = COPY[kind];
   const [text, setText] = useState("");
@@ -57,7 +59,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
     setError(null);
     setNotice(null);
     try {
-      const result = await requestSessionUpdate(kind, text, draft, today);
+      const result = await requestSessionUpdate(kind, text, draft, today, plan);
       const update = applyUpdate(kind, draft, result, text, new Date(), () => newLogId(kind === "workout" ? "lift" : "meal"));
       if (update.changes.length === 0) {
         setNotice("That did not add or change anything. Say what you did or ate, with the numbers.");
@@ -78,6 +80,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   const edit = (next: FitnessDraft | null) => { setLast(null); setNotice(null); onDraftChange(next); };
 
   const lines = draft ? draftLines(kind, draft) : [];
+  const planLine = kind === "workout" && draft ? planCheckText(plan, draft) : null;
   const meal = kind === "meal" && draft ? (draft as MealDraft).summary : null;
   const locked = busy;
 
@@ -139,6 +142,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
               ))}
             </ul>
           )}
+          {planLine && <p data-testid="plan-check" className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-300">{planLine}</p>}
           {meal && meal.items.length > 0 && (
             <>
               <p className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-300"><span className="font-semibold">Total so far:</span> {nutrientText(meal.totals)}</p>

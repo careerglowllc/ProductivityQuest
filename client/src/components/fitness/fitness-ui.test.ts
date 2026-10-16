@@ -16,7 +16,7 @@ test("the entry box is a chat-style text area with a send button and a microphon
   assert.ok(box.includes("aria-pressed={speech.listening}"));
   assert.ok(box.includes("{speech.supported && ("), "the microphone only appears where voice typing works");
   assert.ok(box.includes("keyboard to dictate"), "and the keyboard's own dictation is suggested where it does not");
-  assert.ok(box.includes("requestSessionUpdate(kind, text, draft, today)"), "the AI is given the day so far");
+  assert.ok(box.includes("requestSessionUpdate(kind, text, draft, today, plan)"), "the AI is given the day so far and the routine");
   assert.ok(box.includes("applyUpdate(kind, draft, result, text"));
 });
 
@@ -45,6 +45,31 @@ test("the row and the Stats widget follow the open day, so they change with ever
   assert.ok(lifting.includes("workoutLogWithDraft(entries, draft)") && lifting.includes("liftStripText(todayLift(previewEntries, today))") && lifting.includes("liftWeek(previewEntries, today)"));
   assert.ok(calories.includes("mealLogWithDraft(log, draft)") && calories.includes("mealStripText(todayStat)") && calories.includes("calorieWeek(previewLog, today, CALORIE_GOAL)"));
   assert.ok(calories.includes("todayStat.calories / CALORIE_GOAL"), "the hairline fills toward the calorie goal");
+});
+
+test("the lifting page has a routine section under the Push / Pull / Legs tabs, and gives the AI the plan", () => {
+  assert.ok(lifting.includes("useRoutine()") && lifting.includes("planFromRoutine(routine)"));
+  assert.ok(lifting.indexOf("{/* Workout type tabs */}") < lifting.indexOf("<RoutineEditor") && lifting.indexOf("<RoutineEditor") < lifting.indexOf("{/* Progression chart */}"));
+  assert.ok(lifting.includes("<RoutineEditor routine={routine} onSave={saveRoutineState} activeType={activeType} />"));
+  assert.ok(lifting.includes("plan={plan}"), "the entry box gets the plan, so the AI and the plan check use it");
+});
+
+test("the progression chart, the session volume chart and the current bests only use lifts in the routine", () => {
+  assert.ok(lifting.includes("routineEntries(entries, plan)"));
+  const charts = lifting.slice(lifting.indexOf("const sessions = useMemo"), lifting.indexOf("const fullLogSorted"));
+  assert.ok(charts.includes("sessionSummaries(liftEntries)"), "session volume");
+  assert.ok(charts.includes("liftEntries.filter((e) => e.workoutType === activeType)"), "the exercise list");
+  assert.ok(charts.includes("for (const e of liftEntries)") && charts.includes("liftEntries.find((e) => e.exercise === selectedExercise"), "progression");
+  assert.ok(charts.indexOf("const bestsByType") > 0 && charts.slice(charts.indexOf("const bestsByType")).includes("for (const e of liftEntries)"), "current bests");
+  assert.ok(!/for \(const e of entries\)/.test(charts), "no chart reads every logged row");
+  assert.ok(lifting.includes("fullLogSorted = useMemo") && lifting.slice(lifting.indexOf("const fullLogSorted")).startsWith("const fullLogSorted = useMemo(\n    () => [...entriesForType]"), "the full log still lists everything");
+});
+
+test("the page says when charts are limited to the routine, when no routine is set, and which lifts are left out", () => {
+  assert.ok(lifting.includes('data-testid="routine-hint"') && lifting.includes("Set up your routine above"));
+  assert.ok(lifting.includes('data-testid="outside-routine"') && lifting.includes("not in your routine and left out of the charts"));
+  assert.ok(lifting.includes("Counts only lifts in your routine."));
+  assert.ok(lifting.includes("None of the lifts in your routine are logged yet."));
 });
 
 test("the desktop layout keeps the count cards above the entry box, and the Logged-with-AI list sits tight under the box only there", () => {
@@ -90,7 +115,7 @@ test("the lifting page lists saved days with edit and remove, and its charts inc
   assert.ok(lifting.includes('data-testid="recent-loggings"'));
   assert.ok(lifting.includes("reopen(l.logId)") && lifting.includes("Edit the workout logged for"));
   assert.ok(lifting.includes("removeWorkoutLogging(entries, l.logId)"));
-  assert.ok(lifting.includes('data-testid="session-volume"') && lifting.includes("sessionSummaries(entries)"));
+  assert.ok(lifting.includes('data-testid="session-volume"') && lifting.includes("sessionSummaries(liftEntries)"));
   assert.ok(lifting.includes("bestPerDay"), "two loggings of an exercise on a day are one point on the progression chart");
   assert.ok(lifting.includes('const STORAGE_KEY = "workout-ppl-log-v1"'), "stays under the synced workout- prefix");
   assert.ok(lifting.includes("localStorage.setItem(STORAGE_KEY, JSON.stringify(next))"));

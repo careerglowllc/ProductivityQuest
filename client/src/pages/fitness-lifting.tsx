@@ -17,6 +17,9 @@ import { FitnessSessionPanel } from "@/components/fitness/session-panel";
 import { loadWorkoutDraft, saveWorkoutDraft } from "@/lib/fitness-draft";
 import { localToday, type FitnessDraft } from "@/lib/fitness-entry";
 import { TodayStrip } from "@/components/fitness/today-strip";
+import { RoutineEditor } from "@/components/fitness/routine-editor";
+import { useRoutine } from "@/hooks/use-routine";
+import { outsideRoutine, planFromRoutine, planHasExercises, routineEntries } from "@shared/fitness-routine";
 import { LiftStats } from "@/components/fitness/stats-card";
 import { liftStripText, todayLift, workoutLogWithDraft } from "@shared/fitness-today";
 import { allTimeLifting, liftWeek } from "@shared/fitness-stats";
@@ -254,8 +257,15 @@ export default function FitnessLiftingPage() {
     requestAnimationFrame(() => document.querySelector('[data-testid="session-workout"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
   }
 
+  // What a Push, Pull and Legs day hold. With one set up, the lift charts only use lifts that are in it, under its names.
+  const [routine, saveRoutineState] = useRoutine();
+  const plan = useMemo(() => planFromRoutine(routine), [routine]);
+  const routineOn = planHasExercises(plan);
+  const liftEntries = useMemo(() => routineEntries(entries, plan), [entries, plan]);
+  const outsideRoutineCount = useMemo(() => outsideRoutine(entries, plan).length, [entries, plan]);
+
   const recentLoggings = useMemo(() => recentWorkoutLoggings(entries), [entries]);
-  const sessions = useMemo(() => sessionSummaries(entries), [entries]);
+  const sessions = useMemo(() => sessionSummaries(liftEntries), [liftEntries]);
 
   const entriesForType = useMemo(
     () => (activeType === "All" ? entries : entries.filter((e) => e.workoutType === activeType)),
@@ -263,9 +273,9 @@ export default function FitnessLiftingPage() {
   );
 
   const exerciseList = useMemo(() => {
-    const names = Array.from(new Set(entriesForType.map((e) => e.exercise)));
-    return names.sort((a, b) => a.localeCompare(b));
-  }, [entriesForType]);
+    const inType = activeType === "All" ? liftEntries : liftEntries.filter((e) => e.workoutType === activeType);
+    return Array.from(new Set(inType.map((e) => e.exercise))).sort((a, b) => a.localeCompare(b));
+  }, [liftEntries, activeType]);
 
   // Keep selectedExercise valid whenever the tab changes
   useEffect(() => {
@@ -288,18 +298,18 @@ export default function FitnessLiftingPage() {
   const windowCutoff = useMemo(() => {
     const windowDef = TIME_WINDOWS.find((w) => w.key === timeWindow);
     if (!windowDef?.days) return null;
-    const latestDate = entries.reduce((max, e) => (e.date > max ? e.date : max), entries[0]?.date ?? "");
+    const latestDate = liftEntries.reduce((max, e) => (e.date > max ? e.date : max), liftEntries[0]?.date ?? "");
     if (!latestDate) return null;
     const [y, m, d] = latestDate.split("-").map(Number);
     const dt = new Date(y, m - 1, d);
     dt.setDate(dt.getDate() - windowDef.days);
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-  }, [entries, timeWindow]);
+  }, [liftEntries, timeWindow]);
 
   const chartEntries = useMemo(() => {
     // More than one logging of an exercise on a day is one point: that day's best.
     const bestPerDay = new Map<string, LogEntry>();
-    for (const e of entries) {
+    for (const e of liftEntries) {
       if (e.exercise !== selectedExercise || e.metric === null || (windowCutoff && e.date < windowCutoff)) continue;
       const earlier = bestPerDay.get(e.date);
       if (!earlier || e.metric.value > earlier.metric!.value) bestPerDay.set(e.date, e);
@@ -314,7 +324,7 @@ export default function FitnessLiftingPage() {
         setsRaw: e.setsRaw,
         calories: caloriesByDate.get(e.date) ?? null,
       }));
-  }, [entries, selectedExercise, windowCutoff, caloriesByDate]);
+  }, [liftEntries, selectedExercise, windowCutoff, caloriesByDate]);
 
   const sessionChart = useMemo(
     () => sessions.filter((s) => !windowCutoff || s.date >= windowCutoff).map((s) => ({ ...s, label: formatDateShort(s.date) })),
@@ -322,15 +332,15 @@ export default function FitnessLiftingPage() {
   );
 
   const selectedExerciseMetricKind: MetricKind = useMemo(() => {
-    const match = entries.find((e) => e.exercise === selectedExercise && e.metric);
+    const match = liftEntries.find((e) => e.exercise === selectedExercise && e.metric);
     return match?.metric?.kind ?? "weight";
-  }, [entries, selectedExercise]);
+  }, [liftEntries, selectedExercise]);
 
   // Per-exercise "current best" (max value ever) + "latest" (most recent session)
   type Best = { exercise: string; workoutType: WorkoutType; best: LogEntry | null; latest: LogEntry };
   const bestsByType = useMemo(() => {
     const byExercise = new Map<string, LogEntry[]>();
-    for (const e of entries) {
+    for (const e of liftEntries) {
       const list = byExercise.get(e.exercise) ?? [];
       list.push(e);
       byExercise.set(e.exercise, list);
@@ -349,7 +359,7 @@ export default function FitnessLiftingPage() {
       result[t].sort((a, b) => a.exercise.localeCompare(b.exercise));
     });
     return result;
-  }, [entries]);
+  }, [liftEntries]);
 
   const fullLogSorted = useMemo(
     () => [...entriesForType].sort((a, b) => b.date.localeCompare(a.date)),
@@ -381,7 +391,7 @@ export default function FitnessLiftingPage() {
   const stripText = liftStripText(todayLift(previewEntries, today));
   const week = useMemo(() => liftWeek(previewEntries, today), [previewEntries, today]);
   const allTime = useMemo(() => allTimeLifting(entries), [entries]);
-  const panel = <FitnessSessionPanel kind="workout" accent="#34D399" compact={isMobile} draft={draft} onDraftChange={(next) => updateDraft(next as WorkoutDraft | null)} onEnd={endWorkout} />;
+  const panel = <FitnessSessionPanel kind="workout" accent="#34D399" compact={isMobile} plan={plan} draft={draft} onDraftChange={(next) => updateDraft(next as WorkoutDraft | null)} onEnd={endWorkout} />;
   const statsWidget = <LiftStats week={week} today={today} accent="#34D399" allTime={allTime} />;
 
   return (
@@ -491,6 +501,8 @@ export default function FitnessLiftingPage() {
           ))}
         </div>
 
+        <RoutineEditor routine={routine} onSave={saveRoutineState} activeType={activeType} />
+
         {/* Progression chart */}
         <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
@@ -549,6 +561,7 @@ export default function FitnessLiftingPage() {
             <span className="text-[11px] text-slate-600 italic">More overlays (e.g. body weight) coming once that logging is added</span>
           </div>
 
+          {!routineOn && <p data-testid="routine-hint" className="mb-3 text-[11px] text-amber-300/80">Set up your routine above so these charts only show your own lifts.</p>}
           {chartEntries.length > 0 ? (
             <div style={{ width: "100%", height: isMobile ? 220 : 300 }}>
               <ResponsiveContainer>
@@ -599,7 +612,14 @@ export default function FitnessLiftingPage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-slate-500 text-sm text-center py-10">No numeric data logged for this exercise in the selected time window.</p>
+            <p className="text-slate-500 text-sm text-center py-10">
+              {exerciseList.length === 0 ? "None of the lifts in your routine are logged yet." : "No numeric data logged for this exercise in the selected time window."}
+            </p>
+          )}
+          {outsideRoutineCount > 0 && (
+            <p data-testid="outside-routine" className="mt-3 text-[11px] text-slate-500">
+              {outsideRoutineCount} logged {outsideRoutineCount === 1 ? "exercise is" : "exercises are"} not in your routine and left out of the charts. Add {outsideRoutineCount === 1 ? "it" : "them"} to a day above to include {outsideRoutineCount === 1 ? "it" : "them"}.
+            </p>
           )}
         </div>
 
@@ -609,7 +629,7 @@ export default function FitnessLiftingPage() {
             <Layers className="h-4 w-4 text-cyan-400" />
             Session Volume
           </div>
-          <p className="text-xs text-slate-500 mb-3">Total weight lifted per session (weight x reps over every set), for the time window above.</p>
+          <p className="text-xs text-slate-500 mb-3">Total weight lifted per session (weight x reps over every set), for the time window above.{routineOn ? " Counts only lifts in your routine." : ""}</p>
           {sessionChart.some((s) => s.volume > 0) ? (
             <div style={{ width: "100%", height: isMobile ? 200 : 260 }}>
               <ResponsiveContainer>
