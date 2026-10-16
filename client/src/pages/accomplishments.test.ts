@@ -24,3 +24,13 @@ test("the 2026 health fix entry notes it was around December 2026", () => {
   assert.ok(row, "entry is present");
   assert.ok(row.includes("(Around December 2026.)"));
 });
+
+test("the 2026 Ford Explorer dream car is in the accomplishments export", () => {
+  const row = csv().split("\n").find(line => line.includes("Made My Little Dream Car"));
+  assert.ok(row, "entry is present");
+  assert.ok(row.startsWith('"2026"'));
+  assert.ok(row.includes("Ford Explorer"));
+  assert.ok(row.includes("grill guard"));
+  assert.ok(row.includes("little cop"));
+  assert.ok(row.includes('"life"'));
+});
