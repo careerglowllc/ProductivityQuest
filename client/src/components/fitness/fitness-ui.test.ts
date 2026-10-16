@@ -10,13 +10,11 @@ const goals = read("components/fitness/daily-goals.tsx");
 const calories = read("pages/fitness-calories.tsx");
 const routes = readFileSync(new URL("../../../../server/routes.ts", import.meta.url), "utf8");
 
-test("the entry box is a chat-style text area with a send button and a microphone, and each message goes with the day so far", () => {
+test("the entry box is a chat-style text area with a send button and no microphone, and each message goes with the day so far", () => {
   assert.ok(box.includes("<textarea"));
   assert.ok(box.includes('aria-label="Send to AI"'));
-  assert.ok(box.includes('"Stop voice typing" : "Start voice typing"'));
-  assert.ok(box.includes("aria-pressed={speech.listening}"));
-  assert.ok(box.includes("{speech.supported && ("), "the microphone only appears where voice typing works");
-  assert.ok(box.includes("keyboard to dictate"), "and the keyboard's own dictation is suggested where it does not");
+  assert.ok(!/Mic|voice typing|speech|dictat|microphone/i.test(box), "typed text only: no microphone, voice typing or dictation hints");
+  assert.ok(!read("lib/fitness-entry.ts").includes("joinTranscript"));
   assert.ok(box.includes("requestSessionUpdate(kind, text, draft, today, plan)"), "the AI is given the day so far and the routine");
   assert.ok(box.includes("applyUpdate(kind, draft, result, text"));
 });

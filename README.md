@@ -2438,7 +2438,7 @@ npm run db:push      # Apply database migrations
 ### AI Fitness Logging
 **Type or speak what you lifted or ate; the AI fills in the logs**
 
-- **Where:** a chat-style entry box on the Lifting and Calories pages, with voice typing
+- **Where:** a chat-style entry box on the Lifting and Calories pages (typed text, sent with Enter or the send arrow)
 - **Flow:** the first message starts the day; each later message updates one summary (new exercise, next set, a correction, more food), which is a box above the text on Lifting and the Today vs your goals card on Calories; every change is saved at once; **End today's workout** / **End day** puts the day in the charts and the next message starts a new day
 - **Editing:** undo the last entry, remove single items, change the date, and reopen any saved day with the pencil in "Logged with AI"
 - **Your routine:** on the Lifting page, describe what a Push, Pull and Legs day hold (one exercise per line, with sets if you like). The AI uses it to recognise your lifts and the day, the entry box shows a plan check, and the Progression, Session Volume and Current Bests charts only use lifts that are in it

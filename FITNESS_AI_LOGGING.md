@@ -11,7 +11,7 @@ into the same logs the charts already read.
 | `/fitness/lifting` | "Pull day. First up is lat pulldown, warm-up 60 for 12." | "120 for 8", "120 for 7", "next exercise seated row, warm-up 80 for 10", "100 for 10 then 100 for 9", "the last pulldown set was actually 9 reps" | **End today's workout** |
 | `/fitness/calories` | "An everything bagel with cream cheese and a latte" | "a chicken burrito bowl for lunch", "the latte was oat milk", "I didn't eat the bagel" | **End day** |
 
-1. Type in the box, or tap the microphone and speak. Dictated words are added to what is already typed.
+1. Type in the box. It is written text only; there is no microphone button.
 2. Press Enter (or the send arrow). Shift+Enter adds a new line where the keyboard has it; a phone keyboard shows a
    Send key.
 3. The day so far appears. On Lifting a summary box ("Today's pull day") appears above the text box and lists each
@@ -154,10 +154,6 @@ names that date ("End Oct 12 workout"). Nothing ends a day by itself.
 
 Words like "today", "yesterday", "Monday" or "last Friday" are worked out from the date on your device (the server accepts it when it is within two days of its own date).
 
-### Voice
-
-Voice typing uses the browser's speech recognition where it exists (Chrome, Edge, Safari). Where it does not, the microphone is hidden and the box suggests the keyboard's own dictation key. A blocked microphone or silence gives a plain message instead of failing quietly.
-
 ## What the AI is asked to do
 
 - **Workouts:** keep names as said, use the real weight and reps, convert kg to lb (x 2.20462, rounded to 0.5), treat holds and cardio as timed sets (5:30 is 330 seconds), keep warm-ups and notes, and mark bodyweight sets. Push, Pull or Legs is taken from the AI and corrected from the exercise name when it is missing.
@@ -241,7 +237,6 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `server/fitness-ai.ts` | The endpoint, prompts (including the day-update rules), rate limit |
 | `client/src/lib/fitness-entry.ts` | Request, applying an answer to the day, titles, error messages |
 | `client/src/lib/fitness-draft.ts` | Saving and loading the open day |
-| `client/src/hooks/use-speech-to-text.ts` | Voice typing |
 | `client/src/components/fitness/session-panel.tsx` | The chat-style text box, the Lifting summary box and its buttons, and the open food day's controls handed to the goals widget |
 | `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |
 | `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The Calories page's Today row, and the Stats widget (with the Lifting page's Today block) |

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2, Mic, MicOff, Send, Undo2, Flag, Trash2, X } from "lucide-react";
-import { useSpeechToText } from "@/hooks/use-speech-to-text";
+import { Loader2, Send, Undo2, Flag, Trash2, X } from "lucide-react";
 import {
-  applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, joinTranscript, localToday, newLogId, planCheckText,
+  applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, localToday, newLogId, planCheckText,
   moveDraft, removeDraftItem, requestSessionUpdate, undoDraft, type FitnessDraft, type FitnessKind,
 } from "@/lib/fitness-entry";
 import { NutrientChips } from "@/components/fitness/nutrient-chips";
@@ -59,7 +58,6 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   const [notice, setNotice] = useState<string | null>(null);
   const [last, setLast] = useState<{ id: string; lines: string[] } | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
-  const speech = useSpeechToText((phrase) => setText((current) => joinTranscript(current, phrase)));
   const today = localToday();
 
   // When the day is ended or discarded, the next one starts with no "last entry" line.
@@ -68,7 +66,6 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
 
   async function submit() {
     if (busy || text.trim().length < 2) return;
-    if (speech.listening) speech.stop();
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -241,22 +238,10 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
           placeholder={draft ? copy.next : copy.placeholder}
           aria-label={draft ? "Add to this day" : copy.title}
           disabled={busy}
-          className="w-full resize-y rounded-xl border border-slate-600 bg-slate-800/70 px-3 py-2.5 pr-24 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1"
+          className="w-full resize-y rounded-xl border border-slate-600 bg-slate-800/70 px-3 py-2.5 pr-12 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1"
           style={{ ["--tw-ring-color" as string]: accent }}
         />
-        <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
-          {speech.supported && (
-            <button
-              type="button"
-              onClick={() => (speech.listening ? speech.stop() : speech.start())}
-              aria-pressed={speech.listening}
-              aria-label={speech.listening ? "Stop voice typing" : "Start voice typing"}
-              title={speech.listening ? "Stop voice typing" : "Voice typing"}
-              className={`grid h-8 w-8 place-items-center rounded-full border transition-colors ${speech.listening ? "animate-pulse border-red-400 bg-red-500/20 text-red-300" : "border-slate-600 text-slate-300 hover:text-white"}`}
-            >
-              {speech.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            </button>
-          )}
+        <div className="absolute bottom-2.5 right-2.5">
           <button
             type="button"
             onClick={() => void submit()}
@@ -270,9 +255,6 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
           </button>
         </div>
       </div>
-      {!speech.supported && <p className="mt-1.5 text-[11px] text-slate-500">Tip: tap the microphone on your keyboard to dictate.</p>}
-      {speech.listening && <p role="status" className="mt-1.5 text-[11px] text-red-300">Listening… speak, then tap the microphone to stop.</p>}
-      {speech.error && <p role="alert" className="mt-1.5 text-xs text-amber-300">{speech.error}</p>}
       {notice && <p role="status" data-testid="session-notice" className="mt-2 text-sm text-amber-300">{notice}</p>}
       {error && <p role="alert" className="mt-2 text-sm text-red-300">{error}</p>}
     </section>

@@ -180,10 +180,13 @@ test("workouts show no nutrient chips", () => {
   assert.doesNotMatch(render("workout", newDraft("lift-1", now, "x", pull())), /nutrient-chips|meal-item/);
 });
 
-test("the microphone and send buttons are part of the box", () => {
-  const html = render("meal", null);
-  assert.match(html, /aria-label="Send to AI"/);
-  assert.match(html, /keyboard to dictate/, "where voice typing is missing the keyboard's dictation is suggested");
+test("the box has a send button and no microphone, on both pages", () => {
+  for (const kind of ["meal", "workout"] as const) {
+    const html = render(kind, null);
+    assert.match(html, /aria-label="Send to AI"/);
+    assert.doesNotMatch(html, /voice typing|microphone|dictate|aria-pressed|Listening/i);
+    assert.equal((html.match(/<button/g) ?? []).length, 1, "the send button is the only button in the box");
+  }
 });
 
 test("the phone layout drops the heading and explanation, keeps the box, and uses less space", () => {

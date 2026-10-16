@@ -1,10 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  planCheckText, requestSessionUpdate, applyUpdate, describeMeal, describeWorkout, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayLabel, formatDayShort, joinTranscript,
+  planCheckText, requestSessionUpdate, applyUpdate, describeMeal, describeWorkout, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayLabel, formatDayShort,
   localToday, moveDraft, newLogId, nutrientText, removeDraftItem, undoDraft, type FitnessDraft, type ParseResult,
 } from "./fitness-entry";
-import { speechErrorMessage } from "@/hooks/use-speech-to-text";
 import { normalizeMeal, normalizeWorkout } from "@shared/fitness-log";
 import { type MealDraft, type WorkoutDraft } from "@shared/fitness-session";
 
@@ -17,28 +16,12 @@ const meal = normalizeMeal({ date: "2026-10-12", items: [
   { name: "mystery sauce", calories: 80, protein: 0, carbs: 8, fat: 5, confidence: "low" },
 ] }, "2026-10-13");
 
-test("dictated phrases are added to the text with single spaces", () => {
-  assert.equal(joinTranscript("", "incline press"), "incline press");
-  assert.equal(joinTranscript("Today I did", "incline press"), "Today I did incline press");
-  assert.equal(joinTranscript("Today I did   ", "  incline   press "), "Today I did incline press");
-  assert.equal(joinTranscript("Already typed", "   "), "Already typed");
-  assert.equal(joinTranscript("line one\n", "line two"), "line one line two");
-});
-
 test("server errors show their message, anything else a friendly fallback", () => {
   assert.equal(fitnessErrorMessage(new Error('422: {"message":"No exercises were found in that."}')), "No exercises were found in that.");
   assert.equal(fitnessErrorMessage(new Error('429: {"message":"Try again in a few minutes."}')), "Try again in a few minutes.");
   for (const bad of [new Error("Failed to fetch"), new Error("500: <html>oops</html>"), new Error('400: {"nope":1}'), "string", null, undefined]) {
     assert.match(fitnessErrorMessage(bad), /Could not reach the AI/);
   }
-});
-
-test("voice errors are explained in plain words", () => {
-  assert.match(speechErrorMessage("not-allowed"), /Microphone access is blocked/);
-  assert.match(speechErrorMessage("service-not-allowed"), /blocked/);
-  assert.match(speechErrorMessage("no-speech"), /Did not hear/);
-  assert.match(speechErrorMessage("audio-capture"), /No microphone/);
-  assert.match(speechErrorMessage("network"), /keyboard's dictation/);
 });
 
 test("the check-before-saving lines show each exercise with its sets, warm-up and notes", () => {

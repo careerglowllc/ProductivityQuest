@@ -12,14 +12,6 @@ export type ParseResult = { kind: "workout"; workout: ParsedWorkout } | { kind: 
 
 export const localToday = (now = new Date()): string => localDay(now);
 
-// Adds a dictated phrase to what is already typed, with one space between them and no doubled spaces.
-export function joinTranscript(existing: string, spoken: string): string {
-  const add = spoken.replace(/\s+/g, " ").trim();
-  if (!add) return existing;
-  const base = existing.replace(/\s+$/, "");
-  return base ? `${base} ${add}` : add;
-}
-
 // The server answers with { message } on errors; the request helper wraps that as "422: {...}".
 export function fitnessErrorMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : "";
