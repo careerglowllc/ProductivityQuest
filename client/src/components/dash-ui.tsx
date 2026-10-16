@@ -41,6 +41,8 @@ export function DashCardHead({ title, href, linkLabel, subtitle }: {
  *  amber = attention/reward, violet = progression. While `loading`, shows a spinner
  *  instead of the value/caption so we never flash a wrong intermediate number
  *  (e.g. 100%) before all the underlying data has actually finished loading. */
+// One thin row on every screen size: label over caption on the left, the figure on the right, and the progress meter as a
+// hairline along the bottom edge on a phone (see .dash-stat-card in index.css). About as tall as the collapsed questlines bar.
 export function StatCard({ label, value, unit, pct, tone, caption, featured = false, loading = false }: {
   label: string; value: string; unit?: string; pct: number;
   tone: "mint" | "amber" | "violet"; caption?: string; featured?: boolean; loading?: boolean;
@@ -51,28 +53,28 @@ export function StatCard({ label, value, unit, pct, tone, caption, featured = fa
     <section
       aria-label={label}
       aria-busy={loading || undefined}
-      className={`flex min-h-[122px] flex-col justify-between rounded-[10px] border bg-[var(--dash-surface)] p-[19px] shadow-[var(--dash-shadow)] md:min-h-0 md:flex-row md:items-center md:justify-start md:gap-3.5 md:px-3.5 md:py-2.5 ${
+      className={`dash-stat-card relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 overflow-hidden rounded-[10px] border bg-[var(--dash-surface)] min-h-[42px] px-3.5 py-1.5 shadow-[var(--dash-shadow)] md:flex md:min-h-0 md:justify-start md:gap-3.5 md:py-2.5 ${
         featured ? "" : "border-[var(--dash-line)]"
       }`}
       style={featured ? { borderColor: toneVar } : undefined}
     >
-      <p className="dash-mono text-[var(--dash-muted)] md:shrink-0">{label}</p>
+      <p className="dash-mono col-start-1 row-start-1 truncate leading-3 text-[var(--dash-muted)] md:col-auto md:row-auto md:shrink-0">{label}</p>
       {loading ? (
-        <div className="flex flex-1 items-center gap-2 py-1.5 md:py-0">
-          <Loader2 aria-hidden className="h-5 w-5 shrink-0 animate-spin" style={{ color: toneVar }} />
+        <div className="col-start-2 row-span-2 row-start-1 flex items-center gap-2 md:col-auto md:row-auto md:flex-1">
+          <Loader2 aria-hidden className="h-4 w-4 shrink-0 animate-spin" style={{ color: toneVar }} />
           <span className="text-xs text-[var(--dash-muted)]">Calculating…</span>
         </div>
       ) : (
         <>
-          <p className="mt-1.5 flex items-baseline gap-1.5 md:mt-0 md:shrink-0">
-            <span className="text-[30px] font-bold leading-none tracking-[-0.04em] text-[var(--dash-ink)] md:text-[20px]">{value}</span>
-            {unit && <span className="text-[13px] font-medium" style={{ color: toneVar }}>{unit}</span>}
+          <p className="col-start-2 row-span-2 row-start-1 flex items-baseline gap-1 md:col-auto md:row-auto md:shrink-0">
+            <span className="text-[20px] font-bold leading-none tracking-[-0.04em] text-[var(--dash-ink)]">{value}</span>
+            {unit && <span className="text-[12px] font-medium" style={{ color: toneVar }}>{unit}</span>}
           </p>
-          {caption && <p className="mt-1 truncate text-[11px] text-[var(--dash-muted)] md:mt-0 md:min-w-0 md:flex-1">{caption}</p>}
+          {caption && <p className="col-start-1 row-start-2 truncate text-[11px] leading-[14px] text-[var(--dash-muted)] md:col-auto md:row-auto md:min-w-0 md:flex-1">{caption}</p>}
         </>
       )}
       <div
-        className={`dash-meter mt-2.5 md:mt-0 md:w-28 md:shrink-0 ${tone === "mint" ? "mint" : tone === "amber" ? "amber" : ""}`}
+        className={`dash-meter md:w-28 md:shrink-0 ${tone === "mint" ? "mint" : tone === "amber" ? "amber" : ""}`}
         role="progressbar"
         aria-valuenow={loading ? undefined : Math.round(clamped)}
         aria-valuemin={0}

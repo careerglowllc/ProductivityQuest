@@ -674,7 +674,7 @@ html.light {
   .dash-content { padding-top: 18px; }
 }
 
-/* Progress metric grid: two tiles side by side (thin strips on desktop), stacked on narrow screens */
+/* Progress metric grid: two thin strips side by side on desktop, stacked on mid widths and phones */
 .dash-stats {
   display: grid;
   gap: 14px;
@@ -688,10 +688,9 @@ html.light {
   .dash-stats { grid-template-columns: 1fr; }
 }
 @media (max-width: 767px) {
-  .dash-stats { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 480px) {
-  .dash-stats { grid-template-columns: 1fr; }
+  .dash-stats { grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+  /* On a phone the progress meter is a hairline along the bottom edge of the thin tile */
+  .dash-stat-card .dash-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 0; }
 }
 
 /* Module grid: two columns on desktop, one full-width column on mobile */
