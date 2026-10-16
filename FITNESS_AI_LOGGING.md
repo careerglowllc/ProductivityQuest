@@ -13,7 +13,8 @@ into the same logs the charts already read.
 
 1. Type in the box. It is written text only; there is no microphone button.
 2. Press Enter (or the send arrow). Shift+Enter adds a new line where the keyboard has it; a phone keyboard shows a
-   Send key.
+   Send key. The message is shown as sent at once and the box empties, ready for the next one (see "Sending while
+   earlier messages are still going in" below).
 3. The day so far appears. On Lifting a summary box ("Today's pull day") appears above the text box and lists each
    exercise with its sets and warm-up. On Calories there is no separate food box: **Today vs your goals**, right under
    the text box, is the summary. Its bars move with every message, and a fold-away **Foods logged** list shows each
@@ -34,6 +35,24 @@ In the summary box (Lifting) or in Today vs your goals (Calories) you can also:
 - Remove a single exercise or food with the x beside it.
 - Change the **Day** with the date field (not into the future).
 - **Discard** the open day.
+
+### Sending while earlier messages are still going in
+
+Pressing Enter sends at once. The box empties and can be typed in again straight away, and the message appears under
+the box as "Adding it now…". Anything sent while it is still working waits its turn ("Waiting its turn"). The AI is asked
+about one message at a time, in the order typed, because each answer is the whole updated day and the next message has
+to build on it. When a message finishes, the day is saved and the bars, foods and charts update; Today vs your goals (and
+the Lifting summary) say "Updating…" while anything is still going in.
+
+- While a message is going in, **Undo**, **End**, **Discard**, the Day field and the remove buttons are switched off, so
+  the day cannot be changed underneath it.
+- A message that fails (no connection, the AI found nothing to add, a busy server, or the day was changed on another
+  device while it was thinking) stays in the list with the reason. The messages behind it wait, so nothing goes in out of
+  order. Use the arrow to try again, the pencil to put the text back in the box to edit it, or the x to drop it; the rest
+  then carry on.
+- At most 10 messages wait at once; the send arrow is off until some have gone in.
+- The waiting list lives in the page. Reloading or closing it with messages still waiting asks first, because the ones
+  that are not in the day yet would be lost.
 
 ### Page layout
 
@@ -236,6 +255,7 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `shared/fitness-session.ts` | The open day: start, add an entry, undo, change date, what a message changed, stored-draft checks, newer-copy rule, End button wording |
 | `server/fitness-ai.ts` | The endpoint, prompts (including the day-update rules), rate limit |
 | `client/src/lib/fitness-entry.ts` | Request, applying an answer to the day, titles, error messages |
+| `client/src/lib/fitness-queue.ts`, `client/src/components/fitness/pending-messages.tsx` | The waiting messages: the queue rules, running one message into the day, and the list under the box |
 | `client/src/lib/fitness-draft.ts` | Saving and loading the open day |
 | `client/src/components/fitness/session-panel.tsx` | The chat-style text box, the Lifting summary box and its buttons, and the open food day's controls handed to the goals widget |
 | `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |

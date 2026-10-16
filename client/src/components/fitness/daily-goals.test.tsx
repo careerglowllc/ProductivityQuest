@@ -86,6 +86,11 @@ test("sugar has no goal, so it is a single line, only when there is some", () =>
   assert.doesNotMatch(render(day), /goals-sugar/);
 });
 
+test("while a message is going in the widget says Updating, whether or not a day is open yet", () => {
+  assert.match(renderToStaticMarkup(createElement(DailyGoals, { day, today, updating: true })), /data-testid="goals-updating"[^>]*>Updating…</);
+  assert.doesNotMatch(render(day), /goals-updating/);
+});
+
 test("with no day open the widget is still there, with no controls", () => {
   const html = render(day);
   assert.match(html, /data-testid="goals-title"[^>]*>Today vs your goals</);

@@ -37,7 +37,7 @@ function GoalBar({ row }: { row: GoalRow }) {
 // the goal reached and how far there is to go. Calories, carbs and fat turn amber when passed; the others just read "goal reached".
 // It is always there. While a day is open (`parts`) it is that day's live summary and holds its controls: the Day field, the
 // foods so far (folded away until tapped), what the last message changed, and End / Undo / Discard.
-export function DailyGoals({ day, today, parts = null }: { day: Partial<Record<NutrientKey, number>> | undefined; today: string; parts?: SessionParts | null }) {
+export function DailyGoals({ day, today, parts = null, updating = false }: { day: Partial<Record<NutrientKey, number>> | undefined; today: string; parts?: SessionParts | null; updating?: boolean }) {
   const rows = goalRows(day);
   const empty = !(day?.calories && day.calories > 0);
   const date = parts?.draft.date;
@@ -50,7 +50,12 @@ export function DailyGoals({ day, today, parts = null }: { day: Partial<Record<N
           <h2 data-testid="goals-title" className="text-sm font-bold text-white">{heading}</h2>
           <span className="text-[11px] text-slate-400">{CALORIE_GOAL.toLocaleString("en-US")} kcal a day</span>
         </div>
-        {parts?.tag}
+        {(updating || parts) && (
+          <span className="flex items-center gap-2">
+            {updating && <span data-testid="goals-updating" className="animate-pulse text-[11px] text-slate-400">Updating…</span>}
+            {parts?.tag}
+          </span>
+        )}
       </div>
       {parts?.meta}
       <div className="mt-2">

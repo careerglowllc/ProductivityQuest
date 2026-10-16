@@ -150,7 +150,7 @@ export default function FitnessCaloriesPage() {
       draft={draft}
       onDraftChange={(next) => updateDraft(next as MealDraft | null)}
       onEnd={endDay}
-      below={(parts) => <DailyGoals day={previewLog.find((d) => d.date === (draft?.date ?? today))} today={today} parts={parts} />}
+      below={(parts, updating) => <DailyGoals day={previewLog.find((d) => d.date === (draft?.date ?? today))} today={today} parts={parts} updating={updating} />}
     />
   );
   const statsWidget = <CalorieStats week={week} today={today} goal={CALORIE_GOAL} accent="#F87171" allTime={allTime} />;

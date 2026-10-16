@@ -15,8 +15,8 @@ test("the entry box is a chat-style text area with a send button and no micropho
   assert.ok(box.includes('aria-label="Send to AI"'));
   assert.ok(!/Mic|voice typing|speech|dictat|microphone/i.test(box), "typed text only: no microphone, voice typing or dictation hints");
   assert.ok(!read("lib/fitness-entry.ts").includes("joinTranscript"));
-  assert.ok(box.includes("requestSessionUpdate(kind, text, draft, today, plan)"), "the AI is given the day so far and the routine");
-  assert.ok(box.includes("applyUpdate(kind, draft, result, text"));
+  assert.ok(box.includes("requestSessionUpdate(kind, message, current, localToday(), plan)"), "the AI is given the day so far and the routine");
+  assert.ok(box.includes("applyUpdate(kind, current, result, message"));
 });
 
 test("Enter sends the message on every device (Shift+Enter is a new line), and a phone keyboard shows a Send key", () => {
@@ -106,22 +106,41 @@ test("the desktop calories layout keeps the count cards above the entry box, wit
 test("the Calories page's goals widget is handed to the entry box, so it sits right under it, holds the open day's controls, and follows the day being logged", () => {
   const phone = ["{isMobile && panel}", "{isMobile && statsWidget}"].map((marker) => calories.indexOf(marker));
   assert.ok(phone.every((i) => i > 0) && phone[0] < phone[1], "box with its goals, then Stats");
-  assert.ok(/<FitnessSessionPanel[^]*?below=\{\(parts\) => <DailyGoals day=\{previewLog\.find\(\(d\) => d\.date === \(draft\?\.date \?\? today\)\)\} today=\{today\} parts=\{parts\} \/>\}/.test(calories), "the day being logged, from the log plus the open day");
+  assert.ok(/<FitnessSessionPanel[^]*?below=\{\(parts, updating\) => <DailyGoals day=\{previewLog\.find\(\(d\) => d\.date === \(draft\?\.date \?\? today\)\)\} today=\{today\} parts=\{parts\} updating=\{updating\} \/>\}/.test(calories), "the day being logged, from the log plus the open day");
   assert.ok(calories.includes("previewLog = useMemo(() => mealLogWithDraft(log, draft), [log, draft])"));
   assert.ok(calories.includes('"vitaminC", "vitaminA", "vitaminD"] as NutrientKey[]'), "vitamin D can be charted over time too");
-  assert.ok(box.includes("{below?.(parts)}") && box.indexOf("</section>") < box.indexOf("{below?.(parts)}"), "drawn straight after the box");
+  assert.ok(box.includes("{below?.(parts, updating)}") && box.indexOf("</section>") < box.indexOf("{below?.(parts, updating)}"), "drawn straight after the box");
   assert.ok(box.includes('{kind === "workout" && draft && ('), "the summary box is for workouts only");
   assert.ok(!box.includes("Today's food") && !box.includes("Total so far"));
 });
 
-test("every answer is saved to the open day straight away, and a failed request keeps what was typed", () => {
-  const submit = box.slice(box.indexOf("async function submit"), box.indexOf("// A change made by hand"));
-  assert.ok(submit.includes("onDraftChange(update.draft)"), "saved after each message");
-  assert.ok(submit.includes('setText("")'), "the box is cleared only after the answer was applied");
-  assert.ok(submit.indexOf("requestSessionUpdate") < submit.indexOf('setText("")'));
-  assert.ok(submit.includes("catch (e)") && submit.includes("setError(fitnessErrorMessage(e))"));
-  assert.ok(!submit.slice(0, submit.indexOf("requestSessionUpdate")).includes('setText("")'), "nothing is cleared before the answer comes back");
-  assert.ok(submit.includes("update.changes.length === 0"), "an answer that changes nothing is explained, not saved");
+test("Enter sends at once: the box clears and is never disabled, and the text goes into a queue instead of waiting for the AI", () => {
+  const submit = box.slice(box.indexOf("function submit()"), box.indexOf("// A message that failed goes back"));
+  assert.ok(submit.includes('dispatch({ type: "add"') && submit.includes('setText("")'), "added to the queue and the box emptied");
+  assert.ok(!submit.includes("await") && !submit.includes("requestSessionUpdate"), "sending the text does not wait for the AI");
+  assert.ok(submit.includes("!canAdd(queue)"), "only a long backlog holds a message back");
+  const textarea = box.slice(box.indexOf("<textarea"), box.indexOf("/>", box.indexOf("<textarea")));
+  assert.ok(!textarea.includes("disabled"), "the box can be typed in while earlier messages are going in");
+  assert.ok(box.includes('if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }'));
+  assert.ok(box.includes("<PendingMessages queue={queue}"), "what was sent but is not in the day yet is shown under the box");
+});
+
+test("queued messages go in one at a time, each built on the day as it is when its turn comes, and every answer is saved straight away", () => {
+  const effect = box.slice(box.indexOf("// Sends the next waiting message"), box.indexOf("// Leaving or reloading"));
+  assert.ok(effect.includes("const next = nextToSend(queue)") && effect.includes('dispatch({ type: "start", id: next.id })'));
+  assert.ok(effect.includes("readDraft: () => draftRef.current") && box.includes("draftRef.current = draft;"), "the latest day, not the one from when the text was typed");
+  assert.ok(effect.includes("requestSessionUpdate(kind, message, current, localToday(), plan)"), "the AI is given the day so far and the routine");
+  assert.ok(effect.includes("commit: (updated) => { draftRef.current = updated; onDraftChange(updated); }"), "saved after each message, and the next one sees it");
+  assert.ok(effect.includes('dispatch({ type: "done", id: next.id })') && effect.includes('dispatch({ type: "fail", id: next.id, error: outcome.error })'));
+  assert.ok(box.includes("const locked = updating") && box.includes("const updating = isProcessing(queue)"), "the day is not edited by hand while a message is going in");
+  assert.ok(box.includes('window.addEventListener("beforeunload", warn)'), "leaving with messages waiting asks first");
+  const queueLib = read("lib/fitness-queue.ts");
+  assert.ok(queueLib.includes("fitnessErrorMessage(e)") && queueLib.includes("update.changes.length === 0"), "a failed or empty answer is explained, not saved");
+});
+
+test("the Calories widget says Updating while a message is going in", () => {
+  assert.ok(box.includes("{below?.(parts, updating)}"));
+  assert.ok(calories.includes("below={(parts, updating) => <DailyGoals") && calories.includes("updating={updating}"));
 });
 
 test("the day has an End button, undo, discard, a date, removal of single items, and an automatic-save note", () => {

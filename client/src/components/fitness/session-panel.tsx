@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2, Send, Undo2, Flag, Trash2, X } from "lucide-react";
+import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
+import { Send, Undo2, Flag, Trash2, X } from "lucide-react";
 import {
-  applyUpdate, draftHasContent, draftLines, draftTitle, fitnessErrorMessage, formatDayShort, localToday, newLogId, planCheckText,
+  applyUpdate, draftHasContent, draftLines, draftTitle, formatDayShort, localToday, newLogId, planCheckText,
   moveDraft, removeDraftItem, requestSessionUpdate, undoDraft, type FitnessDraft, type FitnessKind,
 } from "@/lib/fitness-entry";
+import { canAdd, isProcessing, nextToSend, queueReducer, runMessage, MAX_WAITING, type QueuedMessage } from "@/lib/fitness-queue";
 import { NutrientChips } from "@/components/fitness/nutrient-chips";
+import { PendingMessages } from "@/components/fitness/pending-messages";
 import { canUndo, endButtonLabel, isStaleDraft, type MealDraft } from "@shared/fitness-session";
 import type { RoutinePlan } from "@shared/fitness-routine";
 
@@ -38,9 +40,10 @@ export interface SessionParts {
   actions: ReactNode; // the note about the charts, and End / Undo / Discard
 }
 
-// A chat-style box for one day. The first message starts the day and each later message updates it, and every change is
-// saved at once. A workout day shows its summary above the box; a food day shows it in the widget `below` the box. Ending the
-// day is what puts it in the charts.
+// A chat-style box for one day. Pressing Enter sends at once: the box clears and can be typed in again while the message is
+// worked into the day, and further messages wait their turn. The first message starts the day and each later one updates it,
+// and every change is saved at once. A workout day shows its summary above the box; a food day shows it in the widget `below`
+// the box. Ending the day is what puts it in the charts.
 export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false, plan, below }: {
   kind: FitnessKind;
   draft: FitnessDraft | null;
@@ -49,51 +52,77 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   accent?: string;
   compact?: boolean; // the phone layout: no heading or explanation above the box, and less space below it
   plan?: RoutinePlan; // what a Push, Pull and Legs day usually hold (workouts only)
-  below?: (parts: SessionParts | null) => ReactNode; // food days: drawn right under the box, with the open day's controls (null when no day is open)
+  below?: (parts: SessionParts | null, updating: boolean) => ReactNode; // food days: drawn right under the box, with the open day's controls (null when no day is open) and whether a message is still being added
 }) {
   const copy = COPY[kind];
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [queue, dispatch] = useReducer(queueReducer, [] as QueuedMessage[]);
   const [last, setLast] = useState<{ id: string; lines: string[] } | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const today = localToday();
 
+  // The day as it is right now, so a message that starts after another finished builds on that one's result.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
   // When the day is ended or discarded, the next one starts with no "last entry" line.
   const hasDraft = draft !== null;
-  useEffect(() => { if (!hasDraft) { setLast(null); setNotice(null); } }, [hasDraft]);
+  useEffect(() => { if (!hasDraft) setLast(null); }, [hasDraft]);
 
-  async function submit() {
-    if (busy || text.trim().length < 2) return;
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await requestSessionUpdate(kind, text, draft, today, plan);
-      const update = applyUpdate(kind, draft, result, text, new Date(), () => newLogId(kind === "workout" ? "lift" : "meal"));
-      if (update.changes.length === 0) {
-        setNotice("That did not add or change anything. Say what you did or ate, with the numbers.");
+  // Sends the next waiting message, once nothing is being sent and nothing has failed ahead of it.
+  useEffect(() => {
+    const next = nextToSend(queue);
+    if (!next) return;
+    dispatch({ type: "start", id: next.id });
+    void runMessage({
+      text: next.text,
+      readDraft: () => draftRef.current,
+      send: (message, current) => requestSessionUpdate(kind, message, current, localToday(), plan),
+      apply: (current, result, message) => applyUpdate(kind, current, result, message, new Date(), () => newLogId(kind === "workout" ? "lift" : "meal")),
+      commit: (updated) => { draftRef.current = updated; onDraftChange(updated); },
+    }).then((outcome) => {
+      if (outcome.ok) {
+        setLast({ id: outcome.draft.id, lines: outcome.changes });
+        dispatch({ type: "done", id: next.id });
       } else {
-        onDraftChange(update.draft);
-        setLast({ id: update.draft.id, lines: update.changes });
-        setText("");
+        dispatch({ type: "fail", id: next.id, error: outcome.error });
       }
-    } catch (e) {
-      setError(fitnessErrorMessage(e));
-    } finally {
-      setBusy(false);
-      box.current?.focus();
-    }
+    });
+  }, [queue]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Leaving or reloading with messages still waiting would lose them, so the browser asks first.
+  useEffect(() => {
+    if (!queue.some((m) => m.status !== "failed")) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [queue]);
+
+  // Enter: the message is shown as sent, the box is empty and ready for the next one.
+  function submit() {
+    const message = text.trim();
+    if (message.length < 2 || !canAdd(queue)) return;
+    dispatch({ type: "add", id: newLogId("msg"), text: message });
+    setText("");
+    box.current?.focus();
+  }
+
+  // A message that failed goes back in the box in front of whatever has been typed since.
+  function bringBack(message: QueuedMessage) {
+    setText((current) => (current.trim() ? `${message.text}\n${current}` : message.text));
+    dispatch({ type: "remove", id: message.id });
+    box.current?.focus();
   }
 
   // A change made by hand (undo, remove, another day) is not a message, so the "last entry" line no longer applies.
-  const edit = (next: FitnessDraft | null) => { setLast(null); setNotice(null); onDraftChange(next); };
+  const edit = (next: FitnessDraft | null) => { setLast(null); onDraftChange(next); };
 
   const lines = draft ? draftLines(kind, draft) : [];
   const planLine = kind === "workout" && draft ? planCheckText(plan, draft) : null;
   const meal = kind === "meal" && draft ? (draft as MealDraft).summary : null;
-  const locked = busy;
+  // While a message is being worked in, the day cannot be changed by hand: its answer is built on the day as it was.
+  const updating = isProcessing(queue);
+  const locked = updating;
 
   const tag = draft && (
     <span className="rounded-full border px-2 py-0.5 text-[11px]" style={{ borderColor: `${accent}88`, color: accent }}>
@@ -214,7 +243,10 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
         <div className="mb-4 mt-2 rounded-xl border bg-slate-800/50 p-3" style={{ borderColor: `${accent}66` }} data-testid="session-summary">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-semibold text-white" data-testid="session-title">{draftTitle(kind, draft, today)}</span>
-            {tag}
+            <span className="flex items-center gap-2">
+              {updating && <span data-testid="session-updating" className="animate-pulse text-[11px] text-slate-400">Updating…</span>}
+              {tag}
+            </span>
           </div>
           {meta}
           <div className="mt-3">{items || <p className="text-sm text-slate-400">Nothing in it yet.</p>}</div>
@@ -230,35 +262,34 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submit(); }
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
           }}
           rows={draft || compact ? 2 : 3}
           maxLength={4000}
           enterKeyHint="send"
           placeholder={draft ? copy.next : copy.placeholder}
           aria-label={draft ? "Add to this day" : copy.title}
-          disabled={busy}
           className="w-full resize-y rounded-xl border border-slate-600 bg-slate-800/70 px-3 py-2.5 pr-12 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1"
           style={{ ["--tw-ring-color" as string]: accent }}
         />
         <div className="absolute bottom-2.5 right-2.5">
           <button
             type="button"
-            onClick={() => void submit()}
-            disabled={busy || text.trim().length < 2}
+            onClick={submit}
+            disabled={text.trim().length < 2 || !canAdd(queue)}
             aria-label="Send to AI"
             title="Send"
             className="grid h-8 w-8 place-items-center rounded-full text-slate-900 transition-opacity disabled:opacity-40"
             style={{ backgroundColor: accent }}
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Send className="h-4 w-4" />
           </button>
         </div>
       </div>
-      {notice && <p role="status" data-testid="session-notice" className="mt-2 text-sm text-amber-300">{notice}</p>}
-      {error && <p role="alert" className="mt-2 text-sm text-red-300">{error}</p>}
+      <PendingMessages queue={queue} onRetry={(id) => dispatch({ type: "retry", id })} onEdit={bringBack} onRemove={(id) => dispatch({ type: "remove", id })} />
+      {!canAdd(queue) && <p role="status" data-testid="queue-full" className="mt-2 text-xs text-amber-300">{MAX_WAITING} messages are waiting. You can add more once some have gone in.</p>}
     </section>
-    {below?.(parts)}
+    {below?.(parts, updating)}
     </>
   );
 }
