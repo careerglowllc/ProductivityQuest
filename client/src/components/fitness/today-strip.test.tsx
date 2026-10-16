@@ -31,7 +31,7 @@ test("the workout row has no progress line, and shows type, exercises, sets and 
   assert.match(html, />Pull</);
   assert.match(html, /4 exercises · 12 sets · 8,400 lb/);
   assert.doesNotMatch(html, /today-progress/);
-  assert.match(render({ kind: "workout", text: liftStripText({ hasAny: false, exercises: 0, sets: 0, volume: 0, types: [] }), accent: "#34D399", inProgress: false }), /Log your first exercise below/);
+  assert.match(render({ kind: "workout", text: liftStripText({ hasAny: false, exercises: 0, sets: 0, volume: 0, types: [] }), accent: "#34D399", inProgress: false }), /Log your first exercise above/);
 });
 
 test("a dot shows while today's log is still open", () => {

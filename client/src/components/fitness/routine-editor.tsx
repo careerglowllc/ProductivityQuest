@@ -57,10 +57,10 @@ export function RoutineDayForm({ day, value, onChange, onSave, onCancel, accent 
   );
 }
 
-// Under the Push / Pull / Legs tabs: what each day holds. The AI uses it to recognise lifts and the day, and the charts only
-// show lifts that are in it.
-export function RoutineEditor({ routine, onSave, activeType, accent = "#34D399", startOpen }: {
-  routine: Routine; onSave: (next: Routine) => void; activeType: WorkoutType | "All"; accent?: string; startOpen?: boolean;
+// What each day holds. The AI uses it to recognise lifts and the day, and the charts only
+// show lifts that are in it. With `activeType` set to a day, that day is shown first.
+export function RoutineEditor({ routine, onSave, activeType = "All", accent = "#34D399", startOpen }: {
+  routine: Routine; onSave: (next: Routine) => void; activeType?: WorkoutType | "All"; accent?: string; startOpen?: boolean;
 }) {
   const plan = useMemo(() => planFromRoutine(routine), [routine]);
   const [open, setOpen] = useState(() => startOpen ?? !planHasExercises(plan));

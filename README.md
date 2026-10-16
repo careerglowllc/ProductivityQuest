@@ -2442,7 +2442,8 @@ npm run db:push      # Apply database migrations
 - **Flow:** the first message starts the day; each later message updates one summary box (new exercise, next set, a correction, more food); every change is saved at once; **End today's workout** / **End day** puts the day in the charts and the next message starts a new day
 - **Editing:** undo the last entry, remove single items, change the date, and reopen any saved day with the pencil in "Logged with AI"
 - **Your routine:** on the Lifting page, describe what a Push, Pull and Legs day hold (one exercise per line, with sets if you like). The AI uses it to recognise your lifts and the day, the entry box shows a plan check, and the Progression, Session Volume and Current Bests charts only use lifts that are in it
-- **Phone layout:** title, a thin Today row with running totals (or a placeholder), the entry box (Enter sends), then a collapsible Stats widget (open by default, remembered on your account) with the week's bars, highlights and weekly log
+- **Lifting page order:** title, the entry box (Enter sends), the Stats widget (this week's bars, then what you did today, highlights and the weekly log; open by default, remembered on your account), the Progression chart, Logged with AI, Your routine, then Session Volume, Current Bests and the Full Workout Log, which start closed and open when tapped
+- **Calories phone layout:** title, a thin Today row with running totals (or a placeholder), the entry box (Enter sends), then the same collapsible Stats widget with the week's bars, highlights and weekly log
 - **Lifting:** weight, reps, date and notes saved per day, shown in the progression chart and a new Session Volume chart
 - **Calories:** calories, macros, calcium and other nutrients saved per day, with new Macro Split and Nutrient Trend charts
 - **Endpoint:** `POST /api/fitness/parse` (30 requests per 10 minutes per user)

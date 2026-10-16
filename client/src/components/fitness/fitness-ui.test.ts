@@ -26,19 +26,46 @@ test("Enter sends the message on every device (Shift+Enter is a new line), and a
   assert.ok(box.includes('enterKeyHint="send"'));
 });
 
-test("on a phone each page shows the title, the thin today row, the entry box and then the Stats widget, before anything else", () => {
-  for (const [name, page] of [["lifting", lifting], ["calories", calories]] as const) {
-    const strip = page.indexOf("{isMobile && <TodayStrip");
-    const panel = page.indexOf("{isMobile && panel}");
-    const stats = page.indexOf("{isMobile && statsWidget}");
-    const cards = page.indexOf("{!isMobile && (");
-    const desktopPanel = page.indexOf("{!isMobile && panel}");
-    assert.ok(page.indexOf("<h1") < strip, `${name}: the row comes right after the title`);
-    assert.ok(strip > 0 && strip < panel && panel < stats && stats < cards && cards < desktopPanel, `${name}: row, entry box, Stats, then the desktop layout`);
-    assert.ok(page.includes("compact={isMobile}"), `${name}: the entry box is compact on a phone`);
-    assert.ok(page.includes("draft !== null && draft.date === today"), `${name}: the row shows when today's log is still open`);
-    assert.ok(page.includes("{!isMobile && <p className=\"text-slate-400 italic text-sm\">"), `${name}: the long subtitle is left out on a phone`);
+test("on a phone the calories page shows the title, the thin today row, the entry box and then the Stats widget, before anything else", () => {
+  const page = calories;
+  const strip = page.indexOf("{isMobile && <TodayStrip");
+  const panel = page.indexOf("{isMobile && panel}");
+  const stats = page.indexOf("{isMobile && statsWidget}");
+  const cards = page.indexOf("{!isMobile && (");
+  const desktopPanel = page.indexOf("{!isMobile && panel}");
+  assert.ok(page.indexOf("<h1") < strip, "the row comes right after the title");
+  assert.ok(strip > 0 && strip < panel && panel < stats && stats < cards && cards < desktopPanel, "row, entry box, Stats, then the desktop layout");
+  assert.ok(page.includes("compact={isMobile}"), "the entry box is compact on a phone");
+  assert.ok(page.includes("draft !== null && draft.date === today"), "the row shows when today's log is still open");
+  assert.ok(page.includes("{!isMobile && <p className=\"text-slate-400 italic text-sm\">"), "the long subtitle is left out on a phone");
+});
+
+test("the lifting page runs title, entry box, Stats, progression, Logged with AI, your routine, then the collapsed sections", () => {
+  const order = ["<h1", "{panel}", "{statsWidget}", "{/* Progression chart */}", 'data-testid="recent-loggings"', "<RoutineEditor", 'testId="session-volume"', 'testId="current-bests"', 'testId="full-log"'];
+  const at = order.map((marker) => lifting.indexOf(marker));
+  assert.ok(at.every((i) => i > 0), "every part is there");
+  assert.deepEqual([...at].sort((a, b) => a - b), at, "in that order");
+  assert.ok(!lifting.includes("TodayStrip") && !lifting.includes("WORKOUT_TABS") && !lifting.includes("Sessions Logged"), "no thin row, no Push / Pull / Legs tabs, no count cards");
+  assert.ok(!lifting.includes("{isMobile && panel}") && !lifting.includes("{!isMobile && panel}"), "the same order on a phone and on a desktop");
+  assert.ok(lifting.includes("compact={isMobile}"));
+  assert.ok(lifting.includes("{!isMobile && <p className=\"text-slate-400 italic text-sm\">"), "the long subtitle is left out on a phone");
+});
+
+test("the Stats widget on the lifting page shows what was done today", () => {
+  assert.ok(lifting.includes("rows: todayLiftRows(previewEntries, today)") && lifting.includes("todayLog={todayLog}"));
+  assert.ok(lifting.includes("draft !== null && draft.date === today"), "the dot shows while today's log is still open");
+});
+
+test("Session Volume, Current Bests and the Full Workout Log are collapsed until tapped, and the Progression chart is not", () => {
+  for (const id of ["session-volume", "current-bests", "full-log"]) {
+    assert.ok(lifting.includes(`<CollapsibleSection\n          testId="${id}"`), `${id} is a collapsible section`);
   }
+  const progression = lifting.slice(lifting.indexOf("{/* Progression chart */}"), lifting.indexOf('data-testid="recent-loggings"'));
+  assert.ok(!progression.includes("CollapsibleSection"), "the progression chart is always open");
+  assert.equal((lifting.match(/<CollapsibleSection\n/g) ?? []).length, 3);
+  const section = read("components/fitness/collapsible-section.tsx");
+  assert.ok(section.includes("useState(false)") && section.includes("{open && <div"), "closed by default, and its content is only built when open");
+  assert.ok(lifting.includes("[...entries].sort((a, b) => b.date.localeCompare(a.date))"), "the full log lists everything");
 });
 
 test("the row and the Stats widget follow the open day, so they change with every message", () => {
@@ -47,10 +74,9 @@ test("the row and the Stats widget follow the open day, so they change with ever
   assert.ok(calories.includes("todayStat.calories / CALORIE_GOAL"), "the hairline fills toward the calorie goal");
 });
 
-test("the lifting page has a routine section under the Push / Pull / Legs tabs, and gives the AI the plan", () => {
+test("the lifting page has a routine section, and gives the AI the plan", () => {
   assert.ok(lifting.includes("useRoutine()") && lifting.includes("planFromRoutine(routine)"));
-  assert.ok(lifting.indexOf("{/* Workout type tabs */}") < lifting.indexOf("<RoutineEditor") && lifting.indexOf("<RoutineEditor") < lifting.indexOf("{/* Progression chart */}"));
-  assert.ok(lifting.includes("<RoutineEditor routine={routine} onSave={saveRoutineState} activeType={activeType} />"));
+  assert.ok(lifting.includes("<RoutineEditor routine={routine} onSave={saveRoutineState} />"));
   assert.ok(lifting.includes("plan={plan}"), "the entry box gets the plan, so the AI and the plan check use it");
 });
 
@@ -58,23 +84,23 @@ test("the progression chart, the session volume chart and the current bests only
   assert.ok(lifting.includes("routineEntries(entries, plan)"));
   const charts = lifting.slice(lifting.indexOf("const sessions = useMemo"), lifting.indexOf("const fullLogSorted"));
   assert.ok(charts.includes("sessionSummaries(liftEntries)"), "session volume");
-  assert.ok(charts.includes("liftEntries.filter((e) => e.workoutType === activeType)"), "the exercise list");
+  assert.ok(charts.includes("new Set(liftEntries.map((e) => e.exercise))"), "the exercise list");
   assert.ok(charts.includes("for (const e of liftEntries)") && charts.includes("liftEntries.find((e) => e.exercise === selectedExercise"), "progression");
   assert.ok(charts.indexOf("const bestsByType") > 0 && charts.slice(charts.indexOf("const bestsByType")).includes("for (const e of liftEntries)"), "current bests");
   assert.ok(!/for \(const e of entries\)/.test(charts), "no chart reads every logged row");
-  assert.ok(lifting.includes("fullLogSorted = useMemo") && lifting.slice(lifting.indexOf("const fullLogSorted")).startsWith("const fullLogSorted = useMemo(\n    () => [...entriesForType]"), "the full log still lists everything");
+  assert.ok(lifting.includes("fullLogSorted = useMemo") && lifting.slice(lifting.indexOf("const fullLogSorted")).startsWith("const fullLogSorted = useMemo(\n    () => [...entries]"), "the full log still lists everything");
 });
 
 test("the page says when charts are limited to the routine, when no routine is set, and which lifts are left out", () => {
-  assert.ok(lifting.includes('data-testid="routine-hint"') && lifting.includes("Set up your routine above"));
+  assert.ok(lifting.includes('data-testid="routine-hint"') && lifting.includes("Set up your routine below"));
   assert.ok(lifting.includes('data-testid="outside-routine"') && lifting.includes("not in your routine and left out of the charts"));
   assert.ok(lifting.includes("Counts only lifts in your routine."));
   assert.ok(lifting.includes("None of the lifts in your routine are logged yet."));
 });
 
-test("the desktop layout keeps the count cards above the entry box, and the Logged-with-AI list sits tight under the box only there", () => {
-  assert.ok(lifting.includes("Sessions Logged") && calories.includes("Days Logged"));
-  assert.ok(lifting.includes('${isMobile ? "" : "-mt-4"}') && calories.includes('${isMobile ? "" : "-mt-4"}'));
+test("the desktop calories layout keeps the count cards above the entry box, and the Logged-with-AI list sits tight under the box", () => {
+  assert.ok(calories.includes("Days Logged"));
+  assert.ok(calories.includes('${isMobile ? "" : "-mt-4"}'));
 });
 
 test("every answer is saved to the open day straight away, and a failed request keeps what was typed", () => {
@@ -115,7 +141,7 @@ test("the lifting page lists saved days with edit and remove, and its charts inc
   assert.ok(lifting.includes('data-testid="recent-loggings"'));
   assert.ok(lifting.includes("reopen(l.logId)") && lifting.includes("Edit the workout logged for"));
   assert.ok(lifting.includes("removeWorkoutLogging(entries, l.logId)"));
-  assert.ok(lifting.includes('data-testid="session-volume"') && lifting.includes("sessionSummaries(liftEntries)"));
+  assert.ok(lifting.includes('testId="session-volume"') && lifting.includes("sessionSummaries(liftEntries)"));
   assert.ok(lifting.includes("bestPerDay"), "two loggings of an exercise on a day are one point on the progression chart");
   assert.ok(lifting.includes('const STORAGE_KEY = "workout-ppl-log-v1"'), "stays under the synced workout- prefix");
   assert.ok(lifting.includes("localStorage.setItem(STORAGE_KEY, JSON.stringify(next))"));

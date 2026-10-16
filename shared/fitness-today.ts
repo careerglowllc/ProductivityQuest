@@ -41,6 +41,13 @@ export function todayLift(entries: readonly WorkoutLogEntry[], today: string): T
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+export interface TodayLiftRow { exercise: string; workoutType: WorkoutType; sets: string }
+
+// The exercises logged for one day, in the order they were logged.
+export function todayLiftRows(entries: readonly WorkoutLogEntry[], today: string): TodayLiftRow[] {
+  return entries.filter((e) => e.date === today).map((e) => ({ exercise: e.exercise, workoutType: e.workoutType, sets: e.setsRaw }));
+}
+
 export interface StripText { empty: boolean; main: string; detail: string }
 
 // The words in the thin row. Empty days get a short invitation instead of zeros.
@@ -50,7 +57,7 @@ export function mealStripText(today: TodayMeals): StripText {
 }
 
 export function liftStripText(today: TodayLift): StripText {
-  if (!today.hasAny) return { empty: true, main: "No workout yet", detail: "Log your first exercise below" };
+  if (!today.hasAny) return { empty: true, main: "No workout yet", detail: "Log your first exercise above" };
   const volume = today.volume > 0 ? ` · ${Math.round(today.volume).toLocaleString("en-US")} lb` : "";
   return { empty: false, main: today.types.join(" + "), detail: `${plural(today.exercises, "exercise")} · ${plural(today.sets, "set")}${volume}` };
 }

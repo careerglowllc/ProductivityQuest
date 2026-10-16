@@ -16,12 +16,12 @@ import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { FitnessSessionPanel } from "@/components/fitness/session-panel";
 import { loadWorkoutDraft, saveWorkoutDraft } from "@/lib/fitness-draft";
 import { localToday, type FitnessDraft } from "@/lib/fitness-entry";
-import { TodayStrip } from "@/components/fitness/today-strip";
+import { CollapsibleSection } from "@/components/fitness/collapsible-section";
 import { RoutineEditor } from "@/components/fitness/routine-editor";
 import { useRoutine } from "@/hooks/use-routine";
 import { outsideRoutine, planFromRoutine, planHasExercises, routineEntries } from "@shared/fitness-routine";
 import { LiftStats } from "@/components/fitness/stats-card";
-import { liftStripText, todayLift, workoutLogWithDraft } from "@shared/fitness-today";
+import { liftStripText, todayLift, todayLiftRows, workoutLogWithDraft } from "@shared/fitness-today";
 import { allTimeLifting, liftWeek } from "@shared/fitness-stats";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -138,13 +138,6 @@ function loadEntries(): LogEntry[] {
   return SEED_ENTRIES;
 }
 
-const WORKOUT_TABS: Array<{ key: WorkoutType | "All"; label: string; color: string }> = [
-  { key: "All", label: "All", color: "#94A3B8" },
-  { key: "Push", label: "Push", color: "#F472B6" },
-  { key: "Pull", label: "Pull", color: "#60A5FA" },
-  { key: "Legs", label: "Legs", color: "#34D399" },
-];
-
 type TimeWindow = "week" | "month" | "3m" | "6m" | "1y" | "3y" | "all";
 const TIME_WINDOWS: Array<{ key: TimeWindow; label: string; days: number | null }> = [
   { key: "week", label: "1W", days: 7 },
@@ -156,12 +149,10 @@ const TIME_WINDOWS: Array<{ key: TimeWindow; label: string; days: number | null 
   { key: "all", label: "All", days: null },
 ];
 
-// Headline lift to default to when switching tabs
-const DEFAULT_EXERCISE: Record<WorkoutType, string> = {
-  Push: "Incline Dumbbell Press",
-  Pull: "T-Bar Row",
-  Legs: "Back Squat",
-};
+// The lift the progression chart starts on
+const DEFAULT_EXERCISE = "Incline Dumbbell Press";
+
+const countOf = (n: number, word: string, plural = `${word}s`) => `${n} ${n === 1 ? word : plural}`;
 
 function formatDateShort(dateStr: string) {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -197,8 +188,7 @@ export default function FitnessLiftingPage() {
   const { isDark } = useTheme();
   const { toast, dismiss } = useToast();
   const [entries, setEntries] = useState<LogEntry[]>(() => loadEntries());
-  const [activeType, setActiveType] = useState<WorkoutType | "All">("All");
-  const [selectedExercise, setSelectedExercise] = useState<string>(DEFAULT_EXERCISE.Push);
+  const [selectedExercise, setSelectedExercise] = useState<string>(DEFAULT_EXERCISE);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
   const [showCalorieOverlay, setShowCalorieOverlay] = useState(false);
   const [calorieEntries] = useState<CalorieDayLog[]>(() => loadCalorieLog());
@@ -267,25 +257,15 @@ export default function FitnessLiftingPage() {
   const recentLoggings = useMemo(() => recentWorkoutLoggings(entries), [entries]);
   const sessions = useMemo(() => sessionSummaries(liftEntries), [liftEntries]);
 
-  const entriesForType = useMemo(
-    () => (activeType === "All" ? entries : entries.filter((e) => e.workoutType === activeType)),
-    [entries, activeType]
+  const exerciseList = useMemo(
+    () => Array.from(new Set(liftEntries.map((e) => e.exercise))).sort((a, b) => a.localeCompare(b)),
+    [liftEntries],
   );
 
-  const exerciseList = useMemo(() => {
-    const inType = activeType === "All" ? liftEntries : liftEntries.filter((e) => e.workoutType === activeType);
-    return Array.from(new Set(inType.map((e) => e.exercise))).sort((a, b) => a.localeCompare(b));
-  }, [liftEntries, activeType]);
-
-  // Keep selectedExercise valid whenever the tab changes
+  // Keep selectedExercise valid when the routine or the log changes
   useEffect(() => {
-    if (activeType !== "All" && DEFAULT_EXERCISE[activeType] && exerciseList.includes(DEFAULT_EXERCISE[activeType])) {
-      setSelectedExercise(DEFAULT_EXERCISE[activeType]);
-    } else if (!exerciseList.includes(selectedExercise) && exerciseList.length > 0) {
-      setSelectedExercise(exerciseList[0]);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }
-  }, [activeType, exerciseList]);
+    if (!exerciseList.includes(selectedExercise) && exerciseList.length > 0) setSelectedExercise(exerciseList[0]);
+  }, [exerciseList]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Quick lookup: date -> calories logged that day (for the optional overlay)
   const caloriesByDate = useMemo(() => {
@@ -361,21 +341,12 @@ export default function FitnessLiftingPage() {
     return result;
   }, [liftEntries]);
 
-  const fullLogSorted = useMemo(
-    () => [...entriesForType].sort((a, b) => b.date.localeCompare(a.date)),
-    [entriesForType]
-  );
+  const bestCount = useMemo(() => Object.values(bestsByType).reduce((n, list) => n + list.length, 0), [bestsByType]);
 
-  const summary = useMemo(() => {
-    const dates = Array.from(new Set(entries.map((e) => e.date))).sort();
-    const uniqueExercises = new Set(entries.map((e) => e.exercise));
-    return {
-      sessions: dates.length,
-      exercises: uniqueExercises.size,
-      firstDate: dates[0],
-      lastDate: dates[dates.length - 1],
-    };
-  }, [entries]);
+  const fullLogSorted = useMemo(
+    () => [...entries].sort((a, b) => b.date.localeCompare(a.date)),
+    [entries]
+  );
 
   const TrendIcon = ({ best, latest }: { best: LogEntry | null; latest: LogEntry }) => {
     if (!best || !latest.metric || !best.metric) return <Minus className="h-3.5 w-3.5 text-slate-500" />;
@@ -385,14 +356,18 @@ export default function FitnessLiftingPage() {
     return <TrendingDown className="h-3.5 w-3.5 text-amber-400" />;
   };
 
-  // On a phone the top of the page works from the log plus the open day, so it changes with every message.
+  // The top of the page works from the log plus the open day, so it changes with every message.
   const today = localToday();
   const previewEntries = useMemo(() => workoutLogWithDraft(entries, draft), [entries, draft]);
-  const stripText = liftStripText(todayLift(previewEntries, today));
+  const todayLog = {
+    text: liftStripText(todayLift(previewEntries, today)),
+    rows: todayLiftRows(previewEntries, today),
+    inProgress: draft !== null && draft.date === today,
+  };
   const week = useMemo(() => liftWeek(previewEntries, today), [previewEntries, today]);
   const allTime = useMemo(() => allTimeLifting(entries), [entries]);
   const panel = <FitnessSessionPanel kind="workout" accent="#34D399" compact={isMobile} plan={plan} draft={draft} onDraftChange={(next) => updateDraft(next as WorkoutDraft | null)} onEnd={endWorkout} />;
-  const statsWidget = <LiftStats week={week} today={today} accent="#34D399" allTime={allTime} />;
+  const statsWidget = <LiftStats week={week} today={today} accent="#34D399" allTime={allTime} todayLog={todayLog} />;
 
   return (
     <div className={`min-h-screen ${isDark ? "bg-gradient-to-b from-slate-900 via-slate-800 to-emerald-950" : "bg-gray-50"} ${!isMobile ? "pt-16" : "pt-2"} pb-24 relative overflow-hidden`}>
@@ -420,88 +395,8 @@ export default function FitnessLiftingPage() {
           {!isMobile && <p className="text-slate-400 italic text-sm">Push / Pull / Legs — strength progression, one session at a time</p>}
         </div>
 
-        {isMobile && <TodayStrip kind="workout" text={stripText} accent="#34D399" inProgress={draft !== null && draft.date === today} />}
-        {isMobile && panel}
-        {isMobile && statsWidget}
-
-        {!isMobile && (
-          <>
-          {/* Summary stat cards */}
-          <div className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-4"} gap-3 mb-8`}>
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-300">{summary.sessions}</p>
-              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Sessions Logged</p>
-            </div>
-            <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-center">
-              <p className="text-2xl font-bold text-cyan-300">{summary.exercises}</p>
-              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Exercises Tracked</p>
-            </div>
-            <div className="rounded-xl border border-pink-500/30 bg-pink-500/10 p-4 text-center col-span-1">
-              <p className="text-sm font-bold text-pink-300">{summary.firstDate && formatDateShort(summary.firstDate)}</p>
-              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">First Logged</p>
-            </div>
-            <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4 text-center col-span-1">
-              <p className="text-sm font-bold text-violet-300">{summary.lastDate && formatDateShort(summary.lastDate)}</p>
-              <p className="text-[11px] text-slate-400 uppercase tracking-wide mt-1">Most Recent</p>
-            </div>
-          </div>
-          </>
-        )}
-
-        {!isMobile && panel}
-
-        {recentLoggings.length > 0 && (
-          <div className={`mb-8 ${isMobile ? "" : "-mt-4"}`} data-testid="recent-loggings">
-            <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><Sparkles className="h-3 w-3" /> Logged with AI</p>
-            <ul className="space-y-1.5">
-              {recentLoggings.map((l) => (
-                <li key={l.logId} className="flex items-center justify-between gap-3 rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-sm">
-                  <span className="min-w-0 truncate text-slate-300"><span className="text-slate-500">{formatDateShort(l.date)}</span> · {l.exercises.join(", ")}</span>
-                  <span className="flex shrink-0 items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => reopen(l.logId)}
-                      aria-label={`Edit the workout logged for ${formatDateShort(l.date)}`}
-                      title="Open this workout to edit it"
-                      className="text-slate-500 hover:text-emerald-300"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => persistEntries(removeWorkoutLogging(entries, l.logId))}
-                      aria-label={`Remove the workout logged for ${formatDateShort(l.date)}`}
-                      title="Remove this logging"
-                      className="text-slate-500 hover:text-red-300"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Workout type tabs */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {WORKOUT_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveType(tab.key)}
-              className="px-4 py-1.5 rounded-full text-sm font-semibold border transition-all"
-              style={
-                activeType === tab.key
-                  ? { backgroundColor: `${tab.color}22`, borderColor: `${tab.color}88`, color: tab.color }
-                  : { backgroundColor: "transparent", borderColor: "#334155", color: "#94A3B8" }
-              }
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <RoutineEditor routine={routine} onSave={saveRoutineState} activeType={activeType} />
+        {panel}
+        {statsWidget}
 
         {/* Progression chart */}
         <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8">
@@ -561,7 +456,7 @@ export default function FitnessLiftingPage() {
             <span className="text-[11px] text-slate-600 italic">More overlays (e.g. body weight) coming once that logging is added</span>
           </div>
 
-          {!routineOn && <p data-testid="routine-hint" className="mb-3 text-[11px] text-amber-300/80">Set up your routine above so these charts only show your own lifts.</p>}
+          {!routineOn && <p data-testid="routine-hint" className="mb-3 text-[11px] text-amber-300/80">Set up your routine below so these charts only show your own lifts.</p>}
           {chartEntries.length > 0 ? (
             <div style={{ width: "100%", height: isMobile ? 220 : 300 }}>
               <ResponsiveContainer>
@@ -618,17 +513,53 @@ export default function FitnessLiftingPage() {
           )}
           {outsideRoutineCount > 0 && (
             <p data-testid="outside-routine" className="mt-3 text-[11px] text-slate-500">
-              {outsideRoutineCount} logged {outsideRoutineCount === 1 ? "exercise is" : "exercises are"} not in your routine and left out of the charts. Add {outsideRoutineCount === 1 ? "it" : "them"} to a day above to include {outsideRoutineCount === 1 ? "it" : "them"}.
+              {outsideRoutineCount} logged {outsideRoutineCount === 1 ? "exercise is" : "exercises are"} not in your routine and left out of the charts. Add {outsideRoutineCount === 1 ? "it" : "them"} to a day in Your routine below to include {outsideRoutineCount === 1 ? "it" : "them"}.
             </p>
           )}
         </div>
 
-        {/* Session volume */}
-        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 sm:p-5 mb-8" data-testid="session-volume">
-          <div className="flex items-center gap-2 text-white font-bold mb-1">
-            <Layers className="h-4 w-4 text-cyan-400" />
-            Session Volume
+        {recentLoggings.length > 0 && (
+          <div className="mb-8" data-testid="recent-loggings">
+            <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><Sparkles className="h-3 w-3" /> Logged with AI</p>
+            <ul className="space-y-1.5">
+              {recentLoggings.map((l) => (
+                <li key={l.logId} className="flex items-center justify-between gap-3 rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-slate-300"><span className="text-slate-500">{formatDateShort(l.date)}</span> · {l.exercises.join(", ")}</span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => reopen(l.logId)}
+                      aria-label={`Edit the workout logged for ${formatDateShort(l.date)}`}
+                      title="Open this workout to edit it"
+                      className="text-slate-500 hover:text-emerald-300"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => persistEntries(removeWorkoutLogging(entries, l.logId))}
+                      aria-label={`Remove the workout logged for ${formatDateShort(l.date)}`}
+                      title="Remove this logging"
+                      className="text-slate-500 hover:text-red-300"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
+        )}
+
+        <RoutineEditor routine={routine} onSave={saveRoutineState} />
+
+        {/* Session volume (collapsed until tapped) */}
+        <CollapsibleSection
+          testId="session-volume"
+          title="Session Volume"
+          icon={<Layers className="h-4 w-4 text-cyan-400" />}
+          summary={countOf(sessionChart.length, "session")}
+        >
           <p className="text-xs text-slate-500 mb-3">Total weight lifted per session (weight x reps over every set), for the time window above.{routineOn ? " Counts only lifts in your routine." : ""}</p>
           {sessionChart.some((s) => s.volume > 0) ? (
             <div style={{ width: "100%", height: isMobile ? 200 : 260 }}>
@@ -653,16 +584,17 @@ export default function FitnessLiftingPage() {
           ) : (
             <p className="text-slate-500 text-sm text-center py-8">No sessions with weights and reps in this time window.</p>
           )}
-        </div>
+        </CollapsibleSection>
 
-        {/* Current Bests table */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 text-white font-bold mb-3">
-            <Flame className="h-4 w-4 text-rose-400" />
-            Current Bests
-          </div>
+        {/* Current Bests table (collapsed until tapped) */}
+        <CollapsibleSection
+          testId="current-bests"
+          title="Current Bests"
+          icon={<Flame className="h-4 w-4 text-rose-400" />}
+          summary={countOf(bestCount, "lift")}
+        >
           {(Object.keys(bestsByType) as WorkoutType[])
-            .filter((t) => activeType === "All" || activeType === t)
+            .filter((t) => bestsByType[t].length > 0)
             .map((t) => (
               <div key={t} className="mb-5">
                 <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">{t}</p>
@@ -701,14 +633,15 @@ export default function FitnessLiftingPage() {
                 </div>
               </div>
             ))}
-        </div>
+        </CollapsibleSection>
 
-        {/* Full log table */}
-        <div>
-          <div className="flex items-center gap-2 text-white font-bold mb-3">
-            <ListChecks className="h-4 w-4 text-cyan-400" />
-            Full Workout Log
-          </div>
+        {/* Full log table (collapsed until tapped) */}
+        <CollapsibleSection
+          testId="full-log"
+          title="Full Workout Log"
+          icon={<ListChecks className="h-4 w-4 text-cyan-400" />}
+          summary={countOf(entries.length, "entry", "entries")}
+        >
           <div className="rounded-xl border border-slate-700/60 overflow-hidden overflow-x-auto">
             <table className="w-full text-sm min-w-[560px]">
               <thead className="bg-slate-800/60 text-slate-400 text-xs uppercase">
@@ -748,7 +681,7 @@ export default function FitnessLiftingPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </CollapsibleSection>
 
         <p className="text-center text-slate-600 text-xs mt-10">
           Starter data imported from the PPL workout log (Jun–Aug 2026); newer sessions are logged with the box above. Values marked with "~" are approximate reps/sets.

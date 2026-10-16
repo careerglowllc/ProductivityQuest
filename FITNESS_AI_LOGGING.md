@@ -32,32 +32,48 @@ In the summary box you can also:
 - Change the **Day** with the date field (not into the future).
 - **Discard** the open day.
 
-### Phone layout
+### Page layout
 
-On a phone both pages are laid out for logging first:
+**Calories, on a phone**, is laid out for logging first:
 
 1. The title, kept small.
 2. A very thin **Today** row: today's running totals (calories and macros with a hairline toward the 2,200 kcal
-   reference; or the day's type, exercises, sets and volume for lifting), or a dashed placeholder ("Nothing logged yet",
-   "No workout yet") when there is nothing. It counts the open day too, so it changes with every message, and a pulsing
-   dot says the day is still open.
+   reference), or a dashed placeholder ("Nothing logged yet") when there is nothing. It counts the open day too, so it
+   changes with every message, and a pulsing dot says the day is still open.
 3. The entry box, with no heading or explanation above it.
-4. A collapsible **Stats** widget, open by default: this week's tiles, a seven-day bar chart (with the goal line for
-   calories), highlights (streak, best protein day and the change from last week for food; workouts, volume against
-   last week, the heaviest lift and the Push / Pull / Legs split for lifting), the weekly log (today first) and an
-   all-time line. While it is collapsed, one line of the week is shown instead. Tapping the header opens or collapses it.
+4. A collapsible **Stats** widget, open by default: this week's tiles, a seven-day bar chart with the goal line,
+   highlights (streak, best protein day and the change from last week), the weekly log (today first) and an all-time
+   line. While it is collapsed, one line of the week is shown instead. Tapping the header opens or collapses it.
    The choice is saved on the account (`workout-stats-open-v1`, `calories-stats-open-v1`), so it is the same after
    logging out and in, and on another device.
 
 The big count cards that used to sit above the entry box are shown on larger screens only; their all-time numbers are
 the last line of the Stats widget. Larger screens keep the layout they had.
 
+**Lifting**, on a phone and on larger screens, runs in this order:
+
+1. The title.
+2. The entry box.
+3. The **Stats** widget, open by default, with the same saved open or closed choice: this week's tiles, the seven-day
+   bar chart, then a **Today** block with the day's type, exercises, sets and volume and every exercise done today with
+   its sets (or "No workout yet"), then highlights, the weekly log and the all-time line. The Today block counts the
+   open day, so it changes with every message, and a pulsing dot says the day is still open.
+4. The **Progression** chart, always shown in full.
+5. **Logged with AI**: the saved days, each with edit and remove.
+6. **Your routine** (below).
+7. **Session Volume**, **Current Bests** and the **Full Workout Log**. Each starts closed, shows a one-line summary
+   ("4 sessions", "12 lifts", "60 entries") and opens when its header is tapped. They are closed again on the next visit.
+
+There are no Push / Pull / Legs tabs, no separate thin Today row and no count cards on this page; the Today block and the
+all-time line of the Stats widget cover them. Bests are grouped under Push, Pull and Legs headings, and the Full Workout
+Log lists every logged exercise.
+
 ### Your routine (Lifting page)
 
-Under the All / Push / Pull / Legs tabs there is a **Your routine** section where you describe what each day usually holds.
+Below the Logged with AI list there is a **Your routine** section where you describe what each day usually holds.
 It starts open until something is set, and collapsed after that.
 
-- Pick Push, Pull or Legs (choosing a tab above shows that day here), press **Edit**, and type the exercises one per line.
+- Pick Push, Pull or Legs, press **Edit**, and type the exercises one per line.
   Sets are optional and read from forms like `3x8-10`, `3 x 8`, `4×12`, `3 sets of 8` or `3 sets`. A live read-out shows
   what was understood. Add notes in your own words ("heavy presses first"). **Save** keeps that day.
 - It is saved on your account under `workout-routine-v1` as the text you typed, so it follows you across devices.
@@ -73,7 +89,7 @@ What it is used for:
    plan: Neck Raise`.
 3. **The lift charts.** Once a routine has exercises, the Progression chart, Session Volume and Current Bests use only lifts
    that are in it (different spellings of one lift are one lift). Other logged exercises stay in the Full Workout Log, the
-   Today row and the Stats widget, and a note under Progression says how many are left out. With no routine set, every
+   Today block and the Stats widget, and a note under Progression says how many are left out. With no routine set, every
    logged lift is shown, as before.
 
 ### Editing a saved day
@@ -186,7 +202,8 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `client/src/hooks/use-speech-to-text.ts` | Voice typing |
 | `client/src/components/fitness/session-panel.tsx` | The summary box, buttons and chat-style text box |
 | `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |
-| `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The phone layout's Today row and Stats widget |
+| `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The Calories page's Today row, and the Stats widget (with the Lifting page's Today block) |
+| `client/src/components/fitness/collapsible-section.tsx` | The closed-until-tapped cards for Session Volume, Current Bests and the Full Workout Log |
 | `client/src/lib/stats-open.ts`, `client/src/hooks/use-stats-open.ts` | Remembering whether the Stats widget is open |
 | `client/src/lib/fitness-stats-text.ts` | The wording and chart values for the Stats widget |
 | `client/src/lib/nutrition-chart.ts` | Day, week and month averaging for the charts |
@@ -194,6 +211,6 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 
 ## Tests
 
-- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
+- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/components/fitness/collapsible-section.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
 - `npm run test:focus` runs `server/fitness-ai.test.ts` (the endpoint with a fake AI).
 - Manual steps: see [FITNESS_AI_LOGGING_TEST_CASES.md](FITNESS_AI_LOGGING_TEST_CASES.md).

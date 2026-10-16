@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { normalizeWorkout, workoutToLogEntries, type CalorieDayLog } from "@shared/fitness-log";
 import { allTimeCalories, allTimeLifting, calorieWeek, liftWeek } from "@shared/fitness-stats";
+import { liftStripText, todayLift, todayLiftRows } from "@shared/fitness-today";
 import { STATS_OPEN_KEYS } from "@/lib/stats-open";
 import { CalorieStats, LiftStats } from "./stats-card";
 
@@ -93,4 +94,36 @@ test("the toggle is wired to the body for screen readers", () => {
   assert.match(html, /aria-controls="stats-body-meal"/);
   assert.match(html, /<div id="stats-body-meal"/);
   assert.match(lifting(), /aria-controls="stats-body-workout"/);
+});
+
+const todayLogFor = (rows: typeof entries, inProgress = false) => ({
+  text: liftStripText(todayLift(rows, TODAY)), rows: todayLiftRows(rows, TODAY), inProgress,
+});
+const liftingWithToday = (todayLog: ReturnType<typeof todayLogFor>) =>
+  renderToStaticMarkup(createElement(LiftStats, { week: liftWeek(entries, TODAY), today: TODAY, accent: "#34D399", allTime: allTimeLifting(entries), todayLog }));
+
+test("the lifting widget lists what was done today under the week's bars, with the day's totals", () => {
+  storage();
+  const html = liftingWithToday(todayLogFor(entries));
+  assert.match(html, /data-testid="today-exercises"/);
+  assert.match(html, /Today<\/span><span[^>]*>Push<\/span>/, "the day's type leads");
+  assert.match(html, /1 exercise · 1 set · 750 lb/);
+  const list = html.match(/data-testid="today-exercise-list".*?<\/ul>/)?.[0] ?? "";
+  assert.match(list, /Bench Press/);
+  assert.doesNotMatch(list, /Lat Pulldown/, "only today's exercises, not the rest of the week");
+  assert.ok(html.indexOf('data-testid="week-bars"') < html.indexOf('data-testid="today-exercises"') && html.indexOf('data-testid="today-exercises"') < html.indexOf('data-testid="highlights"'), "bars, then today, then the rest");
+});
+
+test("with nothing logged today the block says so and lists no exercises; an open day shows the dot", () => {
+  storage();
+  const none = liftingWithToday(todayLogFor([]));
+  assert.match(none, /No workout yet/);
+  assert.doesNotMatch(none, /today-exercise-list/);
+  assert.doesNotMatch(none, /today-in-progress/);
+  assert.match(liftingWithToday(todayLogFor(entries, true)), /data-testid="today-in-progress"/);
+});
+
+test("without a today log the lifting widget has no today block, as before", () => {
+  storage();
+  assert.doesNotMatch(lifting(), /today-exercises/);
 });

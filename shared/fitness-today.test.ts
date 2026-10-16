@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { addMealToDay, addWorkoutEntries, normalizeMeal, normalizeWorkout, rebuildMeal, workoutToLogEntries, type CalorieDayLog, type ParsedMeal, type ParsedWorkout, type WorkoutLogEntry } from "./fitness-log";
 import { addEntry, newDraft } from "./fitness-session";
-import { liftStripText, mealLogWithDraft, mealStripText, todayLift, todayMeals, workoutLogWithDraft } from "./fitness-today";
+import { liftStripText, mealLogWithDraft, mealStripText, todayLift, todayLiftRows, todayMeals, workoutLogWithDraft } from "./fitness-today";
 
 const TODAY = "2026-10-15";
 const now = new Date("2026-10-15T12:00:00Z");
@@ -84,7 +84,22 @@ test("the open workout counts as if it were ended: new exercises add, a reopened
 test("the thin row says what to do when nothing is logged, and shows the numbers when something is", () => {
   assert.deepEqual(mealStripText(todayMeals([], TODAY)), { empty: true, main: "Nothing logged yet", detail: "Tell me what you ate below" });
   assert.deepEqual(mealStripText({ hasAny: true, calories: 1240, protein: 82, carbs: 120, fat: 40 }), { empty: false, main: "1,240 kcal", detail: "P 82g · C 120g · F 40g" });
-  assert.deepEqual(liftStripText(todayLift([], TODAY)), { empty: true, main: "No workout yet", detail: "Log your first exercise below" });
+  assert.deepEqual(liftStripText(todayLift([], TODAY)), { empty: true, main: "No workout yet", detail: "Log your first exercise above" });
   assert.deepEqual(liftStripText({ hasAny: true, exercises: 4, sets: 12, volume: 8400, types: ["Pull", "Legs"] }), { empty: false, main: "Pull + Legs", detail: "4 exercises · 12 sets · 8,400 lb" });
   assert.equal(liftStripText({ hasAny: true, exercises: 1, sets: 1, volume: 0, types: ["Push"] }).detail, "1 exercise · 1 set", "bodyweight only has no volume to show");
+});
+
+test("today's exercise rows are the day's exercises with their sets, in the order logged, and nothing from other days", () => {
+  const entries = addWorkoutEntries(rows([pulldown, row], "a"), rows([{ name: "Bench", workoutType: "Push", sets: [{ weight: 100, reps: 5 }] }], "b", "2026-10-14"));
+  assert.deepEqual(todayLiftRows(entries, TODAY).map((r) => r.exercise), ["Lat Pulldown", "Seated Row"]);
+  assert.equal(todayLiftRows(entries, TODAY)[0].sets, entries.find((e) => e.exercise === "Lat Pulldown")!.setsRaw);
+  assert.equal(todayLiftRows(entries, TODAY)[0].workoutType, "Pull");
+  assert.deepEqual(todayLiftRows(entries, "2026-10-14").map((r) => r.exercise), ["Bench"]);
+  assert.deepEqual(todayLiftRows(entries, "2026-10-13"), []);
+});
+
+test("the open workout's exercises show in today's rows as they are added", () => {
+  const saved = rows([pulldown], "a");
+  const draft = newDraft("b", now, "x", workout([row, { name: "Face Pull" }]));
+  assert.deepEqual(todayLiftRows(workoutLogWithDraft(saved, draft), TODAY).map((r) => r.exercise), ["Lat Pulldown", "Seated Row"]);
 });

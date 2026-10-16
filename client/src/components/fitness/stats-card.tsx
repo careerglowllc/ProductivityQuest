@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CalorieWeek, LiftWeek } from "@shared/fitness-stats";
+import type { StripText, TodayLiftRow } from "@shared/fitness-today";
 import { useStatsOpen } from "@/hooks/use-stats-open";
 import {
   calorieBars, calorieHighlights, calorieLogRows, calorieStatsSubtitle, liftBars, liftHighlights, liftLogRows, liftStatsSubtitle,
@@ -63,6 +64,33 @@ function WeeklyLog({ rows }: { rows: LogRow[] }) {
   );
 }
 
+export interface TodayLog { text: StripText; rows: TodayLiftRow[]; inProgress: boolean }
+
+// Today's totals, then each exercise done today with its sets.
+function TodayExercises({ log, accent }: { log: TodayLog; accent: string }) {
+  const { text, rows, inProgress } = log;
+  return (
+    <div data-testid="today-exercises" className={`overflow-hidden rounded-lg border bg-slate-800/40 ${rows.length ? "border-slate-700/60" : "border-dashed border-slate-600/70"}`}>
+      <div className="flex items-center gap-2 px-2.5 py-1.5 text-[12px] leading-5">
+        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Today</span>
+        <span className={`shrink-0 font-semibold ${text.empty ? "italic text-slate-400" : "text-white"}`}>{text.main}</span>
+        <span className={`min-w-0 flex-1 truncate text-right ${text.empty ? "text-slate-500" : "text-slate-400"}`}>{text.detail}</span>
+        {inProgress && <span data-testid="today-in-progress" title="Today's log is still open" className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full" style={{ backgroundColor: accent }} />}
+      </div>
+      {rows.length > 0 && (
+        <ul data-testid="today-exercise-list" className="divide-y divide-slate-800/80 border-t border-slate-700/50">
+          {rows.map((r, i) => (
+            <li key={`${r.exercise}-${i}`} className="flex items-baseline justify-between gap-3 px-2.5 py-1.5 text-[12px]">
+              <span className="min-w-0 truncate text-slate-200">{r.exercise}</span>
+              <span className="max-w-[55%] shrink-0 truncate text-right text-slate-400">{r.sets}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Highlights({ items, accent }: { items: string[]; accent: string }) {
   return (
     <div data-testid="highlights" className="flex flex-wrap gap-1.5">
@@ -118,7 +146,9 @@ export function CalorieStats({ week, today, goal, accent, allTime }: {
   );
 }
 
-export function LiftStats({ week, today, accent, allTime }: { week: LiftWeek; today: string; accent: string; allTime: { sessions: number; exercises: number } }) {
+export function LiftStats({ week, today, accent, allTime, todayLog }: {
+  week: LiftWeek; today: string; accent: string; allTime: { sessions: number; exercises: number }; todayLog?: TodayLog;
+}) {
   return (
     <StatsWidget kind="workout" subtitle={liftStatsSubtitle(week)}>
       <div className="grid grid-cols-3 gap-2">
@@ -127,6 +157,7 @@ export function LiftStats({ week, today, accent, allTime }: { week: LiftWeek; to
         <Tile value={String(week.sets)} label="Sets" accent={accent} />
       </div>
       <WeekBars days={liftBars(week, today)} accent={accent} unit="volume in pounds" />
+      {todayLog && <TodayExercises log={todayLog} accent={accent} />}
       <Highlights items={liftHighlights(week)} accent={accent} />
       <WeeklyLog rows={liftLogRows(week, today)} />
       <p data-testid="all-time" className="text-center text-[10px] text-slate-500">
