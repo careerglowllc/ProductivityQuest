@@ -9,12 +9,10 @@ export const NUTRIENT_COLORS: Partial<Record<NutrientKey, string>> = {
 const SHOWN: NutrientKey[] = ["calories", "protein", "carbs", "fat", "calcium", "sugar", "fiber"];
 const LABELS: Partial<Record<NutrientKey, string>> = { calories: "kcal" };
 
-// Calories, protein, carbs, fat, calcium, sugar and fiber at a glance. "item" is one small row for a single food;
-// "total" is two rows of bigger tiles, with calories twice as wide, for the day so far. Amounts a food never recorded read 0.
-export function NutrientChips({ totals, variant = "item" }: { totals: Partial<Record<NutrientKey, number>>; variant?: "item" | "total" }) {
-  const total = variant === "total";
+// One small row for a single food: calories, protein, carbs, fat, calcium, sugar and fiber. Amounts it never recorded read 0.
+export function NutrientChips({ totals }: { totals: Partial<Record<NutrientKey, number>> }) {
   return (
-    <div data-testid={`nutrient-chips-${variant}`} className={`${total ? "grid grid-cols-4 gap-1.5" : "mt-1.5 grid grid-cols-7 gap-1"}`}>
+    <div data-testid="nutrient-chips" className="mt-1.5 grid grid-cols-7 gap-1">
       {SHOWN.map((key) => {
         const info = NUTRIENT_INFO[key];
         const value = (totals[key] ?? 0).toLocaleString("en-US");
@@ -24,14 +22,13 @@ export function NutrientChips({ totals, variant = "item" }: { totals: Partial<Re
             key={key}
             data-testid={`chip-${key}`}
             title={`${info.label} ${value}${unit ? ` ${unit}` : " kcal"}`}
-            className={`rounded-md bg-slate-900/60 text-center ${total ? "px-1 py-1.5" : "px-0.5 py-1"} ${total && key === "calories" ? "col-span-2" : ""}`}
-            style={total ? { borderTop: `2px solid ${NUTRIENT_COLORS[key]}` } : undefined}
+            className="rounded-md bg-slate-900/60 px-0.5 py-1 text-center"
           >
-            <p className={`whitespace-nowrap font-bold tabular-nums ${total ? (key === "calories" ? "text-xl leading-6" : "text-[15px] leading-5") : "text-[12px] leading-4"}`} style={{ color: NUTRIENT_COLORS[key] }}>
+            <p className="whitespace-nowrap text-[12px] font-bold leading-4 tabular-nums" style={{ color: NUTRIENT_COLORS[key] }}>
               {value}
-              {unit && <span className={`font-normal opacity-70 ${total ? "ml-0.5 text-[10px]" : "text-[9px]"}`}>{unit}</span>}
+              {unit && <span className="text-[9px] font-normal opacity-70">{unit}</span>}
             </p>
-            <p className={`uppercase tracking-wide text-slate-400 ${total ? "text-[10px]" : "text-[8px] text-slate-500"}`}>{LABELS[key] ?? info.label}</p>
+            <p className="text-[8px] uppercase tracking-wide text-slate-500">{LABELS[key] ?? info.label}</p>
           </div>
         );
       })}

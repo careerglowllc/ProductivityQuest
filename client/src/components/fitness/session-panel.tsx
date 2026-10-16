@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, Mic, MicOff, Send, Undo2, Flag, Trash2, X } from "lucide-react";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import {
@@ -28,9 +28,21 @@ const COPY: Record<FitnessKind, { title: string; intro: string; placeholder: str
   },
 };
 
-// A chat-style box for one day. The first message starts the day, each later message updates the same summary above the
-// box, and every change is saved at once. Ending the day is what puts it in the charts.
-export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false, plan }: {
+// What a food day hands to the widget under the box: the day's own controls, already wired to the box's state.
+export interface SessionParts {
+  draft: FitnessDraft;
+  tag: ReactNode; // "In progress" or "Editing a saved day"
+  meta: ReactNode; // the Day field, the saved note, and the stale-day notice
+  last: ReactNode; // what the last message changed
+  foods: ReactNode; // the foods so far, each with a remove button; null when there are none
+  foodCount: number;
+  actions: ReactNode; // the note about the charts, and End / Undo / Discard
+}
+
+// A chat-style box for one day. The first message starts the day and each later message updates it, and every change is
+// saved at once. A workout day shows its summary above the box; a food day shows it in the widget `below` the box. Ending the
+// day is what puts it in the charts.
+export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent = "#34D399", compact = false, plan, below }: {
   kind: FitnessKind;
   draft: FitnessDraft | null;
   onDraftChange: (draft: FitnessDraft | null) => void;
@@ -38,6 +50,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   accent?: string;
   compact?: boolean; // the phone layout: no heading or explanation above the box, and less space below it
   plan?: RoutinePlan; // what a Push, Pull and Legs day usually hold (workouts only)
+  below?: (parts: SessionParts | null) => ReactNode; // food days: drawn right under the box, with the open day's controls (null when no day is open)
 }) {
   const copy = COPY[kind];
   const [text, setText] = useState("");
@@ -85,120 +98,132 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
   const meal = kind === "meal" && draft ? (draft as MealDraft).summary : null;
   const locked = busy;
 
+  const tag = draft && (
+    <span className="rounded-full border px-2 py-0.5 text-[11px]" style={{ borderColor: `${accent}88`, color: accent }}>
+      {draft.reopened ? "Editing a saved day" : "In progress"}
+    </span>
+  );
+
+  const meta = draft && (
+    <>
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
+        <label className="flex items-center gap-1.5">
+          Day
+          <input
+            type="date"
+            value={draft.date}
+            max={today}
+            disabled={locked}
+            onChange={(e) => { if (e.target.value && e.target.value <= today) edit(moveDraft(draft, new Date(), e.target.value)); }}
+            aria-label="Day this belongs to"
+            className="rounded-md border border-slate-600 bg-slate-900 px-2 py-0.5 text-xs text-slate-100"
+          />
+        </label>
+        <span data-testid="session-saved">Saved automatically at {new Date(draft.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+      </div>
+      {isStaleDraft(draft, today) && (
+        <p role="status" data-testid="session-stale" className="mt-2 text-xs text-amber-300">
+          This day is from {formatDayShort(draft.date)} and was never ended. Keep adding to it, or end it to save it.
+        </p>
+      )}
+    </>
+  );
+
+  const items = draft && lines.length > 0 && (
+    <ul className="space-y-1.5" data-testid="session-items">
+      {lines.map((line, i) => {
+        const remove = (
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => edit(removeDraftItem(kind, draft, i, new Date()))}
+            aria-label={`Remove ${line.title}`}
+            title="Remove"
+            className="mt-0.5 shrink-0 text-slate-500 hover:text-red-300 disabled:opacity-40"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        );
+        return meal ? (
+          <li key={i} data-testid="meal-item" className="rounded-lg border border-slate-700/60 bg-slate-800/60 px-2.5 py-2 text-sm">
+            <div className="flex items-start justify-between gap-2">
+              <span className="min-w-0 font-medium text-slate-100">{line.title}</span>
+              {remove}
+            </div>
+            {meal.items[i] && <NutrientChips totals={meal.items[i]} />}
+          </li>
+        ) : (
+          <li key={i} className="flex items-start justify-between gap-2 text-sm">
+            <span className="min-w-0">
+              <span className="font-medium text-slate-100">{line.title}</span>
+              {line.detail && <span className="block text-xs text-slate-400">{line.detail}</span>}
+            </span>
+            {remove}
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const lastEntry = draft && last && last.id === draft.id && last.lines.length > 0
+    ? <p className="mt-2 text-xs text-emerald-300" data-testid="session-last-entry">Last entry: {last.lines.join(" · ")}</p>
+    : null;
+
+  const actions = draft && (
+    <>
+      <p className="mt-2 text-[11px] text-slate-500">{draft.reopened ? "Your saved version stays in the charts until you save your changes." : copy.end}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          data-testid="end-session"
+          disabled={locked || !draftHasContent(kind, draft)}
+          onClick={() => onEnd(draft)}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-40"
+          style={{ backgroundColor: accent }}
+        >
+          <Flag className="h-4 w-4" /> {endButtonLabel(kind, draft, today, formatDayShort(draft.date))}
+        </button>
+        <button
+          type="button"
+          data-testid="undo-entry"
+          disabled={locked || !canUndo(draft)}
+          onClick={() => edit(undoDraft(draft, new Date()))}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 hover:text-white disabled:opacity-40"
+        >
+          <Undo2 className="h-4 w-4" /> Undo last entry
+        </button>
+        <button
+          type="button"
+          data-testid="discard-session"
+          disabled={locked}
+          onClick={() => { if (window.confirm(draft.reopened ? "Discard your changes? The saved version stays as it was." : `${copy.discard}? What you entered so far will be lost.`)) edit(null); }}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:text-red-300 disabled:opacity-40"
+        >
+          <Trash2 className="h-4 w-4" /> {draft.reopened ? "Discard changes" : copy.discard}
+        </button>
+      </div>
+    </>
+  );
+
+  const parts: SessionParts | null = kind === "meal" && draft ? { draft, tag, meta, last: lastEntry, foods: items, foodCount: lines.length, actions } : null;
+
   return (
-    <section aria-label={copy.title} data-testid={`session-${kind}`} className={`rounded-2xl border border-slate-700/60 bg-slate-900/50 ${compact ? "p-3 sm:p-5 mb-4" : "p-4 sm:p-5 mb-8"}`}>
+    <>
+    <section aria-label={copy.title} data-testid={`session-${kind}`} className={`rounded-2xl border border-slate-700/60 bg-slate-900/50 ${compact || below ? "p-3 sm:p-5 mb-4" : "p-4 sm:p-5 mb-8"}`}>
       {!compact && <div className="mb-1 font-bold text-white">{copy.title}</div>}
       {!draft && !compact && <p className="mb-3 text-xs text-slate-400">{copy.intro}</p>}
 
-      {draft && (
+      {kind === "workout" && draft && (
         <div className="mb-4 mt-2 rounded-xl border bg-slate-800/50 p-3" style={{ borderColor: `${accent}66` }} data-testid="session-summary">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-semibold text-white" data-testid="session-title">{draftTitle(kind, draft, today)}</span>
-            <span className="rounded-full border px-2 py-0.5 text-[11px]" style={{ borderColor: `${accent}88`, color: accent }}>
-              {draft.reopened ? "Editing a saved day" : "In progress"}
-            </span>
+            {tag}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
-            <label className="flex items-center gap-1.5">
-              Day
-              <input
-                type="date"
-                value={draft.date}
-                max={today}
-                disabled={locked}
-                onChange={(e) => { if (e.target.value && e.target.value <= today) edit(moveDraft(draft, new Date(), e.target.value)); }}
-                aria-label="Day this belongs to"
-                className="rounded-md border border-slate-600 bg-slate-900 px-2 py-0.5 text-xs text-slate-100"
-              />
-            </label>
-            <span data-testid="session-saved">Saved automatically at {new Date(draft.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-          </div>
-          {isStaleDraft(draft, today) && (
-            <p role="status" data-testid="session-stale" className="mt-2 text-xs text-amber-300">
-              This day is from {formatDayShort(draft.date)} and was never ended. Keep adding to it, or end it to save it.
-            </p>
-          )}
-
-          {lines.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">Nothing in it yet.</p>
-          ) : (
-            <ul className="mt-3 space-y-1.5" data-testid="session-items">
-              {lines.map((line, i) => {
-                const remove = (
-                  <button
-                    type="button"
-                    disabled={locked}
-                    onClick={() => edit(removeDraftItem(kind, draft, i, new Date()))}
-                    aria-label={`Remove ${line.title}`}
-                    title="Remove"
-                    className="mt-0.5 shrink-0 text-slate-500 hover:text-red-300 disabled:opacity-40"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                );
-                return meal ? (
-                  <li key={i} data-testid="meal-item" className="rounded-lg border border-slate-700/60 bg-slate-800/60 px-2.5 py-2 text-sm">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="min-w-0 font-medium text-slate-100">{line.title}</span>
-                      {remove}
-                    </div>
-                    {meal.items[i] && <NutrientChips totals={meal.items[i]} variant="item" />}
-                  </li>
-                ) : (
-                  <li key={i} className="flex items-start justify-between gap-2 text-sm">
-                    <span className="min-w-0">
-                      <span className="font-medium text-slate-100">{line.title}</span>
-                      {line.detail && <span className="block text-xs text-slate-400">{line.detail}</span>}
-                    </span>
-                    {remove}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          {meta}
+          <div className="mt-3">{items || <p className="text-sm text-slate-400">Nothing in it yet.</p>}</div>
           {planLine && <p data-testid="plan-check" className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-300">{planLine}</p>}
-          {meal && meal.items.length > 0 && (
-            <div data-testid="meal-total" className="mt-3 border-t border-slate-700 pt-2">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">Total so far</p>
-              <NutrientChips totals={meal.totals} variant="total" />
-              <p className="mt-1.5 text-[11px] text-slate-500">Nutrition numbers are the AI's best estimates, not measurements.</p>
-            </div>
-          )}
-          {draft && last && last.id === draft.id && last.lines.length > 0 && (
-            <p className="mt-2 text-xs text-emerald-300" data-testid="session-last-entry">Last entry: {last.lines.join(" · ")}</p>
-          )}
-          <p className="mt-2 text-[11px] text-slate-500">{draft.reopened ? "Your saved version stays in the charts until you save your changes." : copy.end}</p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              data-testid="end-session"
-              disabled={locked || !draftHasContent(kind, draft)}
-              onClick={() => onEnd(draft)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-900 disabled:opacity-40"
-              style={{ backgroundColor: accent }}
-            >
-              <Flag className="h-4 w-4" /> {endButtonLabel(kind, draft, today, formatDayShort(draft.date))}
-            </button>
-            <button
-              type="button"
-              data-testid="undo-entry"
-              disabled={locked || !canUndo(draft)}
-              onClick={() => edit(undoDraft(draft, new Date()))}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 hover:text-white disabled:opacity-40"
-            >
-              <Undo2 className="h-4 w-4" /> Undo last entry
-            </button>
-            <button
-              type="button"
-              data-testid="discard-session"
-              disabled={locked}
-              onClick={() => { if (window.confirm(draft.reopened ? "Discard your changes? The saved version stays as it was." : `${copy.discard}? What you entered so far will be lost.`)) edit(null); }}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:text-red-300 disabled:opacity-40"
-            >
-              <Trash2 className="h-4 w-4" /> {draft.reopened ? "Discard changes" : copy.discard}
-            </button>
-          </div>
+          {lastEntry}
+          {actions}
         </div>
       )}
 
@@ -251,5 +276,7 @@ export function FitnessSessionPanel({ kind, draft, onDraftChange, onEnd, accent 
       {notice && <p role="status" data-testid="session-notice" className="mt-2 text-sm text-amber-300">{notice}</p>}
       {error && <p role="alert" className="mt-2 text-sm text-red-300">{error}</p>}
     </section>
+    {below?.(parts)}
+    </>
   );
 }

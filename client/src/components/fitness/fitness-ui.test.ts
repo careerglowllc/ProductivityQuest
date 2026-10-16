@@ -6,6 +6,7 @@ import { CALORIE_STORAGE_KEY } from "@/lib/calorie-log";
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const box = read("components/fitness/session-panel.tsx");
 const lifting = read("pages/fitness-lifting.tsx");
+const goals = read("components/fitness/daily-goals.tsx");
 const calories = read("pages/fitness-calories.tsx");
 const routes = readFileSync(new URL("../../../../server/routes.ts", import.meta.url), "utf8");
 
@@ -98,18 +99,21 @@ test("the page says when charts are limited to the routine, when no routine is s
   assert.ok(lifting.includes("None of the lifts in your routine are logged yet."));
 });
 
-test("the desktop calories layout keeps the count cards above the entry box, with the goals under it and then the Logged-with-AI list", () => {
+test("the desktop calories layout keeps the count cards above the entry box, with the Logged-with-AI list straight after the box and its goals widget", () => {
   assert.ok(calories.includes("Days Logged"));
-  assert.ok(calories.indexOf("{!isMobile && panel}") < calories.indexOf("{!isMobile && goalsWidget}") && calories.indexOf("{!isMobile && goalsWidget}") < calories.indexOf('data-testid="recent-meals"'));
-  assert.ok(!calories.includes('"-mt-4"'), "the list no longer pulls up under the box, as the goals sit between");
+  assert.ok(calories.indexOf("{!isMobile && panel}") < calories.indexOf('data-testid="recent-meals"'));
+  assert.ok(!calories.includes("goalsWidget") && !calories.includes('"-mt-4"'), "no separate widget element; the goals come with the box");
 });
 
-test("the Calories page puts today's goals right under the entry box, on a phone and on a desktop, counting the open day", () => {
-  const phone = ["{isMobile && panel}", "{isMobile && goalsWidget}", "{isMobile && statsWidget}"].map((marker) => calories.indexOf(marker));
-  assert.ok(phone.every((i) => i > 0) && phone[0] < phone[1] && phone[1] < phone[2], "box, goals, then Stats");
-  assert.ok(calories.includes("<DailyGoals day={previewLog.find((d) => d.date === today)} includesOpenDay={draft !== null && draft.date === today} />"), "from today's day in the log plus the open day");
+test("the Calories page's goals widget is handed to the entry box, so it sits right under it, holds the open day's controls, and follows the day being logged", () => {
+  const phone = ["{isMobile && panel}", "{isMobile && statsWidget}"].map((marker) => calories.indexOf(marker));
+  assert.ok(phone.every((i) => i > 0) && phone[0] < phone[1], "box with its goals, then Stats");
+  assert.ok(/<FitnessSessionPanel[^]*?below=\{\(parts\) => <DailyGoals day=\{previewLog\.find\(\(d\) => d\.date === \(draft\?\.date \?\? today\)\)\} today=\{today\} parts=\{parts\} \/>\}/.test(calories), "the day being logged, from the log plus the open day");
   assert.ok(calories.includes("previewLog = useMemo(() => mealLogWithDraft(log, draft), [log, draft])"));
   assert.ok(calories.includes('"vitaminC", "vitaminA", "vitaminD"] as NutrientKey[]'), "vitamin D can be charted over time too");
+  assert.ok(box.includes("{below?.(parts)}") && box.indexOf("</section>") < box.indexOf("{below?.(parts)}"), "drawn straight after the box");
+  assert.ok(box.includes('{kind === "workout" && draft && ('), "the summary box is for workouts only");
+  assert.ok(!box.includes("Today's food") && !box.includes("Total so far"));
 });
 
 test("every answer is saved to the open day straight away, and a failed request keeps what was typed", () => {
@@ -130,7 +134,7 @@ test("the day has an End button, undo, discard, a date, removal of single items,
   assert.ok(box.includes('aria-label="Day this belongs to"') && box.includes("max={today}"));
   assert.ok(box.includes("removeDraftItem(kind, draft, i, new Date())"));
   assert.ok(box.includes("Saved automatically at"));
-  assert.ok(box.includes("best estimates, not measurements"), "meal numbers are labelled as estimates");
+  assert.ok(goals.includes("best estimates, not measurements"), "meal numbers are labelled as estimates");
   assert.ok(box.includes("draftHasContent(kind, draft)"), "an empty day cannot be ended");
 });
 
@@ -157,7 +161,7 @@ test("the lifting page lists saved days with edit and remove, and its charts inc
 });
 
 test("the calorie page keeps the open day, and ending it writes one entry into that day's totals and marks the day complete", () => {
-  assert.ok(calories.includes('<FitnessSessionPanel kind="meal"'));
+  assert.ok(/<FitnessSessionPanel\s+kind="meal"/.test(calories));
   assert.ok(calories.includes("loadMealDraft()") && calories.includes("saveMealDraft(next)"));
   assert.ok(calories.includes("addMealToDay(removeMealEverywhere(log, finished.id), meal, finished.id"), "ending again replaces, even on another date");
   assert.ok(calories.includes("adoptNewerDraft(current, loadMealDraft())"), "a newer copy from another device is picked up");

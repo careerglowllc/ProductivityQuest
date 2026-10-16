@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createElement } from "react";
-import { FitnessSessionPanel } from "./session-panel";
+import { createElement, Fragment, type ReactNode } from "react";
+import { FitnessSessionPanel, type SessionParts } from "./session-panel";
 import { localToday, type FitnessDraft, type FitnessKind } from "@/lib/fitness-entry";
 import { addEntry, newDraft } from "@shared/fitness-session";
 import { normalizeMeal, normalizeWorkout, type ParsedMeal, type ParsedWorkout } from "@shared/fitness-log";
@@ -70,9 +70,6 @@ test("a day with nothing in it cannot be ended", () => {
   const html = render("workout", empty);
   assert.match(button(html, "end-session"), / disabled=""/);
   assert.match(html, /No sets yet/);
-  const none = render("meal", newDraft("meal-1", now, null, { ...food(), items: [], description: "" }));
-  assert.match(none, /Nothing in it yet/);
-  assert.match(button(none, "end-session"), / disabled=""/);
 });
 
 test("a day left open from an earlier date says so and names that date on the button", () => {
@@ -100,57 +97,87 @@ test("the day can be moved to another date, but not into the future", () => {
   assert.ok(html.includes(`max="${today}"`));
 });
 
-test("today's food shows each item with its numbers, the running total for the day, and an End day button", () => {
-  const html = render("meal", newDraft("meal-1", now, "eggs and a latte", food()));
-  assert.match(html, /data-testid="session-title">Today&#x27;s food</);
-  assert.match(html, /2 egg/);
-  assert.match(html, /12 oz latte \(rough guess\)/);
-  assert.match(html, /best estimates, not measurements/);
-  assert.match(html, /<\/svg> End day<\/button>/);
-  assert.match(html, /<\/svg> Discard this day<\/button>/);
+const renderFood = (draft: FitnessDraft | null, below?: (parts: SessionParts | null) => ReactNode, compact = false) =>
+  renderToStaticMarkup(createElement(FitnessSessionPanel, { kind: "meal", draft, compact, below, onDraftChange: () => {}, onEnd: () => {} }));
+
+test("a food day has no summary box of its own: the open day goes to the widget handed in as `below`, right under the box", () => {
+  const seen: (SessionParts | null)[] = [];
+  const html = renderFood(newDraft("meal-1", now, "eggs and a latte", food()), (parts) => { seen.push(parts); return createElement("aside", { "data-testid": "below" }, "widget"); });
+  assert.doesNotMatch(html, /session-summary|session-title|end-session|undo-entry|meal-item|Today&#x27;s food/);
+  assert.ok(html.endsWith("</section><aside data-testid=\"below\">widget</aside>"), "the widget comes straight after the box");
   assert.match(html, /placeholder="Add more: a chicken burrito bowl/);
-  assert.match(html, /It is not in your charts until you end the day/);
+  assert.equal(seen[0]?.draft.id, "meal-1");
+  assert.equal(seen[0]?.foodCount, 2);
 });
 
-const chipText = (html: string, key: string) => (html.match(new RegExp(`<div[^>]*data-testid="chip-${key}".*?</p></div>`))?.[0] ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+test("with no day open `below` gets nothing to show, and a food day with no `below` has no controls", () => {
+  let called: unknown = "never";
+  renderFood(null, (parts) => { called = parts; return null; });
+  assert.equal(called, null);
+  assert.doesNotMatch(renderFood(newDraft("meal-1", now, "x", food())), /end-session|undo-entry|discard-session|session-saved/);
+});
 
-test("each food shows calories, protein, carbs, fat, calcium, sugar and fiber, and its own remove button", () => {
-  const html = render("meal", newDraft("meal-1", now, "eggs and a latte", food()));
-  const items = html.match(/<li[^>]*data-testid="meal-item".*?<\/li>/g) ?? [];
+test("the box is a little tighter above a widget", () => {
+  assert.match(renderFood(null, () => null), /p-3 sm:p-5 mb-4/);
+  assert.match(renderFood(null), /p-4 sm:p-5 mb-8/);
+});
+
+const partsOf = (draft: FitnessDraft): SessionParts => {
+  const seen: { parts: SessionParts | null } = { parts: null };
+  renderFood(draft, (p) => { seen.parts = p; return null; });
+  assert.ok(seen.parts);
+  return seen.parts;
+};
+const html = (...nodes: ReactNode[]) => renderToStaticMarkup(createElement(Fragment, null, ...nodes));
+const chipText = (markup: string, key: string) => (markup.match(new RegExp(`<div[^>]*data-testid="chip-${key}".*?</p></div>`))?.[0] ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+test("the parts for the widget are the Day field and saved note, the foods with their numbers, and End / Undo / Discard", () => {
+  const parts = partsOf(newDraft("meal-1", now, "eggs and a latte", food()));
+  const meta = html(parts.meta);
+  assert.match(meta, /<input[^>]*type="date"[^>]*aria-label="Day this belongs to"/);
+  assert.match(meta, /Saved automatically at/);
+  const foods = html(parts.foods);
+  const items = foods.match(/<li[^>]*data-testid="meal-item".*?<\/li>/g) ?? [];
   assert.equal(items.length, 2);
   assert.match(items[0], /2 egg/);
+  assert.match(items[1], /12 oz latte \(rough guess\)/);
   assert.deepEqual(Array.from(items[0].matchAll(/data-testid="chip-(\w+)"/g)).map((m) => m[1]), ["calories", "protein", "carbs", "fat", "calcium", "sugar", "fiber"]);
   assert.equal(chipText(items[0], "calories"), "140 kcal");
-  assert.equal(chipText(items[0], "protein"), "12 g Protein");
   assert.equal(chipText(items[1], "carbs"), "12 g Carbs");
   assert.match(items[1], /aria-label="Remove 12 oz latte \(rough guess\)"/);
-  assert.doesNotMatch(items[0], /Calories 140 ·/, "no longer one line of text");
+  const actions = html(parts.actions);
+  assert.match(actions, /<\/svg> End day<\/button>/);
+  assert.match(actions, /<\/svg> Undo last entry<\/button>/);
+  assert.match(actions, /<\/svg> Discard this day<\/button>/);
+  assert.match(actions, /It is not in your charts until you end the day/);
+  assert.match(html(parts.tag), /In progress/);
+  assert.equal(parts.last, null, "nothing has been sent yet from this page");
 });
 
-test("the day's total is a block of bigger tiles, under a Total so far heading", () => {
-  const html = render("meal", newDraft("meal-1", now, "eggs and a latte", food()));
-  const total = html.match(/data-testid="meal-total".*?best estimates/)?.[0] ?? "";
-  assert.match(total, /Total so far/);
-  assert.match(total, /data-testid="nutrient-chips-total"/);
-  assert.equal(chipText(total, "calories"), "290 kcal");
-  assert.equal(chipText(total, "protein"), "20 g Protein");
-  assert.equal(chipText(total, "fat"), "18 g Fat");
-  assert.equal(chipText(total, "sugar"), "0 g Sugar");
-  assert.equal(chipText(total, "fiber"), "0 g Fiber");
-  assert.equal(chipText(total, "calcium"), "0 mg Calcium");
+test("a food day with no foods has nothing to list and cannot be ended; a stale or reopened day says so", () => {
+  const empty = partsOf(newDraft("meal-1", now, null, { ...food(), items: [], description: "" }));
+  assert.equal(empty.foodCount, 0);
+  assert.ok(!empty.foods);
+  assert.match(button(html(empty.actions), "end-session"), / disabled=""/);
+  const stale = partsOf(newDraft("meal-1", now, "x", food("2026-03-02")));
+  assert.match(html(stale.meta), /This day is from Mar 2 and was never ended/);
+  assert.match(html(stale.actions), /<\/svg> End Mar 2<\/button>/);
+  const reopened = partsOf(newDraft("meal-1", now, null, food(), true));
+  assert.match(html(reopened.tag), /Editing a saved day/);
+  assert.match(html(reopened.actions), /<\/svg> Save changes<\/button>/);
+  assert.match(html(reopened.actions), /<\/svg> Discard changes<\/button>/);
 });
 
-test("a day with no food has no total block, and workouts show no nutrient chips", () => {
-  assert.doesNotMatch(render("meal", newDraft("meal-1", now, null, { ...food(), items: [], description: "" })), /meal-total|nutrient-chips/);
-  assert.doesNotMatch(render("workout", newDraft("lift-1", now, "x", pull())), /nutrient-chips|meal-item/);
-});
-
-test("food saved before sugar, fiber and vitamin D were tracked still shows, with zeros", () => {
+test("food saved before sugar, fiber and vitamin D were tracked still lists, with zeros", () => {
   const old = food();
-  const stripped = { ...old, items: old.items.map(({ sugar: _s, fiber: _f, vitaminD: _d, ...rest }) => rest as typeof old.items[number]), totals: { ...old.totals, sugar: undefined as unknown as number } };
-  const html = render("meal", newDraft("meal-1", now, "x", stripped));
-  assert.equal(chipText(html, "sugar"), "0 g Sugar");
-  assert.equal(chipText(html, "fiber"), "0 g Fiber");
+  const stripped = { ...old, items: old.items.map(({ sugar: _s, fiber: _f, vitaminD: _d, ...rest }) => rest as typeof old.items[number]) };
+  const foods = html(partsOf(newDraft("meal-1", now, "x", stripped)).foods);
+  assert.equal(chipText(foods, "sugar"), "0 g Sugar");
+  assert.equal(chipText(foods, "fiber"), "0 g Fiber");
+});
+
+test("workouts show no nutrient chips", () => {
+  assert.doesNotMatch(render("workout", newDraft("lift-1", now, "x", pull())), /nutrient-chips|meal-item/);
 });
 
 test("the microphone and send buttons are part of the box", () => {

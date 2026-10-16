@@ -2,6 +2,8 @@ import { Check } from "lucide-react";
 import type { NutrientKey } from "@shared/fitness-log";
 import { CALORIE_GOAL, goalDetail, goalRows, type GoalRow } from "@shared/fitness-goals";
 import { NUTRIENT_COLORS } from "@/components/fitness/nutrient-chips";
+import type { SessionParts } from "@/components/fitness/session-panel";
+import { formatDayShort } from "@/lib/fitness-entry";
 
 const OVER = "#F59E0B";
 
@@ -31,26 +33,46 @@ function GoalBar({ row }: { row: GoalRow }) {
   );
 }
 
-// Today's calories, macros, fiber, calcium and vitamins A, C and D against the daily goals, one bar each, with the percent of
+// The day's calories, macros, fiber, calcium and vitamins A, C and D against the daily goals, one bar each, with the percent of
 // the goal reached and how far there is to go. Calories, carbs and fat turn amber when passed; the others just read "goal reached".
-export function DailyGoals({ day, includesOpenDay = false }: { day: Partial<Record<NutrientKey, number>> | undefined; includesOpenDay?: boolean }) {
+// It is always there. While a day is open (`parts`) it is that day's live summary and holds its controls: the Day field, the
+// foods so far (folded away until tapped), what the last message changed, and End / Undo / Discard.
+export function DailyGoals({ day, today, parts = null }: { day: Partial<Record<NutrientKey, number>> | undefined; today: string; parts?: SessionParts | null }) {
   const rows = goalRows(day);
   const empty = !(day?.calories && day.calories > 0);
+  const date = parts?.draft.date;
+  const heading = date && date !== today ? `${formatDayShort(date)} vs your goals` : "Today vs your goals";
+  const sugar = Math.round((day?.sugar ?? 0) * 10) / 10;
   return (
-    <section data-testid="daily-goals" aria-label="Today against your goals" className="mb-6 rounded-2xl border border-slate-700/60 bg-slate-900/50 px-4 py-3">
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-bold text-white">Today vs your goals</h2>
-        <span className="text-[11px] text-slate-400">{CALORIE_GOAL.toLocaleString("en-US")} kcal a day</span>
+    <section data-testid="daily-goals" aria-label={heading} className="mb-6 rounded-2xl border border-slate-700/60 bg-slate-900/50 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <h2 data-testid="goals-title" className="text-sm font-bold text-white">{heading}</h2>
+          <span className="text-[11px] text-slate-400">{CALORIE_GOAL.toLocaleString("en-US")} kcal a day</span>
+        </div>
+        {parts?.tag}
       </div>
-      {empty && <p data-testid="goals-empty" className="mb-2 text-[11px] text-slate-400">Nothing logged today yet. Log a meal above and these fill in.</p>}
-      <div className="md:grid md:grid-cols-2 md:gap-x-10">
-        <ul className="space-y-1.5">{rows.slice(0, 4).map((row) => <GoalBar key={row.key} row={row} />)}</ul>
-        <div className="my-2 border-t border-slate-700/60 md:hidden" aria-hidden />
-        <ul className="space-y-1.5">{rows.slice(4).map((row) => <GoalBar key={row.key} row={row} />)}</ul>
+      {parts?.meta}
+      <div className="mt-2">
+        {empty && <p data-testid="goals-empty" className="mb-2 text-[11px] text-slate-400">{date && date !== today ? "Nothing in this day yet. Add what you ate above and these fill in." : "Nothing logged today yet. Log a meal above and these fill in."}</p>}
+        <div className="md:grid md:grid-cols-2 md:gap-x-10">
+          <ul className="space-y-1.5">{rows.slice(0, 4).map((row) => <GoalBar key={row.key} row={row} />)}</ul>
+          <div className="my-2 border-t border-slate-700/60 md:hidden" aria-hidden />
+          <ul className="space-y-1.5">{rows.slice(4).map((row) => <GoalBar key={row.key} row={row} />)}</ul>
+        </div>
       </div>
+      {sugar > 0 && <p data-testid="goals-sugar" className="mt-2 text-[11px] text-slate-400">Sugar: {sugar.toLocaleString("en-US")} g (no daily goal)</p>}
+      {parts?.last}
+      {parts?.foods && (
+        <details data-testid="goals-foods" className="mt-3 rounded-lg border border-slate-700/60 bg-slate-800/40 px-2.5 py-1.5">
+          <summary className="cursor-pointer select-none text-[12px] font-medium text-slate-300">Foods logged ({parts.foodCount})</summary>
+          <div className="mt-2 pb-1">{parts.foods}</div>
+        </details>
+      )}
+      {parts?.actions}
       <p className="mt-2 text-[10px] leading-4 text-slate-500">
         Protein, carbs and fat are 25%, 45% and 30% of the calories. Fiber, calcium and the vitamins use the daily value.
-        {includesOpenDay ? " Includes the food you are still logging." : ""}
+        Amounts are the AI's best estimates, not measurements.
       </p>
     </section>
   );

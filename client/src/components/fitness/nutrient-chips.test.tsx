@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NutrientChips } from "./nutrient-chips";
 
-const render = (totals: Parameters<typeof NutrientChips>[0]["totals"], variant?: "item" | "total") => renderToStaticMarkup(createElement(NutrientChips, { totals, variant }));
+const render = (totals: Parameters<typeof NutrientChips>[0]["totals"]) => renderToStaticMarkup(createElement(NutrientChips, { totals }));
 const chip = (html: string, key: string) => html.match(new RegExp(`<div[^>]*data-testid="chip-${key}".*?</p></div>`))?.[0] ?? "";
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
@@ -36,19 +36,11 @@ test("an amount that was never recorded reads 0, and big numbers get a thousands
   assert.match(text(chip(html, "calcium")), /^1,250 mg/);
 });
 
-test("the small row is one line of seven, and the day's total is two rows of four with calories twice as wide", () => {
-  const small = render(eggs, "item");
-  assert.match(small, /data-testid="nutrient-chips-item"[^>]*grid-cols-7/);
-  assert.doesNotMatch(small, /col-span-2/);
-  const big = render(eggs, "total");
-  assert.match(big, /data-testid="nutrient-chips-total"[^>]*grid-cols-4/);
-  assert.equal((big.match(/col-span-2/g) ?? []).length, 1);
-  assert.match(chip(big, "calories"), /col-span-2/);
-  assert.match(chip(big, "protein"), /border-top:2px solid #34D399/, "each tile has a coloured top edge");
-});
-
-test("the total's numbers are larger than a food's", () => {
-  assert.match(chip(render(eggs, "total"), "protein"), /text-\[15px\]/);
-  assert.match(chip(render(eggs, "total"), "calories"), /text-xl/);
-  assert.match(chip(render(eggs, "item"), "protein"), /text-\[12px\]/);
+test("the chips are one line of seven small tiles, each number in its nutrient's colour", () => {
+  const html = render(eggs);
+  assert.match(html, /data-testid="nutrient-chips"[^>]*grid-cols-7/);
+  assert.equal((html.match(/data-testid="chip-/g) ?? []).length, 7);
+  assert.match(chip(html, "protein"), /text-\[12px\]/);
+  assert.match(chip(html, "protein"), /color:#34D399/);
+  assert.match(chip(html, "calories"), /color:#F87171/);
 });

@@ -14,19 +14,21 @@ into the same logs the charts already read.
 1. Type in the box, or tap the microphone and speak. Dictated words are added to what is already typed.
 2. Press Enter (or the send arrow). Shift+Enter adds a new line where the keyboard has it; a phone keyboard shows a
    Send key.
-3. A summary box appears above the text box ("Today's pull day", "Today's food"). It lists each exercise with its sets
-   and warm-up, or each food with a row of small tiles (calories, protein, carbs, fat, calcium, sugar and fiber) and a
-   bigger **Total so far** block of the same seven, and a "Last entry" line says what the message changed.
+3. The day so far appears. On Lifting a summary box ("Today's pull day") appears above the text box and lists each
+   exercise with its sets and warm-up. On Calories there is no separate food box: **Today vs your goals**, right under
+   the text box, is the summary. Its bars move with every message, and a fold-away **Foods logged** list shows each
+   food with calories, protein, carbs, fat, calcium, sugar and fiber. A "Last entry" line says what the message changed.
 4. Keep sending. The AI is given the day so far and your earlier messages, so "120 for 8" means a set of the exercise
    you are on, "same again" repeats the last set, and "actually the latte was oat milk" corrects only the latte.
 5. Every change is saved at once ("Saved automatically at ..."). Close the page and come back, or open it on another
    device, and the open day is still there.
-6. Press the End button when you are done. The day is written to the charts, the summary box closes, and the next
+6. Press the End button when you are done. The day is written to the charts, the open day closes (its controls go
+   away), and the next
    message starts a new day. A toast offers **Edit again**.
 
 While a day is open it is **not in the charts yet**. The box says so.
 
-In the summary box you can also:
+In the summary box (Lifting) or in Today vs your goals (Calories) you can also:
 
 - **Undo last entry** (up to five steps back, including the message that caused it).
 - Remove a single exercise or food with the x beside it.
@@ -42,7 +44,7 @@ In the summary box you can also:
    goal), or a dashed placeholder ("Nothing logged yet") when there is nothing. It counts the open day too, so it
    changes with every message, and a pulsing dot says the day is still open.
 3. The entry box, with no heading or explanation above it.
-4. **Today vs your goals** (below), right under the entry box.
+4. **Today vs your goals** (below), right under the entry box. It is always there, and the open day's controls live in it.
 5. A collapsible **Stats** widget, open by default: this week's tiles, a seven-day bar chart with the goal line,
    highlights (streak, best protein day and the change from last week), the weekly log (today first) and an all-time
    line. While it is collapsed, one line of the week is shown instead. Tapping the header opens or collapses it.
@@ -55,10 +57,22 @@ Logged with AI, then the charts.
 
 ### Today vs your goals (Calories page)
 
-Right under the entry box, one bar for each of today's calories, protein, carbs, fat, fiber, calcium and vitamins A, C
-and D. Each bar shows the percent of its goal and the amounts, for example "Protein 55%" over "82 of 150 g · 68 to go".
-It counts the food still being logged (the line at the bottom says so), so it moves with every message. With nothing
-logged the bars are empty and a line invites the first meal.
+Right under the entry box, always there, one bar for each of the day's calories, protein, carbs, fat, fiber, calcium and
+vitamins A, C and D. Each bar shows the percent of its goal and the amounts, for example "Protein 55%" over "82 of 150 g ·
+68 to go". It is the live summary of the day being logged: it counts the food still being logged, so it moves with every
+message, and there is no separate "Today's food" box. With nothing logged the bars are empty and a line invites the first
+meal. Sugar has no goal, so it is one line under the bars.
+
+While a day is open the same card also holds that day's controls:
+
+- a tag (**In progress**, or **Editing a saved day**), the **Day** field and "Saved automatically at ...", and the
+  notice for a day left open from an earlier date;
+- the "Last entry" line, and **Foods logged (n)**, folded away until tapped, with each food's calories, protein, carbs,
+  fat, calcium, sugar and fiber and an x to remove it;
+- **End day**, **Undo last entry** and **Discard this day** (**Save changes** and **Discard changes** on a reopened
+  day), with the note that the day is not in the charts until it is ended.
+
+If the open day is not today (it was moved, or left open), the title names that date and the bars are for that day.
 
 | Nutrient | Goal | Why |
 | --- | --- | --- |
@@ -121,8 +135,8 @@ What it is used for:
 
 ### Editing a saved day
 
-Under **Logged with AI** every saved day has a pencil button. It opens the day again in the summary box ("Editing a
-saved day"); the button now says **Save changes**. The saved version stays in the charts until you save, and
+Under **Logged with AI** every saved day has a pencil button. It opens the day again in the summary box (Lifting) or in Today vs your goals (Calories), tagged "Editing a
+saved day"; the button now says **Save changes**. The saved version stays in the charts until you save, and
 **Discard changes** leaves it exactly as it was. Saving replaces the earlier version (same id), so there is never a second
 copy. Only one day can be open at a time; opening another asks you to end or discard the open one first.
 
@@ -228,11 +242,11 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `client/src/lib/fitness-entry.ts` | Request, applying an answer to the day, titles, error messages |
 | `client/src/lib/fitness-draft.ts` | Saving and loading the open day |
 | `client/src/hooks/use-speech-to-text.ts` | Voice typing |
-| `client/src/components/fitness/session-panel.tsx` | The summary box, buttons and chat-style text box |
+| `client/src/components/fitness/session-panel.tsx` | The chat-style text box, the Lifting summary box and its buttons, and the open food day's controls handed to the goals widget |
 | `client/src/components/fitness/routine-editor.tsx`, `client/src/lib/workout-routine.ts`, `client/src/hooks/use-routine.ts` | The Your routine section and saving it |
 | `client/src/components/fitness/today-strip.tsx`, `stats-card.tsx` | The Calories page's Today row, and the Stats widget (with the Lifting page's Today block) |
 | `client/src/components/fitness/collapsible-section.tsx` | The closed-until-tapped cards for Session Volume, Current Bests and the Full Workout Log |
-| `client/src/components/fitness/daily-goals.tsx`, `nutrient-chips.tsx` | The Today vs your goals bars, and the calories / protein / carbs / fat / calcium / sugar / fiber tiles in the food summary |
+| `client/src/components/fitness/daily-goals.tsx`, `nutrient-chips.tsx` | The Today vs your goals bars and the open food day's controls, and the calories / protein / carbs / fat / calcium / sugar / fiber tiles for each food |
 | `client/src/lib/stats-open.ts`, `client/src/hooks/use-stats-open.ts` | Remembering whether the Stats widget is open |
 | `client/src/lib/fitness-stats-text.ts` | The wording and chart values for the Stats widget |
 | `client/src/lib/nutrition-chart.ts` | Day, week and month averaging for the charts |
