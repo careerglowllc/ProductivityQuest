@@ -131,3 +131,19 @@ test("Houndstooth Coffee is one Austin entry with a matching rating and a bumped
   assert.equal(food.match(/name: "Houndstooth Coffee"/g)?.length, 1, "one entry for all locations");
   assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 21, "seed version bumped");
 });
+
+test("Tacodeli is one Austin entry with a matching rating and a bumped seed version", () => {
+  const food = readFileSync(new URL("../pages/food-in-cities.tsx", import.meta.url), "utf8");
+  const start = food.indexOf('id: "food-tacodeli-austin"');
+  assert.notEqual(start, -1, "Tacodeli is seeded");
+  const block = food.slice(start, food.indexOf("\n  },", start));
+  assert.match(block, /city: "Austin, TX"/);
+  assert.match(block, /tags: \[[^\]]*"Tacos"/);
+  const stars = block.match(/stars: \{ food: ([\d.]+), ambience: ([\d.]+), price: ([\d.]+) \}/);
+  assert.ok(stars, "stars are set");
+  const [f, a, p] = stars.slice(1).map(Number);
+  assert.deepEqual([f, a, p], [3.4, 2, 2.7]);
+  assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
+  assert.equal(food.match(/name: "Tacodeli"/g)?.length, 1, "one entry for all locations");
+  assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 22, "seed version bumped");
+});

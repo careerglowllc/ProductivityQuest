@@ -784,9 +784,21 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-18T00:00:00.000Z",
     updatedAt: "2026-10-18T00:00:00.000Z",
   },
+  {
+    id: "food-tacodeli-austin",
+    name: "Tacodeli",
+    city: "Austin, TX",
+    overallRating: 2.7,
+    stars: { food: 3.4, ambience: 2, price: 2.7 },
+    thoughts: "Several locations around Austin. Hits the spot for quick, easy tacos with a great variety. The quality isn't amazing, but it's relatively cheap and does the job when you're hungry — not amazing, but a solid choice.",
+    tags: ["Tacos", "Mexican", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-10-18T00:00:00.000Z",
+    updatedAt: "2026-10-18T00:00:00.000Z",
+  },
 ];
 
-const SEED_KEY = "food-cities-seed-v21";
+const SEED_KEY = "food-cities-seed-v22";
 const PATCH_KEY = "food-cities-patch-v2";
 const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
 
