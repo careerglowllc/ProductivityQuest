@@ -40,6 +40,8 @@ const REGION_SVG_PATHS: Record<string, string> = {
   "central-valley": "M 52,4 L 68,6 L 74,14 L 76,24 L 72,34 L 70,48 L 65,60 L 60,72 L 52,84 L 40,90 L 30,84 L 24,72 L 22,58 L 24,44 L 20,32 L 24,18 L 34,8 Z",
   // Nevada silhouette (trapezoid with angled bottom-left)
   "reno":           "M 20,6 L 80,6 L 86,18 L 86,76 L 52,94 L 20,76 Z",
+  // Texas silhouette (panhandle, Rio Grande diagonal, Gulf coast)
+  "austin":         "M 30,4 L 54,4 L 54,16 L 70,16 L 74,26 L 82,34 L 84,50 L 76,66 L 64,82 L 56,94 L 48,84 L 38,76 L 30,84 L 22,70 L 14,56 L 10,44 L 30,38 Z",
 };
 
 // Highlight polygons showing the sub-region within the state shape
@@ -50,6 +52,8 @@ const REGION_HIGHLIGHT_PATHS: Record<string, string> = {
   "central-valley": "M 38,22 L 62,24 L 66,36 L 64,52 L 58,62 L 42,62 L 34,52 L 32,36 Z",
   // Reno — upper-left portion of Nevada
   "reno":           "M 22,10 L 52,10 L 52,46 L 30,50 L 22,40 Z",
+  // Austin — central Texas blob
+  "austin":         "M 48,56 L 58,54 L 62,62 L 58,70 L 50,70 L 46,64 Z",
 };
 
 const REGIONS = [
@@ -91,13 +95,23 @@ const REGIONS = [
     stateName: "Nevada",
     citiesMatch: ["reno", "sparks", "carson city", ", nv", "nevada"],
   },
+  {
+    id: "austin",
+    label: "Austin, TX",
+    emoji: "🤠",
+    description: "Austin, Round Rock & Central Texas",
+    color: "#ef4444",
+    ringColor: "rgba(239,68,68,0.22)",
+    stateName: "Texas",
+    citiesMatch: ["austin", "round rock", "cedar park", "pflugerville", ", tx", "texas"],
+  },
 ];
 
 const ALL_TAGS = [
   "Fine Dining", "Casual", "Breakfast", "Lunch", "Dinner",
   "Street Food", "Diner / Dive", "Brunch", "Coffee / Cafe", "Bakery",
   "Dessert", "Ice Cream", "Bar / Drinks", "Fast Food", "Seafood",
-  "Steakhouse", "Sandwich / Deli", "Sushi",
+  "Steakhouse", "BBQ", "Sandwich / Deli", "Sushi",
   "Elote", "Tacos",
   "American", "Italian", "Japanese", "Mexican", "Chinese",
   "Vietnamese", "Thai", "Indian", "Mediterranean", "French",
@@ -124,6 +138,7 @@ const TAG_COLORS: Record<string, string> = {
   "Steakhouse":      "bg-red-800/20 text-red-300 border-red-800/40",
   "Sandwich / Deli": "bg-amber-700/20 text-amber-300 border-amber-700/40",
   "Sushi":           "bg-pink-700/20 text-pink-300 border-pink-700/40",
+  "BBQ":             "bg-orange-800/20 text-orange-300 border-orange-800/40",
   "American":       "bg-blue-500/20 text-blue-300 border-blue-500/40",
   "Italian":        "bg-green-500/20 text-green-300 border-green-500/40",
   "Japanese":       "bg-red-500/20 text-red-300 border-red-500/40",
@@ -185,6 +200,7 @@ function avg(s: StarRatings): number {
 const TAG_EMOJI: [string, string][] = [
   ["Sushi",          "🍣"],
   ["Steakhouse",     "🥩"],
+  ["BBQ",            "🍖"],
   ["Coffee / Cafe",  "☕"],
   ["Breakfast",      "🍳"],
   ["Brunch",         "🥂"],
@@ -259,7 +275,7 @@ function RegionPickerView({
   const { isDark } = useTheme();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mx-auto">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl mx-auto">
       {REGIONS.map((region) => {
         const count = countFor(region.id);
         const shapePath    = REGION_SVG_PATHS[region.id];
@@ -743,9 +759,22 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-04T00:00:00.000Z",
     updatedAt: "2026-10-04T00:00:00.000Z",
   },
+  {
+    id: "food-stiles-switch-bbq-austin",
+    name: "Stiles Switch BBQ",
+    city: "Austin, TX",
+    address: "6610 N Lamar Blvd, Austin, TX 78752",
+    overallRating: 3.9,
+    stars: { food: 4, ambience: 4, price: 3.6 },
+    thoughts: "Really good, solid BBQ with tasty sides and a nice variety of them. The inside has a nice dive bar vibe, and the interior was a set for the movie Dazed and Confused, which is a neat touch.",
+    tags: ["BBQ", "American", "Casual", "Diner / Dive"],
+    visitedAt: "",
+    createdAt: "2026-10-18T00:00:00.000Z",
+    updatedAt: "2026-10-18T00:00:00.000Z",
+  },
 ];
 
-const SEED_KEY = "food-cities-seed-v19";
+const SEED_KEY = "food-cities-seed-v20";
 const PATCH_KEY = "food-cities-patch-v2";
 const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
 

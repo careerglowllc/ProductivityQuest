@@ -94,3 +94,25 @@ test("Export All covers every Explore category", () => {
     assert.ok(new RegExp(`${builderFor[key]}\\(\\)`).test(zipSection), `Export All is missing the ${key} export`);
   }
 });
+
+// Austin is a region on both pages; the seeded entry's overall rating is computed by hand, so it must match the stars.
+test("Austin region exists on Food and Activities, and Stiles Switch BBQ is seeded with a matching rating", () => {
+  for (const file of ["food-in-cities.tsx", "activities-in-cities.tsx"]) {
+    const source = readFileSync(new URL(`../pages/${file}`, import.meta.url), "utf8");
+    assert.match(source, /id: "austin",\s+label: "Austin, TX"/, `${file}: Austin region`);
+    assert.match(source, /citiesMatch: \[[^\]]*"austin"[^\]]*\]/, `${file}: Austin cities match`);
+    assert.match(source, /"austin":\s+"M /, `${file}: Austin map shapes`);
+  }
+  const food = readFileSync(new URL("../pages/food-in-cities.tsx", import.meta.url), "utf8");
+  const start = food.indexOf('id: "food-stiles-switch-bbq-austin"');
+  assert.notEqual(start, -1, "Stiles Switch BBQ is seeded");
+  const block = food.slice(start, food.indexOf("\n  },", start));
+  assert.match(block, /address: "6610 N Lamar Blvd, Austin, TX 78752"/);
+  assert.match(block, /tags: \[[^\]]*"BBQ"/);
+  const stars = block.match(/stars: \{ food: ([\d.]+), ambience: ([\d.]+), price: ([\d.]+) \}/);
+  assert.ok(stars, "stars are set");
+  const [f, a, p] = stars.slice(1).map(Number);
+  assert.deepEqual([f, a, p], [4, 4, 3.6]);
+  assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
+  assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 20, "seed version bumped so existing browsers pick up the entry");
+});

@@ -37,12 +37,16 @@ const REGION_SVG_PATHS: Record<string, string> = {
   "bay-area":       "M 52,4 L 68,6 L 74,14 L 76,24 L 72,34 L 70,48 L 65,60 L 60,72 L 52,84 L 40,90 L 30,84 L 24,72 L 22,58 L 24,44 L 20,32 L 24,18 L 34,8 Z",
   "central-valley": "M 52,4 L 68,6 L 74,14 L 76,24 L 72,34 L 70,48 L 65,60 L 60,72 L 52,84 L 40,90 L 30,84 L 24,72 L 22,58 L 24,44 L 20,32 L 24,18 L 34,8 Z",
   "reno":           "M 20,6 L 80,6 L 86,18 L 86,76 L 52,94 L 20,76 Z",
+  // Texas silhouette (panhandle, Rio Grande diagonal, Gulf coast)
+  "austin":         "M 30,4 L 54,4 L 54,16 L 70,16 L 74,26 L 82,34 L 84,50 L 76,66 L 64,82 L 56,94 L 48,84 L 38,76 L 30,84 L 22,70 L 14,56 L 10,44 L 30,38 Z",
 };
 
 const REGION_HIGHLIGHT_PATHS: Record<string, string> = {
   "bay-area":       "M 36,52 L 44,48 L 52,50 L 56,58 L 52,68 L 44,72 L 36,68 L 30,60 Z",
   "central-valley": "M 38,22 L 62,24 L 66,36 L 64,52 L 58,62 L 42,62 L 34,52 L 32,36 Z",
   "reno":           "M 22,10 L 52,10 L 52,46 L 30,50 L 22,40 Z",
+  // Austin — central Texas blob
+  "austin":         "M 48,56 L 58,54 L 62,62 L 58,70 L 50,70 L 46,64 Z",
 };
 
 const REGIONS = [
@@ -84,6 +88,16 @@ const REGIONS = [
     ringColor: "rgba(168,85,247,0.22)",
     stateName: "Nevada",
     citiesMatch: ["reno", "sparks", "carson city", ", nv", "nevada"],
+  },
+  {
+    id: "austin",
+    label: "Austin, TX",
+    emoji: "🤠",
+    description: "Austin, Round Rock & Central Texas",
+    color: "#ef4444",
+    ringColor: "rgba(239,68,68,0.22)",
+    stateName: "Texas",
+    citiesMatch: ["austin", "round rock", "cedar park", "pflugerville", ", tx", "texas"],
   },
 ];
 
@@ -211,7 +225,7 @@ function RegionPickerView({
   const { isDark } = useTheme();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mx-auto">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl mx-auto">
       {REGIONS.map((region) => {
         const count = countFor(region.id);
         const shapePath    = REGION_SVG_PATHS[region.id];
