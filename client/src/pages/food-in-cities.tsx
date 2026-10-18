@@ -772,9 +772,21 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-18T00:00:00.000Z",
     updatedAt: "2026-10-18T00:00:00.000Z",
   },
+  {
+    id: "food-houndstooth-coffee-austin",
+    name: "Houndstooth Coffee",
+    city: "Austin, TX",
+    overallRating: 3.1,
+    stars: { food: 3.3, ambience: 3.5, price: 2.5 },
+    thoughts: "Several locations around Austin. Not bad but not extraordinary — it gets the job done as a modern coffee shop with nice options and artisan coffee. Food items are limited and there are few special seasonal drinks. The coffee is good but not outstanding.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-10-18T00:00:00.000Z",
+    updatedAt: "2026-10-18T00:00:00.000Z",
+  },
 ];
 
-const SEED_KEY = "food-cities-seed-v20";
+const SEED_KEY = "food-cities-seed-v21";
 const PATCH_KEY = "food-cities-patch-v2";
 const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
 
