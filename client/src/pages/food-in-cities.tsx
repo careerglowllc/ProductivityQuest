@@ -796,9 +796,22 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-18T00:00:00.000Z",
     updatedAt: "2026-10-18T00:00:00.000Z",
   },
+  {
+    id: "food-mezzeme-austin",
+    name: "Mezzeme",
+    city: "Austin, TX",
+    address: "4700 W Guadalupe St Suite #9, Austin, TX 78751",
+    overallRating: 3.4,
+    stars: { food: 4.2, ambience: 2.5, price: 3.5 },
+    thoughts: "Turkish / Middle Eastern. Really great-tasting food, consistently.",
+    tags: ["Middle Eastern", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-10-18T00:00:00.000Z",
+    updatedAt: "2026-10-18T00:00:00.000Z",
+  },
 ];
 
-const SEED_KEY = "food-cities-seed-v22";
+const SEED_KEY = "food-cities-seed-v23";
 const PATCH_KEY = "food-cities-patch-v2";
 const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
 
