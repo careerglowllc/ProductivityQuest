@@ -162,3 +162,18 @@ test("Mezzeme is seeded in Austin with a matching rating and a bumped seed versi
   assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
   assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 23, "seed version bumped");
 });
+
+test("The Pho is seeded in Austin with a matching rating and a bumped seed version", () => {
+  const food = readFileSync(new URL("../pages/food-in-cities.tsx", import.meta.url), "utf8");
+  const start = food.indexOf('id: "food-the-pho-austin"');
+  assert.notEqual(start, -1, "The Pho is seeded");
+  const block = food.slice(start, food.indexOf("\n  },", start));
+  assert.match(block, /address: "609 Clayton Ln Ste 100, Austin, TX 78752"/);
+  assert.match(block, /tags: \[[^\]]*"Vietnamese"/);
+  const stars = block.match(/stars: \{ food: ([\d.]+), ambience: ([\d.]+), price: ([\d.]+) \}/);
+  assert.ok(stars, "stars are set");
+  const [f, a, p] = stars.slice(1).map(Number);
+  assert.deepEqual([f, a, p], [3.6, 2.5, 3]);
+  assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
+  assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 24, "seed version bumped");
+});

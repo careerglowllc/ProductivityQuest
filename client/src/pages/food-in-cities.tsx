@@ -809,9 +809,22 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-18T00:00:00.000Z",
     updatedAt: "2026-10-18T00:00:00.000Z",
   },
+  {
+    id: "food-the-pho-austin",
+    name: "The Pho",
+    city: "Austin, TX",
+    address: "609 Clayton Ln Ste 100, Austin, TX 78752",
+    overallRating: 3,
+    stars: { food: 3.6, ambience: 2.5, price: 3 },
+    thoughts: "Tasty, pretty good food — nothing incredible, but if you're craving Vietnamese and are nearby, it'll hit the spot.",
+    tags: ["Vietnamese", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-10-18T00:00:00.000Z",
+    updatedAt: "2026-10-18T00:00:00.000Z",
+  },
 ];
 
-const SEED_KEY = "food-cities-seed-v23";
+const SEED_KEY = "food-cities-seed-v24";
 const PATCH_KEY = "food-cities-patch-v2";
 const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
 
