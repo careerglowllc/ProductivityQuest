@@ -1,7 +1,7 @@
 // A day's workout or food log that is built up one message at a time. The first message starts the day, each later
 // message updates the same summary, and nothing reaches the charts until the day is ended. These are the pure rules for
 // that draft (what is stored, undo, what changed after a message) so the page, the server and the tests share them.
-import { formatSets, isIsoDate, type LoggedSet, type ParsedExercise, type ParsedFoodItem, type ParsedMeal, type ParsedWorkout } from "./fitness-log";
+import { formatSets, formatWarmupSets, isIsoDate, type LoggedSet, type ParsedExercise, type ParsedFoodItem, type ParsedMeal, type ParsedWorkout } from "./fitness-log";
 
 export const MAX_DRAFT_MESSAGES = 60;
 export const MAX_UNDO_STEPS = 5;
@@ -89,7 +89,7 @@ export function parseDraft<T extends { date: string }>(raw: string | null, valid
 
 export const isWorkoutSummary = (value: unknown): value is ParsedWorkout =>
   !!value && typeof value === "object" && isIsoDate((value as ParsedWorkout).date) && Array.isArray((value as ParsedWorkout).exercises)
-  && (value as ParsedWorkout).exercises.every((e) => e && typeof e.name === "string" && Array.isArray(e.sets));
+  && (value as ParsedWorkout).exercises.every((e) => e && typeof e.name === "string" && Array.isArray(e.sets) && (e.warmupSets === undefined || Array.isArray(e.warmupSets)));
 
 export const isMealSummary = (value: unknown): value is ParsedMeal =>
   !!value && typeof value === "object" && isIsoDate((value as ParsedMeal).date) && Array.isArray((value as ParsedMeal).items)
@@ -116,7 +116,11 @@ export function describeWorkoutChange(before: ParsedWorkout | null, after: Parse
     const extra = ex.sets.length > prev.sets.length && prev.sets.every((s, i) => sameSet(s, ex.sets[i])) ? ex.sets.slice(prev.sets.length) : null;
     if (extra) parts.push(`added ${formatSets({ sets: extra })}`);
     else if (JSON.stringify(prev.sets) !== JSON.stringify(ex.sets)) parts.push(`sets now ${formatSets(ex)}`);
-    if ((prev.warmup ?? "") !== (ex.warmup ?? "")) parts.push(ex.warmup ? `warm-up ${ex.warmup}` : "warm-up removed");
+    const warmupBefore = prev.warmupSets ?? [];
+    const warmupNow = ex.warmupSets ?? [];
+    const extraWarmup = warmupNow.length > warmupBefore.length && warmupBefore.every((s, i) => sameSet(s, warmupNow[i])) ? warmupNow.slice(warmupBefore.length) : null;
+    if (extraWarmup) parts.push(`added warm-up ${formatWarmupSets(extraWarmup)}`);
+    else if ((prev.warmup ?? "") !== (ex.warmup ?? "")) parts.push(ex.warmup ? `warm-up ${ex.warmup}` : "warm-up removed");
     if ((prev.notes ?? "") !== (ex.notes ?? "")) parts.push(ex.notes ? `note: ${ex.notes}` : "note removed");
     if (parts.length) lines.push(`${ex.name}: ${parts.join("; ")}`);
   }

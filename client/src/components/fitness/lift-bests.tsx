@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import { liftCards, measureText, type BarMode, type BarSet, type ExerciseCard } from "@shared/fitness-bests";
+import { liftCards, measureText, type BarMode, type BarSet, type ExerciseCard, type WarmupBar } from "@shared/fitness-bests";
 import type { WorkoutLogEntry, WorkoutType } from "@shared/fitness-log";
 import type { WorkoutDraft } from "@shared/fitness-session";
 import type { SessionParts } from "@/components/fitness/session-panel";
@@ -35,8 +35,25 @@ function SetRow({ card, set }: { card: ExerciseCard; set: BarSet }) {
   );
 }
 
+// A warm-up set: a thin grey bar on the same scale as the working sets, with no best line and no gold, so it is never read as a record.
+function WarmupRow({ card, warmup }: { card: ExerciseCard; warmup: WarmupBar }) {
+  return (
+    <li data-testid="lift-warmup">
+      <div className="flex items-center gap-2">
+        <span className="w-9 shrink-0 text-[11px] text-slate-500">W{warmup.index}</span>
+        <div role="img" aria-label={`Warm-up set ${warmup.index}: ${warmup.label}`} className="relative h-3 flex-1">
+          <div className="absolute inset-x-0 bottom-1 top-1 overflow-hidden rounded-full bg-slate-700/40">
+            <div data-testid="lift-warmup-fill" className="absolute inset-y-0 left-0 rounded-full bg-slate-400/60" style={{ width: pct(warmup.value / card.scale) }} />
+          </div>
+        </div>
+        <span className="shrink-0 whitespace-nowrap text-right text-[11px] tabular-nums text-slate-400">{warmup.label}</span>
+      </div>
+    </li>
+  );
+}
+
 function summaryOf(card: ExerciseCard): { text: string; tone: string } {
-  if (card.status === "empty") return { text: "No sets yet", tone: "text-slate-500" };
+  if (card.status === "empty") return card.warmups.length > 0 ? { text: "Warm-up logged \u00b7 no working sets yet", tone: "text-slate-400" } : { text: "No sets yet", tone: "text-slate-500" };
   const top = `Top ${measureText(card.top, card.kind)}`;
   if (card.status === "first") return { text: `${top} \u00b7 first time logged`, tone: "text-slate-400" };
   if (card.status === "new") return { text: `${top} \u00b7 New best!`, tone: "text-amber-300 font-semibold" };
@@ -69,7 +86,18 @@ function Card({ card, locked, onRemove }: { card: ExerciseCard; locked: boolean;
           </button>
         )}
       </div>
-      {card.sets.length > 0 && <ul className="mt-2 space-y-1.5">{card.sets.map((set) => <SetRow key={set.index} card={card} set={set} />)}</ul>}
+      {card.warmups.length > 0 && (
+        <div data-testid="lift-warmups" className="mt-2">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500">{"Warm-up \u00b7 not counted toward bests"}</p>
+          <ul className="mt-1 space-y-0.5">{card.warmups.map((w) => <WarmupRow key={w.index} card={card} warmup={w} />)}</ul>
+        </div>
+      )}
+      {card.sets.length > 0 && (
+        <div className={card.warmups.length > 0 ? "mt-2" : ""}>
+          {card.warmups.length > 0 && <p className="text-[10px] uppercase tracking-wide text-slate-500">Working sets</p>}
+          <ul className="mt-2 space-y-1.5">{card.sets.map((set) => <SetRow key={set.index} card={card} set={set} />)}</ul>
+        </div>
+      )}
       {(card.warmup || card.notes) && (
         <p data-testid="lift-notes" className="mt-1.5 text-[11px] text-slate-500">
           {[card.warmup ? `Warm-up: ${card.warmup}` : "", card.notes ?? ""].filter(Boolean).join(" \u2014 ")}
@@ -130,7 +158,7 @@ export function LiftBests({ entries, today, parts = null, updating = false }: { 
       {parts?.actions}
       <p className="mt-2 text-[10px] leading-4 text-slate-500">
         Each bar fills to that set. The dashed line and faint fill are your best on any other day, and a set past it turns gold.
-        Volume is the set's weight times its reps.
+        Volume is the set's weight times its reps. Warm-up sets are shown apart, in grey, and never count toward a best.
       </p>
     </section>
   );

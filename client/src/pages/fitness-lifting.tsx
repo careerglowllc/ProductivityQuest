@@ -666,6 +666,7 @@ export default function FitnessLiftingPage() {
                   <th className="text-left px-3 py-2 font-medium">Type</th>
                   <th className="text-left px-3 py-2 font-medium">Exercise</th>
                   <th className="text-left px-3 py-2 font-medium">Working Sets</th>
+                  <th className="text-left px-3 py-2 font-medium hidden md:table-cell">Warm-up</th>
                   <th className="text-left px-3 py-2 font-medium hidden md:table-cell">Notes</th>
                 </tr>
               </thead>
@@ -688,7 +689,11 @@ export default function FitnessLiftingPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-200">{e.exercise}</td>
-                    <td className="px-3 py-2 text-slate-300">{e.setsRaw}</td>
+                    <td className="px-3 py-2 text-slate-300">
+                      {e.setsRaw}
+                      {e.warmup && <span data-testid="log-warmup-inline" className="mt-0.5 block text-[11px] text-slate-500 md:hidden">Warm-up: {e.warmup}</span>}
+                    </td>
+                    <td data-testid="log-warmup" className="px-3 py-2 text-slate-500 hidden md:table-cell">{e.warmup ?? ""}</td>
                     <td className="px-3 py-2 text-slate-500 hidden md:table-cell">{e.notes ?? ""}</td>
                   </tr>
                 ))}

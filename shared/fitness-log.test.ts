@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  FitnessParseError, addMealToDay, addWorkoutEntries, dayFoodDetails, exerciseMetric, formatSets, inferWorkoutType, isIsoDate,
+  FitnessParseError, addMealToDay, addWorkoutEntries, dayFoodDetails, exerciseMetric, formatSets, formatWarmupSets, inferWorkoutType, isIsoDate,
   macroCalories, normalizeMeal, normalizeWorkout, recentMeals, recentWorkoutLoggings, removeMealFromDay, removeWorkoutLogging,
-  resolveLogDate, sessionSummaries, shiftIsoDate, sumNutrients, workoutToLogEntries, type CalorieDayLog, type WorkoutLogEntry,
+  resolveLogDate, sessionSummaries, shiftIsoDate, sumNutrients, workoutFromEntries, workoutToLogEntries, type CalorieDayLog, type WorkoutLogEntry,
 } from "./fitness-log";
 
 const today = "2026-10-13";
@@ -301,4 +301,71 @@ test("nutrient sums are rounded sensibly, and macro calories use 4, 4 and 9", ()
   assert.equal(total.protein, 2.5);
   assert.equal(total.sodium, 11);
   assert.deepEqual(macroCalories({ protein: 100, carbs: 200, fat: 50 }), { protein: 400, carbs: 800, fat: 450 });
+});
+
+// ── warm-up sets ────────────────────────────────────────────────────────────
+const warmupAnswer = {
+  date: "2026-10-13", workoutType: "Pull",
+  exercises: [{
+    name: "Lat Pulldown", kind: "weight",
+    warmupSets: [{ weight: 60, unit: "lb", reps: 12 }, { weight: 90, unit: "lb", reps: 8 }],
+    sets: [{ weight: 120, unit: "lb", reps: 8 }, { weight: 125, unit: "lb", reps: 6 }],
+  }],
+};
+
+test("warm-up sets are kept apart from the working sets, and the warm-up text is written from them", () => {
+  const [ex] = normalizeWorkout(warmupAnswer, today).exercises;
+  assert.deepEqual(ex.warmupSets, [{ weight: 60, reps: 12 }, { weight: 90, reps: 8 }]);
+  assert.deepEqual(ex.sets, [{ weight: 120, reps: 8 }, { weight: 125, reps: 6 }]);
+  assert.equal(ex.warmup, "60 lb x12; 90 lb x8");
+  assert.equal(formatSets(ex), "120 lb: 8; 125 lb: 6", "the working-sets text has no warm-up in it");
+});
+
+test("warm-up sets never change the top number the charts use, even when one is heavier than the working sets", () => {
+  const [ex] = normalizeWorkout({ ...warmupAnswer, exercises: [{ ...warmupAnswer.exercises[0], warmupSets: [{ weight: 135, reps: 3 }] }] }, today).exercises;
+  assert.deepEqual(exerciseMetric(ex), { kind: "weight", value: 125 });
+});
+
+test("warm-up sets are not part of a day's volume or set count", () => {
+  const rows = workoutToLogEntries(normalizeWorkout(warmupAnswer, today), "lift-1");
+  const [day] = sessionSummaries(rows);
+  assert.deepEqual([day.sets, day.volume], [2, 120 * 8 + 125 * 6]);
+});
+
+test("the warm-up sets are saved on the row and come back when the day is opened again", () => {
+  const workout = normalizeWorkout(warmupAnswer, today);
+  const rows = workoutToLogEntries(workout, "lift-1");
+  assert.deepEqual(rows[0].warmupSets, [{ weight: 60, reps: 12 }, { weight: 90, reps: 8 }]);
+  assert.equal(rows[0].warmup, "60 lb x12; 90 lb x8");
+  assert.equal(rows[0].setsRaw, "120 lb: 8; 125 lb: 6");
+  assert.deepEqual(workoutFromEntries(rows, "lift-1")?.exercises[0].warmupSets, rows[0].warmupSets);
+});
+
+test("a loose warm-up with no numbers stays as text, and the sets win when both are given", () => {
+  const loose = normalizeWorkout({ date: today, exercises: [{ name: "Back Squat", sets: [{ weight: 225, reps: 5 }], warmup: "usual warm-up" }] }, today).exercises[0];
+  assert.equal(loose.warmup, "usual warm-up");
+  assert.equal(loose.warmupSets, undefined);
+  const both = normalizeWorkout({ date: today, exercises: [{ name: "Back Squat", sets: [{ weight: 225, reps: 5 }], warmup: "bar x12", warmupSets: [{ weight: 45, reps: 12 }] }] }, today).exercises[0];
+  assert.equal(both.warmup, "45 lb x12");
+});
+
+test("warm-up sets are cleaned like working sets: kilos become pounds, empty ones are dropped, and bodyweight is kept", () => {
+  const [ex] = normalizeWorkout({
+    date: today,
+    exercises: [{ name: "Pull-Ups", sets: [{ unit: "bw", reps: 8 }], warmupSets: [{ unit: "bw", reps: 3 }, { weight: 20, unit: "kg", reps: 5 }, {}, { weight: null }] }],
+  }, today).exercises;
+  assert.deepEqual(ex.warmupSets, [{ reps: 3, bodyweight: true }, { weight: 44, reps: 5, note: "20 kg" }]);
+});
+
+test("an exercise with only warm-up sets is kept while the day is being built, and reads as warm-up only", () => {
+  const raw = { date: today, exercises: [{ name: "Lat Pulldown", kind: "weight", sets: [], warmupSets: [{ weight: 60, reps: 12 }] }] };
+  const [ex] = normalizeWorkout(raw, today, { keepEmpty: true }).exercises;
+  assert.equal(formatSets(ex), "Warm-up only");
+  assert.deepEqual(ex.sets, []);
+});
+
+test("warm-up text lists each set, with bodyweight, holds, rough counts and each side", () => {
+  assert.equal(formatWarmupSets([{ weight: 60, reps: 12 }, { reps: 3, bodyweight: true }]), "60 lb x12; BW x3");
+  assert.equal(formatWarmupSets([{ seconds: 30, bodyweight: true }, { weight: 7.5, reps: 12, eachSide: true }, { weight: 40, reps: 10, approx: true }]), "BW 30 sec; 7.5 lb x12 each side; 40 lb x~10");
+  assert.equal(formatWarmupSets([]), "");
 });

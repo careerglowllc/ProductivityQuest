@@ -33,7 +33,9 @@ export function resolveLogDate(value: unknown, today: string): string {
 
 // ── Lifting ─────────────────────────────────────────────────────────────────
 export interface LoggedSet { weight?: number; reps?: number; seconds?: number; bodyweight?: boolean; approx?: boolean; eachSide?: boolean; note?: string }
-export interface ParsedExercise { name: string; workoutType: WorkoutType; kind: MetricKind; sets: LoggedSet[]; warmup?: string; notes?: string }
+// `sets` are the working sets, the only ones charts, bests and volume use. Warm-up sets are kept apart in `warmupSets`, and
+// `warmup` is their text (or a loose "usual warm-up" when no sets were given).
+export interface ParsedExercise { name: string; workoutType: WorkoutType; kind: MetricKind; sets: LoggedSet[]; warmupSets?: LoggedSet[]; warmup?: string; notes?: string }
 export interface ParsedWorkout { date: string; workoutType: WorkoutType; exercises: ParsedExercise[]; notes?: string }
 
 // One row of the lifting log: one exercise on one day. A day's rows together are that day's session.
@@ -42,6 +44,7 @@ export interface WorkoutLogEntry {
   workoutType: WorkoutType;
   exercise: string;
   setsRaw: string; // working sets as text, e.g. "225 lb: 6 / 6 / 6"
+  warmupSets?: LoggedSet[]; // exact warm-up sets, never part of sets, the metric, the bests or the volume
   warmup?: string;
   notes?: string;
   metric: { kind: MetricKind; value: number; approx?: boolean } | null; // lb, reps or seconds; what the charts plot
@@ -83,13 +86,39 @@ const rawSet = z.object({
 }).passthrough();
 const rawExercise = z.object({
   name: z.any(), kind: z.any().optional(), workoutType: z.any().optional(), sets: z.array(rawSet).optional(),
-  warmup: z.any().optional(), notes: z.any().optional(),
+  warmupSets: z.array(rawSet).optional(), warmup: z.any().optional(), notes: z.any().optional(),
 }).passthrough();
 const rawWorkout = z.object({ date: z.any().optional(), workoutType: z.any().optional(), exercises: z.array(rawExercise), notes: z.any().optional() }).passthrough();
 
 const MAX_EXERCISES = 40;
 const MAX_SETS = 30;
+const MAX_WARMUP_SETS = 12;
 const METRIC_KINDS: readonly string[] = ["weight", "reps", "time"];
+
+// Working or warm-up sets from the model's answer: numbers kept to what is plausible, kilos turned into pounds, and a set
+// with nothing in it left out.
+function cleanSets(list: z.infer<typeof rawSet>[] | undefined, max: number): LoggedSet[] {
+  const sets: LoggedSet[] = [];
+  for (const s of (list ?? []).slice(0, max)) {
+    const unit = typeof s.unit === "string" ? s.unit.trim().toLowerCase() : "";
+    const bodyweight = unit === "bw" || unit === "bodyweight";
+    let weight = bodyweight ? undefined : cleanNumber(s.weight, 2000);
+    let note = text(s.note, 120);
+    if (weight && (unit === "kg" || unit === "kgs" || unit === "kilograms")) {
+      note = [note, `${weight} kg`].filter(Boolean).join(", ");
+      weight = roundTo(weight * KG_TO_LB, 0.5);
+    }
+    const reps = cleanNumber(s.reps, 1000);
+    const seconds = cleanNumber(s.seconds, 86400);
+    if (weight === undefined && reps === undefined && seconds === undefined && !bodyweight) continue;
+    sets.push({
+      ...(weight ? { weight } : {}), ...(reps !== undefined ? { reps } : {}), ...(seconds !== undefined ? { seconds } : {}),
+      ...(bodyweight || (weight === undefined && seconds === undefined) ? { bodyweight: true } : {}),
+      ...(s.approx === true ? { approx: true } : {}), ...(s.eachSide === true ? { eachSide: true } : {}), ...(note ? { note } : {}),
+    });
+  }
+  return sets;
+}
 
 // Checks the model's answer for a workout and turns it into clean, bounded data. Throws FitnessParseError when
 // nothing usable is in it. `keepEmpty` is for a workout still being built up: an exercise that has been named
@@ -103,25 +132,10 @@ export function normalizeWorkout(raw: unknown, today: string, options: { keepEmp
   for (const item of parsed.data.exercises.slice(0, MAX_EXERCISES)) {
     const name = text(item.name, 80);
     if (!name) continue;
-    const sets: LoggedSet[] = [];
-    for (const s of (item.sets ?? []).slice(0, MAX_SETS)) {
-      const unit = typeof s.unit === "string" ? s.unit.trim().toLowerCase() : "";
-      const bodyweight = unit === "bw" || unit === "bodyweight";
-      let weight = bodyweight ? undefined : cleanNumber(s.weight, 2000);
-      let note = text(s.note, 120);
-      if (weight && (unit === "kg" || unit === "kgs" || unit === "kilograms")) {
-        note = [note, `${weight} kg`].filter(Boolean).join(", ");
-        weight = roundTo(weight * KG_TO_LB, 0.5);
-      }
-      const reps = cleanNumber(s.reps, 1000);
-      const seconds = cleanNumber(s.seconds, 86400);
-      if (weight === undefined && reps === undefined && seconds === undefined && !bodyweight) continue;
-      sets.push({
-        ...(weight ? { weight } : {}), ...(reps !== undefined ? { reps } : {}), ...(seconds !== undefined ? { seconds } : {}),
-        ...(bodyweight || (weight === undefined && seconds === undefined) ? { bodyweight: true } : {}),
-        ...(s.approx === true ? { approx: true } : {}), ...(s.eachSide === true ? { eachSide: true } : {}), ...(note ? { note } : {}),
-      });
-    }
+    const sets = cleanSets(item.sets, MAX_SETS);
+    const warmupSets = cleanSets(item.warmupSets, MAX_WARMUP_SETS);
+    // Warm-up sets are the source of the warm-up text; the model's own text is only kept when it gave no sets ("usual warm-up").
+    const warmup = warmupSets.length ? formatWarmupSets(warmupSets) : text(item.warmup);
     const notes = text(item.notes);
     if (sets.length === 0 && !notes && !options.keepEmpty) continue;
     // Held for time (a plank, a hang, the treadmill) is a time even when weight is added; anything with reps is by weight or reps.
@@ -129,7 +143,7 @@ export function normalizeWorkout(raw: unknown, today: string, options: { keepEmp
     const declared = typeof item.kind === "string" && METRIC_KINDS.includes(item.kind) ? (item.kind as MetricKind) : "reps";
     const kind: MetricKind = sets.length === 0 ? declared : timed ? "time" : sets.some((s) => s.weight) ? "weight" : "reps";
     exercises.push({
-      name, kind, sets, ...(text(item.warmup) ? { warmup: text(item.warmup) } : {}), ...(notes ? { notes } : {}),
+      name, kind, sets, ...(warmupSets.length ? { warmupSets } : {}), ...(warmup ? { warmup } : {}), ...(notes ? { notes } : {}),
       workoutType: asWorkoutType(item.workoutType) ?? inferWorkoutType(name) ?? "Push",
     });
   }
@@ -145,9 +159,19 @@ export function normalizeWorkout(raw: unknown, today: string, options: { keepEmp
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
 
+// Warm-up sets as short text, "60 lb x12; 90 lb x8; BW x10", the wording the older warm-up notes use.
+export function formatWarmupSets(sets: readonly LoggedSet[]): string {
+  return sets.map((s) => {
+    const head = s.weight ? `${fmt(s.weight)} lb` : "BW";
+    const rough = s.approx ? "~" : "";
+    const amount = s.reps !== undefined ? ` x${rough}${fmt(s.reps)}` : s.seconds !== undefined ? ` ${rough}${fmt(s.seconds)} sec` : "";
+    return `${head}${amount}${s.eachSide ? " each side" : ""}${s.note ? ` (${s.note})` : ""}`;
+  }).join("; ");
+}
+
 // "225 lb: 6 / 6 / 6", "BW: 8 / 6 / 3", "70 lb: 5 / 5; 65 lb: 6", "BW: 45 sec", "~8" for a rough count.
-export function formatSets(exercise: Pick<ParsedExercise, "sets"> & Partial<Pick<ParsedExercise, "warmup" | "notes">>): string {
-  if (exercise.sets.length === 0) return exercise.notes ? "Notes only" : exercise.warmup ? "Warm-up only" : "No sets yet";
+export function formatSets(exercise: Pick<ParsedExercise, "sets"> & Partial<Pick<ParsedExercise, "warmup" | "warmupSets" | "notes">>): string {
+  if (exercise.sets.length === 0) return exercise.notes ? "Notes only" : exercise.warmup || exercise.warmupSets?.length ? "Warm-up only" : "No sets yet";
   const groups: { head: string; parts: string[] }[] = [];
   for (const s of exercise.sets) {
     const head = s.weight ? `${fmt(s.weight)} lb` : s.bodyweight || s.reps !== undefined || s.seconds !== undefined ? "BW" : "";
@@ -172,9 +196,10 @@ export function exerciseMetric(exercise: Pick<ParsedExercise, "kind" | "sets">):
 export function workoutToLogEntries(workout: ParsedWorkout, logId: string): WorkoutLogEntry[] {
   return workout.exercises.map((ex) => {
     const notes = [ex.notes, ex.sets.map((s) => s.note).filter(Boolean).join("; ")].filter(Boolean).join(" · ");
+    const warmup = ex.warmup ?? (ex.warmupSets?.length ? formatWarmupSets(ex.warmupSets) : undefined);
     return {
       date: workout.date, workoutType: ex.workoutType, exercise: ex.name, setsRaw: formatSets(ex),
-      ...(ex.warmup ? { warmup: ex.warmup } : {}), ...(notes ? { notes } : {}),
+      ...(warmup ? { warmup } : {}), ...(ex.warmupSets?.length ? { warmupSets: ex.warmupSets } : {}), ...(notes ? { notes } : {}),
       metric: exerciseMetric(ex), sets: ex.sets, logId,
     };
   });
@@ -214,6 +239,7 @@ export function workoutFromEntries(log: readonly WorkoutLogEntry[], logId: strin
     const notes = exerciseNotesOf(e);
     return {
       name: e.exercise, workoutType: e.workoutType, kind: e.metric?.kind ?? (sets.some((s) => s.seconds !== undefined) ? "time" : "reps"), sets,
+      ...(e.warmupSets?.length ? { warmupSets: e.warmupSets.map((s) => ({ ...s })) } : {}),
       ...(e.warmup ? { warmup: e.warmup } : {}), ...(notes ? { notes } : {}),
     };
   });

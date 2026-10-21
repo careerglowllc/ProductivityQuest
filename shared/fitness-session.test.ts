@@ -313,3 +313,14 @@ test("a newer copy of the open day from another device is taken, but never an ol
   assert.equal(adoptNewerDraft(null, phone), null, "a day that was just ended does not come back");
   assert.equal(adoptNewerDraft(mine, null), mine);
 });
+
+test("a warm-up set added later is described by itself, and a draft with a damaged warm-up list is ignored", () => {
+  const one: ParsedWorkout = { ...pull(), exercises: [{ ...pull().exercises[0], warmupSets: [{ weight: 60, reps: 12 }], warmup: "60 lb x12" }] };
+  const two: ParsedWorkout = { ...one, exercises: [{ ...one.exercises[0], warmupSets: [{ weight: 60, reps: 12 }, { weight: 90, reps: 8 }], warmup: "60 lb x12; 90 lb x8" }] };
+  assert.deepEqual(describeWorkoutChange(one, two), ["Lat Pulldown: added warm-up 90 lb x8"]);
+  const fixed: ParsedWorkout = { ...one, exercises: [{ ...one.exercises[0], warmupSets: [{ weight: 50, reps: 12 }], warmup: "50 lb x12" }] };
+  assert.deepEqual(describeWorkoutChange(one, fixed), ["Lat Pulldown: warm-up 50 lb x12"]);
+  assert.deepEqual(describeWorkoutChange(null, one), ["Added Lat Pulldown: warm-up 60 lb x12"]);
+  assert.equal(isWorkoutSummary(one), true);
+  assert.equal(isWorkoutSummary({ ...one, exercises: [{ ...one.exercises[0], warmupSets: "x" }] }), false);
+});

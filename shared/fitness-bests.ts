@@ -84,19 +84,22 @@ export function bestOnOtherDays(entries: readonly WorkoutLogEntry[], name: strin
 }
 
 export interface BarSet { index: number; value: number; label: string; beatsBest: boolean }
+// A warm-up set's bar. Warm-ups are shown next to the working sets but are never compared with a best or counted in the top.
+export interface WarmupBar { index: number; value: number; label: string }
 export type CardStatus = "empty" | "first" | "new" | "matched" | "below";
 export interface ExerciseCard {
   name: string; workoutType: WorkoutType; kind: MetricKind;
-  sets: BarSet[];
+  sets: BarSet[]; // working sets only
+  warmups: WarmupBar[]; // exact warm-up sets, when there are any
   best: number | null; bestDate: string | null; // from other days
   top: number; // the highest bar today
   scale: number; // the amount a full-width bar stands for, a little over the larger of the best and the top
   status: CardStatus;
-  warmup?: string; notes?: string;
+  warmup?: string; notes?: string; // warm-up as text only when it has no exact sets (said loosely, or an older entry)
   draftIndex: number | null; // its place in the open day, so it can be removed there; null for an exercise already saved
 }
 
-interface Source { name: string; workoutType: WorkoutType; kind: MetricKind; sets: readonly LoggedSet[]; warmup?: string; notes?: string; draftIndex: number | null }
+interface Source { name: string; workoutType: WorkoutType; kind: MetricKind; sets: readonly LoggedSet[]; warmupSets?: readonly LoggedSet[]; warmup?: string; notes?: string; draftIndex: number | null }
 
 function buildCard(source: Source, entries: readonly WorkoutLogEntry[], mode: BarMode, date: string): ExerciseCard {
   const best = bestOnOtherDays(entries, source.name, source.kind, mode, date);
@@ -104,13 +107,16 @@ function buildCard(source: Source, entries: readonly WorkoutLogEntry[], mode: Ba
     const value = setMeasure(set, source.kind, mode);
     return { index: i + 1, value, label: setLabel(set, source.kind, mode), beatsBest: best !== null && value > best.value };
   });
+  // With no working sets to say what the lift is measured in, a warm-up with a weight on it is read by weight.
+  const warmupKind: MetricKind = source.sets.length === 0 && (source.warmupSets ?? []).some((s) => s.weight) ? "weight" : source.kind;
+  const warmups: WarmupBar[] = (source.warmupSets ?? []).map((set, i) => ({ index: i + 1, value: setMeasure(set, warmupKind, mode), label: setLabel(set, warmupKind, mode) }));
   const top = sets.reduce((max, s) => Math.max(max, s.value), 0);
   const status: CardStatus = sets.length === 0 || top === 0 ? "empty" : best === null ? "first" : top > best.value ? "new" : top === best.value ? "matched" : "below";
   const widest = Math.max(best?.value ?? 0, top);
   return {
-    name: source.name, workoutType: source.workoutType, kind: source.kind, sets,
+    name: source.name, workoutType: source.workoutType, kind: source.kind, sets, warmups,
     best: best?.value ?? null, bestDate: best?.date ?? null, top, scale: widest > 0 ? widest * 1.08 : 1, status,
-    ...(source.warmup ? { warmup: source.warmup } : {}), ...(source.notes ? { notes: source.notes } : {}), draftIndex: source.draftIndex,
+    ...(source.warmup && warmups.length === 0 ? { warmup: source.warmup } : {}), ...(source.notes ? { notes: source.notes } : {}), draftIndex: source.draftIndex,
   };
 }
 
@@ -120,8 +126,8 @@ export function liftCards(input: { entries: readonly WorkoutLogEntry[]; draft?: 
   const { entries, draft, date, mode } = input;
   const saved: Source[] = entries.filter((e) => e.date === date && !(draft && e.logId === draft.id)).map((row) => {
     const sets = rowSets(row);
-    return { name: row.exercise, workoutType: row.workoutType, kind: kindOfRow(row, sets), sets, warmup: row.warmup, notes: row.notes, draftIndex: null };
+    return { name: row.exercise, workoutType: row.workoutType, kind: kindOfRow(row, sets), sets, warmupSets: row.warmupSets, warmup: row.warmup, notes: row.notes, draftIndex: null };
   });
-  const open: Source[] = (draft?.exercises ?? []).map((ex, i) => ({ name: ex.name, workoutType: ex.workoutType, kind: ex.kind, sets: ex.sets, warmup: ex.warmup, notes: ex.notes, draftIndex: i }));
+  const open: Source[] = (draft?.exercises ?? []).map((ex, i) => ({ name: ex.name, workoutType: ex.workoutType, kind: ex.kind, sets: ex.sets, warmupSets: ex.warmupSets, warmup: ex.warmup, notes: ex.notes, draftIndex: i }));
   return [...saved, ...open].map((source) => buildCard(source, entries, mode, date));
 }

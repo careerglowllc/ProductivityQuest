@@ -224,3 +224,10 @@ test("the calorie page's charts read the same log, so ended days show up", () =>
 test("the server registers the AI endpoint behind sign-in", () => {
   assert.ok(routes.includes("registerFitnessAi(app, requireAuth)"));
 });
+
+test("the full workout log shows each row's warm-up beside its working sets", () => {
+  const log = lifting.slice(lifting.indexOf('testId="full-log"'));
+  assert.ok(log.includes(">Working Sets</th>") && log.includes(">Warm-up</th>"));
+  assert.ok(log.includes('data-testid="log-warmup"') && log.includes("{e.warmup ?? \"\"}"), "its own column on a wide screen");
+  assert.ok(log.includes('data-testid="log-warmup-inline"'), "and under the sets on a phone");
+});

@@ -473,3 +473,39 @@ test("png and webp photos are taken too, and an empty list is fine", async () =>
     assert.equal((await call({ kind: "meal", text: "two eggs and toast", images: [] })).status, 200);
   });
 });
+
+// ── Warm-up sets ────────────────────────────────────────────────────────────
+const warmupSetsAnswer = JSON.stringify({
+  date: "2026-10-13", workoutType: "Pull",
+  exercises: [{ name: "Lat Pulldown", kind: "weight", warmupSets: [{ weight: 60, unit: "lb", reps: 12 }, { weight: 90, unit: "lb", reps: 8 }], sets: [{ weight: 120, unit: "lb", reps: 8 }], warmup: null }],
+});
+
+test("the AI is told to log warm-up sets apart from working sets", async () => {
+  let system = "";
+  await withServer({ complete: async (s) => { system = s; return warmupSetsAnswer; } }, async (call) => {
+    await call({ kind: "workout", session: true, text: "lat pulldown, warm-up 60 for 12", today: "2026-10-13" });
+  });
+  assert.match(system, /"warmupSets":\[same shape as a set\]/);
+  assert.match(system, /never in "sets"/);
+  assert.match(system, /another warm-up, 90 for 8/);
+});
+
+test("warm-up sets come back apart from the working sets, with their text", async () => {
+  await withServer({ complete: async () => warmupSetsAnswer }, async (call) => {
+    const { status, json } = await call({ kind: "workout", session: true, text: "lat pulldown warm-up 60 for 12 then 90 for 8, then 120 for 8", today: "2026-10-13" });
+    assert.equal(status, 200);
+    const [ex] = json.workout.exercises;
+    assert.deepEqual(ex.warmupSets, [{ weight: 60, reps: 12 }, { weight: 90, reps: 8 }]);
+    assert.deepEqual(ex.sets, [{ weight: 120, reps: 8 }]);
+    assert.equal(ex.warmup, "60 lb x12; 90 lb x8");
+  });
+});
+
+test("the warm-up sets already logged are sent back to the AI with the day so far", async () => {
+  let seen = "";
+  const current = { ...sofar, exercises: [{ ...sofar.exercises[0], warmupSets: [{ weight: 60, reps: 12 }], warmup: "60 lb x12" }] };
+  await withServer({ complete: async (_s, user) => { seen = user; return warmupSetsAnswer; } }, async (call) => {
+    await call({ kind: "workout", session: true, current, text: "another warm-up, 90 for 8", today: "2026-10-13" });
+  });
+  assert.match(seen, /"warmupSets":\[\{"weight":60,"reps":12\}\]/);
+});

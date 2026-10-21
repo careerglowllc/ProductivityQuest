@@ -150,3 +150,41 @@ test("saved rows without exact sets are drawn from their text, so an older day s
   assert.deepEqual(shown.map((c) => [c.name, c.kind, c.sets.map((s) => s.value)]), [["Pull-Ups", "reps", [5, 5, 5]]]);
   assert.equal(shown[0].best, 8, "against the best of the other days");
 });
+
+const withWarmups = { name: "Lat Pulldown", kind: "weight", warmupSets: [{ weight: 60, reps: 12 }, { weight: 90, reps: 8 }], sets: [{ weight: 120, reps: 8 }, { weight: 130, reps: 5 }] };
+
+test("warm-up sets get their own bars, apart from the working sets and in the same measure", () => {
+  const [card] = cards([withWarmups]);
+  assert.deepEqual(card.warmups.map((w) => [w.index, w.value, w.label]), [[1, 60, "60 lb \u00d7 12"], [2, 90, "90 lb \u00d7 8"]]);
+  assert.deepEqual(card.sets.map((s) => s.value), [120, 130], "the working sets are only the working sets");
+  const [volume] = cards([withWarmups], "volume");
+  assert.deepEqual(volume.warmups.map((w) => w.value), [720, 720]);
+  assert.equal(card.warmup, undefined, "no warm-up text beside the bars");
+});
+
+test("warm-up sets never change the top, the status or the scale, even when a warm-up is the heaviest thing lifted", () => {
+  const plain = cards([{ ...withWarmups, warmupSets: [] }])[0];
+  const heavy = cards([{ ...withWarmups, warmupSets: [{ weight: 200, reps: 1 }] }])[0];
+  assert.deepEqual([heavy.top, heavy.status, heavy.scale, heavy.best], [plain.top, plain.status, plain.scale, plain.best]);
+  assert.deepEqual(heavy.sets, plain.sets);
+});
+
+test("a best never comes from a warm-up set logged on another day", () => {
+  const earlier = workoutToLogEntries(normalizeWorkout({ date: "2026-10-10", exercises: [{ name: "Lat Pulldown", kind: "weight", warmupSets: [{ weight: 300, reps: 5 }], sets: [{ weight: 100, reps: 8 }] }] }, "2026-10-10"), "lift-0");
+  assert.equal(bestOnOtherDays([...history, ...earlier], "Lat Pulldown", "weight", "weight", DATE)?.value, 125);
+  assert.deepEqual(bestOnOtherDays([...earlier], "Lat Pulldown", "weight", "weight", DATE), { value: 100, date: "2026-10-10" });
+});
+
+test("a saved day's card shows its warm-up sets, and an older row with only warm-up text keeps showing the text", () => {
+  const saved = workoutToLogEntries(normalizeWorkout({ date: DATE, exercises: [withWarmups] }, DATE), "lift-1");
+  const old = row(DATE, "Pull-Ups", "BW: 8 / 6 / 3", { kind: "reps", value: 8 }, { warmup: "BW x3 slow; BW x3 normal" });
+  const [lat, pullUps] = liftCards({ entries: [...history, ...saved, old], date: DATE, mode: "weight" });
+  assert.equal(lat.warmups.length, 2);
+  assert.deepEqual([pullUps.warmups, pullUps.warmup], [[], "BW x3 slow; BW x3 normal"]);
+});
+
+test("an exercise with only warm-up sets is an empty card that still shows them, by weight", () => {
+  const [card] = cards([{ name: "Seated Row", sets: [], warmupSets: [{ weight: 80, reps: 10 }] }]);
+  assert.deepEqual([card.status, card.sets.length], ["empty", 0]);
+  assert.deepEqual(card.warmups.map((w) => w.label), ["80 lb \u00d7 10"]);
+});

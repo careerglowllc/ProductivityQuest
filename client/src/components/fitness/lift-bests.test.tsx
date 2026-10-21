@@ -188,3 +188,44 @@ test("while a message is going in it says Updating, and the remove buttons are o
 test("the footnote explains the bars, the dashed line and the gold", () => {
   assert.match(text(area(workoutDraft([pulldown]))), /Each bar fills to that set\. The dashed line and faint fill are your best on any other day, and a set past it turns gold\. Volume is the set's weight times its reps\./);
 });
+
+const withWarmups = { name: "Lat Pulldown", kind: "weight", warmupSets: [{ weight: 60, reps: 12 }, { weight: 90, reps: 8 }], sets: [{ weight: 120, reps: 8 }, { weight: 130, reps: 5 }] };
+
+test("warm-up sets show on the card apart from the working sets, in grey, with no best line", () => {
+  const [card] = cardsOf(area(workoutDraft([withWarmups])));
+  const warmups = card.match(/<li data-testid="lift-warmup".*?<\/li>/g) ?? [];
+  assert.deepEqual(warmups.map((w) => text(w)), ["W1 60 lb \u00d7 12", "W2 90 lb \u00d7 8"]);
+  for (const w of warmups) assert.doesNotMatch(w, /lift-best-line|lift-shadow|#FBBF24|#34D399/);
+  assert.match(card, /Warm-up \u00b7 not counted toward bests/);
+  assert.match(card, />Working sets</);
+  assert.equal((card.match(/data-testid="lift-set"/g) ?? []).length, 2, "the working sets are still just the working sets");
+  assert.ok(card.indexOf("lift-warmups") < card.indexOf('data-testid="lift-set"'), "warm-up first, as it is lifted");
+  assert.doesNotMatch(text(card), /Warm-up: 60/, "no text line repeating them");
+});
+
+test("warm-up sets do not touch the card's top, its new-best flag or its summary", () => {
+  const heavy = { ...withWarmups, warmupSets: [{ weight: 200, reps: 1 }] };
+  const [card] = cardsOf(area(workoutDraft([heavy])));
+  assert.match(card, /data-status="new"/);
+  assert.equal(text(card.match(/<p[^>]*data-testid="lift-summary".*?<\/p>/)?.[0] ?? ""), "Top 130 lb \u00b7 New best!");
+  assert.match(card.match(/<li[^>]*data-testid="lift-warmup".*?<\/li>/)![0], /width:100%/, "a heavy warm-up is capped at a full bar");
+});
+
+test("an exercise with only a warm-up says so, and a saved day's warm-up sets show too", () => {
+  const [open] = cardsOf(area(workoutDraft([{ name: "Seated Row", kind: "weight", sets: [], warmupSets: [{ weight: 80, reps: 10 }] }])));
+  assert.match(text(open), /Warm-up logged \u00b7 no working sets yet/);
+  assert.match(text(open), /W1 80 lb \u00d7 10/);
+  const saved = workoutToLogEntries(normalizeWorkout({ date: today, workoutType: "Pull", exercises: [withWarmups] }, today), "lift-0");
+  const [card] = cardsOf(alone([...history, ...saved]));
+  assert.equal((card.match(/data-testid="lift-warmup"/g) ?? []).length, 2);
+});
+
+test("an older warm-up written as text still shows as a text line", () => {
+  const [card] = cardsOf(area(workoutDraft([{ name: "Lat Pulldown", kind: "weight", sets: [{ weight: 120, reps: 8 }], warmup: "usual warm-up" }])));
+  assert.match(text(card), /Warm-up: usual warm-up/);
+  assert.doesNotMatch(card, /data-testid="lift-warmups"/);
+});
+
+test("the card's footnote says warm-ups never count toward a best", () => {
+  assert.match(text(area(workoutDraft([withWarmups]))), /Warm-up sets are shown apart, in grey, and never count toward a best\./);
+});

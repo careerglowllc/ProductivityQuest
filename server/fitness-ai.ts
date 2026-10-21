@@ -27,12 +27,13 @@ Return ONLY JSON in this shape:
 {"date":"YYYY-MM-DD","workoutType":"Push"|"Pull"|"Legs"|null,"notes":string|null,
  "exercises":[{"name":string,"workoutType":"Push"|"Pull"|"Legs"|null,"kind":"weight"|"reps"|"time",
    "sets":[{"weight":number|null,"unit":"lb"|"kg"|"bw"|null,"reps":number|null,"seconds":number|null,"approx":boolean,"eachSide":boolean,"note":string|null}],
-   "warmup":string|null,"notes":string|null}]}
+   "warmupSets":[same shape as a set],"warmup":string|null,"notes":string|null}]}
 Rules:
 - One entry in "sets" per working set, in order. "3 sets of 8 at 135" is three sets. "8, 6, 5 at 225" is three sets of 225.
+- Warm-up sets are tracked apart from working sets. Put each warm-up set in "warmupSets" (one entry per warm-up set, in order, same shape as a set) and never in "sets"; "sets" holds only working sets, which personal bests and charts use. "Warm-up 60 for 12" is one warm-up set; "warm up 45x12, 95x8, 115x5" is three. Use "warmup" text only for a loose mention with no numbers ("did my usual warm-up"), and leave "warmupSets" empty then.
 - Weights are in pounds unless the person says kilos (then unit "kg"). Bodyweight movements use unit "bw" and no weight. Added weight on a bodyweight move (a weighted plank) is the weight.
 - Holds and cardio (plank, dead hang, treadmill) use "seconds" (5:30 is 330) and kind "time".
-- Warm-up sets go in "warmup" as short text, not in "sets". Anything the person says about how it felt, form, pain or machines goes in "notes".
+- Anything the person says about how it felt, form, pain or machines goes in "notes".
 - Mark "approx": true for a guessed number ("about 10", "like 8"). "each side" or "per arm" sets "eachSide": true.
 - Use the standard name of the exercise (for example "incline DB" is "Incline Dumbbell Press").
 - "date" is the day the workout happened. Resolve words like today, yesterday or Monday from today's date given in the input; if no day is mentioned use today.
@@ -57,10 +58,10 @@ const WORKOUT_SESSION_RULES = `
 
 This is one workout day that is built up over several messages. You are given the workout so far as JSON (nothing yet on the first message) and the new notes. Return the COMPLETE updated workout in the same JSON shape, not just the change.
 Rules for updating:
-- Keep everything already in the workout exactly as it is unless the new notes correct it. Never drop an exercise, set, warm-up or note because it was not repeated.
-- A message may name a new exercise, often with its warm-up ("lat pulldown, warm-up 60 for 12"): add it as a new exercise. An exercise has "sets": [] until its working sets are given.
-- Weights and reps with no exercise named belong to the most recent exercise still being logged ("135 for 8", "next set 140 for 6", "dropped to 120 for 10"): add them as the next working sets, in order. "Same again" repeats the previous set.
-- A message may add to or correct something said before ("the last set was actually 9 reps", "that warm-up was 50, not 60", "forgot to say my left shoulder pinched"). Change only that.
+- Keep everything already in the workout exactly as it is unless the new notes correct it. Never drop an exercise, set, warm-up set, warm-up or note because it was not repeated.
+- A message may name a new exercise, often with its warm-up ("lat pulldown, warm-up 60 for 12"): add it as a new exercise with that warm-up set in "warmupSets". An exercise has "sets": [] until its working sets are given.
+- Weights and reps with no exercise named belong to the most recent exercise still being logged ("135 for 8", "next set 140 for 6", "dropped to 120 for 10"): add them as the next working sets, in order. "Same again" repeats the previous set. When the person calls them a warm-up ("another warm-up, 90 for 8", "warm up 110 for 5") add them as the next warm-up sets instead, even after working sets were logged.
+- A message may add to or correct something said before ("the last set was actually 9 reps", "that warm-up was 50, not 60", "forgot to say my left shoulder pinched"). Change only that; a corrected warm-up changes that warm-up set in "warmupSets".
 - Comments about how it felt go in that exercise's "notes"; comments about the whole workout go in the workout's "notes".
 - The date and the "workoutType" stay as they are unless the new notes clearly change them. On the first message, set them from the notes (a named split day such as pull day sets "workoutType").`;
 
