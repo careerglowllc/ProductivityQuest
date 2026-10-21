@@ -34,6 +34,11 @@ export const activeOn = <T extends Scheduled>(items: readonly T[], day: string):
 
 export const isMemo = (item: { tags?: string[] | null }): boolean => (item.tags ?? []).includes(MEMO_TAG);
 
+// A tag such as "Effective Nov 1, 2026" says when a line's current amount began, whether or not that day has come.
+export const EFFECTIVE_TAG_PREFIX = "Effective ";
+export const effectiveTagOf = (item: { tags?: string[] | null }): string | null =>
+  (item.tags ?? []).find((t) => t.startsWith(EFFECTIVE_TAG_PREFIX)) ?? null;
+
 // What the totals, charts and lists use on a day: the rows in force then, without the reporting-only ones.
 export const currentItems = <T extends Scheduled & { tags?: string[] | null }>(items: readonly T[], day: string): T[] =>
   activeOn(items, day).filter((i) => !isMemo(i));

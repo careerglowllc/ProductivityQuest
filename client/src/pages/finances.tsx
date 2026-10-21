@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { ExpenseCircleMap } from "@/components/expense-circle-map";
 import { RocklinRentalBudget } from "@/components/rocklin-rental-budget";
+import { EffectiveBadge } from "@/components/effective-badge";
 import { currentItems, isPropertyExpense, isRentalIncome, upcomingChange } from "@shared/finance-schedule";
 import { localDay } from "@/lib/quotes";
 import {
@@ -3382,7 +3383,7 @@ export default function Finances() {
                               {g.items.map(item => (
                                 <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-slate-700/20">
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-white text-xs font-medium">{item.item}</p>
+                                    <p className="text-white text-xs font-medium">{item.item}<EffectiveBadge item={item} /></p>
                                     {item.notes && <p className="text-[10px] text-slate-400 mt-0.5">{item.notes}</p>}
                                     <p className="text-[10px] text-slate-500 mt-0.5">{item.recurType}</p>
                                   </div>
@@ -5094,7 +5095,7 @@ export default function Finances() {
                               {g.items.map((item) => (
                                 <TableRow key={item.id} className="border-slate-700/30 hover:bg-slate-700/20 group">
                                   <TableCell className="text-white text-xs py-2 pl-4 font-medium">
-                                    {item.item}
+                                    {item.item}<EffectiveBadge item={item} />
                                     {item.notes && <p className="text-[10px] text-slate-400 font-normal mt-0.5">{item.notes}</p>}
                                   </TableCell>
                                   <TableCell className="py-2">

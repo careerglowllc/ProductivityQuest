@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { EffectiveBadge } from "@/components/effective-badge";
 import { isMemo, isPropertyExpense, isRentalIncome, nextChangeDay, propertyBudget, PROPERTY_CATEGORY, type BudgetItem, type PropertyBudget } from "@shared/finance-schedule";
 
 const dayLabel = (iso: string): string => {
@@ -45,7 +46,7 @@ function Period({ budget, title, tone, money, testId }: { budget: PropertyBudget
         {budget.income.map((i) => (
           <li key={i.id} data-testid="budget-income-line" className="flex items-start justify-between gap-3 text-xs">
             <span className="min-w-0 text-slate-200">
-              {i.item}
+              {i.item}<EffectiveBadge item={i} />
               {i.notes && <span className="block text-[10px] text-slate-400">{i.notes}</span>}
             </span>
             <span className="shrink-0 tabular-nums text-green-300">{signed(money, i.monthlyCost, "+")}/mo</span>
@@ -58,7 +59,7 @@ function Period({ budget, title, tone, money, testId }: { budget: PropertyBudget
         {budget.expenses.map((i) => (
           <li key={i.id} data-testid="budget-expense-line" className="flex items-start justify-between gap-3 text-xs">
             <span className="min-w-0 text-slate-200">
-              {i.item}
+              {i.item}<EffectiveBadge item={i} />
               {i.notes && <span data-testid="budget-subtitle" className="block text-[10px] text-slate-400">{i.notes}</span>}
             </span>
             <span className="shrink-0 tabular-nums text-red-300">{signed(money, i.monthlyCost, "-")}/mo</span>

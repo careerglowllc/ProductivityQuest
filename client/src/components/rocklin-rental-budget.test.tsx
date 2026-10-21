@@ -6,9 +6,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { RocklinRentalBudget } from "./rocklin-rental-budget";
 import type { BudgetItem } from "@shared/finance-schedule";
 
-const { ROWS, ENDING, EFFECTIVE, LAST_OLD_DAY } = createRequire(import.meta.url)("../../../add-rocklin-budget-nov-2026.cjs") as {
+const { ROWS, ENDING, EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY } = createRequire(import.meta.url)("../../../add-rocklin-budget-nov-2026.cjs") as {
   ROWS: { item: string; category: string; tags: string[]; monthlyCost: number; notes: string | null }[];
-  ENDING: string[]; EFFECTIVE: string; LAST_OLD_DAY: string;
+  ENDING: string[]; EFFECTIVE_LABEL: string; LIVE_FROM: string; LAST_OLD_DAY: string;
 };
 
 const P = "Investment Property Housing";
@@ -18,7 +18,7 @@ const items: BudgetItem[] = [
   { id: id++, item: "Mortgage/PMI/Property Tax Payment", category: P, tags: [], monthlyCost: 446714 },
   { id: id++, item: "Brilliant Pest Solutions", category: P, tags: ["Housing", "Rental"], monthlyCost: 5900 },
   ...ENDING.map((item, i) => ({ id: id++, item, category: P, tags: [], monthlyCost: OLD[i], effectiveUntil: LAST_OLD_DAY })),
-  ...ROWS.map((r) => ({ id: id++, ...r, effectiveFrom: EFFECTIVE })),
+  ...ROWS.map((r) => ({ id: id++, ...r, effectiveFrom: LIVE_FROM })),
 ];
 const money = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const render = (today: string, list: BudgetItem[] = items) => renderToStaticMarkup(createElement(RocklinRentalBudget, { items: list, today, formatCurrency: money }));
@@ -37,7 +37,7 @@ test("each tenant-covered line shows $0.00 with its small grey subtitle directly
   const html = render("2026-11-01");
   const lines = html.match(/<li data-testid="budget-expense-line".*?<\/li>/g) ?? [];
   const sewer = lines.find((l) => /Sewer<\/span>|Sewer\s*<span/.test(l) || text(l).startsWith("Sewer Previously"))!;
-  assert.match(text(sewer), /^Sewer Previously \$40\/mo; tenant now reimburses \$43\/mo\. \$0\.00\/mo$/);
+  assert.match(text(sewer), /^Sewer Effective Nov 1, 2026 Previously \$40\/mo; tenant now reimburses \$43\/mo\. \$0\.00\/mo$/);
   assert.match(sewer, /<span data-testid="budget-subtitle" class="block text-\[10px\] text-slate-400">/, "small and grey, on its own line under the name");
   assert.ok(sewer.indexOf("Sewer") < sewer.indexOf("budget-subtitle"), "after the name");
   const landscaping = lines.find((l) => text(l).startsWith("Landscaping"))!;
@@ -49,13 +49,13 @@ test("the owner-paid lines show their real amounts and no subtitle", () => {
   const lines = (render("2026-11-01").match(/<li data-testid="budget-expense-line".*?<\/li>/g) ?? []).map(text);
   assert.ok(lines.includes("Mortgage/PMI/Property Tax Payment -$4,467.14/mo"));
   assert.ok(lines.includes("Brilliant Pest Solutions -$59.00/mo"));
-  assert.ok(lines.includes("RNB Property Management -$165.00/mo"));
+  assert.ok(lines.includes("RNB Property Management Effective Nov 1, 2026 -$165.00/mo"));
 });
 
 test("rental income is listed on its own, apart from the expenses", () => {
   const html = render("2026-11-01");
   const income = (html.match(/<li data-testid="budget-income-line".*?<\/li>/g) ?? []).map(text);
-  assert.deepEqual(income, ["Rocklin Base Rent +$2,449.00/mo", "Rocklin Sewer Reimbursement +$43.00/mo"]);
+  assert.deepEqual(income, ["Rocklin Base Rent Effective Nov 1, 2026 +$2,449.00/mo", "Rocklin Sewer Reimbursement Effective Nov 1, 2026 +$43.00/mo"]);
   assert.equal((html.match(/data-testid="budget-expense-line"/g) ?? []).length, 9);
 });
 
@@ -65,15 +65,26 @@ test("the sewer bill still paid by the owner is noted, with true cash flow $40 l
   assert.match(note, /True cash flow is -\$2,239\.14\/mo \(-\$26,869\.68\/yr\)/);
 });
 
-test("before November 1 the card shows today's real numbers and previews what starts on the 1st", () => {
+test("each new line carries its Effective Nov 1, 2026 tag as a small label by its name, and the older lines do not", () => {
   const html = render("2026-10-20");
+  const lines = [...(html.match(/<li data-testid="budget-expense-line".*?<\/li>/g) ?? []), ...(html.match(/<li data-testid="budget-income-line".*?<\/li>/g) ?? [])];
+  const tagged = lines.filter((l) => l.includes('data-testid="effective-badge"'));
+  assert.equal(tagged.length, 9, "the seven added expense lines and the two rental income lines");
+  assert.ok(tagged.every((l) => text(l).includes(EFFECTIVE_LABEL)));
+  assert.match(tagged.find((l) => text(l).startsWith("Sewer "))!, /Sewer<span data-testid="effective-badge"[^>]*>Effective Nov 1, 2026<\/span>/, "right beside the name, before its subtitle");
+  const untagged = lines.filter((l) => !l.includes('data-testid="effective-badge"')).map((l) => text(l));
+  assert.deepEqual(untagged.sort(), ["Brilliant Pest Solutions -$59.00/mo", "Mortgage/PMI/Property Tax Payment -$4,467.14/mo"]);
+});
+
+test("before the old lines ended the card shows the old numbers and previews the day the new ones begin", () => {
+  const html = render(LAST_OLD_DAY);
   const now = html.slice(html.indexOf('data-testid="rocklin-budget-now"'), html.indexOf('data-testid="rocklin-budget-next"'));
   const next = html.slice(html.indexOf('data-testid="rocklin-budget-next"'));
-  assert.match(now, /As of Oct 20, 2026/);
+  assert.match(now, /As of Oct 19, 2026/);
   assert.equal(cell(now, "budget-expenses-monthly"), "-$5,010.40");
   assert.equal(cell(now, "budget-income-monthly"), "$0.00");
   assert.match(now, /None yet\./);
-  assert.match(next, /Starting Nov 1, 2026/);
+  assert.match(next, /Starting Oct 20, 2026/);
   assert.equal(cell(next, "budget-net-monthly"), "-$2,199.14");
   assert.equal(cell(next, "budget-income-annual"), "+$29,904.00");
 });

@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import {
-  activeOn, currentItems, isActiveOn, isIsoDay, isMemo, isPropertyExpense, isRentalIncome, nextChangeDay, propertyBudget, type BudgetItem,
+  activeOn, currentItems, effectiveTagOf, isActiveOn, isIsoDay, isMemo, isPropertyExpense, isRentalIncome, nextChangeDay, propertyBudget, upcomingChange, type BudgetItem,
 } from "./finance-schedule";
 
-const { ROWS, ENDING, EFFECTIVE, LAST_OLD_DAY } = createRequire(import.meta.url)("../add-rocklin-budget-nov-2026.cjs") as {
+const { ROWS, ENDING, EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY } = createRequire(import.meta.url)("../add-rocklin-budget-nov-2026.cjs") as {
   ROWS: { item: string; category: string; tags: string[]; monthlyCost: number; notes: string | null }[];
-  ENDING: string[]; EFFECTIVE: string; LAST_OLD_DAY: string;
+  ENDING: string[]; EFFECTIVE_LABEL: string; LIVE_FROM: string; LAST_OLD_DAY: string;
 };
 
 const P = "Investment Property Housing";
@@ -20,7 +20,7 @@ const OLD_COSTS: Record<string, number> = {
 };
 const unchanged = [row("Mortgage/PMI/Property Tax Payment", 446714), row("Brilliant Pest Solutions", 5900, { tags: ["Housing", "Rental"] })];
 const ended = ENDING.map((name) => row(name, OLD_COSTS[name], { effectiveUntil: LAST_OLD_DAY }));
-const added = ROWS.map((r) => ({ id: nextId++, ...r, effectiveFrom: EFFECTIVE } as BudgetItem));
+const added = ROWS.map((r) => ({ id: nextId++, ...r, effectiveFrom: LIVE_FROM } as BudgetItem));
 const all = [...unchanged, ...ended, ...added];
 
 // ── Dates ───────────────────────────────────────────────────────────────────
@@ -39,8 +39,8 @@ test("only real calendar days are accepted as an effective date", () => {
 });
 
 test("the next change is the first day after today that a row starts, or the day after one ends", () => {
-  assert.equal(nextChangeDay(all, "2026-10-20"), "2026-11-01");
-  assert.equal(nextChangeDay(all, "2026-11-01"), null, "nothing left to come");
+  assert.equal(nextChangeDay(all, "2026-10-01"), "2026-10-20", "the day after the old lines' last day");
+  assert.equal(nextChangeDay(all, "2026-10-20"), null, "nothing left to come");
   assert.equal(nextChangeDay([{ effectiveUntil: "2026-12-31" }], "2026-10-01"), "2027-01-01", "the day after the last day");
   assert.equal(nextChangeDay([{ effectiveFrom: "2027-03-01" }, { effectiveFrom: "2026-12-01" }], "2026-10-01"), "2026-12-01");
   assert.equal(nextChangeDay([{}], "2026-10-01"), null);
@@ -78,21 +78,30 @@ test("rental income is the base rent and the sewer reimbursement only, never the
   assert.equal(ROWS.some((r) => /deposit|benefit|landscaping reimb/i.test(r.item)), false);
 });
 
-test("every old line is ended the day before, and the new ones all begin on November 1", () => {
-  assert.deepEqual([EFFECTIVE, LAST_OLD_DAY], ["2026-11-01", "2026-10-31"]);
+test("every old line is ended after Oct 19, and every new line is live from Oct 20 and carries the Effective Nov 1, 2026 tag", () => {
+  assert.deepEqual([EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY], ["Effective Nov 1, 2026", "2026-10-20", "2026-10-19"]);
   assert.equal(ENDING.length, 5);
-  assert.ok(isIsoDay(EFFECTIVE) && isIsoDay(LAST_OLD_DAY));
+  assert.ok(isIsoDay(LAST_OLD_DAY) && isIsoDay(LIVE_FROM));
+  assert.equal(nextChangeDay(all, "2026-10-19"), LIVE_FROM, "the old lines end the day before the new ones begin");
+  for (const r of ROWS) assert.ok(r.tags.includes(EFFECTIVE_LABEL), `${r.item} carries the tag`);
+  assert.ok(added.every((i) => i.effectiveFrom === LIVE_FROM), "all begin on the same day");
+  assert.ok(ended.every((i) => effectiveTagOf(i) === null), "the old lines carry no tag");
+  assert.ok(unchanged.every((i) => effectiveTagOf(i) === null));
+  assert.equal(effectiveTagOf(added[0]), "Effective Nov 1, 2026");
+  assert.equal(effectiveTagOf({ tags: null }), null);
 });
 
 // ── The budget ──────────────────────────────────────────────────────────────
-test("from November 1 the dashboard's monthly and annual totals are the ones asked for", () => {
-  const b = propertyBudget(all, "2026-11-01");
-  assert.deepEqual([b.incomeMonthly, b.expensesMonthly, b.netMonthly], [249200, 469114, -219914]); // +$2,492.00, -$4,691.14, -$2,199.14
-  assert.deepEqual([b.incomeAnnual, b.expensesAnnual, b.netAnnual], [2990400, 5629368, -2638968]); // +$29,904.00, -$56,293.68, -$26,389.68
+test("from today the dashboard's monthly and annual totals are the ones asked for, and stay so", () => {
+  for (const day of ["2026-10-20", "2026-11-01", "2027-03-15"]) {
+    const b = propertyBudget(all, day);
+    assert.deepEqual([b.incomeMonthly, b.expensesMonthly, b.netMonthly], [249200, 469114, -219914], day); // +$2,492.00, -$4,691.14, -$2,199.14
+    assert.deepEqual([b.incomeAnnual, b.expensesAnnual, b.netAnnual], [2990400, 5629368, -2638968], day); // +$29,904.00, -$56,293.68, -$26,389.68
+  }
 });
 
-test("every property line stays listed from November 1, the tenant-paid ones at $0", () => {
-  const b = propertyBudget(all, "2026-11-01");
+test("every property line stays listed, the tenant-paid ones at $0", () => {
+  const b = propertyBudget(all, "2026-10-20");
   assert.deepEqual(b.expenses.map((e) => [e.item, e.monthlyCost]), [
     ["Mortgage/PMI/Property Tax Payment", 446714], ["RNB Property Management", 16500], ["Brilliant Pest Solutions", 5900],
     ["PG&E Electricity", 0], ["PG&E Gas", 0], ["PCWA Water", 0], ["Recology Garbage", 0], ["Sewer", 0], ["Landscaping", 0],
@@ -101,7 +110,7 @@ test("every property line stays listed from November 1, the tenant-paid ones at 
 });
 
 test("the real $40 sewer bill is kept for reporting: it is not in the totals, and true cash flow is $40 a month lower", () => {
-  const b = propertyBudget(all, "2026-11-01");
+  const b = propertyBudget(all, "2026-10-20");
   assert.deepEqual(b.unlisted.map((i) => [i.item, i.monthlyCost]), [["Sewer (actual bill, paid by owner)", 4000]]);
   assert.equal(b.unlistedMonthly, 4000);
   assert.deepEqual([b.trueNetMonthly, b.trueNetAnnual], [-223914, -2686968]); // -$2,239.14 and -$26,869.68
@@ -109,33 +118,30 @@ test("the real $40 sewer bill is kept for reporting: it is not in the totals, an
   assert.equal(isMemo(added.find((i) => i.item.startsWith("Sewer (actual"))!), true);
 });
 
-test("before November 1 nothing has changed: the old lines at their old amounts and no rental income", () => {
-  for (const day of ["2026-10-20", "2026-10-31"]) {
+test("up to Oct 19 nothing had changed: the old lines at their old amounts and no rental income", () => {
+  for (const day of ["2026-09-15", "2026-10-19"]) {
     const b = propertyBudget(all, day);
-    assert.equal(b.expensesMonthly, 446714 + 5900 + 18000 + 11500 + 11526 + 3400 + 4000, day);
+    assert.equal(b.expensesMonthly, 501040, `${day}: $5,010.40`);
     assert.equal(b.incomeMonthly, 0, day);
-    assert.equal(b.unlisted.length, 0, day);
-    assert.ok(b.expenses.some((e) => e.item === ENDING[0] && e.monthlyCost === 18000), "the old electric line is still there");
   }
+  assert.ok(propertyBudget(all, "2026-10-19").expenses.some((e) => e.item === ENDING[0] && e.monthlyCost === 18000), "the old electric line is still there");
 });
 
-test("earlier months are preserved: the old rows are ended, not changed or removed", () => {
+test("earlier days are preserved: the old rows are ended, not changed or removed", () => {
   const [electric] = ended;
   assert.equal(electric.monthlyCost, 18000);
-  assert.equal(activeOn(all, "2026-09-15").filter((i) => i.item === ENDING[0]).length, 1);
-  assert.equal(activeOn(all, "2026-11-01").filter((i) => i.item === ENDING[0]).length, 0);
+  assert.equal(activeOn(all, "2026-10-19").filter((i) => i.item === ENDING[0]).length, 1);
+  assert.equal(activeOn(all, "2026-10-20").filter((i) => i.item === ENDING[0]).length, 0);
   assert.equal(all.filter((i) => ENDING.includes(i.item)).length, 5, "all five old rows still exist");
 });
 
 test("the dashboard and charts use the rows in force that day, never both the old and the new line, and never the reporting-only row", () => {
-  const nov = currentItems(all, "2026-11-01");
-  assert.equal(nov.some((i) => ENDING.includes(i.item)), false);
-  assert.equal(nov.some((i) => i.item.startsWith("Sewer (actual")), false);
-  assert.equal(nov.some((i) => i.item === "PG&E Electricity"), true);
-  const oct = currentItems(all, "2026-10-20");
-  assert.equal(oct.some((i) => i.item === "PG&E Electricity"), false, "not before the effective date");
-  assert.equal(oct.some((i) => ENDING.includes(i.item)), true);
-  assert.equal(oct.some((i) => i.item === "Rocklin Base Rent"), false);
+  const now = currentItems(all, "2026-10-20");
+  assert.equal(now.some((i) => ENDING.includes(i.item)), false);
+  assert.equal(now.some((i) => i.item.startsWith("Sewer (actual")), false);
+  assert.equal(now.some((i) => i.item === "PG&E Electricity"), true);
+  assert.equal(now.some((i) => i.item === "Rocklin Base Rent"), true);
+  assert.equal(currentItems(all, "2026-10-19").some((i) => ENDING.includes(i.item)), true, "the day before, the old lines still count");
 });
 
 test("rental income and property expenses are told apart by their tag and category, and an unrelated line is neither", () => {
@@ -152,12 +158,16 @@ test("the input lists are never changed", () => {
   assert.equal(JSON.stringify(all), copy);
 });
 
-test("the next scheduled change counts the lines that start and end that day, without the reporting-only row", async () => {
-  const { upcomingChange } = await import("./finance-schedule");
-  const change = upcomingChange(all, "2026-10-20")!;
-  assert.equal(change.day, "2026-11-01");
-  assert.equal(change.starting.length, ROWS.length - 1, "the nine lines that start, not the memo");
-  assert.equal(change.ending.length, ENDING.length);
-  assert.equal(upcomingChange(all, "2026-11-01"), null, "nothing left once it has started");
+test("the next scheduled change counts the lines that start and end that day, without the reporting-only row", () => {
+  const items = [
+    row("Old", 100, { effectiveUntil: "2026-11-30" }), row("New", 50, { effectiveFrom: "2026-12-01" }),
+    row("Hidden", 10, { tags: ["Memo"], effectiveFrom: "2026-12-01" }), row("Later", 5, { effectiveFrom: "2027-02-01" }),
+  ];
+  const change = upcomingChange(items, "2026-10-20")!;
+  assert.equal(change.day, "2026-12-01");
+  assert.deepEqual(change.starting.map((i) => i.item), ["New"]);
+  assert.deepEqual(change.ending.map((i) => i.item), ["Old"]);
+  assert.equal(upcomingChange(items, "2026-12-01")!.day, "2027-02-01");
+  assert.equal(upcomingChange(items, "2027-02-01"), null, "nothing left once it has started");
   assert.equal(upcomingChange([...unchanged], "2026-10-20"), null);
 });

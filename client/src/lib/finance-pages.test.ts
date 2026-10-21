@@ -51,3 +51,10 @@ test("the expense list says when changes are scheduled, so a future-dated update
   const list = finances.slice(finances.indexOf(">All Expense Items<"), finances.indexOf("Search expenses"));
   assert.ok(list.includes('data-testid="scheduled-changes"'), "it sits in the All Expense Items header");
 });
+
+test("a line's Effective tag shows beside its name in the expense list and the items table", () => {
+  assert.equal((finances.match(/\{item\.item\}<EffectiveBadge item=\{item\} \/>/g) ?? []).length, 2);
+  assert.ok(finances.includes('import { EffectiveBadge } from "@/components/effective-badge";'));
+  const card = read("components/rocklin-rental-budget.tsx");
+  assert.equal((card.match(/\{i\.item\}<EffectiveBadge item=\{i\} \/>/g) ?? []).length, 2, "and in both lists of the Rocklin card");
+});
