@@ -45,6 +45,9 @@ app.use(session({
   store: sessionStore,
   resave: false,
   saveUninitialized: false,
+  // Sliding window: every request pushes the expiry back, so someone using the app is never
+  // signed out mid-entry a week after logging in (which dropped unsent work on the phone).
+  rolling: true,
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

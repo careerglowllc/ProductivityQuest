@@ -40,6 +40,54 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 const pendingUpdates = new Map<string, string>();
 const pendingDeletes = new Set<string>();
 
+// The queue is mirrored into localStorage as well, because nothing in memory survives the app being
+// killed, or an expired session bouncing the page to /login mid-edit. Without this, a write that never
+// reached the server was then overwritten by the server's older copy on the next sign-in, losing it.
+const OUTBOX_KEY = "pq-sync-outbox-v1"; // deliberately not a synced prefix: the queue itself is per-device
+interface Outbox { userId: string; updates: Record<string, string>; deletes: string[] }
+let syncUserId: string | null = null;
+let outboxRestored = false;
+
+/** Who the queue belongs to, so another account signing in on this device never inherits it. */
+export function setSyncUser(userId: string | null): void {
+  if (syncUserId === userId) return;
+  syncUserId = userId;
+  outboxRestored = false;
+}
+
+function saveOutbox(): void {
+  if (!ls || !nativeSetItem || !nativeRemoveItem) return;
+  if (!syncUserId || (pendingUpdates.size === 0 && pendingDeletes.size === 0)) {
+    nativeRemoveItem(OUTBOX_KEY);
+    return;
+  }
+  const updates: Record<string, string> = {};
+  pendingUpdates.forEach((v, k) => { updates[k] = v; });
+  try {
+    nativeSetItem(OUTBOX_KEY, JSON.stringify({ userId: syncUserId, updates, deletes: Array.from(pendingDeletes) } satisfies Outbox));
+  } catch {
+    // Storage full: the queue still lives in memory for this session.
+  }
+}
+
+/** Put back whatever this user wrote that never reached the server. Runs once per sign-in. */
+function restoreOutbox(): void {
+  if (!ls || !nativeRemoveItem || outboxRestored || !syncUserId) return;
+  outboxRestored = true;
+  let stored: Outbox | null = null;
+  try { stored = JSON.parse(ls.getItem(OUTBOX_KEY) ?? "null") as Outbox | null; } catch { stored = null; }
+  nativeRemoveItem(OUTBOX_KEY);
+  if (!stored || typeof stored !== "object" || stored.userId !== syncUserId) return;
+  for (const [key, value] of Object.entries(stored.updates ?? {})) {
+    // Anything queued since the app started is newer than what was stored, so it is left alone.
+    if (isSynced(key) && typeof value === "string" && !pendingUpdates.has(key) && !pendingDeletes.has(key)) pendingUpdates.set(key, value);
+  }
+  for (const key of stored.deletes ?? []) {
+    if (isSynced(key) && !pendingUpdates.has(key)) pendingDeletes.add(key);
+  }
+  saveOutbox();
+}
+
 // Kept short: this only coalesces rapid successive writes to the same key (e.g. typing
 // into a number field fires setItem per keystroke). A long delay widens the window in
 // which a mobile app backgrounding/kill can drop an edit before it ever reaches the server.
@@ -91,6 +139,7 @@ export async function flushNow(keepalive = false): Promise<boolean> {
 
   try {
     await apiRequest("PUT", "/api/user-data", { updates, deletes }, keepalive ? { keepalive: true } : undefined);
+    saveOutbox(); // only what came in while the request was in flight is still waiting
     return true;
   } catch {
     // On failure, re-queue so the next change/flush retries. Don't throw — a failed
@@ -99,6 +148,7 @@ export async function flushNow(keepalive = false): Promise<boolean> {
       if (!pendingUpdates.has(k)) pendingUpdates.set(k, v);
     }
     for (const k of deletes) pendingDeletes.add(k);
+    saveOutbox();
     return false;
   }
 }
@@ -113,6 +163,7 @@ export function installStorageSync(): void {
     if (!suspendCapture && isSynced(key)) {
       pendingUpdates.set(key, value);
       pendingDeletes.delete(key);
+      saveOutbox();
       scheduleFlush();
     }
   };
@@ -122,6 +173,7 @@ export function installStorageSync(): void {
     if (!suspendCapture && isSynced(key)) {
       pendingDeletes.add(key);
       pendingUpdates.delete(key);
+      saveOutbox();
       scheduleFlush();
     }
   };
@@ -160,13 +212,16 @@ export async function hydrateUserData(): Promise<void> {
     return;
   }
   try {
+    restoreOutbox();
     const res = await apiRequest("GET", "/api/user-data");
     const serverData: Record<string, string> = await res.json();
 
-    // 1) Server is authoritative: write every server value into localStorage. Use the
-    //    native setter (suspendCapture) so this does not echo back as a push.
+    // 1) Server is authoritative, EXCEPT for keys whose latest change has not gone up yet — for those the
+    //    server's copy is the older one, and writing it here would throw that change away. Use the native
+    //    setter (suspendCapture) so this does not echo back as a push.
     suspendCapture = true;
     for (const [key, value] of Object.entries(serverData)) {
+      if (pendingUpdates.has(key) || pendingDeletes.has(key)) continue;
       if (isSynced(key) && typeof value === "string") nativeSetItem(key, value);
     }
     suspendCapture = false;
@@ -189,6 +244,10 @@ export async function hydrateUserData(): Promise<void> {
         // best-effort; will retry on the next local change
       }
     }
+
+    // 3) Send up anything still waiting, including changes restored from an earlier run. The periodic
+    //    hydrate makes this the retry for a push that failed while the session was expired or offline.
+    if (pendingUpdates.size > 0 || pendingDeletes.size > 0) await flushNow();
   } catch {
     // Offline / unauthenticated / server error: proceed with cached localStorage. The
     // server stays the source of truth on the next successful hydrate.
@@ -228,11 +287,15 @@ export function resetUserDataSync(): void {
   hydrated = false;
   pendingUpdates.clear();
   pendingDeletes.clear();
+  syncUserId = null;
+  outboxRestored = false;
   stopPeriodicHydration();
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
   }
+  // The stored queue is deliberately left alone: this also runs while auth is still loading, and signing
+  // out for real flushes first, so anything left here is unsent work waiting for its owner to come back.
 }
 
 /** Remove only per-user synced cache keys, leaving device preferences intact. */

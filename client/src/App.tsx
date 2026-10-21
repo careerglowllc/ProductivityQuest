@@ -1,7 +1,7 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
-import { installStorageSync, hydrateUserData, resetUserDataSync, startPeriodicHydration } from "@/lib/synced-storage";
+import { installStorageSync, hydrateUserData, resetUserDataSync, setSyncUser, startPeriodicHydration } from "@/lib/synced-storage";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -98,9 +98,10 @@ function LastCrashBanner() {
 }
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   useDayRolloverRefresh();
+  const userId = (user as { id?: string } | undefined)?.id ?? null;
 
   // Once authenticated, pull this user's server-stored data into localStorage BEFORE the
   // synced pages (Finances / CPAP / NPCs) mount, so they always render the latest
@@ -109,6 +110,8 @@ function Router() {
   useEffect(() => {
     if (isAuthenticated) {
       let cancelled = false;
+      // Who any writes waiting to go up belong to, so they are sent for this account and no other.
+      setSyncUser(userId);
       hydrateUserData().finally(() => {
         if (!cancelled) {
           setUserDataReady(true);
@@ -124,7 +127,7 @@ function Router() {
     // Logged out: reset so the next user starts clean.
     resetUserDataSync();
     setUserDataReady(false);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userId]);
 
   // Handle API routes by redirecting to the backend
   if (window.location.pathname.startsWith('/api/')) {
