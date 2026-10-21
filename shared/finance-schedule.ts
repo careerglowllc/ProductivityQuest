@@ -46,6 +46,20 @@ export function nextChangeDay(items: readonly Scheduled[], day: string): string 
 }
 
 // ── The Rocklin rental ──────────────────────────────────────────────────────
+export interface UpcomingChange { day: string; starting: BudgetItem[]; ending: BudgetItem[] }
+
+// The rows that start or stop counting on the next change day, reporting-only rows left out; null when nothing is scheduled.
+export function upcomingChange(items: readonly BudgetItem[], day: string): UpcomingChange | null {
+  const counted = items.filter((i) => !isMemo(i));
+  const next = nextChangeDay(counted, day);
+  if (!next) return null;
+  return {
+    day: next,
+    starting: counted.filter((i) => i.effectiveFrom === next),
+    ending: counted.filter((i) => i.effectiveUntil && dayAfter(i.effectiveUntil) === next),
+  };
+}
+
 export const isRentalIncome = (item: { tags?: string[] | null }): boolean => (item.tags ?? []).includes(RENTAL_INCOME_TAG);
 export const isPropertyExpense = (item: { category: string; tags?: string[] | null }): boolean =>
   !isMemo(item) && !isRentalIncome(item) && (item.category === PROPERTY_CATEGORY || (item.tags ?? []).includes(PROPERTY_CATEGORY));

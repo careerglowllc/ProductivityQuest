@@ -15,7 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { ExpenseCircleMap } from "@/components/expense-circle-map";
 import { RocklinRentalBudget } from "@/components/rocklin-rental-budget";
-import { currentItems } from "@shared/finance-schedule";
+import { currentItems, isPropertyExpense, isRentalIncome, upcomingChange } from "@shared/finance-schedule";
 import { localDay } from "@/lib/quotes";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
@@ -3291,6 +3291,20 @@ export default function Finances() {
                     <CardDescription className="text-slate-400 text-xs">
                       Full breakdown grouped by category · largest first
                     </CardDescription>
+                    {(() => {
+                      const change = upcomingChange(allFinancialItems, financeDay);
+                      if (!change) return null;
+                      const [y, m, d] = change.day.split("-").map(Number);
+                      const when = new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                      const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+                      const parts = [change.starting.length ? count(change.starting.length, "line starts", "lines start") : "", change.ending.length ? count(change.ending.length, "line ends", "lines end") : ""].filter(Boolean).join(" and ");
+                      const property = [...change.starting, ...change.ending].some(i => isPropertyExpense(i) || isRentalIncome(i));
+                      return (
+                        <p data-testid="scheduled-changes" className="mt-1.5 text-[11px] text-amber-300">
+                          Scheduled for {when}: {parts}.{property ? " The Rocklin Rental Budget under Real Estate previews the new totals." : ""}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Input

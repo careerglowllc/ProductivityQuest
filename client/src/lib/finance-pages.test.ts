@@ -44,3 +44,10 @@ test("the new columns have a startup migration, so the live table is never behin
   const schema = read("../../shared/schema.ts");
   assert.ok(schema.includes('effectiveFrom: text("effective_from")') && schema.includes('effectiveUntil: text("effective_until")'));
 });
+
+test("the expense list says when changes are scheduled, so a future-dated update is not mistaken for a missing one", () => {
+  assert.ok(finances.includes("upcomingChange(allFinancialItems, financeDay)"));
+  assert.ok(finances.includes('data-testid="scheduled-changes"') && finances.includes("Scheduled for {when}: {parts}."));
+  const list = finances.slice(finances.indexOf(">All Expense Items<"), finances.indexOf("Search expenses"));
+  assert.ok(list.includes('data-testid="scheduled-changes"'), "it sits in the All Expense Items header");
+});

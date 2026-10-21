@@ -151,3 +151,13 @@ test("the input lists are never changed", () => {
   propertyBudget(all, "2026-11-01"); currentItems(all, "2026-11-01"); nextChangeDay(all, "2026-10-20");
   assert.equal(JSON.stringify(all), copy);
 });
+
+test("the next scheduled change counts the lines that start and end that day, without the reporting-only row", async () => {
+  const { upcomingChange } = await import("./finance-schedule");
+  const change = upcomingChange(all, "2026-10-20")!;
+  assert.equal(change.day, "2026-11-01");
+  assert.equal(change.starting.length, ROWS.length - 1, "the nine lines that start, not the memo");
+  assert.equal(change.ending.length, ENDING.length);
+  assert.equal(upcomingChange(all, "2026-11-01"), null, "nothing left once it has started");
+  assert.equal(upcomingChange([...unchanged], "2026-10-20"), null);
+});
