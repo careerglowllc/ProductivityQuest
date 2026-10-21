@@ -1547,7 +1547,7 @@ export default function Finances() {
     if (!financialItems.find(i => i.item === "Tentative Austin Housing Cost")) {
       tasks.push(create({
         item: "Tentative Austin Housing Cost", category: "Personal Housing", tags: ["Personal Housing"],
-        monthlyCost: 140000, recurType: "Monthly",
+        monthlyCost: 210000, recurType: "Monthly",
         notes: "Placeholder rent estimate once relocated to Austin, TX — adjust once an actual lease is signed.",
       }));
     }
