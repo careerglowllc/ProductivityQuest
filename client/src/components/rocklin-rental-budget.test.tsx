@@ -29,7 +29,7 @@ test("from November 1 the card shows the expected monthly and annual income, exp
   const html = render("2026-11-01");
   assert.doesNotMatch(html, /rocklin-budget-next/, "nothing is scheduled after it");
   assert.deepEqual(["income", "expenses", "net"].map((k) => [cell(html, `budget-${k}-monthly`), cell(html, `budget-${k}-annual`)]), [
-    ["+$2,492.00", "+$29,904.00"], ["-$4,691.14", "-$56,293.68"], ["-$2,199.14", "-$26,389.68"],
+    ["+$2,449.00", "+$29,388.00"], ["-$4,691.14", "-$56,293.68"], ["-$2,242.14", "-$26,905.68"],
   ]);
 });
 
@@ -52,24 +52,25 @@ test("the owner-paid lines show their real amounts and no subtitle", () => {
   assert.ok(lines.includes("RNB Property Management Effective Nov 1, 2026 -$165.00/mo"));
 });
 
-test("rental income is listed on its own, apart from the expenses", () => {
+test("rental income is the base rent on its own, apart from the expenses, with no sewer reimbursement", () => {
   const html = render("2026-11-01");
   const income = (html.match(/<li data-testid="budget-income-line".*?<\/li>/g) ?? []).map(text);
-  assert.deepEqual(income, ["Rocklin Base Rent Effective Nov 1, 2026 +$2,449.00/mo", "Rocklin Sewer Reimbursement Effective Nov 1, 2026 +$43.00/mo"]);
+  assert.deepEqual(income, ["Rocklin Base Rent Effective Nov 1, 2026 +$2,449.00/mo"]);
+  assert.doesNotMatch(html, /Reimbursement/i);
   assert.equal((html.match(/data-testid="budget-expense-line"/g) ?? []).length, 9);
 });
 
-test("the sewer bill still paid by the owner is noted, with true cash flow $40 lower", () => {
-  const note = text(render("2026-11-01").match(/data-testid="budget-true-cash-flow".*?<\/p>/)![0]);
-  assert.match(note, /Sewer \$40\.00\/mo/);
-  assert.match(note, /True cash flow is -\$2,239\.14\/mo \(-\$26,869\.68\/yr\)/);
+test("the sewer is a wash, so there is no separate note about a bill still paid by the owner", () => {
+  const html = render("2026-11-01");
+  assert.doesNotMatch(html, /budget-true-cash-flow|True cash flow|Still paid by you/);
+  assert.equal(cell(html, "budget-net-monthly"), "-$2,242.14");
 });
 
 test("each new line carries its Effective Nov 1, 2026 tag as a small label by its name, and the older lines do not", () => {
   const html = render("2026-10-20");
   const lines = [...(html.match(/<li data-testid="budget-expense-line".*?<\/li>/g) ?? []), ...(html.match(/<li data-testid="budget-income-line".*?<\/li>/g) ?? [])];
   const tagged = lines.filter((l) => l.includes('data-testid="effective-badge"'));
-  assert.equal(tagged.length, 9, "the seven added expense lines and the two rental income lines");
+  assert.equal(tagged.length, 8, "the seven added expense lines and the rent");
   assert.ok(tagged.every((l) => text(l).includes(EFFECTIVE_LABEL)));
   assert.match(tagged.find((l) => text(l).startsWith("Sewer "))!, /Sewer<span data-testid="effective-badge"[^>]*>Effective Nov 1, 2026<\/span>/, "right beside the name, before its subtitle");
   const untagged = lines.filter((l) => !l.includes('data-testid="effective-badge"')).map((l) => text(l));
@@ -85,8 +86,8 @@ test("before the old lines ended the card shows the old numbers and previews the
   assert.equal(cell(now, "budget-income-monthly"), "$0.00");
   assert.match(now, /None yet\./);
   assert.match(next, /Starting Oct 20, 2026/);
-  assert.equal(cell(next, "budget-net-monthly"), "-$2,199.14");
-  assert.equal(cell(next, "budget-income-annual"), "+$29,904.00");
+  assert.equal(cell(next, "budget-net-monthly"), "-$2,242.14");
+  assert.equal(cell(next, "budget-income-annual"), "+$29,388.00");
 });
 
 test("a house with nothing scheduled and no rent shows plain zeros, not an error", () => {

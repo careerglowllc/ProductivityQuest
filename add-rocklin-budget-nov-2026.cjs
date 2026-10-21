@@ -33,16 +33,15 @@ const ROWS = [
   { item: 'Landscaping', category: PROPERTY, tags: [EFFECTIVE_LABEL], monthlyCost: 0, notes: 'Normally $100/mo; now fully covered by tenant.' },
   { item: 'RNB Property Management', category: PROPERTY, tags: [EFFECTIVE_LABEL], monthlyCost: 16500, notes: null },
   // Rental income, kept apart from the property's expenses. The $100 landscaping reimbursement, the $50 resident benefits
-  // package and the refundable security deposit are not income and are left out.
+  // package, the refundable security deposit and the $43 sewer reimbursement are not income and are left out: the sewer
+  // bill and its reimbursement are treated as the same $43, a wash, so the Sewer line above nets to $0.
   { item: 'Rocklin Base Rent', category: 'Income', tags: ['Rental Income', EFFECTIVE_LABEL], monthlyCost: 244900, notes: null },
-  { item: 'Rocklin Sewer Reimbursement', category: 'Income', tags: ['Rental Income', EFFECTIVE_LABEL], monthlyCost: 4300, notes: null },
-  // The $40 sewer bill is still paid by the owner. It is shown as $0 above to match the budget as presented, so the real
-  // bill is kept here for accurate reporting; a Memo row is never added into any total.
-  {
-    item: 'Sewer (actual bill, paid by owner)', category: PROPERTY, tags: ['Memo', EFFECTIVE_LABEL], monthlyCost: 4000,
-    notes: 'Reporting only, not in the totals. The $43/mo tenant reimbursement is counted as rental income.',
-  },
 ];
+
+// Lines an earlier run added that are no longer wanted: the sewer reimbursement as income, and the real $40 sewer bill kept for
+// reporting. They are ended (not deleted), so they stop counting from the day after RETIRED_LAST_DAY.
+const RETIRED_LAST_DAY = '2026-10-20';
+const RETIRED = ['Rocklin Sewer Reimbursement', 'Sewer (actual bill, paid by owner)'];
 
 async function run() {
   const sql = neon(process.env.DATABASE_URL);
@@ -78,8 +77,17 @@ async function run() {
     `;
     console.log('Inserted', row.item, '$' + (row.monthlyCost / 100).toFixed(2) + '/mo, id', r[0].id);
   }
+
+  for (const name of RETIRED) {
+    const done = await sql`
+      UPDATE financial_items SET effective_until = ${RETIRED_LAST_DAY}
+      WHERE user_id = ${userId} AND item = ${name} AND effective_until IS NULL
+      RETURNING id
+    `;
+    console.log(done.length ? `Ended ${name} after ${RETIRED_LAST_DAY} (id ${done[0].id})` : `Already ended or not found: ${name}`);
+  }
 }
 
 if (require.main === module) run().catch(console.error);
 
-module.exports = { EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY, ENDING, ROWS };
+module.exports = { EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY, RETIRED_LAST_DAY, ENDING, ROWS, RETIRED };

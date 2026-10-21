@@ -5,9 +5,9 @@ import {
   activeOn, cashflowIncomeOf, currentItems, effectiveTagOf, isActiveOn, isIsoDay, isMemo, isPropertyExpense, isRentalIncome, nextChangeDay, propertyBudget, upcomingChange, type BudgetItem,
 } from "./finance-schedule";
 
-const { ROWS, ENDING, EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY } = createRequire(import.meta.url)("../add-rocklin-budget-nov-2026.cjs") as {
+const { ROWS, ENDING, EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY, RETIRED, RETIRED_LAST_DAY } = createRequire(import.meta.url)("../add-rocklin-budget-nov-2026.cjs") as {
   ROWS: { item: string; category: string; tags: string[]; monthlyCost: number; notes: string | null }[];
-  ENDING: string[]; EFFECTIVE_LABEL: string; LIVE_FROM: string; LAST_OLD_DAY: string;
+  ENDING: string[]; EFFECTIVE_LABEL: string; LIVE_FROM: string; LAST_OLD_DAY: string; RETIRED: string[]; RETIRED_LAST_DAY: string;
 };
 
 const P = "Investment Property Housing";
@@ -21,7 +21,12 @@ const OLD_COSTS: Record<string, number> = {
 const unchanged = [row("Mortgage/PMI/Property Tax Payment", 446714), row("Brilliant Pest Solutions", 5900, { tags: ["Housing", "Rental"] })];
 const ended = ENDING.map((name) => row(name, OLD_COSTS[name], { effectiveUntil: LAST_OLD_DAY }));
 const added = ROWS.map((r) => ({ id: nextId++, ...r, effectiveFrom: LIVE_FROM } as BudgetItem));
-const all = [...unchanged, ...ended, ...added];
+// The two lines an earlier run added that were then retired: the sewer reimbursement as income, and the real $40 sewer bill.
+const retired: BudgetItem[] = [
+  { id: nextId++, item: RETIRED[0], category: "Income", tags: ["Rental Income", EFFECTIVE_LABEL], monthlyCost: 4300, effectiveFrom: LIVE_FROM, effectiveUntil: RETIRED_LAST_DAY },
+  { id: nextId++, item: RETIRED[1], category: P, tags: ["Memo", EFFECTIVE_LABEL], monthlyCost: 4000, effectiveFrom: LIVE_FROM, effectiveUntil: RETIRED_LAST_DAY },
+];
+const all = [...unchanged, ...ended, ...added, ...retired];
 
 // ── Dates ───────────────────────────────────────────────────────────────────
 test("a row counts from its first day to its last day, both included, and a row with no dates always counts", () => {
@@ -40,7 +45,8 @@ test("only real calendar days are accepted as an effective date", () => {
 
 test("the next change is the first day after today that a row starts, or the day after one ends", () => {
   assert.equal(nextChangeDay(all, "2026-10-01"), "2026-10-20", "the day after the old lines' last day");
-  assert.equal(nextChangeDay(all, "2026-10-20"), null, "nothing left to come");
+  assert.equal(nextChangeDay(all, "2026-10-20"), "2026-10-21", "the day after the retired lines' last day");
+  assert.equal(nextChangeDay(all, "2026-10-21"), null, "nothing left to come");
   assert.equal(nextChangeDay([{ effectiveUntil: "2026-12-31" }], "2026-10-01"), "2027-01-01", "the day after the last day");
   assert.equal(nextChangeDay([{ effectiveFrom: "2027-03-01" }, { effectiveFrom: "2026-12-01" }], "2026-10-01"), "2026-12-01");
   assert.equal(nextChangeDay([{}], "2026-10-01"), null);
@@ -72,10 +78,10 @@ test("the owner-paid lines show their real amounts with no subtitle", () => {
   assert.equal(unchanged.find((r) => r.item === "Brilliant Pest Solutions")?.monthlyCost, 5900);
 });
 
-test("rental income is the base rent and the sewer reimbursement only, never the landscaping, resident benefits or deposit", () => {
+test("rental income is the base rent only: no sewer reimbursement, landscaping, resident benefits or deposit", () => {
   const income = ROWS.filter((r) => r.tags.includes("Rental Income"));
-  assert.deepEqual(income.map((r) => [r.item, r.monthlyCost, r.category]), [["Rocklin Base Rent", 244900, "Income"], ["Rocklin Sewer Reimbursement", 4300, "Income"]]);
-  assert.equal(ROWS.some((r) => /deposit|benefit|landscaping reimb/i.test(r.item)), false);
+  assert.deepEqual(income.map((r) => [r.item, r.monthlyCost, r.category]), [["Rocklin Base Rent", 244900, "Income"]]);
+  assert.equal(ROWS.some((r) => /deposit|benefit|reimburs/i.test(r.item)), false);
 });
 
 test("every old line is ended after Oct 19, and every new line is live from Oct 20 and carries the Effective Nov 1, 2026 tag", () => {
@@ -92,30 +98,32 @@ test("every old line is ended after Oct 19, and every new line is live from Oct 
 });
 
 // ── The budget ──────────────────────────────────────────────────────────────
-test("from today the dashboard's monthly and annual totals are the ones asked for, and stay so", () => {
-  for (const day of ["2026-10-20", "2026-11-01", "2027-03-15"]) {
+test("from tomorrow on the dashboard's monthly and annual totals count the base rent and no sewer income, and stay so", () => {
+  for (const day of ["2026-10-21", "2026-11-01", "2027-03-15"]) {
     const b = propertyBudget(all, day);
-    assert.deepEqual([b.incomeMonthly, b.expensesMonthly, b.netMonthly], [249200, 469114, -219914], day); // +$2,492.00, -$4,691.14, -$2,199.14
-    assert.deepEqual([b.incomeAnnual, b.expensesAnnual, b.netAnnual], [2990400, 5629368, -2638968], day); // +$29,904.00, -$56,293.68, -$26,389.68
+    assert.deepEqual([b.incomeMonthly, b.expensesMonthly, b.netMonthly], [244900, 469114, -224214], day); // +$2,449.00, -$4,691.14, -$2,242.14
+    assert.deepEqual([b.incomeAnnual, b.expensesAnnual, b.netAnnual], [2938800, 5629368, -2690568], day); // +$29,388.00, -$56,293.68, -$26,905.68
   }
 });
 
 test("every property line stays listed, the tenant-paid ones at $0", () => {
-  const b = propertyBudget(all, "2026-10-20");
+  const b = propertyBudget(all, "2026-10-21");
   assert.deepEqual(b.expenses.map((e) => [e.item, e.monthlyCost]), [
     ["Mortgage/PMI/Property Tax Payment", 446714], ["RNB Property Management", 16500], ["Brilliant Pest Solutions", 5900],
     ["PG&E Electricity", 0], ["PG&E Gas", 0], ["PCWA Water", 0], ["Recology Garbage", 0], ["Sewer", 0], ["Landscaping", 0],
   ].sort((a, b) => (b[1] as number) - (a[1] as number)));
-  assert.deepEqual(b.income.map((i) => i.item), ["Rocklin Base Rent", "Rocklin Sewer Reimbursement"]);
+  assert.deepEqual(b.income.map((i) => i.item), ["Rocklin Base Rent"]);
 });
 
-test("the real $40 sewer bill is kept for reporting: it is not in the totals, and true cash flow is $40 a month lower", () => {
-  const b = propertyBudget(all, "2026-10-20");
-  assert.deepEqual(b.unlisted.map((i) => [i.item, i.monthlyCost]), [["Sewer (actual bill, paid by owner)", 4000]]);
-  assert.equal(b.unlistedMonthly, 4000);
-  assert.deepEqual([b.trueNetMonthly, b.trueNetAnnual], [-223914, -2686968]); // -$2,239.14 and -$26,869.68
-  assert.equal(b.expensesMonthly, 469114, "the sewer bill is not in the property expenses");
-  assert.equal(isMemo(added.find((i) => i.item.startsWith("Sewer (actual"))!), true);
+test("the sewer is a wash: the line nets to $0, the reimbursement is not income, and no separate $40 bill is carried", () => {
+  const b = propertyBudget(all, "2026-10-21");
+  assert.equal(b.expenses.find((e) => e.item === "Sewer")?.monthlyCost, 0);
+  assert.equal(b.income.some((i) => /reimburs/i.test(i.item)), false);
+  assert.deepEqual([b.unlisted.length, b.unlistedMonthly], [0, 0]);
+  assert.equal(b.trueNetMonthly, b.netMonthly, "nothing is held back from the net");
+  assert.equal(currentItems(all, "2026-10-21").some((i) => RETIRED.includes(i.item)), false);
+  assert.equal(isMemo(retired[1]), true);
+  assert.equal(RETIRED_LAST_DAY, "2026-10-20");
 });
 
 test("up to Oct 19 nothing had changed: the old lines at their old amounts and no rental income", () => {
@@ -136,7 +144,7 @@ test("earlier days are preserved: the old rows are ended, not changed or removed
 });
 
 test("the dashboard and charts use the rows in force that day, never both the old and the new line, and never the reporting-only row", () => {
-  const now = currentItems(all, "2026-10-20");
+  const now = currentItems(all, "2026-10-21");
   assert.equal(now.some((i) => ENDING.includes(i.item)), false);
   assert.equal(now.some((i) => i.item.startsWith("Sewer (actual")), false);
   assert.equal(now.some((i) => i.item === "PG&E Electricity"), true);
@@ -179,12 +187,12 @@ const w2Row = (cents: number): BudgetItem => ({ id: nextId++, item: W2, category
 test("the cash flow view counts the W2 salary and the rental income, and nothing else", () => {
   const rsu = { id: nextId++, item: "Apple RSUs", category: "Income", tags: [], monthlyCost: 700000 };
   const c = cashflowIncomeOf([...currentItems(all, "2026-10-21"), w2Row(630000), rsu], W2);
-  assert.deepEqual(c, { w2: 630000, rental: 249200, income: 879200 }); // $6,300.00 + $2,492.00 = $8,792.00
+  assert.deepEqual(c, { w2: 630000, rental: 244900, income: 874900 }); // $6,300.00 + $2,449.00 = $8,749.00
 });
 
 test("before the rent started, or with no salary line, the cash flow income is just what is there", () => {
   assert.deepEqual(cashflowIncomeOf([...currentItems(all, "2026-10-19"), w2Row(630000)], W2), { w2: 630000, rental: 0, income: 630000 });
-  assert.deepEqual(cashflowIncomeOf(currentItems(all, "2026-10-21"), W2), { w2: 0, rental: 249200, income: 249200 });
+  assert.deepEqual(cashflowIncomeOf(currentItems(all, "2026-10-21"), W2), { w2: 0, rental: 244900, income: 244900 });
   assert.deepEqual(cashflowIncomeOf([], W2), { w2: 0, rental: 0, income: 0 });
 });
 
