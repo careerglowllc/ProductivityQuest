@@ -14,6 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { ExpenseCircleMap } from "@/components/expense-circle-map";
+import { RocklinRentalBudget } from "@/components/rocklin-rental-budget";
+import { currentItems } from "@shared/finance-schedule";
+import { localDay } from "@/lib/quotes";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
   ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Wallet, PiggyBank,
@@ -108,7 +111,7 @@ function findPriceAtOrBefore(points: { t: number; price: number }[], targetMs: n
 export async function buildFinancesCSVExport(): Promise<CSVExport> {
   const r = await fetch("/api/finances", { credentials: "include" });
   const items: FinancialItem[] = await r.json();
-  const headers = ["Item", "Category", "Tags", "Monthly Cost ($)", "Annual Cost ($)", "Recurrence", "Notes"];
+  const headers = ["Item", "Category", "Tags", "Monthly Cost ($)", "Annual Cost ($)", "Recurrence", "Notes", "Effective From", "Effective Until"];
   const rows = items.map(i => [
     i.item,
     i.category,
@@ -117,6 +120,8 @@ export async function buildFinancesCSVExport(): Promise<CSVExport> {
     ((i.monthlyCost * 12) / 100).toFixed(2),
     i.recurType,
     i.notes ?? "",
+    i.effectiveFrom ?? "",
+    i.effectiveUntil ?? "",
   ]);
   return { folder: "Finances", filename: "financial-items.csv", content: rowsToCSV(headers, rows) };
 }
@@ -1484,9 +1489,13 @@ export default function Finances() {
 
   const [newItem, setNewItem] = useState({ item: "", category: "", tags: [] as string[], monthlyCost: "", recurType: "" });
 
-  const { data: financialItems = [] } = useQuery<FinancialItem[]>({
+  // Every row, including ones that have ended or not started yet (the export and the Rocklin budget use them all);
+  // everything else on the page works from the rows in force today.
+  const financeDay = localDay();
+  const { data: allFinancialItems = [] } = useQuery<FinancialItem[]>({
     queryKey: ["/api/finances"],
   });
+  const financialItems = useMemo(() => currentItems(allFinancialItems, financeDay), [allFinancialItems, financeDay]);
 
   // ── One-time data seed/cleanup (runs once per page load, not on every list change) ──
   // IMPORTANT: guarded by a ref so this can never re-trigger itself in a loop. Previously
@@ -2950,7 +2959,10 @@ export default function Finances() {
                           .sort((a, b) => b.monthlyCost - a.monthlyCost)
                           .map(i => (
                             <div key={i.id} className="flex justify-between text-xs py-0.5 border-b border-orange-500/10 last:border-0">
-                              <span className="text-slate-300 truncate mr-2">{i.item}</span>
+                              <span className="text-slate-300 min-w-0 mr-2">
+                                <span className="block truncate">{i.item}</span>
+                                {i.notes && <span className="block text-[10px] text-slate-400">{i.notes}</span>}
+                              </span>
                               <span className="text-orange-300 shrink-0">{formatCurrency(i.monthlyCost)}</span>
                             </div>
                           ))}
@@ -2966,25 +2978,27 @@ export default function Finances() {
                   const granularData = [
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "income")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#22C55E", type: "income" as const, category: i.category })),
+                      .map(i => ({ name: i.item, notes: i.notes, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#22C55E", type: "income" as const, category: i.category })),
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement")
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FBBF24", type: "retirement" as const, category: i.category })),
+                      .map(i => ({ name: i.item, notes: i.notes, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FBBF24", type: "retirement" as const, category: i.category })),
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "expense" && !isInvestmentExpense(i))
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "trueExpense" as const, category: i.category })),
+                      .map(i => ({ name: i.item, notes: i.notes, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#94A3B8", type: "trueExpense" as const, category: i.category })),
                     ...financialItems.filter(i => classifyItem(i.category, i.tags) === "expense" && isInvestmentExpense(i))
                       .sort((a, b) => b.monthlyCost - a.monthlyCost)
-                      .map(i => ({ name: i.item, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FB923C", type: "investmentExpense" as const, category: i.category })),
-                  ].filter(d => d.value > 0);
-                  const grandTotal = granularData.reduce((s, d) => s + d.value, 0);
+                      .map(i => ({ name: i.item, notes: i.notes, value: i.monthlyCost, color: CATEGORY_COLORS[i.category] || "#FB923C", type: "investmentExpense" as const, category: i.category })),
+                  ];
+                  // A $0 line has no slice to draw, but the property's tenant-paid bills still list below with their notes.
+                  const pieSlices = granularData.filter(d => d.value > 0);
+                  const grandTotal = pieSlices.reduce((s, d) => s + d.value, 0);
                   return (
                     <>
                       <ResponsiveContainer width="100%" height={380}>
                         <RechartsPieChart>
-                          <Pie data={granularData} cx="50%" cy="50%" outerRadius={140} innerRadius={55}
+                          <Pie data={pieSlices} cx="50%" cy="50%" outerRadius={140} innerRadius={55}
                             dataKey="value" labelLine={false} label={false}>
-                            {granularData.map((entry, i) => (
+                            {pieSlices.map((entry, i) => (
                               <Cell key={i} fill={entry.color} stroke="rgba(0,0,0,0.25)" strokeWidth={1} />
                             ))}
                           </Pie>
@@ -2994,7 +3008,7 @@ export default function Finances() {
 
                       <div className="mt-4 pt-4 border-t border-slate-700/50 grid grid-cols-1 md:grid-cols-4 gap-4">
                         {(["income", "retirement", "trueExpense", "investmentExpense"] as const).map(type => {
-                          const items = granularData.filter(d => d.type === type);
+                          const items = granularData.filter(d => d.type === type && (d.value > 0 || type === "investmentExpense"));
                           const typeTotal = items.reduce((s, d) => s + d.value, 0);
                           const typeColor = type === "income" ? "green" : type === "retirement" ? "yellow" : type === "trueExpense" ? "red" : "orange";
                           const typeLabel = type === "income" ? "Income" : type === "retirement" ? "Investments" : type === "trueExpense" ? "True Expenses" : "Investment Expenses";
@@ -3004,7 +3018,10 @@ export default function Finances() {
                               {items.map(item => (
                                 <div key={item.name} className="flex items-center gap-1.5 py-0.5 border-b border-slate-700/30 last:border-0">
                                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                                  <span className="text-slate-300 text-xs truncate flex-1 mr-1">{item.name}</span>
+                                  <span className="text-slate-300 text-xs min-w-0 flex-1 mr-1">
+                                    <span className="block truncate">{item.name}</span>
+                                    {item.notes && <span className="block text-[10px] text-slate-400">{item.notes}</span>}
+                                  </span>
                                   <span className={`text-${typeColor}-300 text-xs shrink-0`}>{formatCurrency(item.value)}</span>
                                   <span className="text-slate-500 text-[10px] shrink-0">({grandTotal > 0 ? ((item.value / grandTotal) * 100).toFixed(1) : 0}%)</span>
                                 </div>
@@ -4614,6 +4631,8 @@ export default function Finances() {
                 <div className="space-y-4">
 
                   {/* ── Row 1: KPI Cards ── */}
+                  <RocklinRentalBudget items={allFinancialItems} today={financeDay} formatCurrency={formatCurrency} />
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {/* Current Market Value */}
                     <Card className="bg-slate-800/60 border-pink-500/30">

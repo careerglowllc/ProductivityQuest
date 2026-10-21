@@ -23,6 +23,7 @@ import { adviseFocus } from "./smart-focus-openai";
 import { registerFitnessAi } from "./fitness-ai";
 import { planChildren, type ChildrenChoice } from "@shared/questline-delete";
 import { localDay } from "@shared/due-date-rollover";
+import { isIsoDay } from "@shared/finance-schedule";
 import { rollOverdueIfNewDay } from "./due-date-rollover";
 import { rolloverStore, rolloverScheduler } from "./due-date-rollover-store";
 
@@ -5080,10 +5081,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/finances", requireAuth, async (req: any, res) => {
     try {
       const userId = req.session.userId;
-      const { item, category, tags, monthlyCost, recurType } = req.body;
+      const { item, category, tags, monthlyCost, recurType, notes, effectiveFrom, effectiveUntil } = req.body;
 
       if (!item || !category || monthlyCost === undefined || !recurType) {
         return res.status(400).json({ error: "Missing required fields" });
+      }
+      if ((effectiveFrom != null && !isIsoDay(effectiveFrom)) || (effectiveUntil != null && !isIsoDay(effectiveUntil))) {
+        return res.status(400).json({ error: "Effective dates must be YYYY-MM-DD" });
       }
 
       const newItem = await storage.createFinancialItem({
@@ -5092,7 +5096,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category,
         tags: Array.isArray(tags) ? tags : [],
         monthlyCost,
-        recurType
+        recurType,
+        notes: typeof notes === "string" && notes.trim() ? notes.trim().slice(0, 500) : null,
+        effectiveFrom: effectiveFrom ?? null,
+        effectiveUntil: effectiveUntil ?? null,
       });
 
       res.json(newItem);

@@ -147,6 +147,14 @@ export async function runStartupMigrations() {
       SET category = 'Investment Property Housing'
       WHERE category = 'Housing'
     `;
+
+    // Migration: a finance item can start or stop counting on a date, so a change to a bill is a new row
+    // that begins that day and earlier months keep their old numbers.
+    await sql`
+      ALTER TABLE financial_items
+      ADD COLUMN IF NOT EXISTS effective_from TEXT,
+      ADD COLUMN IF NOT EXISTS effective_until TEXT
+    `;
     
     console.log('✅ Startup migrations completed successfully');
   } catch (error) {

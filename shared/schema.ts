@@ -243,6 +243,8 @@ export const financialItems = pgTable("financial_items", {
   monthlyCost: integer("monthly_cost").notNull(), // Store as cents to avoid floating point issues
   recurType: text("recur_type").notNull(), // Monthly, Yearly (Amortized), Biweekly (Summed Monthly), 2x a Year
   notes: text("notes"), // Optional subtitle/description shown beneath item name
+  effectiveFrom: text("effective_from"), // YYYY-MM-DD, first day this row counts; null = always
+  effectiveUntil: text("effective_until"), // YYYY-MM-DD, last day this row counts; null = still in force
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

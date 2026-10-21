@@ -30,6 +30,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { classifyItem } from "@/pages/finances";
 import { DashCard, DashCardHead, StatCard } from "@/components/dash-ui";
 import { useNickname } from "@/hooks/use-nickname";
+import { useCurrentFinancialItems } from "@/hooks/use-financial-items";
 import { useTodayMomentum } from "@/hooks/use-today-momentum";
 import "./dashboard-constellation.css";
 
@@ -224,9 +225,7 @@ function FinanceWidget() {
     return () => observer.disconnect();
   }, []);
 
-  const { data: financialItems = [] } = useQuery<FinancialItem[]>({
-    queryKey: ["/api/finances"],
-  });
+  const financialItems = useCurrentFinancialItems();
 
   const totalIncome = financialItems.filter(i => classifyItem(i.category, i.tags) === "income").reduce((s, i) => s + i.monthlyCost, 0);
   const totalRetirement = financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement").reduce((s, i) => s + i.monthlyCost, 0);
@@ -352,7 +351,7 @@ function useFireGoal() {
     try { return parseFloat(localStorage.getItem(key) ?? "0") || 0; } catch { return 0; }
   };
 
-  const { data: financialItems = [] } = useQuery<FinancialItem[]>({ queryKey: ["/api/finances"] });
+  const financialItems = useCurrentFinancialItems();
   const { data: btcData } = useQuery<{ price: number }>({ queryKey: ["/api/market/bitcoin"], staleTime: 60_000, retry: 2 });
   const { data: vtsaxData } = useQuery<{ price: number }>({ queryKey: ["/api/market/vtsax"], staleTime: 60_000, retry: 2 });
   const { data: vooData } = useQuery<{ price: number }>({ queryKey: ["/api/market/voo"], staleTime: 60_000, retry: 2 });
