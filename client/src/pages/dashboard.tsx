@@ -31,6 +31,7 @@ import { classifyItem } from "@/pages/finances";
 import { DashCard, DashCardHead, StatCard } from "@/components/dash-ui";
 import { useNickname } from "@/hooks/use-nickname";
 import { useCurrentFinancialItems } from "@/hooks/use-financial-items";
+import { cashflowIncomeOf } from "@shared/finance-schedule";
 import { useTodayMomentum } from "@/hooks/use-today-momentum";
 import "./dashboard-constellation.css";
 
@@ -384,8 +385,7 @@ function useFireGoal() {
 
   const totalRetirement = financialItems.filter(i => classifyItem(i.category, i.tags) === "retirement").reduce((s, i) => s + i.monthlyCost, 0);
   const totalExpenses = financialItems.filter(i => classifyItem(i.category, i.tags) === "expense").reduce((s, i) => s + i.monthlyCost, 0);
-  const w2Income = financialItems.find(i => i.item === "Post-Tax W2 Salary Income")?.monthlyCost ?? 0;
-  const cashflowNetRaw = w2Income - totalExpenses;
+  const cashflowNetRaw = cashflowIncomeOf(financialItems, "Post-Tax W2 Salary Income").income - totalExpenses;
 
   // Net worth pieces (mirrors the Finances page's Overview calc)
   const btcPrice = btcData?.price ?? readCachedPrice("cache_btc_price");

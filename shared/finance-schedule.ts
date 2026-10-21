@@ -94,3 +94,13 @@ export function propertyBudget(items: readonly BudgetItem[], day: string): Prope
     unlisted, unlistedMonthly, trueNetMonthly: netMonthly - unlistedMonthly, trueNetAnnual: (netMonthly - unlistedMonthly) * 12,
   };
 }
+
+export interface CashflowIncome { w2: number; rental: number; income: number } // cents a month
+
+// The income the cash flow view counts: the W2 salary line plus rental income, and nothing else (no RSUs, ESPP or HSA).
+// Takes the rows in force, so reporting-only rows are already out.
+export function cashflowIncomeOf(items: readonly { item: string; tags?: string[] | null; monthlyCost: number }[], w2ItemName: string): CashflowIncome {
+  const w2 = items.find((i) => i.item === w2ItemName)?.monthlyCost ?? 0;
+  const rental = items.filter((i) => isRentalIncome(i) && !isMemo(i)).reduce((total, i) => total + i.monthlyCost, 0);
+  return { w2, rental, income: w2 + rental };
+}

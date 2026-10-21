@@ -58,3 +58,20 @@ test("a line's Effective tag shows beside its name in the expense list and the i
   const card = read("components/rocklin-rental-budget.tsx");
   assert.equal((card.match(/\{i\.item\}<EffectiveBadge item=\{i\} \/>/g) ?? []).length, 2, "and in both lists of the Rocklin card");
 });
+
+test("the Cash Flow tab counts rental income with the W2 salary, in its cards, pie, percentages and exports", () => {
+  const tab = finances.slice(finances.indexOf('<TabsContent value="cashflow"'), finances.indexOf('<TabsContent value="networth"'));
+  assert.ok(finances.includes("cashflowIncomeOf(financialItems, W2_ITEM_NAME)"));
+  assert.ok(finances.includes("const cashflowNetRaw = cashflowIncome - totalExpenses;"));
+  assert.ok(finances.includes('Cash Flow (W2 + Rental)') && !finances.includes("Cash Flow (W2 Only)"));
+  assert.ok(tab.includes('data-testid="cashflow-rental"') && tab.includes("W2 + Rental Cash Flow"));
+  assert.ok(tab.includes("(item.monthlyCost / cashflowIncome) * 100") && tab.includes("% of income"), "the bars are shares of all this income");
+  assert.ok(finances.includes('{ name: "Rental Income", value: rentalIncome'), "its own slice in the pie");
+  assert.ok(finances.includes('["Rental Income", $(rentalIncome), $(rentalIncome * 12)'), "and its own row in the export");
+  assert.ok(!finances.includes("nonW2Income"), "the leftover is only the income that is neither salary nor rent");
+});
+
+test("the FIRE savings and the Dashboard's copy of the net use the same cash flow income, so rent counts there too", () => {
+  assert.ok(finances.includes("Math.max(0, cashflowNetRaw) * 12"));
+  assert.ok(read("pages/dashboard.tsx").includes('cashflowIncomeOf(financialItems, "Post-Tax W2 Salary Income").income - totalExpenses'));
+});

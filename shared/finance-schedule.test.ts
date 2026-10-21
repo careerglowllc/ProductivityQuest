@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import {
-  activeOn, currentItems, effectiveTagOf, isActiveOn, isIsoDay, isMemo, isPropertyExpense, isRentalIncome, nextChangeDay, propertyBudget, upcomingChange, type BudgetItem,
+  activeOn, cashflowIncomeOf, currentItems, effectiveTagOf, isActiveOn, isIsoDay, isMemo, isPropertyExpense, isRentalIncome, nextChangeDay, propertyBudget, upcomingChange, type BudgetItem,
 } from "./finance-schedule";
 
 const { ROWS, ENDING, EFFECTIVE_LABEL, LIVE_FROM, LAST_OLD_DAY } = createRequire(import.meta.url)("../add-rocklin-budget-nov-2026.cjs") as {
@@ -170,4 +170,25 @@ test("the next scheduled change counts the lines that start and end that day, wi
   assert.equal(upcomingChange(items, "2026-12-01")!.day, "2027-02-01");
   assert.equal(upcomingChange(items, "2027-02-01"), null, "nothing left once it has started");
   assert.equal(upcomingChange([...unchanged], "2026-10-20"), null);
+});
+
+// ── Cash flow income ────────────────────────────────────────────────────────
+const W2 = "Post-Tax W2 Salary Income";
+const w2Row = (cents: number): BudgetItem => ({ id: nextId++, item: W2, category: "Income", tags: [], monthlyCost: cents });
+
+test("the cash flow view counts the W2 salary and the rental income, and nothing else", () => {
+  const rsu = { id: nextId++, item: "Apple RSUs", category: "Income", tags: [], monthlyCost: 700000 };
+  const c = cashflowIncomeOf([...currentItems(all, "2026-10-21"), w2Row(630000), rsu], W2);
+  assert.deepEqual(c, { w2: 630000, rental: 249200, income: 879200 }); // $6,300.00 + $2,492.00 = $8,792.00
+});
+
+test("before the rent started, or with no salary line, the cash flow income is just what is there", () => {
+  assert.deepEqual(cashflowIncomeOf([...currentItems(all, "2026-10-19"), w2Row(630000)], W2), { w2: 630000, rental: 0, income: 630000 });
+  assert.deepEqual(cashflowIncomeOf(currentItems(all, "2026-10-21"), W2), { w2: 0, rental: 249200, income: 249200 });
+  assert.deepEqual(cashflowIncomeOf([], W2), { w2: 0, rental: 0, income: 0 });
+});
+
+test("a reporting-only row is never counted as rental income, and an expense line is not income", () => {
+  const memo = { id: nextId++, item: "Rent memo", category: "Income", tags: ["Rental Income", "Memo"], monthlyCost: 100000 };
+  assert.equal(cashflowIncomeOf([memo, ...unchanged], W2).rental, 0);
 });

@@ -16,7 +16,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { ExpenseCircleMap } from "@/components/expense-circle-map";
 import { RocklinRentalBudget } from "@/components/rocklin-rental-budget";
 import { EffectiveBadge } from "@/components/effective-badge";
-import { currentItems, isPropertyExpense, isRentalIncome, upcomingChange } from "@shared/finance-schedule";
+import { cashflowIncomeOf, currentItems, isPropertyExpense, isRentalIncome, upcomingChange } from "@shared/finance-schedule";
 import { localDay } from "@/lib/quotes";
 import {
   Trash2, Plus, PieChart, List, AlertCircle, CheckCircle, AlertTriangle,
@@ -1903,18 +1903,19 @@ export default function Finances() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nwIsLoading]);
 
-  // Cashflow: only W2 salary as income (no RSUs, ESPP, HSA, etc.)
+  // Cashflow: W2 salary plus rental income as income (no RSUs, ESPP, HSA, etc.)
   const W2_ITEM_NAME = "Post-Tax W2 Salary Income";
-  const w2Income = financialItems.find(i => i.item === W2_ITEM_NAME)?.monthlyCost ?? 0;
-  const cashflowNetRaw = w2Income - totalExpenses;
-  const nonW2Income = totalIncome - w2Income; // RSUs, ESPP, etc.
+  const { w2: w2Income, rental: rentalIncome, income: cashflowIncome } = cashflowIncomeOf(financialItems, W2_ITEM_NAME);
+  const cashflowNetRaw = cashflowIncome - totalExpenses;
+  const otherIncome = totalIncome - cashflowIncome; // RSUs, ESPP, etc.
 
   const cashflowPie = [
     { name: "W2 Salary", value: w2Income, color: "#22C55E" },
+    { name: "Rental Income", value: rentalIncome, color: "#14B8A6" },
     { name: "Expenses", value: totalExpenses, color: "#EF4444" },
     { name: "Investments (out of W2)", value: totalRetirement, color: "#FBBF24" },
   ].filter(d => d.value > 0).map(d => {
-    const total = w2Income + totalExpenses + totalRetirement;
+    const total = cashflowIncome + totalExpenses + totalRetirement;
     return { ...d, pct: total > 0 ? (d.value / total) * 100 : 0 };
   });
 
@@ -2003,7 +2004,8 @@ export default function Finances() {
       ["Total Expenses", $(totalExpenses), $(totalExpenses * 12), "All tracked expense categories"],
       ["Net Cash Flow (after expenses & retirement)", $(netCashFlow), $(netCashFlow * 12), "Income − Expenses − Retirement"],
       ["W2 Salary Only", $(w2Income), $(w2Income * 12), "Post-tax W2 salary"],
-      ["Non-W2 Income (RSUs, ESPP, etc.)", $(nonW2Income), $(nonW2Income * 12), ""],
+      ["Rental Income", $(rentalIncome), $(rentalIncome * 12), "Rocklin rent and the sewer reimbursement"],
+      ["Non-W2 Income (RSUs, ESPP, etc.)", $(otherIncome), $(otherIncome * 12), ""],
       ["Savings Rate", `${savingsRate.toFixed(1)}%`, "", "Net Cash Flow / Total Income"],
       [],
       ["NET WORTH SNAPSHOT (after-tax estimates)", "", "", ""],
@@ -2157,10 +2159,11 @@ export default function Finances() {
       [],
       ["METRIC", "MONTHLY ($)", "ANNUAL ($)"],
       ["W2 Salary (Post-Tax)", $(w2Income), $(w2Income * 12)],
+      ["Rental Income", $(rentalIncome), $(rentalIncome * 12)],
       ["Total Expenses", $(totalExpenses), $(totalExpenses * 12)],
       ["Investments", $(totalRetirement), $(totalRetirement * 12)],
-      ["Net Cashflow (W2 − Expenses)", $(cashflowNetRaw), $(cashflowNetRaw * 12)],
-      ["Non-W2 Income (RSUs, ESPP, etc.)", $(nonW2Income), $(nonW2Income * 12)],
+      ["Net Cashflow (W2 + Rental − Expenses)", $(cashflowNetRaw), $(cashflowNetRaw * 12)],
+      ["Non-W2 Income (RSUs, ESPP, etc.)", $(otherIncome), $(otherIncome * 12)],
       [],
       ["── EXPENSE DETAIL ──"],
       ["ITEM", "CATEGORY", "FREQUENCY", "MONTHLY ($)", "ANNUAL ($)"],
@@ -2360,7 +2363,7 @@ export default function Finances() {
               <PiggyBank className="h-3.5 w-3.5 mr-1.5" />Investments
             </TabsTrigger>
             <TabsTrigger value="cashflow" className="data-[state=active]:bg-blue-600/40 text-xs px-3 py-1.5">
-              <Wallet className="h-3.5 w-3.5 mr-1.5" />Cash Flow (W2 Only)
+              <Wallet className="h-3.5 w-3.5 mr-1.5" />Cash Flow (W2 + Rental)
             </TabsTrigger>
             <TabsTrigger value="credit-cards" className="data-[state=active]:bg-red-600/40 text-xs px-3 py-1.5">
               <CreditCard className="h-3.5 w-3.5 mr-1.5" />Credit Cards
@@ -5162,46 +5165,53 @@ export default function Finances() {
             </Card>
           </TabsContent>
 
-          {/* ── Cash Flow (W2 Only) ───────────────────── */}
+          {/* ── Cash Flow (W2 + Rental) ───────────────────── */}
           <TabsContent value="cashflow" className="space-y-4">
             <Card className="bg-slate-800/60 border-blue-500/20">
               <CardHeader>
                 <CardTitle className="text-blue-300 flex items-center gap-2">
-                  <Wallet className="h-5 w-5" /> W2 Salary Cash Flow
+                  <Wallet className="h-5 w-5" /> W2 + Rental Cash Flow
                 </CardTitle>
                 <CardDescription className="text-slate-400 text-xs">
-                  Only your <span className="text-blue-300 font-semibold">Post-Tax W2 Salary</span> counts as income here —
+                  Your <span className="text-blue-300 font-semibold">Post-Tax W2 Salary</span> and your <span className="text-teal-300 font-semibold">rental income</span> count as income here —
                   RSUs, ESPP, and HSA contributions are excluded. This shows your true monthly budget reality.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {/* Key numbers */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                <div className={`grid grid-cols-1 gap-3 mb-6 ${rentalIncome > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
                   <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4 text-center">
                     <p className="text-xs text-blue-400 mb-1">W2 Salary (take-home)</p>
                     <p className="text-3xl font-bold text-blue-300">{formatCurrency(w2Income)}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
                   </div>
+                  {rentalIncome > 0 && (
+                    <div data-testid="cashflow-rental" className="rounded-xl bg-teal-500/10 border border-teal-500/20 p-4 text-center">
+                      <p className="text-xs text-teal-400 mb-1">Rental Income</p>
+                      <p className="text-3xl font-bold text-teal-300">{formatCurrency(rentalIncome)}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
+                    </div>
+                  )}
                   <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-center">
                     <p className="text-xs text-red-400 mb-1">Total Expenses</p>
                     <p className="text-3xl font-bold text-red-300">{formatCurrency(totalExpenses)}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5">per month</p>
                   </div>
                   <div className={`rounded-xl p-4 text-center border ${cashflowNetRaw >= 0 ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}>
-                    <p className={`text-xs mb-1 ${cashflowNetRaw >= 0 ? "text-green-400" : "text-red-400"}`}>W2 Net (excl. retirement)</p>
+                    <p className={`text-xs mb-1 ${cashflowNetRaw >= 0 ? "text-green-400" : "text-red-400"}`}>Net (W2 + rental, excl. retirement)</p>
                     <p className={`text-3xl font-bold ${cashflowNetRaw >= 0 ? "text-green-300" : "text-red-300"}`}>{formatCurrency(cashflowNetRaw)}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      {w2Income > 0 ? ((cashflowNetRaw / w2Income) * 100).toFixed(1) : "0"}% of W2
+                      {cashflowIncome > 0 ? ((cashflowNetRaw / cashflowIncome) * 100).toFixed(1) : "0"}% of income
                     </p>
                   </div>
                 </div>
 
-                {nonW2Income > 0 && (
+                {otherIncome > 0 && (
                   <div className="rounded-lg bg-slate-700/30 border border-slate-600/30 px-4 py-3 mb-5 flex items-start gap-2.5">
                     <span className="text-yellow-400 text-sm mt-0.5">💡</span>
                     <p className="text-xs text-slate-300">
-                      <span className="text-yellow-300 font-semibold">{formatCurrency(nonW2Income)}/mo</span> of additional income from
-                      RSUs, ESPP, HSA, and other non-W2 sources is excluded from this view.
+                      <span className="text-yellow-300 font-semibold">{formatCurrency(otherIncome)}/mo</span> of additional income from
+                      RSUs, ESPP, HSA, and other non-W2, non-rental sources is excluded from this view.
                       Including those, your total income is <span className="text-green-300 font-semibold">{formatCurrency(totalIncome)}/mo</span>.
                     </p>
                   </div>
@@ -5224,17 +5234,17 @@ export default function Finances() {
                 {/* Expense detail */}
                 <div className="mt-4 pt-4 border-t border-slate-700/50">
                   <p className="text-xs text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-                    <TrendingDown className="h-3.5 w-3.5 text-red-400" /> Where your W2 salary goes (top expenses)
+                    <TrendingDown className="h-3.5 w-3.5 text-red-400" /> Where your income goes (top expenses)
                   </p>
                   <div className="space-y-1">
                     {topExpenses.slice(0, 12).map(item => {
-                      const pct = w2Income > 0 ? (item.monthlyCost / w2Income) * 100 : 0;
+                      const pct = cashflowIncome > 0 ? (item.monthlyCost / cashflowIncome) * 100 : 0;
                       return (
                         <div key={item.id} className="flex items-center gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between text-xs mb-0.5">
                               <span className="text-slate-300 truncate mr-2">{item.item}</span>
-                              <span className="text-red-300 shrink-0 font-medium">{formatCurrency(item.monthlyCost)} ({pct.toFixed(1)}% of W2)</span>
+                              <span className="text-red-300 shrink-0 font-medium">{formatCurrency(item.monthlyCost)} ({pct.toFixed(1)}% of income)</span>
                             </div>
                             <div className="h-1.5 rounded-full bg-slate-700">
                               <div className="h-1.5 rounded-full bg-red-500/60" style={{ width: `${Math.min(pct, 100)}%` }} />
