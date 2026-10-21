@@ -8,6 +8,8 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { EmojiPicker } from "./emoji-picker";
+import { IncubateDialog } from "@/components/incubate-dialog";
+import { INCUBATE_STAGE, incubatePatch, incubateStatus, stagePatch } from "@shared/incubate";
 import { 
   Calendar, 
   Clock, 
@@ -69,6 +71,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   const { isDark } = useTheme();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isStartPickerOpen, setIsStartPickerOpen] = useState(false);
+  const [isIncubateOpen, setIsIncubateOpen] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [durationInput, setDurationInput] = useState(task?.duration?.toString() || "30");
   const [durationValue, setDurationValue] = useState<number>(task?.duration || 30);
@@ -413,6 +416,39 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
       toast({
         title: "Error",
         description: err instanceof Error && err.message ? err.message : `Failed to update ${variables.field}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // A change of stage that can carry its start date with it: Incubate sets the day the quest comes back, and leaving it lets that day go.
+  const updateStageMutation = useMutation({
+    mutationFn: async (patch: Record<string, unknown>) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(patch),
+      });
+      if (!response.ok) throw new Error(await failureMessage(response, 'Failed to update kanbanStage'));
+      return response.json();
+    },
+    onSuccess: (_data, patch) => {
+      setIsIncubateOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/questlines'] });
+      const incubating = patch.kanbanStage === INCUBATE_STAGE;
+      toast({
+        title: incubating ? '💡 Incubating' : '📊 Kanban Stage Updated',
+        description: incubating
+          ? `Back in your list on ${formatStoredDay(patch.startDate as string)}.`
+          : `Changed to "${patch.kanbanStage}"${patch.startDate === null ? ' — start date cleared, so it is back in your list.' : ''}`,
+      });
+    },
+    onError: (err) => {
+      toast({
+        title: "Error",
+        description: err instanceof Error && err.message ? err.message : 'Failed to update kanbanStage',
         variant: "destructive",
       });
     },
@@ -1229,7 +1265,11 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
               </div>
               <Select
                 value={task.kanbanStage || "Not Started"}
-                onValueChange={(value) => updateFieldMutation.mutate({ field: 'kanbanStage', value })}
+                onValueChange={(value) => {
+                  // Incubate asks for the day first; nothing is saved unless one is chosen.
+                  if (value === INCUBATE_STAGE) { setIsIncubateOpen(true); return; }
+                  updateStageMutation.mutate(stagePatch(task, value, new Date()));
+                }}
               >
                 <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'} bg-slate-900/50 border-yellow-600/30 text-yellow-100 h-8 text-xs`}>
                   <SelectValue />
@@ -1243,6 +1283,30 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                 </SelectContent>
               </Select>
             </div>
+
+            <IncubateDialog
+              open={isIncubateOpen}
+              onOpenChange={setIsIncubateOpen}
+              quest={task}
+              pending={updateStageMutation.isPending}
+              onConfirm={(day) => updateStageMutation.mutate(incubatePatch(day))}
+            />
+            {(() => {
+              const status = incubateStatus(task, new Date());
+              if (!status) return null;
+              return (
+                <div data-testid="incubate-status" className="-mt-1 flex flex-wrap items-center gap-x-2 px-3 text-[11px] text-yellow-200/70">
+                  <span>
+                    {status.kind === 'until' ? `Incubating — back in your list on ${formatStoredDay(status.start)}`
+                      : status.kind === 'ended' ? 'Incubation ended — back in your list'
+                      : 'No return date set'}
+                  </span>
+                  <button type="button" onClick={() => setIsIncubateOpen(true)} className="underline hover:text-yellow-100">
+                    {status.kind === 'until' ? 'Change' : status.kind === 'ended' ? 'Incubate again' : 'Set date'}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Recurrence Type */}
             <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
