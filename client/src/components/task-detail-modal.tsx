@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { EmojiPicker } from "./emoji-picker";
 import { IncubateDialog } from "@/components/incubate-dialog";
 import { INCUBATE_STAGE, incubatePatch, incubateStatus, stagePatch } from "@shared/incubate";
+import { questTypeAfterClearingDue } from "@shared/quest-schedule";
 import { 
   Calendar, 
   Clock, 
@@ -171,17 +172,17 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   }, [detailsValue, isEditingDetails, open]);
 
   const updateDateMutation = useMutation({
-    mutationFn: async ({ field, date }: { field: 'dueDate' | 'startDate'; date: Date | null }) => {
+    mutationFn: async ({ field, date, extra }: { field: 'dueDate' | 'startDate'; date: Date | null; extra?: Record<string, unknown> }) => {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ [field]: date ? date.toISOString() : null }),
+        body: JSON.stringify({ [field]: date ? date.toISOString() : null, ...extra }),
       });
       if (!response.ok) throw new Error(await failureMessage(response, `Failed to update ${field === 'dueDate' ? 'due date' : 'start date'}`));
       return response.json();
     },
-    onSuccess: (_data, { field, date }) => {
+    onSuccess: (_data, { field, date, extra }) => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       // Invalidate all calendar event queries (matches any year/month params)
       queryClient.invalidateQueries({ 
@@ -193,7 +194,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
       const label = field === 'dueDate' ? 'Due Date' : 'Start Date';
       toast({
         title: date ? `📅 ${label} Updated` : `📅 ${label} Cleared`,
-        description: date ? `Quest ${label.toLowerCase()} has been changed successfully.` : `Quest ${label.toLowerCase()} has been removed.`,
+        description: date ? `Quest ${label.toLowerCase()} has been changed successfully.` : `Quest ${label.toLowerCase()} has been removed.${extra?.questType ? ' It was a Deadline quest, so it is now a General quest.' : ''}`,
       });
     },
     onError: (error: Error) => {
@@ -916,18 +917,22 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                       initialFocus
                       className="rounded-md border-0"
                     />
-                    {task.dueDate && task.questType !== 'deadline' && (
-                      <div className="border-t border-yellow-600/20 p-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full text-yellow-200/80 hover:bg-yellow-600/20 hover:text-yellow-100"
-                          onClick={() => updateDateMutation.mutate({ field: 'dueDate', date: null })}
-                        >
-                          Clear due date
-                        </Button>
-                      </div>
-                    )}
+                    {/* Always there, so a due date can always be cleared; a deadline quest becomes a general one as it goes. */}
+                    <div className="border-t border-yellow-600/20 p-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid="clear-due-date"
+                        disabled={!task.dueDate || updateDateMutation.isPending}
+                        className="w-full text-yellow-200/80 hover:bg-yellow-600/20 hover:text-yellow-100"
+                        onClick={() => {
+                          const type = questTypeAfterClearingDue(task);
+                          updateDateMutation.mutate({ field: 'dueDate', date: null, extra: type ? { questType: type } : undefined });
+                        }}
+                      >
+                        Clear due date
+                      </Button>
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>

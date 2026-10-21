@@ -134,6 +134,9 @@ export function remindersForToday<T extends ScheduledQuest & { questType?: strin
 export const DEADLINE_NEEDS_DUE_DATE = "A deadline quest needs a due date.";
 export const START_AFTER_DUE = "The start date can't be after the due date.";
 
+// A deadline quest can't be without a due date, so clearing it turns the quest into a general one in the same save.
+export const questTypeAfterClearingDue = (q: { questType?: string | null }): "general" | null => (q.questType === "deadline" ? "general" : null);
+
 export type QuestDates = { questType?: string | null; dueDate?: DateLike; startDate?: DateLike };
 
 const DAY_MS = 86_400_000;

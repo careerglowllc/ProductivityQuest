@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   DEADLINE_NEEDS_DUE_DATE, FOCUS_BANDS, SMART_FOCUS_CAP, START_AFTER_DUE, focusBand, isHighPriority, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocus, sortReminders, remindersForToday,
-  resolveQuestDatePatch, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
+  questTypeAfterClearingDue, resolveQuestDatePatch, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
 } from "./quest-schedule";
 
 // Monday 12 Oct 2026, mid-morning. Quest dates are stored as a calendar day at UTC midnight.
@@ -323,4 +323,18 @@ test("today's reminders: open reminders whose start has arrived, most important 
   ], now);
   assert.deepEqual(names(shown), ["high", "starts today", "started", "low"]);
   assert.deepEqual(remindersForToday([], now), []);
+});
+
+test("clearing the due date of a deadline quest turns it into a general one in the same save, which the server accepts", () => {
+  const deadline = { questType: "deadline", dueDate: day(0), startDate: null };
+  assert.equal(questTypeAfterClearingDue(deadline), "general");
+  assert.equal(resolveQuestDatePatch(deadline, { dueDate: null }).ok, false, "clearing it alone is still refused");
+  assert.deepEqual(resolveQuestDatePatch(deadline, { dueDate: null, questType: "general" }), { ok: true, adjust: {} });
+});
+
+test("clearing the due date of any other quest changes nothing else", () => {
+  for (const questType of ["general", "reminder", null, undefined]) {
+    assert.equal(questTypeAfterClearingDue({ questType }), null);
+    assert.equal(resolveQuestDatePatch({ questType, dueDate: day(0) }, { dueDate: null }).ok, true);
+  }
 });
