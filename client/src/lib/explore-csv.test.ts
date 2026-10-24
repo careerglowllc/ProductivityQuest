@@ -177,3 +177,33 @@ test("The Pho is seeded in Austin with a matching rating and a bumped seed versi
   assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
   assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 24, "seed version bumped");
 });
+
+test("La La Land is seeded in Austin with a matching rating and a bumped seed version", () => {
+  const food = readFileSync(new URL("../pages/food-in-cities.tsx", import.meta.url), "utf8");
+  const start = food.indexOf('id: "food-la-la-land-austin"');
+  assert.notEqual(start, -1, "La La Land is seeded");
+  const block = food.slice(start, food.indexOf("\n  },", start));
+  assert.match(block, /address: "4416 Burnet Rd, Austin, TX 78756"/);
+  assert.match(block, /tags: \[[^\]]*"Coffee \/ Cafe"/);
+  const stars = block.match(/stars: \{ food: ([\d.]+), ambience: ([\d.]+), price: ([\d.]+) \}/);
+  assert.ok(stars, "stars are set");
+  const [f, a, p] = stars.slice(1).map(Number);
+  assert.deepEqual([f, a, p], [4.2, 3.2, 2.5]);
+  assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
+  assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 25, "seed version bumped");
+});
+
+test("Merit Coffee Co. is seeded in Austin with a matching rating and a bumped seed version", () => {
+  const food = readFileSync(new URL("../pages/food-in-cities.tsx", import.meta.url), "utf8");
+  const start = food.indexOf('id: "food-merit-coffee-austin"');
+  assert.notEqual(start, -1, "Merit Coffee Co. is seeded");
+  const block = food.slice(start, food.indexOf("\n  },", start));
+  assert.match(block, /address: "4615 N Lamar Blvd #303a, Austin, TX 78751"/);
+  assert.match(block, /tags: \[[^\]]*"Coffee \/ Cafe"/);
+  const stars = block.match(/stars: \{ food: ([\d.]+), ambience: ([\d.]+), price: ([\d.]+) \}/);
+  assert.ok(stars, "stars are set");
+  const [f, a, p] = stars.slice(1).map(Number);
+  assert.deepEqual([f, a, p], [3.9, 3, 2.5]);
+  assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
+  assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 26, "seed version bumped");
+});

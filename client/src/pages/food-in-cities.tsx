@@ -822,9 +822,35 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-18T00:00:00.000Z",
     updatedAt: "2026-10-18T00:00:00.000Z",
   },
+  {
+    id: "food-la-la-land-austin",
+    name: "La La Land",
+    city: "Austin, TX",
+    address: "4416 Burnet Rd, Austin, TX 78756",
+    overallRating: 3.3,
+    stars: { food: 4.2, ambience: 3.2, price: 2.5 },
+    thoughts: "Great variety and options, the drinks taste good, and you can customize the sweetness. Food was good for little bites of stuff. The vibe is interesting — very girly pop — but not my vibe, and it's hard to work there since it's not really a coffee shop to work in. Price is standard. Overall a great spot.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-10-23T00:00:00.000Z",
+    updatedAt: "2026-10-23T00:00:00.000Z",
+  },
+  {
+    id: "food-merit-coffee-austin",
+    name: "Merit Coffee Co.",
+    city: "Austin, TX",
+    address: "4615 N Lamar Blvd #303a, Austin, TX 78751",
+    overallRating: 3.1,
+    stars: { food: 3.9, ambience: 3, price: 2.5 },
+    thoughts: "Great quality coffee, especially the espresso drinks. The atmosphere is fine and gets the job done. A solid coffee shop for working and good espresso drinks, but limited in selection of fun specialty drinks.",
+    tags: ["Coffee / Cafe", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z",
+  },
 ];
 
-const SEED_KEY = "food-cities-seed-v24";
+const SEED_KEY = "food-cities-seed-v26";
 const PATCH_KEY = "food-cities-patch-v2";
 const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle"];
 
