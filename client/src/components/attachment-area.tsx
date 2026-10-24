@@ -355,11 +355,12 @@ export function AttachmentArea({
       )}
 
       {/* Full-screen lightbox — portaled to <body> so it overlays everything.
-          Pointer/click propagation is stopped so a parent Radix Dialog stays open. */}
+          Pointer/click propagation is stopped so a parent Radix Dialog stays open.
+          pointer-events-auto: an open modal Dialog sets body to pointer-events:none, which a portal to body inherits. */}
       {lightbox &&
         createPortal(
           <div
-            className="fixed inset-0 z-[200] flex flex-col bg-black/90 backdrop-blur-sm"
+            className="pointer-events-auto fixed inset-0 z-[200] flex flex-col bg-black/90 backdrop-blur-sm"
             onClick={() => setLightbox(null)}
             onPointerDown={(e) => e.stopPropagation()}
           >

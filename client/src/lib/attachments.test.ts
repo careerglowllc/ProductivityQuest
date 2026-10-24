@@ -146,6 +146,12 @@ test("every attachment has a Download button, also when the area is read-only, a
   assert.ok(viewer.includes("downloadAttachment(lightbox)") && viewer.includes("<span>Download</span>"));
 });
 
+test("the full-screen viewer is clickable inside a modal Dialog, which turns pointer events off on <body>", () => {
+  const area = read("../components/attachment-area.tsx");
+  const overlay = area.slice(area.indexOf("createPortal(\n"), area.indexOf("Top bar: filename"));
+  assert.ok(overlay.includes('className="pointer-events-auto fixed inset-0'), "the portal to <body> opts back in to pointer events");
+});
+
 test("the stored shape allows PDFs", () => {
   assert.ok(read("../../../shared/schema.ts").includes('type: "image" | "video" | "pdf"'));
 });
