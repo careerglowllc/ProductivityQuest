@@ -207,3 +207,22 @@ test("Merit Coffee Co. is seeded in Austin with a matching rating and a bumped s
   assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), Math.round(((f + a + p) / 3) * 10) / 10);
   assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 26, "seed version bumped");
 });
+
+test("coffee shops are tagged Specialty Drinks or Espresso Drinks, and existing browsers get the retagged entries", () => {
+  const food = readFileSync(new URL("../pages/food-in-cities.tsx", import.meta.url), "utf8");
+  const tagsOf = (id: string) => {
+    const start = food.indexOf(`id: "${id}"`);
+    assert.notEqual(start, -1, `${id} is seeded`);
+    return food.slice(start, food.indexOf("\n  },", start)).match(/tags: \[([^\]]*)\]/)?.[1] ?? "";
+  };
+  assert.match(tagsOf("food-philz-coffee-cupertino"), /"Specialty Drinks"/);
+  assert.match(tagsOf("food-la-la-land-austin"), /"Specialty Drinks"/);
+  assert.match(tagsOf("food-merit-coffee-austin"), /"Espresso Drinks"/);
+  assert.doesNotMatch(tagsOf("food-merit-coffee-austin"), /Specialty Drinks/);
+  for (const tag of ["Espresso Drinks", "Specialty Drinks"]) {
+    assert.ok(food.includes(`"${tag}",`) && food.match(new RegExp(`"${tag}":\\s+"bg-`)), `${tag} is pickable and coloured`);
+  }
+  const patchIds = food.match(/const PATCH_IDS = \[([^\]]*)\]/)?.[1] ?? "";
+  for (const id of ["food-philz-coffee-cupertino", "food-la-la-land-austin", "food-merit-coffee-austin"]) assert.ok(patchIds.includes(id), `${id} is patched into saved lists`);
+  assert.ok(Number(food.match(/food-cities-patch-v(\d+)/)?.[1]) >= 3, "patch version bumped so it runs again");
+});
