@@ -125,6 +125,9 @@ export default function Home() {
   // The reminders strip is open by default; the choice is remembered.
   const [remindersOpen, setRemindersOpen] = useState(() => localStorage.getItem('remindersOpen') !== 'false');
   useEffect(() => { localStorage.setItem('remindersOpen', String(remindersOpen)); }, [remindersOpen]);
+  // Reminders live in their strip, so quest lists and counts leave them out until this is switched on.
+  const [showReminders, setShowReminders] = useState(() => localStorage.getItem('questsShowReminders') === 'true');
+  useEffect(() => { localStorage.setItem('questsShowReminders', String(showReminders)); }, [showReminders]);
   
   // Load saved sort preference from localStorage, default to 'due-date'
   const [sortBy, setSortBy] = useState<SortType>(() => {
@@ -1640,7 +1643,8 @@ export default function Home() {
 
   // Get task counts for each filter
   const getFilterCounts = () => {
-    const activeTasks = tasks.filter((task: any) => !task.completed);
+    const allActive = tasks.filter((task: any) => !task.completed);
+    const activeTasks = showReminders ? allActive : allActive.filter((task: any) => !isReminder(task));
     
     const now = new Date();
     // Use LOCAL date to determine "today" — respects the user's phone timezone
@@ -1648,6 +1652,7 @@ export default function Home() {
     
     return {
       all: activeTasks.length,
+      reminders: allActive.filter((task: any) => isReminder(task)).length,
       // Smart Focus is capped, so its count is what it actually shows.
       smart: fullFocus.shown,
       upcoming: sortUpcoming(activeTasks, now).length,
@@ -1691,7 +1696,7 @@ export default function Home() {
         task.businessWorkFilter === "GPR"
       ).length,
       byQuestType: QUEST_TYPES.reduce((acc, type) => {
-        acc[type] = activeTasks.filter((task: any) => taskQuestType(task) === type).length;
+        acc[type] = allActive.filter((task: any) => taskQuestType(task) === type).length;
         return acc;
       }, {} as Record<QuestType, number>),
       // Assignee counts: build a map of name → count
@@ -1741,13 +1746,50 @@ export default function Home() {
     );
   };
 
+  // Smart Focus never lists reminders and the Reminder type filter always does, so the switch only matters elsewhere.
+  const remindersToggleApplies = activeFilter !== "smart" && activeFilter !== "type-reminder";
+  const renderRemindersToggle = (compact: boolean) => {
+    if (!remindersToggleApplies) return null;
+    const title = showReminders ? "Hide reminders from these lists (they stay in the Reminders strip)" : "Include reminders in these lists";
+    if (!compact) {
+      return (
+        <FilterChip
+          label={showReminders ? "Hide reminders" : "Show reminders"}
+          count={filterCounts.reminders}
+          active={showReminders}
+          aria-pressed={showReminders}
+          title={title}
+          onClick={() => setShowReminders((on) => !on)}
+          data-testid="show-reminders-toggle"
+        />
+      );
+    }
+    return (
+      <button
+        type="button"
+        aria-pressed={showReminders}
+        title={title}
+        aria-label={title}
+        onClick={() => setShowReminders((on) => !on)}
+        data-testid="show-reminders-toggle"
+        className={`dash-focus grid h-[26px] w-[26px] shrink-0 place-items-center rounded-md border ${
+          showReminders
+            ? "border-[var(--dash-violet)] bg-[var(--dash-violet-soft)] text-[var(--dash-ink)]"
+            : "border-[var(--dash-line)] bg-[var(--dash-surface-2)] text-[var(--dash-muted)] hover:text-[var(--dash-ink)]"
+        }`}
+      >
+        <BellRing aria-hidden className="h-3 w-3" />
+      </button>
+    );
+  };
+
   const momentumValue = momentum.isLoading || momentum.totalToday === 0
     ? "—"
     : `${Math.round(momentum.pct)}%`;
 
   // Filter tasks based on active filter and search query
   const getFilteredTasks = () => {
-    let activeTasks = tasks.filter((task: any) => !task.completed);
+    let activeTasks = tasks.filter((task: any) => !task.completed && (showReminders || activeFilter === "type-reminder" || !isReminder(task)));
     
     // Apply search filter first
     if (searchQuery.trim()) {
@@ -2080,9 +2122,10 @@ export default function Home() {
   // Smart Focus: only what's due or starting today (plus high-priority quests due this week), capped.
   const smartResult = activeFilter === "smart" ? focusForTasks(filteredTasks) : null;
 
-  // Reminders live in their own compact strip above the list while Smart Focus is on (it leaves them out).
+  // Reminders live in their own compact strip above the list, except where the list itself includes them.
+  const remindersInList = activeFilter === "type-reminder" || (showReminders && activeFilter !== "smart");
   const reminderQuery = searchQuery.trim().toLowerCase();
-  const reminderQuests = activeFilter === "smart" && smartView === "on"
+  const reminderQuests = !remindersInList && (activeFilter !== "smart" || smartView === "on")
     ? sortReminders((tasks as any[]).filter((task: any) =>
         !task.completed && isReminder(task)
         && (!reminderQuery || `${task.title ?? ""} ${task.description ?? ""}`.toLowerCase().includes(reminderQuery))))
@@ -2490,6 +2533,7 @@ export default function Home() {
                         ) : null}
                       </>
                     )}
+                    {renderRemindersToggle(true)}
                     {showsSortControl(activeFilter) && (
                     <button
                       type="button"
@@ -2613,6 +2657,7 @@ export default function Home() {
                 </div>
                 
                 <div className="ml-auto flex shrink-0 items-center gap-2">
+                  {renderRemindersToggle(false)}
                   {/* Select All / Deselect All Buttons */}
                   {sortedTasks.length > 0 && (
                     <>
@@ -3070,7 +3115,7 @@ export default function Home() {
               </>
             )}
 
-            {/* Reminders (Smart Focus only) */}
+            {/* Reminders strip */}
             {renderReminders()}
 
             {/* Task List */}

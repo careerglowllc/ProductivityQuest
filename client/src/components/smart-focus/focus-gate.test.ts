@@ -59,6 +59,17 @@ test("the sort control is hidden on Smart Focus only", () => {
   for (const filter of ["all", "due-today", "high-priority", "routines", "upcoming", "assignee-alex"]) assert.equal(showsSortControl(filter), true);
 });
 
+test("Quests page: reminders stay out of the lists and counts until the toggle is on, and keep their strip meanwhile", () => {
+  const home = read("pages/home.tsx");
+  assert.ok(home.includes("localStorage.getItem('questsShowReminders') === 'true'"), "off by default, remembered");
+  assert.ok(home.includes("allActive.filter((task: any) => !isReminder(task))"), "counts leave reminders out");
+  assert.ok(home.includes('!task.completed && (showReminders || activeFilter === "type-reminder" || !isReminder(task))'), "lists leave reminders out, except for the Reminder type filter");
+  assert.ok(home.includes('const remindersInList = activeFilter === "type-reminder" || (showReminders && activeFilter !== "smart");'));
+  assert.ok(home.includes('const reminderQuests = !remindersInList && (activeFilter !== "smart" || smartView === "on")'), "strip shows on every filter unless the list has them");
+  assert.equal(home.match(/renderRemindersToggle\((true|false)\)/g)?.length, 2, "toggle on both mobile and desktop");
+  assert.ok(home.includes('data-testid="show-reminders-toggle"'));
+});
+
 test("Smart Focus re-reads quests only once they are a few minutes old, never while first loading", () => {
   const now = 1_000_000_000;
   assert.equal(focusRefreshDue(undefined, now), false);
