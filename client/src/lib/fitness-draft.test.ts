@@ -66,3 +66,17 @@ test("blocked or full storage never throws", () => {
   assert.equal(loadWorkoutDraft(), null);
   assert.equal(loadMealDraft(), null);
 });
+
+test("reading the calorie log for a save or a sync never hands back the sample days in place of a missing log", async () => {
+  const { CALORIE_SEED_LOG, CALORIE_STORAGE_KEY, loadCalorieLog, readStoredCalorieLog } = await import("./calorie-log");
+  const data = fakeStorage();
+  assert.equal(readStoredCalorieLog(), null, "nothing stored (signed out in another tab, say): the page keeps its own log");
+  assert.equal(loadCalorieLog(), CALORIE_SEED_LOG, "only showing the page falls back to the samples");
+  data.set(CALORIE_STORAGE_KEY, "not json");
+  assert.equal(readStoredCalorieLog(), null);
+  const days = [{ ...CALORIE_SEED_LOG[0], date: "2026-10-28" }];
+  data.set(CALORIE_STORAGE_KEY, JSON.stringify(days));
+  assert.deepEqual(readStoredCalorieLog(), days);
+  fakeStorage({ failReads: true });
+  assert.equal(readStoredCalorieLog(), null, "blocked storage never throws");
+});

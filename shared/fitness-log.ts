@@ -50,6 +50,7 @@ export interface WorkoutLogEntry {
   metric: { kind: MetricKind; value: number; approx?: boolean } | null; // lb, reps or seconds; what the charts plot
   sets?: LoggedSet[]; // exact sets, kept for entries logged with AI
   logId?: string; // set on entries logged with AI, so one logging can be removed again
+  loggedAt?: string; // ISO time the day was ended, so a leftover copy of the open day is recognised (see fitness-session)
 }
 
 const KG_TO_LB = 2.20462;
@@ -193,14 +194,14 @@ export function exerciseMetric(exercise: Pick<ParsedExercise, "kind" | "sets">):
   return pick("reps", (s) => s.reps);
 }
 
-export function workoutToLogEntries(workout: ParsedWorkout, logId: string): WorkoutLogEntry[] {
+export function workoutToLogEntries(workout: ParsedWorkout, logId: string, loggedAt?: string): WorkoutLogEntry[] {
   return workout.exercises.map((ex) => {
     const notes = [ex.notes, ex.sets.map((s) => s.note).filter(Boolean).join("; ")].filter(Boolean).join(" · ");
     const warmup = ex.warmup ?? (ex.warmupSets?.length ? formatWarmupSets(ex.warmupSets) : undefined);
     return {
       date: workout.date, workoutType: ex.workoutType, exercise: ex.name, setsRaw: formatSets(ex),
       ...(warmup ? { warmup } : {}), ...(ex.warmupSets?.length ? { warmupSets: ex.warmupSets } : {}), ...(notes ? { notes } : {}),
-      metric: exerciseMetric(ex), sets: ex.sets, logId,
+      metric: exerciseMetric(ex), sets: ex.sets, logId, ...(loggedAt ? { loggedAt } : {}),
     };
   });
 }

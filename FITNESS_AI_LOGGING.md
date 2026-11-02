@@ -218,7 +218,8 @@ copy. Only one day can be open at a time; opening another asks you to end or dis
 ### A day left open
 
 If the open day is from an earlier date, the box says so ("This day is from Oct 12 and was never ended") and the button
-names that date ("End Oct 12 workout"). Nothing ends a day by itself.
+names that date ("End Oct 12 workout"). Nothing ends a day by itself. A day that *was* ended does not come back as an open
+day on a later date (see [Several devices](#several-devices)).
 
 Words like "today", "yesterday", "Monday" or "last Friday" are worked out from the date on your device (the server accepts it when it is within two days of its own date).
 
@@ -239,13 +240,34 @@ Words like "today", "yesterday", "Monday" or "last Friday" are worked out from t
 | The open food day | `calories-session-v1` | `SessionDraft<ParsedMeal>`, the same shape. |
 | Your routine | `workout-routine-v1` | `{ Push, Pull, Legs: { exercises: string, notes: string } }`, the text as typed. |
 | Stats widget open or collapsed | `workout-stats-open-v1`, `calories-stats-open-v1` | `"1"` or `"0"`; open when missing. |
-| Lifting log | `workout-ppl-log-v1` | `WorkoutLogEntry[]`. Entries logged with AI carry `logId` (the draft's id, so ending again replaces them) and `sets` (exact sets, which is also what lets a saved day be reopened). |
-| Calorie log | `calories-daily-log-v1` | `CalorieDayLog[]`. Totals include every ended day; `meals` lists them (`id` is the draft's id, plus text, items, totals) so one can be taken out or reopened. Older days without the extra nutrients (`satFat`, `fiber`, `sugar`, `potassium`, `iron`, `vitaminD`) are fine; those are optional. |
+| Lifting log | `workout-ppl-log-v1` | `WorkoutLogEntry[]`. Entries logged with AI carry `logId` (the draft's id, so ending again replaces them), `sets` (exact sets, which is also what lets a saved day be reopened) and, from Oct 2026, `loggedAt` (when the day was ended). |
+| Calorie log | `calories-daily-log-v1` | `CalorieDayLog[]`. Totals include every ended day; `meals` lists them (`id` is the draft's id, plus `loggedAt`, text, items, totals) so one can be taken out or reopened. Older days without the extra nutrients (`satFat`, `fiber`, `sugar`, `potassium`, `iron`, `vitaminD`) are fine; those are optional. |
 
-All four keys use the `workout-` and `calories-` prefixes, so they already sync to the server and across devices. A page
-that is open when another device adds to the same open day takes the newer copy (same id, newer `updatedAt`); an older
-copy arriving late never overwrites what was just typed. The open day is small (the day, the last 60 messages and five
-undo steps), well under the per-key sync size limit. Ended days live only in the logs, not in a second store.
+All four keys use the `workout-` and `calories-` prefixes, so they already sync to the server and across devices. The open
+day is small (the day, the last 60 messages and five undo steps), well under the per-key sync size limit. Ended days live
+only in the logs, not in a second store.
+
+### Several devices
+
+- **An ended or discarded day stays closed everywhere.** Ending a day removes the open-day key. Every other device removes
+  its own copy on its next sync (on opening the app, and every 30 seconds while it is open) instead of sending it back up.
+  Before Oct 2026 the sync sent up any key the server lacked, so a phone or a tab that still had the day open put it back,
+  and the same old day (Oct 15 food, Oct 20 workout) reopened on every device each morning.
+- **A page left open follows the other devices.** After every sync both pages read the saved log and the open day again: a
+  newer copy of the same day (same id, newer `updatedAt`), another day started elsewhere, or no day when it was ended or
+  discarded elsewhere. Only an older copy of the same day is ignored, so it never undoes what was just typed.
+- **Saving builds on the latest log.** Ending a day, saving a reopened day and removing a logging all start from the log as
+  stored at that moment, not the copy the page loaded. A tab left open for days can no longer save its old log over days
+  ended on the phone since. If storage holds no log at that moment (a sign-out in another tab emptied it), the page uses
+  the log it already shows, never the built-in sample days, so a save can never put the samples over the real history.
+- **Only an applied sync re-reads.** Pages read again only after the server's answer was applied. A failed sync changed
+  nothing, so an open page keeps its open day and log.
+- **A leftover copy of an ended day is dropped.** If an open day arrives whose id the log already holds, saved at or after
+  the copy's last change, it is a leftover from a device that still had it open. The page closes it (and the close syncs),
+  so ending it again cannot save an older version over the saved one. Food added after the save keeps the day open. Workout
+  rows saved before `loggedAt` existed never match.
+
+The sync rules themselves (what is kept, removed or sent up) are in `client/src/lib/synced-storage.ts`.
 
 Two days logged on the same date are two sets of rows, not a merge, so removing one never touches the other. Charts show
 the best result per exercise per day.
@@ -302,7 +324,7 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `shared/fitness-goals.ts` | The daily goals, and how far a day's totals are from them (percent, bar length, to go or over, wording) |
 | `shared/fitness-bests.ts` | Today's lifts against your bests: reading sets from older rows, the number each bar is drawn to, the best on other days, one card per exercise |
 | `shared/fitness-stats.ts` | The week's numbers for the Stats widget: seven days, streak, averages, volume against last week |
-| `shared/fitness-session.ts` | The open day: start, add an entry, undo, change date, what a message changed, stored-draft checks, newer-copy rule, End button wording |
+| `shared/fitness-session.ts` | The open day: start, add an entry, undo, change date, what a message changed, stored-draft checks, following the stored day after a sync, leftover copies of ended days, End button wording |
 | `server/fitness-ai.ts` | The endpoint, prompts (including the day-update rules), rate limit |
 | `client/src/lib/fitness-entry.ts` | Request, applying an answer to the day, titles, error messages |
 | `client/src/lib/fitness-queue.ts`, `client/src/components/fitness/pending-messages.tsx` | The waiting messages: the queue rules, running one message into the day, and the list under the box |
@@ -317,10 +339,11 @@ Every message is one OpenAI call. When the account has no credits the box shows 
 | `client/src/lib/stats-open.ts`, `client/src/hooks/use-stats-open.ts` | Remembering whether the Stats widget is open |
 | `client/src/lib/fitness-stats-text.ts` | The wording and chart values for the Stats widget |
 | `client/src/lib/nutrition-chart.ts` | Day, week and month averaging for the charts |
-| `client/src/pages/fitness-lifting.tsx`, `fitness-calories.tsx` | The pages: keep the open day, end it into the log, reopen saved days |
+| `client/src/pages/fitness-lifting.tsx`, `fitness-calories.tsx` | The pages: keep the open day, end it into the log, reopen saved days, and read both again after every sync |
+| `client/src/lib/synced-storage.ts` | Mirrors the `workout-` and `calories-` keys to the server: removals reach every device, unsent changes survive restarts, and a late refresh never undoes a change |
 
 ## Tests
 
-- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `shared/fitness-goals.test.ts`, `shared/fitness-bests.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/components/fitness/collapsible-section.test.tsx`, `client/src/components/fitness/daily-goals.test.tsx`, `client/src/components/fitness/lift-bests.test.tsx`, `client/src/components/fitness/nutrient-chips.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
+- `npm run test:unit` runs `shared/fitness-log.test.ts`, `shared/fitness-session.test.ts`, `client/src/lib/fitness-entry.test.ts`, `client/src/lib/fitness-draft.test.ts`, `client/src/lib/synced-storage.test.ts`, `client/src/lib/nutrition-chart.test.ts`, `client/src/components/fitness/session-panel.test.tsx`, `shared/fitness-today.test.ts`, `shared/fitness-stats.test.ts`, `shared/fitness-routine.test.ts`, `shared/fitness-goals.test.ts`, `shared/fitness-bests.test.ts`, `client/src/lib/workout-routine.test.ts`, `client/src/components/fitness/routine-editor.test.tsx`, `client/src/components/fitness/collapsible-section.test.tsx`, `client/src/components/fitness/daily-goals.test.tsx`, `client/src/components/fitness/lift-bests.test.tsx`, `client/src/components/fitness/nutrient-chips.test.tsx`, `client/src/lib/stats-open.test.ts`, `client/src/lib/fitness-stats-text.test.ts`, `client/src/components/fitness/today-strip.test.tsx`, `client/src/components/fitness/stats-card.test.tsx` and `client/src/components/fitness/fitness-ui.test.ts`.
 - `npm run test:focus` runs `server/fitness-ai.test.ts` (the endpoint with a fake AI).
 - Manual steps: see [FITNESS_AI_LOGGING_TEST_CASES.md](FITNESS_AI_LOGGING_TEST_CASES.md).

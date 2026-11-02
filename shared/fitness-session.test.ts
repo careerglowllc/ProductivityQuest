@@ -5,7 +5,7 @@ import {
   removeMealEverywhere, removeWorkoutLogging, workoutFromEntries, workoutToLogEntries, type ParsedMeal, type ParsedWorkout,
 } from "./fitness-log";
 import {
-  MAX_DRAFT_MESSAGES, adoptNewerDraft, MAX_UNDO_STEPS, addEntry, canUndo, describeMealChange, describeWorkoutChange, endButtonLabel, isMealSummary, isStaleDraft, isWorkoutSummary,
+  MAX_DRAFT_MESSAGES, draftAfterRefresh, isLeftoverMealDraft, isLeftoverWorkoutDraft, MAX_UNDO_STEPS, addEntry, canUndo, describeMealChange, describeWorkoutChange, endButtonLabel, isMealSummary, isStaleDraft, isWorkoutSummary,
   mealHasContent, newDraft, parseDraft, recentMessages, setDraftDate, undoEntry, workoutHasContent,
 } from "./fitness-session";
 
@@ -303,15 +303,44 @@ test("summaries from storage are checked for the parts the page uses", () => {
   assert.equal(isMealSummary("x"), false);
 });
 
-test("a newer copy of the open day from another device is taken, but never an older or different one, and never one that was just ended", () => {
+test("after a sync the page follows the stored open day: a newer copy, another day, or none, but never an older copy of its own", () => {
   const mine = addEntry(newDraft("lift-1", t(0), "first", pull()), t(5), "120 for 8", withSets(pull(), [{ weight: 120, reps: 8 }]));
   const phone = addEntry(mine, t(9), "120 for 7", withSets(pull(), [{ weight: 120, reps: 8 }, { weight: 120, reps: 7 }]));
-  assert.equal(adoptNewerDraft(mine, phone), phone);
-  assert.equal(adoptNewerDraft(phone, mine), phone, "an older copy arriving late changes nothing");
-  assert.equal(adoptNewerDraft(mine, mine), mine);
-  assert.equal(adoptNewerDraft(mine, { ...phone, id: "lift-2" }), mine, "another day is not swapped in");
-  assert.equal(adoptNewerDraft(null, phone), null, "a day that was just ended does not come back");
-  assert.equal(adoptNewerDraft(mine, null), mine);
+  assert.equal(draftAfterRefresh(mine, phone), phone);
+  assert.equal(draftAfterRefresh(phone, mine), phone, "an older copy of the same day changes nothing");
+  assert.equal(draftAfterRefresh(mine, mine), mine);
+  const tomorrow = { ...phone, id: "lift-2" };
+  assert.equal(draftAfterRefresh(mine, tomorrow), tomorrow, "a day started on another device is shown, so this page never saves over it");
+  assert.equal(draftAfterRefresh(mine, null), null, "a day ended or discarded on another device closes here too");
+  assert.equal(draftAfterRefresh(null, phone), phone, "a day opened on another device shows here");
+  assert.equal(draftAfterRefresh(null, null), null);
+});
+
+test("a copy of a food day that was already ended is a leftover; one changed after it was saved, or another day, is not", () => {
+  const open = newDraft("meal-oct15", t(0), "a protein shake", meal());
+  const saved = addMealToDay([], meal(), "meal-oct15", t(30).toISOString(), "a protein shake");
+  assert.equal(isLeftoverMealDraft(open, saved), true, "the Oct 15 day sent back by a device that still had it open");
+  assert.equal(isLeftoverMealDraft({ ...open, updatedAt: t(30).toISOString() }, saved), true, "saved at the moment of its last change");
+  const addedLater = addEntry(open, t(45), "and a banana", meal());
+  assert.equal(isLeftoverMealDraft(addedLater, saved), false, "food added after it was saved is kept");
+  assert.equal(isLeftoverMealDraft({ ...open, id: "meal-oct28" }, saved), false);
+  assert.equal(isLeftoverMealDraft(open, []), false);
+  const reopened = newDraft("meal-oct15", t(60), null, meal(), true);
+  assert.equal(isLeftoverMealDraft(reopened, saved), false, "a saved day opened again to edit is not a leftover");
+  const savedAgain = addMealToDay(removeMealEverywhere(saved, "meal-oct15"), meal(), "meal-oct15", t(90).toISOString(), "edited");
+  assert.equal(isLeftoverMealDraft(reopened, savedAgain), true, "but it is once its changes are saved");
+});
+
+test("a copy of a workout that was already ended is a leftover; rows saved before they had a save time never match", () => {
+  const open = newDraft("lift-oct20", t(0), "push day", withSets(pull(), [{ weight: 25, reps: 6 }]));
+  const rows = workoutToLogEntries(finishWorkout(open.summary), "lift-oct20", t(30).toISOString());
+  assert.equal(rows[0].loggedAt, t(30).toISOString(), "ending a workout records when it was saved");
+  assert.equal(isLeftoverWorkoutDraft(open, rows), true);
+  assert.equal(isLeftoverWorkoutDraft(addEntry(open, t(45), "one more set", withSets(pull(), [{ weight: 25, reps: 6 }, { weight: 25, reps: 5 }])), rows), false);
+  assert.equal(isLeftoverWorkoutDraft({ ...open, id: "lift-oct28" }, rows), false);
+  const oldRows = workoutToLogEntries(finishWorkout(open.summary), "lift-oct20");
+  assert.equal("loggedAt" in oldRows[0], false);
+  assert.equal(isLeftoverWorkoutDraft(open, oldRows), false, "without a save time the day is left open");
 });
 
 test("a warm-up set added later is described by itself, and a draft with a damaged warm-up list is ignored", () => {

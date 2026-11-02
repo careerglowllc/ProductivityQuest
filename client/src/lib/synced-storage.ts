@@ -12,8 +12,9 @@
 //      to a synced key is mirrored to the server (debounced + batched).
 //   2. hydrateUserData() (run once after login, BEFORE the synced pages mount) pulls the
 //      user's server values into localStorage so every page reads the latest cross-device
-//      state, and uploads any local-only keys the server doesn't have yet (one-time
-//      migration of existing on-device data).
+//      state. A key the server no longer has was removed on another device, so it is
+//      removed here too. Only the first time a kind of data (a prefix) is synced from this
+//      device are on-device keys the server lacks sent up instead (one-time migration).
 //
 // localStorage remains the fast, offline-capable cache; the server is the source of truth.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ import { apiRequest } from "./queryClient";
 // whitelist in routes.ts (SYNCED_KEY_PREFIXES).
 const SYNCED_PREFIXES = ["nw-", "cpap-", "npcs-", "journal-", "country-", "workout-", "calories-"];
 const isSynced = (key: string) => SYNCED_PREFIXES.some((p) => key.startsWith(p));
+const prefixOf = (key: string) => SYNCED_PREFIXES.find((p) => key.startsWith(p));
 
 // Capture the native implementations up-front so our hydrate path and internal writes
 // never re-trigger the sync patch (which would cause needless echo pushes).
@@ -88,6 +90,41 @@ function restoreOutbox(): void {
   saveOutbox();
 }
 
+// Which prefixes this device has already reconciled with the server for this user. From then on, a key the server lacks
+// was removed elsewhere (a fitness day ended on the phone, say) and is removed here; before, it is on-device data that
+// never went up. Without this, every refresh sent such keys back up and an ended day reopened on every device.
+const SETTLED_KEY = "pq-sync-settled-v1"; // deliberately not a synced prefix: this is per-device
+interface Settled { userId: string; prefixes: string[] }
+
+function readSettled(userId: string | null): Set<string> {
+  if (!ls || !userId) return new Set();
+  try {
+    const stored = JSON.parse(ls.getItem(SETTLED_KEY) ?? "null") as Settled | null;
+    return new Set(stored && stored.userId === userId && Array.isArray(stored.prefixes) ? stored.prefixes : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSettled(userId: string | null, prefixes: Set<string>): void {
+  if (!nativeSetItem || !userId) return;
+  try { nativeSetItem(SETTLED_KEY, JSON.stringify({ userId, prefixes: Array.from(prefixes) } satisfies Settled)); } catch { /* storage full */ }
+}
+
+// Keys in a push the server has not answered yet, and, for each refresh waiting on the server, the keys pushed since it
+// asked. The refresh's answer can predate those pushes, so it must not write its older copy over them, or bring back a
+// key that was just removed.
+const sending = new Map<string, number>();
+const refreshesWaiting = new Set<Set<string>>();
+
+function markSending(keys: string[], delta: 1 | -1): void {
+  for (const key of keys) {
+    const count = (sending.get(key) ?? 0) + delta;
+    if (count > 0) sending.set(key, count); else sending.delete(key);
+    if (delta === 1) refreshesWaiting.forEach((touched) => touched.add(key));
+  }
+}
+
 // Kept short: this only coalesces rapid successive writes to the same key (e.g. typing
 // into a number field fires setItem per keystroke). A long delay widens the window in
 // which a mobile app backgrounding/kill can drop an edit before it ever reaches the server.
@@ -136,12 +173,16 @@ export async function flushNow(keepalive = false): Promise<boolean> {
   const deletes = Array.from(pendingDeletes);
   pendingUpdates.clear();
   pendingDeletes.clear();
+  const sent = [...Object.keys(updates), ...deletes];
+  markSending(sent, 1);
 
   try {
     await apiRequest("PUT", "/api/user-data", { updates, deletes }, keepalive ? { keepalive: true } : undefined);
+    markSending(sent, -1);
     saveOutbox(); // only what came in while the request was in flight is still waiting
     return true;
   } catch {
+    markSending(sent, -1);
     // On failure, re-queue so the next change/flush retries. Don't throw — a failed
     // sync must never break the UI; localStorage still holds the value locally.
     for (const [k, v] of Object.entries(updates)) {
@@ -202,48 +243,76 @@ export function isHydrated(): boolean {
 }
 
 /**
- * Pull the user's server-stored values into localStorage and upload any local-only synced
- * keys the server doesn't have yet. Run ONCE after authentication, before synced pages
- * mount. Always resolves (falls back to cached localStorage if the network fails).
+ * Pull the user's server-stored values into localStorage, and remove the synced keys the server
+ * no longer has (they were removed on another device). Run ONCE after authentication, before
+ * synced pages mount, and again by the periodic refresh. Always resolves (falls back to cached
+ * localStorage if the network fails).
  */
 export async function hydrateUserData(): Promise<void> {
-  if (!ls || !nativeSetItem) {
+  if (!ls || !nativeSetItem || !nativeRemoveItem) {
     hydrated = true;
     return;
   }
+  const touched = new Set<string>(Array.from(sending.keys()));
+  refreshesWaiting.add(touched);
+  let applied = false;
   try {
     restoreOutbox();
     const res = await apiRequest("GET", "/api/user-data");
-    const serverData: Record<string, string> = await res.json();
+    const serverData = (await res.json()) as Record<string, string>;
+    if (!serverData || typeof serverData !== "object" || Array.isArray(serverData)) throw new Error("Unreadable user data");
 
-    // 1) Server is authoritative, EXCEPT for keys whose latest change has not gone up yet — for those the
-    //    server's copy is the older one, and writing it here would throw that change away. Use the native
-    //    setter (suspendCapture) so this does not echo back as a push.
+    // A key whose latest change has not gone up yet, or went up while this request was waiting, keeps the copy on
+    // this device: the server's answer is the older one, and writing it here would throw that change away.
+    const keepLocal = (key: string) => pendingUpdates.has(key) || pendingDeletes.has(key) || touched.has(key);
+
+    // 1) Server is authoritative for everything else. Use the native setter (suspendCapture) so this does not echo
+    //    back as a push.
+    applied = true;
     suspendCapture = true;
     for (const [key, value] of Object.entries(serverData)) {
-      if (pendingUpdates.has(key) || pendingDeletes.has(key)) continue;
+      if (keepLocal(key)) continue;
       if (isSynced(key) && typeof value === "string") nativeSetItem(key, value);
     }
-    suspendCapture = false;
 
-    // 2) Upload any local synced keys the server doesn't have yet (first-run migration of
-    //    data that was created on this device before server sync existed).
+    // 2) A synced key on this device that the server does not have was removed on another device, once this kind of
+    //    data has been synced here before (or the server already holds some of it). Only the first time is it data
+    //    from before sync, sent up as a one-time migration.
+    const settled = readSettled(syncUserId);
+    for (const key of Object.keys(serverData)) {
+      const prefix = prefixOf(key);
+      if (prefix) settled.add(prefix);
+    }
     const localOnly: Record<string, string> = {};
+    const removedElsewhere: string[] = [];
     for (let i = 0; i < ls.length; i++) {
       const key = ls.key(i);
-      if (!key || !isSynced(key)) continue;
-      if (!(key in serverData)) {
+      if (!key || !isSynced(key) || key in serverData || keepLocal(key)) continue;
+      if (settled.has(prefixOf(key)!)) {
+        removedElsewhere.push(key);
+      } else {
         const v = ls.getItem(key);
         if (v !== null) localOnly[key] = v;
       }
     }
-    if (Object.keys(localOnly).length > 0) {
+    removedElsewhere.forEach((key) => nativeRemoveItem(key));
+    suspendCapture = false;
+
+    let migrated = true;
+    const migrating = Object.keys(localOnly);
+    if (migrating.length > 0) {
+      markSending(migrating, 1);
       try {
         await apiRequest("PUT", "/api/user-data", { updates: localOnly, deletes: [] });
       } catch {
-        // best-effort; will retry on the next local change
+        migrated = false; // tried again on the next refresh
+      } finally {
+        markSending(migrating, -1);
       }
     }
+    const unsent = new Set<string | undefined>(migrated ? [] : migrating.map(prefixOf));
+    SYNCED_PREFIXES.forEach((prefix) => { if (!unsent.has(prefix)) settled.add(prefix); });
+    saveSettled(syncUserId, settled);
 
     // 3) Send up anything still waiting, including changes restored from an earlier run. The periodic
     //    hydrate makes this the retry for a push that failed while the session was expired or offline.
@@ -252,9 +321,12 @@ export async function hydrateUserData(): Promise<void> {
     // Offline / unauthenticated / server error: proceed with cached localStorage. The
     // server stays the source of truth on the next successful hydrate.
   } finally {
+    refreshesWaiting.delete(touched);
     suspendCapture = false;
     hydrated = true;
-    if (typeof window !== "undefined") window.dispatchEvent(new Event(REFRESH_EVENT));
+    // Only when the server's answer was applied: after a failed refresh nothing here changed, and pages re-reading
+    // storage then (say, emptied by a sign-out that did not go through) would drop what they hold.
+    if (applied && typeof window !== "undefined") window.dispatchEvent(new Event(REFRESH_EVENT));
   }
 }
 

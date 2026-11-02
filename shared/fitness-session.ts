@@ -1,7 +1,7 @@
 // A day's workout or food log that is built up one message at a time. The first message starts the day, each later
 // message updates the same summary, and nothing reaches the charts until the day is ended. These are the pure rules for
 // that draft (what is stored, undo, what changed after a message) so the page, the server and the tests share them.
-import { formatSets, formatWarmupSets, isIsoDate, type LoggedSet, type ParsedExercise, type ParsedFoodItem, type ParsedMeal, type ParsedWorkout } from "./fitness-log";
+import { formatSets, formatWarmupSets, isIsoDate, type CalorieDayLog, type LoggedSet, type ParsedExercise, type ParsedFoodItem, type ParsedMeal, type ParsedWorkout, type WorkoutLogEntry } from "./fitness-log";
 
 export const MAX_DRAFT_MESSAGES = 60;
 export const MAX_UNDO_STEPS = 5;
@@ -59,12 +59,25 @@ export function setDraftDate<T extends { date: string }>(draft: SessionDraft<T>,
 // The last few messages, sent along so the AI can read a follow-up such as "same again" in context.
 export const recentMessages = (draft: SessionDraft<{ date: string }>, count = 8): string[] => draft.messages.slice(-count);
 
-// A refresh from the server can bring a newer copy of the open day (it was added to on another device). It is taken
-// only for the same day and only when it is newer, so an older copy arriving late never undoes what was just typed, and
-// a day that was just ended is never brought back.
-export function adoptNewerDraft<T extends { date: string }>(current: SessionDraft<T> | null, stored: SessionDraft<T> | null): SessionDraft<T> | null {
-  return current && stored && stored.id === current.id && stored.updatedAt > current.updatedAt ? stored : current;
+// After a sync the page follows the stored open day, which is what the server holds (a change made here that has not
+// gone up yet is never overwritten by the sync). That is a newer copy of the same day added to on another device,
+// another day started there, or none when the day was ended or discarded there. Only an older copy of the same day
+// is ignored, so it never undoes what was just typed. Before, a page kept the day it had, and its next change sent an
+// ended day back to every device.
+export function draftAfterRefresh<T extends { date: string }>(current: SessionDraft<T> | null, stored: SessionDraft<T> | null): SessionDraft<T> | null {
+  if (current && stored && stored.id === current.id) return stored.updatedAt > current.updatedAt ? stored : current;
+  return stored;
 }
+
+// A copy of a day that was already ended: the log holds it under the same id, saved at or after the copy's last change.
+// It is what a device that still had the day open sends back. Ending it again would save nothing new, or an older
+// version over the saved one, so the page drops it. Workout rows saved before they carried a save time are never
+// matched.
+export const isLeftoverMealDraft = (draft: MealDraft, days: readonly CalorieDayLog[]): boolean =>
+  days.some((day) => (day.meals ?? []).some((m) => m.id === draft.id && typeof m.loggedAt === "string" && m.loggedAt >= draft.updatedAt));
+
+export const isLeftoverWorkoutDraft = (draft: WorkoutDraft, log: readonly WorkoutLogEntry[]): boolean =>
+  log.some((row) => row.logId === draft.id && typeof row.loggedAt === "string" && row.loggedAt >= draft.updatedAt);
 
 // A day left open from an earlier date.
 export const isStaleDraft = (draft: SessionDraft<{ date: string }>, today: string): boolean => !draft.reopened && draft.date < today;

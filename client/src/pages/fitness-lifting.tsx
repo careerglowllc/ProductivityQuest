@@ -11,7 +11,7 @@ import {
   addWorkoutEntries, finishWorkout, recentWorkoutLoggings, removeWorkoutLogging, sessionSummaries, workoutFromEntries, workoutToLogEntries,
   type MetricKind, type WorkoutLogEntry as LogEntry, type WorkoutType,
 } from "@shared/fitness-log";
-import { adoptNewerDraft, newDraft, type WorkoutDraft } from "@shared/fitness-session";
+import { draftAfterRefresh, isLeftoverWorkoutDraft, newDraft, type WorkoutDraft } from "@shared/fitness-session";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { FitnessSessionPanel } from "@/components/fitness/session-panel";
 import { LiftBests } from "@/components/fitness/lift-bests";
@@ -128,7 +128,9 @@ const SEED_ENTRIES: LogEntry[] = [
   { date: "2026-08-12", workoutType: "Push", exercise: "Triceps Rope Pushdown", setsRaw: "42.5 lb: ~15 / ~12 / ~12 / ~9", notes: "Four working sets; approximate reps", metric: { kind: "weight", value: 42.5, approx: true } },
 ];
 
-function loadEntries(): LogEntry[] {
+// The log as stored, or null when there is none (signed out, or never seeded): never the sample rows, so a save or a
+// sync never puts them over the real history.
+function readStoredEntries(): LogEntry[] | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -136,7 +138,11 @@ function loadEntries(): LogEntry[] {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch { /* ignore */ }
-  return SEED_ENTRIES;
+  return null;
+}
+
+function loadEntries(): LogEntry[] {
+  return readStoredEntries() ?? SEED_ENTRIES;
 }
 
 type TimeWindow = "week" | "month" | "3m" | "6m" | "1y" | "3y" | "all";
@@ -212,20 +218,31 @@ export default function FitnessLiftingPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage full or blocked */ }
   }
 
-  // Another device may have added to the open day; take its newer copy so this page never types over it.
-  useEffect(() => subscribeUserDataRefresh(() => setDraft((current) => adoptNewerDraft(current, loadWorkoutDraft()))), []);
+  // Another device may have saved days, or added to, ended or replaced the open day. Both are read again after every
+  // sync, so a page left open for days shows them and never saves its older copy over them.
+  useEffect(() => subscribeUserDataRefresh(() => {
+    const saved = readStoredEntries();
+    if (saved) setEntries((current) => (JSON.stringify(current) === JSON.stringify(saved) ? current : saved));
+    setDraft((current) => draftAfterRefresh(current, loadWorkoutDraft()));
+  }), []);
 
   function updateDraft(next: WorkoutDraft | null) {
     setDraft(next);
     saveWorkoutDraft(next);
   }
 
-  // Ending the day writes it as that day's rows. A day that was reopened replaces the rows it saved before.
+  // A copy of a day that was already ended (a device that still had it open sent it back) is not an open day.
+  useEffect(() => {
+    if (draft && isLeftoverWorkoutDraft(draft, entries)) updateDraft(null);
+  }, [draft, entries]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ending the day writes it as that day's rows. A day that was reopened replaces the rows it saved before. The rows are
+  // added to the log as stored now, which may hold days saved on another device since this page loaded.
   function endWorkout(done: FitnessDraft) {
     const finished = done as WorkoutDraft;
     const workout = finishWorkout(finished.summary);
     if (workout.exercises.length === 0) return;
-    const next = addWorkoutEntries(removeWorkoutLogging(entries, finished.id), workoutToLogEntries(workout, finished.id));
+    const next = addWorkoutEntries(removeWorkoutLogging(readStoredEntries() ?? entries, finished.id), workoutToLogEntries(workout, finished.id, new Date().toISOString()));
     persistEntries(next);
     updateDraft(null);
     toast({
@@ -551,7 +568,7 @@ export default function FitnessLiftingPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => persistEntries(removeWorkoutLogging(entries, l.logId))}
+                      onClick={() => persistEntries(removeWorkoutLogging(readStoredEntries() ?? entries, l.logId))}
                       aria-label={`Remove the workout logged for ${formatDateShort(l.date)}`}
                       title="Remove this logging"
                       className="text-slate-500 hover:text-red-300"

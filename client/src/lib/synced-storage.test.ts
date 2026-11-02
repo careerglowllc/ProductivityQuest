@@ -10,6 +10,7 @@ interface Harness {
   server: Record<string, string>;
   failPuts: boolean;
   failGet: boolean;
+  holdGet: Promise<void> | null; // while set, a GET answers with the server as it was when asked, once this settles
   mod: typeof import("./synced-storage");
 }
 
@@ -51,7 +52,11 @@ function fakeFetch() {
     const body = init.body ? JSON.parse(init.body) : undefined;
     h.calls.push({ method, url, body });
     if (method === "GET" && h.failGet) return new Response("Unauthorized", { status: 401 });
-    if (method === "GET") return new Response(JSON.stringify(h.server), { status: 200, headers: { "Content-Type": "application/json" } });
+    if (method === "GET") {
+      const asked = JSON.stringify(h.server);
+      if (h.holdGet) await h.holdGet;
+      return new Response(asked, { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     if (h.failPuts) return new Response("Unauthorized", { status: 401 });
     for (const [k, v] of Object.entries((body?.updates ?? {}) as Record<string, string>)) h.server[k] = v;
     for (const k of (body?.deletes ?? []) as string[]) delete h.server[k];
@@ -65,7 +70,7 @@ async function load(store: Map<string, string>, server: Record<string, string> =
   fakeWindow(store);
   fakeFetch();
   const mod = await import(`./synced-storage?v=${Math.random()}`) as typeof import("./synced-storage");
-  live = { store, calls: [], server, failPuts: false, failGet: false, mod };
+  live = { store, calls: [], server, failPuts: false, failGet: false, holdGet: null, mod };
   mod.installStorageSync();
   return live;
 }
@@ -185,4 +190,121 @@ test("removing a key is queued the same way, and still removes it after a failed
   await settle();
   assert.equal("npcs-list" in h.server, false);
   assert.equal(device.has("npcs-list"), false, "the server's copy is not written back over the removal");
+});
+
+// ── A key removed on one device stays removed everywhere ────────────────────
+// The bug: the phone ended the Oct 15 food day, which removed the open day, but the laptop still had its copy. Every
+// refresh sent keys the server lacked back up, so the ended day reopened on every device, every day.
+async function signIn(device: Map<string, string>, server: Record<string, string>): Promise<Harness> {
+  const h = await load(device, server);
+  h.mod.setSyncUser(USER);
+  await h.mod.hydrateUserData();
+  await settle();
+  return h;
+}
+
+test("a day ended on the phone is not sent back by the laptop, and closes there too", async () => {
+  const server: Record<string, string> = { "calories-daily-log-v1": "oct-14", "calories-session-v1": "oct-15-open" };
+  const laptop = new Map<string, string>();
+  const phone = new Map<string, string>();
+  await signIn(laptop, server);
+  assert.equal(laptop.get("calories-session-v1"), "oct-15-open");
+
+  await signIn(phone, server);
+  localStorage.setItem("calories-daily-log-v1", "oct-14+15");
+  localStorage.removeItem("calories-session-v1"); // End day
+  assert.equal(await live!.mod.flushNow(), true);
+  assert.equal("calories-session-v1" in server, false);
+
+  await signIn(laptop, server);
+  assert.equal("calories-session-v1" in server, false, "the laptop does not send the ended day back");
+  assert.equal(laptop.has("calories-session-v1"), false, "and its own copy is gone");
+  assert.equal(laptop.get("calories-daily-log-v1"), "oct-14+15", "while the saved day comes through");
+
+  await signIn(phone, server);
+  assert.equal(phone.has("calories-session-v1"), false, "nothing brings it back on the phone either");
+});
+
+test("a device on its first refresh with this fix drops an old copy the server no longer has, instead of sending it up", async () => {
+  const server: Record<string, string> = { "calories-daily-log-v1": "oct-14+15", "workout-ppl-log-v1": "rows" };
+  const laptop = new Map([["calories-daily-log-v1", "oct-14"], ["calories-session-v1", "oct-15-open"], ["workout-session-v1", "oct-20-open"]]);
+  await signIn(laptop, server);
+  assert.deepEqual(Object.keys(server).sort(), ["calories-daily-log-v1", "workout-ppl-log-v1"], "nothing was sent up");
+  assert.equal(laptop.has("calories-session-v1"), false);
+  assert.equal(laptop.has("workout-session-v1"), false);
+  assert.equal(laptop.get("calories-daily-log-v1"), "oct-14+15");
+});
+
+test("data the server has never had of that kind is still sent up once, and after that a removal elsewhere is respected", async () => {
+  const server: Record<string, string> = { "nw-btc": "1" };
+  const phone = new Map([["country-visited-v1", "Japan"], ["nw-btc", "1"]]);
+  await signIn(phone, server);
+  assert.equal(server["country-visited-v1"], "Japan", "the first refresh sends it up");
+
+  delete server["country-visited-v1"]; // removed on the laptop
+  await signIn(phone, server);
+  assert.equal("country-visited-v1" in server, false, "the next refresh does not send it back");
+  assert.equal(phone.has("country-visited-v1"), false);
+});
+
+test("a first send that fails is tried again on the next refresh, and the data is not dropped meanwhile", async () => {
+  const server: Record<string, string> = {};
+  const phone = new Map([["cpap-log-v1", "nights"]]);
+  let h = await load(phone, server);
+  h.mod.setSyncUser(USER);
+  h.failPuts = true;
+  await h.mod.hydrateUserData();
+  assert.equal(phone.get("cpap-log-v1"), "nights");
+  assert.equal("cpap-log-v1" in server, false);
+
+  h = await signIn(phone, server);
+  assert.equal(server["cpap-log-v1"], "nights");
+  assert.equal(phone.get("cpap-log-v1"), "nights");
+});
+
+test("a key that is still waiting to go up is kept even though the server does not have it yet", async () => {
+  const server: Record<string, string> = { "calories-daily-log-v1": "oct-27" };
+  const phone = new Map<string, string>();
+  const h = await signIn(phone, server);
+  h.failPuts = true;
+  localStorage.setItem("calories-session-v1", "oct-28-open");
+  await h.mod.flushNow();
+  await h.mod.hydrateUserData();
+  assert.equal(phone.get("calories-session-v1"), "oct-28-open", "a new day not yet on the server is not mistaken for a removed one");
+});
+
+// ── A refresh that was already waiting on the server ────────────────────────
+test("a refresh whose answer is older than a change sent meanwhile does not undo the change or bring back a removed day", async () => {
+  const server: Record<string, string> = { "workout-session-v1": "push-day-3-sets", "workout-ppl-log-v1": "rows" };
+  const laptop = new Map<string, string>();
+  const h = await signIn(laptop, server);
+
+  let release!: () => void;
+  h.holdGet = new Promise((resolve) => { release = resolve; });
+  const refresh = h.mod.hydrateUserData(); // asks now, answers with the server as it is now
+  await settle();
+  localStorage.setItem("workout-ppl-log-v1", "rows+push-day");
+  localStorage.removeItem("workout-session-v1"); // End today's workout
+  assert.equal(await h.mod.flushNow(), true);
+  release();
+  await refresh;
+
+  assert.equal(laptop.get("workout-ppl-log-v1"), "rows+push-day", "the saved day is not replaced by the older log");
+  assert.equal(laptop.has("workout-session-v1"), false, "the ended day does not come back");
+  assert.equal("workout-session-v1" in server, false);
+});
+
+test("pages are told to read their data again only when the server's answer was applied", async () => {
+  const device = new Map<string, string>();
+  const h = await load(device, { "calories-daily-log-v1": "oct-28" });
+  h.mod.setSyncUser(USER);
+  let refreshes = 0;
+  h.mod.subscribeUserDataRefresh(() => { refreshes += 1; });
+  h.failGet = true;
+  await h.mod.hydrateUserData();
+  assert.equal(refreshes, 0, "a failed refresh changed nothing, so an open page keeps what it holds");
+  h.failGet = false;
+  await h.mod.hydrateUserData();
+  assert.equal(refreshes, 1);
+  assert.equal(device.get("calories-daily-log-v1"), "oct-28");
 });

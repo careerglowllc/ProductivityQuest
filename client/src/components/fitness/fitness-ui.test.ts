@@ -182,9 +182,11 @@ test("the day has an End button, undo, discard, a date, removal of single items,
 test("the lifting page keeps the open day, saves it after every change, and ends it into that day's rows", () => {
   assert.ok(/<FitnessSessionPanel\s+kind="workout"/.test(lifting));
   assert.ok(lifting.includes("loadWorkoutDraft()") && lifting.includes("saveWorkoutDraft(next)"));
-  assert.ok(lifting.includes("adoptNewerDraft(current, loadWorkoutDraft())"), "a newer copy from another device is picked up");
+  assert.ok(lifting.includes("draftAfterRefresh(current, loadWorkoutDraft())"), "the open day follows other devices: newer, another day, or ended there");
+  assert.ok(lifting.includes("const saved = readStoredEntries();") && lifting.includes("if (saved) setEntries((current) => (JSON.stringify(current) === JSON.stringify(saved) ? current : saved))"), "days saved on another device come in after a sync, without redrawing when nothing changed, and never the sample rows");
+  assert.ok(lifting.includes("isLeftoverWorkoutDraft(draft, entries)"), "a copy of an already ended day is dropped");
   assert.ok(lifting.includes("finishWorkout(finished.summary)"));
-  assert.ok(lifting.includes("addWorkoutEntries(removeWorkoutLogging(entries, finished.id), workoutToLogEntries(workout, finished.id))"), "ending again replaces, never doubles");
+  assert.ok(lifting.includes("addWorkoutEntries(removeWorkoutLogging(readStoredEntries() ?? entries, finished.id), workoutToLogEntries(workout, finished.id, new Date().toISOString()))"), "ending again replaces, never doubles, and builds on the latest stored log (or the page's own when storage was emptied, never the sample rows)");
   assert.ok(lifting.includes("updateDraft(null)"), "ending closes the day so the next entry starts a new one");
   assert.ok(lifting.includes("workoutFromEntries(rows, logId)"), "a saved day can be opened again");
   assert.ok(lifting.includes("if (loadWorkoutDraft())"), "an open day is never overwritten by opening another");
@@ -194,7 +196,7 @@ test("the lifting page keeps the open day, saves it after every change, and ends
 test("the lifting page lists saved days with edit and remove, and its charts include them", () => {
   assert.ok(lifting.includes('data-testid="recent-loggings"'));
   assert.ok(lifting.includes("reopen(l.logId)") && lifting.includes("Edit the workout logged for"));
-  assert.ok(lifting.includes("removeWorkoutLogging(entries, l.logId)"));
+  assert.ok(lifting.includes("removeWorkoutLogging(readStoredEntries() ?? entries, l.logId)"));
   assert.ok(lifting.includes('testId="session-volume"') && lifting.includes("sessionSummaries(liftEntries)"));
   assert.ok(lifting.includes("bestPerDay"), "two loggings of an exercise on a day are one point on the progression chart");
   assert.ok(lifting.includes('const STORAGE_KEY = "workout-ppl-log-v1"'), "stays under the synced workout- prefix");
@@ -204,13 +206,15 @@ test("the lifting page lists saved days with edit and remove, and its charts inc
 test("the calorie page keeps the open day, and ending it writes one entry into that day's totals and marks the day complete", () => {
   assert.ok(/<FitnessSessionPanel\s+kind="meal"/.test(calories));
   assert.ok(calories.includes("loadMealDraft()") && calories.includes("saveMealDraft(next)"));
-  assert.ok(calories.includes("addMealToDay(removeMealEverywhere(log, finished.id), meal, finished.id"), "ending again replaces, even on another date");
-  assert.ok(calories.includes("adoptNewerDraft(current, loadMealDraft())"), "a newer copy from another device is picked up");
+  assert.ok(calories.includes("addMealToDay(removeMealEverywhere(readStoredCalorieLog() ?? log, finished.id), meal, finished.id"), "ending again replaces, even on another date, and builds on the latest stored log (never the sample days)");
+  assert.ok(calories.includes("draftAfterRefresh(current, loadMealDraft())"), "the open day follows other devices: newer, another day, or ended there");
+  assert.ok(calories.includes("const saved = readStoredCalorieLog();") && calories.includes("if (saved) setLog((current) => (JSON.stringify(current) === JSON.stringify(saved) ? current : saved))"), "days saved on another device come in after a sync, without redrawing when nothing changed, and never the sample days");
+  assert.ok(calories.includes("isLeftoverMealDraft(draft, log)"), "a copy of an already ended day is dropped");
   assert.ok(calories.includes("dayComplete: true"));
   assert.ok(calories.includes("updateDraft(null)"));
   assert.ok(calories.includes("mealFromLogged(day, meal)") && calories.includes("if (loadMealDraft())"));
   assert.ok(calories.includes("reopen(m.id)") && calories.includes("Edit the food logged for"));
-  assert.ok(calories.includes("removeMealFromDay(log, m.date, m.id)"));
+  assert.ok(calories.includes("removeMealFromDay(readStoredCalorieLog() ?? log, m.date, m.id)"));
   assert.ok(calories.includes("saveCalorieLog(next)"));
 });
 

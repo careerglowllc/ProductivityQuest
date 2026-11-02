@@ -11,12 +11,13 @@ import {
   type Confidence,
   CALORIE_GOAL,
   loadCalorieLog as loadLog,
+  readStoredCalorieLog,
   ensureCalorieLogSeeded,
   saveCalorieLog,
 } from "@/lib/calorie-log";
 import { addMealToDay, dayFoodDetails, mealFromLogged, recentMeals, removeMealEverywhere, removeMealFromDay, NUTRIENT_INFO, type NutrientKey } from "@shared/fitness-log";
 import { aggregateNutrition, formatDateShort, monthLabel, type Granularity } from "@/lib/nutrition-chart";
-import { adoptNewerDraft, newDraft, type MealDraft } from "@shared/fitness-session";
+import { draftAfterRefresh, isLeftoverMealDraft, newDraft, type MealDraft } from "@shared/fitness-session";
 import { subscribeUserDataRefresh } from "@/lib/synced-storage";
 import { FitnessSessionPanel } from "@/components/fitness/session-panel";
 import { loadMealDraft, saveMealDraft } from "@/lib/fitness-draft";
@@ -70,21 +71,32 @@ export default function FitnessCaloriesPage() {
     saveCalorieLog(next);
   }
 
-  // Another device may have added to the open day; take its newer copy so this page never types over it.
-  useEffect(() => subscribeUserDataRefresh(() => setDraft((current) => adoptNewerDraft(current, loadMealDraft()))), []);
+  // Another device may have saved days, or added to, ended or replaced the open day. Both are read again after every
+  // sync, so a page left open for days shows them and never saves its older copy over them.
+  useEffect(() => subscribeUserDataRefresh(() => {
+    const saved = readStoredCalorieLog();
+    if (saved) setLog((current) => (JSON.stringify(current) === JSON.stringify(saved) ? current : saved));
+    setDraft((current) => draftAfterRefresh(current, loadMealDraft()));
+  }), []);
 
   function updateDraft(next: MealDraft | null) {
     setDraft(next);
     saveMealDraft(next);
   }
 
+  // A copy of a day that was already ended (a device that still had it open sent it back) is not an open day.
+  useEffect(() => {
+    if (draft && isLeftoverMealDraft(draft, log)) updateDraft(null);
+  }, [draft, log]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Ending the day writes its food into that day's totals as one entry. A day that was reopened replaces what it saved
-  // before, even when it was moved to another date. Ending the day also marks it as everything eaten that day.
+  // before, even when it was moved to another date. Ending the day also marks it as everything eaten that day. It is
+  // added to the log as stored now, which may hold days saved on another device since this page loaded.
   function endDay(done: FitnessDraft) {
     const finished = done as MealDraft;
     if (finished.summary.items.length === 0) return;
     const meal = { ...finished.summary, dayComplete: true };
-    const next = addMealToDay(removeMealEverywhere(log, finished.id), meal, finished.id, new Date().toISOString(), finished.messages.join("\n"));
+    const next = addMealToDay(removeMealEverywhere(readStoredCalorieLog() ?? log, finished.id), meal, finished.id, new Date().toISOString(), finished.messages.join("\n"));
     persistLog(next);
     updateDraft(null);
     toast({
@@ -234,7 +246,7 @@ export default function FitnessCaloriesPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => persistLog(removeMealFromDay(log, m.date, m.id))}
+                    onClick={() => persistLog(removeMealFromDay(readStoredCalorieLog() ?? log, m.date, m.id))}
                     aria-label={`Remove the meal logged for ${formatDateShort(m.date)}`}
                     title="Remove this meal"
                     className="shrink-0 text-slate-500 hover:text-red-300"

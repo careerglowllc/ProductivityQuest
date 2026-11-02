@@ -51,7 +51,8 @@ export const CALORIE_SEED_LOG: CalorieDayLog[] = [
   { date: "2026-08-13", calories: 230, protein: 4, carbs: 43, fat: 5, sodium: 100, magnesium: 45, calcium: 280, vitaminC: 40, vitaminA: 350, foodDetails: "Same ~1.5 cup assorted fruit cup as Aug 11; 8 oz decaf oat-milk cappuccino", completeness: "unknown/partial", confidence: "medium", notes: "Very likely a partial-day log." },
 ];
 
-export function loadCalorieLog(): CalorieDayLog[] {
+/** The calorie log as stored, or null when there is none (signed out, or never seeded): never the sample days. */
+export function readStoredCalorieLog(): CalorieDayLog[] | null {
   try {
     const raw = localStorage.getItem(CALORIE_STORAGE_KEY);
     if (raw) {
@@ -59,7 +60,11 @@ export function loadCalorieLog(): CalorieDayLog[] {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch { /* ignore */ }
-  return CALORIE_SEED_LOG;
+  return null;
+}
+
+export function loadCalorieLog(): CalorieDayLog[] {
+  return readStoredCalorieLog() ?? CALORIE_SEED_LOG;
 }
 
 /** Persist the whole calorie log (one entry per date). */
