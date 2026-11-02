@@ -67,6 +67,8 @@ function fakeFetch() {
 // A fresh module instance, so the in-memory queue of one test never leaks into the next. `store` is the
 // device's localStorage and survives across loads, exactly as a phone's does across app restarts.
 async function load(store: Map<string, string>, server: Record<string, string> = {}): Promise<Harness> {
+  // The previous app instance is gone (killed, or bounced to /login): its debounced send must not fire into this one.
+  live?.mod.resetUserDataSync();
   fakeWindow(store);
   fakeFetch();
   const mod = await import(`./synced-storage?v=${Math.random()}`) as typeof import("./synced-storage");
