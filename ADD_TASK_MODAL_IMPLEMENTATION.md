@@ -382,6 +382,19 @@ Refer to `ADD_TASK_MODAL_TEST_CASES.md` for 60 comprehensive test cases
 
 **Key Rule:** `recurType` values stored in the database must always be plain lowercase strings (e.g., `"one-time"`, `"daily"`, `"weekly"`). Emojis are for display labels only, never for stored values.
 
+### November 2026 — Geography emojis and a corrupted globe
+
+- **Bug:** the globe entry in the quest emoji search list was stored as a corrupted character followed by 🌍, so the picker showed a "?" diamond above the globe. The same corruption sat in the projector, chart and leaf search entries and in the Health and Furniture category lists. The search entries are repaired (📽️, 📈, 🍂, 🌍) and the unrecoverable corrupted entries are dropped from the category lists.
+- **New picker sets** in `client/src/lib/quest-emoji-sets.ts` (shared by the add-quest picker and the quest emoji picker, searchable by keyword):
+  - **Continents & Regions:** 🌍 Europe / Africa, 🌎 the Americas, 🌏 Asia / Oceania, 🌐 world, 🗺️ map, and landmarks and animals for Asia, the Middle East, Africa, Oceania, South America and Antarctica.
+  - **European Countries:** a flag for each country (plus the EU) found by country or capital, and a few landmarks and foods.
+  - **American Cities:** one icon per city (🗽 New York, 🌉 San Francisco, 🌴 Los Angeles, 🎸 Austin, and so on) found by city name.
+- Flag emojis show as two letters on Windows; macOS, iOS and Android show the flag.
+
+### November 2026 — Importance colour dots
+
+The importance choices showed "?" diamonds (the emoji circles were stored as corrupted characters) and the questline modals used a different scheme. Every importance dropdown (Add Quest, quest detail, Add / Edit Questline, questline draft tree) now uses `ImportanceLabel` (`client/src/components/importance-label.tsx`): a drawn coloured circle plus the name, so it looks the same on every device. Colours live in `client/src/lib/importance.ts`: Low green, Med-Low yellow, Medium orange, Med-High red-orange, High red, Pareto deep red with a white ring.
+
 ---
 
 **Implementation Complete** ✅  

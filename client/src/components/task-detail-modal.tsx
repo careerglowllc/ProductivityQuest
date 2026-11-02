@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImportanceLabel } from "@/components/importance-label";
 import { Slider } from "@/components/ui/slider";
 import { EmojiPicker } from "./emoji-picker";
 import { IncubateDialog } from "@/components/incubate-dialog";
@@ -1087,12 +1088,12 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
-                  <SelectItem value="Pareto">� Pareto (Critical)</SelectItem>
-                  <SelectItem value="High">� High</SelectItem>
-                  <SelectItem value="Med-High">🟠 Med-High</SelectItem>
-                  <SelectItem value="Medium">� Medium</SelectItem>
-                  <SelectItem value="Med-Low">� Med-Low</SelectItem>
-                  <SelectItem value="Low">� Low</SelectItem>
+                  <SelectItem value="Pareto"><ImportanceLabel level="Pareto" text="Pareto (Critical)" /></SelectItem>
+                  <SelectItem value="High"><ImportanceLabel level="High" /></SelectItem>
+                  <SelectItem value="Med-High"><ImportanceLabel level="Med-High" /></SelectItem>
+                  <SelectItem value="Medium"><ImportanceLabel level="Medium" /></SelectItem>
+                  <SelectItem value="Med-Low"><ImportanceLabel level="Med-Low" /></SelectItem>
+                  <SelectItem value="Low"><ImportanceLabel level="Low" /></SelectItem>
                 </SelectContent>
               </Select>
             </div>

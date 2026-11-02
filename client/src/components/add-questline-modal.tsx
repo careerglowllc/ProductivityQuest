@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImportanceLabel } from "@/components/importance-label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, CornerDownRight, ArrowLeft, ArrowRight, GitBranch, List } from "lucide-react";
@@ -704,12 +705,12 @@ export function AddQuestlineModal({ open, onOpenChange }: AddQuestlineModalProps
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-800 border-purple-500/40">
-                              <SelectItem value="Pareto">⭐ Pareto</SelectItem>
-                              <SelectItem value="High">🔴 High</SelectItem>
-                              <SelectItem value="Med-High">🟠 Med-High</SelectItem>
-                              <SelectItem value="Medium">🟡 Medium</SelectItem>
-                              <SelectItem value="Med-Low">🟢 Med-Low</SelectItem>
-                              <SelectItem value="Low">⚪ Low</SelectItem>
+                              <SelectItem value="Pareto"><ImportanceLabel level="Pareto" /></SelectItem>
+                              <SelectItem value="High"><ImportanceLabel level="High" /></SelectItem>
+                              <SelectItem value="Med-High"><ImportanceLabel level="Med-High" /></SelectItem>
+                              <SelectItem value="Medium"><ImportanceLabel level="Medium" /></SelectItem>
+                              <SelectItem value="Med-Low"><ImportanceLabel level="Med-Low" /></SelectItem>
+                              <SelectItem value="Low"><ImportanceLabel level="Low" /></SelectItem>
                             </SelectContent>
                           </Select>
                       </div>

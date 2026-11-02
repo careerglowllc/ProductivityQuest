@@ -1247,3 +1247,48 @@ Automated coverage: `npm run test:unit` (shared/quest-type, tasks-csv, quest-typ
 ### QT-17: No overdue quests
 - **Steps:** Select all, click Overdue to Today when nothing is overdue
 - **Expected:** "No Overdue Tasks" toast; selection and filter unchanged
+
+---
+
+## Quest emoji picker: geography (Nov 2026)
+
+Automated: `client/src/lib/quest-emoji-sets.test.ts` (sets exist, continents / flags / cities found by name, no corrupted characters in the add-quest picker, the globe is a single globe).
+
+### EP-1: The globe is just a globe
+- **Steps:** Open Add Quest, open the emoji picker, search "globe" or "world"
+- **Expected:** 🌍 and 🌐 are listed as single emoji; no "?" diamond appears next to or above any of them
+
+### EP-2: Continents and regions
+- **Steps:** Search "europe", "asia", "africa", "america", "oceania", "antarctica"
+- **Expected:** Each finds its globe or landmark (🌍 Europe / Africa, 🌏 Asia / Oceania, 🌎 Americas, 🐧 Antarctica); the Continents & Regions category lists them all
+
+### EP-3: European countries
+- **Steps:** Search "france", "paris", "germany", "ireland", "greece"; open the European Countries category
+- **Expected:** The matching flag is found by country or capital; the category shows a flag for each country; picking one sets it as the quest icon
+
+### EP-4: American cities
+- **Steps:** Search "new york", "san francisco", "austin", "chicago", "seattle"; open the American Cities category
+- **Expected:** 🗽, 🌉, 🎸, 🏙️ and 🌲 are found; picking one sets it as the quest icon
+
+### EP-5: Both pickers
+- **Steps:** Repeat EP-3 in the emoji picker used when editing a quest or questline
+- **Expected:** The same three categories and search results appear
+
+---
+
+## Importance colour dots (Nov 2026)
+
+Automated: `client/src/components/importance-label.test.tsx` (colours, dot and name for each level, no corrupted characters or emoji circles left in any importance dropdown).
+
+### IM-1: Dots in the dropdown
+- **Steps:** Open Add Quest and open the Importance dropdown
+- **Expected:** Six rows, each a coloured circle and its name: Pareto deep red with a white ring, High red, Med-High red-orange, Medium orange, Med-Low yellow, Low green; no "?" diamonds
+
+### IM-2: Selected value
+- **Steps:** Pick each level in turn
+- **Expected:** The closed dropdown shows the same circle and name
+
+### IM-3: Same everywhere
+- **Steps:** Open a quest's detail, Add Questline, Edit Questline (a quest and a branch), and the questline draft tree
+- **Expected:** Every importance dropdown shows the same colours; Medium is orange and Low is green in all of them
+

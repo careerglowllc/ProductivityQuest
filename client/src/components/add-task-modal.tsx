@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImportanceLabel } from "@/components/importance-label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
@@ -44,12 +45,12 @@ const EMOJI_CATEGORIES = [
   { label: "Social", emojis: ["🤝","📞","✉️","🎉","🎁","🎭","🎬","🎵","🎮","👁️","🦁","🐉","💬","💭","🗨️","🗯️","👋","🙌","👏","🤗","🥂","🍾","🎤","🎧","🎼","🎹","🥁","🎷","🎸","🎺","🎻","🪗","👥","👤","🧑‍🤝‍🧑","🫂","💌","📮","📯","📣","📢"] },
   { label: "Life", emojis: ["🏠","🚗","✈️","🍽️","☕","🌱","🌍","🧘","🏋️","🌈","🗓️","⏰","🏡","🛖","🏘️","🏰","🏯","🚂","🚢","🛸","🚁","⛵","🏄","🚴","🏇","⛷️","🤸","🧗","🎭","🎠","🎡","🎢","🌅","🌇","🌆","🏖️","🏕️","🌲","🌳","🌴","🌵","🌾","🍀","🌺","🌸","🌼","🌻","🍁","🍂","🍃","🌙","☀️","⛅","🌤️","🌦️","⛈️","❄️","🌊","🌋"] },
   { label: "Furniture & Home", emojis: ["🛋️","🪑","🛏️","🚿","🛁","🪠","🚽","🪣","🧴","🧼","🪥","🪒","🧹","🧺","🧻","🪤","🚪","🪞","🪟","🖼️","🏺","🕯️","💡","🔦","🪔","🛒","🧯","⚗️","🧲","🔌","🔋","🪜","🧱","🗑️","📦","🗄️","🗃️","🗂️","📁","🔩","🔧","🪛","🔨","🪚","🛠️","⚙️","🪝","🔗","⛓️","🧰","🪣","🪤","🏗️","🏚️","🏠","🏡","🛖"] },
-  { label: "Health", emojis: ["🏥","💊","💉","🩺","🩻","🩹","🧬","🩸","🩼","🦽","🦼","🧪","🔬","🧫","❤️","🧡","💛","💚","💙","💜","🖤","🤍","❤️‍🔥","💓","💗","💖","💝","�","🫀","🫁","🧠","🦷","🦴","�️","👅","👂","👃","�","�","🦾","�","👋","�️","✋","�","👌","✌️","�","�","�","💪","🏃","🚶","�","�","🥗","🥤","🍎","�","💆","💇","🛁","🚿","🪥","🧼","🏋️","🧘"] },
+  { label: "Health", emojis: ["🏥","💊","💉","🩺","🩻","🩹","🧬","🩸","🩼","🦽","🦼","🧪","🔬","🧫","❤️","🧡","💛","💚","💙","💜","🖤","🤍","❤️‍🔥","💓","💗","💖","💝","🫀","🫁","🧠","🦷","🦴","👅","👂","👃","🦾","👋","✋","👌","✌️","💪","🏃","🚶","🥗","🥤","🍎","💆","💇","🛁","🚿","🪥","🧼","🏋️","🧘"] },
   { label: "Finance", emojis: ["💰","💵","💴","💶","💷","💸","💳","🏦","📈","📉","💹","🪙","💲","🤑","🏧","🏷️","🧾","📊","⚖️","🔖","💼","🪙","🏪","🏬","🏫","🏨","🏩","🏛️","⚱️","🎰","🎲","🃏","🀄","🎴"] },
   { label: "Food", emojis: ["🍕","🍔","🌮","🌯","🥙","🧆","🥚","🍳","🧇","🥞","🧈","🥓","🥩","🍗","🍖","🌭","🍟","🫔","🍱","🍘","🍣","🍤","🍙","🍚","🍛","🍜","🍝","🍠","🍢","🍡","🍧","🍨","🍦","🥧","🧁","🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","☕","🍵","🧋","🥛","🍺","🍷","🥤"] },
   { label: "Travel", emojis: ["✈️","🚀","🛸","🚂","🚢","🛳️","⛴️","🚁","🛩️","🪂","🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑","🚒","🚐","🛻","🚚","🚛","🚜","🏍️","🛵","🚲","🛴","🛹","🛼","🛷","⛷️","🏄","🚣","🧗","🏇","🏊","🤽","🚵","🏌️","🗺️","🌐","🏔️","🏝️","🏜️","🏟️"] },
   { label: "Animals", emojis: ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦟","🦗","🕷️","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍","🦧","🦣","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🦬","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐩","🦮","🐈","🐓","🦃","🦤","🦚","🦜","🦢","🦩","🕊️","🐇","🦝","🦨","🦡","🦫","🦦","🦥","🐁","🐀","🐿️","🦔","🐾","🐉","🐲","🌵","🌲","🌳","🌴"] },
-  { label: "Objects", emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🏉","🎱","🏓","🏸","🏒","🥍","🏑","🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌","🪄","🎿","🛷","🥌","🎯","🎳","🎰","🎲","♟️","🧩","🪆","🪅","🎭","🎨","🖼️","🎪","🎤","🎧","🎼","🎹","🥁","🪘","🎷","🎸","🎺","🎻","🪗","📱","📲","💻","⌨️","🖥️","🖨️","🖱️","🗜️","💽","💾","💿","📀","📼","📷","📸","📹","🎥","📽️","🎞️","📞","☎️","📟","📠","📺","📻","🧭","⏱️","⏲️","⏰","🕰️","⌛","⏳","📡","🔋","🔌","💡","🔦","🕯️","🪔","🧯","🛢️","💸","💵","💴","💶","💷","💰","💳","🪙","💎","⚖️","🧲","🔧","🔨","⚒️","🛠️","⛏️","🔩","🗜️","🔗","⛓️","🪝","🧱","🪞","🪟","🛏️","🛋️","🪑","🚽","🚿","🛁","🧴","🪒","🧼","🪥","🧻","🪣","🧺","🧹","🧽","�","�🪤","🪣","🧴","🛒","🚪","🪣","🏺","🎎","🪆","🪅","🎠","🎡","🎢"] },
+  { label: "Objects", emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🏉","🎱","🏓","🏸","🏒","🥍","🏑","🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌","🪄","🎿","🛷","🥌","🎯","🎳","🎰","🎲","♟️","🧩","🪆","🪅","🎭","🎨","🖼️","🎪","🎤","🎧","🎼","🎹","🥁","🪘","🎷","🎸","🎺","🎻","🪗","📱","📲","💻","⌨️","🖥️","🖨️","🖱️","🗜️","💽","💾","💿","📀","📼","📷","📸","📹","🎥","📽️","🎞️","📞","☎️","📟","📠","📺","📻","🧭","⏱️","⏲️","⏰","🕰️","⌛","⏳","📡","🔋","🔌","💡","🔦","🕯️","🪔","🧯","🛢️","💸","💵","💴","💶","💷","💰","💳","🪙","💎","⚖️","🧲","🔧","🔨","⚒️","🛠️","⛏️","🔩","🗜️","🔗","⛓️","🪝","🧱","🪞","🪟","🛏️","🛋️","🪑","🚽","🚿","🛁","🧴","🪒","🧼","🪥","🧻","🪣","🧺","🧹","🧽","🪤","🪣","🧴","🛒","🚪","🪣","🏺","🎎","🪆","🪅","🎠","🎡","🎢"] },
   { label: "Art & Performance", emojis: ["🎭","🎪","🎨","🖼️","🖌️","🖍️","✏️","🎬","🎥","📽️","🎞️","🎤","🎧","🎼","🎹","🥁","🪘","🎷","🎸","🎺","🎻","🪗","🪕","🎙️","📻","🎵","🎶","🎤","🎼","🎟️","🎫","🃏","🀄","🎴","🃏","🎭","🃏","🎩","🪄","🧿","🪬","👁️","🔮","🪩","💃","🕺","🩰","🩱","🩲","🩳","👘","🥻","🩴","🎒","👒","🎓","⛑️","🪖","👑","💍","💎","🧵","🧶","🪡","🧷","🪢","🎀","🎗️","🪭","🪮","🖼️","🗿","🏛️","🎠","🎡","🎢","🎪","🌂","☂️","🪆","🎎","🎏","🎐","🎑","🧧","🎊","🎉","🎈","🎋","🎍","🎆","🎇","🧨","✨","🪅"] },
   { label: "School & Office", emojis: ["✏️","🖊️","🖋️","✒️","🖍️","🖌️","📝","📋","📌","📍","📎","🖇️","📏","📐","✂️","🗑️","📁","📂","🗂️","🗃️","🗄️","📄","📃","📜","📑","🗒️","📓","📔","📒","📕","📗","📘","📙","📚","📖","🔖","🏷️","✉️","📧","📨","📩","📬","📫","📭","📪","📮","📥","📤","📦","🎒","🎓","🏫","🖥️","⌨️","🖱️","🖨️","📠","💾","💿","📀","📼","🔍","🔎","🧮","📆","📅","🗓️","🗳️","🧲","🪝","📯","📢","📣"] },
   ...QUEST_EMOJI_SETS.map(set => ({ label: set.label, emojis: set.entries.map(entry => entry.emoji) })),
@@ -64,12 +65,12 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "🔧", keywords: "fix repair tool wrench" },
   { emoji: "🛠️", keywords: "tools build repair" },
   { emoji: "📊", keywords: "chart graph data analytics" },
-  { emoji: "�️", keywords: "projector presentation slideshow slides film" },
+  { emoji: "📽️", keywords: "projector presentation slideshow slides film" },
   { emoji: "📺", keywords: "screen presentation slideshow display tv monitor" },
   { emoji: "🖼️", keywords: "slide slideshow picture frame image presentation" },
   { emoji: "🗣️", keywords: "speaking presentation talk presenter speech pitch" },
   { emoji: "👨‍🏫", keywords: "teacher presentation lecture teach instructor" },
-  { emoji: "�📈", keywords: "growth increase stock up" },
+  { emoji: "📈", keywords: "growth increase stock up" },
   { emoji: "📉", keywords: "decline decrease down" },
   { emoji: "📦", keywords: "box package ship deliver" },
   { emoji: "🔍", keywords: "search find look investigate" },
@@ -102,11 +103,11 @@ const EMOJI_SEARCH_MAP: { emoji: string; keywords: string }[] = [
   { emoji: "🍽️", keywords: "food eat meal restaurant" },
   { emoji: "☕", keywords: "coffee morning drink" },
   { emoji: "🌱", keywords: "grow plant nature garden" },
-  { emoji: "�", keywords: "leaf leaves foliage rake yard garden fall autumn nature greenery" },
+  { emoji: "🍂", keywords: "leaf leaves foliage rake yard garden fall autumn nature greenery" },
   { emoji: "🌿", keywords: "herb plant foliage greenery nature green sprig" },
   { emoji: "🍂", keywords: "leaves fall autumn rake yard cleanup garden" },
   { emoji: "🌳", keywords: "tree nature forest yard outdoor green" },
-  { emoji: "�🌍", keywords: "earth world global" },
+  { emoji: "🌍", keywords: "earth world global" },
   { emoji: "🧘", keywords: "meditation yoga relax mindful" },
   { emoji: "🏋️", keywords: "gym lift weight exercise" },
   { emoji: "🌈", keywords: "rainbow color diversity" },
@@ -928,12 +929,12 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-yellow-600/40">
-                <SelectItem value="Pareto">� Pareto (Critical)</SelectItem>
-                <SelectItem value="High">� High</SelectItem>
-                <SelectItem value="Med-High">🟠 Med-High</SelectItem>
-                <SelectItem value="Medium">� Medium</SelectItem>
-                <SelectItem value="Med-Low">� Med-Low</SelectItem>
-                <SelectItem value="Low">� Low</SelectItem>
+                <SelectItem value="Pareto"><ImportanceLabel level="Pareto" text="Pareto (Critical)" /></SelectItem>
+                <SelectItem value="High"><ImportanceLabel level="High" /></SelectItem>
+                <SelectItem value="Med-High"><ImportanceLabel level="Med-High" /></SelectItem>
+                <SelectItem value="Medium"><ImportanceLabel level="Medium" /></SelectItem>
+                <SelectItem value="Med-Low"><ImportanceLabel level="Med-Low" /></SelectItem>
+                <SelectItem value="Low"><ImportanceLabel level="Low" /></SelectItem>
               </SelectContent>
             </Select>
           </div>
