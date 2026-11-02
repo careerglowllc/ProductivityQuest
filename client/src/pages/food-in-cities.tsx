@@ -68,7 +68,7 @@ const REGIONS = [
     citiesMatch: [
       "san jose", "los altos", "livermore", "san francisco", "oakland",
       "berkeley", "fremont", "palo alto", "santa clara", "sunnyvale",
-      "mountain view", "milpitas", "campbell", "saratoga", "cupertino",
+      "mountain view", "milpitas", "campbell", "saratoga", "cupertino", "south bay",
     ],
   },
   {
@@ -851,9 +851,21 @@ const SEED_ENTRIES: FoodEntry[] = [
     createdAt: "2026-10-24T00:00:00.000Z",
     updatedAt: "2026-10-24T00:00:00.000Z",
   },
+  {
+    id: "food-egghead-sando-cafe-south-bay",
+    name: "EggHead - Sando Café",
+    city: "South Bay, CA (various locations)",
+    overallRating: 4,
+    stars: { food: 4, ambience: 0, price: 4 },
+    thoughts: "Breakfast place with good coffee and breakfast sandwiches. Hits the spot when you need a fried chicken egg sandwich and a good coffee or latte drink.",
+    tags: ["Breakfast", "Coffee / Cafe", "Sandwich / Deli", "Casual"],
+    visitedAt: "",
+    createdAt: "2026-11-02T00:00:00.000Z",
+    updatedAt: "2026-11-02T00:00:00.000Z",
+  },
 ];
 
-const SEED_KEY = "food-cities-seed-v26";
+const SEED_KEY = "food-cities-seed-v27";
 const PATCH_KEY = "food-cities-patch-v3";
 const PATCH_IDS = ["food-oakhouse-auburn", "food-north-fork-chai-newcastle", "food-philz-coffee-cupertino", "food-la-la-land-austin", "food-merit-coffee-austin"];
 

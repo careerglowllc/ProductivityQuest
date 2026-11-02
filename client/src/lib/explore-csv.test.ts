@@ -226,3 +226,20 @@ test("coffee shops are tagged Specialty Drinks or Espresso Drinks, and existing 
   for (const id of ["food-philz-coffee-cupertino", "food-la-la-land-austin", "food-merit-coffee-austin"]) assert.ok(patchIds.includes(id), `${id} is patched into saved lists`);
   assert.ok(Number(food.match(/food-cities-patch-v(\d+)/)?.[1]) >= 3, "patch version bumped so it runs again");
 });
+
+test("EggHead - Sando Café is seeded for the South Bay, listed under Bay Area, with a matching rating and a bumped seed version", () => {
+  const food = readFileSync(new URL("../pages/food-in-cities.tsx", import.meta.url), "utf8");
+  const start = food.indexOf('id: "food-egghead-sando-cafe-south-bay"');
+  assert.notEqual(start, -1, "EggHead is seeded");
+  const block = food.slice(start, food.indexOf("\n  },", start));
+  assert.match(block, /city: "South Bay, CA \(various locations\)"/);
+  assert.match(block, /tags: \[[^\]]*"Breakfast"[^\]]*"Coffee \/ Cafe"[^\]]*"Sandwich \/ Deli"/);
+  const stars = block.match(/stars: \{ food: ([\d.]+), ambience: ([\d.]+), price: ([\d.]+) \}/);
+  assert.ok(stars, "stars are set");
+  const [f, a, p] = stars.slice(1).map(Number);
+  assert.deepEqual([f, a, p], [4, 0, 4], "flavor 4/5, price 4/5, ambience not rated");
+  assert.equal(Number(block.match(/overallRating: ([\d.]+)/)?.[1]), 4, "average of the two ratings given");
+  const bayArea = food.slice(food.indexOf('id: "bay-area"'), food.indexOf('id: "central-valley"'));
+  assert.ok(bayArea.includes('"south bay"'), "the South Bay counts as the Bay Area, so the entry is not filed under Other");
+  assert.ok(Number(food.match(/food-cities-seed-v(\d+)/)?.[1]) >= 27, "seed version bumped");
+});
