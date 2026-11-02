@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, focusOrderShifts, focusGroup, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
+import { rankFocus, eligibleFocus, protectedFocus, emptyFocusMemory, focusSignals, focusWorkload, isRoutine, DEFAULT_FOCUS_TUNING, focusStances, focusActionLabel, workFilterStep, workFilterOf, isWeekendDay, APPLE_WEEKDAY_PROFILE, focusOrderShifts, focusGroup, focusBaselineScore, type FocusAction, type FocusQuest, type FocusMemory } from "./smart-focus-ai";
 const day = "2026-10-12";
 const task = (id: number, extra: Partial<FocusQuest> = {}): FocusQuest => ({ id, title: `Task ${id}`, ...extra });
 test("all urgent and start-today tasks survive the cap and hostile AI advice", () => {
@@ -300,18 +300,40 @@ const orderOf = (quests: FocusQuest[], advice?: { taskId: number; include: boole
 const ready = (id: number, extra: Partial<FocusQuest> = {}) => task(id, { startDate: "2026-10-01", importance: "High", ...extra });
 const ask = (taskId: number, score: number) => ({ taskId, include: true, score, reason: "r" });
 
-test("the same due date is ordered by importance, whatever the model says", () => {
-  const due = "2026-10-12T00:00:00.000Z";
-  const quests = [ready(1, { importance: "Low", dueDate: due }), ready(2, { importance: "High", dueDate: due }), ready(3, { importance: "Medium", dueDate: due })];
-  assert.deepEqual(orderOf(quests), [2, 3, 1]);
-  assert.deepEqual(orderOf(quests, [ask(1, 100), ask(2, -100), ask(3, 0)]), [2, 3, 1]);
+const due12 = "2026-10-12T00:00:00.000Z";
+const sameDay = () => [ready(1, { importance: "Low", dueDate: due12 }), ready(2, { importance: "High", dueDate: due12 }), ready(3, { importance: "Medium", dueDate: due12 })];
+
+test("without the model, one due date is ordered by importance", () => {
+  assert.deepEqual(orderOf(sameDay()), [2, 3, 1]);
 });
 
-test("the model breaks ties only between the same due date and importance", () => {
-  const due = "2026-10-12T00:00:00.000Z";
-  const quests = [ready(1, { dueDate: due }), ready(2, { dueDate: due }), ready(3, { dueDate: due })];
-  assert.deepEqual(orderOf(quests, [ask(1, -20), ask(2, 60), ask(3, 10)]), [2, 3, 1]);
-  assert.deepEqual(orderOf(quests), [1, 2, 3]);
+test("with the model, one due date is ordered by its score, even when that puts a lower importance first", () => {
+  assert.deepEqual(orderOf(sameDay(), [ask(1, 100), ask(2, -100), ask(3, 0)]), [1, 3, 2]);
+  assert.deepEqual(orderOf(sameDay(), [ask(1, 30), ask(2, 40), ask(3, 35)]), [2, 3, 1], "scores that stay near their importance keep its order");
+});
+
+test("a quest the model did not score keeps its importance baseline, so scored and unscored quests compare fairly", () => {
+  assert.deepEqual(orderOf(sameDay(), [ask(1, 90)]), [1, 2, 3], "Low scored 90 beats High (baseline 40) and Medium (0)");
+  assert.deepEqual(orderOf(sameDay(), [ask(3, -90)]), [2, 1, 3], "Medium scored -90 falls below Low (baseline -40)");
+  assert.deepEqual(orderOf(sameDay(), []), [2, 3, 1], "advice that scores nothing changes nothing");
+});
+
+test("the baseline is 20 points per importance level around Medium, shifted by the work-filter weighting", () => {
+  const at = (importance: string, extra: Partial<FocusQuest> = {}) => focusBaselineScore(task(1, { importance, ...extra }), undefined, day);
+  assert.deepEqual(["Pareto", "High", "Med-High", "Medium", "Med-Low", "Low"].map((level) => at(level)), [60, 40, 20, 0, -20, -40]);
+  assert.equal(focusBaselineScore(task(1, { importance: "Medium", businessWorkFilter: "Apple" }), APPLE_WEEKDAY_PROFILE, "2026-10-12"), 20, "Apple counts a level higher on a Monday");
+  assert.equal(focusBaselineScore(task(1, { importance: "Medium", businessWorkFilter: "Apple" }), APPLE_WEEKDAY_PROFILE, "2026-10-11"), -20, "and a level lower on a Sunday");
+});
+
+test("the model never moves a quest across due dates or out of its group", () => {
+  const quests = [
+    ready(1, { importance: "Low", dueDate: "2026-10-11T00:00:00.000Z" }),
+    ready(2, { importance: "Pareto", dueDate: due12 }),
+    ready(3, { importance: "Pareto", dueDate: "2026-10-20T00:00:00.000Z" }),
+    ready(4, { importance: "Pareto", startDate: day }),
+  ];
+  assert.deepEqual(orderOf(quests, [ask(1, -100), ask(2, 100), ask(3, 100), ask(4, 100)]).slice(0, 2), [1, 2], "overdue, then due today, whatever the scores");
+  assert.deepEqual(orderOf(quests, [ask(1, -100), ask(2, 100), ask(3, 100), ask(4, 100)]), [1, 2, 4, 3], "then starts today, then later dates");
 });
 
 test("an earlier due date comes first, and undated work comes after dated work", () => {

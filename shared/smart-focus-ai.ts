@@ -124,6 +124,13 @@ export function workFilterStep(profile: FocusProfile | undefined, q: Pick<FocusQ
   const step = Number(isWeekendDay(day) ? entry?.weekend : entry?.weekday);
   return Number.isFinite(step) ? Math.max(-3, Math.min(3, Math.round(step))) : 0;
 }
+// Where a quest starts on the model's -100 to 100 scale before anything else is weighed: 20 points per importance level,
+// so Medium is 0, High +40 and Low -40, shifted by the account's work-filter weighting. The model moves it from there, and a
+// quest it did not score keeps it, so scored and unscored quests stay comparable.
+export const FOCUS_POINTS_PER_LEVEL = 20;
+export function focusBaselineScore(q: FocusQuest, profile: FocusProfile | undefined, day: string): number {
+  return (importanceRank(q.importance) + workFilterStep(profile, q, day) - importanceRank("Medium")) * FOCUS_POINTS_PER_LEVEL;
+}
 // How heavy today is, from the quests already committed (overdue, due today, starting today): their number,
 // total minutes, and how many are high priority. Optional work never counts toward it.
 export function focusWorkload(quests: FocusQuest[], day: string, tuning: FocusTuning = DEFAULT_FOCUS_TUNING): FocusWorkload {
@@ -174,18 +181,26 @@ export function rankFocus(quests: FocusQuest[], day: string, memory: FocusMemory
   // Each step the user pushed a quest up or down moves it one whole group: from the main list into starts-today,
   // then into overdue and due-today, then above everything. Pushing down mirrors that.
   const tier = (q: FocusQuest) => focusGroup(q, day) + shift(q);
-  // Only breaks ties between quests with the same due date and importance: the model's judgment, the user's nudges, past removals.
+  // What the user's own nudges, past removals and the deadline type add to a quest's standing.
   const tieScore = (q: FocusQuest) => {
     const signalPenalty = memory.enabled && (signals.get(q.id) ?? 0) >= 3 ? 10 : 0;
-    // The model's score does not count against something the user moved in themselves.
-    const modelScore = stances.get(q.id)?.action === "include" ? 0 : ai.get(q.id)?.score ?? 0;
-    return modelScore - signalPenalty + stanceNudge(q) + (q.questType === "deadline" ? 10 : 0);
+    return -signalPenalty + stanceNudge(q) + (q.questType === "deadline" ? 10 : 0);
   };
-  // Due or starting today first, then what the user moved in, then earliest due date, then importance, then the model's tie-break.
+  // With the model's advice, quests that share a due date are ordered by its score, which starts from the importance
+  // (see focusBaselineScore) and moves with the user's written preferences, so a lower-importance quest can rank above a
+  // higher one when the context says so. A quest the model did not score, or one the user moved in themselves, keeps its
+  // importance baseline. Without advice the order is by importance alone, as before.
+  const merit = (q: FocusQuest) => {
+    const model = stances.get(q.id)?.action === "include" ? undefined : ai.get(q.id)?.score;
+    return (model ?? focusBaselineScore(q, memory.profile, day)) + tieScore(q);
+  };
+  // Due or starting today first, then what the user moved in, then earliest due date, then (with the model) its score,
+  // then importance, then the nudges.
   const compare = (a: FocusQuest, b: FocusQuest) =>
     tier(b) - tier(a)
     || lift(b) - lift(a)
     || (dateOnly(a.dueDate) || "9999-12-31").localeCompare(dateOnly(b.dueDate) || "9999-12-31")
+    || (advice ? merit(b) - merit(a) : 0)
     || effectiveImportance(b) - effectiveImportance(a)
     || tieScore(b) - tieScore(a)
     || a.id - b.id;

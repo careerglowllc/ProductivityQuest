@@ -9,7 +9,7 @@ export interface FocusStore {
   read(id: string): Promise<FocusMemory>;
   change(id: string, change: (memory: FocusMemory) => void): Promise<void>;
 }
-type Advice = (input: { quests: FocusQuest[]; memory: FocusMemory; day: string; workload?: FocusWorkload }) => Promise<FocusAdvice[]>;
+type Advice = (input: { quests: FocusQuest[]; memory: FocusMemory; day: string; time?: string; workload?: FocusWorkload }) => Promise<FocusAdvice[]>;
 export function registerSmartFocus(app: Express, auth: RequestHandler, store: FocusStore, advise: Advice,
   available = () => !!process.env.OPENAI_API_KEY, clock = () => new Date()) {
   const cache = new Map<string, { hash: string; until: number; result: FocusRanking }>();
@@ -32,7 +32,8 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
     const timezone = await store.timezone(id);
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(clock());
     const value = (type: string) => parts.find(p => p.type === type)!.value;
-    return { day: `${value("year")}-${value("month")}-${value("day")}`, timezone };
+    const clockTime = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(clock());
+    return { day: `${value("year")}-${value("month")}-${value("day")}`, timezone, time: clockTime };
   };
   app.get("/api/smart-focus/state", auth, handler(async (req, res) => {
     const id = req.session.userId, memory = await store.read(id);
@@ -114,7 +115,7 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
     if (joined && joined.version === (versions.get(id) ?? 0)) return res.json(await joined.work);
     const startedAt = versions.get(id) ?? 0;
     const work = (async () => {
-      const [quests, memory, { day }] = await Promise.all([store.tasks(id), store.read(id), dayFor(id)]);
+      const [quests, memory, { day, time }] = await Promise.all([store.tasks(id), store.read(id), dayFor(id)]);
       const hash = createHash("sha256").update(JSON.stringify([quests, memory, day, available()])).digest("hex");
       const hit = cache.get(id);
       if (hit && hit.hash === hash && hit.until > Date.now() && req.query.refresh !== "1") return hit.result;
@@ -140,7 +141,7 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
           const feedbackTargets = new Set(memory.preferences.map(p => p.taskId));
           const priority = (q: FocusQuest) => feedbackTargets.has(q.id) ? -1 : order.get(q.id) ?? 1000;
           const candidates = eligible.sort((a, b) => priority(a) - priority(b) || a.id - b.id).slice(0, 100);
-          const advice = await advise({ quests: candidates, memory, day, workload: focusWorkload(quests, day) });
+          const advice = await advise({ quests: candidates, memory, day, time, workload: focusWorkload(quests, day) });
           result = rankFocus(quests, day, memory, advice);
           if (lastAdvice.size > 1000) lastAdvice.delete(lastAdvice.keys().next().value!);
           lastAdvice.set(id, advice);

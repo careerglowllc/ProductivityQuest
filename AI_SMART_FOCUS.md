@@ -19,7 +19,7 @@ Saving feedback does not edit a quest's importance field, dates, completion stat
 - All protected quests are shown even when there are more than ten. Otherwise the target list size is ten.
 - Completed/recycled quests and standing **reminder-type quests** stay out of the work queue. Reminders keep their separate strip.
 - Future-start quests cannot enter unless already due/overdue. Missing dates do not block high-priority work.
-- High-priority ready work, reached start dates, and important near-term deadlines qualify under server rules. Default order: due or overdue today, then starting today, then the rest; within each, earliest due date (undated last), then importance (Pareto, High, Med-High, Medium, Med-Low, Low). Only quests tied on both are ordered by the model score, with deadline type as a small extra tie-break weight.
+- High-priority ready work, reached start dates, and important near-term deadlines qualify under server rules. Default order: due or overdue today, then starting today, then the rest; within each, earliest due date (undated last). **Within one due date the order is the model's score**, which starts from the quest's importance (20 points per level around Medium: Pareto +60, High +40, Med-High +20, Medium 0, Med-Low -20, Low -40, shifted by the work-filter weighting) and moves with your written feedback, the time of day, the day of the week, effort and workload, so a Low quest can rank above a High one when your feedback says that is right. A quest the model did not score keeps its importance baseline; without the model the order is by importance, then deadline type. The model never moves a quest across due dates or out of the due-today / starts-today groups, and cannot hide protected work.
 - An explicit dismissal lasts only for that day. Repeating it several times on one day counts once.
 - Implicit learning requires at least **three distinct dismissal days within 30 days**. It applies only a small, reversible penalty to that exact quest, and only while AI is enabled. It never creates a category-wide preference or permanently excludes a task.
 - Completion, filtering/search, changing dates, and ignoring a task are **not** treated as dislike signals.
@@ -111,6 +111,12 @@ Stored in the account's Smart Focus memory as `profile.workFilters`, for example
 When you submit AI feedback with a choice, the change is made on the list you are looking at right away: Take off removes the quest, Move into adds it just below what is overdue, due or starting today, and Rank higher or Rank lower moves it to the front or back of its group. A "Smart Focus updated" message confirms it even if the quest's card disappears. The app then asks the server to re-rank, and that answer replaces the instant one.
 
 On the server, saving feedback clears the cached ranking, and a ranking that started before the feedback is never reused after it, even if the AI call was still running. The AI is called at most once a minute per account. Inside that minute, your change is applied on top of the model's last scores (kept in memory, and dropped when preferences are forgotten or Smart Focus is turned off), so the rest of the order does not reshuffle. About 65 seconds after feedback the app asks again, which is when the AI reads your written reason.
+
+## How the AI is asked
+
+- The model is asked about the quests in batches of 25, all at once, so the wait is one batch's (about 8 seconds), not one answer for a hundred quests. Before Nov 2026 a single reply for 100 quests took longer than the 20-second limit, every refresh fell back to the rules, and your written feedback was never read. A batch that fails costs only its own quests' scores (they keep their importance baseline); only when every batch fails does the list say the AI was unavailable.
+- Each quest is sent with its baseline score. The request also carries the local time and weekday, so feedback such as "only in the evening" or "not after Friday afternoon" can be applied.
+- Up to 100 candidates are sent: quests you gave feedback on first, then the best-ranked by the rules.
 
 ## Persistence and privacy
 

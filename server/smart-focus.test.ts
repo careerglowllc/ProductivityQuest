@@ -305,3 +305,32 @@ test("a ranking that started before your feedback is never handed back after it"
     assert.equal(late.ids[0], 3, "even the slow one is corrected for feedback saved while it ran");
   } finally { release(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test("the AI step is told the local time, and its scores order quests that share a due date", async () => {
+  const memory: FocusMemory = { ...emptyFocusMemory(), enabled: true };
+  const store: FocusStore = {
+    async tasks() { return [
+      { id: 1, title: "Low but wanted", importance: "Low", dueDate: "2026-10-12" },
+      { id: 2, title: "High", importance: "High", dueDate: "2026-10-12" },
+      { id: 3, title: "Medium", importance: "Medium", dueDate: "2026-10-12" },
+    ]; },
+    async timezone() { return "America/Los_Angeles"; },
+    async read() { return structuredClone(memory); },
+    async change(_id, change) { change(memory); },
+  };
+  const asked: { time?: string; day: string; ids: number[] }[] = [];
+  const app = express(); app.use(express.json());
+  registerSmartFocus(app, (req, _res, next) => { req.session = { userId: "owner" } as any; next(); }, store, async (input) => {
+    asked.push({ time: input.time, day: input.day, ids: input.quests.map(q => q.id) });
+    return [{ taskId: 1, include: true, score: 90, reason: "Matches what you said about this kind of quest." }, { taskId: 2, include: true, score: 40, reason: "r" }, { taskId: 3, include: true, score: 0, reason: "r" }];
+  }, () => true, () => new Date("2026-10-13T01:30:00Z")); // 6:30 PM on Oct 12 in Los Angeles
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  try {
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/smart-focus/rank`;
+    const ranking = await (await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
+    assert.deepEqual(asked.map(a => [a.day, a.time]), [["2026-10-12", "18:30"]], "the model knows it is the evening where the user is");
+    assert.equal(ranking.mode, "ai");
+    assert.deepEqual(ranking.ids, [1, 2, 3], "the Low quest the model scored highest now leads its due date");
+  } finally { server.close(); }
+});
