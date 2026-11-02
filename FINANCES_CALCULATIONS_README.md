@@ -199,6 +199,20 @@ _homeAfterTaxNetCash   = _homeNetCashAfterSale - _homeCapGainsTax
 
 If `_homeAfterTaxNetCash < 0` (underwater), it is treated as **$0** in NW calculations (you don't have negative cash, you'd just walk away or short-sell).
 
+### Rocklin house one-time costs
+
+One list, `HOME_ONE_TIME_COSTS` in `shared/home-ownership-costs.ts`, feeds both the **Lifetime Cost of Ownership** card
+and the **Pending costs** line of the Real Estate tab (and the ROI calculator). Change a price there and both follow.
+
+- Each row is in dollars and includes any processing fee. A row marked `tentative` is listed and projected but not counted
+  as spent; a row marked `pending` (the shed and every repair or renovation, not the down payment or the two solar visits)
+  comes off the sale.
+- The repair and renovation rows come from the contractor invoice summary (11 lines, $56,881.50 with fees). Where an older
+  row covered the same work, the invoice's price replaced it: floors, cabinets, the floor molding / cabinet demo / plumber
+  visit row (now the mold, kitchen demo and shutoff valve lines, which add up to the same $9,835), the range hood, and Oak
+  and Stone invoice #1033 (now the drainage line). Rows not on the summary (down payment, shed, roof fix, solar visits) stay.
+- Totals: one-time $94,147.78, of which $63,539.78 is taken off the sale. Totals are added in whole cents.
+
 Default rates:
 - Federal cap gains rate: **15%**
 - California cap gains rate: **9.3%** (CA taxes cap gains as ordinary income)

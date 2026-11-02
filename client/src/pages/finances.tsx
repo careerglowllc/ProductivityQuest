@@ -16,6 +16,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { ExpenseCircleMap } from "@/components/expense-circle-map";
 import { RocklinRentalBudget } from "@/components/rocklin-rental-budget";
 import { EffectiveBadge } from "@/components/effective-badge";
+import { HOME_ONE_TIME_COSTS, paidOneTimeCosts, pendingHomeCosts, totalOneTimeCosts as totalOneTimeCostsOf } from "@shared/home-ownership-costs";
 import { cashflowIncomeOf, currentItems, isPropertyExpense, isRentalIncome, upcomingChange } from "@shared/finance-schedule";
 import { localDay } from "@/lib/quotes";
 import {
@@ -1442,14 +1443,9 @@ export default function Finances() {
   const [homeCaCapGainsRate, setHomeCaCapGainsRate] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-home-ca-cg") || "9.3"); } catch { return 9.3; }
   });
-  // Pending home improvement costs (July 2026) — deducted from net worth as real outlays
-  const homeShedCost = 6158.28; // new shed — final cost
-  const homeFloorMoldingCost = 9835; // floor molding, cabinet demo & plumber visit — final cost
-  const homeFloorsCost = 17000; // new floors — tentative cost (not yet final)
-  const homeCabinetsCost = 19000; // new cabinets — tentative cost (not yet final)
-  const homeRoofFixCost = 500;  // small roof fix — final cost
-  const homeFumeHoodCost = 1300; // fume hood install — final cost
-  const homePendingCosts = homeShedCost + homeFloorMoldingCost + homeFloorsCost + homeCabinetsCost + homeRoofFixCost + homeFumeHoodCost;
+  // Home repair and renovation costs, deducted from the sale in the Real Estate tab. They come from the same list as the
+  // Lifetime Cost of Ownership card (shared/home-ownership-costs.ts).
+  const homePendingCosts = pendingHomeCosts();
   // Cash — BMO checking account ending in 1711 (manual, updated July 7, 2026: → $80,756)
   const [checkingBalance, setCheckingBalance] = useState<number>(() => {
     try { return parseFloat(localStorage.getItem("nw-checking") || "40000"); } catch { return 40000; }
@@ -1857,7 +1853,7 @@ export default function Finances() {
   const _homeTaxableGain = Math.max(0, _homeRawGain - homePrimaryExclusion);
   const _homeCapGainsTax = _homeTaxableGain * ((homeFedCapGainsRate + homeCaCapGainsRate) / 100);
   const _homeAfterTaxNetCash = _homeNetCashAfterSale - _homeCapGainsTax;
-  // Note: homePendingCosts (shed, floors, roof, fume hood) are excluded from net worth —
+  // Note: homePendingCosts (shed, repairs and renovations) are excluded from net worth —
   // they are factored in only in the Real Estate ROI tab as holding/improvement costs.
   // BTC wallets: real FIFO cost-basis capital gains math (see btc-tax.ts) —
   // only the gain is taxed, not the whole position.
@@ -4592,19 +4588,8 @@ export default function Finances() {
 
               // One-time costs (down payment + known improvements)
               const RE_DOWN_PAYMENT = 30000;   // ~3.5% down + inspections/closing costs
-              const oneTimeCosts = [
-                { label: "Down payment + closing costs", amount: RE_DOWN_PAYMENT },
-                { label: "New shed (Affirm financed)", amount: 6158.28 },
-                { label: "Small roof fix", amount: 500 },
-                { label: "Fume hood install", amount: 1300 },
-                { label: "Solar inspection (6/26/26)", amount: 299 },
-                { label: "Solar panel cleaning (7/14/26)", amount: 309 },
-                { label: "Floor molding and cabinet demo and plumber visit", amount: 9835 },
-                { label: "Oak and Stone Constructions (invoice #1033)", amount: 1250 },
-                { label: "Floors", amount: 17000, tentative: true },
-                { label: "Cabinets", amount: 19000, tentative: true },
-              ];
-              const totalOneTimeCosts = oneTimeCosts.reduce((s, i) => s + i.amount, 0);
+              const oneTimeCosts = HOME_ONE_TIME_COSTS;
+              const totalOneTimeCosts = totalOneTimeCostsOf(oneTimeCosts);
 
               // Purchase date: May 2025 → calculate months owned
               const purchaseDate = new Date(2025, 4, 1); // May 2025
@@ -4635,9 +4620,7 @@ export default function Finances() {
 
               // Lifetime cost so far = months owned × total monthly housing + one-time costs already paid,
               // less the renter-covered mortgage contribution during their tenancy
-              const oneTimePaid = oneTimeCosts
-                .filter(i => !i.tentative)
-                .reduce((s, i) => s + i.amount, 0);
+              const oneTimePaid = paidOneTimeCosts(oneTimeCosts);
               const monthlyCostsPaid = monthsOwned * (monthlyHousingCost / 100);
               const lifetimeSoFar = Math.max(0, monthlyCostsPaid - renterContribution) + oneTimePaid;
               // Projected full lifetime cost = recurring monthly × 360 months + all one-time costs
@@ -4736,7 +4719,7 @@ export default function Finances() {
                         </div>
                         <div className="flex justify-between text-slate-400">
                           <span className="flex items-center gap-1">Pending costs
-                            <span className="text-[9px] bg-amber-900/50 text-amber-400 px-1 py-0.5 rounded">incl. tentative</span>
+                            {oneTimeCosts.some(c => c.tentative) && <span className="text-[9px] bg-amber-900/50 text-amber-400 px-1 py-0.5 rounded">incl. tentative</span>}
                           </span>
                           <span className="text-red-400">−${homePendingCosts.toLocaleString()}</span>
                         </div>
