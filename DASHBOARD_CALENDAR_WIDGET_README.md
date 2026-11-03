@@ -387,6 +387,9 @@ console.log(event.start);
 
 ## Version History
 
+**Nov 2026 — phone layout**
+- On a phone the widget shows only 30 minutes ago to 3 hours ahead, with a "now" line, all-day events as chips, and no 24-hour grid (see `client/src/lib/dash-schedule.ts` and `client/src/components/dash-schedule-compact.tsx`). Larger screens are unchanged.
+
 **v1.0.0** - November 17, 2025
 - Initial release
 - Today view with 6 AM - 11 PM slots

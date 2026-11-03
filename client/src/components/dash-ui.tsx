@@ -17,14 +17,15 @@ export function DashCard({ className = "", children }: { className?: string; chi
   );
 }
 
-export function DashCardHead({ title, href, linkLabel, subtitle }: {
+export function DashCardHead({ title, href, linkLabel, subtitle, compact = false }: {
   title: string; href?: string; linkLabel?: string; subtitle?: string;
+  compact?: boolean; // a phone: less padding, and the subtitle beside the title instead of under it
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-[var(--dash-line)] px-5 py-3.5">
-      <div className="min-w-0">
+    <div className={`flex justify-between gap-3 border-b border-[var(--dash-line)] ${compact ? "items-center px-3 py-2" : "items-start px-5 py-3.5"}`}>
+      <div className={`min-w-0 ${compact ? "flex items-baseline gap-2" : ""}`}>
         <h2 className="truncate text-sm font-bold text-[var(--dash-ink)]">{title}</h2>
-        {subtitle && <p className="mt-0.5 truncate text-xs text-[var(--dash-muted)]">{subtitle}</p>}
+        {subtitle && <p className={`truncate text-xs text-[var(--dash-muted)] ${compact ? "" : "mt-0.5"}`}>{subtitle}</p>}
       </div>
       {href && (
         <Link href={href}>

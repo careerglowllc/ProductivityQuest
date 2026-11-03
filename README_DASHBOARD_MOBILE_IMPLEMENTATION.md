@@ -212,14 +212,15 @@ Avoid fixed card heights on mobile. Let content determine height.
 
 ### Schedule
 
-- Keep time and event content in two columns.
-- Time column may reduce from 60 px to 52 px if necessary.
-- Event text must wrap rather than overflow.
-- Show a practical subset of today’s events.
-- The full calendar remains one tap away.
+- On a phone the widget is a short window, not the 24-hour grid: from 30 minutes ago to 3 hours ahead (`CompactSchedule`, rules in `client/src/lib/dash-schedule.ts`). It is only as tall as its rows.
+- Each row is a start time and one line for the event, colored by its calendar. Events that are over are dimmed.
+- A thin coral line with the current time sits between what has started and what is coming up, and the window moves every minute.
+- All-day events that cover today are small chips above the times. With nothing in the window it says so and still shows the now line.
+- The full calendar remains one tap away ("Full calendar" in the header). Larger screens keep the full 24-hour schedule.
 
 ### Priority tasks
 
+- The widget is as tall as its list, with a one-line header (smaller padding) and tighter rows: a small rank circle, a 13 px title, one line of badges and a one-line reason.
 - Entire row may be tappable if it does not conflict with opening task details.
 - The completion control must remain visually distinct.
 - Reward text stays aligned to the trailing edge.

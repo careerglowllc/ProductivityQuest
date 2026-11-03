@@ -376,3 +376,26 @@ Test cases for the mini Today Calendar widget displayed on the Dashboard page.
 - Filters events by today's date client-side
 - Time indicator recalculates on component mount
 - Styling matches main calendar page for consistency
+
+---
+
+## Phone layout (Nov 2026)
+
+Automated: `client/src/lib/dash-schedule.test.ts` (the window, states, now line, all-day, midnight) and `client/src/components/dash-schedule-compact.test.tsx` (rows, now line position, empty message, chips, phone-only wiring).
+
+### CAL-M1: Short window
+- **Steps:** On a phone, open the Dashboard with events at 1 PM, 6 PM and 7 PM and the time at 6:31 PM
+- **Expected:** Only the 6 PM and 7 PM events show (the 1 PM one is outside 30 minutes back), each as one line with its start time; the widget is a few lines tall, not a 24-hour list
+
+### CAL-M2: Now line
+- **Expected:** A coral line with "6:31 PM" sits after the 6 PM event (running) and before the 7 PM event; after a minute the time updates without reloading
+
+### CAL-M3: Nothing in the window
+- **Expected:** "Nothing from 30 minutes ago to the next 3 hours." with the now line
+
+### CAL-M4: All-day events
+- **Expected:** An all-day event that covers today appears as a small colored chip above the times, not as a 12:00 AM row
+
+### CAL-M5: Larger screens
+- **Expected:** The desktop dashboard still shows the full 24-hour schedule with auto-scroll to the current hour
+

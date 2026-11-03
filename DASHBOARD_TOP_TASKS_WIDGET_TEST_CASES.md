@@ -109,3 +109,12 @@
 ## TITLE-1: Widget Title Accuracy
 
 **Expected:** Widget heading reads **"Top Priority Tasks"** (not "Today's Top Priorities"), since it surfaces tasks due within the next 7 days, not only today.
+
+---
+
+## COMPACT-1: Phone layout (Nov 2026)
+
+**Steps:** On a phone, open the Dashboard with three top tasks.
+
+**Expected:** The widget is only as tall as its content (no minimum height), the header is one thin row with "View all", each task is a tight row (small rank circle, title, importance badge, minutes and date on one line, a one-line reason) and the three tasks fit on about half a screen. Long titles still wrap; the reward stays at the right edge. A larger screen looks as before.
+

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { CompactSchedule } from "@/components/dash-schedule-compact";
 import { QuestTypeIcon } from "@/components/quest-type-chooser";
 import { isNotStartedYet } from "@shared/quest-schedule";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -55,6 +56,7 @@ const skillIcons: Record<string, any> = {
 
 // Mini Today Calendar Widget Component
 function TodayCalendarWidget() {
+  const isMobile = useIsMobile();
   type CalendarEvent = {
     id: string;
     title: string;
@@ -64,6 +66,7 @@ function TodayCalendarWidget() {
     source?: string;
     calendarColor?: string;
     calendarName?: string;
+    allDay?: boolean;
   };
 
   const today = new Date();
@@ -142,6 +145,9 @@ function TodayCalendarWidget() {
     }
   }, [currentHour]);
   
+  // On a phone only a short window is shown (30 minutes back to 3 hours ahead), so the widget stays a few lines tall.
+  if (isMobile) return <CompactSchedule events={safeCalendarEvents} />;
+
   return (
     <DashCard className="flex h-full flex-col overflow-hidden">
       <DashCardHead
@@ -1236,37 +1242,37 @@ export default function Dashboard() {
     if (key === "tasks") return wrapCard(
       <DashCard className="relative flex h-full flex-col overflow-hidden">
         {dragHandleBar}
-        <DashCardHead title="Top priority tasks" href="/tasks" linkLabel="View all" />
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <DashCardHead title="Top priority tasks" href="/tasks" linkLabel="View all" compact={isMobile} />
+        <div className={`min-h-0 flex-1 overflow-y-auto ${isMobile ? "p-2" : "p-3"}`}>
           {topFocus.status === "loading" ? (
-            <p className="py-8 text-center text-sm text-[var(--dash-muted)]">Ranking your most important quests…</p>
+            <p className={`${isMobile ? "py-4" : "py-8"} text-center text-sm text-[var(--dash-muted)]`}>Ranking your most important quests…</p>
           ) : topTasks.length === 0 ? (
-            <div className="py-8 text-center">
-              <CheckCircle aria-hidden className="mx-auto mb-3 h-10 w-10 text-[var(--dash-mint)] opacity-50" />
+            <div className={`${isMobile ? "py-4" : "py-8"} text-center`}>
+              <CheckCircle aria-hidden className={`mx-auto ${isMobile ? "mb-1.5 h-7 w-7" : "mb-3 h-10 w-10"} text-[var(--dash-mint)] opacity-50`} />
               <p className="text-sm text-[var(--dash-muted)]">Nothing pending — you're clear.</p>
             </div>
           ) : (
-            <ul className="space-y-2">
+            <ul className={isMobile ? "space-y-1.5" : "space-y-2"}>
               {topTasks.map((task: any, index: number) => (
                 <li key={task.id}>
                   <Link href={`/tasks?taskId=${task.id}`}>
-                    <a className="dash-focus flex items-start gap-3 rounded-[10px] border border-[var(--dash-line)] p-3 transition-colors hover:border-[var(--dash-violet)]">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--dash-violet-soft)] text-xs font-bold text-[var(--dash-violet)]">
+                    <a className={`dash-focus flex items-start rounded-[10px] border border-[var(--dash-line)] transition-colors hover:border-[var(--dash-violet)] ${isMobile ? "gap-2 px-2 py-1.5" : "gap-3 p-3"}`}>
+                      <span className={`grid shrink-0 place-items-center rounded-full bg-[var(--dash-violet-soft)] font-bold text-[var(--dash-violet)] ${isMobile ? "h-5 w-5 text-[10px]" : "h-7 w-7 text-xs"}`}>
                         {index + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="mb-1 flex items-start gap-1.5 break-words text-sm font-semibold text-[var(--dash-ink)]"><span className="mt-0.5"><QuestTypeIcon type={task.questType} /></span><span>{task.title}</span></p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {task.importance && <Badge className={`${getImportanceBadgeColor(task.importance)} text-xs`}>{task.importance}</Badge>}
-                          {task.duration && <span className="flex items-center text-xs text-[var(--dash-muted)]"><Clock aria-hidden className="mr-1 h-3 w-3" />{task.duration} min</span>}
-                          {task.dueDate && <span className="flex items-center text-xs text-[var(--dash-muted)]"><Calendar aria-hidden className="mr-1 h-3 w-3" />{(() => { const d = new Date(task.dueDate); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(); })()}</span>}
+                        <p className={`flex items-start break-words font-semibold text-[var(--dash-ink)] ${isMobile ? "mb-0.5 gap-1 text-[13px] leading-snug" : "mb-1 gap-1.5 text-sm"}`}><span className="mt-0.5"><QuestTypeIcon type={task.questType} /></span><span>{task.title}</span></p>
+                        <div className={`flex flex-wrap items-center ${isMobile ? "gap-x-1.5 gap-y-0.5" : "gap-2"}`}>
+                          {task.importance && <Badge className={`${getImportanceBadgeColor(task.importance)} ${isMobile ? "px-1.5 py-0 text-[10px]" : "text-xs"}`}>{task.importance}</Badge>}
+                          {task.duration && <span className={`flex items-center text-[var(--dash-muted)] ${isMobile ? "text-[11px]" : "text-xs"}`}><Clock aria-hidden className={`mr-1 ${isMobile ? "h-2.5 w-2.5" : "h-3 w-3"}`} />{task.duration} min</span>}
+                          {task.dueDate && <span className={`flex items-center text-[var(--dash-muted)] ${isMobile ? "text-[11px]" : "text-xs"}`}><Calendar aria-hidden className={`mr-1 ${isMobile ? "h-2.5 w-2.5" : "h-3 w-3"}`} />{(() => { const d = new Date(task.dueDate); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(); })()}</span>}
                         </div>
                         {topFocus.status === "ready" && visibleFocusReason(topFocus.reasons[task.id]) && (
-                          <p className="mt-1.5 line-clamp-2 text-[11px] text-[var(--dash-muted)]">{visibleFocusReason(topFocus.reasons[task.id])}</p>
+                          <p className={`text-[11px] text-[var(--dash-muted)] ${isMobile ? "mt-0.5 line-clamp-1" : "mt-1.5 line-clamp-2"}`}>{visibleFocusReason(topFocus.reasons[task.id])}</p>
                         )}
                       </div>
                       {task.goldValue ? (
-                        <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[var(--dash-amber)]">+{task.goldValue}</span>
+                        <span className={`shrink-0 whitespace-nowrap font-bold text-[var(--dash-amber)] ${isMobile ? "text-[11px]" : "text-xs"}`}>+{task.goldValue}</span>
                       ) : null}
                     </a>
                   </Link>
@@ -1532,7 +1538,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-                  <div className="min-h-[340px]">{renderDashWidget(key, i)}</div>
+                  <div className={key === "tasks" || key === "schedule" ? "" : "min-h-[340px]"}>{renderDashWidget(key, i)}</div>
                 </div>
               ))}
             </div>
