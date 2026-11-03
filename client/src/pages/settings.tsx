@@ -28,7 +28,7 @@ import { buildExcitementCSVExport, buildEmpoweringThoughtsCSVExport } from "@/li
 import { buildQuotesCSVExport } from "@/lib/quotes";
 import { buildJournalCSVExport } from "@/pages/journal";
 
-const APP_VERSION = "v1.0.74";
+const APP_VERSION = "v1.0.75";
 
 async function exportAllAsZip() {
   const JSZip = (await import("jszip")).default;
