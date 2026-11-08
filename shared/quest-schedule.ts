@@ -155,6 +155,19 @@ const has = (patch: object, key: string) => (patch as Record<string, unknown>)[k
 
 export type DatePatchResult = { ok: true; adjust: { startDate?: DateLike } } | { ok: false; error: string };
 
+// What Reschedule saves for one quest when the user picks `day` (a local calendar day): the new due date, and, when the
+// quest's start date has already passed, that start date moves to the same day. A start date left in the past would keep the
+// quest on today's list as "start reached" no matter when it is due, so rescheduling it would change nothing about when it
+// shows up. A start date that is today or later is left alone (the server still pulls it back if it would fall after the new
+// due date), and so is any start date when the picked day is itself in the past.
+export function reschedulePatch(quest: { startDate?: DateLike }, day: Date, now: Date): { dueDate: string; startDate?: string } {
+  const picked = Date.UTC(day.getFullYear(), day.getMonth(), day.getDate());
+  const dueDate = new Date(picked).toISOString();
+  const start = time(quest.startDate);
+  const startPassed = start !== null && start < dayStart(now, 0);
+  return startPassed && picked >= dayStart(now, 0) ? { dueDate, startDate: dueDate } : { dueDate };
+}
+
 // Checks an edit against the stored quest. Only edits to type, due date or start date are checked, so
 // unrelated edits to older quests never fail. Moving only the due date to before the start pulls the start back.
 export function resolveQuestDatePatch(existing: QuestDates, patch: QuestDates): DatePatchResult {

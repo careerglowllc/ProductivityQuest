@@ -37,13 +37,16 @@ import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
 import { DEFAULT_QUEST_TYPE, QUEST_TYPES, QUEST_TYPE_LABELS, compareByDueDateThenImportance, isQuestType, type QuestType } from "@shared/quest-type";
-import { FOCUS_BAND_HINTS, isOnTodaysList, isReminder, smartFocus, sortReminders, sortUpcoming, dayStart, type FocusBand } from "@shared/quest-schedule";
+import { FOCUS_BAND_HINTS, isOnTodaysList, isReminder, reschedulePatch, smartFocus, sortReminders, sortUpcoming, dayStart, type FocusBand } from "@shared/quest-schedule";
 import { childrenAtStake, planChildren, type ChildrenAtStake, type ChildrenChoice } from "@shared/questline-delete";
 import { DeleteChildrenDialog } from "@/components/quest-delete-children-dialog";
 
 type FilterType = "smart" | "upcoming" | "all" | "due-today" | "due-3days" | "high-reward" | "quick-tasks" | "high-priority" | "routines" | "business-apple" | "business-general" | "business-mw" | "business-gpr" | `type-${QuestType}` | `assignee-${string}`;
 
 const QUEST_TYPE_FILTER_ICONS = { reminder: BellRing, deadline: CalendarClock, general: ListChecks } as const;
+
+// What an undo restores for each quest: its due date, and its start date only where the change had moved it.
+type DatePrevious = { id: number; dueDate: string | null; startDate?: string | null };
 
 function questTypeOfFilter(filter: string): QuestType | null {
   if (!filter.startsWith("type-")) return null;
@@ -199,7 +202,7 @@ export default function Home() {
   // Date-based undo state (for reschedule, push days, move overdue)
   const [lastDateAction, setLastDateAction] = useState<{
     label: string;
-    previousDates: { id: number; dueDate: string | null }[];
+    previousDates: DatePrevious[];
   } | null>(null);
   // Keep a ref so toast onClick callbacks always see the latest value
   const lastDateActionRef = useRef(lastDateAction);
@@ -1012,20 +1015,22 @@ export default function Home() {
   // Undo date-based changes (reschedule, push days, move overdue)
   // Accepts direct data so toast closure never goes stale
   const undoDateChanges = async (
-    directData?: { previousDates: { id: number; dueDate: string | null }[]; label: string }
+    directData?: { previousDates: DatePrevious[]; label: string }
   ) => {
     const action = directData || lastDateActionRef.current;
     if (!action) return;
 
     const { previousDates, label } = action;
 
-    // Optimistic: restore previous dates in cache immediately
+    // Optimistic: restore previous dates in cache immediately (a start date only where the change had moved it)
     queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
       if (!old) return old;
-      const dateMap = new Map(previousDates.map(d => [d.id, d.dueDate]));
-      return old.map((t: any) =>
-        dateMap.has(t.id) ? { ...t, dueDate: dateMap.get(t.id) } : t
-      );
+      const dateMap = new Map(previousDates.map(d => [d.id, d]));
+      return old.map((t: any) => {
+        const previous = dateMap.get(t.id);
+        if (!previous) return t;
+        return { ...t, dueDate: previous.dueDate, ...(previous.startDate !== undefined ? { startDate: previous.startDate } : {}) };
+      });
     });
 
     setLastDateAction(null);
@@ -1038,8 +1043,8 @@ export default function Home() {
     // Fire backend patches to restore original dates
     try {
       await Promise.all(
-        previousDates.map(({ id, dueDate }) =>
-          apiRequest("PATCH", `/api/tasks/${id}`, { dueDate })
+        previousDates.map(({ id, dueDate, startDate }) =>
+          apiRequest("PATCH", `/api/tasks/${id}`, { dueDate, ...(startDate !== undefined ? { startDate } : {}) })
         )
       );
       refetchTasks();
@@ -1182,24 +1187,30 @@ export default function Home() {
     const selectedTaskIds = Array.from(selectedTasks);
     const taskCount = selectedTaskIds.length;
     const dateLabel = newDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    // Convert local date to midnight UTC of that date for consistent storage
-    const storedDate = new Date(Date.UTC(newDate.getFullYear(), newDate.getMonth(), newDate.getDate()));
-    const storedDateISO = storedDate.toISOString();
 
-    // Save previous dates for undo
+    // Each quest's new due date, and its start date too when that has already passed (see reschedulePatch)
     const allTasks = queryClient.getQueryData<any[]>(["/api/tasks"]) || [];
+    const now = new Date();
+    const patches = new Map(selectedTaskIds.map(id => [id, reschedulePatch(allTasks.find((t: any) => t.id === id) ?? {}, newDate, now)]));
+
+    // Save previous dates for undo (the start date only for quests whose start date moved)
     const previousDates = selectedTaskIds.map(id => {
       const task = allTasks.find((t: any) => t.id === id);
-      return { id, dueDate: task?.dueDate || null };
+      return {
+        id,
+        dueDate: task?.dueDate || null,
+        ...(patches.get(id)?.startDate !== undefined ? { startDate: task?.startDate ?? null } : {}),
+      };
     });
+    const startMoved = previousDates.filter(d => "startDate" in d).length;
 
     // Optimistic: update cache immediately so tasks move/disappear from current view
     const previousTasksSnapshot = queryClient.getQueryData<any[]>(["/api/tasks"]);
     queryClient.setQueryData(["/api/tasks"], (old: any[] | undefined) => {
       if (!old) return old;
       return old.map((t: any) =>
-        selectedTaskIds.includes(t.id)
-          ? { ...t, dueDate: storedDateISO }
+        patches.has(t.id)
+          ? { ...t, ...patches.get(t.id) }
           : t
       );
     });
@@ -1213,7 +1224,7 @@ export default function Home() {
     setSelectedTasks(new Set());
     toast({
       title: "📅 Tasks Rescheduled",
-      description: `Moved ${taskCount} task${taskCount !== 1 ? 's' : ''} to ${dateLabel}.`,
+      description: `Moved ${taskCount} task${taskCount !== 1 ? 's' : ''} to ${dateLabel}.${startMoved > 0 ? ` ${startMoved === 1 ? "Its" : `${startMoved} start dates were in the past, so their`} start date moved too.` : ""}`,
       duration: 15000,
       action: (
         <ToastAction altText="Undo reschedule" onClick={() => undoDateChanges(undoData)}>
@@ -1226,9 +1237,7 @@ export default function Home() {
     try {
       await Promise.all(
         selectedTaskIds.map((taskId) =>
-          apiRequest("PATCH", `/api/tasks/${taskId}`, {
-            dueDate: storedDateISO,
-          })
+          apiRequest("PATCH", `/api/tasks/${taskId}`, patches.get(taskId))
         )
       );
       // Silently refetch to ensure full sync

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   DEADLINE_NEEDS_DUE_DATE, FOCUS_BANDS, SMART_FOCUS_CAP, START_AFTER_DUE, focusBand, isHighPriority, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocus, sortReminders, remindersForToday,
-  questTypeAfterClearingDue, resolveQuestDatePatch, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
+  questTypeAfterClearingDue, reschedulePatch, resolveQuestDatePatch, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
 } from "./quest-schedule";
 
 // Monday 12 Oct 2026, mid-morning. Quest dates are stored as a calendar day at UTC midnight.
@@ -338,3 +339,52 @@ test("clearing the due date of any other quest changes nothing else", () => {
     assert.equal(resolveQuestDatePatch({ questType, dueDate: day(0) }, { dueDate: null }).ok, true);
   }
 });
+
+// ── Rescheduling ────────────────────────────────────────────────────────────
+const picked = (offset: number) => new Date(2026, 9, 12 + offset); // a local calendar day, as the date picker returns it
+const iso = (offset: number) => day(offset).toISOString();
+
+test("rescheduling a quest whose start date has passed moves the start date to the new day too", () => {
+  assert.deepEqual(reschedulePatch({ startDate: iso(-20) }, picked(5), now), { dueDate: iso(5), startDate: iso(5) });
+  assert.deepEqual(reschedulePatch({ startDate: iso(-1) }, picked(0), now), { dueDate: iso(0), startDate: iso(0) }, "rescheduled to today: it starts today");
+});
+
+test("the quest from the question: an old start date and no due date is no longer left 'ready' every day", () => {
+  const old = { startDate: iso(-30), dueDate: null };
+  const patch = reschedulePatch(old, picked(7), now);
+  const after = { ...old, ...patch };
+  assert.equal(isOnTodaysList(old, now), true, "before: its old start date keeps it on today's list");
+  assert.equal(isOnTodaysList(after, now), false, "after: it is off today's list until the new day");
+  assert.equal(isOnTodaysList(after, new Date(2026, 9, 19, 9)), true, "and comes back on the day it was moved to");
+  assert.equal(validateQuestDates(after), null, "start and due are the same day, which is valid");
+});
+
+test("a start date that is today or later, or none at all, is left alone", () => {
+  assert.deepEqual(reschedulePatch({ startDate: iso(0) }, picked(5), now), { dueDate: iso(5) }, "starting today");
+  assert.deepEqual(reschedulePatch({ startDate: iso(3) }, picked(5), now), { dueDate: iso(5) }, "starting later");
+  assert.deepEqual(reschedulePatch({ startDate: null }, picked(5), now), { dueDate: iso(5) });
+  assert.deepEqual(reschedulePatch({}, picked(5), now), { dueDate: iso(5) });
+  assert.deepEqual(reschedulePatch({ startDate: "not a date" }, picked(5), now), { dueDate: iso(5) });
+});
+
+test("picking a day in the past never pushes the start date forward", () => {
+  assert.deepEqual(reschedulePatch({ startDate: iso(-20) }, picked(-3), now), { dueDate: iso(-3) });
+  assert.equal(resolveQuestDatePatch({ dueDate: iso(2), startDate: iso(-20) }, reschedulePatch({ startDate: iso(-20) }, picked(-3), now)).ok, true, "start before due: valid");
+  assert.deepEqual(resolveQuestDatePatch({ dueDate: iso(2), startDate: iso(-2) }, { dueDate: iso(-3) }), { ok: true, adjust: { startDate: iso(-3) } }, "the server still pulls a start that would fall after the new due date back");
+});
+
+test("the day is the calendar day picked, whatever the time zone", () => {
+  const lateEvening = new Date(2026, 9, 17, 23, 30); // 11:30 PM local
+  assert.equal(reschedulePatch({}, lateEvening, now).dueDate, "2026-10-17T00:00:00.000Z");
+  assert.equal(reschedulePatch({ startDate: iso(-5) }, lateEvening, now).startDate, "2026-10-17T00:00:00.000Z");
+});
+
+test("the Reschedule action sends what reschedulePatch decides, shows the start date it moved, and Undo puts it back", () => {
+  const home = readFileSync(new URL("../client/src/pages/home.tsx", import.meta.url), "utf8");
+  assert.ok(home.includes("reschedulePatch(allTasks.find((t: any) => t.id === id) ?? {}, newDate, now)"));
+  assert.ok(home.includes('apiRequest("PATCH", `/api/tasks/${taskId}`, patches.get(taskId))'));
+  assert.ok(home.includes('...(patches.get(id)?.startDate !== undefined ? { startDate: task?.startDate ?? null } : {})'), "the old start date is kept for Undo");
+  assert.ok(home.includes('apiRequest("PATCH", `/api/tasks/${id}`, { dueDate, ...(startDate !== undefined ? { startDate } : {}) })'), "Undo restores it");
+  assert.ok(home.includes("start date moved too"), "the toast says so");
+});
+

@@ -45,6 +45,10 @@ A quest with **no start date** has no start-based behaviour, so quests that exis
 6. If an edit moves **only the due date** to before the start date, the start date is pulled back to the new due date instead of failing (so bulk reschedules such as "move overdue to today" never break). If the edit explicitly sets a conflicting start date, it is rejected.
 7. Edits that don't touch type, due date or start date are never blocked, even on older quests.
 
+### Rescheduling a quest whose start date has passed
+
+A start date that has already passed counts as "start reached", so it keeps a quest on today's list however far off its due date is. So **Reschedule** (the selection bar and the quest list) moves such a start date along with the due date: both become the picked day, and the quest leaves today's list until then. This includes a quest with an old start date and no due date, which gets the picked day as its due date and as its start. A start date that is today or later is left alone (rule 6 still pulls it back if it would fall after the new due date), and picking a day in the past never moves a start date forward. The toast says when start dates moved, and **Undo** restores both dates. The rule is `reschedulePatch` in `shared/quest-schedule.ts`. Push (by days) and Move overdue to today change only due dates. **Incubate** changes only the start date.
+
 Violations return `400` with `{ "error": "<message>", "code": "INVALID_QUEST_DATES" }`. Messages:
 - `A deadline quest needs a due date.`
 - `The start date can't be after the due date.`

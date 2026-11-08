@@ -332,6 +332,32 @@ Seed quests (all open, type General unless stated) for these cases. Smart Focus 
 
 ---
 
+## Rescheduling a quest with a past start date
+
+Automated: `shared/quest-schedule.test.ts` (the `reschedulePatch` rule, the old-start-no-due case, past picks, time zones, page wiring and Undo).
+
+### RS-1: Old start date, no due date
+- **Steps:** Take a quest whose start date is weeks ago and that has no due date (it shows on today's list). Select it, Reschedule, pick a day next week.
+- **Expected:** The toast says "Moved 1 task to <day>. Its start date moved too." The quest leaves today's list and comes back on the picked day; its detail shows both the start and due date as the picked day.
+
+### RS-2: Undo
+- **Steps:** Press Undo on that toast.
+- **Expected:** The due date is cleared again and the old start date is back; the quest is on today's list again.
+
+### RS-3: Start date today or later
+- **Steps:** Reschedule a quest that starts tomorrow to a day next week.
+- **Expected:** Only the due date changes; the start date stays tomorrow.
+
+### RS-4: Several quests at once
+- **Steps:** Select one quest with an old start date and one with none, and Reschedule them.
+- **Expected:** Both get the new due date; only the first has its start date moved; the toast mentions one start date.
+
+### RS-5: A day in the past
+- **Steps:** Reschedule a quest with an old start date to a day before today.
+- **Expected:** The due date changes; the start date is not moved forward (and is pulled back to the due date if it would fall after it).
+
+---
+
 ## Automated Coverage Map
 
 | Area | Test file |
