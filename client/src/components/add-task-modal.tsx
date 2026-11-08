@@ -13,7 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuestTypeBadge, QuestTypeChooser } from "@/components/quest-type-chooser";
 import type { QuestType } from "@shared/quest-type";
-import { DEADLINE_NEEDS_DUE_DATE, validateQuestDates } from "@shared/quest-schedule";
+import { DEADLINE_NEEDS_DUE_DATE, dayStart, validateQuestDates } from "@shared/quest-schedule";
+import { DEFAULT_KANBAN_STAGE, KANBAN_STAGES, kanbanStageLabel } from "@shared/kanban-stages";
+import { INCUBATE_STAGE, stagePatch, storedDay } from "@shared/incubate";
+import { IncubateDialog } from "@/components/incubate-dialog";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -539,7 +542,8 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [importance, setImportance] = useState<string>("Medium");
-  const [kanbanStage, setKanbanStage] = useState<string>("To Do");
+  const [kanbanStage, setKanbanStage] = useState<string>(DEFAULT_KANBAN_STAGE);
+  const [isIncubateOpen, setIsIncubateOpen] = useState(false);
   const [recurType, setRecurType] = useState<string>("one-time");
   const [businessWorkFilter, setBusinessWorkFilter] = useState<string>("General");
   const [campaign, setCampaign] = useState<string>("unassigned");
@@ -636,7 +640,8 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setDueDate(undefined);
     setStartDate(undefined);
     setImportance("Medium");
-    setKanbanStage("To Do");
+    setKanbanStage(DEFAULT_KANBAN_STAGE);
+    setIsIncubateOpen(false);
     setRecurType("one-time");
     setBusinessWorkFilter("General");
     setCampaign("unassigned");
@@ -672,6 +677,18 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       return;
     }
 
+    // An incubating quest comes back on its start date, so it needs a day after today.
+    const incubating = kanbanStage === INCUBATE_STAGE;
+    if (incubating && (!startDate || new Date(storedDay(startDate)).getTime() < dayStart(new Date(), 1))) {
+      toast({
+        title: "Pick the day it comes back",
+        description: "An incubating quest needs a start date after today.",
+        variant: "destructive",
+      });
+      setIsIncubateOpen(true);
+      return;
+    }
+
     const durationNum = parseInt(duration);
     if (isNaN(durationNum) || durationNum <= 0) {
       toast({
@@ -693,7 +710,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       duration: durationNum,
       goldValue, // Use auto-calculated value
       dueDate: dueDate ? dueDate.toISOString() : null,
-      startDate: startDate ? startDate.toISOString() : null,
+      startDate: startDate ? (incubating ? storedDay(startDate) : startDate.toISOString()) : null,
       importance,
       kanbanStage,
       recurType,
@@ -939,22 +956,42 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             </Select>
           </div>
 
-          {/* Kanban Stage */}
+          {/* Kanban Stage: the same stages as when editing a quest */}
           <div className="space-y-2">
             <Label htmlFor="kanbanStage" className="text-yellow-200">
               Kanban Stage
             </Label>
-            <Select value={kanbanStage} onValueChange={setKanbanStage}>
+            <Select
+              value={kanbanStage}
+              onValueChange={(value) => {
+                // Incubate asks for the day first; the stage only changes once one is chosen.
+                if (value === INCUBATE_STAGE) { setIsIncubateOpen(true); return; }
+                // Leaving Incubate lets go of its return date, as it does when editing a quest.
+                const patch = stagePatch({ kanbanStage, startDate: startDate ? storedDay(startDate) : null }, value, new Date());
+                setKanbanStage(patch.kanbanStage);
+                if (patch.startDate === null) setStartDate(undefined);
+              }}
+            >
               <SelectTrigger className="bg-slate-800/50 border-yellow-600/30 text-yellow-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-yellow-600/40">
-                <SelectItem value="To Do">To Do</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Review">Review</SelectItem>
-                <SelectItem value="Done">Done</SelectItem>
+                {KANBAN_STAGES.map((stage) => <SelectItem key={stage.value} value={stage.value}>{kanbanStageLabel(stage)}</SelectItem>)}
               </SelectContent>
             </Select>
+            {kanbanStage === INCUBATE_STAGE && startDate && (
+              <p data-testid="incubate-create-note" className="text-xs text-yellow-200/70">
+                Incubating — back in your list on {format(startDate, "MMM dd, yyyy")}.{" "}
+                <button type="button" onClick={() => setIsIncubateOpen(true)} className="underline hover:text-yellow-100">Change</button>
+              </p>
+            )}
+            <IncubateDialog
+              open={isIncubateOpen}
+              onOpenChange={setIsIncubateOpen}
+              quest={{ dueDate: dueDate ? storedDay(dueDate) : null, startDate: null }}
+              pending={false}
+              onConfirm={(day) => { setKanbanStage(INCUBATE_STAGE); setStartDate(day); setIsIncubateOpen(false); }}
+            />
           </div>
 
           {/* Recurrence Type */}

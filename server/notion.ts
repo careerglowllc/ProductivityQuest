@@ -1,5 +1,6 @@
 import { Client } from "@notionhq/client";
 import { calculateGoldValue } from "./goldCalculation";
+import { normalizeKanbanStage } from "@shared/kanban-stages";
 
 // Initialize Notion client
 export const notion = new Client({
@@ -337,7 +338,7 @@ export async function addTaskToNotion(task: any, databaseId: string, userApiKey:
             // Required: Kanban - Stage (Status)
             "Kanban - Stage": {
                 status: {
-                    name: task.completed ? "Done" : (task.kanbanStage || "Not Started"),
+                    name: task.completed ? "Done" : normalizeKanbanStage(task.kanbanStage),
                 },
             },
             // Required: Recur Type (Select)

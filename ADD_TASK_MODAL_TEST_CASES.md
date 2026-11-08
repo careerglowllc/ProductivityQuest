@@ -1292,3 +1292,29 @@ Automated: `client/src/components/importance-label.test.tsx` (colours, dot and n
 - **Steps:** Open a quest's detail, Add Questline, Edit Questline (a quest and a branch), and the questline draft tree
 - **Expected:** Every importance dropdown shows the same colours; Medium is orange and Low is green in all of them
 
+---
+
+## Kanban stages: the same when creating and editing (Nov 2026)
+
+Automated: `shared/kanban-stages.test.ts` (the list, old names, both screens use it, the Incubate flow while creating, server and Notion).
+
+### KB-1: Same list in both places
+- **Steps:** Open Add Quest and open the Kanban Stage dropdown; then open an existing quest and open its Kanban Stage dropdown
+- **Expected:** Both show 📋 Not Started, 🔄 In Progress, 💡 Incubate, 👀 Review, ✅ Done, in that order; a new quest starts at Not Started
+
+### KB-2: Incubate while creating
+- **Steps:** In Add Quest pick Incubate
+- **Expected:** "Incubate until when?" opens; cancelling leaves the stage unchanged; choosing "1 week" sets the stage to Incubate, fills Start Date with that day and shows "Incubating — back in your list on <day>" with Change. Create Quest: the quest is hidden from the feed until that day and its detail shows the same line.
+
+### KB-3: Incubate needs a day
+- **Steps:** Pick Incubate, then clear the Start Date (or set it to today) and press Create Quest
+- **Expected:** "Pick the day it comes back" and the dialog opens; nothing is created
+
+### KB-4: Leaving Incubate
+- **Steps:** Pick Incubate with a day, then switch the stage to In Progress
+- **Expected:** The Start Date is cleared; a start date you typed yourself before choosing a non-Incubate stage is kept
+
+### KB-5: Quests made as "To Do"
+- **Steps:** Open a quest that was created before this change
+- **Expected:** Its Kanban Stage reads Not Started, not blank
+

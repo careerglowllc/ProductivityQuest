@@ -16,6 +16,7 @@ import { Resend } from 'resend';
 import { registerCommandCenter } from "./command-center";
 import { buildTasksCsv, isCompletedCsvRow, parseTaskCsvRow } from "./tasks-csv";
 import { resolveQuestDatePatch, validateQuestDates } from "@shared/quest-schedule";
+import { normalizeKanbanStage } from "@shared/kanban-stages";
 import { commandStore, COMMAND_KEY_PREFIX } from "./command-center-store";
 import { registerSmartFocus } from "./smart-focus";
 import { focusStore, FOCUS_KEY_PREFIX } from "./smart-focus-store";
@@ -775,6 +776,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (bodyData.startDate && typeof bodyData.startDate === 'string') {
         bodyData.startDate = new Date(bodyData.startDate);
       }
+      // "To Do" from an older screen or an import is the first stage, "Not Started"
+      if (typeof bodyData.kanbanStage === 'string') bodyData.kanbanStage = normalizeKanbanStage(bodyData.kanbanStage);
       
       // Auto-calculate gold value based on duration and importance
       if (bodyData.duration) {
@@ -933,6 +936,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (bodyData.scheduledTime && typeof bodyData.scheduledTime === 'string') {
         bodyData.scheduledTime = new Date(bodyData.scheduledTime);
       }
+      // "To Do" from an older screen or an import is the first stage, "Not Started"
+      if (typeof bodyData.kanbanStage === 'string') bodyData.kanbanStage = normalizeKanbanStage(bodyData.kanbanStage);
       
       const updateData = insertTaskSchema.partial().parse(bodyData);
       const existing = await storage.getTask(id, userId);

@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { EmojiPicker } from "./emoji-picker";
 import { IncubateDialog } from "@/components/incubate-dialog";
 import { INCUBATE_STAGE, incubatePatch, incubateStatus, stagePatch } from "@shared/incubate";
+import { KANBAN_STAGES, kanbanStageLabel, normalizeKanbanStage } from "@shared/kanban-stages";
 import { questTypeAfterClearingDue } from "@shared/quest-schedule";
 import { 
   Calendar, 
@@ -1270,7 +1271,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Kanban Stage</span>
               </div>
               <Select
-                value={task.kanbanStage || "Not Started"}
+                value={normalizeKanbanStage(task.kanbanStage)}
                 onValueChange={(value) => {
                   // Incubate asks for the day first; nothing is saved unless one is chosen.
                   if (value === INCUBATE_STAGE) { setIsIncubateOpen(true); return; }
@@ -1281,11 +1282,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-yellow-600/40">
-                  <SelectItem value="Not Started">📋 Not Started</SelectItem>
-                  <SelectItem value="In Progress">🔄 In Progress</SelectItem>
-                  <SelectItem value="Incubate">💡 Incubate</SelectItem>
-                  <SelectItem value="Review">👀 Review</SelectItem>
-                  <SelectItem value="Done">✅ Done</SelectItem>
+                  {KANBAN_STAGES.map((stage) => <SelectItem key={stage.value} value={stage.value}>{kanbanStageLabel(stage)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

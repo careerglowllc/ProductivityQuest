@@ -395,6 +395,13 @@ Refer to `ADD_TASK_MODAL_TEST_CASES.md` for 60 comprehensive test cases
 
 The importance choices showed "?" diamonds (the emoji circles were stored as corrupted characters) and the questline modals used a different scheme. Every importance dropdown (Add Quest, quest detail, Add / Edit Questline, questline draft tree) now uses `ImportanceLabel` (`client/src/components/importance-label.tsx`): a drawn coloured circle plus the name, so it looks the same on every device. Colours live in `client/src/lib/importance.ts`: Low green, Med-Low yellow, Medium orange, Med-High red-orange, High red, Pareto deep red with a white ring.
 
+### November 2026 — One list of kanban stages
+
+Creating a quest offered To Do / In Progress / Review / Done, while editing offered Not Started / In Progress / Incubate / Review / Done. A quest created as "To Do" then showed a blank Kanban Stage when edited. Both screens now use one list, `KANBAN_STAGES` in `shared/kanban-stages.ts`: 📋 Not Started, 🔄 In Progress, 💡 Incubate, 👀 Review, ✅ Done. New quests start at Not Started.
+
+- **Incubate while creating:** choosing it opens the same "Incubate until when?" dialog as when editing. The chosen day becomes the Start Date (stored as a calendar day at UTC midnight, like an incubated quest), is shown under the stage with a Change link, and the quest cannot be created without a day after today. Switching to another stage lets go of that start date, as when editing.
+- **Old data:** `normalizeKanbanStage` treats "To Do", "todo" and blank as Not Started. The edit screen shows it that way, the server applies it when a quest is created or updated, and the Notion export sends it (Notion has no "To Do" stage). `rename-todo-stage.cjs` renamed the 325 existing "To Do" quests to "Not Started" (`--dry` previews, `--undo <file>` reverses it).
+
 ---
 
 **Implementation Complete** ✅  
