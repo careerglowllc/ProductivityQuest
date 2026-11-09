@@ -7,3 +7,4 @@
 - [Command Center intent](command-center-intent.md) — private macro-goal strategy journaling with visual business debriefs, not shared example content.
 - [GitHub publishing](github-publishing.md) — use the installed App proxy when shell credentials fail; account for UTC-normalized commit hashes.
 - [Smart Focus learning intent](smart-focus-intent.md) — personalization must be private per account, explainable, and conservative about inferred preferences.
+- [Push after every change](push-after-changes.md) — commit and push finished, tested changes to main without asking.
