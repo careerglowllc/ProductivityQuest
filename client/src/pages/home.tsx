@@ -37,7 +37,7 @@ import { apiRequest, invalidateCalendarEvents } from "@/lib/queryClient";
 import { useTheme } from "@/contexts/theme-context";
 import type { CSVExport } from "@/lib/csv-export";
 import { DEFAULT_QUEST_TYPE, QUEST_TYPES, QUEST_TYPE_LABELS, compareByDueDateThenImportance, isQuestType, type QuestType } from "@shared/quest-type";
-import { FOCUS_BAND_HINTS, isOnTodaysList, isReminder, reschedulePatch, smartFocus, sortReminders, sortUpcoming, dayStart, type FocusBand } from "@shared/quest-schedule";
+import { FOCUS_BAND_HINTS, dateReminderLabel, isDateReminder, isOnTodaysList, isReminder, reminderShowsToday, reschedulePatch, smartFocus, sortReminders, sortUpcoming, dayStart, type FocusBand } from "@shared/quest-schedule";
 import { childrenAtStake, planChildren, type ChildrenAtStake, type ChildrenChoice } from "@shared/questline-delete";
 import { DeleteChildrenDialog } from "@/components/quest-delete-children-dialog";
 
@@ -1109,8 +1109,9 @@ export default function Home() {
     const todayStartUTC = new Date(Date.UTC(localYear, localMonth, localDay));
 
     // Find all overdue, incomplete, non-recycled tasks (due date strictly before today's local date in UTC)
+    // A reminder on a date keeps its date, so it is never moved here either.
     const overdueTasks = allTasks.filter((t: any) => {
-      if (t.completed || t.recycled || !t.dueDate) return false;
+      if (t.completed || t.recycled || !t.dueDate || isDateReminder(t)) return false;
       const due = new Date(t.dueDate);
       // Compare full timestamps - task is overdue if its due date is before today's local-date midnight UTC
       return due.getTime() < todayStartUTC.getTime();
@@ -2134,10 +2135,12 @@ export default function Home() {
   // Reminders live in their own compact strip above the list, except where the list itself includes them.
   const remindersInList = activeFilter === "type-reminder" || (showReminders && activeFilter !== "smart");
   const reminderQuery = searchQuery.trim().toLowerCase();
+  // Ongoing reminders are always here; a reminder on a date only the day before and on its date, first in the strip.
+  const reminderNow = new Date();
   const reminderQuests = !remindersInList && (activeFilter !== "smart" || smartView === "on")
     ? sortReminders((tasks as any[]).filter((task: any) =>
-        !task.completed && isReminder(task)
-        && (!reminderQuery || `${task.title ?? ""} ${task.description ?? ""}`.toLowerCase().includes(reminderQuery))))
+        reminderShowsToday(task, reminderNow)
+        && (!reminderQuery || `${task.title ?? ""} ${task.description ?? ""}`.toLowerCase().includes(reminderQuery))), reminderNow)
     : [];
   const renderReminders = () => reminderQuests.length === 0 ? null : (
     <section data-testid="reminders-strip" className={`rounded-[10px] border border-[var(--dash-line)] bg-[var(--dash-surface)] px-3 py-1.5 ${isMobile ? "mb-1.5" : "mb-3"}`}>
@@ -2166,6 +2169,9 @@ export default function Home() {
                 className="dash-focus max-w-full truncate rounded text-[11px] leading-tight text-[var(--dash-ink)] hover:text-[var(--dash-violet)] hover:underline"
               >
                 {task.emoji ? `${task.emoji} ` : ""}{task.title}
+                {dateReminderLabel(task, reminderNow) && (
+                  <span data-testid="reminder-day-label" className="ml-1 font-semibold text-[var(--dash-amber)]">· {dateReminderLabel(task, reminderNow)}</span>
+                )}
               </button>
             </li>
           ))}

@@ -246,6 +246,47 @@ Seed quests (all open, type General unless stated) for these cases. Smart Focus 
 
 ---
 
+## E2. Reminder Timing (ongoing, or on a date)
+
+Automated: `shared/quest-schedule.test.ts` (timings, the window, late night and midnight, a date picked on a US device, which reminders show, order, validation, edit rules), `server/recurrence.test.ts` (next date of a passed one, clock changes, Feb 29), `server/due-date-rollover.test.ts` (moved on for every account in its own day, left out of the rollover, migration and routes), `server/tasks-csv.test.ts` (the column, round trip, older exports), `client/src/components/reminder-timing.test.tsx` (the picker, the dashboard card, create / edit / strip wiring).
+
+### TC-QS-049a: Create a birthday reminder
+**Steps:** Add Quest > Reminder. Under Reminder Timing pick **On a date**. Pick tomorrow as the Date, tap **🎂 Repeat every year**, create.  
+**Expected:** Start Date disappears when On a date is picked; Date is required (red asterisk); the form says which two days it shows; Recurrence becomes Yearly and the button reads "Comes back every year on this date". The reminder is in the strip with **· Tomorrow**, ahead of the ongoing reminders, and on the dashboard's Today's reminders. **[auto]**
+
+### TC-QS-049b: Date required
+**Steps:** Pick On a date, leave Date empty, create.  
+**Expected:** "Date Required" and nothing is created. **[auto]**
+
+### TC-QS-049c: Only the day before and on the day
+**Steps:** Create reminders on a date for today, tomorrow and in a week.  
+**Expected:** Today's shows "· Today" and comes first, tomorrow's "· Tomorrow"; the one in a week is not in the strip or on the dashboard, but is under All and Type > Reminder. **[auto]**
+
+### TC-QS-049d: Never moved to today
+**Steps:** With auto-roll on, have a one-time reminder on a date for yesterday; load the quest list on a new day, then press **Move Overdue to Today**.  
+**Expected:** Its date stays yesterday both times and it is not in the strip; an ongoing reminder and other overdue quests are moved to today as before. **[auto]**
+
+### TC-QS-049e: Last year's birthday comes back
+**Steps:** Have a yearly reminder on a date whose date passed without being completed (for example last year's).  
+**Expected:** On the next load its date is this year's (or next year's if this year's has passed too) and it shows the day before and on the day. Completing it on the day moves it to next year. **[auto]**
+
+### TC-QS-049f: Change the timing in the detail view
+**Steps:** Open an ongoing reminder with no due date and pick On a date.  
+**Expected:** "Set the date first"; nothing changes. Set a due date, then pick On a date: the toast says the two days it shows; the Due Date card reads **Date** with "In your reminders <day before> and <date>", and there is no Start Date card. If it had a start date, the toast says it was cleared. Pick Ongoing: it is back in the strip every day.
+
+### TC-QS-049g: Clear the date of a reminder on a date
+**Steps:** In its detail view, Clear due date.  
+**Expected:** The date clears and it becomes ongoing in the same save; the toast says so.
+
+### TC-QS-049h: Existing reminders unchanged
+**Expected:** Reminders made before this read **Ongoing**, are in the strip every day, and still roll to today with auto-roll on.
+
+### TC-QS-049i: CSV
+**Steps:** Export, then import the file into another account.  
+**Expected:** A Reminder Timing column (last) reads *On a date* or *Ongoing* for reminders, blank for others; the reminders come back with the same timing. An older CSV without the column imports reminders as ongoing. **[auto]**
+
+---
+
 ## F. Other Filters and Surfaces
 
 ### TC-QS-050: Today chip

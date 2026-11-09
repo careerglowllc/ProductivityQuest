@@ -15,7 +15,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 import { registerCommandCenter } from "./command-center";
 import { buildTasksCsv, isCompletedCsvRow, parseTaskCsvRow } from "./tasks-csv";
-import { resolveQuestDatePatch, validateQuestDates } from "@shared/quest-schedule";
+import { isReminderMode, resolveQuestDatePatch, validateQuestDates } from "@shared/quest-schedule";
 import { normalizeKanbanStage } from "@shared/kanban-stages";
 import { commandStore, COMMAND_KEY_PREFIX } from "./command-center-store";
 import { registerSmartFocus } from "./smart-focus";
@@ -25,7 +25,7 @@ import { registerFitnessAi } from "./fitness-ai";
 import { planChildren, type ChildrenChoice } from "@shared/questline-delete";
 import { localDay } from "@shared/due-date-rollover";
 import { isIsoDay } from "@shared/finance-schedule";
-import { rollOverdueIfNewDay } from "./due-date-rollover";
+import { advancePassedDateReminders, rollOverdueIfNewDay } from "./due-date-rollover";
 import { rolloverStore, rolloverScheduler } from "./due-date-rollover-store";
 
 // Which quests a delete removes and which move up, when a quest being deleted has others after it in its
@@ -679,6 +679,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       // On a new day, quests that became overdue move to today first, for accounts that turned that on.
       await rollOverdueIfNewDay(rolloverStore, userId).catch((error) => console.error('⚠️ [GET /api/tasks] due-date rollover failed:', error));
+      // A repeating date-specific reminder whose date has passed (last year's birthday) moves on to its next date, for every account.
+      await advancePassedDateReminders(rolloverStore, userId).catch((error) => console.error('⚠️ [GET /api/tasks] date reminder advance failed:', error));
       const tasks = await storage.getTasks(userId);
       console.log('📋 [GET /api/tasks] Successfully fetched', tasks.length, 'tasks');
       res.json(tasks);
@@ -784,6 +786,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bodyData.goldValue = calculateGoldValue(bodyData.importance, bodyData.duration);
       }
       
+      if (bodyData.reminderMode !== undefined && bodyData.reminderMode !== null && !isReminderMode(bodyData.reminderMode)) {
+        return res.status(400).json({ error: "Unknown reminder timing.", code: "INVALID_REMINDER_MODE" });
+      }
       const taskData = insertTaskSchema.parse(bodyData);
       const dateError = validateQuestDates(taskData);
       if (dateError) return res.status(400).json({ error: dateError, code: "INVALID_QUEST_DATES" });
@@ -939,6 +944,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // "To Do" from an older screen or an import is the first stage, "Not Started"
       if (typeof bodyData.kanbanStage === 'string') bodyData.kanbanStage = normalizeKanbanStage(bodyData.kanbanStage);
       
+      if (bodyData.reminderMode !== undefined && bodyData.reminderMode !== null && !isReminderMode(bodyData.reminderMode)) {
+        return res.status(400).json({ error: "Unknown reminder timing.", code: "INVALID_REMINDER_MODE" });
+      }
       const updateData = insertTaskSchema.partial().parse(bodyData);
       const existing = await storage.getTask(id, userId);
       if (!existing) return res.status(404).json({ error: "Task not found" });

@@ -19,7 +19,7 @@ The card names your timezone (for example America/Los Angeles). Midnight is that
 | Completed, or in the recycling bin | Unchanged |
 | Another account's quests | Never touched |
 
-- Every quest type is included (reminder, deadline, general), as is every importance level.
+- Every quest type is included (reminder, deadline, general), as is every importance level, **except a reminder set to On a date** (like a birthday). Its date is kept as it is, so it never turns into a reminder that shows every day; a repeating one moves on to its next date instead. Move Overdue to Today leaves it alone too. See [QUEST_SYSTEM_README.md](QUEST_SYSTEM_README.md) section 4a.
 - Only the due date changes. The start date, any calendar time slot, and any Google Calendar event stay as they were. (This is the same as the manual Move Overdue to Today button.)
 - It runs once per local day. A due date you set yourself later the same day, even one in the past, is left alone until the next new day.
 - "Today" for a due date means its calendar day as the app shows it (a due date is stored as midnight UTC of that day).
@@ -30,7 +30,7 @@ The card names your timezone (for example America/Los Angeles). Midnight is that
 - **The server sleeps until midnight.** `server/due-date-rollover.ts` works out the next midnight among the accounts that have it on, sleeps until just after it, rolls them, and plans the next one. It reads the database only at start, at those midnights, and when a setting changes, never on a short timer, so an idle database can still go to sleep.
 - **Catching up.** When the server starts it rolls any account that missed a day while it was down. Also, whenever the quest list is loaded (`GET /api/tasks`), an account that has not rolled yet today is rolled first, so the list always shows the right dates even if the timer did not fire.
 - **The open app updates itself.** For accounts with the setting on, the app reloads the quest list just after midnight in the account's timezone (and when you bring the app back to the front on a new day), so you see the new dates without reloading the page.
-- **The move itself** is one database update (`server/due-date-rollover-store.ts`) limited to that account's active quests with a due date before today.
+- **The move itself** is one database update (`server/due-date-rollover-store.ts`) limited to that account's active quests with a due date before today, leaving out reminders on a date. The filter is written so a reminder with a blank timing (every reminder made before timings existed) is still rolled.
 - **Failures are safe.** If the update fails, the day is not marked as done, so it is tried again. Rolling twice does no harm.
 
 ## API

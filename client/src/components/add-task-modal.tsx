@@ -13,9 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { QuestTypeBadge, QuestTypeChooser } from "@/components/quest-type-chooser";
 import type { QuestType } from "@shared/quest-type";
-import { DEADLINE_NEEDS_DUE_DATE, dayStart, validateQuestDates } from "@shared/quest-schedule";
+import { DATE_REMINDER_NEEDS_DATE, DEADLINE_NEEDS_DUE_DATE, DEFAULT_REMINDER_MODE, dateReminderShowRange, dayStart, validateQuestDates, type ReminderMode } from "@shared/quest-schedule";
+import { ReminderTimingPicker } from "@/components/reminder-timing";
 import { DEFAULT_KANBAN_STAGE, KANBAN_STAGES, kanbanStageLabel } from "@shared/kanban-stages";
-import { INCUBATE_STAGE, stagePatch, storedDay } from "@shared/incubate";
+import { INCUBATE_STAGE, localDayOf, stagePatch, storedDay } from "@shared/incubate";
 import { IncubateDialog } from "@/components/incubate-dialog";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -545,6 +546,9 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
   const [kanbanStage, setKanbanStage] = useState<string>(DEFAULT_KANBAN_STAGE);
   const [isIncubateOpen, setIsIncubateOpen] = useState(false);
   const [recurType, setRecurType] = useState<string>("one-time");
+  // Reminders only: ongoing (always in the reminders) or for one date, like a birthday.
+  const [reminderMode, setReminderMode] = useState<ReminderMode>(DEFAULT_REMINDER_MODE);
+  const dateReminder = questType === "reminder" && reminderMode === "on-date";
   const [businessWorkFilter, setBusinessWorkFilter] = useState<string>("General");
   const [campaign, setCampaign] = useState<string>("unassigned");
   const [assignedTo, setAssignedTo] = useState<string>("Alex");
@@ -643,6 +647,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
     setKanbanStage(DEFAULT_KANBAN_STAGE);
     setIsIncubateOpen(false);
     setRecurType("one-time");
+    setReminderMode(DEFAULT_REMINDER_MODE);
     setBusinessWorkFilter("General");
     setCampaign("unassigned");
     setAssignedTo("Alex");
@@ -666,12 +671,14 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       return;
     }
 
-    // Deadlines need a due date; reminders and general to-dos can go without one.
-    const dateError = validateQuestDates({ questType, dueDate, startDate });
+    // Deadlines and date-specific reminders need a due date; other reminders and general to-dos can go without one.
+    const savedReminderMode = questType === "reminder" ? reminderMode : null;
+    const dateError = validateQuestDates({ questType, dueDate, startDate: dateReminder ? undefined : startDate, reminderMode: savedReminderMode });
     if (dateError) {
       toast({
-        title: dateError === DEADLINE_NEEDS_DUE_DATE ? "Due Date Required" : "Check Your Dates",
-        description: dateError === DEADLINE_NEEDS_DUE_DATE ? "A deadline quest needs a due date." : dateError,
+        title: dateError === DEADLINE_NEEDS_DUE_DATE || dateError === DATE_REMINDER_NEEDS_DATE ? (dateReminder ? "Date Required" : "Due Date Required") : "Check Your Dates",
+        description: dateError === DEADLINE_NEEDS_DUE_DATE ? "A deadline quest needs a due date."
+          : dateError === DATE_REMINDER_NEEDS_DATE ? "A reminder on a date needs that date, like the birthday it is for." : dateError,
         variant: "destructive",
       });
       return;
@@ -709,8 +716,10 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
       attachments,
       duration: durationNum,
       goldValue, // Use auto-calculated value
-      dueDate: dueDate ? dueDate.toISOString() : null,
-      startDate: startDate ? (incubating ? storedDay(startDate) : startDate.toISOString()) : null,
+      // A date-specific reminder's date is stored as that calendar day, and it has no start date of its own.
+      dueDate: dueDate ? (dateReminder ? storedDay(dueDate) : dueDate.toISOString()) : null,
+      startDate: startDate && (!dateReminder || incubating) ? (incubating ? storedDay(startDate) : startDate.toISOString()) : null,
+      reminderMode: savedReminderMode,
       importance,
       kanbanStage,
       recurType,
@@ -912,29 +921,60 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
           </div>
 
 
-          {/* Start Date */}
-          <QuestDateField
-            testId="start-date-field"
-            label="Start Date"
-            value={startDate}
-            onChange={setStartDate}
-            shortcuts={[
-              { label: "Today", date: startOfToday() },
-              { label: "Tomorrow", date: daysFromToday(1) },
-              { label: "Next week", date: daysFromToday(7) },
-            ]}
-            hint="Start working on this from here. Leave blank to make it available now."
-          />
+          {/* Reminder timing: ongoing, or for one date (like a birthday) */}
+          {questType === "reminder" && (
+            <div className="space-y-2">
+              <Label className="text-yellow-200">Reminder Timing</Label>
+              <ReminderTimingPicker value={reminderMode} onChange={setReminderMode} />
+            </div>
+          )}
 
-          {/* Due Date */}
+          {/* Start Date (a date-specific reminder only has its date) */}
+          {!dateReminder && (
+            <QuestDateField
+              testId="start-date-field"
+              label="Start Date"
+              value={startDate}
+              onChange={setStartDate}
+              shortcuts={[
+                { label: "Today", date: startOfToday() },
+                { label: "Tomorrow", date: daysFromToday(1) },
+                { label: "Next week", date: daysFromToday(7) },
+              ]}
+              hint="Start working on this from here. Leave blank to make it available now."
+            />
+          )}
+
+          {/* Due Date, or the reminder's date */}
           <QuestDateField
             testId="due-date-field"
-            label="Due Date"
-            required={questType === "deadline"}
+            label={dateReminder ? "Date" : "Due Date"}
+            required={questType === "deadline" || dateReminder}
             value={dueDate}
             onChange={setDueDate}
-            hint={questType === "deadline" ? "The deadline this has to be done by." : "Optional. The deadline this has to be done by."}
+            hint={dateReminder ? "The day it's for, like a birthday. It shows in your reminders the day before and on the day."
+              : questType === "deadline" ? "The deadline this has to be done by." : "Optional. The deadline this has to be done by."}
           />
+          {dateReminder && (
+            <div data-testid="date-reminder-repeat" className="-mt-1 flex flex-wrap items-center gap-2 text-xs text-yellow-200/70">
+              {dueDate && (() => {
+                const range = dateReminderShowRange(storedDay(dueDate));
+                return range ? <span>Shows {format(localDayOf(range.from.toISOString())!, "MMM d")} and {format(localDayOf(range.to.toISOString())!, "MMM d")}.</span> : null;
+              })()}
+              {recurType === "yearly" ? (
+                <span>Comes back every year on this date.</span>
+              ) : (
+                <button
+                  type="button"
+                  data-testid="repeat-every-year"
+                  onClick={() => setRecurType("yearly")}
+                  className="rounded-full border border-yellow-600/30 bg-slate-800/50 px-2.5 py-1 text-yellow-200/80 transition-colors hover:border-yellow-500/60 hover:text-yellow-100"
+                >
+                  🎂 Repeat every year
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Importance */}
           <div className="space-y-2">

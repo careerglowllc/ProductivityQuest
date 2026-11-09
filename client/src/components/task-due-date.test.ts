@@ -15,7 +15,14 @@ test("Clear due date is always in the due date picker, for every quest type and 
 
 test("clearing the due date of a deadline quest saves the new type in the same request, and says so", () => {
   assert.ok(dueCard.includes("questTypeAfterClearingDue(task)"));
-  assert.ok(dueCard.includes("extra: type ? { questType: type } : undefined"));
+  assert.ok(dueCard.includes("...(type ? { questType: type } : {})"));
+  assert.ok(dueCard.includes("extra: Object.keys(extra).length ? extra : undefined"), "nothing extra is sent for other quests");
   assert.ok(modal.includes("JSON.stringify({ [field]: date ? date.toISOString() : null, ...extra })"));
   assert.ok(modal.includes("It was a Deadline quest, so it is now a General quest."));
+});
+
+test("clearing the date of a reminder on a date makes it an ongoing reminder in the same request, and says so", () => {
+  assert.ok(dueCard.includes("reminderModeAfterClearingDue({ questType: displayedQuestType, reminderMode: displayedReminderMode })"));
+  assert.ok(dueCard.includes("...(mode ? { reminderMode: mode } : {})"));
+  assert.ok(modal.includes("It was a reminder on a date, so it is now an ongoing reminder."));
 });

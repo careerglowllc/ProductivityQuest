@@ -1,12 +1,12 @@
 import { Link } from "wouter";
 import { BellRing } from "lucide-react";
-import { remindersForToday } from "@shared/quest-schedule";
+import { dateReminderLabel, remindersForToday } from "@shared/quest-schedule";
 
-type ReminderTask = { id: number; title: string; emoji?: string | null; questType?: string | null; completed?: boolean | null; recycled?: boolean | null; importance?: string | null; startDate?: string | Date | null; dueDate?: string | Date | null };
+type ReminderTask = { id: number; title: string; emoji?: string | null; questType?: string | null; reminderMode?: string | null; completed?: boolean | null; recycled?: boolean | null; importance?: string | null; startDate?: string | Date | null; dueDate?: string | Date | null };
 
-// A compact dashboard card listing today's open reminders; absent when there are none.
-export function TodaysReminders({ tasks, className = "" }: { tasks: readonly ReminderTask[]; className?: string }) {
-  const reminders = remindersForToday(tasks, new Date());
+// A compact dashboard card listing today's open reminders (a reminder on a date only the day before and on the day); absent when there are none.
+export function TodaysReminders({ tasks, className = "", now = new Date() }: { tasks: readonly ReminderTask[]; className?: string; now?: Date }) {
+  const reminders = remindersForToday(tasks, now);
   if (reminders.length === 0) return null;
   return (
     <section
@@ -29,6 +29,9 @@ export function TodaysReminders({ tasks, className = "" }: { tasks: readonly Rem
               >
                 {task.emoji ? <span aria-hidden>{task.emoji}</span> : null}
                 <span className="truncate">{task.title}</span>
+                {dateReminderLabel(task, now) && (
+                  <span data-testid="reminder-day-label" className="shrink-0 text-[11px] font-semibold text-[var(--dash-amber)]">{dateReminderLabel(task, now)}</span>
+                )}
               </a>
             </Link>
           </li>

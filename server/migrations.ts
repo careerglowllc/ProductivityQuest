@@ -107,6 +107,13 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ
     `;
 
+    // Migration: Reminder timing ("always" / "on-date"). Nullable and not backfilled, so every existing reminder stays
+    // ongoing and behaves as before.
+    await sql`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS reminder_mode TEXT
+    `;
+
     // Migration: Partial index backing the completed-task archive (newest-first pages,
     // "completed today" lookups, and the per-completion cap count).
     await sql`

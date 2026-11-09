@@ -111,6 +111,9 @@ export const tasks = pgTable("tasks", {
   assignedTo: text("assigned_to").default("Alex"), // Person assigned to this quest
   // reminder | deadline | general — chosen when the quest is created; older quests default to general.
   questType: text("quest_type", { enum: QUEST_TYPES }).notNull().default("general"),
+  // Reminders only: "always" (ongoing, the default when blank) or "on-date" (for one day, like a birthday: shows the day
+  // before and on its due date, and that date is never rolled to today). See shared/quest-schedule.ts.
+  reminderMode: text("reminder_mode"),
   // Inline attachments embedded in the description (images, videos and PDFs as base64 data URLs). Stored in DB so they
   // persist across deploys and work on both web + iOS (which share the hosted server origin).
   attachments: jsonb("attachments").$type<Array<{ id: string; type: "image" | "video" | "pdf"; dataUrl: string; name: string; size: number }>>().default([]),

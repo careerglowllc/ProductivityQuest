@@ -14,10 +14,11 @@ Every quest has a type, chosen first when it is created and changeable later fro
 |------|--------------|-----------|----------|------------|----------------|
 | **Deadline** | `deadline` | Something that has to be done by an exact date | **Required** | Optional | Smart Focus, Today, <3 Days, All, Type filter |
 | **General to-do** | `general` | Worth doing, no hard deadline | Optional | Optional | Smart Focus (only when due/starting), All, Type filter |
-| **Reminder** | `reminder` | Standing best practices and nudges, not work to schedule | Optional | Optional | **Reminders strip** (above the list in Smart Focus), All, Type filter |
+| **Reminder** | `reminder` | Standing best practices and nudges, not work to schedule; or something for one day, like a birthday | Optional (**required** when it is on a date) | Optional (none when it is on a date) | **Reminders strip** (above the list in Smart Focus), dashboard, All, Type filter |
 
 - The default type is `general`. Quests created before types existed, imported from Notion, or imported from a CSV with no type column are general to-dos.
 - Reminders never appear in Smart Focus, whatever their dates. They live in their own compact strip instead (section 4).
+- A reminder is either **Ongoing** (always in the reminders) or **On a date** (only the day before and on its date, and its date is never moved to today). See section 4a.
 - The type shows as a small icon on quest cards, the calendar and the dashboard top-tasks list.
 
 ### Choosing and changing the type
@@ -37,8 +38,8 @@ A quest with **no start date** has no start-based behaviour, so quests that exis
 
 ### Rules (enforced in the UI **and** by the server)
 
-1. A **Deadline** quest must have a due date, on create and on edit.
-2. Reminders and general to-dos may have no due date, no start date, or both.
+1. A **Deadline** quest must have a due date, on create and on edit. So must a **reminder on a date** (its due date is its date).
+2. Ongoing reminders and general to-dos may have no due date, no start date, or both.
 3. The start date cannot be after the due date. Same day is fine; the comparison is by calendar day, so a start earlier in the day than the due time never counts as "after".
 4. Switching an existing quest to Deadline needs a due date (already stored, or sent in the same edit).
 5. A Deadline's due date can be changed but not cleared. For other types the due date can be cleared from the detail view.
@@ -51,7 +52,10 @@ A start date that has already passed counts as "start reached", so it keeps a qu
 
 Violations return `400` with `{ "error": "<message>", "code": "INVALID_QUEST_DATES" }`. Messages:
 - `A deadline quest needs a due date.`
+- `A date-specific reminder needs its date.` (switching a reminder to **On a date** without one, or clearing its date without making it ongoing in the same save; the detail view does the latter for you, as it turns a deadline into a general quest when its due date is cleared)
 - `The start date can't be after the due date.`
+
+A reminder timing other than `always` or `on-date` returns `400` with `{ "error": "Unknown reminder timing.", "code": "INVALID_REMINDER_MODE" }`.
 
 ### Date storage convention
 Dates are stored as the user's **calendar day at UTC midnight** (for example `2026-10-15T00:00:00.000Z`). "Today" is built the same way (`dayStart()` in `shared/quest-schedule.ts`), and dates are displayed using their UTC components so a stored day never shifts by a time zone.
@@ -130,6 +134,23 @@ Reminders are general best practices, not hard tasks, so they don't compete with
 - Order: most important first, then nearest due date, undated last.
 - The search box also filters the strip. The strip is hidden when there are no open reminders.
 - Other filters (All, Today, Type > Reminder, ...) still list reminders as normal quests; the strip only exists in Smart Focus so they aren't shown twice.
+- A reminder **on a date** is only in the strip (and on the dashboard's Today's reminders) the day before and on its date, with **· Tomorrow** or **· Today** beside it, ahead of the ongoing ones (today's first). Other lists show it every day, so it can always be found and edited.
+
+## 4a. Reminder timing: ongoing, or on a date
+
+Every reminder has a timing, chosen under **Reminder Timing** when it is created and changeable in its detail view (two buttons, each saying what it does):
+
+| Timing | Stored `reminder_mode` | In the reminders | Its due date and the overdue rule |
+|--------|------------------------|------------------|-----------------------------------|
+| **Ongoing** (default) | blank or `always` | Always (the dashboard still waits for a start date, if it has one) | Follows the rule like any quest: with [auto-roll](AUTO_ROLL_DUE_DATES.md) on, a due date that passes moves to today, and **Move Overdue to Today** moves it |
+| **On a date** | `on-date` | Only **the day before** and **on** its date (`REMINDER_LEAD_DAYS` = 1), in the user's local day | **Kept as it is.** Never moved to today by auto-roll or by Move Overdue to Today. A repeating one moves on to its **next date** once the day has passed; a one-time one keeps its date and stops showing |
+
+- **Creating one:** pick **On a date** and the form asks for a **Date** (required, the day it is for), drops Start Date, says which two days it will show, and offers **🎂 Repeat every year** (sets Recurrence to Yearly; it then reads "Comes back every year on this date"). The date is stored as that calendar day.
+- **Editing one:** the detail view has a **Reminder Timing** card for reminders. Switching to On a date needs the date first ("Set the date first"); switching clears a start date it had (said in the toast). For a reminder on a date the Due Date card reads **Date** and says "In your reminders <day before> and <date>", and there is no Start Date card. Clearing its date makes it ongoing in the same save.
+- **Completing one:** a repeating reminder on a date moves on by its recurrence (a yearly birthday to next year's), as every recurring quest does; a one-time one is archived.
+- **Passed dates:** whenever quests are loaded (`GET /api/tasks`), for every account, an open repeating reminder on a date whose date has passed moves on to its next date on or after today, in the account's own day (`advancePassedDateReminders`). Last year's birthday you never ticked off shows up again this year. Only if its date is still the one read, so a change made meanwhile wins.
+- Every reminder made before this is ongoing and behaves exactly as it did.
+- The rules live in `shared/quest-schedule.ts` (`isDateReminder`, `dateReminderDaysAway`, `reminderShowsToday`, `remindersForToday`); the picker is `client/src/components/reminder-timing.tsx`.
 
 ---
 
@@ -153,6 +174,8 @@ Reminders are general best practices, not hard tasks, so they don't compete with
 ## 6. Recurring quests
 When a recurring quest is completed it is rescheduled instead of archived. The due date moves forward by the recurrence period; the **start date moves by the same period**, so the lead time is kept, and it never lands after the new due date. A recurring quest with no start date stays without one. (`server/recurrence.ts`)
 
+A repeating **reminder on a date** whose date passes without being completed also moves on, to its next date on or after today (`nextRecurringDateOnOrAfter`, stepped on the stored UTC calendar day so a clock change can never shift it). See section 4a.
+
 ---
 
 ## 7. CSV import and export
@@ -162,6 +185,7 @@ When a recurring quest is completed it is rescheduled instead of archived. The d
 - Import accepts type labels or stored values, any case, with spacing ignored. Unknown or blank types become general.
 - A **Deadline row with no due date** can't be saved, so it imports as a general to-do.
 - A start date **after** the due date is dropped on import. Junk dates are ignored.
+- A **Reminder Timing** column (last) holds *Ongoing* or *On a date* for reminders and is blank for other quests. Import reads it; a reminder marked *On a date* without a date, or from an older export without the column, imports as ongoing.
 - **Completed rows are skipped** on import. Full exports now include completed quests (as history), and importing them must not revive finished work.
 - **Settings > Export All as CSV** includes open **and completed** quests in `Tasks/tasks.csv`. (Completed quests are stored as archived rows; the export used to leave them out. Deleted quests are not exported.)
 - Other Explore data (Countries, States, Activities in Cities, Food in Cities) is also in the Export All zip under `Travel/`.
@@ -176,11 +200,12 @@ When a recurring quest is completed it is rescheduled instead of archived. The d
 |--------|------|-------|
 | `quest_type` | `text NOT NULL DEFAULT 'general'` | `reminder` \| `deadline` \| `general` |
 | `start_date` | `timestamptz NULL` | Optional; **no backfill**, so existing quests have none |
+| `reminder_mode` | `text NULL` | Reminders only: `always` or `on-date`; blank counts as `always`, so every existing reminder is unchanged; **no backfill** |
 
 Both columns are added by `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `server/migrations.ts` (`runStartupMigrations`). A new column must be added there as well as in `shared/schema.ts`, or production breaks (see `DATABASE_MIGRATION_TEST_CASES.md`).
 
 ### API
-- `POST /api/tasks` accepts `questType`, `startDate`, `dueDate` (ISO strings). Validation per section 2.
+- `POST /api/tasks` accepts `questType`, `startDate`, `dueDate` (ISO strings) and `reminderMode` (`always` / `on-date` / null). Validation per section 2.
 - `PATCH /api/tasks/:id` accepts the same; only edits touching type/due/start are validated against the stored quest.
 - `GET /api/tasks/export/csv` returns open + completed quests.
 - Notion sync is not used for start dates (the Notion integration is unchanged).
@@ -193,7 +218,9 @@ Both columns are added by `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `server/
 |---------|------|
 | Types, labels, parsing, importance rank | `shared/quest-type.ts` |
 | Smart Focus rules, cap, Today list, reminders, validation | `shared/quest-schedule.ts` |
-| Recurrence dates (due and start) | `server/recurrence.ts` |
+| Recurrence dates (due and start), the next date of a passed reminder on a date | `server/recurrence.ts` |
+| Reminder timing picker (create and edit) | `client/src/components/reminder-timing.tsx` |
+| Keeping reminders on a date out of the rollover, moving passed ones on | `server/due-date-rollover-store.ts`, `server/due-date-rollover.ts` |
 | CSV build / parse | `server/tasks-csv.ts` |
 | Create / edit validation, CSV routes | `server/routes.ts` |
 | Export query (open + completed) | `server/storage.ts` (`getTasksForExport`) |

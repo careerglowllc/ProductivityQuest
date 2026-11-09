@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRolloverScheduler, rollEnabledAccounts, rollOverdueIfNewDay, type RolloverStore } from "./due-date-rollover";
+import { advancePassedDateReminders, createRolloverScheduler, rollEnabledAccounts, rollOverdueIfNewDay, type DateReminderStore, type RolloverStore } from "./due-date-rollover";
 
 type Row = { enabled: boolean; timezone: string | null; lastDay: string | null };
 function fakeStore(rows: Record<string, Row>, options: { failRoll?: Set<string>; failList?: { on: boolean } } = {}) {
@@ -181,3 +181,49 @@ test("Settings shows the switch, and the app reloads quests when the day changes
   const hook = read("../client/src/hooks/use-day-rollover-refresh.ts");
   assert.ok(hook.includes("if (!enabled) return;") && hook.includes('queryKey: ["/api/tasks"]') && hook.includes('"visibilitychange"'));
 });
+
+// ── Reminders on a date ─────────────────────────────────────────────────────
+test("a passed reminder on a date is moved on for every account, whatever the rollover setting, in the account's own today", async () => {
+  const calls: string[] = [];
+  const store: DateReminderStore = {
+    account: async (id) => (id === "nobody" ? undefined : { timezone: id === "la" ? "America/Los_Angeles" : null }),
+    advanceDateReminders: async (id, today) => { calls.push(`${id} ${today.toISOString()}`); return 2; },
+  };
+  // 05:00 UTC on Nov 10 is still Nov 9 in Los Angeles.
+  assert.deepEqual(await advancePassedDateReminders(store, "la", new Date("2026-11-10T05:00:00Z")), { day: "2026-11-09", moved: 2 });
+  assert.deepEqual(await advancePassedDateReminders(store, "utc", new Date("2026-11-10T05:00:00Z")), { day: "2026-11-10", moved: 2 });
+  assert.equal(await advancePassedDateReminders(store, "nobody"), null);
+  assert.deepEqual(calls, ["la 2026-11-09T00:00:00.000Z", "utc 2026-11-10T00:00:00.000Z"]);
+});
+
+test("the rollover never moves a reminder on a date to today, but still moves every other overdue quest, including older reminders", () => {
+  const store = read("./due-date-rollover-store.ts");
+  assert.ok(store.includes('const notDateReminder = or(ne(tasks.questType, "reminder"), isNull(tasks.reminderMode), ne(tasks.reminderMode, "on-date"));'),
+    "a blank reminder_mode (every reminder made before) still counts as ongoing; a plain not-equal would drop those rows");
+  const roll = store.slice(store.indexOf("async rollOverdue"), store.indexOf("async advanceDateReminders"));
+  assert.ok(roll.includes("notDateReminder"), "left out of the rollover");
+});
+
+test("only open, repeating reminders on a date that has passed move on, and never over a change made meanwhile", () => {
+  const store = read("./due-date-rollover-store.ts");
+  const advance = store.slice(store.indexOf("async advanceDateReminders"), store.indexOf("async markRolled"));
+  for (const condition of ["eq(tasks.userId, userId)", "eq(tasks.completed, false)", "eq(tasks.recycled, false)", 'eq(tasks.questType, "reminder")', 'eq(tasks.reminderMode, "on-date")', "lt(tasks.dueDate, today)"]) {
+    assert.ok(advance.includes(condition), condition);
+  }
+  assert.ok(advance.includes("if (!reminder.dueDate || !isRecurringType(reminder.recurType)) continue;"), "a one-time one keeps its date");
+  assert.ok(advance.includes("nextRecurringDateOnOrAfter(reminder.dueDate, reminder.recurType, today)"));
+  assert.ok(advance.includes("eq(tasks.dueDate, reminder.dueDate)"), "only if the date is still the one read");
+  assert.ok(advance.includes("set({ dueDate: next })") && !advance.includes("startDate"), "only the date changes");
+});
+
+test("the database gets the column on startup, the routes accept only the two timings, and quests load after the advance", () => {
+  assert.ok(read("../shared/schema.ts").includes('reminderMode: text("reminder_mode"),'));
+  assert.ok(read("./migrations.ts").includes("ADD COLUMN IF NOT EXISTS reminder_mode TEXT"), "nullable, so every existing reminder stays ongoing");
+  const routes = read("./routes.ts");
+  assert.equal((routes.match(/!isReminderMode\(bodyData\.reminderMode\)\) \{\n\s+return res\.status\(400\)\.json\(\{ error: "Unknown reminder timing\.", code: "INVALID_REMINDER_MODE" \}\);/g) ?? []).length, 2, "creating and updating a quest");
+  const tasksRoute = routes.slice(routes.indexOf('app.get("/api/tasks"'), routes.indexOf("// Export tasks as CSV"));
+  const advance = tasksRoute.indexOf("advancePassedDateReminders(rolloverStore, userId)");
+  assert.ok(advance > 0 && advance < tasksRoute.indexOf("storage.getTasks(userId)"), "moved on before the list is read");
+  assert.ok(!tasksRoute.slice(0, advance).includes("if (") , "for every account, not only those that roll overdue quests");
+});
+

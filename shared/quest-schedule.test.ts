@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   DEADLINE_NEEDS_DUE_DATE, FOCUS_BANDS, SMART_FOCUS_CAP, START_AFTER_DUE, focusBand, isHighPriority, isNotStartedYet, isOnTodaysList, isOverdue, isReminder, smartFocus, sortReminders, remindersForToday,
-  questTypeAfterClearingDue, reschedulePatch, resolveQuestDatePatch, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
+  questTypeAfterClearingDue, reschedulePatch, resolveQuestDatePatch, DATE_REMINDER_NEEDS_DATE, REMINDER_LEAD_DAYS, REMINDER_MODES, dateReminderDaysAway, dateReminderLabel, dateReminderShowRange, isDateReminder, isReminderMode, reminderModeAfterClearingDue, reminderShowsToday, smartBand, sortUpcoming, validateQuestDates, type ScheduledQuest,
 } from "./quest-schedule";
 
 // Monday 12 Oct 2026, mid-morning. Quest dates are stored as a calendar day at UTC midnight.
@@ -386,5 +386,94 @@ test("the Reschedule action sends what reschedulePatch decides, shows the start 
   assert.ok(home.includes('...(patches.get(id)?.startDate !== undefined ? { startDate: task?.startDate ?? null } : {})'), "the old start date is kept for Undo");
   assert.ok(home.includes('apiRequest("PATCH", `/api/tasks/${id}`, { dueDate, ...(startDate !== undefined ? { startDate } : {}) })'), "Undo restores it");
   assert.ok(home.includes("start date moved too"), "the toast says so");
+});
+
+// ── Reminder timing ─────────────────────────────────────────────────────────
+// `now` is Monday 12 Oct 2026, 10:30 local; `day(n)` is that day plus n, stored at UTC midnight.
+const reminder = (name: string, extra: Record<string, unknown> = {}) => ({ name, questType: "reminder", ...extra });
+const onDate = (name: string, offset: number | null, extra: Record<string, unknown> = {}) =>
+  reminder(name, { reminderMode: "on-date", dueDate: offset === null ? null : day(offset), ...extra });
+
+test("there are two timings, ongoing by default, and only a reminder can be on a date", () => {
+  assert.deepEqual([...REMINDER_MODES], ["always", "on-date"]);
+  assert.equal(REMINDER_LEAD_DAYS, 1, "the day before");
+  assert.ok(isReminderMode("on-date") && isReminderMode("always") && !isReminderMode("birthday") && !isReminderMode(null));
+  assert.equal(isDateReminder(onDate("Mom's birthday", 3)), true);
+  assert.equal(isDateReminder(reminder("Posture")), false, "blank is ongoing (every reminder made before this)");
+  assert.equal(isDateReminder(reminder("Posture", { reminderMode: "always" })), false);
+  assert.equal(isDateReminder({ questType: "general", reminderMode: "on-date" }), false, "ignored on other quests");
+});
+
+test("a reminder on a date shows the day before and on the day, and not on any other day", () => {
+  assert.equal(dateReminderDaysAway(onDate("today", 0), now), 0);
+  assert.equal(dateReminderDaysAway(onDate("tomorrow", 1), now), 1);
+  for (const offset of [2, 5, 365, -1, -30]) assert.equal(dateReminderDaysAway(onDate("other", offset), now), null, `${offset} days away`);
+  assert.equal(dateReminderDaysAway(onDate("no date", null), now), null);
+  assert.equal(dateReminderDaysAway(reminder("ongoing", { dueDate: day(0) }), now), null, "an ongoing reminder has no window");
+  assert.deepEqual([dateReminderLabel(onDate("a", 0), now), dateReminderLabel(onDate("b", 1), now), dateReminderLabel(onDate("c", 2), now)], ["Today", "Tomorrow", null]);
+});
+
+test("the window follows the clock: late at night and just after midnight", () => {
+  const birthday = onDate("birthday", 1); // Oct 13
+  assert.equal(dateReminderDaysAway(birthday, new Date(2026, 9, 11, 23, 59)), null, "two days before, even at 11:59 PM");
+  assert.equal(dateReminderDaysAway(birthday, new Date(2026, 9, 12, 0, 1)), 1, "the day before from 12:01 AM");
+  assert.equal(dateReminderDaysAway(birthday, new Date(2026, 9, 13, 23, 59)), 0, "the day itself until midnight");
+  assert.equal(dateReminderDaysAway(birthday, new Date(2026, 9, 14, 0, 1)), null, "gone the day after");
+});
+
+test("a date picked on a US device (local midnight, stored as morning UTC) is the same calendar day", () => {
+  const pickedInCalifornia = onDate("birthday", null, { dueDate: "2026-10-13T07:00:00.000Z" }); // Oct 13, 00:00 PDT
+  assert.equal(dateReminderDaysAway(pickedInCalifornia, now), 1);
+  assert.deepEqual(dateReminderShowRange("2026-10-13T07:00:00.000Z"), { from: new Date("2026-10-12T00:00:00.000Z"), to: new Date("2026-10-13T00:00:00.000Z") });
+  assert.equal(dateReminderShowRange(null), null);
+});
+
+test("an open ongoing reminder always shows; a reminder on a date only in its window; finished ones never", () => {
+  assert.equal(reminderShowsToday(reminder("Posture"), now), true);
+  assert.equal(reminderShowsToday(reminder("Posture", { dueDate: day(-40) }), now), true, "however old its due date");
+  assert.equal(reminderShowsToday(onDate("birthday", 1), now), true);
+  assert.equal(reminderShowsToday(onDate("birthday", 9), now), false);
+  assert.equal(reminderShowsToday(onDate("birthday", 0, { completed: true }), now), false);
+  assert.equal(reminderShowsToday(onDate("birthday", 0, { recycled: true }), now), false);
+  assert.equal(reminderShowsToday({ questType: "general", dueDate: day(0) }, now), false, "not a reminder");
+});
+
+test("today's reminders: dated ones in their window come first (today, then tomorrow), then the ongoing ones by importance", () => {
+  const list = [
+    reminder("Posture", { importance: "Low" }),
+    onDate("Mom's birthday (tomorrow)", 1, { importance: "Low" }),
+    reminder("Breathe", { importance: "High" }),
+    onDate("Dentist (today)", 0, { importance: "Low" }),
+    onDate("Anniversary (next week)", 7, { importance: "Pareto" }),
+    onDate("Dad's birthday (yesterday)", -1, { importance: "Pareto" }),
+    reminder("Later", { startDate: day(3) }),
+  ];
+  assert.deepEqual(names(remindersForToday(list, now)), ["Dentist (today)", "Mom's birthday (tomorrow)", "Breathe", "Posture"]);
+});
+
+test("without a time, reminders sort as before: importance, then due date", () => {
+  const list = [onDate("a", 0, { importance: "Low" }), reminder("b", { importance: "High" })];
+  assert.deepEqual(names(sortReminders(list)), ["b", "a"]);
+});
+
+test("a reminder on a date needs its date, like a deadline", () => {
+  assert.equal(validateQuestDates({ questType: "reminder", reminderMode: "on-date", dueDate: null }), DATE_REMINDER_NEEDS_DATE);
+  assert.equal(validateQuestDates({ questType: "reminder", reminderMode: "on-date", dueDate: day(3) }), null);
+  assert.equal(validateQuestDates({ questType: "reminder", reminderMode: "always", dueDate: null }), null, "an ongoing reminder needs none");
+  assert.equal(validateQuestDates({ questType: "general", reminderMode: "on-date", dueDate: null }), null, "ignored on other quests");
+});
+
+test("edits: switching to on-a-date needs a date, and clearing the date of one needs it to become ongoing in the same save", () => {
+  const ongoing = { questType: "reminder", reminderMode: null, dueDate: null };
+  assert.deepEqual(resolveQuestDatePatch(ongoing, { reminderMode: "on-date" }), { ok: false, error: DATE_REMINDER_NEEDS_DATE });
+  assert.deepEqual(resolveQuestDatePatch({ ...ongoing, dueDate: day(4) }, { reminderMode: "on-date" }), { ok: true, adjust: {} });
+  assert.deepEqual(resolveQuestDatePatch(ongoing, { reminderMode: "on-date", dueDate: day(4) }), { ok: true, adjust: {} }, "both in one save");
+  const dated = { questType: "reminder", reminderMode: "on-date", dueDate: day(4) };
+  assert.deepEqual(resolveQuestDatePatch(dated, { dueDate: null }), { ok: false, error: DATE_REMINDER_NEEDS_DATE });
+  assert.deepEqual(resolveQuestDatePatch(dated, { dueDate: null, reminderMode: reminderModeAfterClearingDue(dated)! }), { ok: true, adjust: {} });
+  assert.deepEqual(resolveQuestDatePatch(dated, { questType: "general", dueDate: null }), { ok: true, adjust: {} }, "no longer a reminder");
+  assert.deepEqual(resolveQuestDatePatch({ questType: "general", dueDate: null }, { reminderMode: "on-date" }), { ok: true, adjust: {} });
+  assert.equal(reminderModeAfterClearingDue(ongoing), null);
+  assert.equal(reminderModeAfterClearingDue({ questType: "general", reminderMode: "on-date" }), null);
 });
 

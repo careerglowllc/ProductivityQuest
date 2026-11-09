@@ -10,6 +10,21 @@ export interface RolloverStore {
   markRolled(userId: string, day: string): Promise<void>;
 }
 
+/** Moving date-specific reminders whose date has passed on to their next date. Runs for every account, whatever the rollover setting. */
+export interface DateReminderStore {
+  account(userId: string): Promise<{ timezone: string | null } | undefined>;
+  /** Moves the account's open, repeating date-specific reminders dated before `today` to their next date on or after it; returns how many moved. */
+  advanceDateReminders(userId: string, today: Date): Promise<number>;
+}
+
+/** Moves a passed repeating date-specific reminder (last year's birthday) to its next date, in the account's own today. */
+export async function advancePassedDateReminders(store: DateReminderStore, userId: string, now = new Date()) {
+  const account = await store.account(userId);
+  if (!account) return null;
+  const day = localDay(now, account.timezone);
+  return { day, moved: await store.advanceDateReminders(userId, dueDateForDay(day)) };
+}
+
 async function rollAccount(store: RolloverStore, userId: string, account: RolloverAccount, now: Date) {
   const day = localDay(now, account.timezone);
   if (account.lastDay === day) return null; // already done for this local day

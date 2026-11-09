@@ -12,7 +12,8 @@ import { EmojiPicker } from "./emoji-picker";
 import { IncubateDialog } from "@/components/incubate-dialog";
 import { INCUBATE_STAGE, incubatePatch, incubateStatus, stagePatch } from "@shared/incubate";
 import { KANBAN_STAGES, kanbanStageLabel, normalizeKanbanStage } from "@shared/kanban-stages";
-import { questTypeAfterClearingDue } from "@shared/quest-schedule";
+import { DEFAULT_REMINDER_MODE, dateReminderShowRange, questTypeAfterClearingDue, reminderModeAfterClearingDue, type ReminderMode } from "@shared/quest-schedule";
+import { ReminderTimingPicker } from "@/components/reminder-timing";
 import { 
   Calendar, 
   Clock, 
@@ -32,7 +33,8 @@ import {
   Target,
   SlidersHorizontal,
   Keyboard,
-  Map
+  Map,
+  Bell
 } from "lucide-react";
 import { format } from "date-fns";
 import { QuestTypeSelector } from "@/components/quest-type-chooser";
@@ -100,6 +102,10 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   const queryClient = useQueryClient();
   const [displayedQuestType, setDisplayedQuestType] = useState(task.questType);
   useEffect(() => { setDisplayedQuestType(task.questType); }, [task.id, task.questType]);
+  // Reminders only: ongoing, or for one date. Shown at once when changed, like the quest type.
+  const [displayedReminderMode, setDisplayedReminderMode] = useState<string | null>(task.reminderMode ?? null);
+  useEffect(() => { setDisplayedReminderMode(task.reminderMode ?? null); }, [task.id, task.reminderMode]);
+  const dateReminder = displayedQuestType === 'reminder' && displayedReminderMode === 'on-date';
   const { toast } = useToast();
   // Smart Focus keeps its list still while this dialog is open, so an edit is never cut off by a re-rank.
   useFocusHold(open);
@@ -196,8 +202,9 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
       const label = field === 'dueDate' ? 'Due Date' : 'Start Date';
       toast({
         title: date ? `📅 ${label} Updated` : `📅 ${label} Cleared`,
-        description: date ? `Quest ${label.toLowerCase()} has been changed successfully.` : `Quest ${label.toLowerCase()} has been removed.${extra?.questType ? ' It was a Deadline quest, so it is now a General quest.' : ''}`,
+        description: date ? `Quest ${label.toLowerCase()} has been changed successfully.` : `Quest ${label.toLowerCase()} has been removed.${extra?.questType ? ' It was a Deadline quest, so it is now a General quest.' : ''}${extra?.reminderMode ? ' It was a reminder on a date, so it is now an ongoing reminder.' : ''}`,
       });
+      if (extra?.reminderMode) setDisplayedReminderMode(String(extra.reminderMode));
     },
     onError: (error: Error) => {
       toast({
@@ -205,6 +212,34 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  // Changing a reminder's timing. A reminder on a date only has its date, so a start date it had goes in the same save.
+  const updateReminderModeMutation = useMutation({
+    mutationFn: async (mode: ReminderMode) => {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reminderMode: mode, ...(mode === 'on-date' && task.startDate ? { startDate: null } : {}) }),
+      });
+      if (!response.ok) throw new Error(await failureMessage(response, 'Failed to update reminder timing'));
+      return response.json();
+    },
+    onSuccess: (_data, mode) => {
+      setDisplayedReminderMode(mode);
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      const range = mode === 'on-date' ? dateReminderShowRange(task.dueDate) : null;
+      toast({
+        title: '🔔 Reminder Timing Updated',
+        description: range
+          ? `In your reminders on ${formatStoredDay(range.from.toISOString())} and ${formatStoredDay(range.to.toISOString())}. Its date is never moved to today.${task.startDate ? ' Its start date was cleared.' : ''}`
+          : 'Always in your reminders.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -843,7 +878,8 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
 
           {/* Key Information Grid */}
           <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-4'}`}>
-            {/* Start Date */}
+            {/* Start Date (a reminder on a date only has its date) */}
+            {!dateReminder && (
             <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`} data-testid="start-date-card">
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
                 <Calendar className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
@@ -890,13 +926,14 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                 </Popover>
               </div>
             </div>
+            )}
 
-            {/* Due Date */}
+            {/* Due Date, or the reminder's date */}
             <div className={`bg-slate-800/50 rounded-lg ${isMobile ? 'p-3' : 'p-4'} border border-yellow-600/20`} data-testid="due-date-card">
               <div className="flex items-center gap-2 text-yellow-400 mb-2">
                 <Calendar className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>
-                  Due Date{task.questType === 'deadline' && <span className="text-red-400"> *</span>}
+                  {dateReminder ? 'Date' : 'Due Date'}{(task.questType === 'deadline' || dateReminder) && <span className="text-red-400"> *</span>}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -934,7 +971,9 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                         className="w-full text-yellow-200/80 hover:bg-yellow-600/20 hover:text-yellow-100"
                         onClick={() => {
                           const type = questTypeAfterClearingDue(task);
-                          updateDateMutation.mutate({ field: 'dueDate', date: null, extra: type ? { questType: type } : undefined });
+                          const mode = reminderModeAfterClearingDue({ questType: displayedQuestType, reminderMode: displayedReminderMode });
+                          const extra = { ...(type ? { questType: type } : {}), ...(mode ? { reminderMode: mode } : {}) };
+                          updateDateMutation.mutate({ field: 'dueDate', date: null, extra: Object.keys(extra).length ? extra : undefined });
                         }}
                       >
                         Clear due date
@@ -943,6 +982,14 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                   </PopoverContent>
                 </Popover>
               </div>
+              {dateReminder && (() => {
+                const range = dateReminderShowRange(task.dueDate);
+                return (
+                  <p data-testid="date-reminder-shows" className="mt-1 text-[11px] text-yellow-200/60">
+                    {range ? `In your reminders ${formatStoredDay(range.from.toISOString())} and ${formatStoredDay(range.to.toISOString())}` : 'Set its date to show it'}
+                  </p>
+                );
+              })()}
             </div>
 
             {/* Duration */}
@@ -1130,6 +1177,31 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
                 }}
               />
             </div>
+            {/* Reminder timing: ongoing, or for one date like a birthday */}
+            {displayedQuestType === 'reminder' && (
+              <div data-testid="reminder-timing-card" className={`${isMobile ? 'col-span-2' : ''} flex flex-col gap-2 bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
+                <div className="flex items-center gap-2 text-yellow-400">
+                  <Bell className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                  <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>Reminder Timing</span>
+                </div>
+                <ReminderTimingPicker
+                  value={displayedReminderMode ?? DEFAULT_REMINDER_MODE}
+                  compact={isMobile}
+                  disabled={updateReminderModeMutation.isPending}
+                  onChange={(mode) => {
+                    if (mode === 'on-date' && !task.dueDate) {
+                      toast({
+                        title: "Set the date first",
+                        description: "A reminder on a date needs its date, like the birthday it is for. Set the Due Date, then switch.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    updateReminderModeMutation.mutate(mode);
+                  }}
+                />
+              </div>
+            )}
             {/* Questline */}
             <div className={`${isMobile ? 'flex flex-col gap-1.5' : 'flex items-center justify-between'} bg-slate-800/50 rounded-lg ${isMobile ? 'p-2.5' : 'p-3'} border border-yellow-600/20`}>
               <div className="flex items-center gap-2 text-yellow-400">

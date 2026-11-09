@@ -51,3 +51,7 @@ On a day when your timezone's clock changes, **expect:** quests still roll once,
 
 ### AR-12: The manual button still works
 On the Quests page, **Move Overdue to Today** still moves overdue quests when you press it, whether the setting is on or off.
+
+### AR-13: A reminder on a date keeps its date
+With the setting on, have a reminder set to **On a date** whose date was yesterday, and an ongoing reminder due yesterday. Let a new day start (or load the quest list). **Expect:** the ongoing reminder is due today; the reminder on a date keeps yesterday's date (or, if it repeats, moves on to its next date) and is not shown as today's. Pressing **Move Overdue to Today** leaves it alone too. **[auto: `server/due-date-rollover.test.ts`]**
+

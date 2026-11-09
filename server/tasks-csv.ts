@@ -1,12 +1,12 @@
 import type { Task } from "../shared/schema";
 import { parseQuestType, questTypeLabel, type QuestType } from "../shared/quest-type";
-import { START_AFTER_DUE, validateQuestDates } from "../shared/quest-schedule";
+import { REMINDER_MODE_LABELS, START_AFTER_DUE, isDateReminder, validateQuestDates, type ReminderMode } from "../shared/quest-schedule";
 
 export const TASK_CSV_HEADERS = [
   "ID", "Title", "Description", "Details", "Duration (min)", "Gold Value", "Importance",
   "Kanban Stage", "Recurrence", "Campaign", "Business/Work Filter", "Quest Type", "Start Date", "Due Date",
   "Completed", "Completed At", "Created At", "Skill Tags", "Apple", "Smart Prep", "Delegation",
-  "Velin", "Assigned To",
+  "Velin", "Assigned To", "Reminder Timing",
 ] as const;
 
 // Quotes a field when it contains a comma, quote or newline.
@@ -43,6 +43,8 @@ export function buildTasksCsv(tasks: Omit<Task, "attachments">[]): string {
     task.delegationTask ? "Yes" : "No",
     task.velin ? "Yes" : "No",
     escapeCsvField(task.assignedTo ?? "Alex"),
+    // Reminders only: "Ongoing" or "On a date"; blank for other quests.
+    task.questType === "reminder" ? REMINDER_MODE_LABELS[isDateReminder(task) ? "on-date" : "always"] : "",
   ].join(","));
   return [TASK_CSV_HEADERS.join(","), ...rows].join("\n");
 }
@@ -52,6 +54,7 @@ export type ParsedCsvTask = {
   importance: string; kanbanStage: string; recurType: string; campaign: string | null;
   businessWorkFilter: string | null; questType: QuestType; startDate: Date | null; dueDate: Date | null; skillTags: string[];
   apple: boolean; smartPrep: boolean; delegationTask: boolean; velin: boolean; assignedTo: string; completed: false;
+  reminderMode: ReminderMode | null;
 };
 
 const parseBoolean = (v: string | undefined) => v?.toLowerCase() === "yes" || v === "1" || v?.toLowerCase() === "true";
@@ -73,6 +76,9 @@ const parseNum = (v: string | undefined, fallback: number) => {
 export function parseTaskCsvRow(r: Record<string, string>): ParsedCsvTask {
   const dueDate = parseDate(r["Due Date"]);
   const questType = parseQuestType(r["Quest Type"]);
+  // "On a date" (or "on-date") on a reminder that has a date; anything else is an ongoing reminder, and other quests have none.
+  const timing = (r["Reminder Timing"] ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const onDate = questType === "reminder" && !!dueDate && (timing === "on a date" || timing === "on-date");
   const rawStart = parseDate(r["Start Date"]);
   const startDate = validateQuestDates({ questType: "general", dueDate, startDate: rawStart }) === START_AFTER_DUE ? null : rawStart;
   return {
@@ -96,5 +102,6 @@ export function parseTaskCsvRow(r: Record<string, string>): ParsedCsvTask {
     velin: parseBoolean(r["Velin"]),
     assignedTo: r["Assigned To"]?.trim() || "Alex",
     completed: false,
+    reminderMode: questType === "reminder" ? (onDate ? "on-date" : "always") : null,
   };
 }

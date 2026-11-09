@@ -173,3 +173,27 @@ test("create and update schemas: startDate accepts a date or null and rejects an
   assert.equal(insertTaskSchema.safeParse({ ...base, startDate: "soon" }).success, false);
   assert.equal(insertTaskSchema.partial().parse({ startDate: null }).startDate, null);
 });
+
+test("CSV: reminders carry their timing, other quests leave it blank", () => {
+  const csv = buildTasksCsv([
+    task({ id: 1, title: "Mom's birthday", questType: "reminder", reminderMode: "on-date", dueDate: new Date("2026-11-10T00:00:00Z"), recurType: "yearly" } as Partial<Task>),
+    task({ id: 2, title: "Posture", questType: "reminder", reminderMode: null } as Partial<Task>),
+    task({ id: 3, title: "Report", questType: "deadline", dueDate: new Date("2026-11-10T00:00:00Z") }),
+    task({ id: 4, title: "Odd", questType: "general", reminderMode: "on-date" } as Partial<Task>),
+  ]);
+  assert.equal(TASK_CSV_HEADERS[TASK_CSV_HEADERS.length - 1], "Reminder Timing", "added at the end, so older readers are unaffected");
+  assert.deepEqual(asRecords(csv).map((r) => r["Reminder Timing"]), ["On a date", "Ongoing", "", ""]);
+  assert.equal(parseCsv(csv)[1].length, parseCsv(csv)[0].length);
+});
+
+test("CSV import: a reminder on a date comes back as one; without a date, from an older export, or on another quest it does not", () => {
+  const round = asRecords(buildTasksCsv([task({ title: "Mom's birthday", questType: "reminder", reminderMode: "on-date", dueDate: new Date("2026-11-10T00:00:00Z") } as Partial<Task>)]));
+  assert.equal(parseTaskCsvRow(round[0]).reminderMode, "on-date", "export then import keeps it");
+  assert.equal(parseTaskCsvRow({ Title: "x", "Quest Type": "Reminder", "Due Date": "2026-11-10", "Reminder Timing": "on-date" }).reminderMode, "on-date");
+  assert.equal(parseTaskCsvRow({ Title: "x", "Quest Type": "Reminder", "Reminder Timing": "On a date" }).reminderMode, "always", "no date: ongoing");
+  assert.equal(parseTaskCsvRow({ Title: "x", "Quest Type": "Reminder", "Due Date": "2026-11-10" }).reminderMode, "always", "older export without the column");
+  assert.equal(parseTaskCsvRow({ Title: "x", "Quest Type": "General to-do", "Due Date": "2026-11-10", "Reminder Timing": "On a date" }).reminderMode, null);
+  const accepted = insertTaskSchema.safeParse({ ...parseTaskCsvRow(round[0]), userId: "u1" });
+  assert.ok(accepted.success, "the parsed row can be saved");
+});
+
