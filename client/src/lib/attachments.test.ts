@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   MAX_IMAGE_BYTES, MAX_PDF_BYTES, MAX_VIDEO_BYTES, MEDIA_ACCEPT, type QuestAttachment,
-  attachmentFileName, dataUrlToBlob, dataUrlToBytes, downloadAttachment, fileToAttachment, filesToAttachments, getMediaType, pdfDataUrl, validateMediaFile,
+  UNDO_REMOVE_MS, removeWithUndo, attachmentFileName, dataUrlToBlob, findAttachment, restoreAttachment, withoutAttachment, dataUrlToBytes, downloadAttachment, fileToAttachment, filesToAttachments, getMediaType, pdfDataUrl, validateMediaFile,
 } from "./attachments";
 
 const file = (name: string, type: string, bytes = 4) => new File([new Uint8Array(bytes)], name, { type });
@@ -155,3 +155,131 @@ test("the full-screen viewer is clickable inside a modal Dialog, which turns poi
 test("the stored shape allows PDFs", () => {
   assert.ok(read("../../../shared/schema.ts").includes('type: "image" | "video" | "pdf"'));
 });
+
+// ── Removing an attachment, and taking it back ──────────────────────────────
+const att = (id: string, name = `${id}.png`): QuestAttachment => ({ id, type: "image", dataUrl: "data:image/png;base64,AA==", name, size: 4 });
+const ids = (list: readonly QuestAttachment[]) => list.map((a) => a.id);
+
+test("the Undo toast stays up for 8 seconds", () => {
+  assert.equal(UNDO_REMOVE_MS, 8000);
+});
+
+test("an attachment is found with its place in the list, and a missing one is not", () => {
+  const list = [att("a"), att("b"), att("c")];
+  assert.deepEqual(findAttachment(list, "b"), { attachment: list[1], index: 1 });
+  assert.equal(findAttachment(list, "x"), null);
+  assert.equal(findAttachment([], "a"), null);
+});
+
+test("removing one attachment leaves the others in order and does not change the list it was given", () => {
+  const list = [att("a"), att("b"), att("c")];
+  assert.deepEqual(ids(withoutAttachment(list, "b")), ["a", "c"]);
+  assert.deepEqual(ids(list), ["a", "b", "c"]);
+  assert.deepEqual(ids(withoutAttachment(list, "x")), ["a", "b", "c"], "an unknown id changes nothing");
+});
+
+test("Undo puts the file back where it was, whichever place that was", () => {
+  const list = [att("a"), att("b"), att("c")];
+  for (const [id, index] of [["a", 0], ["b", 1], ["c", 2]] as const) {
+    const removed = list[index];
+    assert.deepEqual(ids(restoreAttachment(withoutAttachment(list, id), removed, index)), ["a", "b", "c"], `${id} back at ${index}`);
+  }
+});
+
+test("Undo restores the whole file, not just its name", () => {
+  const removed = { ...att("b"), dataUrl: "data:image/png;base64,QUJDREVGRw==", size: 7 };
+  const back = restoreAttachment([att("a"), att("c")], removed, 1);
+  assert.deepEqual(back[1], removed);
+});
+
+test("Undo builds on what is there now: other attachments added or removed meanwhile are kept", () => {
+  const removed = att("b");
+  assert.deepEqual(ids(restoreAttachment([att("a"), att("c"), att("d")], removed, 1)), ["a", "b", "c", "d"], "one added since");
+  assert.deepEqual(ids(restoreAttachment([att("c")], removed, 1)), ["c", "b"], "the list got shorter: at the end");
+  assert.deepEqual(ids(restoreAttachment([att("a")], removed, 5)), ["a", "b"], "an index past the end goes last");
+  assert.deepEqual(ids(restoreAttachment([att("a")], removed, -3)), ["b", "a"], "a negative index goes first");
+  assert.deepEqual(ids(restoreAttachment([], removed, 0)), ["b"], "the last attachment can come back too");
+});
+
+test("Undo never adds the same attachment twice", () => {
+  const removed = att("b");
+  const once = restoreAttachment([att("a")], removed, 1);
+  assert.deepEqual(ids(restoreAttachment(once, removed, 1)), ["a", "b"], "pressing Undo again");
+  assert.deepEqual(ids(restoreAttachment([att("a"), att("b")], removed, 0)), ["a", "b"]);
+});
+
+test("the quest detail view asks before removing an attachment and offers Undo; other places are unchanged", () => {
+  const area = readFileSync(new URL("../components/attachment-area.tsx", import.meta.url), "utf8");
+  const detail = readFileSync(new URL("../components/task-detail-modal.tsx", import.meta.url), "utf8");
+  assert.ok(detail.includes("showHint={isEditingDetails}\n              confirmRemove\n"), "the quest detail view turns it on");
+  assert.ok(/confirmRemove = false/.test(area), "off by default, so the journal and the create form behave as before");
+  assert.ok(area.includes("if (confirmRemove) setPendingRemove(att);") && area.includes("else removeAttachment(att.id);"), "the X asks first only when it is on");
+  assert.ok(area.includes('<AlertDialogTitle className="font-serif text-yellow-100">Remove this attachment?</AlertDialogTitle>'));
+  assert.ok(area.includes("<AlertDialogCancel") && area.includes('data-testid="confirm-remove-attachment"'), "Cancel and Remove");
+  assert.ok(area.includes("onClick={() => { if (pendingRemove) confirmRemoval(pendingRemove.id); setPendingRemove(null); }}"), "nothing is removed until Remove is pressed");
+  assert.ok(area.includes("duration: UNDO_REMOVE_MS"), "the toast lasts 8 seconds");
+  assert.ok(area.includes("<ToastAction") && area.includes("removeWithUndo(id, {"), "removal goes through the remove-and-undo flow");
+  assert.ok(area.includes("getAttachments: () => latest.current.attachments"), "and builds on the latest list");
+});
+
+// A stand-in for the quest: holds the list, records every save, and keeps the Undo that the toast would carry.
+function fakeQuest(initial: QuestAttachment[]) {
+  const quest = {
+    list: initial, saves: [] as string[][], toasts: [] as { name: string; undo: () => void }[],
+    io: {
+      getAttachments: () => quest.list,
+      onChange: (next: QuestAttachment[]) => { quest.list = next; quest.saves.push(ids(next)); },
+      offerUndo: (removed: QuestAttachment, undo: () => void) => { quest.toasts.push({ name: removed.name, undo }); },
+    },
+  };
+  return quest;
+}
+
+test("removing saves the shorter list and shows one Undo; pressing Undo saves the file back in its place", () => {
+  const quest = fakeQuest([att("a", "plan.pdf"), att("b", "photo.png"), att("c", "clip.mp4")]);
+  assert.equal(removeWithUndo("b", quest.io), true);
+  assert.deepEqual(quest.saves, [["a", "c"]], "saved without it");
+  assert.deepEqual(quest.toasts.map((t) => t.name), ["photo.png"], "one toast, naming the file");
+  quest.toasts[0].undo();
+  assert.deepEqual(quest.saves, [["a", "c"], ["a", "b", "c"]], "saved again with it back");
+  assert.deepEqual(ids(quest.list), ["a", "b", "c"]);
+});
+
+test("Undo keeps what changed while the toast was up", () => {
+  const quest = fakeQuest([att("a"), att("b"), att("c")]);
+  removeWithUndo("b", quest.io);
+  quest.io.onChange([...quest.list, att("d")]); // another file attached meanwhile
+  quest.toasts[0].undo();
+  assert.deepEqual(ids(quest.list), ["a", "b", "c", "d"]);
+});
+
+test("removing the same attachment twice changes nothing the second time and offers no second Undo", () => {
+  const quest = fakeQuest([att("a"), att("b")]);
+  assert.equal(removeWithUndo("b", quest.io), true);
+  assert.equal(removeWithUndo("b", quest.io), false);
+  assert.equal(quest.saves.length, 1);
+  assert.equal(quest.toasts.length, 1);
+});
+
+test("an attachment that is not in the list is never removed and nothing is offered", () => {
+  const quest = fakeQuest([att("a")]);
+  assert.equal(removeWithUndo("zzz", quest.io), false);
+  assert.deepEqual(quest.saves, []);
+  assert.deepEqual(quest.toasts, []);
+});
+
+test("the only attachment can be removed and undone", () => {
+  const quest = fakeQuest([att("a", "only.png")]);
+  removeWithUndo("a", quest.io);
+  assert.deepEqual(ids(quest.list), []);
+  quest.toasts[0].undo();
+  assert.deepEqual(ids(quest.list), ["a"]);
+});
+
+test("tapping Undo on the toast does not close the quest detail view behind it", () => {
+  const detail = readFileSync(new URL("../components/task-detail-modal.tsx", import.meta.url), "utf8");
+  assert.ok(detail.includes('closest?.("[data-radix-toast-viewport]")) event.preventDefault()'), "a tap inside the toast area is not an outside tap");
+  const toasts = readFileSync(new URL("../components/ui/toast.tsx", import.meta.url), "utf8");
+  assert.ok(toasts.includes("pointer-events-auto"), "and the toast itself can be tapped while a dialog is open");
+});
+

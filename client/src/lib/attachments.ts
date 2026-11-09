@@ -164,3 +164,56 @@ export async function filesToAttachments(
 
   return { attachments, errors };
 }
+
+// ── Removing an attachment, and taking it back ──────────────────────────────
+
+/** How long the "Attachment removed" toast, with its Undo button, stays up. */
+export const UNDO_REMOVE_MS = 8000;
+
+/** The attachment with this id, and where it sits in the list; null when it is not there. */
+export function findAttachment(
+  attachments: readonly QuestAttachment[],
+  id: string,
+): { attachment: QuestAttachment; index: number } | null {
+  const index = attachments.findIndex((a) => a.id === id);
+  return index === -1 ? null : { attachment: attachments[index], index };
+}
+
+/** The list without the attachment with this id. */
+export const withoutAttachment = (attachments: readonly QuestAttachment[], id: string): QuestAttachment[] =>
+  attachments.filter((a) => a.id !== id);
+
+/**
+ * Puts a removed attachment back where it was (or at the end when the list has got shorter since). It is never added
+ * twice, so pressing Undo again, or Undo after the same file was re-attached, changes nothing.
+ */
+export function restoreAttachment(
+  attachments: readonly QuestAttachment[],
+  removed: QuestAttachment,
+  index: number,
+): QuestAttachment[] {
+  if (attachments.some((a) => a.id === removed.id)) return [...attachments];
+  const at = Math.max(0, Math.min(index, attachments.length));
+  return [...attachments.slice(0, at), removed, ...attachments.slice(at)];
+}
+
+export interface RemoveWithUndoIo {
+  /** The list as it is right now (read again when Undo is pressed, so it builds on what is there then). */
+  getAttachments: () => readonly QuestAttachment[];
+  onChange: (next: QuestAttachment[]) => void;
+  /** Shows the "removed" message with an Undo button that calls `undo`. */
+  offerUndo: (removed: QuestAttachment, undo: () => void) => void;
+}
+
+/**
+ * Removes the attachment and offers to take it back. Returns false, and changes nothing, when it is not in the list
+ * any more (for example a second press on the same Remove button).
+ */
+export function removeWithUndo(id: string, io: RemoveWithUndoIo): boolean {
+  const found = findAttachment(io.getAttachments(), id);
+  if (!found) return false;
+  const { attachment, index } = found;
+  io.onChange(withoutAttachment(io.getAttachments(), id));
+  io.offerUndo(attachment, () => io.onChange(restoreAttachment(io.getAttachments(), attachment, index)));
+  return true;
+}

@@ -677,6 +677,10 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
+        // A tap on a toast (such as Undo after removing an attachment) is not a tap outside the quest, so it stays open.
+        onInteractOutside={(event) => {
+          if ((event.target as HTMLElement | null)?.closest?.("[data-radix-toast-viewport]")) event.preventDefault();
+        }}
         style={getMobileStyle()}
         className={`${isMobile ? 'max-w-full w-full h-full max-h-full m-0 rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [&>button]:top-[max(0.75rem,env(safe-area-inset-top))] !animate-none' : 'max-w-2xl max-h-[90vh] p-6'} overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border-2 border-yellow-600/30 ${isMobile ? '' : 'data-[state=open]:animate-in data-[state=open]:zoom-in-75 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:zoom-out-75 data-[state=closed]:duration-200'}`}>
         {/* Inner touch wrapper for swipe-down-to-close on mobile */}
@@ -777,6 +781,7 @@ export function TaskDetailModal({ task, open, onOpenChange, onSeeQuestline }: Ta
               attachments={attachmentsValue}
               onChange={handleAttachmentsChange}
               showHint={isEditingDetails}
+              confirmRemove
             >
             {isEditingDetails ? (
               <Textarea

@@ -26,6 +26,13 @@ The PDF viewer shows at most the first 50 pages and says so for longer files; do
 - The full-screen viewer has a labelled **Download** button.
 - The file is saved under its own name. If the name had no extension, one is added from the file type (`scan` becomes `scan.pdf`).
 
+## Removing an attachment
+
+- In a quest's **detail view**, the X on a tile asks "Remove this attachment?" with the file's name. **Cancel** leaves it alone; **Remove** takes it off the quest and saves.
+- Right after, a toast says "Attachment removed" with an **Undo** button. It stays for **8 seconds**. Undo puts the file back in the same place in the list (and saves it again), even if you attached other files in the meantime. Pressing it again does nothing, and the quest stays open while you do.
+- Everywhere else the X works as before, with no question: the quest create form, the journal, Daily GEWS, Sparks, beliefs and weekly planning. It is switched on with the `confirmRemove` option of `AttachmentArea` (`client/src/components/attachment-area.tsx`).
+- The rules (find, remove, restore in place, never twice) are in `client/src/lib/attachments.ts`: `removeWithUndo`, `restoreAttachment`, `UNDO_REMOVE_MS`.
+
 ## How it works
 
 - Files are stored as base64 text inside the quest's `attachments` column (JSONB), so they sync everywhere with the quest and survive redeploys. There is no separate file storage.

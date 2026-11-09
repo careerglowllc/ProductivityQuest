@@ -3,7 +3,19 @@ import { createPortal } from "react-dom";
 import { Paperclip, X, Maximize2, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  UNDO_REMOVE_MS,
   downloadAttachment,
   filesToAttachments,
   formatBytes,
@@ -11,6 +23,8 @@ import {
   MAX_PDF_BYTES,
   MAX_VIDEO_BYTES,
   MEDIA_ACCEPT,
+  removeWithUndo,
+  withoutAttachment,
   type QuestAttachment,
 } from "@/lib/attachments";
 import { MAX_VIEWER_PAGES, openPdf, pdfPreview, renderPdfPage, type OpenPdf, type PdfPreview } from "@/lib/pdf-render";
@@ -87,6 +101,11 @@ interface AttachmentAreaProps {
   disabled?: boolean;
   /** Show the "Images ≤ 8MB, videos ≤ 25MB" helper line. Default true. */
   showHint?: boolean;
+  /**
+   * Ask "Are you sure?" before the X removes an attachment, and offer an Undo toast for 8 seconds afterwards.
+   * Off by default, so the other places that use this area (journal, drafts) behave as before.
+   */
+  confirmRemove?: boolean;
   className?: string;
 }
 
@@ -105,10 +124,17 @@ export function AttachmentArea({
   children,
   disabled = false,
   showHint = true,
+  confirmRemove = false,
   className,
 }: AttachmentAreaProps) {
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  // The attachment waiting for "Are you sure?" to be answered (null = no question open).
+  const [pendingRemove, setPendingRemove] = useState<QuestAttachment | null>(null);
+  // The latest list and change handler, so an Undo pressed several seconds later builds on what is there then
+  // and not on the list as it was when the toast was made.
+  const latest = useRef({ attachments, onChange });
+  latest.current = { attachments, onChange };
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   // The attachment currently shown full-screen in the lightbox (null = closed).
@@ -194,9 +220,48 @@ export function AttachmentArea({
 
   const removeAttachment = useCallback(
     (id: string) => {
-      onChange(attachments.filter((a) => a.id !== id));
+      onChange(withoutAttachment(attachments, id));
     },
     [attachments, onChange],
+  );
+
+  // Removes it for real, then offers to take it back for a few seconds.
+  const confirmRemoval = useCallback(
+    (id: string) => {
+      removeWithUndo(id, {
+        getAttachments: () => latest.current.attachments,
+        onChange: (next) => latest.current.onChange(next),
+        offerUndo: (attachment, undo) => {
+          const { id: toastId } = toast({
+            title: "Attachment removed",
+            description: attachment.name,
+            duration: UNDO_REMOVE_MS,
+            action: (
+              <ToastAction
+                altText={`Undo removing ${attachment.name}`}
+                onClick={() => {
+                  undo();
+                  dismiss(toastId);
+                  toast({ title: "Attachment restored", description: attachment.name, duration: 2500 });
+                }}
+              >
+                Undo
+              </ToastAction>
+            ),
+          });
+        },
+      });
+    },
+    [toast, dismiss],
+  );
+
+  // The X: ask first when this area is set up to, otherwise remove straight away as before.
+  const requestRemoval = useCallback(
+    (att: QuestAttachment) => {
+      if (confirmRemove) setPendingRemove(att);
+      else removeAttachment(att.id);
+    },
+    [confirmRemove, removeAttachment],
   );
 
   // While the lightbox is open: close on Escape and lock body scroll.
@@ -335,7 +400,7 @@ export function AttachmentArea({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    removeAttachment(att.id);
+                    requestRemoval(att);
                   }}
                   title="Remove attachment"
                   aria-label={`Remove ${att.name}`}
@@ -352,6 +417,31 @@ export function AttachmentArea({
             </figure>
           ))}
         </div>
+      )}
+
+      {/* "Are you sure?" before an attachment is removed (only where confirmRemove is on) */}
+      {confirmRemove && (
+        <AlertDialog open={pendingRemove !== null} onOpenChange={(open) => { if (!open) setPendingRemove(null); }}>
+          <AlertDialogContent data-testid="remove-attachment-dialog" className="max-w-sm border-2 border-yellow-600/30 bg-slate-900 text-yellow-100">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-serif text-yellow-100">Remove this attachment?</AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-400">
+                <span className="break-all font-medium text-yellow-200">{pendingRemove?.name}</span> will be taken off this quest.
+                You can undo it for {UNDO_REMOVE_MS / 1000} seconds afterwards.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="border-slate-600 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                data-testid="confirm-remove-attachment"
+                onClick={() => { if (pendingRemove) confirmRemoval(pendingRemove.id); setPendingRemove(null); }}
+                className="bg-red-600 text-white hover:bg-red-500"
+              >
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* Full-screen lightbox — portaled to <body> so it overlays everything.

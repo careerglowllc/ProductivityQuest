@@ -10,6 +10,7 @@ How it works: [ATTACHMENTS.md](ATTACHMENTS.md). Run `npm run test:unit` for the 
 | Reading files | `client/src/lib/attachments.test.ts` | a PDF keeps its name and size and gets a `application/pdf` data URL; a mixed drop adds the good files and reports the rest; stored files turn back into the exact bytes |
 | Downloading | `client/src/lib/attachments.test.ts` | for a PDF, an image and a video: saved under its own name, through a temporary blob link that is removed from the page and released later, not before the browser starts saving |
 | File names | `client/src/lib/attachments.test.ts` | extension added when missing (`scan` to `scan.pdf`, `IMG_1` to `IMG_1.jpg`), characters a file name cannot hold replaced, empty name handled |
+| Removing and Undo | `client/src/lib/attachments.test.ts` | the Undo toast lasts 8 seconds; an attachment is found with its place; removing keeps the others in order and does not change the list given; Undo puts the file back in its place (first, middle, last, only one) with its whole content; it keeps files added or removed meanwhile; it never adds the same file twice; removing twice or an unknown id changes nothing and offers no Undo; the quest detail view turns the question on and the other places do not; a tap on the toast does not close the quest |
 | PDF drawing | `client/src/lib/pdf-render.test.ts` | page scaling to the shown width (never over 3 times), bad widths safe, PDF.js loaded only on demand from the compatible build, previews on white and remembered, the 50-page viewer cap |
 | Screen wiring | `client/src/lib/attachments.test.ts` | PDF tile uses the preview, the viewer uses PDF.js and not the browser's own viewer, every tile has Download (also when read-only), the viewer has a labelled Download, the long-PDF notice and unreadable-PDF message exist |
 
@@ -56,8 +57,14 @@ Rename a text file to `notes.pdf` and attach it. **Expect:** the tile shows a pl
 ### AT-13: Several PDFs and the page's speed
 Attach three PDFs to one quest. **Expect:** all three previews appear without freezing the page. In the Network tab, PDF.js (`pdf-…js` and the `pdf.worker…` file) loads only after the first PDF is shown, not on page load.
 
-### AT-14: Remove
-Press the X on a PDF tile. **Expect:** it is removed and saved; the other tiles and their downloads are unaffected.
+### AT-14: Remove (quest detail view)
+Open a quest with a PDF, an image and a video. Press the X on the PDF tile. **Expect:** a dialog "Remove this attachment?" names the file. Press **Cancel**: nothing changes. Press the X again and **Remove**: the tile goes, it is saved (reload to check), and a toast "Attachment removed" shows the file's name with an **Undo** button; the other tiles and their downloads are unaffected.
+
+### AT-14b: Undo
+Right after removing, press **Undo** within 8 seconds. **Expect:** the file is back in the same place, with its preview and download working, a short "Attachment restored" toast shows, and it is saved again (reload to check). The quest detail view stays open. Remove another and wait: **Expect:** the toast disappears after 8 seconds and the Undo is gone. Remove the first of three, attach a new file, then press Undo: **Expect:** the removed file returns to the first place and the new one stays. Remove the only attachment and undo: it comes back.
+
+### AT-14c: No question elsewhere
+In the quest create form, a journal entry and a belief, press the X on an attachment. **Expect:** it is removed at once, with no question and no Undo toast, as before.
 
 ### AT-15: Other places
 Attach a PDF in a journal entry and in a belief. **Expect:** the same preview, viewer and download.
