@@ -1561,13 +1561,6 @@ export default function Finances() {
         notes: "Instagram verified checkmark — monthly subscription for MailWisp (paid on personal CC, categorized under business)",
       }));
     }
-    if (!financialItems.find(i => i.item === "Meta Verified Instagram Badge (WorkBetterClub)")) {
-      tasks.push(create({
-        item: "Meta Verified Instagram Badge (WorkBetterClub)", category: "Business", tags: ["Business", "Subscription"],
-        monthlyCost: 1499, recurType: "Monthly",
-        notes: "Meta Verified badge — monthly subscription for WorkBetterClub (business expense, currently paid on personal CC)",
-      }));
-    }
     const hushed = financialItems.find(i => i.item.toLowerCase().includes("hushed"));
     if (hushed) tasks.push(remove(hushed.id));
 
@@ -1576,6 +1569,10 @@ export default function Finances() {
 
     const seedance = financialItems.find(i => i.item.toLowerCase().includes("seedance"));
     if (seedance) tasks.push(remove(seedance.id));
+
+    // Cancelled (Nov 2026). It used to be added here, so remove a copy left on any account.
+    const workBetterClubBadge = financialItems.find(i => i.item === "Meta Verified Instagram Badge (WorkBetterClub)");
+    if (workBetterClubBadge) tasks.push(remove(workBetterClubBadge.id));
 
     if (tasks.length > 0) {
       Promise.all(tasks).then((results) => {
