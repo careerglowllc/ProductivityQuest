@@ -6,12 +6,12 @@ import { readFileSync } from "node:fs";
 const { ITEM, MONTHLY_CENTS } = createRequire(import.meta.url)("../update-austin-housing-cost.cjs") as { ITEM: string; MONTHLY_CENTS: number };
 const page = readFileSync(new URL("../client/src/pages/finances.tsx", import.meta.url), "utf8");
 
-test("the Tentative Austin Housing Cost is $2,100 a month, stored in cents", () => {
+test("the Tentative Austin Housing Cost is $1,800 a month, stored in cents", () => {
   assert.equal(ITEM, "Tentative Austin Housing Cost");
-  assert.equal(MONTHLY_CENTS, 210000);
+  assert.equal(MONTHLY_CENTS, 180000);
 });
 
-test("the page's starting value for that line matches, so a deleted line comes back at $2,100 and not the old amount", () => {
+test("the page's starting value for that line matches, so a deleted line comes back at $1,800 and not the old amount", () => {
   const seed = page.slice(page.indexOf(`item: "${ITEM}"`), page.indexOf("notes:", page.indexOf(`item: "${ITEM}"`)));
   assert.ok(seed.includes(`monthlyCost: ${MONTHLY_CENTS}`));
   assert.ok(!page.includes("monthlyCost: 140000"));

@@ -1,10 +1,10 @@
-// Sets the Tentative Austin Housing Cost placeholder to $2,100/mo for alexbaer321@gmail.com
+// Sets the Tentative Austin Housing Cost placeholder to $1,800/mo (billed monthly) for alexbaer321@gmail.com
 // Usage: node -r dotenv/config update-austin-housing-cost.cjs
 
 const { neon } = require('@neondatabase/serverless');
 
 const ITEM = 'Tentative Austin Housing Cost';
-const MONTHLY_CENTS = 210000;
+const MONTHLY_CENTS = 180000;
 
 async function run() {
   const sql = neon(process.env.DATABASE_URL);
