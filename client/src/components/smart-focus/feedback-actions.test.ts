@@ -34,14 +34,15 @@ test("the explanation prompt follows the choice", () => {
   assert.match(feedbackPlaceholder("exclude", true), /come off Smart Focus/);
   assert.match(feedbackPlaceholder("higher", true), /rank higher/);
   assert.match(feedbackPlaceholder("lower", true), /rank lower/);
-  assert.equal(feedbackLabel("higher"), "Why rank it higher");
-  assert.equal(feedbackLabel("lower"), "Why rank it lower");
+  assert.equal(feedbackLabel("higher"), "Why rank it higher (optional)");
+  assert.equal(feedbackLabel("lower"), "Why rank it lower (optional)");
   assert.match(feedbackPlaceholder("keep", true), /right to include/);
   assert.match(feedbackPlaceholder("keep", false), /stays out/);
   assert.match(feedbackPlaceholder("keep", undefined), /right where it is/);
   assert.match(feedbackPlaceholder(null, undefined), /For example/);
   assert.equal(feedbackLabel(null), "Your preference");
-  assert.equal(feedbackLabel("include"), "Why move it in");
+  assert.equal(feedbackLabel("include"), "Why move it in (optional)");
+  assert.equal(feedbackLabel("exclude"), "Why take it off (optional)");
 });
 
 test("the feedback dialog shows the choices under the explanation, highlights the selected one and has a Submit button", () => {
@@ -51,5 +52,7 @@ test("the feedback dialog shows the choices under the explanation, highlights th
   assert.ok(dialog.includes("data-focus-action={option.action}"));
   assert.ok(dialog.includes("setAction(selected ? null : option.action)"), "clicking again unselects");
   assert.ok(dialog.includes('"Submit"'));
+  assert.ok(dialog.includes("(action !== null || text.trim().length >= 1)"), "a reason is only required when no choice is picked");
+  assert.ok(dialog.includes("required={action === null}"));
   assert.match(dialog, /feedback\.mutate\(\{ taskId, text: text\.trim\(\), \.\.\.\(action/);
 });

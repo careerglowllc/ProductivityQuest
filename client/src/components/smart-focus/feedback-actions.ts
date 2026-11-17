@@ -30,5 +30,6 @@ export function feedbackPlaceholder(action: FocusAction | null, inFocus: boolean
 }
 
 export function feedbackLabel(action: FocusAction | null): string {
-  return action === "include" ? "Why move it in" : action === "exclude" ? "Why take it off" : action === "higher" ? "Why rank it higher" : action === "lower" ? "Why rank it lower" : action === "keep" ? "Why keep it here" : "Your preference";
+  const label = action === "include" ? "Why move it in" : action === "exclude" ? "Why take it off" : action === "higher" ? "Why rank it higher" : action === "lower" ? "Why rank it lower" : action === "keep" ? "Why keep it here" : "Your preference";
+  return action ? `${label} (optional)` : label;
 }

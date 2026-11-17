@@ -152,6 +152,16 @@ test("feedback carries an action and where the quest was; actions change the ran
 
     const plain = await (await post("/feedback", { taskId: 3, text: "Just context." })).json();
     assert.equal(plain.preference.action, undefined);
+
+    // The reason is optional when an action is chosen, but a plain preference still needs words.
+    assert.equal((await post("/feedback", { taskId: 3, text: "  ", action: "include", inFocus: false })).status, 201);
+    const bare = await (await post("/feedback", { taskId: 3, text: "", action: "exclude", inFocus: true })).json();
+    assert.equal(bare.preference.action, "exclude");
+    assert.equal(bare.preference.text, "Take off Smart Focus (no reason given)");
+    ranked = await (await post("/rank", {})).json();
+    assert.ok(!ranked.ids.includes(3), "taken off without a reason");
+    assert.equal((await post("/feedback", { taskId: 3, text: "" })).status, 400);
+    assert.equal((await post("/feedback", { taskId: 3 })).status, 400);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
 

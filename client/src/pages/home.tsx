@@ -231,12 +231,18 @@ export default function Home() {
     () => buildFocusFingerprint((user as { id?: string | number } | undefined)?.id, focusDay, tasks as any[]),
     [tasks, user, focusDay],
   );
+  // Read on every view, not just Smart Focus, so quests already in it can be marked wherever they show.
   const focusRanking = useFocusRanking(
-    activeFilter === "smart" && !!user && !tasksLoading && smartView === "on",
+    !!user && !tasksLoading && smartView === "on",
     focusFingerprint,
     focusState.data?.enabled === true,
   );
   const fullFocus = selectFocus(tasks as any[], focusRanking.data);
+  // Marks quests that Smart Focus lists; the Smart Focus view itself lists only those, so it needs no marks.
+  const inSmartFocus = useMemo(
+    () => activeFilter === "smart" || smartView !== "on" ? new Set<number>() : new Set<number>(focusRanking.data?.ids ?? []),
+    [activeFilter, smartView, focusRanking.data],
+  );
   const focusForTasks = (candidates: any[]) => {
     if (smartView !== "on") return { ...fullFocus, groups: [], shown: 0, total: 0 };
     // Preserve the original search-before-cap bands while no server response exists.
@@ -3199,6 +3205,7 @@ export default function Home() {
                   <TaskCard
                     key={task.id}
                     task={task}
+                    inSmartFocus={inSmartFocus.has(task.id)}
                     onSelect={handleTaskSelect}
                     isSelected={selectedTasks.has(task.id)}
                     questlineName={questlinePrefixMap.get(task.id)}
@@ -3241,6 +3248,7 @@ export default function Home() {
                             key={task.id}
                             task={task}
                             isCompact={viewType === "grid"}
+                            inSmartFocus={inSmartFocus.has(task.id)}
                             onSelect={handleTaskSelect}
                             isSelected={selectedTasks.has(task.id)}
                             questlineName={questlinePrefixMap.get(task.id)}

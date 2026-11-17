@@ -3,6 +3,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { eligibleFocus, protectedFocus, focusSignals, focusWorkload, rankFocus, FOCUS_ACTIONS, type FocusAction, type FocusMemory, type FocusQuest, type FocusAdvice, type FocusRanking, type FocusWorkload } from "../shared/smart-focus-ai";
 
+const ACTION_NOTES: Record<FocusAction, string> = {
+  include: "Move into Smart Focus", exclude: "Take off Smart Focus", keep: "Keep it where it is",
+  higher: "Rank higher", lower: "Rank lower",
+};
+
 export interface FocusStore {
   tasks(id: string): Promise<FocusQuest[]>;
   timezone(id: string): Promise<string>;
@@ -46,9 +51,12 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
   }));
   app.post("/api/smart-focus/feedback", auth, handler(async (req, res) => {
     const input = z.object({
-      taskId: z.number().int().positive(), text: z.string().trim().min(1).max(3000),
+      taskId: z.number().int().positive(), text: z.string().trim().max(3000),
       action: z.enum(FOCUS_ACTIONS as [FocusAction, ...FocusAction[]]).optional(), inFocus: z.boolean().optional(),
-    }).parse(req.body);
+    }).refine(value => value.text.length > 0 || value.action !== undefined, { path: ["text"], message: "Write a preference, or choose what should happen to this quest." })
+      .parse(req.body);
+    // The reason is optional when an action is chosen; a short note stands in so the saved feedback still reads clearly.
+    const text = input.text || `${ACTION_NOTES[input.action!]} (no reason given)`;
     const id = req.session.userId;
     const quests = await store.tasks(id);
     const task = quests.find(q => q.id === input.taskId);
@@ -60,11 +68,11 @@ export function registerSmartFocus(app: Express, auth: RequestHandler, store: Fo
       const cached = cache.get(id)?.result;
       inFocus = cached ? cached.ids.includes(task.id) : rankFocus(quests, day, await store.read(id)).ids.includes(task.id);
     }
-    const preference = { id: randomUUID(), taskId: task.id, taskTitle: task.title, text: input.text, createdAt: clock().toISOString(),
+    const preference = { id: randomUUID(), taskId: task.id, taskTitle: task.title, text, createdAt: clock().toISOString(),
       ...(input.action ? { action: input.action, inFocus } : {}) };
     try {
       await store.change(id, m => {
-        if (m.preferences.length >= 100 || m.preferences.reduce((sum, p) => sum + p.text.length, 0) + input.text.length > 30000)
+        if (m.preferences.length >= 100 || m.preferences.reduce((sum, p) => sum + p.text.length, 0) + text.length > 30000)
           throw new Error("Preference capacity reached");
         m.preferences.push(preference);
       });

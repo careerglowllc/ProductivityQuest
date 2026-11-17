@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/contexts/theme-context";
 import { TaskDetailModal } from "./task-detail-modal";
 import { TaskFocusMenu } from "./smart-focus/task-focus-menu";
+import { FocusBadge } from "./smart-focus/focus-badge";
 import { QuestTypeIcon } from "./quest-type-chooser";
 import { canExpandTask, compactDueDate, hasBadgeRow, taskDescription } from "./task-card-expand";
 import { dayStart } from "@shared/quest-schedule";
@@ -82,11 +83,12 @@ interface TaskCardProps {
   isSelected: boolean;
   isCompact?: boolean;
   focusReason?: string;
+  inSmartFocus?: boolean;
   questlineName?: string | null;
   onQuestlineNameClick?: (questlineId: number, taskId: number) => void;
 }
 
-export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusReason, questlineName, onQuestlineNameClick }: TaskCardProps) {
+export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusReason, inSmartFocus = false, questlineName, onQuestlineNameClick }: TaskCardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
   // Cards start collapsed: a few lines of description, and the arrow on the right shows the rest.
@@ -299,6 +301,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                     >{questlineName}: </span>
                   )}
                   {task.title}
+                  {inSmartFocus && !task.completed && <FocusBadge />}
                 </h3>
                 <TaskFocusMenu taskId={task.id} taskTitle={task.title} completed={task.completed} />
               </div>
@@ -459,6 +462,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                     >{questlineName}: </span>
                   )}
                   {task.title}
+                  {inSmartFocus && !task.completed && <FocusBadge />}
                 </h3>
                 
                 {/* Meta row: importance dot · duration · date · recurrence · skill icons */}
@@ -612,6 +616,7 @@ export function TaskCard({ task, onSelect, isSelected, isCompact = false, focusR
                 >{questlineName}: </span>
               )}
               {task.title}
+              {inSmartFocus && !task.completed && <FocusBadge />}
             </h3>
             <div className="flex flex-shrink-0 items-center gap-0.5">
               <Badge

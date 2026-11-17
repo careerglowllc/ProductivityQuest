@@ -16,13 +16,14 @@ export function FocusFeedbackDialog({ taskId, taskTitle, open, onOpenChange }: {
   const inFocus = useFocusPlacement(taskId);
   const { feedback } = useFocusActions();
   useFocusHold(open);
-  const valid = text.trim().length >= 1 && text.length <= 3000;
+  // A reason is optional once you pick what should happen to the quest; without a choice it is the whole preference.
+  const valid = text.length <= 3000 && (action !== null || text.trim().length >= 1);
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!feedback.isPending) { onOpenChange(next); if (!next) { setText(""); setAction(null); feedback.reset(); } } }}>
       <DialogContent className="sf-dialog sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Help Smart Focus understand you</DialogTitle>
-          <DialogDescription className="sf-muted">Feedback for “{taskTitle}”. Choose what should happen to it, then say why, so Smart Focus can learn from it.</DialogDescription>
+          <DialogDescription className="sf-muted">Feedback for “{taskTitle}”. Choose what should happen to it, and add why if you like, so Smart Focus can learn from it.</DialogDescription>
         </DialogHeader>
         {feedback.isSuccess ? (
           <div className="space-y-4" role="status">
@@ -32,8 +33,8 @@ export function FocusFeedbackDialog({ taskId, taskTitle, open, onOpenChange }: {
         ) : (
           <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (valid) feedback.mutate({ taskId, text: text.trim(), ...(action ? { action, ...(inFocus !== undefined ? { inFocus } : {}) } : {}) }); }}>
             <label htmlFor={`focus-feedback-${taskId}`} className="text-sm font-medium">{feedbackLabel(action)}</label>
-            <Textarea id={`focus-feedback-${taskId}`} className="sf-textarea min-h-32" value={text} maxLength={3000} required disabled={feedback.isPending} onChange={(event) => setText(event.target.value)} placeholder={feedbackPlaceholder(action, inFocus)} />
-            <div className="flex justify-between gap-3 text-xs sf-muted"><span>1–3,000 characters. Stored privately on your account.</span><span>{text.length}/3000</span></div>
+            <Textarea id={`focus-feedback-${taskId}`} className="sf-textarea min-h-32" value={text} maxLength={3000} required={action === null} disabled={feedback.isPending} onChange={(event) => setText(event.target.value)} placeholder={feedbackPlaceholder(action, inFocus)} />
+            <div className="flex justify-between gap-3 text-xs sf-muted"><span>{action ? "Optional, up to 3,000 characters." : "1–3,000 characters."} Stored privately on your account.</span><span>{text.length}/3000</span></div>
             <div role="group" aria-label="What should happen to this quest" data-testid="focus-actions" className="space-y-2">
               {inFocus !== undefined && <p className="text-xs sf-muted">Right now this quest is {inFocus ? "in" : "not in"} your Smart Focus list.</p>}
               <div className="flex flex-wrap gap-2">
@@ -49,7 +50,7 @@ export function FocusFeedbackDialog({ taskId, taskTitle, open, onOpenChange }: {
                   );
                 })}
               </div>
-              <p className="text-xs sf-muted">{action ? "Your explanation will teach Smart Focus why. Click the choice again to unselect it." : "Optional: pick one, or just write a preference."}</p>
+              <p className="text-xs sf-muted">{action ? "Adding why is optional, but it teaches Smart Focus. Click the choice again to unselect it." : "Optional: pick one, or just write a preference."}</p>
             </div>
             <p className="text-xs sf-muted">If Smart Focus is enabled, relevant quest content and your preferences are sent to OpenAI. You can save feedback while it is off.</p>
             {feedback.isError && <p role="alert" className="sf-error">{focusError(feedback.error)} You can retry without losing your text.</p>}
